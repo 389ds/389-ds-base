@@ -17,6 +17,8 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class ReplConfig extends React.Component {
     constructor(props) {
         super(props);
@@ -132,7 +134,7 @@ export class ReplConfig extends React.Component {
             if (ridNum < 1 || ridNum >= 65535) {
                 this.props.addNotification(
                     "error",
-                    "A Supplier replica requires a unique numerical identifier.  Please enter an ID between 1 and 65534"
+                    _("A Supplier replica requires a unique numerical identifier.  Please enter an ID between 1 and 65534")
                 );
                 return;
             }
@@ -148,7 +150,7 @@ export class ReplConfig extends React.Component {
                     this.props.reload();
                     this.props.addNotification(
                         "success",
-                        `Successfully ${action}d replica to a ${this.state.newRole}`
+                        cockpit.format(_("Successfully $0d replica to a $1"), action, this.state.newRole)
                     );
                     this.setState({
                         roleChangeSpinning: false,
@@ -160,7 +162,7 @@ export class ReplConfig extends React.Component {
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        `Failed to ${action} replica - ${errMsg.desc}`
+                        cockpit.format(_("Failed to $0 replica - $1"), action, errMsg.desc)
                     );
                     this.setState({
                         roleChangeSpinning: false,
@@ -206,20 +208,20 @@ export class ReplConfig extends React.Component {
         if (!valid_dn(this.state.manager)) {
             this.props.addNotification(
                 "error",
-                `Invalid DN for the Replication Manager: ${this.state.manager}`
+                cockpit.format(_("Invalid DN for the Replication Manager: $0"), this.state.manager)
             );
             return;
         }
 
         if (this.state.manager_passwd === "" || this.state.manager_passwd_confirm === "") {
             this.props.addNotification(
-                "error", "You must provide a password for the Replication Manager"
+                "error", _("You must provide a password for the Replication Manager")
             );
             return;
         }
         if (this.state.manager_passwd !== this.state.manager_passwd_confirm) {
             this.props.addNotification(
-                "error", "Passwords do not match"
+                "error", _("Passwords do not match")
             );
             return;
         }
@@ -239,9 +241,9 @@ export class ReplConfig extends React.Component {
             promptArg: "", // repl manager auto prompts when passwd is missing
             passwd: this.state.manager_passwd,
             addNotification: this.props.addNotification,
-            msg: "Replication Manager",
-            success_msg: "Successfully added Replication Manager",
-            error_msg: "Failure adding Replication Manager",
+            msg: _("Replication Manager"),
+            success_msg: _("Successfully added Replication Manager"),
+            error_msg: _("Failure adding Replication Manager"),
             state_callback: () => {
                 this.setState({
                     addManagerSpinning: false,
@@ -251,7 +253,7 @@ export class ReplConfig extends React.Component {
             reload_func: this.props.reloadConfig,
             reload_arg: this.props.suffix,
             funcName: "addManager",
-            funcDesc: "Adding Replication Manager"
+            funcDesc: _("Adding Replication Manager")
         };
         callCmdStreamPassword(config);
     }
@@ -399,7 +401,7 @@ export class ReplConfig extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully removed Replication Manager`
+                        _("Successfully removed Replication Manager")
                     );
                 })
                 .fail(err => {
@@ -407,7 +409,7 @@ export class ReplConfig extends React.Component {
                     this.props.reloadConfig(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failure removing Replication Manager - ${errMsg.desc}`
+                        cockpit.format(_("Failure removing Replication Manager - $0"), errMsg.desc)
                     );
                     this.setState({
                         modalSpinning: false
@@ -462,7 +464,7 @@ export class ReplConfig extends React.Component {
                 saving: true
             });
             log_cmd("handleSaveConfig", "Applying replication changes", cmd);
-            const msg = "Successfully updated replication configuration.";
+            const msg = _("Successfully updated replication configuration.");
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
@@ -487,7 +489,7 @@ export class ReplConfig extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error updating replication configuration - ${msg}`
+                            cockpit.format(_("Error updating replication configuration - $0"), msg)
                         );
                     });
         }
@@ -496,11 +498,11 @@ export class ReplConfig extends React.Component {
     render() {
         let roleButton = "";
         const manager_rows = [];
-        let saveBtnName = "Save Configuration";
+        let saveBtnName = _("Save Configuration");
         const extraPrimaryProps = {};
         if (this.state.saving) {
-            saveBtnName = "Saving Config ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving Config ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
         for (const row of this.props.data.nsds5replicabinddn) {
             manager_rows.push(row);
@@ -511,10 +513,10 @@ export class ReplConfig extends React.Component {
                 <Button
                     variant="primary"
                     onClick={this.handleShowPromoteDemoteModal}
-                    title="Demote this Supplier replica to a Hub or Consumer"
+                    title={_("Demote this Supplier replica to a Hub or Consumer")}
                     className="ds-left-margin"
                 >
-                    Change Role
+                    {_("Change Role")}
                 </Button>
             );
         } else if (this.props.role === "Hub") {
@@ -522,10 +524,10 @@ export class ReplConfig extends React.Component {
                 <Button
                     variant="primary"
                     onClick={this.handleShowPromoteDemoteModal}
-                    title="Promote or Demote this Hub replica to a Supplier or Consumer"
+                    title={_("Promote or Demote this Hub replica to a Supplier or Consumer")}
                     className="ds-left-margin"
                 >
-                    Change Role
+                    {_("Change Role")}
                 </Button>
             );
         } else {
@@ -534,10 +536,10 @@ export class ReplConfig extends React.Component {
                 <Button
                     variant="primary"
                     onClick={this.handleShowPromoteDemoteModal}
-                    title="Promote this Consumer replica to a Supplier or Hub"
+                    title={_("Promote this Consumer replica to a Supplier or Hub")}
                     className="ds-left-margin"
                 >
-                    Change Role
+                    {_("Change Role")}
                 </Button>
             );
         }
@@ -548,7 +550,7 @@ export class ReplConfig extends React.Component {
                     <Form isHorizontal autoComplete="off">
                         <Grid>
                             <GridItem className="ds-label" span={2}>
-                                Replica Role
+                                {_("Replica Role")}
                             </GridItem>
                             <GridItem span={2}>
                                 <TextInput
@@ -566,7 +568,7 @@ export class ReplConfig extends React.Component {
                         </Grid>
                         <Grid>
                             <GridItem className="ds-label" span={2}>
-                                Replica ID
+                                {_("Replica ID")}
                             </GridItem>
                             <GridItem span={2}>
                                 <TextInput
@@ -581,7 +583,7 @@ export class ReplConfig extends React.Component {
                         </Grid>
                         <Grid>
                             <GridItem className="ds-label" span={12}>
-                                Replication Managers
+                                {_("Replication Managers")}
                             </GridItem>
                             <GridItem className="ds-margin-top" span={9}>
                                 <ManagerTable
@@ -596,22 +598,22 @@ export class ReplConfig extends React.Component {
                                     variant="secondary"
                                     onClick={this.handleShowAddManager}
                                 >
-                                    Add Replication Manager
+                                    {_("Add Replication Manager")}
                                 </Button>
                             </GridItem>
                         </Grid>
                         <ExpandableSection
-                            toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                            toggleText={this.state.isExpanded ? _("Hide Advanced Settings") : _("Show Advanced Settings")}
                             onToggle={this.handleToggle}
                             isExpanded={this.state.isExpanded}
                         >
                             <div className="ds-margin-top ds-margin-left ds-margin-bottom-md">
                                 <Grid
-                                    title="The DN of the replication manager group"
+                                    title={_("The DN of the replication manager group")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Bind DN Group
+                                        {_("Bind DN Group")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -628,11 +630,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="The interval to check for any changes in the group memebrship specified in the Bind DN Group and automatically rebuilds the list for the replication managers accordingly.  (nsds5replicabinddngroupcheckinterval)."
+                                    title={_("The interval to check for any changes in the group memebrship specified in the Bind DN Group and automatically rebuilds the list for the replication managers accordingly.  (nsds5replicabinddngroupcheckinterval).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Bind DN Group Check Interval
+                                        {_("Bind DN Group Check Interval")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -651,11 +653,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="This controls the maximum age of deleted entries (tombstone entries), and entry state information.  (nsds5replicapurgedelay)."
+                                    title={_("This controls the maximum age of deleted entries (tombstone entries), and entry state information.  (nsds5replicapurgedelay).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Purge Delay
+                                        {_("Purge Delay")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -674,11 +676,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="This attribute specifies the time interval in seconds between purge operation cycles.  (nsds5replicatombstonepurgeinterval)."
+                                    title={_("This attribute specifies the time interval in seconds between purge operation cycles.  (nsds5replicatombstonepurgeinterval).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Tombstone Purge Interval
+                                        {_("Tombstone Purge Interval")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -697,11 +699,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="A time limit (in seconds) that tells a replication session to yield if other replicas are trying to acquire this one (nsds5replicareleasetimeout)."
+                                    title={_("A time limit (in seconds) that tells a replication session to yield if other replicas are trying to acquire this one (nsds5replicareleasetimeout).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Replica Release Timeout
+                                        {_("Replica Release Timeout")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -720,11 +722,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="A timeout on how long to wait before stopping a replication session when the server is being stopped, replication is being disabled, or when removing a replication agreement. (nsds5replicaprotocoltimeout)."
+                                    title={_("A timeout on how long to wait before stopping a replication session when the server is being stopped, replication is being disabled, or when removing a replication agreement. (nsds5replicaprotocoltimeout).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Replication Timeout
+                                        {_("Replication Timeout")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -743,11 +745,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="This is the minimum amount of time in seconds that a replication session will go into a backoff state  (nsds5replicabackoffmin)."
+                                    title={_("This is the minimum amount of time in seconds that a replication session will go into a backoff state  (nsds5replicabackoffmin).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Back Off Minimum
+                                        {_("Back Off Minimum")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -766,11 +768,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="This is the maximum amount of time in seconds that a replication session will go into a backoff state  (nsds5replicabackoffmax)."
+                                    title={_("This is the maximum amount of time in seconds that a replication session will go into a backoff state  (nsds5replicabackoffmax).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Back Off Maximum
+                                        {_("Back Off Maximum")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -789,11 +791,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="The interval in seconds that the server will apply an internal update to get the RUV from getting stale. (nsds5replicakeepaliveupdateinterval)."
+                                    title={_("The interval in seconds that the server will apply an internal update to get the RUV from getting stale. (nsds5replicakeepaliveupdateinterval).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Refresh RUV Interval
+                                        {_("Refresh RUV Interval")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -812,11 +814,11 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Enables faster tombstone purging (nsds5replicaprecisetombstonepurging)."
+                                    title={_("Enables faster tombstone purging (nsds5replicaprecisetombstonepurging).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Fast Tombstone Purging
+                                        {_("Fast Tombstone Purging")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <Checkbox
@@ -835,7 +837,7 @@ export class ReplConfig extends React.Component {
                                             onClick={this.handleSaveConfig}
                                             isDisabled={this.state.saveBtnDisabled}
                                             isLoading={this.state.saving}
-                                            spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                            spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                                             {...extraPrimaryProps}
                                         >
                                             {saveBtnName}
@@ -853,10 +855,10 @@ export class ReplConfig extends React.Component {
                         spinning={this.state.modalSpinning}
                         item={this.state.manager}
                         checked={this.state.modalChecked}
-                        mTitle="Remove Replication Manager"
-                        mMsg="Are you sure you want to remove this Replication Manager?"
-                        mSpinningMsg="Removing Manager ..."
-                        mBtnName="Remove Manager"
+                        mTitle={_("Remove Replication Manager")}
+                        mMsg={_("Are you sure you want to remove this Replication Manager?")}
+                        mSpinningMsg={_("Removing Manager ...")}
+                        mBtnName={_("Remove Manager")}
                     />
                     <AddManagerModal
                         showModal={this.state.showAddManagerModal}

@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Grid,
@@ -19,6 +20,8 @@ import {
 } from '@patternfly/react-table';
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class PluginTable extends React.Component {
     constructor(props) {
         super(props);
@@ -32,12 +35,12 @@ class PluginTable extends React.Component {
             dropdownIsOpen: false,
             columns: [
                 {
-                    title: 'Plugin Name',
+                    title: _("Plugin Name"),
                     transforms: [sortable],
                     cellFormatters: [expandable]
                 },
-                { title: 'Plugin Type', transforms: [sortable] },
-                { title: 'Enabled', transforms: [sortable] },
+                { title: _("Plugin Type"), transforms: [sortable] },
+                { title: _("Enabled"), transforms: [sortable] },
             ],
         };
 
@@ -163,28 +166,28 @@ class PluginTable extends React.Component {
         const plugin_enabled = rowData["nsslapd-pluginEnabled"][0] === "on";
         // const plugin_name = (' ' + rowData["cn"][0]).slice(1);
         const plugin_name = rowData.cn[0];
-        const enabled = <i>Plugin is enabled</i>;
-        const disabled = <i>Plugin is disabled</i>;
+        const enabled = <i>{_("Plugin is enabled")}</i>;
+        const disabled = <i>{_("Plugin is disabled")}</i>;
 
         return (
             <Grid className="ds-left-indent-xlg">
-                <GridItem span={4}><b>Plugin Description:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Description:")}</b></GridItem>
                 <GridItem span={8}><i>{rowData["nsslapd-pluginDescription"][0]}</i></GridItem>
-                <GridItem span={4}><b>Plugin Path:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Path:")}</b></GridItem>
                 <GridItem span={8}><i>{rowData["nsslapd-pluginPath"][0]}</i></GridItem>
-                <GridItem span={4}><b>Plugin Init Function:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Init Function:")}</b></GridItem>
                 <GridItem span={8}><i>{rowData["nsslapd-pluginInitfunc"][0]}</i></GridItem>
-                <GridItem span={4}><b>Plugin ID:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin ID:")}</b></GridItem>
                 <GridItem span={8}><i>{rowData["nsslapd-pluginId"][0]}</i></GridItem>
-                <GridItem span={4}><b>Plugin Vendor:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Vendor:")}</b></GridItem>
                 <GridItem span={8}><i>{rowData["nsslapd-pluginVendor"][0]}</i></GridItem>
-                <GridItem span={4}><b>Plugin Version:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Version:")}</b></GridItem>
                 <GridItem span={8}><i>{rowData["nsslapd-pluginVersion"][0]}</i></GridItem>
-                <GridItem span={4}><b>Plugin Depends On Named:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Depends On Named:")}</b></GridItem>
                 <GridItem span={8}><i>{dependsNamed}</i></GridItem>
-                <GridItem span={4}><b>Plugin Depends On Type:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Depends On Type:")}</b></GridItem>
                 <GridItem span={8}><i>{dependsType}</i></GridItem>
-                <GridItem span={4}><b>Plugin Precedence:</b></GridItem>
+                <GridItem span={4}><b>{_("Plugin Precedence:")}</b></GridItem>
                 <GridItem span={8}><i>{precedence}</i></GridItem>
                 <GridItem span={12} className="ds-margin-top-lg">
                     <Switch
@@ -241,7 +244,7 @@ class PluginTable extends React.Component {
         return (
             <div className={this.state.toggleSpinning ? "ds-disabled" : ""}>
                 <SearchInput
-                    placeholder='Search Plugins'
+                    placeholder={_("Search Plugins")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -292,9 +295,9 @@ class AttrUniqConfigTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Config Name', transforms: [sortable] },
-                { title: 'Attribute', transforms: [sortable] },
-                { title: 'Enabled', transforms: [sortable] }
+                { title: _("Config Name"), transforms: [sortable] },
+                { title: _("Attribute"), transforms: [sortable] },
+                { title: _("Enabled"), transforms: [sortable] }
             ],
         };
 
@@ -317,7 +320,7 @@ class AttrUniqConfigTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -325,7 +328,7 @@ class AttrUniqConfigTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -386,8 +389,8 @@ class AttrUniqConfigTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Attribute Uniqueness Configurations' }];
-            tableRows = [{ cells: ['No Configurations'] }];
+            columns = [{ title: _("Attribute Uniqueness Configurations") }];
+            tableRows = [{ cells: [_("No Configurations")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -395,7 +398,7 @@ class AttrUniqConfigTable extends React.Component {
         return (
             <div>
                 <SearchInput
-                    placeholder='Search Configurations'
+                    placeholder={_("Search Configurations")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -450,10 +453,10 @@ class LinkedAttributesTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Config Name', transforms: [sortable] },
-                { title: 'Link Type', transforms: [sortable] },
-                { title: 'Managed Type', transforms: [sortable] },
-                { title: 'Link Scope', transforms: [sortable] }
+                { title: _("Config Name"), transforms: [sortable] },
+                { title: _("Link Type"), transforms: [sortable] },
+                { title: _("Managed Type"), transforms: [sortable] },
+                { title: _("Link Scope"), transforms: [sortable] }
             ],
         };
 
@@ -476,7 +479,7 @@ class LinkedAttributesTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -484,7 +487,7 @@ class LinkedAttributesTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -555,8 +558,8 @@ class LinkedAttributesTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Linked Attributes Configurations' }];
-            tableRows = [{ cells: ['No Configurations'] }];
+            columns = [{ title: _("Linked Attributes Configurations") }];
+            tableRows = [{ cells: [_("No Configurations")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -564,7 +567,7 @@ class LinkedAttributesTable extends React.Component {
         return (
             <div>
                 <SearchInput
-                    placeholder='Search Configurations'
+                    placeholder={_("Search Configurations")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -618,10 +621,10 @@ class DNATable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Config Name', transforms: [sortable] },
-                { title: 'Scope', transforms: [sortable] },
-                { title: 'Filter', transforms: [sortable] },
-                { title: 'Next Value', transforms: [sortable] }
+                { title: _("Config Name"), transforms: [sortable] },
+                { title: _("Scope"), transforms: [sortable] },
+                { title: _("Filter"), transforms: [sortable] },
+                { title: _("Next Value"), transforms: [sortable] }
             ],
         };
 
@@ -701,7 +704,7 @@ class DNATable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -709,7 +712,7 @@ class DNATable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -723,8 +726,8 @@ class DNATable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'DNA Configurations' }];
-            tableRows = [{ cells: ['No Configurations'] }];
+            columns = [{ title: _("DNA Configurations") }];
+            tableRows = [{ cells: [_("No Configurations")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -733,7 +736,7 @@ class DNATable extends React.Component {
         return (
             <div>
                 <SearchInput
-                    placeholder='Search Configurations'
+                    placeholder={_("Search Configurations")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -787,9 +790,9 @@ class DNASharedTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Hostname', transforms: [sortable] },
-                { title: 'Port', transforms: [sortable] },
-                { title: 'Remaining Values', transforms: [sortable] },
+                { title: _("Hostname"), transforms: [sortable] },
+                { title: _("Port"), transforms: [sortable] },
+                { title: _("Remaining Values"), transforms: [sortable] },
             ],
         };
 
@@ -867,7 +870,7 @@ class DNASharedTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0] + ":" + rowData[1])
             },
@@ -875,7 +878,7 @@ class DNASharedTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0] + ":" + rowData[1])
             }
@@ -889,8 +892,8 @@ class DNASharedTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'DNA Shared Configurations' }];
-            tableRows = [{ cells: ['No Configurations'] }];
+            columns = [{ title: _("DNA Shared Configurations") }];
+            tableRows = [{ cells: [_("No Configurations")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -899,7 +902,7 @@ class DNASharedTable extends React.Component {
         return (
             <div>
                 <SearchInput
-                    placeholder='Search Shared Configurations'
+                    placeholder={_("Search Shared Configurations")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -953,10 +956,10 @@ class AutoMembershipDefinitionTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Definition Name', transforms: [sortable] },
-                { title: 'Default Group', transforms: [sortable] },
-                { title: 'Scope', transforms: [sortable] },
-                { title: 'Filter', transforms: [sortable] },
+                { title: _("Definition Name"), transforms: [sortable] },
+                { title: _("Default Group"), transforms: [sortable] },
+                { title: _("Scope"), transforms: [sortable] },
+                { title: _("Filter"), transforms: [sortable] },
             ],
         };
 
@@ -1037,7 +1040,7 @@ class AutoMembershipDefinitionTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -1045,7 +1048,7 @@ class AutoMembershipDefinitionTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -1059,8 +1062,8 @@ class AutoMembershipDefinitionTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Automembership Definitions' }];
-            tableRows = [{ cells: ['No Definitions'] }];
+            columns = [{ title: _("Automembership Definitions") }];
+            tableRows = [{ cells: [_("No Definitions")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -1069,7 +1072,7 @@ class AutoMembershipDefinitionTable extends React.Component {
             <div>
                 <SearchInput
                     className="ds-margin-top-lg"
-                    placeholder='Search Definitions'
+                    placeholder={_("Search Definitions")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -1123,10 +1126,10 @@ class AutoMembershipRegexTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Config Name', transforms: [sortable] },
-                { title: 'Exclusive Regex', transforms: [sortable] },
-                { title: 'Inclusive Regex', transforms: [sortable] },
-                { title: 'Target Group', transforms: [sortable] },
+                { title: _("Config Name"), transforms: [sortable] },
+                { title: _("Exclusive Regex"), transforms: [sortable] },
+                { title: _("Inclusive Regex"), transforms: [sortable] },
+                { title: _("Target Group"), transforms: [sortable] },
             ],
         };
 
@@ -1208,7 +1211,7 @@ class AutoMembershipRegexTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -1216,7 +1219,7 @@ class AutoMembershipRegexTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -1230,8 +1233,8 @@ class AutoMembershipRegexTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Automembership Regular Expressions' }];
-            tableRows = [{ cells: ['No regular expressions'] }];
+            columns = [{ title: _("Automembership Regular Expressions") }];
+            tableRows = [{ cells: [_("No regular expressions")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -1240,7 +1243,7 @@ class AutoMembershipRegexTable extends React.Component {
             <div>
                 <SearchInput
                     className="ds-margin-top-lg"
-                    placeholder='Search Regular Expressions'
+                    placeholder={_("Search Regular Expressions")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -1294,10 +1297,10 @@ class ManagedDefinitionTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Config Name', transforms: [sortable] },
-                { title: 'Scope', transforms: [sortable] },
-                { title: 'Filter', transforms: [sortable] },
-                { title: 'Managed Base', transforms: [sortable] },
+                { title: _("Config Name"), transforms: [sortable] },
+                { title: _("Scope"), transforms: [sortable] },
+                { title: _("Filter"), transforms: [sortable] },
+                { title: _("Managed Base"), transforms: [sortable] },
             ],
         };
 
@@ -1374,7 +1377,7 @@ class ManagedDefinitionTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -1382,7 +1385,7 @@ class ManagedDefinitionTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -1396,8 +1399,8 @@ class ManagedDefinitionTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Managed Entry Definitions' }];
-            tableRows = [{ cells: ['No definitions'] }];
+            columns = [{ title: _("Managed Entry Definitions") }];
+            tableRows = [{ cells: [_("No definitions")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -1406,7 +1409,7 @@ class ManagedDefinitionTable extends React.Component {
             <div>
                 <SearchInput
                     className="ds-margin-top-lg"
-                    placeholder='Search Definitions'
+                    placeholder={_("Search Definitions")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -1460,7 +1463,7 @@ class ManagedTemplateTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Template DN', transforms: [sortable] },
+                { title: _("Template DN"), transforms: [sortable] },
             ],
         };
 
@@ -1527,7 +1530,7 @@ class ManagedTemplateTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -1535,7 +1538,7 @@ class ManagedTemplateTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -1549,8 +1552,8 @@ class ManagedTemplateTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Managed Entry Templates' }];
-            tableRows = [{ cells: ['No templates'] }];
+            columns = [{ title: _("Managed Entry Templates") }];
+            tableRows = [{ cells: [_("No templates")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -1558,7 +1561,7 @@ class ManagedTemplateTable extends React.Component {
         return (
             <div>
                 <SearchInput
-                    placeholder='Search Templates'
+                    placeholder={_("Search Templates")}
                     className="ds-margin-top-lg"
                     value={this.state.value}
                     onChange={this.handleSearchChange}
@@ -1613,7 +1616,7 @@ class PassthroughAuthURLsTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'URL', transforms: [sortable] },
+                { title: _("URL"), transforms: [sortable] },
             ],
         };
 
@@ -1680,7 +1683,7 @@ class PassthroughAuthURLsTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit URL',
+                title: _("Edit URL"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -1688,7 +1691,7 @@ class PassthroughAuthURLsTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete URL',
+                title: _("Delete URL"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -1702,8 +1705,8 @@ class PassthroughAuthURLsTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Pass-Through Authentication URLs' }];
-            tableRows = [{ cells: ['No URLs'] }];
+            columns = [{ title: _("Pass-Through Authentication URLs") }];
+            tableRows = [{ cells: [_("No URLs")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -1711,7 +1714,7 @@ class PassthroughAuthURLsTable extends React.Component {
         return (
             <div>
                 <SearchInput
-                    placeholder='Search'
+                    placeholder={_("Search")}
                     className="ds-margin-top-lg"
                     value={this.state.value}
                     onChange={this.handleSearchChange}
@@ -1766,10 +1769,10 @@ class PassthroughAuthConfigsTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Config Name', transforms: [sortable] },
-                { title: 'Attribute', transforms: [sortable] },
-                { title: 'Map Method', transforms: [sortable] },
-                { title: 'Filter', transforms: [sortable] },
+                { title: _("Config Name"), transforms: [sortable] },
+                { title: _("Attribute"), transforms: [sortable] },
+                { title: _("Map Method"), transforms: [sortable] },
+                { title: _("Filter"), transforms: [sortable] },
             ],
         };
 
@@ -1846,7 +1849,7 @@ class PassthroughAuthConfigsTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Config',
+                title: _("Edit Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0])
             },
@@ -1854,7 +1857,7 @@ class PassthroughAuthConfigsTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Config',
+                title: _("Delete Config"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -1868,8 +1871,8 @@ class PassthroughAuthConfigsTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'PAM Configurations' }];
-            tableRows = [{ cells: ['No PAM configurations'] }];
+            columns = [{ title: _("PAM Configurations") }];
+            tableRows = [{ cells: [_("No PAM configurations")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -1877,7 +1880,7 @@ class PassthroughAuthConfigsTable extends React.Component {
         return (
             <div>
                 <SearchInput
-                    placeholder='Search'
+                    placeholder={_("Search")}
                     className="ds-margin-top-lg"
                     value={this.state.value}
                     onChange={this.handleSearchChange}

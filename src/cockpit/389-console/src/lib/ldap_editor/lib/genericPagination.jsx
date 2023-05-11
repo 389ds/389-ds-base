@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     BadgeToggle,
@@ -11,6 +12,8 @@ import {
     Table, TableHeader, TableBody, TableVariant,
     SortByDirection
 } from '@patternfly/react-table';
+
+const _ = cockpit.gettext;
 
 // TODO: Rename to GenericTable ( since it has pagination and also sorting and filtering capabilities )
 class GenericPagination extends React.Component {
@@ -208,7 +211,7 @@ class GenericPagination extends React.Component {
                 onSelect={this.handleDropDownSelect}
                 toggle={
                     <BadgeToggle id="toggle-attr-select" badgeProps={badgeProps} onToggle={this.handleDropDownToggle}>
-                        {numSelected > 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected > 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isDropDownOpen}
@@ -235,7 +238,7 @@ class GenericPagination extends React.Component {
                             <GridItem span={5}>
                                 <SearchInput
                                     className="ds-font-size-md"
-                                    placeholder='Search'
+                                    placeholder={_("Search")}
                                     value={this.state.searchValue}
                                     onChange={this.handleSearchChange}
                                     onClear={(evt) => this.handleSearchChange(evt, '')}

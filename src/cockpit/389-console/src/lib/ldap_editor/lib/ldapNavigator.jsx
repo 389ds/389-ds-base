@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Bullseye,
@@ -18,6 +19,8 @@ import {
 } from './utils.jsx';
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class LdapNavigator extends React.Component {
     constructor (props) {
         super(props);
@@ -25,7 +28,7 @@ class LdapNavigator extends React.Component {
         this.state = {
             // Need to use an initial object to avoid a JS exception.
             allItems: [{
-                name: 'Loading LDAP entries...',
+                name: _("Loading LDAP entries..."),
                 id: 'Loading',
                 icon: <Spinner size="sm" />
             }],
@@ -380,7 +383,7 @@ class LdapNavigator extends React.Component {
             if (resCode.exit_status !== 0) {
                 this.props.addNotification(
                     "error",
-                    `Error searching database - ${resCode.msg.split("\n").pop()}`
+                    cockpit.format(_("Error searching database - $0"), resCode.msg.split("\n").pop())
                 );
             }
             return;
@@ -430,13 +433,13 @@ class LdapNavigator extends React.Component {
             if (resCode.exit_status !== 0) {
                 this.props.addNotification(
                     "error",
-                    `Error searching database - ${resCode.msg.split("\n").pop()}`
+                    cockpit.format(_("Error searching database - $0"), resCode.msg.split("\n").pop())
                 );
 
                 const randomId = Math.random().toString(36)
                         .substring(2, 15);
                 const nodeChildren = [{
-                    name: 'Encountered an error, unable to display child entries',
+                    name: _("Encountered an error, unable to display child entries"),
                     id: randomId,
                     icon: <ExclamationTriangleIcon />,
                     isFakeEntry: true
@@ -469,7 +472,7 @@ class LdapNavigator extends React.Component {
                 const randomId = Math.random().toString(36)
                         .substring(2, 15);
                 nodeChildren = [{
-                    name: 'Loading...',
+                    name: _("Loading..."),
                     id: randomId,
                     // icon: <UnknownIcon />,
                     icon: <Spinner size="sm" />,
@@ -521,7 +524,7 @@ class LdapNavigator extends React.Component {
             <>
                 {allItems.length === 0 &&
                     <Bullseye>
-                        <div>No Databases</div>
+                        <div>{_("No Databases")}</div>
                     </Bullseye>}
                 <div className={this.props.isDisabled ? "ds-disabled ds-editor-tree" : "ds-editor-tree"}>
                     <TreeView

@@ -35,6 +35,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 export class ReplMonitor extends React.Component {
     constructor (props) {
         super(props);
@@ -282,7 +284,7 @@ export class ReplMonitor extends React.Component {
                         const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Failed to get config nsslapd-port, nsslapd-localhost and nasslapd-rootdn: ${errMsg.desc}`
+                            cockpit.format(_("Failed to get config nsslapd-port, nsslapd-localhost and nasslapd-rootdn: $0"), errMsg.desc)
                         );
                     });
         }
@@ -357,7 +359,7 @@ export class ReplMonitor extends React.Component {
                     onClick={() => {
                         this.showConfirmDeleteDSRCCred(name);
                     }}
-                    title="Delete replica connection"
+                    title={_("Delete replica connection")}
                 />
             </a>
         );
@@ -371,7 +373,7 @@ export class ReplMonitor extends React.Component {
                     onClick={() => {
                         this.showConfirmDeleteDSRCAlias(name);
                     }}
-                    title="Delete replica alias"
+                    title={_("Delete replica alias")}
                 />
             </a>
         );
@@ -387,7 +389,7 @@ export class ReplMonitor extends React.Component {
         if (!agmtName) {
             this.props.addNotification(
                 "error",
-                `The agreement doesn't exist!`
+                _("The agreement doesn't exist!")
             );
         } else {
             for (const supplier of this.state.reportData) {
@@ -423,9 +425,9 @@ export class ReplMonitor extends React.Component {
         } = this.state;
 
         if (credsHostname === "" || credsPort === "" || credsBinddn === "") {
-            this.props.addNotification("warning", "Host, Port, and Bind DN are required.");
+            this.props.addNotification("warning", _("Host, Port, and Bind DN are required."));
         } else if (credsBindpw === "" && !pwInputInterractive) {
-            this.props.addNotification("warning", "Password field can't be empty, if Interractive Input is not selected");
+            this.props.addNotification("warning", _("Password field can't be empty, if Interractive Input is not selected"));
         } else {
             let credsExist = false;
             if ((action === "add") && (credentialsList.some(row => row.connData === `${credsHostname}:${credsPort}`))) {
@@ -454,7 +456,7 @@ export class ReplMonitor extends React.Component {
             } else {
                 this.props.addNotification(
                     "error",
-                    `Credentials "${credsHostname}:${credsPort}" already exists`
+                    cockpit.format(_("Credentials \"$0:$1\" already exists"), credsHostname, credsPort)
                 );
             }
             this.closeCredsModal();
@@ -588,7 +590,7 @@ export class ReplMonitor extends React.Component {
         const { aliasesList, aliasHostname, aliasPort, oldAliasName, aliasName } = this.state;
         let new_aliases = [...aliasesList];
         if (aliasPort === "" || aliasHostname === "" || aliasName === "") {
-            this.props.addNotification("warning", "Host, Port, and Alias are required.");
+            this.props.addNotification("warning", _("Host, Port, and Alias are required."));
         } else {
             let aliasExists = false;
             if ((action === "add") && (aliasesList.some(row => row[0] === aliasName))) {
@@ -605,7 +607,7 @@ export class ReplMonitor extends React.Component {
                     aliasesList: new_aliases
                 });
             } else {
-                this.props.addNotification("error", `Alias "${aliasName}" already exists`);
+                this.props.addNotification("error", cockpit.format(_("Alias \"$0\" already exists"), aliasName));
             }
             this.closeAliasesModal();
         }
@@ -751,7 +753,7 @@ export class ReplMonitor extends React.Component {
                                             }, this.loadDSRC);
                                             this.props.addNotification(
                                                 "success",
-                                                "Successfully saved monitor configuration to the .dsrc file"
+                                                _("Successfully saved monitor configuration to the .dsrc file")
                                             );
                                         })
                                         .fail(err => {
@@ -761,7 +763,7 @@ export class ReplMonitor extends React.Component {
                                             });
                                             this.props.addNotification(
                                                 "error",
-                                                `Failed to delete from .dsrc file: ${errMsg.desc}`
+                                                cockpit.format(_("Failed to delete from .dsrc file: $0"), errMsg.desc)
                                             );
                                         });
                             })
@@ -769,7 +771,7 @@ export class ReplMonitor extends React.Component {
                                 const errMsg = JSON.parse(err);
                                 this.props.addNotification(
                                     "error",
-                                    `Failed to add to .dsrc content: ${errMsg.desc}`
+                                    cockpit.format(_("Failed to add to .dsrc content: $0"), errMsg.desc)
                                 );
                                 this.setState({
                                     showConfirmOverwriteDSRC: false
@@ -780,7 +782,7 @@ export class ReplMonitor extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to get .dsrc content: ${errMsg.desc}`
+                        cockpit.format(_("Failed to get .dsrc content: $0"), errMsg.desc)
                     );
                     this.setState({
                         showConfirmOverwriteDSRC: false
@@ -916,11 +918,11 @@ export class ReplMonitor extends React.Component {
                         doFullReportCleanup: true
                     });
                 })
-                .fail(_ => {
+                .fail(() => {
                     const errMsg = JSON.parse(buffer);
                     this.props.addNotification(
                         "error",
-                        `Sync report has failed - ${errMsg.desc}`
+                        cockpit.format(_("Sync report has failed - $0"), errMsg.desc)
                     );
                     this.setState({
                         dynamicCredentialsList: [],
@@ -1012,7 +1014,7 @@ export class ReplMonitor extends React.Component {
         } = this.state;
 
         if (loginBinddn === "" || loginBindpw === "") {
-            this.props.addNotification("warning", "Bind DN and password are required.");
+            this.props.addNotification("warning", _("Bind DN and password are required."));
         } else {
             this.setState({
                 showReportLoginModal: false,
@@ -1144,7 +1146,7 @@ export class ReplMonitor extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update .dsrc information: ${errMsg.desc}`
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
                     );
                     this.loadDSRC();
                 });
@@ -1170,7 +1172,7 @@ export class ReplMonitor extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update .dsrc information: ${errMsg.desc}`
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
                     );
                     this.loadDSRC();
                 });
@@ -1200,7 +1202,7 @@ export class ReplMonitor extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        "Successfully added connection to .dsrc config file"
+                        _("Successfully added connection to .dsrc config file")
                     );
                     this.loadDSRC();
                 })
@@ -1208,7 +1210,7 @@ export class ReplMonitor extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update .dsrc information: ${errMsg.desc}`
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
                     );
                     this.loadDSRC();
                 });
@@ -1231,7 +1233,7 @@ export class ReplMonitor extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        "Successfully added alias to .dsrc config file"
+                        _("Successfully added alias to .dsrc config file")
                     );
                     this.loadDSRC();
                 })
@@ -1239,7 +1241,7 @@ export class ReplMonitor extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update .dsrc information: ${errMsg.desc}`
+                        cockpit.format(_("Failed to update .dsrc information: $0"), errMsg.desc)
                     );
                     this.loadDSRC();
                 });
@@ -1318,19 +1320,19 @@ export class ReplMonitor extends React.Component {
             );
         }
 
-        let reportBtnName = "Generate Report";
+        let reportBtnName = _("Generate Report");
         const extraPrimaryProps = {};
         if (this.state.reportLoading) {
-            reportBtnName = "Generating ...";
-            extraPrimaryProps.spinnerAriaValueText = "Generating";
+            reportBtnName = _("Generating ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Generating");
         }
 
         let reportContent = (
             <div className="ds-margin-top-lg ds-indent ds-margin-bottom-md">
                 <Tabs isFilled activeKey={this.state.activeKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Saved Report Configuration</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Saved Report Configuration")}</TabTitleText>}>
                         <Tabs className="ds-margin-top-lg" isBox activeKey={this.state.activeConfigKey} onSelect={this.handleNavConfigSelect}>
-                            <Tab eventKey={0} title={<TabTitleText>Replica Credentials</TabTitleText>}>
+                            <Tab eventKey={0} title={<TabTitleText>{_("Replica Credentials")}</TabTitleText>}>
                                 <ReplDSRCTable
                                     key={this.state.credRows}
                                     rows={this.state.credRows}
@@ -1340,12 +1342,12 @@ export class ReplMonitor extends React.Component {
                                     className="ds-margin-top-lg"
                                     variant="secondary"
                                     onClick={this.handleShowAddDSRCCred}
-                                    title="Add a replica credential to the .dsrc file"
+                                    title={_("Add a replica credential to the .dsrc file")}
                                 >
-                                    Add Connection
+                                    {_("Add Connection")}
                                 </Button>
                             </Tab>
-                            <Tab eventKey={1} title={<TabTitleText>Replica Naming Aliases</TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText>{_("Replica Naming Aliases")}</TabTitleText>}>
                                 <ReplDSRCAliasTable
                                     key={this.state.aliasRows}
                                     rows={this.state.aliasRows}
@@ -1355,9 +1357,9 @@ export class ReplMonitor extends React.Component {
                                     className="ds-margin-top-lg"
                                     variant="secondary"
                                     onClick={this.handleShowAddDSRCAlias}
-                                    title="Add a replica alias to the .dsrc file"
+                                    title={_("Add a replica alias to the .dsrc file")}
                                 >
-                                    Add Alias
+                                    {_("Add Alias")}
                                 </Button>
                             </Tab>
                         </Tabs>
@@ -1366,19 +1368,19 @@ export class ReplMonitor extends React.Component {
                             <Button
                                 variant="primary"
                                 onClick={() => { this.handleFullReport(1) }}
-                                title="Use the specified credentials and display full topology report"
+                                title={_("Use the specified credentials and display full topology report")}
                                 isLoading={this.state.reportLoading}
                                 isDisabled={this.state.reportLoading}
-                                spinnerAriaValueText={this.state.reportLoading ? "Generating" : undefined}
+                                spinnerAriaValueText={this.state.reportLoading ? _("Generating") : undefined}
                                 {...extraPrimaryProps}
                             >
                                 {reportBtnName}
                             </Button>
                         )}
                     </Tab>
-                    <Tab eventKey={1} id="prepare-new-report" title={<TabTitleText>Prepare New Report</TabTitleText>}>
+                    <Tab eventKey={1} id="prepare-new-report" title={<TabTitleText>{_("Prepare New Report")}</TabTitleText>}>
                         <ExpandableSection
-                            toggleText={this.state.isExpanded ? 'Hide Help' : 'Show Help'}
+                            toggleText={this.state.isExpanded ? _("Hide Help") : _("Show Help")}
                             onToggle={this.handleToggle}
                             isExpanded={this.state.isExpanded}
                             className="ds-margin-top-lg ds-left-margin"
@@ -1386,39 +1388,35 @@ export class ReplMonitor extends React.Component {
                             <div className="ds-left-indent-md">
                                 <TextContent>
                                     <Text component={TextVariants.h3}>
-                                        How To Use Replication Sync Report
+                                        {_("How To Use Replication Sync Report")}
                                     </Text>
                                 </TextContent>
                                 <ol className="ds-left-indent-md ds-margin-top">
                                     <li>
-                                        Update The <b>Replication Credentials</b>
+                                        {_("Update The <b>Replication Credentials</b>")}
                                         <ul>
-                                            <li>• Initially, the table is populated with the local instance's replication
-                                                agreements, which includes the local instance.
+                                            <li>{_("• Initially, the table is populated with the local instance's replication agreements, which includes the local instance.")}
                                             </li>
-                                            <li>• Add the remaining replica server credentials from your replication topology.</li>
-                                            <li>• It is advised to use an <b>Interactive Input</b> option for the
-                                                password because it's more secure.
+                                            <li>{_("• Add the remaining replica server credentials from your replication topology.")}</li>
+                                            <li>{_("• It is advised to use an <b>Interactive Input</b> option for the password because it's more secure.")}
                                             </li>
                                         </ul>
                                     </li>
                                     <li>
-                                        Add <b>Replica Aliases</b> (if desired)
+                                        {_("Add <b>Replica Aliases</b> (if desired)")}
                                         <ul>
-                                            <li>• Adding aliases will make the report more readable.</li>
-                                            <li>• Each Replica can have one alias. For example, you can give names like this:
-                                                <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901
+                                            <li>{_("• Adding aliases will make the report more readable.")}</li>
+                                            <li>{_("• Each Replica can have one alias. For example, you can give names like this: <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901")}
                                             </li>
-                                            <li>• In the report result, the report will have an entry like this:
-                                                <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.
+                                            <li>{_("• In the report result, the report will have an entry like this: <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.")}
                                             </li>
                                         </ul>
                                     </li>
                                     <li>
-                                        Press <b>Generate Report</b> Button
+                                        {_("Press <b>Generate Report</b> Button")}
                                         <ul>
-                                            <li>• It will initiate the report creation.</li>
-                                            <li>• You may be asked for the credentials while the process is running through the agreements.</li>
+                                            <li>{_("• It will initiate the report creation.")}</li>
+                                            <li>{_("• You may be asked for the credentials while the process is running through the agreements.")}</li>
                                         </ul>
                                     </li>
                                 </ol>
@@ -1429,7 +1427,7 @@ export class ReplMonitor extends React.Component {
                             className="ds-margin-top-lg"
                             variant="primary"
                             onClick={this.handleFullReport}
-                            title="Use the specified credentials and display full topology report"
+                            title={_("Use the specified credentials and display full topology report")}
                             isLoading={this.state.reportLoading}
                             isDisabled={this.state.reportLoading}
                             spinnerAriaValueText={this.state.reportLoading ? "Generating" : undefined}
@@ -1441,9 +1439,9 @@ export class ReplMonitor extends React.Component {
                             className="ds-margin-top-lg ds-left-margin"
                             variant="secondary"
                             onClick={this.handleConfirmOverwriteDSRC}
-                            title="Save the report configuration in the .dsrc file for future use."
+                            title={_("Save the report configuration in the .dsrc file for future use.")}
                         >
-                            Save Report Configuration
+                            {_("Save Report Configuration")}
                         </Button>
                         <hr />
                         <ReportCredentialsTable
@@ -1458,7 +1456,7 @@ export class ReplMonitor extends React.Component {
                             variant="secondary"
                             onClick={this.handleShowAddCredsModal}
                         >
-                            Add Credentials
+                            {_("Add Credentials")}
                         </Button>
                         <ReportAliasesTable
                             rows={aliasesList}
@@ -1472,11 +1470,11 @@ export class ReplMonitor extends React.Component {
                             variant="secondary"
                             onClick={this.handleShowAddAliasesModal}
                         >
-                            Add Alias
+                            {_("Add Alias")}
                         </Button>
                     </Tab>
                     {reportData.length > 0 && (
-                        <Tab eventKey={2} title={<TabTitleText>Report Result</TabTitleText>}>
+                        <Tab eventKey={2} title={<TabTitleText>{_("Report Result")}</TabTitleText>}>
                             <div className="ds-indent ds-margin-top-lg">
                                 <FullReportContent
                                     reportData={reportData}
@@ -1497,7 +1495,7 @@ export class ReplMonitor extends React.Component {
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading Replication DSRC Information ...
+                            {_("Loading Replication DSRC Information ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1506,14 +1504,10 @@ export class ReplMonitor extends React.Component {
         }
 
         let overwriteWarning = (
-            "Only one monitor configuraton can be saved in the server's " +
-            "'~/.dsrc' file.  There is already an existing monitor " +
-            "configuration, and if you proceed it will be completely " +
-            "overwritten with the new configuraton.");
+            _("Only one monitor configuraton can be saved in the server's '~/.dsrc' file.  There is already an existing monitor configuration, and if you proceed it will be completely overwritten with the new configuraton."));
         if (this.state.credRows.length === 0 && this.state.aliasRows.length === 0) {
             overwriteWarning = (
-                "This will save the current credentials and aliases to the " +
-                "server's '~/.dsrc' file so it can be reused in the future.");
+                _("This will save the current credentials and aliases to the server's '~/.dsrc' file so it can be reused in the future."));
         }
 
         return (
@@ -1521,12 +1515,12 @@ export class ReplMonitor extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Synchronization Report
+                            {_("Synchronization Report")}
                             <FontAwesomeIcon
                                 size="lg"
                                 className="ds-left-margin ds-refresh"
                                 icon={faSyncAlt}
-                                title="Refresh replication monitor"
+                                title={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
                             />
                         </Text>
@@ -1548,10 +1542,10 @@ export class ReplMonitor extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.connName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Replica Connection"
-                    mMsg="Are you really sure you want to delete this connection from the '~/.dsrc' file?"
-                    mSpinningMsg="Deleting Connection ..."
-                    mBtnName="Delete Connection"
+                    mTitle={_("Delete Replica Connection")}
+                    mMsg={_("Are you really sure you want to delete this connection from the '~/.dsrc' file?")}
+                    mSpinningMsg={_("Deleting Connection ...")}
+                    mBtnName={_("Delete Connection")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteDSRCAlias}
@@ -1561,10 +1555,10 @@ export class ReplMonitor extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.aliasName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Replica Alias"
-                    mMsg="Are you really sure you want to delete this alias from the '~/.dsrc' file?"
-                    mSpinningMsg="Deleting Alias ..."
-                    mBtnName="Delete Alias"
+                    mTitle={_("Delete Replica Alias")}
+                    mMsg={_("Are you really sure you want to delete this alias from the '~/.dsrc' file?")}
+                    mSpinningMsg={_("Deleting Alias ...")}
+                    mBtnName={_("Delete Alias")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmOverwriteDSRC}
@@ -1572,12 +1566,12 @@ export class ReplMonitor extends React.Component {
                     handleChange={this.onFieldChange}
                     actionHandler={this.overwriteDSRC}
                     spinning={this.state.modalSpinning}
-                    item="Are you sure you want to proceed?"
+                    item={_("Are you sure you want to proceed?")}
                     checked={this.state.modalChecked}
-                    mTitle="Overwrite Monitor Configuration"
+                    mTitle={_("Overwrite Monitor Configuration")}
                     mMsg={overwriteWarning}
-                    mSpinningMsg="Writing DSRC ..."
-                    mBtnName="Write DSRC"
+                    mSpinningMsg={_("Writing DSRC ...")}
+                    mBtnName={_("Write DSRC")}
                 />
                 <ReportAliasesModal
                     showModal={this.state.showAddDSRCAliasModal}

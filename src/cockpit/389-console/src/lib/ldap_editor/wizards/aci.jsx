@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Button,
@@ -23,6 +24,8 @@ import {
 import AddNewAci from './operations/aciNew.jsx';
 import { DoubleConfirmModal } from "../../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class AciWizard extends React.Component {
     constructor (props) {
         super(props);
@@ -35,19 +38,19 @@ class AciWizard extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'ACI Name', transforms: [sortable], cellFormatters: [expandable] },
-                { title: 'ACI Rule Type', transforms: [sortable] },
+                { title: _("ACI Name"), transforms: [sortable], cellFormatters: [expandable] },
+                { title: _("ACI Rule Type"), transforms: [sortable] },
             ],
             actions: [
                 {
-                    title: 'Edit ACI',
+                    title: _("Edit ACI"),
                     onClick: (event, rowId, rowData, extra) => this.showEditAci(rowData)
                 },
                 {
                     isSeparator: true
                 },
                 {
-                    title: 'Remove ACI',
+                    title: _("Remove ACI"),
                     onClick: (event, rowId, rowData, extra) => this.showDeleteConfirm(rowData)
                 },
             ],
@@ -157,13 +160,13 @@ class AciWizard extends React.Component {
                 if (result.errorCode === 0) {
                     this.props.addNotification(
                         "success",
-                        `Successfully replace ACI`
+                        _("Successfully replace ACI")
                     );
                     this.buildAciTable();
                 } else {
                     this.props.addNotification(
                         "error",
-                        `Failed to update ACI: error ${result.errorCode} - ${result.output}`
+                        cockpit.format(_("Failed to update ACI: error $0 - $1"), result.errorCode, result.output)
                     );
                 }
                 this.handleCloseEditAci();
@@ -192,13 +195,13 @@ class AciWizard extends React.Component {
                 if (result.errorCode === 0) {
                     this.props.addNotification(
                         "success",
-                        `Successfully removed ACI`
+                        _("Successfully removed ACI")
                     );
                     this.buildAciTable();
                 } else {
                     this.props.addNotification(
                         "error",
-                        `Failed to remove ACI: error ${result.errorCode} - ${result.output}`
+                        cockpit.format(_("Failed to remove ACI: error $0 - $1"), result.errorCode, result.output)
                     );
                 }
                 this.closeDeleteConfirm();
@@ -227,13 +230,13 @@ class AciWizard extends React.Component {
                 if (result.errorCode === 0) {
                     this.props.addNotification(
                         "success",
-                        `Successfully added ACI`
+                        _("Successfully added ACI")
                     );
                     this.buildAciTable();
                 } else {
                     this.props.addNotification(
                         "error",
-                        `Failed to add ACI: error ${result.errorCode} - ${result.output}`
+                        cockpit.format(_("Failed to add ACI: error $0 - $1"), result.errorCode, result.output)
                     );
                 }
                 this.handleToggleManual();
@@ -391,20 +394,20 @@ class AciWizard extends React.Component {
         }
 
         // Edit modal
-        let btnName = "Save ACI";
+        let btnName = _("Save ACI");
         const extraPrimaryProps = {};
         if (modalSpinning) {
-            btnName = "Saving ACI ...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            btnName = _("Saving ACI ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
-        const title = "Manage ACI's For " + this.props.wizardEntryDn;
+        const title = _("Manage ACI's For ") + this.props.wizardEntryDn;
 
         // Handle table state
         let cols = columns;
         if (rows.length === 0) {
-            tableRows = [{ cells: ["No ACI's"] }];
-            cols = [{ title: 'Access Control Instructions' }];
+            tableRows = [{ cells: [_("No ACI's")] }];
+            cols = [{ title: _("Access Control Instructions") }];
         }
 
         return (
@@ -421,17 +424,17 @@ class AciWizard extends React.Component {
                             variant="primary"
                             onClick={this.handleToggleWizard}
                         >
-                            Add ACI Wizard
+                            {_("Add ACI Wizard")}
                         </Button>,
                         <Button
                             key="acc aci manual"
                             variant="primary"
                             onClick={this.handleToggleManual}
                         >
-                            Add ACI Manually
+                            {_("Add ACI Manually")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                            Close
+                            {_("Close")}
                         </Button>
                     ]}
                 >
@@ -481,15 +484,15 @@ class AciWizard extends React.Component {
                         spinning={modalSpinning}
                         item={this.state.aciName}
                         checked={this.state.modalChecked}
-                        mTitle="Delete ACI"
-                        mMsg="Are you sure you want to delete this ACI?"
-                        mSpinningMsg="Deleting ..."
-                        mBtnName="Delete ACI"
+                        mTitle={_("Delete ACI")}
+                        mMsg={_("Are you sure you want to delete this ACI?")}
+                        mSpinningMsg={_("Deleting ...")}
+                        mBtnName={_("Delete ACI")}
                     />
                 </Modal>
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Edit ACI"
+                    title={_("Edit ACI")}
                     isOpen={this.state.showEditAci}
                     onClose={this.handleCloseEditAci}
                     actions={[
@@ -498,14 +501,14 @@ class AciWizard extends React.Component {
                             variant="primary"
                             onClick={this.handleSaveACI}
                             isLoading={modalSpinning}
-                            spinnerAriaValueText={modalSpinning ? "Loading" : undefined}
+                            spinnerAriaValueText={modalSpinning ? _("Loading") : undefined}
                             {...extraPrimaryProps}
                             isDisabled={this.state.aciText === this.state.aciTextNew || modalSpinning}
                         >
                             {btnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseEditAci}>
-                            Close
+                            {_("Close")}
                         </Button>
                     ]}
                 >
@@ -526,12 +529,12 @@ class AciWizard extends React.Component {
                         isDisabled={this.state.aciText === this.state.aciTextNew}
                         isSmall
                     >
-                        Reset ACI
+                        {_("Reset ACI")}
                     </Button>
                 </Modal>
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Add ACI Manually"
+                    title={_("Add ACI Manually")}
                     isOpen={this.state.isManualOpen}
                     onClose={this.handleToggleManual}
                     actions={[
@@ -540,14 +543,14 @@ class AciWizard extends React.Component {
                             variant="primary"
                             onClick={this.handleAddAciManual}
                             isLoading={modalSpinning}
-                            spinnerAriaValueText={modalSpinning ? "Loading" : undefined}
+                            spinnerAriaValueText={modalSpinning ? _("Loading") : undefined}
                             {...extraPrimaryProps}
                             isDisabled={this.state.aciTextNew === "" || modalSpinning}
                         >
                             {btnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleToggleManual}>
-                            Close
+                            {_("Close")}
                         </Button>
                     ]}
                 >
@@ -559,7 +562,7 @@ class AciWizard extends React.Component {
                         aria-label="aci text edit area"
                         autoResize
                         resizeOrientation="vertical"
-                        placeholder="Enter ACI ..."
+                        placeholder={_("Enter ACI ...")}
                     />
                 </Modal>
             </>

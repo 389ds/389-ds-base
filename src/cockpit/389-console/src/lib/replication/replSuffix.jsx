@@ -30,6 +30,8 @@ import '@fortawesome/fontawesome-svg-core/styles.css';
 import PropTypes from "prop-types";
 import { log_cmd, valid_dn, callCmdStreamPassword } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 export class ReplSuffix extends React.Component {
     constructor (props) {
         super(props);
@@ -181,28 +183,28 @@ export class ReplSuffix extends React.Component {
         if (this.state.enableBindDN !== "" && !valid_dn(this.state.enableBindDN)) {
             this.props.addNotification(
                 "error",
-                `The Bind DN is not a valid DN (Distinguished Name) ${this.state.enableBindDN}`
+                cockpit.format(_("The Bind DN is not a valid DN (Distinguished Name) $0"), this.state.enableBindDN)
             );
             return;
         }
         if (this.state.enableBindGroupDN !== "" && !valid_dn(this.state.enableBindGroupDN)) {
             this.props.addNotification(
                 "error",
-                `The Group DN is not a valid DN (Distinguished Name)`
+                _("The Group DN is not a valid DN (Distinguished Name)")
             );
             return;
         }
         if (this.state.enableBindPW !== this.state.enableBindPWConfirm) {
             this.props.addNotification(
                 "error",
-                `The Bind DN passwords do not match`
+                _("The Bind DN passwords do not match")
             );
             return;
         }
         if (this.state.enableRID !== "" && (this.state.enableRID < 1 || this.state.enableRID > 65534)) {
             this.props.addNotification(
                 "error",
-                `The Replica ID is not in the valid range of 1 - 65534`
+                _("The Replica ID is not in the valid range of 1 - 65534")
             );
             return;
         }
@@ -239,8 +241,8 @@ export class ReplSuffix extends React.Component {
             promptArg: "--bind-passwd-prompt",
             passwd,
             addNotification: this.props.addNotification,
-            success_msg: `Successfully enabled replication for "${this.props.suffix}"`,
-            error_msg: `Failed to enable replication for "${this.props.suffix}"`,
+            success_msg: cockpit.format(_("Successfully enabled replication for $0"), this.props.suffix),
+            error_msg: cockpit.format(_("Failed to enable replication for $0"), this.props.suffix),
             state_callback: () => {},
             reload_func: this.props.reload,
             reload_arg: "1",
@@ -272,7 +274,7 @@ export class ReplSuffix extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully disabled replication for "${this.props.suffix}"`
+                        cockpit.format(_("Successfully disabled replication for $0"), this.props.suffix)
                     );
                 })
                 .fail(err => {
@@ -283,7 +285,7 @@ export class ReplSuffix extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to disable replication for "${this.props.suffix}" - ${errMsg.desc}`
+                        cockpit.format(_("Failed to disable replication for $0 - $1"), this.props.suffix, errMsg.desc)
                     );
                 });
     }
@@ -306,7 +308,7 @@ export class ReplSuffix extends React.Component {
             spinning =
                 <Spinner className="ds-margin-top ds-margin-left ds-inline-spinner" size="sm" />;
             spintext =
-                <font size="2"><i>Refreshing</i></font>;
+                <font size="2"><i>{_("Refreshing")}</i></font>;
         }
         let suffixClass = "ds-margin-top-lg";
         if (this.props.disabled) {
@@ -316,7 +318,7 @@ export class ReplSuffix extends React.Component {
         let enabledContent = (
             <div className={suffixClass}>
                 <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Configuration</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Configuration")}</TabTitleText>}>
                         <ReplConfig
                             suffix={this.props.suffix}
                             role={this.props.role}
@@ -327,7 +329,7 @@ export class ReplSuffix extends React.Component {
                             reloadConfig={this.props.reloadConfig}
                         />
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Agreements <font size="2">({this.props.agmtRows.length})</font></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Agreements ")}<font size="2">({this.props.agmtRows.length})</font></TabTitleText>}>
                         <ReplAgmts
                             suffix={this.props.suffix}
                             serverId={this.props.serverId}
@@ -339,7 +341,7 @@ export class ReplSuffix extends React.Component {
                             key={this.props.agmtRows}
                         />
                     </Tab>
-                    <Tab eventKey={2} title={<TabTitleText>Winsync Agreements <font size="2">({this.props.winsyncRows.length})</font></TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Winsync Agreements ")}<font size="2">({this.props.winsyncRows.length})</font></TabTitleText>}>
                         <WinsyncAgmts
                             suffix={this.props.suffix}
                             serverId={this.props.serverId}
@@ -351,7 +353,7 @@ export class ReplSuffix extends React.Component {
                             key={this.props.winsyncRows}
                         />
                     </Tab>
-                    <Tab eventKey={3} title={<TabTitleText>Change Log</TabTitleText>}>
+                    <Tab eventKey={3} title={<TabTitleText>{_("Change Log")}</TabTitleText>}>
                         <Changelog
                             suffix={this.props.suffix}
                             serverId={this.props.serverId}
@@ -363,7 +365,7 @@ export class ReplSuffix extends React.Component {
                             key={this.props.data}
                         />
                     </Tab>
-                    <Tab eventKey={4} title={<TabTitleText>RUV's & Tasks</TabTitleText>}>
+                    <Tab eventKey={4} title={<TabTitleText>{_("RUV's & Tasks")}</TabTitleText>}>
                         <ReplRUV
                             suffix={this.props.suffix}
                             serverId={this.props.serverId}
@@ -386,9 +388,9 @@ export class ReplSuffix extends React.Component {
                     className="ds-float-right"
                     variant="danger"
                     onClick={this.handleReplChange}
-                    title="Disable replication, and remove all replication agreements."
+                    title={_("Disable replication, and remove all replication agreements.")}
                 >
-                    Disable
+                    {_("Disable")}
                 </Button>
             );
         } else {
@@ -396,7 +398,7 @@ export class ReplSuffix extends React.Component {
                 <div className="ds-center ds-margin-top-xlg">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Replication is not enabled for this suffix
+                            {_("Replication is not enabled for this suffix")}
                         </Text>
                     </TextContent>
                     <Button
@@ -404,7 +406,7 @@ export class ReplSuffix extends React.Component {
                         onClick={this.handleReplChange}
                         className="ds-margin-top-lg"
                     >
-                        Enable Replication
+                        {_("Enable Replication")}
                     </Button>
                 </div>
             );
@@ -418,7 +420,7 @@ export class ReplSuffix extends React.Component {
                         <FontAwesomeIcon
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}
-                            title="Refresh replication settings for this suffix"
+                            title={_("Refresh replication settings for this suffix")}
                             onClick={() => this.props.reload(false)}
                         />
                         {spinning} {spintext}
@@ -451,10 +453,10 @@ export class ReplSuffix extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
                     checked={this.state.modalChecked}
-                    mTitle="Disable Replication"
-                    mMsg="Are you sure you want to disable replication for this suffix?"
-                    mSpinningMsg="Disabling Replication ..."
-                    mBtnName="Disable Replication"
+                    mTitle={_("Disable Replication")}
+                    mMsg={_("Are you sure you want to disable replication for this suffix?")}
+                    mSpinningMsg={_("Disabling Replication ...")}
+                    mBtnName={_("Disable Replication")}
                 />
             </div>
         );

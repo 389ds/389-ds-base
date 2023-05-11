@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -25,6 +26,8 @@ import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
+const _ = cockpit.gettext;
+
 class TaskLogModal extends React.Component {
     render() {
         const {
@@ -36,12 +39,12 @@ class TaskLogModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Task Log"
+                title={_("Task Log")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Close
+                        {_("Close")}
                     </Button>
                 ]}
             >
@@ -80,11 +83,11 @@ class AgmtDetailsModal extends React.Component {
 
         const btnList = [
             <Button key="cancel" variant="link" onClick={closeHandler}>
-                Cancel
+                {_("Cancel")}
             </Button>
         ];
 
-        const title = "Replication Agreement Details (" + agmt['agmt-name'] + ")";
+        const title = _("Replication Agreement Details (") + agmt['agmt-name'] + ")";
 
         return (
             <Modal
@@ -97,7 +100,7 @@ class AgmtDetailsModal extends React.Component {
                 <Form isHorizontal>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Replica</b>
+                            <b>{_("Replica")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{agmt.replica}</i>
@@ -105,7 +108,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Agreement Enabled</b>
+                            <b>{_("Agreement Enabled")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{agmt['replica-enabled']}</i>
@@ -113,7 +116,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Last Init Started</b>
+                            <b>{_("Last Init Started")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{convertedDate['last-init-start']}</i>
@@ -121,7 +124,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Last Init Ended</b>
+                            <b>{_("Last Init Ended")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{convertedDate['last-init-end']}</i>
@@ -129,7 +132,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Last Initialization Status</b>
+                            <b>{_("Last Initialization Status")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <TextArea
@@ -142,7 +145,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Replication In Progress</b>
+                            <b>{_("Replication In Progress")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{agmt['update-in-progress']}</i>
@@ -150,7 +153,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Changes Sent</b>
+                            <b>{_("Changes Sent")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{agmt['number-changes-sent']}</i>
@@ -158,7 +161,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Last Update Started</b>
+                            <b>{_("Last Update Started")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{convertedDate['last-update-start']}</i>
@@ -166,7 +169,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Last Update Ended</b>
+                            <b>{_("Last Update Ended")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <i>{convertedDate['last-update-end']}</i>
@@ -174,7 +177,7 @@ class AgmtDetailsModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={3}>
-                            <b>Last Update Status</b>
+                            <b>{_("Last Update Status")}</b>
                         </GridItem>
                         <GridItem span={8}>
                             <TextArea
@@ -243,15 +246,15 @@ class ConflictCompareModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Resolve Replication Conflict"
+                title={_("Resolve Replication Conflict")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
                     <Button key="confirm" variant="primary" onClick={() => saveHandler(conflictEntry.dn)}>
-                        Resolve Conflict
+                        {_("Resolve Conflict")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -260,13 +263,13 @@ class ConflictCompareModal extends React.Component {
                         <GridItem span={6}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    Valid Entry
+                                    {_("Valid Entry")}
                                 </Text>
                             </TextContent>
                         </GridItem>
                         <GridItem span={6}>
                             <p className="ds-margin-top ds-right-align ds-font-size-sm">
-                                Child Entries: <b>{validChildren}</b>
+                                {_("Child Entries: ")}<b>{validChildren}</b>
                             </p>
                         </GridItem>
                         <GridItem span={12}>
@@ -275,13 +278,13 @@ class ConflictCompareModal extends React.Component {
                         <GridItem className="ds-margin-top-lg" span={6}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    Conflict Entry
+                                    {_("Conflict Entry")}
                                 </Text>
                             </TextContent>
                         </GridItem>
                         <GridItem className="ds-margin-top-lg" span={6}>
                             <p className="ds-margin-top ds-right-align ds-font-size-sm">
-                                Child Entries: <b>{conflictChildren}</b>
+                                {_("Child Entries: ")}<b>{conflictChildren}</b>
                             </p>
                         </GridItem>
                         <GridItem span={12}>
@@ -292,7 +295,7 @@ class ConflictCompareModal extends React.Component {
                             <Radio
                                   name="resolve-choice"
                                   onChange={handleRadioChange}
-                                  label="Delete Conflict Entry"
+                                  label={_("Delete Conflict Entry")}
                                   id="deleteConflictRadio"
                                   isChecked={deleteConflictRadio}
                             />
@@ -301,9 +304,7 @@ class ConflictCompareModal extends React.Component {
                                     position="top"
                                     content={
                                         <div>
-                                            This will delete the conflict entry,
-                                            and the "valid" entry will remain
-                                            intact.
+                                            {_("This will delete the conflict entry, and the \"valid\" entry will remain intact.")}
                                         </div>
                                     }
                                 >
@@ -315,7 +316,7 @@ class ConflictCompareModal extends React.Component {
                             <Radio
                                   name="resolve-choice"
                                   onChange={handleRadioChange}
-                                  label="Swap Conflict Entry With Valid Entry"
+                                  label={_("Swap Conflict Entry With Valid Entry")}
                                   id="swapConflictRadio"
                                   isChecked={swapConflictRadio}
                             />
@@ -325,9 +326,7 @@ class ConflictCompareModal extends React.Component {
                                     position="top"
                                     content={
                                         <div>
-                                            This will replace the "valid" entry
-                                            with the conflict entry, but keeping
-                                            the valid entry DN intact.
+                                            {_("This will replace the \"valid\" entry with the conflict entry, but keeping the valid entry DN intact.")}
                                         </div>
                                     }
                                 >
@@ -339,7 +338,7 @@ class ConflictCompareModal extends React.Component {
                             <Radio
                                   name="resolve-choice"
                                   onChange={handleRadioChange}
-                                  label="Convert Conflict Entry Into New Entry"
+                                  label={_("Convert Conflict Entry Into New Entry")}
                                   id="convertConflictRadio"
                                   isChecked={convertConflictRadio}
                             />
@@ -348,14 +347,7 @@ class ConflictCompareModal extends React.Component {
                                     position="top"
                                     content={
                                         <div>
-                                            The conflict entry uses a
-                                            multi-valued RDN to specify the
-                                            original DN and it's nsUniqueID.  To
-                                            convert the conflict entry to a new
-                                            entry you must provide a new RDN
-                                            attribute/value for the new entry.
-                                            "RDN_ATTRIBUTE=VALUE".  For example:
-                                            cn=my_new_entry
+                                            {_("The conflict entry uses a multi-valued RDN to specify the original DN and it's nsUniqueID.  To convert the conflict entry to a new entry you must provide a new RDN attribute/value for the new entry.  \"RDN_ATTRIBUTE=VALUE\".  For example: cn=my_new_entry")}
                                         </div>
                                     }
                                 >
@@ -365,7 +357,7 @@ class ConflictCompareModal extends React.Component {
                         </div>
                         <div className="ds-margin-top ds-margin-left-sm">
                             <TextInput
-                                placeholder="Enter new RDN here"
+                                placeholder={_("Enter new RDN here")}
                                 type="text"
                                 onChange={handleChange}
                                 aria-label="new rdn label"
@@ -400,7 +392,8 @@ class ReportCredentialsModal extends React.Component {
             onConfigChange,
         } = this.props;
 
-        const title = (newEntry ? "Add" : "Edit") + " Report Credentials";
+        const value = (newEntry ? _("Add") : _("Edit"));
+        const title = cockpit.format(_("$0 Report Credentials"), value);
 
         return (
             <Modal
@@ -418,10 +411,10 @@ class ReportCredentialsModal extends React.Component {
                             (bindpw === "" && !pwInputInterractive)
                         }
                     >
-                        Save
+                        {_("Save")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -430,7 +423,7 @@ class ReportCredentialsModal extends React.Component {
                         <Form isHorizontal autoComplete="off">
                             <Grid>
                                 <GridItem className="ds-label" span={3}>
-                                    Hostname
+                                    {_("Hostname")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -447,7 +440,7 @@ class ReportCredentialsModal extends React.Component {
                             </Grid>
                             <Grid>
                                 <GridItem className="ds-label" span={3}>
-                                    Port
+                                    {_("Port")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <NumberInput
@@ -465,9 +458,9 @@ class ReportCredentialsModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="Bind DN for the specified instances">
+                            <Grid title={_("Bind DN for the specified instances")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Bind DN
+                                    {_("Bind DN")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -482,9 +475,9 @@ class ReportCredentialsModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="Bind password for the specified instances">
+                            <Grid title={_("Bind password for the specified instances")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Password
+                                    {_("Password")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -500,9 +493,9 @@ class ReportCredentialsModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="Input the password interactively">
+                            <Grid title={_("Input the password interactively")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Interractive Input
+                                    {_("Interractive Input")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <Checkbox
@@ -543,7 +536,7 @@ class ReportConnectionModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Add Replica Connection"
+                title={_("Add Replica Connection")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -556,10 +549,10 @@ class ReportConnectionModal extends React.Component {
                             binddn === "" || (bindpw === "" && !pwInputInterractive)
                         }
                     >
-                        Save
+                        {_("Save")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -568,7 +561,7 @@ class ReportConnectionModal extends React.Component {
                         <Form isHorizontal autoComplete="off">
                             <Grid>
                                 <GridItem className="ds-label" span={3}>
-                                    Connection Name
+                                    {_("Connection Name")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -585,7 +578,7 @@ class ReportConnectionModal extends React.Component {
                             </Grid>
                             <Grid>
                                 <GridItem className="ds-label" span={3}>
-                                    Hostname
+                                    {_("Hostname")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -602,7 +595,7 @@ class ReportConnectionModal extends React.Component {
                             </Grid>
                             <Grid>
                                 <GridItem className="ds-label" span={3}>
-                                    Port
+                                    {_("Port")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <NumberInput
@@ -620,9 +613,9 @@ class ReportConnectionModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="Bind DN for the specified instances">
+                            <Grid title={_("Bind DN for the specified instances")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Bind DN
+                                    {_("Bind DN")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -637,9 +630,9 @@ class ReportConnectionModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="Bind password for the specified instance.  You can also speciy a password file but the filename needs to be inside of brackets [/PATH/FILE]">
+                            <Grid title={_("Bind password for the specified instance.  You can also speciy a password file but the filename needs to be inside of brackets [/PATH/FILE]")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Password
+                                    {_("Password")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -655,9 +648,9 @@ class ReportConnectionModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="Input the password interactively, stores '*' as the password value in .dsrc">
+                            <Grid title={_("Input the password interactively, stores '*' as the password value in .dsrc")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Interractive Input
+                                    {_("Interractive Input")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <Checkbox
@@ -694,7 +687,8 @@ class ReportAliasesModal extends React.Component {
             onConfigChange
         } = this.props;
 
-        const title = (newEntry ? "Add" : "Edit") + " Report Alias";
+        const value = (newEntry ? _("Add") : _("Edit"));
+        const title = cockpit.format(_("$0 Report Alias"), value);
 
         return (
             <Modal
@@ -709,19 +703,19 @@ class ReportAliasesModal extends React.Component {
                         onClick={newEntry ? addConfig : editConfig}
                         isDisabled={alias === "" || hostname === ""}
                     >
-                        Save
+                        {_("Save")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Grid>
                     <GridItem span={12}>
                         <Form isHorizontal autoComplete="off">
-                            <Grid title="Alias name for the instance">
+                            <Grid title={_("Alias name for the instance")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Alias
+                                    {_("Alias")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -736,9 +730,9 @@ class ReportAliasesModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="An instance hostname">
+                            <Grid title={_("An instance hostname")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Hostname
+                                    {_("Hostname")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -753,9 +747,9 @@ class ReportAliasesModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="An instance port">
+                            <Grid title={_("An instance port")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Port
+                                    {_("Port")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <NumberInput
@@ -794,7 +788,7 @@ class ReportLoginModal extends React.Component {
             loginBindpw
         } = this.props;
 
-        const title = "Replication Login Credentials for " + instanceName;
+        const title = cockpit.format(_("Replication Login Credentials for $0"), instanceName);
 
         return (
             <Modal
@@ -809,30 +803,28 @@ class ReportLoginModal extends React.Component {
                         isDisabled={loginBinddn === "" || loginBindpw === ""}
                         onClick={processCredsInput}
                     >
-                        Confirm Credentials Input
+                        {_("Confirm Credentials Input")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h5}>
-                            In order to get the replication agreement lag times and state, the
-                            authentication credentials to the remote replicas must be provided.
+                            {_("In order to get the replication agreement lag times and state, the authentication credentials to the remote replicas must be provided.")}
                         </Text>
                     </TextContent>
                     <hr />
                     <TextContent>
                         <Text component={TextVariants.h5}>
-                            Bind DN was acquired from <b>Replica Credentials</b> table. If you want
-                            to bind as another user, change or remove the Bind DN there.
+                            {_("Bind DN was acquired from <b>Replica Credentials</b> table. If you want to bind as another user, change or remove the Bind DN there.")}
                         </Text>
                     </TextContent>
-                    <Grid className="ds-margin-top-lg" title="Bind DN for the instance">
+                    <Grid className="ds-margin-top-lg" title={_("Bind DN for the instance")}>
                         <GridItem className="ds-label" span={3}>
-                            Bind DN
+                            {_("Bind DN")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -848,9 +840,9 @@ class ReportLoginModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Password for the Bind DN">
+                    <Grid title={_("Password for the Bind DN")}>
                         <GridItem className="ds-label" span={3}>
-                            Password
+                            {_("Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -909,9 +901,10 @@ class FullReportContent extends React.Component {
         let resultGrids = [];
         let spinner = "";
         if (reportLoading) {
+            const value = reportRefreshing ? _("Refreshing") : _("Loading");
             spinner = (
-                <div title="Do the refresh every few seconds">
-                    {reportRefreshing ? "Refreshing" : "Loading"} the report...
+                <div title={_("Do the refresh every few seconds")}>
+                    {cockpit.format(_("$0 the report..."), value)}
                     <Spinner className="ds-left-margin" size="lg" />
                 </div>
             );
@@ -919,7 +912,7 @@ class FullReportContent extends React.Component {
         let reportHeader = (
             <TextContent>
                 <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
-                    There is no report, you must first generate the report in the <b>Prepare Report</b> tab.
+                    {_("There is no report, you must first generate the report in the <b>Prepare Report</b> tab.")}
                 </Text>
             </TextContent>
         );
@@ -930,13 +923,13 @@ class FullReportContent extends React.Component {
                         <Grid>
                             <GridItem span={8}>
                                 <Checkbox
-                                    title="Display all agreements including the disabled ones and the ones we failed to connect to"
+                                    title={_("Display all agreements including the disabled ones and the ones we failed to connect to")}
                                     isChecked={this.state.showDisabledAgreements}
                                     id="showDisabledAgreements"
                                     onChange={(checked, e) => {
                                         this.handleSwitchChange(e);
                                     }}
-                                    label="Show Disabled Agreements"
+                                    label={_("Show Disabled Agreements")}
                                 />
                             </GridItem>
                             <GridItem span={4}>
@@ -946,7 +939,7 @@ class FullReportContent extends React.Component {
                                     onClick={handleRefresh}
                                     className="ds-float-right"
                                 >
-                                    Refresh Report
+                                    {_("Refresh Report")}
                                 </Button>
                             </GridItem>
                             <GridItem span={12}>
@@ -956,8 +949,8 @@ class FullReportContent extends React.Component {
                                         this.handleSwitchChange(e);
                                     }}
                                     id="oneTableReport"
-                                    title="Show all data in one table (it makes it easier to check lag times)"
-                                    label="Table View"
+                                    title={_("Show all data in one table (it makes it easier to check lag times)")}
+                                    label={_("Table View")}
                                 />
                             </GridItem>
                         </Grid>
@@ -1000,7 +993,7 @@ class FullReportContent extends React.Component {
                         <div>
                             <TextContent>
                                 <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
-                                    <b>Can not get replication information from Replica:</b>&nbsp;&nbsp;{s_data[0].replica_status}
+                                    <b>{_("Can not get replication information from Replica:")}</b>&nbsp;&nbsp;{s_data[0].replica_status}
                                 </Text>
                             </TextContent>
                         </div>
@@ -1027,25 +1020,25 @@ class FullReportContent extends React.Component {
                             className="ds-margin-top-lg"
                         >
                             <GridItem span={2}>
-                                Replica Root
+                                {_("Replica Root")}
                             </GridItem>
                             <GridItem span={10}>
                                 <b>{replica.replica_root}</b>
                             </GridItem>
                             <GridItem span={2}>
-                                Replica ID
+                                {_("Replica ID")}
                             </GridItem>
                             <GridItem span={10}>
                                 <b>{replica.replica_id}</b>
                             </GridItem>
                             <GridItem span={2}>
-                                Max CSN
+                                {_("Max CSN")}
                             </GridItem>
                             <GridItem span={10}>
                                 <b>{replica.maxcsn}</b>
                             </GridItem>
                             <GridItem span={2}>
-                                Replica Status
+                                {_("Replica Status")}
                             </GridItem>
                             <GridItem span={10}>
                                 <b>{replica.replica_status}</b>
@@ -1064,7 +1057,7 @@ class FullReportContent extends React.Component {
                                 : (
                                     <TextContent>
                                         <Text component={TextVariants.h4}>
-                                            <b><i>No Agreements Were Found</i></b>
+                                            <b><i>{_("No Agreements Were Found")}</i></b>
                                         </Text>
                                     </TextContent>
                                 )}
@@ -1073,9 +1066,9 @@ class FullReportContent extends React.Component {
                 }
                 supplierName = (
                     <div className="ds-margin-top-xlg" key={supplier.name}>
-                        <TextContent title="Supplier host:port (and alias if applicable)">
+                        <TextContent title={_("Supplier host:port (and alias if applicable)")}>
                             <Text component={TextVariants.h2}>
-                                <CopyIcon />&nbsp;&nbsp;<b>Supplier:</b>&nbsp;&nbsp;{supplier.name}
+                                <CopyIcon />&nbsp;&nbsp;<b>{_("Supplier:")}</b>&nbsp;&nbsp;{supplier.name}
                             </Text>
                         </TextContent>
                         <hr />

@@ -20,6 +20,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 
+const _ = cockpit.gettext;
+
 export class ReplRUV extends React.Component {
     constructor(props) {
         super(props);
@@ -151,14 +153,14 @@ export class ReplRUV extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully started CleanAllRUV task');
+                        _("Successfully started CleanAllRUV task"));
                     this.closeConfirmCleanRUV();
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to start CleanAllRUV task - ${errMsg.desc}`
+                        cockpit.format(_("Failed to start CleanAllRUV task - $0"), errMsg.desc)
                     );
                     this.closeConfirmCleanRUV();
                 });
@@ -212,7 +214,7 @@ export class ReplRUV extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Changelog was successfully initialized`
+                        _("Changelog was successfully initialized")
                     );
                     this.setState({
                         showConfirmCLImport: false,
@@ -223,7 +225,7 @@ export class ReplRUV extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error importing changelog LDIF - ${errMsg.desc}`
+                        cockpit.format(_("Error importing changelog LDIF - $0"), errMsg.desc)
                     );
                     this.setState({
                         showConfirmCLImport: false,
@@ -265,7 +267,7 @@ export class ReplRUV extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Changelog was successfully exported`
+                        _("Changelog was successfully exported")
                     );
                     this.setState({
                         showCLExport: false,
@@ -276,7 +278,7 @@ export class ReplRUV extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error importing changelog LDIF - ${errMsg.desc}`
+                        cockpit.format(_("Error importing changelog LDIF - $0"), errMsg.desc)
                     );
                     this.setState({
                         showCLExport: false,
@@ -311,7 +313,7 @@ export class ReplRUV extends React.Component {
             <div className="ds-left-indent-md">
                 <Grid className="ds-margin-top-med">
                     <GridItem span={2}>
-                        Replica ID
+                        {_("Replica ID")}
                     </GridItem>
                     <GridItem span={10}>
                         <b>{localRID}</b>
@@ -319,7 +321,7 @@ export class ReplRUV extends React.Component {
                 </Grid>
                 <Grid>
                     <GridItem span={2}>
-                        LDAP URL
+                        {_("LDAP URL")}
                     </GridItem>
                     <GridItem span={10}>
                         <b>{localURL}</b>
@@ -327,7 +329,7 @@ export class ReplRUV extends React.Component {
                 </Grid>
                 <Grid>
                     <GridItem span={2}>
-                        Min CSN
+                        {_("Min CSN")}
                     </GridItem>
                     <GridItem span={10}>
                         <b>{localMinCSN}</b> ({localRawMinCSN})
@@ -335,7 +337,7 @@ export class ReplRUV extends React.Component {
                 </Grid>
                 <Grid>
                     <GridItem span={2}>
-                        Max CSN
+                        {_("Max CSN")}
                     </GridItem>
                     <GridItem span={10}>
                         <b>{localCSN}</b> ({localRawCSN})
@@ -348,7 +350,7 @@ export class ReplRUV extends React.Component {
             localRUV = (
                 <div className="ds-indent ds-margin-top">
                     <i>
-                        There is no local RUV, the database might not have been initialized yet.
+                        {_("There is no local RUV, the database might not have been initialized yet.")}
                     </i>
                 </div>
             );
@@ -358,12 +360,12 @@ export class ReplRUV extends React.Component {
             <div className="ds-margin-top-xlg ds-indent">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Local RUV
+                        {_("Local RUV")}
                         <FontAwesomeIcon
                             size="lg"
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}
-                            title="RRefresh the RUV for this suffixs"
+                            title={_("RRefresh the RUV for this suffixs")}
                             onClick={() => {
                                 this.props.reload(this.props.suffix);
                             }}
@@ -373,12 +375,12 @@ export class ReplRUV extends React.Component {
                 {localRUV}
                 <TextContent className="ds-margin-top-xlg">
                     <Text component={TextVariants.h3}>
-                        Remote RUV's
+                        {_("Remote RUV's")}
                         <FontAwesomeIcon
                             size="lg"
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}
-                            title="Refresh the remote RUVs for this suffixs"
+                            title={_("Refresh the remote RUVs for this suffixs")}
                             onClick={() => {
                                 this.props.reload(this.props.suffix);
                             }}
@@ -393,43 +395,43 @@ export class ReplRUV extends React.Component {
                 </div>
                 <TextContent className="ds-margin-top-xlg">
                     <Text component={TextVariants.h3}>
-                        Replication Change Log Tasks
+                        {_("Replication Change Log Tasks")}
                     </Text>
                 </TextContent>
                 <Form className="ds-margin-top-lg ds-left-indent-md" isHorizontal autoComplete="off">
                     <Grid>
                         <GridItem
                             span={3}
-                            title="Export the changelog to an LDIF file.  Typically used for changelog encryption purposes, or debugging."
+                            title={_("Export the changelog to an LDIF file.  Typically used for changelog encryption purposes, or debugging.")}
                         >
                             <Button
                                 variant="primary"
                                 onClick={this.handleShowCLExport}
                             >
-                                Export Changelog
+                                {_("Export Changelog")}
                             </Button>
                         </GridItem>
                         <GridItem span={9}>
                             <p className="ds-margin-top">
-                                Export the replication changelog to a LDIF file.  Used for preparing to encrypt the changelog, or simply for debugging.
+                                {_("Export the replication changelog to a LDIF file.  Used for preparing to encrypt the changelog, or simply for debugging.")}
                             </p>
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top-lg">
                         <GridItem
                             span={3}
-                            title="Initialize the changelog with an LDIF file for changelog encryption purposes."
+                            title={_("Initialize the changelog with an LDIF file for changelog encryption purposes.")}
                         >
                             <Button
                                 variant="primary"
                                 onClick={this.handleShowConfirmCLImport}
                             >
-                                Import Changelog
+                                {_("Import Changelog")}
                             </Button>
                         </GridItem>
                         <GridItem span={9}>
                             <p className="ds-margin-top">
-                                Initialize the replication changelog from an LDIF file.  Used to initialize the change log after encryption has been enabled.
+                                {_("Initialize the replication changelog from an LDIF file.  Used to initialize the change log after encryption has been enabled.")}
                             </p>
                         </GridItem>
                     </Grid>
@@ -443,10 +445,10 @@ export class ReplRUV extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={"Replica ID " + this.state.rid}
                     checked={this.state.modalChecked}
-                    mTitle="Remove RUV Element (CleanAllRUV)"
-                    mMsg="Are you sure you want to attempt to clean this Replica ID from the suffix?"
-                    mSpinningMsg="Starting cleaning task (CleanAllRUV) ..."
-                    mBtnName="Remove RUV Element"
+                    mTitle={_("Remove RUV Element (CleanAllRUV)")}
+                    mMsg={_("Are you sure you want to attempt to clean this Replica ID from the suffix?")}
+                    mSpinningMsg={_("Starting cleaning task (CleanAllRUV) ...")}
+                    mBtnName={_("Remove RUV Element")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmCLImport}
@@ -456,10 +458,10 @@ export class ReplRUV extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={"Replicated Suffix " + this.props.suffix}
                     checked={this.state.modalChecked}
-                    mTitle="Initialize Replication Changelog From LDIF"
-                    mMsg="Are you sure you want to attempt to initialize the changelog from LDIF?  This will reject all operations during during the initialization."
-                    mSpinningMsg="Initialzing Replication Change Log ..."
-                    mBtnName="Import Changelog LDIF"
+                    mTitle={_("Initialize Replication Changelog From LDIF")}
+                    mMsg={_("Are you sure you want to attempt to initialize the changelog from LDIF?  This will reject all operations during during the initialization.")}
+                    mSpinningMsg={_("Initialzing Replication Change Log ...")}
+                    mBtnName={_("Import Changelog LDIF")}
                 />
                 <ExportCLModal
                     showModal={this.state.showCLExport}

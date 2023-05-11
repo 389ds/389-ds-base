@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -31,6 +32,8 @@ import {
     runGenericSearch,
     decodeLine
 } from '../../lib/utils.jsx';
+
+const _ = cockpit.gettext;
 
 class AddGroup extends React.Component {
     constructor (props) {
@@ -104,7 +107,7 @@ class AddGroup extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? 'Group successfully created!' : 'Failed to create group, error: ' + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ? _("Group successfully created!") : _("Failed to create group, error: ") + result.errorCode,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -321,7 +324,7 @@ class AddGroup extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select Group Type
+                            {_("Select Group Type")}
                         </Text>
                     </TextContent>
 
@@ -341,14 +344,10 @@ class AddGroup extends React.Component {
                     </Select>
                     <TextContent className="ds-margin-top-xlg">
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
-                            <b>Basic Group</b> - This type of group can use
-                            membership attributes: member, or uniqueMember
-                            common set of objectclasses and attributes.
+                            <b>{_("Basic Group")}</b>{_("- This type of group can use membership attributes: member, or uniqueMember common set of objectclasses and attributes.")}
                         </Text>
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
-                            <b>Posix Group</b> - This type of group uses the
-                            'GroupOfNames' and 'PosixGroup' objectclasses which
-                            allows for attributes like <i>gidNumber</i>, etc
+                            <b>{_("Posix Group")}</b> {_("- This type of group uses the 'GroupOfNames' and 'PosixGroup' objectclasses which allows for attributes like <i>gidNumber</i>, etc")}
                         </Text>
                     </TextContent>
                 </div>
@@ -359,13 +358,13 @@ class AddGroup extends React.Component {
             <div>
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Select Name
+                        {_("Select Name")}
                     </Text>
                 </TextContent>
                 <Form autoComplete="off">
                     <Grid className="ds-margin-top-xlg">
                         <GridItem span={2} className="ds-label">
-                            Group Name
+                            {_("Group Name")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -381,9 +380,9 @@ class AddGroup extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Optional description for this group.">
+                    <Grid title={_("Optional description for this group.")}>
                         <GridItem span={2} className="ds-label">
-                            Group Description
+                            {_("Group Description")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -403,7 +402,7 @@ class AddGroup extends React.Component {
                         <>
                             <TextContent className="ds-margin-top-lg">
                                 <Text component={TextVariants.h5}>
-                                    Choose The Membership
+                                    {_("Choose The Membership")}
                                 </Text>
                             </TextContent>
                             <div className="ds-left-margin">
@@ -411,19 +410,19 @@ class AddGroup extends React.Component {
                                     name="memberAttrGroup"
                                     id="member"
                                     value="member"
-                                    label="member"
+                                    label={_("member")}
                                     isChecked={this.state.memberAttr === 'member'}
                                     onChange={this.handleRadioChange}
-                                    description="This group uses objectclass 'GroupOfNames'."
+                                    description={_("This group uses objectclass 'GroupOfNames'.")}
                                 />
                                 <Radio
                                     name="memberAttrGroup"
                                     id="uniquemember"
                                     value="uniquemember"
-                                    label="uniquemember"
+                                    label={_("uniquemember")}
                                     isChecked={this.state.memberAttr === 'uniquemember'}
                                     onChange={this.handleRadioChange}
-                                    description="This group uses objectclass 'GroupOfUniqueNames'."
+                                    description={_("This group uses objectclass 'GroupOfUniqueNames'.")}
                                     className="ds-margin-top"
                                 />
                             </div>
@@ -431,11 +430,11 @@ class AddGroup extends React.Component {
                     {this.state.posixGroup &&
                         <>
                             <Grid
-                                title="This setting corresponds to the attribute: gidNumber.  The gid must be greater than zero for this attribute to be set."
+                                title={_("This setting corresponds to the attribute: gidNumber.  The gid must be greater than zero for this attribute to be set.")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={2}>
-                                    Group ID Number
+                                    {_("Group ID Number")}
                                 </GridItem>
                                 <GridItem span={10}>
                                     <NumberInput
@@ -465,14 +464,14 @@ class AddGroup extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Add Members To The Group
+                                    {_("Add Members To The Group")}
                                 </Text>
                             </TextContent>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
                             <TextContent>
                                 <Text>
-                                    Search Base:
+                                    {_("Search Base:")}
                                     <Text
                                         className="ds-left-margin"
                                         component={TextVariants.a}
@@ -486,7 +485,7 @@ class AddGroup extends React.Component {
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top">
                             <SearchInput
-                              placeholder="Find members..."
+                              placeholder={_("Find members...")}
                               value={this.state.searchPattern}
                               onChange={(_event, value) => this.handleSearchPattern(value)}
                               onSearch={this.handleSearchClick}
@@ -497,8 +496,8 @@ class AddGroup extends React.Component {
                             <DualListSelector
                                 availableOptions={usersAvailableOptions}
                                 chosenOptions={usersChosenOptions}
-                                availableOptionsTitle="Available Members"
-                                chosenOptionsTitle="Chosen Members"
+                                availableOptionsTitle={_("Available Members")}
+                                chosenOptionsTitle={_("Chosen Members")}
                                 onListChange={this.handleUsersOnListChange}
                                 id="usersSelector"
                             />
@@ -506,7 +505,7 @@ class AddGroup extends React.Component {
 
                         <Modal
                             variant={ModalVariant.medium}
-                            title="Choose A Branch To Search"
+                            title={_("Choose A Branch To Search")}
                             isOpen={showLDAPNavModal}
                             onClose={this.handleCloseLDAPNavModal}
                             actions={[
@@ -515,7 +514,7 @@ class AddGroup extends React.Component {
                                     variant="primary"
                                     onClick={this.handleCloseLDAPNavModal}
                                 >
-                                    Done
+                                    {_("Done")}
                                 </Button>
                             ]}
                         >
@@ -547,7 +546,7 @@ class AddGroup extends React.Component {
                 <Alert
                     variant="info"
                     isInline
-                    title="LDIF Content for Group Creation"
+                    title={_("LDIF Content for Group Creation")}
                 />
                 <Card isSelectable>
                     <CardBody>
@@ -570,19 +569,19 @@ class AddGroup extends React.Component {
                 <Alert
                     variant={resultVariant}
                     isInline
-                    title="Result for Group Creation"
+                    title={_("Result for Group Creation")}
                 >
                     {commandOutput}
                     {this.state.adding &&
                         <div>
                             <Spinner className="ds-left-margin" size="md" />
-                            &nbsp;&nbsp;Adding group ...
+                            &nbsp;&nbsp;{_("Adding group ...")}
                         </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
                         <CardTitle>
-                            LDIF Data
+                            {_("LDIF Data")}
                         </CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -603,35 +602,35 @@ class AddGroup extends React.Component {
             },
             {
                 id: 2,
-                name: 'Select Group Type',
+                name: _("Select Group Type"),
                 component: groupSelectStep,
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 6,
             },
             {
                 id: 3,
-                name: 'Select Name',
+                name: _("Select Name"),
                 component: groupNameStep,
                 canJumpTo: stepIdReached >= 3 && stepIdReached < 6,
                 enableNext: groupName !== '',
             },
             {
                 id: 4,
-                name: 'Add Members',
+                name: _("Add Members"),
                 component: selectMembersStep,
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
             },
             {
                 id: 5,
-                name: 'Create Group',
+                name: _("Create Group"),
                 component: groupCreationStep,
-                nextButtonText: 'Create',
+                nextButtonText: _("Create"),
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 6
             },
             {
                 id: 6,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: groupReviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
                 hideBackButton: true,
                 enableNext: !this.state.adding
@@ -640,7 +639,7 @@ class AddGroup extends React.Component {
 
         const title = (
             <>
-                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
             </>
         );
 
@@ -650,7 +649,7 @@ class AddGroup extends React.Component {
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
                 onBack={this.handleBack}
-                title="Add A Group"
+                title={_("Add A Group")}
                 description={title}
                 steps={addGroupSteps}
             />

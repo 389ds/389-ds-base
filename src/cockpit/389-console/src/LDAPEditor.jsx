@@ -50,13 +50,15 @@ import {
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import { log_cmd } from "./lib/tools.jsx";
 
+const _ = cockpit.gettext;
+
 export class LDAPEditor extends React.Component {
     constructor (props) {
         super(props);
 
         this.rootSuffixesRows = [];
         this.rootSuffixesTreeData = [];
-        this.initialChildText = 'Loading...';
+        this.initialChildText = _("Loading...");
 
         this.state = {
             activeTabKey: 0,
@@ -88,18 +90,18 @@ export class LDAPEditor extends React.Component {
             refreshEntryTime: 0,
             navItems: [
                 { id: 'home', label: <CatalogIcon />, active: false },
-                { id: 'db-suffixes', to: '#', label: 'Database Suffixes', active: true }
+                { id: 'db-suffixes', to: '#', label: _("Database Suffixes"), active: true }
             ],
             columns: [
                 {
-                    title: 'Database Suffixes',
+                    title: _("Database Suffixes"),
                     cellFormatters: [expandable]
                 },
                 {
-                    title: 'Child Entries'
+                    title: _("Child Entries")
                 },
                 {
-                    title: 'Last Modified'
+                    title: _("Last Modified")
                 }
             ],
             rows: [],
@@ -483,7 +485,7 @@ export class LDAPEditor extends React.Component {
             this.setState(prevState => ({
                 columns: [
                     {
-                        title: 'Entry DN',
+                        title: _("Entry DN"),
                         cellFormatters: [expandable]
                     },
                     ...prevState.columns.slice(1)
@@ -530,7 +532,7 @@ export class LDAPEditor extends React.Component {
             if (info.ldapsubentry) {
                 dn = (
                     <div className="ds-info-icon">
-                        {info.dn} <InfoCircleIcon title="This is a hidden LDAP subentry" className="ds-info-icon" />
+                        {info.dn} <InfoCircleIcon title={_("This is a hidden LDAP subentry")} className="ds-info-icon" />
                     </div>
                 );
             }
@@ -653,7 +655,7 @@ export class LDAPEditor extends React.Component {
                                     `${isRole ? "role" : "account"} account entry-status operation failed`,
                                     errMsg.desc
                                 );
-                                entryState = "error: please, check browser logs";
+                                entryState = _("error: please, check browser logs");
                                 entryStateIcon = <ExclamationCircleIcon className="ds-pf-red-color ct-exclamation-circle" />;
                             }
                         })
@@ -775,9 +777,9 @@ export class LDAPEditor extends React.Component {
                             )
                             : (
                                 <div>
-                                    <strong>&nbsp;<em>This suffix is empty!&nbsp;&nbsp;&nbsp;</em></strong>
+                                    <strong>&nbsp;<em>{_("This suffix is empty!")}&nbsp;&nbsp;&nbsp;</em></strong>
                                     <a key={'top-entry-' + info.dn} href="#" onClick={() => { this.onHandleEmptySuffixToggle(info.dn) }}>
-                                        Click here to create the top entry
+                                        {_("Click here to create the top entry")}
                                     </a>
                                 </div>
                             )
@@ -791,7 +793,7 @@ export class LDAPEditor extends React.Component {
         const randomId = generateUniqueId();
         // const nodeChildren = [];
         const nodeChildren = [{
-            name: 'Loading...',
+            name: _("Loading..."),
             id: randomId,
             icon: <Spinner size="sm" />,
             isFakeEntry: true
@@ -912,7 +914,7 @@ export class LDAPEditor extends React.Component {
         // TODO ==> To optimize!
         if ((isRootSuff && (tableTitle !== 'Database Suffixes')) ||
             (!isRootSuff && (tableTitle === 'Database Suffixes'))) {
-            const firstTitle = (label === 'Database Suffixes') ? 'Database Suffixes' : 'Entry DN';
+            const firstTitle = (label === 'Database Suffixes') ? _("Database Suffixes") : _("Entry DN");
             this.setState(prevState => ({
                 columns: [
                     {
@@ -938,7 +940,7 @@ export class LDAPEditor extends React.Component {
         // If there is an entry suffix, allow only the creation of the top entry:
         if (rowData.isEmptySuffix) {
             return [{
-                title: 'Create Top Entry...',
+                title: _("Create Top Entry..."),
                 onClick: () => {
                     this.onHandleEmptySuffixToggle(rowData.rawdn);
                 }
@@ -950,7 +952,7 @@ export class LDAPEditor extends React.Component {
             if (rowData.entryState !== "" && rowData.entryState !== "activated") {
                 if (rowData.entryState.includes("probably activated") || rowData.entryState.includes("indirectly locked")) {
                     lockingDropdown = [{
-                        title: 'Lock ...',
+                        title: _("Lock ..."),
                         onClick:
                         () => {
                             const entryType = rowData.isRole ? "role" : "account";
@@ -964,7 +966,7 @@ export class LDAPEditor extends React.Component {
                     }];
                 } else {
                     lockingDropdown = [{
-                        title: 'Unlock ...',
+                        title: _("Unlock ..."),
                         onClick:
                         () => {
                             const entryType = rowData.isRole ? "role" : "account";
@@ -979,7 +981,7 @@ export class LDAPEditor extends React.Component {
                 }
             } else if (rowData.entryState === "activated") {
                 lockingDropdown = [{
-                    title: 'Lock ...',
+                    title: _("Lock ..."),
                     onClick:
                     () => {
                         const entryType = rowData.isRole ? "role" : "account";
@@ -996,7 +998,7 @@ export class LDAPEditor extends React.Component {
         const keyIndex = this.state.keyIndex + 1;
         const updateActions =
             [{
-                title: 'Search ...',
+                title: _("Search ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -1009,7 +1011,7 @@ export class LDAPEditor extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Edit ...',
+                title: _("Edit ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -1021,7 +1023,7 @@ export class LDAPEditor extends React.Component {
                 }
             },
             {
-                title: 'New ...',
+                title: _("New ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -1033,7 +1035,7 @@ export class LDAPEditor extends React.Component {
                 }
             },
             {
-                title: 'Rename ...',
+                title: _("Rename ..."),
                 isDisabled: rowData.customRowId === 0, // can not rename root suffix
                 onClick:
                 () => {
@@ -1047,7 +1049,7 @@ export class LDAPEditor extends React.Component {
             },
             ...lockingDropdown,
             {
-                title: 'ACIs ...',
+                title: _("ACIs ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -1060,7 +1062,7 @@ export class LDAPEditor extends React.Component {
                 }
             },
             {
-                title: 'Class of Service ...',
+                title: _("Class of Service ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -1076,7 +1078,7 @@ export class LDAPEditor extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete ...',
+                title: _("Delete ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -1091,7 +1093,7 @@ export class LDAPEditor extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Refresh ...',
+                title: _("Refresh ..."),
                 onClick:
                 () => {
                     this.handleReload(true);
@@ -1158,7 +1160,7 @@ export class LDAPEditor extends React.Component {
                     />
                 )}
                 <Tabs isBox className="ds-margin-top-lg ds-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Tree View</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Tree View")}</TabTitleText>}>
                         <EditorTreeView
                             key={loading}
                             handleToggleEntryMenu={this.onToggleEntryMenu}
@@ -1177,7 +1179,7 @@ export class LDAPEditor extends React.Component {
                             addNotification={this.props.addNotification}
                         />
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Table View</TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Table View")}</TabTitleText>}>
                         <div className={this.state.searching ? "ds-disabled" : ""}>
                             <Breadcrumb className="ds-left-margin ds-margin-top-xlg">
                                 {navItems.map(({ id, to, label, active }) => (
@@ -1189,14 +1191,14 @@ export class LDAPEditor extends React.Component {
                             <FontAwesomeIcon
                                 className="ds-left-margin ds-refresh"
                                 icon={faSyncAlt}
-                                title="Refresh"
+                                title={_("Refresh")}
                                 onClick={this.handleReload}
                             />
                         </div>
                         <div className={this.state.searching ? "ds-margin-top-xlg ds-center" : "ds-hidden"}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Loading <i>{this.state.searchBase}</i> ...
+                                    {_("Loading")} <i>{this.state.searchBase}</i> ...
                                 </Text>
                             </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1220,7 +1222,7 @@ export class LDAPEditor extends React.Component {
                             />
                         </div>
                     </Tab>
-                    <Tab eventKey={2} title={<TabTitleText>Search</TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Search")}</TabTitleText>}>
                         <SearchDatabase
                             key={this.state.suffixList + this.state.searchBase}
                             serverId={this.props.serverId}
@@ -1243,25 +1245,28 @@ export class LDAPEditor extends React.Component {
                     // TODO: Fix confirmation modal formatting and size; add operation to the tables
                     variant={ModalVariant.medium}
                     title={
-                        `Are you sure you want to ${this.state.operationType} the ${this.state.entryType}?`
+                        cockpit.format(_("Are you sure you want to $0 the $1?"), this.state.operationType, this.state.entryType)
                     }
                     isOpen={this.state.isConfirmModalOpen}
                     onClose={this.handleConfirmModalToggle}
                     actions={[
                         <Button key="confirm" variant="primary" onClick={this.handleLockUnlockEntry}>
-                            Confirm
+                            {_("Confirm")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <TextContent className="ds-margin-top ds-hide-vertical-scrollbar">
                         <Text>
-                            {this.state.entryType === "account"
-                                ? `It will ${this.state.operationType === "lock" ? "add" : "remove"} nsAccountLock attribute
-                            ${this.state.operationType === "lock" ? "to" : "from"} the entry - ${this.state.entryDn}.`
-                                : `This operation will make sure that these five entries are created at the entry's root suffix (if not, they will be created):`}
+                            {this.state.entryType === "account" && (() => {
+                                const value1 = this.state.operationType === "lock" ? _("add") : _("remove");
+                                const value2 = this.state.operationType === "lock" ? _("to") : _("from");
+
+                                return cockpit.format(_("It will $0 nsAccountLock attribute $1 the entry - $2."), value1, value2, this.state.entryDn);
+                            })()}
+                            {!this.state.entryType === "account" && _("This operation will make sure that these five entries are created at the entry's root suffix (if not, they will be created):")}
                         </Text>
                         {this.state.entryType === "role" &&
                         <>
@@ -1280,7 +1285,10 @@ export class LDAPEditor extends React.Component {
                                 </TextListItem>
                             </TextList>
                             <Text>
-                                {`The entry - ${this.state.entryDn} - will be ${this.state.operationType === "lock" ? "added to" : "removed from"} nsRoleDN attribute in cn=nsDisabledRole entry in the root suffix.`}
+                                {(() => {
+                                    const value1 = this.state.operationType === "lock" ? _("added to") : _("removed from");
+                                    return cockpit.format(_("The entry - $0 - will be $1 nsRoleDN attribute in cn=nsDisabledRole entry in the root suffix."), this.state.entryDn, value1);
+                                })()}
                             </Text>
                         </>}
                     </TextContent>

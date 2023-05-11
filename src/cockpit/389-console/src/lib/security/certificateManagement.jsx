@@ -26,6 +26,8 @@ import {
 import PropTypes from "prop-types";
 import { log_cmd } from "../../lib/tools.jsx";
 
+const _ = cockpit.gettext;
+
 export class CertificateManagement extends React.Component {
     constructor(props) {
         super(props);
@@ -369,7 +371,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        'Successfully exported certificate as: ' + exportFileName
+                        cockpit.format(_("Successfully exported certificate as: $0"), exportFileName)
                     );
                 })
                 .fail(err => {
@@ -385,7 +387,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error exporting certificate - ${msg}`
+                        cockpit.format(_("Error exporting certificate - $0"), msg)
                     );
                 });
     }
@@ -402,7 +404,7 @@ export class CertificateManagement extends React.Component {
                 .fail((err) => {
                     this.props.addNotification(
                         "warning",
-                        `Error deleting tmp certificate - ${err}`
+                        cockpit.format(_("Error deleting tmp certificate - $0"), err)
                     );
                 });
     }
@@ -490,7 +492,7 @@ export class CertificateManagement extends React.Component {
                                     this.reloadOrphanKeys();
                                     this.props.addNotification(
                                         "success",
-                                        `Successfully added certificate`
+                                        _("Successfully added certificate")
                                     );
                                     this.closeAddCAModal();
                                     this.closeAddModal();
@@ -510,7 +512,7 @@ export class CertificateManagement extends React.Component {
                                     });
                                     this.props.addNotification(
                                         "error",
-                                        `Error adding certificate - ${msg}`
+                                        cockpit.format(_("Error adding certificate - $0"), msg)
                                     );
                                 });
                     })
@@ -521,7 +523,7 @@ export class CertificateManagement extends React.Component {
                         });
                         this.props.addNotification(
                             "error",
-                            `Faield to create temporary certificate file: ${err}`
+                            cockpit.format(_("Faield to create temporary certificate file: $0"), err)
                         );
                     });
         } else {
@@ -553,7 +555,7 @@ export class CertificateManagement extends React.Component {
                         this.reloadOrphanKeys();
                         this.props.addNotification(
                             "success",
-                            `Successfully added certificate`
+                            _("Successfully added certificate")
                         );
                     })
                     .fail(err => {
@@ -570,7 +572,7 @@ export class CertificateManagement extends React.Component {
                         });
                         this.props.addNotification(
                             "error",
-                            `Error adding certificate - ${msg}`
+                            cockpit.format(_("Error adding certificate - $0"), msg)
                         );
                     });
         }
@@ -602,7 +604,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully created CSR`
+                        _("Successfully created CSR")
                     );
                 })
                 .fail(err => {
@@ -610,12 +612,12 @@ export class CertificateManagement extends React.Component {
                     if (errMsg.desc.includes('certutil -s: improperly formatted name:')) {
                         this.props.addNotification(
                             "error",
-                            `Error Improperly formatted subject`
+                            _("Error Improperly formatted subject")
                         );
                     } else {
                         this.props.addNotification(
                             "error",
-                            `Error creating CSR - ${errMsg.desc}`
+                            cockpit.format(_("Error creating CSR - $0"), errMsg.desc)
                         );
                     }
                     this.setState({
@@ -629,7 +631,7 @@ export class CertificateManagement extends React.Component {
         if (name === "") {
             this.props.addNotification(
                 "warning",
-                `Missing CSR Name`
+                _("Missing CSR Name")
             );
             return;
         }
@@ -652,7 +654,7 @@ export class CertificateManagement extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error displaying CSR - ${errMsg.desc}`
+                        cockpit.format(_("Error displaying CSR - $0"), errMsg.desc)
                     );
                 });
     }
@@ -705,7 +707,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully deleted certificate`
+                        _("Successfully deleted certificate")
                     );
                 })
                 .fail(err => {
@@ -721,7 +723,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error deleting certificate - ${msg}`
+                        cockpit.format(_("Error deleting certificate - $0"), msg)
                     );
                 });
     }
@@ -748,7 +750,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully deleted CSR`
+                        _("Successfully deleted CSR")
                     );
                 })
                 .fail(err => {
@@ -765,7 +767,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error deleting CSR - ${msg}`
+                        cockpit.format(_("Error deleting CSR - $0"), msg)
                     );
                 });
     }
@@ -791,7 +793,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully deleted key`
+                        _("Successfully deleted key")
                     );
                 })
                 .fail(err => {
@@ -807,7 +809,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error deleting key - ${msg}`
+                        cockpit.format(_("Error deleting key - $0"), msg)
                     );
                 });
     }
@@ -886,7 +888,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully changed certificate's trust flags`
+                        _("Successfully changed certificate's trust flags")
                     );
                 })
                 .fail(err => {
@@ -904,7 +906,7 @@ export class CertificateManagement extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error setting trust flags - ${msg}`
+                        cockpit.format(_("Error setting trust flags - $0"), msg)
                     );
                 });
     }
@@ -1124,7 +1126,7 @@ export class CertificateManagement extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading server certificates - ${msg}`
+                        cockpit.format(_("Error loading server certificates - $0"), msg)
                     );
                 });
     }
@@ -1155,7 +1157,7 @@ export class CertificateManagement extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading CSRs - ${msg}`
+                        cockpit.format(_("Error loading CSRs - $0"), msg)
                     );
                 });
     }
@@ -1185,7 +1187,7 @@ export class CertificateManagement extends React.Component {
                     if (!errMsg.desc.includes('certutil: no keys found')) {
                         this.props.addNotification(
                             "error",
-                            `Error loading Orphan Keys - ${errMsg.desc}`
+                            cockpit.format(_("Error loading Orphan Keys - $0"), errMsg.desc)
                         );
                     }
                     this.setState({
@@ -1218,7 +1220,7 @@ export class CertificateManagement extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading CA certificates - ${msg}`
+                        cockpit.format(_("Error loading CA certificates - $0"), msg)
                     );
                 });
     }
@@ -1231,7 +1233,7 @@ export class CertificateManagement extends React.Component {
                 <div className="ds-loading-spinner ds-center ds-margin-top-xlg">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading Certificates ...
+                            {_("Loading Certificates ...")}
                         </Text>
                     </TextContent>
                     <Spinner size="lg" />
@@ -1240,7 +1242,7 @@ export class CertificateManagement extends React.Component {
         } else {
             certificatePage = (
                 <Tabs isBox isSecondary className="ds-margin-top-xlg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Trusted Certificate Authorites <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Trusted Certificate Authorites")} <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
                             <CertTable
                                 certs={this.state.CACerts}
@@ -1256,11 +1258,11 @@ export class CertificateManagement extends React.Component {
                                     this.showAddCAModal();
                                 }}
                             >
-                                Add CA Certificate
+                                {_("Add CA Certificate")}
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>TLS Certificates <font size="2">({this.state.ServerCerts.length})</font></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("TLS Certificates")} <font size="2">({this.state.ServerCerts.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
                             <CertTable
                                 certs={this.state.ServerCerts}
@@ -1276,11 +1278,11 @@ export class CertificateManagement extends React.Component {
                                     this.showAddModal();
                                 }}
                             >
-                                Add Server Certificate
+                                {_("Add Server Certificate")}
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={2} title={<TabTitleText>Certificate Sigining Requests <font size="2">({this.state.ServerCSRs.length})</font></TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Certificate Sigining Requests")} <font size="2">({this.state.ServerCSRs.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
                             <CSRTable
                                 ServerCSRs={this.state.ServerCSRs}
@@ -1295,11 +1297,11 @@ export class CertificateManagement extends React.Component {
                                     this.showAddCSRModal();
                                 }}
                             >
-                                Create Certificate Sigining Request
+                                {_("Create Certificate Sigining Request")}
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={3} title={<TabTitleText> Orphan Keys <font size="2">({this.state.ServerKeys.length})</font></TabTitleText>}>
+                    <Tab eventKey={3} title={<TabTitleText> {_("Orphan Keys")} <font size="2">({this.state.ServerKeys.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
                             <KeyTable
                                 ServerKeys={this.state.ServerKeys}
@@ -1422,10 +1424,10 @@ export class CertificateManagement extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Certificate"
-                    mMsg="Are you sure you want to delete this certificate?"
-                    mSpinningMsg="Deleting Certificate ..."
-                    mBtnName="Delete Certificate"
+                    mTitle={_("Delete Certificate")}
+                    mMsg={_("Are you sure you want to delete this certificate?")}
+                    mSpinningMsg={_("Deleting Certificate ...")}
+                    mBtnName={_("Delete Certificate")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showCSRConfirmDelete}
@@ -1435,10 +1437,10 @@ export class CertificateManagement extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.csrName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete CSR"
-                    mMsg="Are you sure you want to delete this CSR?"
-                    mSpinningMsg="Deleting CSR ..."
-                    mBtnName="Delete CSR"
+                    mTitle={_("Delete CSR")}
+                    mMsg={_("Are you sure you want to delete this CSR?")}
+                    mSpinningMsg={_("Deleting CSR ...")}
+                    mBtnName={_("Delete CSR")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showKeyConfirmDelete}
@@ -1448,10 +1450,10 @@ export class CertificateManagement extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.keyID}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Key"
-                    mMsg="Are you sure you want to delete this Key?"
-                    mSpinningMsg="Deleting Key ..."
-                    mBtnName="Delete Key"
+                    mTitle={_("Delete Key")}
+                    mMsg={_("Are you sure you want to delete this Key?")}
+                    mSpinningMsg={_("Deleting Key ...")}
+                    mBtnName={_("Delete Key")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmCAChange}
@@ -1461,10 +1463,10 @@ export class CertificateManagement extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}
                     checked={this.state.modalChecked}
-                    mTitle="Warning - Altering CA Certificate Properties"
-                    mMsg="Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?"
-                    mSpinningMsg="Editing CA Certificate ..."
-                    mBtnName="Change Trust Flags"
+                    mTitle={_("Warning - Altering CA Certificate Properties")}
+                    mMsg={_("Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?")}
+                    mSpinningMsg={_("Editing CA Certificate ...")}
+                    mBtnName={_("Change Trust Flags")}
                 />
             </div>
         );

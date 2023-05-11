@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -16,6 +17,8 @@ import {
     ValidatedOptions,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
+
+const _ = cockpit.gettext;
 
 class ObjectClassModal extends React.Component {
     render() {
@@ -54,33 +57,33 @@ class ObjectClassModal extends React.Component {
         const modalTitle =
             ocModalViewOnly
                 ? (
-                    `View ObjectClass - ${ocName}`
+                    cockpit.format(_("View ObjectClass - $0"), ocName)
                 )
                 : (
                     <div>
-                        {newOcEntry ? "Add" : "Edit"} ObjectClass
+                        {cockpit.format(_("$0 ObjectClass"), newOcEntry ? _("Add") : _("Edit"))}
                         {ocName !== "" ? ` - ${ocName}` : ""}{" "}
                     </div>
                 );
 
         const btnList = [
             <Button key="cancel" variant="link" onClick={closeModal}>
-                Close
+                {_("Close")}
             </Button>
         ];
         if (!ocModalViewOnly) {
-            let btnText = "Save";
+            let btnText = _("Save");
             const extraPrimaryProps = {};
 
             if (loading) {
-                btnText = "Saving...";
-                extraPrimaryProps.spinnerAriaValueText = "Loading";
+                btnText = _("Saving...");
+                extraPrimaryProps.spinnerAriaValueText = _("Loading");
             }
             btnList.unshift(
                 <Button
                     key="oc"
                     isLoading={loading}
-                    spinnerAriaValueText={loading ? "Loading" : undefined}
+                    spinnerAriaValueText={loading ? _("Loading") : undefined}
                     variant="primary"
                     onClick={newOcEntry ? addHandler : editHandler}
                     {...extraPrimaryProps}
@@ -102,9 +105,9 @@ class ObjectClassModal extends React.Component {
                     actions={btnList}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Name of the objectClass">
+                        <Grid title={_("Name of the objectClass")}>
                             <GridItem className="ds-label" span={3}>
-                                Objectclass Name
+                                {_("Objectclass Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -119,9 +122,9 @@ class ObjectClassModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Describes what is the objectClass's purpose">
+                        <Grid title={_("Describes what is the objectClass's purpose")}>
                             <GridItem className="ds-label" span={3}>
-                                Description
+                                {_("Description")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -135,9 +138,9 @@ class ObjectClassModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Object identifier">
+                        <Grid title={_("Object identifier")}>
                             <GridItem className="ds-label" span={3}>
-                                OID (optional)
+                                {_("OID (optional)")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -151,9 +154,9 @@ class ObjectClassModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="An objectClass's parent">
+                        <Grid title={_("An objectClass's parent")}>
                             <GridItem className="ds-label" span={3}>
-                                Parent Objectclass
+                                {_("Parent Objectclass")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -169,9 +172,9 @@ class ObjectClassModal extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="An objectClass's kind">
+                        <Grid title={_("An objectClass's kind")}>
                             <GridItem className="ds-label" span={3}>
-                                Objectclass Kind
+                                {_("Objectclass Kind")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -187,9 +190,9 @@ class ObjectClassModal extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="A must attribute name">
+                        <Grid title={_("A must attribute name")}>
                             <GridItem className="ds-label" span={3}>
-                                Required Attributes
+                                {_("Required Attributes")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -202,8 +205,8 @@ class ObjectClassModal extends React.Component {
                                     id="ocMust"
                                     isOpen={isRequiredAttrsOpen}
                                     aria-labelledby="typeAhead-required-attrs"
-                                    placeholderText="Type an attribute name..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={onRequiredAttrsCreateOption}
                                     direction="up"
@@ -218,9 +221,9 @@ class ObjectClassModal extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="A may attribute name">
+                        <Grid title={_("A may attribute name")}>
                             <GridItem className="ds-label" span={3}>
-                                Allowed Attributes
+                                {_("Allowed Attributes")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -233,8 +236,8 @@ class ObjectClassModal extends React.Component {
                                     id="ocMay"
                                     isOpen={isAllowedAttrsOpen}
                                     aria-labelledby="typeAhead-allowed-attrs"
-                                    placeholderText="Type an attribute name..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={onAllowedAttrsCreateOption}
                                     direction="up"
@@ -346,33 +349,33 @@ class AttributeTypeModal extends React.Component {
         const modalTitle =
             atModalViewOnly
                 ? (
-                    `View Attribute - ${atName}`
+                    cockpit.format(_("View Attribute - $0"), atName)
                 )
                 : (
                     <div>
-                        {newAtEntry ? "Add" : "Edit"} Attribute
+                        {cockpit.format(_("$0 Attribute"), newAtEntry ? _("Add") : _("Edit"))}
                         {atName !== "" ? ` - ${atName}` : ""}{" "}
                     </div>
                 );
 
         const btnList = [
             <Button key="cancel" variant="link" onClick={closeModal}>
-                Close
+                {_("Close")}
             </Button>
         ];
         if (!atModalViewOnly) {
-            let btnText = "Save";
+            let btnText = _("Save");
             const extraPrimaryProps = {};
 
             if (loading) {
-                btnText = "Saving...";
-                extraPrimaryProps.spinnerAriaValueText = "Loading";
+                btnText = _("Saving...");
+                extraPrimaryProps.spinnerAriaValueText = _("Loading");
             }
             btnList.unshift(
                 <Button
                     key="at"
                     isLoading={loading}
-                    spinnerAriaValueText={loading ? "Loading" : undefined}
+                    spinnerAriaValueText={loading ? _("Loading") : undefined}
                     variant="primary"
                     onClick={newAtEntry ? addHandler : editHandler}
                     {...extraPrimaryProps}
@@ -394,9 +397,9 @@ class AttributeTypeModal extends React.Component {
                     actions={btnList}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Name of the attribute">
+                        <Grid title={_("Name of the attribute")}>
                             <GridItem className="ds-label" span={3}>
-                                Attribute Name
+                                {_("Attribute Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -411,9 +414,9 @@ class AttributeTypeModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Describes what is the attribute's purpose">
+                        <Grid title={_("Describes what is the attribute's purpose")}>
                             <GridItem className="ds-label" span={3}>
-                                Description
+                                {_("Description")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -428,9 +431,9 @@ class AttributeTypeModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Object identifier">
+                        <Grid title={_("Object identifier")}>
                             <GridItem className="ds-label" span={3}>
-                                OID (optional)
+                                {_("OID (optional)")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -444,9 +447,9 @@ class AttributeTypeModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="An attribute's parent/superior ">
+                        <Grid title={_("An attribute's parent/superior")}>
                             <GridItem className="ds-label" span={3}>
-                                Parent Attribute
+                                {_("Parent Attribute")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -458,8 +461,8 @@ class AttributeTypeModal extends React.Component {
                                     selections={atParent}
                                     isOpen={isParentAttrOpen}
                                     aria-labelledby="typeAhead-parent-attr"
-                                    placeholderText="Type an attribute name..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {attributes.map((attr, index) => (
                                         <SelectOption
@@ -470,9 +473,9 @@ class AttributeTypeModal extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="An attribute's syntax">
+                        <Grid title={_("An attribute's syntax")}>
                             <GridItem className="ds-label" span={3}>
-                                Syntax Name
+                                {_("Syntax Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -488,9 +491,9 @@ class AttributeTypeModal extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="An attribute's usage purpose">
+                        <Grid title={_("An attribute's usage purpose")}>
                             <GridItem className="ds-label" span={3}>
-                                Attribute Usage
+                                {_("Attribute Usage")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -507,15 +510,15 @@ class AttributeTypeModal extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="If attribute can have a multiple values">
+                        <Grid title={_("If attribute can have a multiple values")}>
                             <GridItem className="ds-label" span={3}>
-                                Multivalued Attribute
+                                {_("Multivalued Attribute")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Checkbox
                                     id="atMultivalued"
                                     isChecked={atMultivalued}
-                                    title="If attribute can have a multiple values"
+                                    title={_("If attribute can have a multiple values")}
                                     onChange={(checked, e) => {
                                         handleFieldChange(e);
                                     }}
@@ -523,15 +526,15 @@ class AttributeTypeModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="If attribute is not modifiable by a client application">
+                        <Grid title={_("If attribute is not modifiable by a client application")}>
                             <GridItem className="ds-label" span={3}>
-                                Not Modifiable By A User
+                                {_("Not Modifiable By A User")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Checkbox
                                     id="atNoUserMod"
                                     isChecked={atNoUserMod}
-                                    title="If attribute is not modifiable by a client application"
+                                    title={_("If attribute is not modifiable by a client application")}
                                     onChange={(checked, e) => {
                                         handleFieldChange(e);
                                     }}
@@ -539,9 +542,9 @@ class AttributeTypeModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="An alias name for the attribute">
+                        <Grid title={_("An alias name for the attribute")}>
                             <GridItem className="ds-label" span={3}>
-                                Alias Names
+                                {_("Alias Names")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -553,8 +556,8 @@ class AttributeTypeModal extends React.Component {
                                     selections={atAlias}
                                     isOpen={isAliasNameOpen}
                                     aria-labelledby="typeAhead-alias-name"
-                                    placeholderText="Type an alias name..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an alias name...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={onAliasNameCreateOption}
                                 >
@@ -568,9 +571,9 @@ class AttributeTypeModal extends React.Component {
                             </GridItem>
                         </Grid>
 
-                        <Grid title="An equality matching rule">
+                        <Grid title={_("An equality matching rule")}>
                             <GridItem className="ds-label" span={3}>
-                                Equality Matching Rule
+                                {_("Equality Matching Rule")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -582,8 +585,8 @@ class AttributeTypeModal extends React.Component {
                                     selections={atEqMr}
                                     isOpen={isEqualityMROpen}
                                     aria-labelledby="typeAhead-equality-mr"
-                                    placeholderText="Type an Equality matching rule..."
-                                    noResultsFoundText="There are no matching rules"
+                                    placeholderText={_("Type an Equality matching rule...")}
+                                    noResultsFoundText={_("There are no matching rules")}
                                 >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
@@ -594,9 +597,9 @@ class AttributeTypeModal extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="An order matching rule">
+                        <Grid title={_("An order matching rule")}>
                             <GridItem className="ds-label" span={3}>
-                                Order Matching Rule
+                                {_("Order Matching Rule")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -608,8 +611,8 @@ class AttributeTypeModal extends React.Component {
                                     selections={atOrder}
                                     isOpen={isOrderMROpen}
                                     aria-labelledby="typeAhead-order-mr"
-                                    placeholderText="Type an Ordering matching rule.."
-                                    noResultsFoundText="There are no matching rules"
+                                    placeholderText={_("Type an Ordering matching rule..")}
+                                    noResultsFoundText={_("There are no matching rules")}
                                 >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption
@@ -620,9 +623,9 @@ class AttributeTypeModal extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="A substring matching rule">
+                        <Grid title={_("A substring matching rule")}>
                             <GridItem className="ds-label" span={3}>
-                                Substring Matching Rule
+                                {_("Substring Matching Rule")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -633,8 +636,8 @@ class AttributeTypeModal extends React.Component {
                                     onClear={onSubstringMRClear}
                                     selections={atSubMr}
                                     isOpen={isSubstringMROpen}
-                                    placeholderText="Type a Substring matching rule..."
-                                    noResultsFoundText="There are no matching rules"
+                                    placeholderText={_("Type a Substring matching rule...")}
+                                    noResultsFoundText={_("There are no matching rules")}
                                 >
                                     {matchingrules.map((mr, index) => (
                                         <SelectOption

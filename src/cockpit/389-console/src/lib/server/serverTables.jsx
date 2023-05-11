@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Grid,
@@ -17,6 +18,8 @@ import {
 } from '@patternfly/react-table';
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class SASLTable extends React.Component {
     constructor(props) {
         super(props);
@@ -30,12 +33,12 @@ export class SASLTable extends React.Component {
             dropdownIsOpen: false,
             columns: [
                 {
-                    title: 'Mapping Name',
+                    title: _("Mapping Name"),
                     transforms: [sortable],
                     cellFormatters: [expandable]
                 },
-                { title: 'Search Base', transforms: [sortable] },
-                { title: 'Priority', transforms: [sortable] },
+                { title: _("Search Base"), transforms: [sortable] },
+                { title: _("Priority"), transforms: [sortable] },
             ],
         };
 
@@ -106,9 +109,9 @@ export class SASLTable extends React.Component {
     getExpandedRow(regex, filter) {
         return (
             <Grid className="ds-left-indent-lg">
-                <GridItem span={3}>Regular Expression:</GridItem>
+                <GridItem span={3}>{_("Regular Expression:")}</GridItem>
                 <GridItem span={9}><b>{regex}</b></GridItem>
-                <GridItem span={3}>Search Filter:</GridItem>
+                <GridItem span={3}>{_("Search Filter:")}</GridItem>
                 <GridItem span={9}><b>{filter}</b></GridItem>
 
             </Grid>
@@ -137,8 +140,8 @@ export class SASLTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No SASL Mappings'] }];
-            columns = [{ title: 'SASL Mappings' }];
+            rows = [{ cells: [_("No SASL Mappings")] }];
+            columns = [{ title: _("SASL Mappings") }];
         }
         this.setState({
             rows,
@@ -197,7 +200,7 @@ export class SASLTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Mapping',
+                title: _("Edit Mapping"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editMapping(
                         rowData.cells[0],
@@ -208,7 +211,7 @@ export class SASLTable extends React.Component {
                     )
             },
             {
-                title: 'Delete Mapping',
+                title: _("Delete Mapping"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteMapping(rowData.cells[0])
             }
@@ -229,7 +232,7 @@ export class SASLTable extends React.Component {
         return (
             <div className="ds-margin-top-lg">
                 <SearchInput
-                    placeholder='Search Mappings'
+                    placeholder={_("Search Mappings")}
                     value={this.state.value}
                     onChange={this.handleOnSearchChange}
                     onClear={(evt) => this.handleOnSearchChange('', evt)}

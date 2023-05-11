@@ -43,6 +43,8 @@ import {
     b64DecodeUnicode
 } from './lib/utils.jsx';
 
+const _ = cockpit.gettext;
+
 class EditorTreeView extends React.Component {
     constructor (props) {
         super(props);
@@ -64,10 +66,10 @@ class EditorTreeView extends React.Component {
                         <EmptyState variant={EmptyStateVariant.small}>
                             <EmptyStateIcon icon={ResourcesEmptyIcon} />
                             <Title headingLevel="h2" size="lg">
-                                No entry is selected
+                                {_("No entry is selected")}
                             </Title>
                             <EmptyStateBody>
-                                Select an entry to see its details.
+                                {_("Select an entry to see its details.")}
                             </EmptyStateBody>
                         </EmptyState>
                     </Bullseye>)
@@ -80,9 +82,9 @@ class EditorTreeView extends React.Component {
             searchInput: '',
             rowsValues: [],
             entryColumns: [
-                { title: 'Attribute' },
+                { title: _("Attribute") },
                 // { title: 'Value', transforms: [wrappable] }],
-                { title: 'Value', cellTransforms: [breakWord] }],
+                { title: _("Value"), cellTransforms: [breakWord] }],
             entryRows: [],
             entryIsLoading: true,
             entryIcon: null,
@@ -283,7 +285,7 @@ class EditorTreeView extends React.Component {
             : {};
         const isEntryTooLarge = isEmptySuffix
             ? false
-            : lastLine.attribute === 'MESSAGE' && lastLine.value === ':ENTRY TOO LARGE - OUTPUT TRUNCATED!';
+            : lastLine.attribute === _("MESSAGE") && lastLine.value === _(":ENTRY TOO LARGE - OUTPUT TRUNCATED!");
 
         // Update the rows of the selected entry.
         const entryIsLoading = false;
@@ -481,7 +483,7 @@ class EditorTreeView extends React.Component {
                             name={isRole ? ENTRY_MENU.lockRole : ENTRY_MENU.lockAccount}
                             value={entryDn}
                         >
-                            Lock ...
+                            {_("Lock ...")}
                         </DropdownItem>
                     ];
                 } else {
@@ -492,7 +494,7 @@ class EditorTreeView extends React.Component {
                             name={isRole ? ENTRY_MENU.unlockRole : ENTRY_MENU.unlockAccount}
                             value={entryDn}
                         >
-                            Unlock ...
+                            {_("Unlock ...")}
                         </DropdownItem>
                     ];
                 }
@@ -504,7 +506,7 @@ class EditorTreeView extends React.Component {
                         name={isRole ? ENTRY_MENU.lockRole : ENTRY_MENU.lockAccount}
                         value={entryDn}
                     >
-                        Lock ...
+                        {_("Lock ...")}
                     </DropdownItem>
                 ];
             }
@@ -517,7 +519,7 @@ class EditorTreeView extends React.Component {
                 name={ENTRY_MENU.search}
                 value={entryDn}
             >
-                Search ...
+                {_("Search ...")}
             </DropdownItem>,
             <DropdownSeparator key="separator-2" />,
             <DropdownItem
@@ -529,7 +531,7 @@ class EditorTreeView extends React.Component {
                 // Either increase the limit ( to 2 MB ? ) or retrieve the data and bypass the limit.
                 isDisabled={isEntryTooLarge}
             >
-                Edit ...
+                {_("Edit ...")}
             </DropdownItem>,
             <DropdownItem
                 key="tree-view-new"
@@ -537,7 +539,7 @@ class EditorTreeView extends React.Component {
                 name={ENTRY_MENU.new}
                 value={entryDn}
             >
-                New ...
+                {_("New ...")}
             </DropdownItem>,
             <DropdownItem
                 key="tree-view-rename"
@@ -546,7 +548,7 @@ class EditorTreeView extends React.Component {
                 value={entryDn}
                 isDisabled={isSuffixEntry}
             >
-                Rename ...
+                {_("Rename ...")}
             </DropdownItem>,
             // Lock and Unlock buttons
             ...lockingDropdown,
@@ -556,7 +558,7 @@ class EditorTreeView extends React.Component {
                 name={ENTRY_MENU.acis}
                 value={entryDn}
             >
-                ACIs ...
+                {_("ACIs ...")}
             </DropdownItem>,
             <DropdownItem
                 key="tree-view-cos"
@@ -564,7 +566,7 @@ class EditorTreeView extends React.Component {
                 name={ENTRY_MENU.cos}
                 value={entryDn}
             >
-                Class of Service ...
+                {_("Class of Service ...")}
             </DropdownItem>,
             /*
             <DropdownItem
@@ -584,7 +586,7 @@ class EditorTreeView extends React.Component {
                 name={ENTRY_MENU.delete}
                 value={entryDn}
             >
-                Delete ...
+                {_("Delete ...")}
             </DropdownItem>,
         ];
 
@@ -592,10 +594,10 @@ class EditorTreeView extends React.Component {
             <>
                 <div className="ds-margin-top-lg ds-indent">
                     <Label icon={<CatalogIcon />} color="blue">
-                        <strong>{this.props.treeViewRootSuffixes.length > 1 ? "Suffix Trees" : "Suffix Tree"}</strong>
+                        <strong>{this.props.treeViewRootSuffixes.length > 1 ? _("Suffix Trees") : _("Suffix Tree")}</strong>
                         <Button
                             variant="link"
-                            title="Refresh all the suffixes"
+                            title={_("Refresh all the suffixes")}
                             icon={<SyncAltIcon />}
                             onClick={() => { this.props.onReload(true) }}
                         />
@@ -604,7 +606,7 @@ class EditorTreeView extends React.Component {
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading ...
+                            {_("Loading ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="lg" />
@@ -616,7 +618,7 @@ class EditorTreeView extends React.Component {
             <div className="ds-margin-top-xlg ds-center">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Loading ...
+                        {_("Loading ...")}
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="lg" />
@@ -652,7 +654,7 @@ class EditorTreeView extends React.Component {
                                     timeout
                                     actionClose={
                                         <AlertActionCloseButton
-                                            title="Suffix creation"
+                                            title={_("Suffix creation")}
                                             variantLabel={`${variant} alert`}
                                             onClose={() => this.removeAlert(key)}
                                         />
@@ -665,10 +667,10 @@ class EditorTreeView extends React.Component {
                     <Grid hasGutter className="ds-margin-top-lg ds-indent">
                         <GridItem span={6}>
                             <Label icon={<CatalogIcon />} color="blue">
-                                <strong>{this.props.treeViewRootSuffixes.length > 1 ? "Suffix Trees" : "Suffix Tree"}</strong>
+                                <strong>{this.props.treeViewRootSuffixes.length > 1 ? _("Suffix Trees") : _("Suffix Tree")}</strong>
                                 <Button
                                     variant="link"
-                                    title="Refresh all the suffixes"
+                                    title={_("Refresh all the suffixes")}
                                     icon={<SyncAltIcon />}
                                     onClick={() => { this.props.onReload(true) }}
                                 />
@@ -694,11 +696,11 @@ class EditorTreeView extends React.Component {
                         <GridItem span={6}>
                             { firstClickOnTree &&
                                 <Label icon={<InfoCircleIcon />} color="blue">
-                                    <strong>Entry Details</strong>
+                                    <strong>{_("Entry Details")}</strong>
                                     <Tooltip
                                         position="top"
                                         content={
-                                            <div>Reload the LDAP entry.</div>
+                                            <div>{_("Reload the LDAP entry.")}</div>
                                         }
                                     >
                                         <Button
@@ -754,7 +756,7 @@ class EditorTreeView extends React.Component {
                                     { isEntryTooLarge &&
                                         <CardTitle>
                                             <Label color="orange" icon={<InfoCircleIcon />}>
-                                                Entry is too large - Table is truncated.
+                                                {_("Entry is too large - Table is truncated.")}
                                             </Label>
                                         </CardTitle>}
 
@@ -770,18 +772,18 @@ class EditorTreeView extends React.Component {
                                             <EmptyState variant={EmptyStateVariant.small}>
                                                 <EmptyStateIcon icon={ResourcesEmptyIcon} />
                                                 <Title headingLevel="h2" size="lg">
-                                                    Empty suffix!
+                                                    {_("Empty suffix!")}
                                                 </Title>
                                                 <EmptyStateBody>
                                                     <Label variant="outline" color="orange" icon={<InfoCircleIcon />}>
-                                                        The suffix is configured, but it has no entries.
+                                                        {_("The suffix is configured, but it has no entries.")}
                                                     </Label>
                                                     <Button
                                                         className="ds-margin-top-lg"
                                                         variant="link"
                                                         onClick={this.handleEmptySuffixToggle}
                                                     >
-                                                        Create the root suffix entry <ArrowRightIcon />
+                                                        {_("Create the root suffix entry")} <ArrowRightIcon />
                                                     </Button>
                                                 </EmptyStateBody>
                                             </EmptyState>}
@@ -796,17 +798,17 @@ class EditorTreeView extends React.Component {
                                     </CardBody>
                                     { !isEmptySuffix && (entryModTime.length > 0) &&
                                         <CardFooter>
-                                            Last Modified Time: {entryModTime}
+                                            {_("Last Modified Time")}: {entryModTime}
                                             <div className="ds-margin-bottom-md" />
                                             <Divider />
                                             <div className="ds-margin-bottom-md" />
                                             <Label variant="outline" color="blue">
-                                                Last Refresh at {(new Date(latestEntryRefreshTime)).toLocaleString()}
+                                                {_("Last Refresh at")} {(new Date(latestEntryRefreshTime)).toLocaleString()}
                                             </Label>
                                             <Tooltip
                                                 position="top"
                                                 content={
-                                                    <div>Reload the LDAP entry.</div>
+                                                    <div>{_("Reload the LDAP entry.")}</div>
                                                 }
                                             >
                                                 <Button
