@@ -28,6 +28,7 @@ class KeyTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
+            hasRows: false,
             columns: [
                 { title: 'Cipher', transforms: [sortable] },
                 { title: 'Key Identifier', transforms: [sortable] },
@@ -51,6 +52,7 @@ class KeyTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
+        let hasRows = true;
 
         for (const ServerKey of this.props.ServerKeys) {
             rows.push(
@@ -64,10 +66,13 @@ class KeyTable extends React.Component {
         if (rows.length == 0) {
             rows = [{ cells: ['No Orphan keys'] }];
             columns = [{ title: 'Orphan keys' }];
+            hasRows = false;
         }
+
         this.setState({
             rows: rows,
-            columns: columns
+            columns: columns,
+            hasRows
         });
     }
 
@@ -85,7 +90,7 @@ class KeyTable extends React.Component {
     }
 
     render() {
-        const { perPage, page, sortBy, rows, columns } = this.state;
+        const { perPage, page, sortBy, rows, columns, hasRows } = this.state;
 
         return (
             <div className="ds-margin-top-lg">
@@ -114,22 +119,24 @@ class KeyTable extends React.Component {
                     variant={TableVariant.compact}
                     sortBy={sortBy}
                     onSort={this.onSort}
-                    actions={rows.length > 0 ? this.actions() : null}
+                    actions={hasRows? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
                 >
                     <TableHeader />
                     <TableBody />
                 </Table>
-                <Pagination
-                    itemCount={this.state.rows.length}
-                    widgetId="pagination-options-menu-bottom"
-                    perPage={this.state.perPage}
-                    page={page}
-                    variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
-                />
+                {hasRows &&
+                    <Pagination
+                        itemCount={this.state.rows.length}
+                        widgetId="pagination-options-menu-bottom"
+                        perPage={this.state.perPage}
+                        page={page}
+                        variant={PaginationVariant.bottom}
+                        onSetPage={this.onSetPage}
+                        onPerPageSelect={this.onPerPageSelect}
+                    />
+                }
             </div>
         );
     }
@@ -185,6 +192,7 @@ class CSRTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
+        let hasRows = true;
 
         for (const ServerCSR of this.props.ServerCSRs) {
             rows.push(
@@ -200,10 +208,12 @@ class CSRTable extends React.Component {
         if (rows.length == 0) {
             rows = [{ cells: ['No Certificate Signing Requests'] }];
             columns = [{ title: 'Certificate Signing Requests' }];
+            hasRows = false;
         }
         this.setState({
             rows: rows,
             columns: columns,
+            hasRows,
         });
     }
 
@@ -265,16 +275,18 @@ class CSRTable extends React.Component {
     }
 
     render() {
-        const { perPage, page, sortBy, rows, columns } = this.state;
+        const { perPage, page, sortBy, rows, columns, hasRows } = this.state;
 
         return (
             <div className="ds-margin-top-lg">
-                <SearchInput
-                    placeholder='Search CSRs'
-                    value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
-                />
+                {hasRows &&
+                    <SearchInput
+                        placeholder='Search CSRs'
+                        value={this.state.value}
+                        onChange={this.onSearchChange}
+                        onClear={(evt) => this.onSearchChange('', evt)}
+                    />
+                }
                 <Table
                     className="ds-margin-top"
                     aria-label="csr table"
@@ -284,22 +296,24 @@ class CSRTable extends React.Component {
                     variant={TableVariant.compact}
                     sortBy={sortBy}
                     onSort={this.onSort}
-                    actions={rows.length > 0 ? this.actions() : null}
+                    actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
                 >
                     <TableHeader />
                     <TableBody />
                 </Table>
-                <Pagination
-                    itemCount={this.state.rows.length}
-                    widgetId="pagination-options-menu-bottom"
-                    perPage={perPage}
-                    page={page}
-                    variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
-                />
+                {hasRows &&
+                    <Pagination
+                        itemCount={rows.length}
+                        widgetId="pagination-options-menu-bottom"
+                        perPage={perPage}
+                        page={page}
+                        variant={PaginationVariant.bottom}
+                        onSetPage={this.onSetPage}
+                        onPerPageSelect={this.onPerPageSelect}
+                    />
+                }
             </div>
         );
     }
@@ -316,6 +330,7 @@ class CertTable extends React.Component {
             sortBy: {},
             rows: [],
             dropdownIsOpen: false,
+            hasRows: false,
             columns: [
                 {
                     title: 'Nickname',
@@ -407,6 +422,7 @@ class CertTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         let count = 0;
+        let hasRows = true;
 
         for (const cert of this.props.certs) {
             rows.push(
@@ -428,10 +444,12 @@ class CertTable extends React.Component {
         if (rows.length == 0) {
             rows = [{ cells: ['No Certificates'] }];
             columns = [{ title: 'Certificates' }];
+            hasRows = false;
         }
         this.setState({
             rows: rows,
-            columns: columns
+            columns: columns,
+            hasRows,
         });
     }
 
@@ -508,7 +526,7 @@ class CertTable extends React.Component {
     }
 
     render() {
-        const { perPage, page, sortBy, rows, columns } = this.state;
+        const { perPage, page, sortBy, rows, columns, hasRows } = this.state;
         const origRows = [...rows];
         const startIdx = ((perPage * page) - perPage) * 2;
         const tableRows = origRows.splice(startIdx, perPage * 2);
@@ -520,12 +538,14 @@ class CertTable extends React.Component {
 
         return (
             <div className="ds-margin-top-lg">
-                <SearchInput
-                    placeholder='Search Certificates'
-                    value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
-                />
+                {hasRows &&
+                    <SearchInput
+                        placeholder='Search Certificates'
+                        value={this.state.value}
+                        onChange={this.onSearchChange}
+                        onClear={(evt) => this.onSearchChange('', evt)}
+                    />
+                }
                 <Table
                     className="ds-margin-top"
                     aria-label="cert table"
@@ -536,22 +556,24 @@ class CertTable extends React.Component {
                     sortBy={sortBy}
                     onSort={this.onSort}
                     onCollapse={this.onCollapse}
-                    actions={tableRows.length > 0 ? this.actions() : null}
+                    actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
                 >
                     <TableHeader />
                     <TableBody />
                 </Table>
-                <Pagination
-                    itemCount={this.state.rows.length / 2}
-                    widgetId="pagination-options-menu-bottom"
-                    perPage={perPage}
-                    page={page}
-                    variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
-                />
+                {hasRows &&
+                    <Pagination
+                        itemCount={this.state.rows.length / 2}
+                        widgetId="pagination-options-menu-bottom"
+                        perPage={perPage}
+                        page={page}
+                        variant={PaginationVariant.bottom}
+                        onSetPage={this.onSetPage}
+                        onPerPageSelect={this.onPerPageSelect}
+                    />
+                }
             </div>
         );
     }
@@ -569,6 +591,7 @@ class CRLTable extends React.Component {
             sortBy: {},
             rows: [],
             dropdownIsOpen: false,
+            hasRows: false,
             columns: [
                 { title: 'Issued By', transforms: [sortable] },
                 { title: 'Effective Date', transforms: [sortable] },
@@ -675,6 +698,7 @@ class CRLTable extends React.Component {
             rows: rows,
             value: value,
             page: 1,
+            hasRows: rows.length === 0 ? false : true,
         });
     }
 
@@ -694,7 +718,6 @@ class CRLTable extends React.Component {
     }
 
     render() {
-        const has_rows = false; // TODO
         return (
             <div className="ds-margin-top">
                 <SearchInput
@@ -714,15 +737,17 @@ class CRLTable extends React.Component {
                     <TableHeader />
                     <TableBody />
                 </Table>
-                <Pagination
-                    itemCount={this.state.rows.length}
-                    widgetId="pagination-options-menu-bottom"
-                    perPage={this.state.perPage}
-                    page={this.state.page}
-                    variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
-                />
+                {this.state.hasRows &&
+                    <Pagination
+                        itemCount={this.state.rows.length}
+                        widgetId="pagination-options-menu-bottom"
+                        perPage={this.state.perPage}
+                        page={this.state.page}
+                        variant={PaginationVariant.bottom}
+                        onSetPage={this.onSetPage}
+                        onPerPageSelect={this.onPerPageSelect}
+                    />
+                }
             </div>
         );
     }
