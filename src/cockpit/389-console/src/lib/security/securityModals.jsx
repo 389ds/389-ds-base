@@ -133,7 +133,6 @@ export class SecurityAddCertModal extends React.Component {
             certName,
             certFile,
             certText,
-            certRadioText,
             certRadioFile,
             certRadioSelect,
             certRadioUpload,
@@ -179,15 +178,21 @@ export class SecurityAddCertModal extends React.Component {
                         </div>
                       }
                 >
-                    <div>Certificate Text <OutlinedQuestionCircleIcon /></div>
+                    <div>Upload PEM File, or Certificate Text <OutlinedQuestionCircleIcon /></div>
                 </Tooltip>
             </div>;
+
 
         let title = "Add Server Certificate";
         let desc = "Add a Server Certificate to the security database.";
         if (isCACert) {
             title = "Add Certificate Authority";
             desc = "Add a CA Certificate to the security database.";
+        }
+
+        let selectValidated = ValidatedOptions.default;
+        if (certRadioSelect && certNames.length === 0) {
+            selectValidated = ValidatedOptions.error;
         }
 
         return (
@@ -207,9 +212,10 @@ export class SecurityAddCertModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={certName === "" || (certRadioFile && certFile === "") ||
-                            (certRadioText && (certText === "" || badCertText)) ||
-                            (certRadioUpload && uploadValue === "")
+                        isDisabled={
+                            certName === "" || (certRadioFile && certFile === "") ||
+                            (certRadioUpload && (uploadValue === "" || badCertText)) ||
+                            (certRadioSelect && certNames.length === 0)
                         }
                     >
                         {saveBtnName}
@@ -247,9 +253,45 @@ export class SecurityAddCertModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top" >
                         <GridItem span={12}>
+                            <div title="Upload the contents of a PEM file from the client's system.">
+                                <Radio
+                                    id="certRadioUpload"
+                                    label={certTextLabel}
+                                    name="certChoice"
+                                    onChange={handleRadioChange}
+                                    isChecked={certRadioUpload}
+                                />
+                            </div>
+                            <div className={certRadioUpload ? "ds-margin-top ds-radio-indent" : "ds-margin-top ds-radio-indent ds-disabled"}>
+                                <FileUpload
+                                    id="uploadPEMFile"
+                                    type="text"
+                                    value={uploadValue}
+                                    filename={uploadFileName}
+                                    filenamePlaceholder="Drag and drop a file, or upload one"
+                                    onFileInputChange={handleFileInputChange}
+                                    onDataChange={handleTextOrDataChange}
+                                    onTextChange={handleTextOrDataChange}
+                                    onReadStarted={handleFileReadStarted}
+                                    onReadFinished={handleFileReadFinished}
+                                    onClearClick={handleClear}
+                                    isLoading={uploadIsLoading}
+                                    dropzoneProps={{
+                                        accept: '.pem',
+                                        onDropRejected: handleFileRejected
+                                    }}
+                                    validated={
+                                        uploadIsRejected ||
+                                        (certRadioUpload && uploadValue === "") ||
+                                        (certRadioUpload && badCertText) ? 'error' : 'default'
+                                    }
+                                    browseButtonText="Upload PEM File"
+                                />
+                            </div>
                             <div title="Choose a cerificate from the server's certificate directory">
                                 <Radio
                                     id="certRadioSelect"
+                                    className="ds-margin-top-lg"
                                     label="Choose Cerificate From Server"
                                     name="certChoice"
                                     isChecked={certRadioSelect}
@@ -263,8 +305,18 @@ export class SecurityAddCertModal extends React.Component {
                                     onChange={handleCertSelect}
                                     aria-label="FormSelect Input"
                                     className="ds-cert-select"
+                                    validated={selectValidated}
                                 >
-                                    {certNames.map((option, index) => (
+                                    {certNames.length === 0 &&
+                                        <FormSelectOption
+                                            key="none"
+                                            value=""
+                                            label="No certificates present"
+                                            isDisabled
+                                            isPlaceholder
+                                        />
+                                    }
+                                    {certNames.length > 0 && certNames.map((option, index) => (
                                         <FormSelectOption
                                             key={index}
                                             value={option}
@@ -296,60 +348,8 @@ export class SecurityAddCertModal extends React.Component {
                                     validated={certRadioFile && certFile === "" ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                             </div>
-                            <Radio
-                                id="certRadioText"
-                                className="ds-margin-top-lg"
-                                label={certTextLabel}
-                                name="certChoice"
-                                onChange={handleRadioChange}
-                                isChecked={certRadioText}
-                            />
-                            <div className={certRadioText ? "ds-margin-top ds-radio-indent" : "ds-margin-top ds-radio-indent ds-disabled"}>
-                                <TextArea
-                                    id="certText"
-                                    value={certText}
-                                    onChange={(value, e) => {
-                                        handleChange(e);
-                                    }}
-                                    aria-label="cert text input"
-                                    validated={certRadioText && (certText === "" || badCertText) ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                            </div>
-                            <div title="Upload the contents of a PEM file from the client system.">
-                                <Radio
-                                    id="certRadioUpload"
-                                    className="ds-margin-top-lg"
-                                    label="Upload Local PEM File"
-                                    name="certChoice"
-                                    onChange={handleRadioChange}
-                                    isChecked={certRadioUpload}
-                                />
-                            </div>
-                            <div className={certRadioUpload ? "ds-margin-top ds-radio-indent" : "ds-margin-top ds-radio-indent ds-disabled"}>
-                                <FileUpload
-                                    id="uploadPEMFile"
-                                    type="text"
-                                    value={uploadValue}
-                                    filename={uploadFileName}
-                                    filenamePlaceholder="Drag and drop a file, or upload one"
-                                    onFileInputChange={handleFileInputChange}
-                                    onDataChange={handleTextOrDataChange}
-                                    onTextChange={handleTextOrDataChange}
-                                    onReadStarted={handleFileReadStarted}
-                                    onReadFinished={handleFileReadFinished}
-                                    onClearClick={handleClear}
-                                    isLoading={uploadIsLoading}
-                                    dropzoneProps={{
-                                        accept: '.pem',
-                                        onDropRejected: handleFileRejected
-                                    }}
-                                    validated={uploadIsRejected || (certRadioUpload && uploadValue === "") ? 'error' : 'default'}
-                                    browseButtonText="Upload PEM File"
-                                />
-                            </div>
                         </GridItem>
                     </Grid>
-
                 </Form>
             </Modal>
         );
@@ -411,7 +411,7 @@ export class SecurityAddCSRModal extends React.Component {
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={error.csrName || error.csrSubjectCommonName || spinning || !validAltNames}
+                        isDisabled={error.csrName || bad_file_name(csrName) || error.csrSubjectCommonName || spinning || !validAltNames}
                     >
                         {saveBtnName}
                     </Button>,
