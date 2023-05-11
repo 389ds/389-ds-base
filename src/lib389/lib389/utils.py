@@ -275,7 +275,7 @@ def _get_selinux_fcontext_info():
 
 
 def resolve_selinux_path(path):
-    '''Return the path as expected by semanage fcontext'''
+    """Return the path as expected by semanage fcontext"""
     path = str(Path(path).resolve())
     if selinux_present():
         _get_selinux_fcontext_info()
@@ -314,20 +314,34 @@ def selinux_label_file(path, label):
             return
         raise ValueError(f'Cannot change file context for {path} because it is defined in SELinux policy. Please choose another path.')
     if label:
-        try:
-            log.debug(f"Setting label {label} in SELinux file context {path}.")
-            result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-            args = ' '.join(ensure_list_str(result.args))
-            stdout = ensure_str(result.stdout)
-            stderr = ensure_str(result.stderr)
-            if result.returncode != 0:
-                log.error(f"ERROR CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
+        rc = 0
+        for i in range(5):
+            try:
+                log.debug(f"Setting label {label} in SELinux file context {path}.  Attempt {i}")
+                result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+                args = ' '.join(ensure_list_str(result.args))
+                stdout = ensure_str(result.stdout)
+                stderr = ensure_str(result.stderr)
+                rc = result.returncode
+                if rc == 0:
+                    local[path] = label
+                    break
+                else:
+                    log.debug(f"Failure setting label {label} for context {path}: Result code {rc}, retrying...")
+                    time.sleep(2)
+            except (OSError, subprocess.CalledProcessError) as e:
+                log.debug(f"Failure setting label {label} for context {path}: Exception {str(e)}, retrying...")
+                time.sleep(2)
+
+        if rc != 0:
+            log.error(f"ERROR CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
+            try:
                 result.check_returncode()
-            local[path] = label
-        except (OSError, subprocess.CalledProcessError) as e:
-            raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
+            except (OSError, subprocess.CalledProcessError) as e:
+                raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
+
     if os.path.exists(path):
         # pytest fails if I use selinux_restorecon(path)
         subprocess.run(["restorecon", "-R", path])
