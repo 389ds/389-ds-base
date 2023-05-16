@@ -2182,7 +2182,8 @@ _rewrite_nsrole_component(Slapi_Filter *f, role_substitute_type_arg_t *substitut
         return;
     }
     sdn = slapi_sdn_new_dn_byref(bval->bv_val);
-    if (rc = slapi_search_internal_get_entry(sdn, attrs, &nsrole_entry, roles_get_plugin_identity())) {
+    rc = slapi_search_internal_get_entry(sdn, attrs, &nsrole_entry, roles_get_plugin_identity());
+    if (rc != LDAP_SUCCESS) {
         if (rc == LDAP_NO_SUCH_OBJECT) {
             /* the role does not exist (nsrole=<unknown role>)
              * that means no entry match this component. To speed up
