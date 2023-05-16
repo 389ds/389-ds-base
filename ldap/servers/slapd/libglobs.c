@@ -266,6 +266,7 @@ slapi_onoff_t init_enable_upgrade_hash;
 slapi_special_filter_verify_t init_verify_filter_schema;
 slapi_onoff_t init_enable_ldapssotoken;
 slapi_onoff_t init_return_orig_dn;
+slapi_onoff_t init_pw_admin_skip_info;
 
 static int
 isInt(ConfigVarType type)
@@ -419,6 +420,11 @@ static struct config_get_and_set
      NULL, 0,
      NULL,
      CONFIG_STRING, (ConfigGetFunc)config_get_pw_admin_dn, "", NULL},
+    {CONFIG_PW_ADMIN_SKIP_INFO_ATTRIBUTE, config_set_pw_admin_skip_info,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.pw_policy.pw_admin_skip_info,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_pw_admin_dn,
+     &init_pw_admin_skip_info, NULL},
     {CONFIG_ACCESSLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
      log_set_rotationsync_enabled, SLAPD_ACCESS_LOG,
      (void **)&global_slapdFrontendConfig.accesslog_rotationsync_enabled,
@@ -1681,6 +1687,7 @@ pwpolicy_init_defaults (passwdPolicy *pw_policy)
     pw_policy->pw_tpr_delay_valid_from = SLAPD_DEFAULT_PW_TPR_DELAY_VALID_FROM;
     pw_policy->pw_gracelimit = SLAPD_DEFAULT_PW_GRACELIMIT;
     pw_policy->pw_admin = NULL;
+    pw_policy->pw_admin_skip_info = LDAP_OFF;
     pw_policy->pw_admin_user = NULL;
     pw_policy->pw_is_legacy = LDAP_ON;
     pw_policy->pw_track_update_time = LDAP_OFF;
@@ -1836,6 +1843,7 @@ FrontendConfig_init(void)
     init_pwpolicy_inherit_global = cfg->pwpolicy_inherit_global = LDAP_OFF;
     init_allow_hashed_pw = cfg->allow_hashed_pw = LDAP_OFF;
     init_pw_is_global_policy = cfg->pw_is_global_policy = LDAP_OFF;
+    init_pw_admin_skip_info = cfg->pw_admin_skip_info = LDAP_OFF;
 
     init_accesslog_logging_enabled = cfg->accesslog_logging_enabled = LDAP_ON;
     cfg->accesslog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
@@ -4149,6 +4157,21 @@ config_set_pw_admin_dn(const char *attrname __attribute__((unused)), char *value
 }
 
 int32_t
+config_set_pw_admin_skip_info(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->pw_policy.pw_admin_skip_info),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
 config_set_pw_track_last_update_time(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int32_t retVal = LDAP_SUCCESS;
@@ -4207,7 +4230,6 @@ config_set_pw_unlock(const char *attrname, char *value, char *errorbuf, int appl
 
     return retVal;
 }
-
 
 int32_t
 config_set_pw_lockout(const char *attrname, char *value, char *errorbuf, int apply)
@@ -6011,6 +6033,13 @@ config_get_pw_admin_dn(void)
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;
+}
+
+int
+config_get_pw_admin_skip_update(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return (int)slapdFrontendConfig->pw_policy.pw_admin_skip_info;
 }
 
 char *

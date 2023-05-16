@@ -237,6 +237,9 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwdhistory', help="To enable password history set this to \"on\", otherwise \"off\"")
     set_parser.add_argument('--pwdhistorycount', help="The number of passwords to keep in history")
     set_parser.add_argument('--pwdadmin', help="The DN of an entry or a group of account that can bypass password policy constraints")
+    set_parser.add_argument('--pwdadminskipupdates',
+                            help="Set to \"on\" if the Password Admin's password update should not trigger updates to the password state attributes (passwordExpirationtime, passwordHistory, etc).")
+
     set_parser.add_argument('--pwdtrack', help="Set to \"on\" to track the time the password was last changed")
     set_parser.add_argument('--pwdwarning', help="Send an expiring warning if password expires within this time (in seconds)")
     # Expiration settings
