@@ -676,6 +676,9 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
     internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
     target_dn = slapi_sdn_get_ndn(sdn);
     pwpolicy = new_passwdPolicy(pb, target_dn);
+    if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_ONLY) && pwpolicy->pw_admin_skip_info) {
+        return 0;
+    }
     cur_time = slapi_current_utc_time();
     slapi_mods_init(&smods, 0);
 
@@ -753,7 +756,7 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
      */
     if ((internal_op && pwpolicy->pw_must_change && (!pb_conn || strcasecmp(target_dn, pb_conn->c_dn))) ||
         (!internal_op && pwpolicy->pw_must_change &&
-         ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy))))
+         ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN))))
     {
         pw_exp_date = NO_TIME;
         slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdReset", "TRUE");
@@ -1118,7 +1121,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
         if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
             if (!is_replication && !config_get_allow_hashed_pw() &&
                 ((internal_op && pb_conn && !slapi_dn_isroot(pb_conn->c_dn)) ||
-                 (!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))
+                 (!internal_op && !pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN))))
             {
                 report_pw_violation(pb, pwresponse_req, "invalid password syntax - passwords with storage scheme are not allowed");
                 return (1);
@@ -1880,7 +1883,7 @@ check_trivial_words(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char *
 }
 
 int
-pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp)
+pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp, int rootdn_flag)
 {
     Slapi_DN *bind_sdn = NULL;
     int i;
@@ -1889,7 +1892,7 @@ pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp)
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &is_requestor_root);
 
     /* first check if it's root */
-    if (is_requestor_root) {
+    if (is_requestor_root && rootdn_flag == PWP_ADMIN_OR_ROOTDN) {
         return 1;
     }
     /* now check if it's a Password Policy Administrator */
@@ -2305,6 +2308,11 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     if ((sval = attr_get_present_values(attr))) {
                         pwdpolicy->pw_admin = slapi_sdn_new_dn_byval(slapi_value_get_string(*sval));
                         pw_get_admin_users(pwdpolicy);
+                    }
+                } else if (!strcasecmp(attr_name, "passwordAdminSkipInfoUpdate")) {
+                    if ((sval = attr_get_present_values(attr))) {
+                        pwdpolicy->pw_admin_skip_info =
+                            pw_boolean_str2value(slapi_value_get_string(*sval));
                     }
                 } else if (!strcasecmp(attr_name, "passwordPalindrome")) {
                     if ((sval = attr_get_present_values(attr))) {

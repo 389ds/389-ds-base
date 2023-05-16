@@ -1228,7 +1228,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         slapi_pblock_set(pb, SLAPI_BACKEND, slapi_be_select(&sdn));
 
         /* Check if ACIs allow password to be changed */
-        if (!pw_is_pwp_admin(pb, pwpolicy) && (res = slapi_acl_check_mods(pb, e, mods, &errtxt)) != LDAP_SUCCESS) {
+        if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) && (res = slapi_acl_check_mods(pb, e, mods, &errtxt)) != LDAP_SUCCESS) {
             if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
                 if (proxydn) {
                     proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
@@ -1255,7 +1255,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
          * If this mod is being performed by a password administrator/rootDN,
          * just return success.
          */
-        if (pw_is_pwp_admin(pb, pwpolicy)) {
+        if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
             if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_history) {
                 /* Updating pw history, get the old password */
                 get_old_pw(pb, &sdn, old_pw);

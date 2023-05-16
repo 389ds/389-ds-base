@@ -563,7 +563,7 @@ op_shared_add(Slapi_PBlock *pb)
                  * Check password syntax, unless this is a pwd admin/rootDN
                  */
                 present_values = attr_get_present_values(attr);
-                if (!pw_is_pwp_admin(pb, pwpolicy) &&
+                if (!pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN) &&
                     check_pw_syntax(pb, slapi_entry_get_sdn_const(e),
                                     present_values, NULL, e, 0) != 0) {
                     /* error result is sent from check_pw_syntax */
