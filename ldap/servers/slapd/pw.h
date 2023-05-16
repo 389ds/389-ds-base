@@ -41,7 +41,10 @@ int check_pw_duration_value(const char *attr_name, char *value, long minval, lon
 int check_pw_resetfailurecount_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
 int check_pw_storagescheme_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
 
-int pw_is_pwp_admin(Slapi_PBlock *pb, struct passwordpolicyarray *pwp);
+int pw_is_pwp_admin(Slapi_PBlock *pb, struct passwordpolicyarray *pwp, int rootdn_flag);
+#define PWP_ADMIN_OR_ROOTDN 0
+#define PWP_ADMIN_ONLY 1
+
 /*
  * Public functions from pw_retry.c:
  */

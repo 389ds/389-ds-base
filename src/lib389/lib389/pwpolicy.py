@@ -33,6 +33,7 @@ class PwPolicyManager(object):
             'pwdhistory': 'passwordhistory',
             'pwdhistorycount': 'passwordinhistory',
             'pwdadmin': 'passwordadmindn',
+            'pwdadminskipupdates': 'passwordadminskipinfoupdate',
             'pwdtrack': 'passwordtrackupdatetime',
             'pwdwarning': 'passwordwarning',
             'pwdisglobal': 'passwordisglobalpolicy',
