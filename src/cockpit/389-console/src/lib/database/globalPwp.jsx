@@ -34,6 +34,7 @@ const general_attrs = [
     "nsslapd-pwpolicy-local",
     "passwordstoragescheme",
     "passwordadmindn",
+    "passwordadminskipinfoupdate",
     "passwordtrackupdatetime",
     "nsslapd-allow-hashed-passwords",
     "nsslapd-pwpolicy-inherit-global",
@@ -623,60 +624,64 @@ export class GlobalPwPolicy extends React.Component {
                     let pwDictCheck = false;
                     let pwAllowHashed = false;
                     let pwInheritGlobal = false;
+                    let pwAdminSkipUpdates = false;
                     let pwUserAttrs = [];
 
-                    if (attrs['nsslapd-pwpolicy-local'][0] == "on") {
+                    if (attrs['nsslapd-pwpolicy-local'][0] === "on") {
                         pwpLocal = true;
                     }
-                    if (attrs.passwordchange[0] == "on") {
+                    if (attrs.passwordchange[0] === "on") {
                         pwChange = true;
                     }
-                    if (attrs.passwordmustchange[0] == "on") {
+                    if (attrs.passwordmustchange[0] === "on") {
                         pwMustChange = true;
                     }
-                    if (attrs.passwordhistory[0] == "on") {
+                    if (attrs.passwordhistory[0] === "on") {
                         pwHistory = true;
                     }
-                    if (attrs.passwordtrackupdatetime[0] == "on") {
+                    if (attrs.passwordtrackupdatetime[0] === "on") {
                         pwTrackUpdate = true;
                     }
-                    if (attrs.passwordisglobalpolicy[0] == "on") {
+                    if (attrs.passwordisglobalpolicy[0] === "on") {
                         pwIsGlobal = true;
                     }
-                    if (attrs.passwordsendexpiringtime[0] == "on") {
+                    if (attrs.passwordsendexpiringtime[0] === "on") {
                         pwSendExpire = true;
                     }
-                    if (attrs.passwordlockout[0] == "on") {
+                    if (attrs.passwordlockout[0] === "on") {
                         pwLockout = true;
                     }
-                    if (attrs.passwordunlock[0] == "on") {
+                    if (attrs.passwordunlock[0] === "on") {
                         pwUnlock = true;
                     }
-                    if (attrs.passwordexp[0] == "on") {
+                    if (attrs.passwordexp[0] === "on") {
                         pwExpire = true;
                     }
-                    if (attrs.passwordchecksyntax[0] == "on") {
+                    if (attrs.passwordchecksyntax[0] === "on") {
                         pwCheckSyntax = true;
                     }
-                    if (attrs.passwordpalindrome[0] == "on") {
+                    if (attrs.passwordpalindrome[0] === "on") {
                         pwPalindrome = true;
                     }
-                    if (attrs.passworddictcheck[0] == "on") {
+                    if (attrs.passworddictcheck[0] === "on") {
                         pwDictCheck = true;
                     }
-                    if (attrs['nsslapd-allow-hashed-passwords'][0] == "on") {
+                    if (attrs['nsslapd-allow-hashed-passwords'][0] === "on") {
                         pwAllowHashed = true;
                     }
-                    if (attrs['nsslapd-pwpolicy-inherit-global'][0] == "on") {
+                    if (attrs['nsslapd-pwpolicy-inherit-global'][0] === "on") {
                         pwInheritGlobal = true;
                     }
-                    if (attrs.passwordbadwords[0] != "") {
+                    if (attrs.passwordadminskipinfoupdate[0] === "on") {
+                        pwAdminSkipUpdates = true;
+                    }
+                    if (attrs.passwordbadwords[0] !== "") {
                         // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                         if (attrs.passwordbadwords.length > 1) {
                             attrs.passwordbadwords[0] = attrs.passwordbadwords.join(' ');
                         }
                     }
-                    if (attrs.passworduserattributes[0] != "") {
+                    if (attrs.passworduserattributes[0] !== "") {
                         if (attrs.passworduserattributes.length > 1) {
                             // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                             attrs.passworduserattributes[0] = attrs.passworduserattributes.join(' ');
@@ -741,6 +746,7 @@ export class GlobalPwPolicy extends React.Component {
                             passwordbadwords: attrs.passwordbadwords[0],
                             passworduserattributes: pwUserAttrs,
                             passwordadmindn: attrs.passwordadmindn[0],
+                            passwordadminskipinfoupdate: pwAdminSkipUpdates,
                             passwordtprmaxuse: attrs.passwordtprmaxuse[0],
                             passwordtprdelayexpireat: attrs.passwordtprdelayexpireat[0],
                             passwordtprdelayvalidfrom: attrs.passwordtprdelayvalidfrom[0],
@@ -785,6 +791,7 @@ export class GlobalPwPolicy extends React.Component {
                             _passwordbadwords: attrs.passwordbadwords[0],
                             _passworduserattributes: pwUserAttrs,
                             _passwordadmindn: attrs.passwordadmindn[0],
+                            _passwordadminskipinfoupdate: pwAdminSkipUpdates,
                             _passwordtprmaxuse: attrs.passwordtprmaxuse[0],
                             _passwordtprdelayexpireat: attrs.passwordtprdelayexpireat[0],
                             _passwordtprdelayvalidfrom: attrs.passwordtprdelayvalidfrom[0],
@@ -1409,6 +1416,20 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
+                                        />
+                                    </GridItem>
+                                </Grid>
+                                <Grid
+                                    title="Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate)."
+                                >
+                                    <GridItem offset={3} span={9}>
+                                        <Checkbox
+                                            id="passwordadminskipinfoupdate"
+                                            isChecked={this.state.passwordadminskipinfoupdate}
+                                            onChange={(checked, e) => {
+                                                this.handleGeneralChange(e);
+                                            }}
+                                            label="Do not update target entry's password state attributes"
                                         />
                                     </GridItem>
                                 </Grid>

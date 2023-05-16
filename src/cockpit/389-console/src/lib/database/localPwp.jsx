@@ -44,6 +44,7 @@ const general_attrs = [
     "passwordinhistory",
     "passwordminage",
     "passwordadmindn",
+    "passwordadminskipinfoupdate",
 ];
 
 const exp_attrs = [
@@ -219,6 +220,41 @@ class CreatePolicy extends React.Component {
                                         onChange={(checked, e) => {
                                             this.props.handleChange(e);
                                         }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                className="ds-margin-top"
+                                title="The DN for a password administrator or administrator group (passwordAdminDN)."
+                            >
+                                <GridItem className="ds-label" span={3}>
+                                    Password Administrator
+                                </GridItem>
+                                <GridItem span={9}>
+                                    <TextInput
+                                        value={this.props.passwordadmindn}
+                                        type="text"
+                                        id="create_passwordadmindn"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="create_passwordadmindn"
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                    />
+                                </GridItem>
+                            </Grid>
+                            <Grid
+                                className="ds-margin-top"
+                                title="Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate)."
+                            >
+                                <GridItem offset={3} span={9}>
+                                    <Checkbox
+                                        id="create_passwordadminskipinfoupdate"
+                                        isChecked={this.props.create_passwordadminskipinfoupdate}
+                                        onChange={(checked, e) => {
+                                            this.props.handleChange(e);
+                                        }}
+                                        label="Do not update target entry's password state attributes"
                                     />
                                 </GridItem>
                             </Grid>
@@ -699,7 +735,6 @@ class CreatePolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-
                                 <Grid
                                     title="A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords)."
                                     className="ds-margin-top"
@@ -938,6 +973,8 @@ export class LocalPwPolicy extends React.Component {
             passwordtprmaxuse: "-1",
             passwordtprdelayexpireat:  "-1",
             passwordtprdelayvalidfrom:  "-1",
+            passwordadmindn: "",
+            passwordadminskipinfoupdate: false,
             _passwordchange: false,
             _passwordmustchange: false,
             _passwordhistory: false,
@@ -976,6 +1013,8 @@ export class LocalPwPolicy extends React.Component {
             _passwordtprmaxuse: "-1",
             _passwordtprdelayexpireat:  "-1",
             _passwordtprdelayvalidfrom:  "-1",
+            _passwordadmindn: "",
+            _passwordadminskipinfoupdate: false,
             // Create policy
             create_passwordchange: false,
             create_passwordmustchange: false,
@@ -1015,6 +1054,8 @@ export class LocalPwPolicy extends React.Component {
             create_passwordtprmaxuse: "-1",
             create_passwordtprdelayexpireat:  "-1",
             create_passwordtprdelayvalidfrom:  "-1",
+            create_passwordadmindn: "",
+            create_passwordadminskipinfoupdate: false,
             _create_passwordchange: false,
             _create_passwordmustchange: false,
             _create_passwordhistory: false,
@@ -1053,6 +1094,8 @@ export class LocalPwPolicy extends React.Component {
             _create_passwordtprmaxuse: "-1",
             _create_passwordtprdelayexpireat:  "-1",
             _create_passwordtprdelayvalidfrom:  "-1",
+            _create_passwordadmindn: "",
+            _create_passwordadminskipinfoupdate: false,
             // Select typeahead
             isUserAttrsCreateOpen: false,
             isUserAttrsEditOpen: false,
@@ -1094,6 +1137,7 @@ export class LocalPwPolicy extends React.Component {
                 passworduserattributes: "--pwduserattrs",
                 passworddictcheck: "--pwddictcheck",
                 passwordadmindn: "--pwdadmin",
+                passwordadminskipinfoupdate: "--pwdadminskipupdates",
                 passwordtprmaxuse: "--pwptprmaxuse",
                 passwordtprdelayexpireat:  "--pwptprdelayexpireat",
                 passwordtprdelayvalidfrom:  "--pwptprdelayvalidfrom",
@@ -1881,6 +1925,8 @@ export class LocalPwPolicy extends React.Component {
                         passwordmintokenlength: "0",
                         passwordbadwords: "",
                         passworduserattributes: [],
+                        passwordadmindn: "",
+                        passwordadminskipinfoupdate: false,
                         _passwordchange: false,
                         _passwordmustchange: false,
                         _passwordhistory: false,
@@ -1916,6 +1962,8 @@ export class LocalPwPolicy extends React.Component {
                         _passwordmintokenlength: "0",
                         _passwordbadwords: "",
                         _passworduserattributes: [],
+                        _passwordadmindn: "",
+                        _passwordadminskipinfoupdate: false,
                         // Create policy
                         create_passwordchange: false,
                         create_passwordmustchange: false,
@@ -1952,6 +2000,8 @@ export class LocalPwPolicy extends React.Component {
                         create_passwordmintokenlength: "0",
                         create_passwordbadwords: "",
                         create_passworduserattributes: [],
+                        create_passwordadmindn: "",
+                        create_passwordadminskipinfoupdate: false,
                         _create_passwordchange: false,
                         _create_passwordmustchange: false,
                         _create_passwordhistory: false,
@@ -1987,6 +2037,8 @@ export class LocalPwPolicy extends React.Component {
                         _create_passwordmintokenlength: "0",
                         _create_passwordbadwords: "",
                         _create_passworduserattributes: [],
+                        _create_passwordadmindn: "",
+                        _create_passwordadminskipinfoupdate: false,
                     }, () => {
                         const gcmd = [
                             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -2079,6 +2131,8 @@ export class LocalPwPolicy extends React.Component {
                     let pwTPRMaxUse = "-1";
                     let pwTPRDelayExpireAt = "-1";
                     let pwTPRDelayValidFrom = "-1";
+                    let pwAdminDN = "";
+                    let pwAdminSkipUpdates = false;
 
                     if ('passwordmintokenlength' in attrs) {
                         pwMinTokenLen = attrs.passwordmintokenlength[0];
@@ -2209,6 +2263,12 @@ export class LocalPwPolicy extends React.Component {
                     if ('passwordTPRDelayValidFrom' in attrs) {
                         pwTPRDelayValidFrom = attrs.passwordTPRDelayValidFrom[0];
                     }
+                    if ('passwordadmindn' in attrs) {
+                        pwAdminDN = attrs.passwordadmindn[0];
+                    }
+                    if ('passwordadminskipinfoupdate' in attrs && attrs.passwordadminskipinfoupdate[0] == "on") {
+                        pwAdminSkipUpdates = true;
+                    }
 
                     this.setState({
                         editPolicy: true,
@@ -2261,6 +2321,8 @@ export class LocalPwPolicy extends React.Component {
                         passwordtprmaxuse: pwTPRMaxUse,
                         passwordtprdelayexpireat: pwTPRDelayExpireAt,
                         passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
+                        passwordadmindn: pwAdminDN,
+                        passwordadminskipinfoupdate: pwAdminSkipUpdates,
                         // Record original values
                         _passwordchange: pwChange,
                         _passwordmustchange: pwMustChange,
@@ -2300,6 +2362,8 @@ export class LocalPwPolicy extends React.Component {
                         _passwordtprmaxuse: pwTPRMaxUse,
                         _passwordtprdelayexpireat: pwTPRDelayExpireAt,
                         _passwordtprdelayvalidfrom: pwTPRDelayValidFrom,
+                        _passwordadmindn: pwAdminDN,
+                        _passwordadminskipinfoupdate: pwAdminSkipUpdates,
                     });
                 })
                 .fail(err => {
@@ -2872,11 +2936,25 @@ export class LocalPwPolicy extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
+                                <Grid
+                                    title="Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate)."
+                                >
+                                    <GridItem offset={3} span={9}>
+                                        <Checkbox
+                                            id="passwordadminskipinfoupdate"
+                                            isChecked={this.state.passwordadminskipinfoupdate}
+                                            onChange={(checked, e) => {
+                                                this.handleGeneralChange(e);
+                                            }}
+                                            label="Do not update target entry's password state attributes"
+                                        />
+                                    </GridItem>
+                                </Grid>
                             </Form>
                             <Button
                                 isDisabled={this.state.saveGeneralDisabled || this.state.saving}
                                 variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left-sm"
+                                className="ds-margin-top-xlg ds-margin-left-sm ds-margin-bottom-md"
                                 onClick={this.saveGeneral}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -2904,7 +2982,7 @@ export class LocalPwPolicy extends React.Component {
                             <Button
                                 isDisabled={this.state.saveExpDisabled || this.state.saving}
                                 variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left"
+                                className="ds-margin-top-lg ds-margin-left"
                                 onClick={this.saveExp}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -2932,7 +3010,7 @@ export class LocalPwPolicy extends React.Component {
                             <Button
                                 isDisabled={this.state.saveLockoutDisabled || this.state.saving}
                                 variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left"
+                                className="ds-margin-top-lg ds-margin-left"
                                 onClick={this.saveLockout}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -2960,7 +3038,7 @@ export class LocalPwPolicy extends React.Component {
                             <Button
                                 isDisabled={this.state.saveSyntaxDisabled || this.state.saving}
                                 variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left"
+                                className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
                                 onClick={this.saveSyntax}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -3049,7 +3127,7 @@ export class LocalPwPolicy extends React.Component {
                             <Button
                                 isDisabled={this.state.saveTPRDisabled || this.state.saving}
                                 variant="primary"
-                                className="ds-margin-top-xlg ds-margin-left"
+                                className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
                                 onClick={this.saveTPR}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -3105,6 +3183,8 @@ export class LocalPwPolicy extends React.Component {
                             create_passworddictcheck={this.state.create_passworddictcheck}
                             create_passwordpalindrome={this.state.create_passwordpalindrome}
                             create_passwordstoragescheme={this.state.create_passwordstoragescheme}
+                            create_passwordadmindn={this.state.create_passwordadmindn}
+                            create_passwordadminskipinfoupdate={this.state.create_passwordadminskipinfoupdate}
                             onUserAttrsCreateToggle={this.onUserAttrsCreateToggle}
                             onUserAttrsCreateClear={this.onUserAttrsCreateClear}
                             isUserAttrsCreateOpen={this.state.isUserAttrsCreateOpen}

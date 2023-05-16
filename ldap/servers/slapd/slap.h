@@ -1878,6 +1878,7 @@ typedef struct passwordpolicyarray
     struct pw_scheme *pw_storagescheme;
     Slapi_DN *pw_admin;
     Slapi_DN **pw_admin_user;
+    slapi_onoff_t pw_admin_skip_info;  /* Skip updating password information in target entry */
     char *pw_local_dn; /* DN of the subtree/user policy */
 
 } passwdPolicy;
@@ -2287,6 +2288,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PW_IS_LEGACY "passwordLegacyPolicy"
 #define CONFIG_PW_TRACK_LAST_UPDATE_TIME "passwordTrackUpdateTime"
 #define CONFIG_PW_ADMIN_DN_ATTRIBUTE "passwordAdminDN"
+#define CONFIG_PW_ADMIN_SKIP_INFO_ATTRIBUTE "passwordAdminSkipInfoUpdate"
 #define CONFIG_PW_SEND_EXPIRING "passwordSendExpiringTime"
 #define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
 #define CONFIG_SECURITYLOG_BUFFERING_ATTRIBUTE "nsslapd-securitylog-logbuffering"
@@ -2710,6 +2712,7 @@ typedef struct _slapdFrontendConfig
     slapi_int_t tcp_keepalive_time;
     int32_t referral_check_period;
     slapi_onoff_t return_orig_dn;
+    slapi_onoff_t pw_admin_skip_info;
     char *auditlog_display_attrs;
 } slapdFrontendConfig_t;
 

@@ -60,7 +60,6 @@ def password_policy(topology_st):
     })
 
     # Add Password Admin 2
-
     admin2_user = users.create(properties={
         'uid': 'admin2',
         'cn' : 'admin2',
@@ -72,7 +71,6 @@ def password_policy(topology_st):
     })
 
     # Add Password Admin Group
-
     admin_group = groups.create(properties={
         'cn': 'password admin group'
     })
@@ -81,7 +79,6 @@ def password_policy(topology_st):
     admin_group.add_member(admin2_user.dn)
 
     # Configure password policy
-
     log.info('test_pwdAdmin_init: Configuring password policy...')
 
     topology_st.standalone.config.replace_many(
@@ -91,7 +88,10 @@ def password_policy(topology_st):
                                             ('passwordMinTokenLength', '2'),
                                             ('passwordExp', 'on'),
                                             ('passwordMinDigits', '1'),
-                                            ('passwordMinSpecials', '1')
+                                            ('passwordMinSpecials', '1'),
+                                            ('passwordHistory', 'on'),
+                                            ('passwordStorageScheme', 'clear'),
+                                            ('nsslapd-enable-upgrade-hash', 'off')
                                         )
 
     #
@@ -139,6 +139,7 @@ def password_policy(topology_st):
             })
 
     return (admin_group, admin1_user, admin2_user)
+
 
 def test_pwdAdmin_bypass(topology_st, password_policy):
     """Test that password administrators/root DN can
@@ -288,6 +289,7 @@ def test_pwdAdmin_modify(topology_st, password_policy):
     for passwd in INVALID_PWDS:
         u3.replace('userPassword', passwd)
 
+
 def test_pwdAdmin_group(topology_st, password_policy):
     """Test that password admin group can bypass policy.
 
@@ -355,6 +357,84 @@ def test_pwdAdmin_config_validation(topology_st, password_policy):
     # Attempt to set invalid DN
     with pytest.raises(ldap.INVALID_SYNTAX):
         topology_st.standalone.config.set('passwordAdminDN', 'zzzzzzzzzzzz')
+
+
+def test_pwd_admin_config_test_skip_updates(topology_st, password_policy):
+    """Check passwordAdminDN does not update entry password state attributes
+
+    :id: 964f1430-795b-4f4d-85b2-abaffe66ddcb
+
+    :setup: Standalone instance
+    :steps:
+        1. Add test entry
+        2. Update password
+        3. Password history updated
+        4. Enable "skip info update"
+        5. Update password again
+        6. New password not in history
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    inst = topology_st.standalone
+    passwd_in_history = "Secret123"
+    password_not_in_history = "ShouldNotBeInHistory"
+    (admin_group, admin1_user, admin2_user) = password_policy
+
+    # Update config
+    inst.config.set('passwordAdminDN', admin_group.dn)
+
+    # Add test entry
+    admin_conn = admin1_user.bind(ADMIN_PWD)
+    admin_users = UserAccounts(admin_conn, DEFAULT_SUFFIX)
+    admin_users.create(properties={
+        'uid': 'skipInfoUpdate',
+        'cn': 'skipInfoUpdate',
+        'sn': 'skipInfoUpdate',
+        'uidNumber': '1001',
+        'gidNumber': '2002',
+        'homeDirectory': '/home/skipInfoUpdate',
+        'userPassword': "abdcefghijk"
+    })
+
+    # Update password to populate history
+    user = admin_users.get('skipInfoUpdate')
+    user.replace('userPassword', passwd_in_history)
+    user.replace('userPassword', passwd_in_history)
+    time.sleep(1)
+
+    # Check password history was updated
+    passwords = user.get_attr_vals_utf8('passwordHistory')
+    log.debug(f"passwords in history for {user.dn}: {str(passwords)}")
+    found = False
+    for passwd in passwords:
+        if passwd_in_history in passwd:
+            found = True
+    assert found
+
+    # Disable password state info updates
+    inst.config.set('passwordAdminSkipInfoUpdate', 'on')
+    time.sleep(1)
+
+    # Update password
+    user.replace('userPassword', password_not_in_history)
+    user.replace('userPassword', password_not_in_history)
+    time.sleep(1)
+
+    # Check it is not in password history
+    passwords = user.get_attr_vals_utf8('passwordHistory')
+    log.debug(f"Part 2: passwords in history for {user.dn}: {str(passwords)}")
+    found = False
+    for passwd in passwords:
+        if password_not_in_history in passwd:
+            found = True
+    assert not found
+
 
 if __name__ == '__main__':
     # Run isolated
