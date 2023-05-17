@@ -120,3 +120,86 @@ def setup_page(topology_st, page, browser_name, request):
         remove_instance_through_webui(topology_st, page, browser_name)
 
     request.addfinalizer(fin)
+
+
+def load_ldap_browser_tab(frame):
+    frame.get_by_role('tab', name='LDAP Browser', exact=True).click()
+    frame.get_by_role('button').filter(has_text='dc=example,dc=com').click()
+    frame.get_by_role('columnheader', name='Attribute').wait_for()
+    time.sleep(1)
+
+
+def prepare_page_for_entry(frame, entry_type):
+    frame.get_by_role("tabpanel", name="Tree View").get_by_role("button", name="Actions").click()
+    frame.get_by_role("menuitem", name="New ...").click()
+    frame.get_by_label(f"Create a new {entry_type}").check()
+    frame.get_by_role("button", name="Next").click()
+
+
+def finish_entry_creation(frame, entry_type, entry_data):
+    frame.get_by_role("button", name="Next").click()
+    if entry_type == "User":
+        frame.get_by_role("contentinfo").get_by_role("button", name="Create User").click()
+    elif entry_type == "custom Entry":
+        frame.get_by_role("button", name="Create Entry").click()
+    else:
+        frame.get_by_role("button", name="Create", exact=True).click()
+    frame.get_by_role("button", name="Finish").click()
+    frame.get_by_role("button").filter(has_text=entry_data['suffixTreeEntry']).wait_for()
+
+
+def create_entry(frame, entry_type, entry_data):
+    prepare_page_for_entry(frame, entry_type)
+
+    if entry_type == 'User':
+        frame.get_by_role("button", name="Options menu").click()
+        frame.get_by_role("option", name="Posix Account").click()
+        frame.get_by_role("button", name="Next", exact=True).click()
+        frame.get_by_role("button", name="Next", exact=True).click()
+
+        for row, value in enumerate(entry_data.values()):
+            if row > 5:
+                break
+            frame.get_by_role("button", name=f"Place row {row} in edit mode").click()
+            frame.get_by_role("textbox", name="_").fill(value)
+            frame.get_by_role("button", name=f"Save row edits for row {row}").click()
+
+    elif entry_type == 'Group':
+        frame.get_by_role("button", name="Next").click()
+        frame.locator("#groupName").fill(entry_data["group_name"])
+        frame.get_by_role("button", name="Next").click()
+
+    elif entry_type == 'Organizational Unit':
+        frame.get_by_role("button", name="Next", exact=True).click()
+        frame.get_by_role("button", name="Place row 0 in edit mode").click()
+        frame.get_by_role("textbox", name="_").fill(entry_data['ou_name'])
+        frame.get_by_role("button", name="Save row edits for row 0").click()
+
+    elif entry_type == 'Role':
+        frame.locator("#namingVal").fill(entry_data['role_name'])
+        frame.get_by_role("button", name="Next").click()
+        frame.get_by_role("button", name="Next", exact=True).click()
+
+    elif entry_type == 'custom Entry':
+        frame.get_by_role("checkbox", name="Select row 0").check()
+        frame.get_by_role("button", name="Next", exact=True).click()
+        frame.get_by_role("checkbox", name="Select row 1").check()
+        frame.get_by_role("button", name="Next", exact=True).click()
+        frame.get_by_role("button", name="Place row 0 in edit mode").click()
+        frame.get_by_role("textbox", name="_").fill(entry_data['uid'])
+        frame.get_by_role("button", name="Save row edits for row 0").click()
+        frame.get_by_role("button", name="Place row 1 in edit mode").click()
+        frame.get_by_role("textbox", name="_").fill(entry_data['entry_name'])
+        frame.get_by_role("button", name="Save row edits for row 1").click()
+
+    finish_entry_creation(frame, entry_type, entry_data)
+
+def delete_entry(frame):
+    frame.get_by_role("tabpanel", name="Tree View").get_by_role("button", name="Actions").click()
+    frame.get_by_role("menuitem", name="Delete ...").click()
+    frame.get_by_role("button", name="Next").click()
+    frame.get_by_role("button", name="Next").click()
+    frame.get_by_text("No, don't delete.").click()
+    frame.get_by_role("button", name="Delete").click()
+    frame.get_by_role("button", name="Finish").click()
+    time.sleep(1)
