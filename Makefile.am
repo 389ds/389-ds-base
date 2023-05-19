@@ -997,6 +997,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50refintprecedence.ldif \
 	ldap/admin/src/scripts/50retroclprecedence.ldif \
 	ldap/admin/src/scripts/50rootdnaccesscontrolplugin.ldif \
+	ldap/admin/src/scripts/50rust-pwdstorageplugins.ldif \
 	ldap/admin/src/scripts/50pbkdf2pwdstorageplugin.ldif \
 	ldap/admin/src/scripts/50cryptpwdstorageplugin.ldif \
 	ldap/admin/src/scripts/50contentsync.ldif \
