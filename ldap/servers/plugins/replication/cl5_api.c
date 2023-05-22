@@ -348,7 +348,7 @@ cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
     int rc = CL5_SUCCESS;
     cldb_Handle *cldb = replica_get_cl_info(r);
 
-    if (r == NULL || ruv == NULL) {
+    if (r == NULL || ruv == NULL || cldb == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5GetUpperBoundRUV - Invalid parameters\n");
         return CL5_BAD_DATA;
@@ -395,7 +395,7 @@ cl5ExportLDIF(const char *ldifFile, Replica *replica)
     cldb_Handle *cldb = replica_get_cl_info(replica);
     int rc;
 
-    if (ldifFile == NULL) {
+    if (ldifFile == NULL || cldb == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ExportLDIF - null ldif file name\n");
         return CL5_BAD_DATA;
@@ -495,6 +495,12 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
     }
 
     cldb = replica_get_cl_info(replica);
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5ImportLDIF - This replica has no changelog\n");
+        return CL5_BAD_DATA;
+    }
+
     if (cldb->dbState != CL5_STATE_OPEN) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ImportLDIF - Changelog is not initialized\n");
@@ -1125,7 +1131,9 @@ cl5DestroyReplayIterator(CL5ReplayIterator **iterator, Replica *replica)
 
     /* this thread no longer holds a db reference, release it */
     cldb = replica_get_cl_info(replica);
-    slapi_counter_decrement(cldb->clThreads);
+    if (cldb) {
+        slapi_counter_decrement(cldb->clThreads);
+    }
 }
 
 /* Name: cl5GetOperationCount
@@ -1141,6 +1149,10 @@ cl5GetOperationCount(Replica *replica)
 {
     int count = 0;
     cldb_Handle *cldb = replica_get_cl_info(replica);
+
+    if (cldb == NULL) {
+        return count;
+    }
 
     if (cldb->dbState == CL5_STATE_CLOSED) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
@@ -1359,6 +1371,11 @@ cldb_StopTrimming(Replica *replica, void *arg)
 {
     cldb_Handle *cldb = replica_get_cl_info(replica);
 
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cldb_StopTrimming - Changelog info was NULL - is your replication configuration valid?\n");
+        return 0;
+    }
     /* we need to stop the changelog threads - trimming or purging */
     pthread_mutex_lock(&(cldb->clLock));
     pthread_cond_broadcast(&(cldb->clCvar));
@@ -1374,6 +1391,11 @@ cldb_StopThreads(Replica *replica, void *arg)
     PRIntervalTime interval;
     uint64_t threads;
 
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cldb_StopThreads - Changelog info was NULL - is your replication configuration valid?\n");
+        return 0;
+    }
     /* we need to stop the changelog threads - trimming or purging */
     pthread_mutex_lock(&(cldb->clLock));
     pthread_cond_broadcast(&(cldb->clCvar));
@@ -2282,6 +2304,11 @@ _cl5DoPurging(cleanruv_purge_data *purge_data)
     const Slapi_DN *suffix_sdn = purge_data->suffix_sdn;
     cldb_Handle *cldb = replica_get_cl_info(purge_data->replica);
 
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "_cl5DoPurging - Changelog info was NULL - is your replication configuration valid?\n");
+        return;
+    }
     pthread_mutex_lock(&(cldb->clLock));
     _cl5PurgeRID (cldb, rid);
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
@@ -2635,8 +2662,13 @@ _cl5TrimReplica(Replica *r)
     long numToTrim;
 
     cldb_Handle *cldb = replica_get_cl_info(r);
-
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "_cl5TrimReplica - Changelog info was NULL - is your replication configuration valid?\n");
+        return;
+    }
     if (!_cl5CanTrim ((time_t)0, &numToTrim, r, &cldb->clConf) ) {
+
         return;
     }
 
@@ -3955,7 +3987,12 @@ _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Repli
 
     cldb_Handle *cldb = replica_get_cl_info(replica);
     PR_ASSERT (consumerRuv && replica && iterator);
- 
+
+    if (cldb == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "_cl5PositionCursorForReplay - Changelog info was NULL - is your replication configuration valid?\n");
+        return CL5_UNKNOWN_ERROR;
+    }
     csnStr[0] = '\0';
 
     /* get supplier's RUV */
@@ -4507,6 +4544,10 @@ trigger_cl_purging_thread(void *arg)
     cleanruv_purge_data *purge_data = (cleanruv_purge_data *)arg;
     Replica *replica = purge_data->replica;
     cldb_Handle *cldb = replica_get_cl_info(replica);
+
+    if (cldb == NULL) {
+        return;
+    }
 
     pthread_mutex_lock(&(cldb->stLock));
     /* Make sure we have a change log, and we aren't closing it */
