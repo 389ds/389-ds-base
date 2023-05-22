@@ -10,7 +10,8 @@ import pytest
 from lib389 import DirSrv
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4, topology_m2
+from lib389.monitor import Monitor
+from lib389.topologies import topology_m4, topology_m2, topology_m2c2
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.replica import ReplicationManager, Replicas
 from lib389.tasks import CleanAllRUVTask
@@ -96,6 +97,49 @@ def test_clean(topology_m4):
     assert clean
 
     log.info('test_clean PASSED, restoring supplier 4...')
+
+def test_cleanallruv_consumer(topology_m2c2):
+    """Check that cleanallruv task works properly on consumer
+
+    :id: 2c0e7e83-314d-4df1-b1b7-07b7ab242976
+    :setup: Replication setup with 2 suppliers and 2 consumers
+    :steps:
+        1. Run a cleanallruv task on supplier 2
+        2. Waits until completion
+        3. Retrieve monitoring info from all servers
+           convenient way to check the server did not crash
+    :expectedresults:
+        1. pass
+        2. pass
+        3. pass
+    """
+
+    log.info('test_cleanallruv_consumer: Starts ...')
+    supplier1 = topology_m2c2.ms["supplier1"]
+    supplier2 = topology_m2c2.ms["supplier2"]
+    consumer1 = topology_m2c2.cs["consumer1"]
+    consumer2 = topology_m2c2.cs["consumer2"]
+    log.info('Running ...')
+
+    # Run the task
+    log.info('test_cleanallruv_consumer: run the cleanAllRUV task...')
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    m1rid = repl.get_rid(supplier1)
+    cruv_task = CleanAllRUVTask(supplier2)
+    cruv_task.create(properties={
+        'replica-id': m1rid,
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no'
+        })
+    cruv_task.wait()
+
+    # Check that all servers are alived
+    for server in (supplier1, supplier2, consumer1, consumer2):
+        monitor = Monitor(server)
+        version = monitor.get_version()
+        assert(version)
+
+    log.info('test_cleanallruv_consumer PASSED..')
 
 
 if __name__ == '__main__':
