@@ -8,6 +8,10 @@
 
 #include <prnetdb.h>
 
+#define HAPROXY_HEADER_PARSED 0
+#define HAPROXY_NOT_A_HEADER 1
+#define HAPROXY_ERROR -1
+
  /*
   * Begin protocol v2 definitions from haproxy/include/types/connection.h.
   */

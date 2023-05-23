@@ -23,7 +23,7 @@ typedef struct test_input {
 test_input test_cases[] = {
     {
         .input_str = "PROXY TCP4 192.168.0.1 192.168.0.2 12345 389\r\n",
-        .expected_result = 0,
+        .expected_result = HAPROXY_HEADER_PARSED,
         .expected_len = 39,
         .expected_proxy_connection = 1,
         .expected_pr_netaddr_from = { .inet = { .family = PR_AF_INET, .ip = 0x0100A8C0, .port = 0x3930 }},
@@ -31,7 +31,7 @@ test_input test_cases[] = {
     },
     {
         .input_str = "PROXY TCP6 2001:db8::1 2001:db8::2 12345 389\r\n",
-        .expected_result = 0,
+        .expected_result = HAPROXY_HEADER_PARSED,
         .expected_len = 46,
         .expected_proxy_connection = 1,
         .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, .port = 0x3930 }},
@@ -39,7 +39,7 @@ test_input test_cases[] = {
     },
     {
     .input_str = "PROXY TCP6 ::ffff:192.168.0.1 ::ffff:192.168.0.2 12345 389\r\n",
-    .expected_result = 0,
+    .expected_result = HAPROXY_HEADER_PARSED,
     .expected_len = 54,
     .expected_proxy_connection = 1,
     .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc0, 0xa8, 0x00, 0x01}, .port = 0x3930 }},
@@ -48,43 +48,43 @@ test_input test_cases[] = {
     // Invalid IP
     {
         .input_str = "PROXY TCP4 256.168.0.1 192.168.0.2 12345 389\r\n",
-        .expected_result = -1,
+        .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
     // Invalid port
     {
         .input_str = "PROXY TCP4 192.168.0.1 192.168.0.2 123456 389\r\n",
-        .expected_result = -1,
+        .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
     // One port
     {
         .input_str = "PROXY TCP4 192.168.0.1 192.168.0.2 12345\r\n",
-        .expected_result = -1,
+        .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
     // No ports
     {
         .input_str = "PROXY TCP4 192.168.0.1 192.168.0.2\r\n",
-        .expected_result = -1,
+        .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
     // Empty string
     {
         .input_str = "",
-        .expected_result = -1,
+        .expected_result = HAPROXY_NOT_A_HEADER,
         .expected_proxy_connection = 0,
     },
     // Invalid protocol
     {
         .input_str = "PROXY TCP3 192.168.0.1 192.168.0.2 12345 389\r\n",
-        .expected_result = -1,
+        .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
     // Missing protocol
     {
         .input_str = "PROXY 192.168.0.1 192.168.0.2 12345 389\r\n",
-        .expected_result = -1,
+        .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
 
@@ -94,17 +94,17 @@ size_t num_tests = sizeof(test_cases) / sizeof(test_cases[0]);
 
 void test_libslapd_haproxy_v1(void **state) {
     (void)state;
-    int rc = 0;
+    int result = 0;
 
     for (size_t i = 0; i < num_tests; i++) {
         int proxy_connection = 0;
         PRNetAddr pr_netaddr_from = {{0}};
         PRNetAddr pr_netaddr_dest = {{0}};
         size_t str_len = strlen(test_cases[i].input_str);
-        rc = haproxy_parse_v1_hdr(test_cases[i].input_str, &str_len, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest);
+        result = haproxy_parse_v1_hdr(test_cases[i].input_str, &str_len, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest);
 
-        assert_int_equal(test_cases[i].expected_result, rc);
-        assert_int_equal(test_cases[i].expected_proxy_connection, proxy_connection);
+        assert_int_equal(result, test_cases[i].expected_result);
+        assert_int_equal(proxy_connection, test_cases[i].expected_proxy_connection);
 
         if (test_cases[i].expected_result == 0) {
             // slapi_log_error(SLAPI_LOG_ERR, "haproxy_parse_v1_hdr", "Expected pr_netaddr_from: ");
@@ -139,50 +139,50 @@ void test_libslapd_haproxy_v2_invalid(void **state) {
          "short",
          {},
          sizeof("short"),
-         -1,
+         HAPROXY_NOT_A_HEADER,
          0},
         {"invalid header",
          "invalid_signature",
          {},
          sizeof("invalid_signature"),
-         -1,
+         HAPROXY_NOT_A_HEADER,
          0},
         {"invalid signature",
          NULL,
          {"INVALID", PP2_VERSION | PP2_VER_CMD_PROXY, PP2_FAM_INET | PP2_TRANS_STREAM, htons(PP2_ADDR_LEN_INET)},
          PP2_HEADER_LEN + PP2_ADDR_LEN_INET,
-         -1,
+         HAPROXY_NOT_A_HEADER,
          0},
         {"unsupported family",
          NULL,
          {PP2_SIGNATURE, PP2_VERSION | PP2_VER_CMD_PROXY, 0x30 | PP2_TRANS_STREAM, htons(0)},
          PP2_HEADER_LEN,
-         -1,
+         HAPROXY_ERROR,
          0},
         {"unsupported protocol",
          NULL,
          {PP2_SIGNATURE, PP2_VERSION | PP2_VER_CMD_PROXY, PP2_FAM_INET | 0x30, htons(0)},
          PP2_HEADER_LEN,
-         -1,
+         HAPROXY_ERROR,
          0},
         {"invalid version",
          NULL,
          {PP2_SIGNATURE, (PP2_VERSION ^ 0xF0) | PP2_VER_CMD_PROXY, PP2_FAM_INET | PP2_TRANS_STREAM, htons(PP2_ADDR_LEN_INET)},
          PP2_HEADER_LEN + PP2_ADDR_LEN_INET,
-         -1,
+         HAPROXY_ERROR,
          0},
         {"valid header, wrong command",
-        NULL,
-        {PP2_SIGNATURE, PP2_VERSION | (PP2_VER_CMD_PROXY ^ 0xF0), PP2_FAM_INET | PP2_TRANS_STREAM, htons(PP2_ADDR_LEN_INET)},
-        PP2_HEADER_LEN + PP2_ADDR_LEN_INET,
-        -1,
-        0},
+         NULL,
+         {PP2_SIGNATURE, PP2_VERSION | (PP2_VER_CMD_PROXY ^ 0xF0), PP2_FAM_INET | PP2_TRANS_STREAM, htons(PP2_ADDR_LEN_INET)},
+         PP2_HEADER_LEN + PP2_ADDR_LEN_INET,
+         HAPROXY_ERROR,
+         0},
         {"valid header, too long",
-        NULL,
-        {PP2_SIGNATURE, PP2_VERSION | PP2_VER_CMD_PROXY, PP2_FAM_INET | PP2_TRANS_STREAM, htons(PP2_ADDR_LEN_INET * 2)},
-        PP2_HEADER_LEN + PP2_ADDR_LEN_INET,
-        -1,
-        0}
+         NULL,
+         {PP2_SIGNATURE, PP2_VERSION | PP2_VER_CMD_PROXY, PP2_FAM_INET | PP2_TRANS_STREAM, htons(PP2_ADDR_LEN_INET * 2)},
+         PP2_HEADER_LEN + PP2_ADDR_LEN_INET,
+         HAPROXY_ERROR,
+         0}
         };
 
     for (int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
@@ -216,7 +216,7 @@ void test_libslapd_haproxy_v2_unsupported_protocol(void **state) {
 
     int result = haproxy_parse_v2_hdr((const char *) &hdr_v2, &str_len, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest);
 
-    assert_int_equal(result, -1);
+    assert_int_equal(result, HAPROXY_ERROR);
     assert_int_equal(proxy_connection, 0);
 }
 
@@ -239,7 +239,7 @@ void test_libslapd_haproxy_v2_invalid_version(void **state) {
 
     int result = haproxy_parse_v2_hdr((const char *) &hdr_v2, &str_len, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest);
 
-    assert_int_equal(result, -1);
+    assert_int_equal(result, HAPROXY_ERROR);
     assert_int_equal(proxy_connection, 0);
 }
 
@@ -291,7 +291,7 @@ void test_libslapd_haproxy_v2_valid(void **state) {
 
         int rc = haproxy_parse_v2_hdr((const char *) &hdr_v2, &str_len, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest);
 
-        assert_int_equal(rc, 0);
+        assert_int_equal(rc, HAPROXY_HEADER_PARSED);
         assert_int_equal(proxy_connection, 1);
         assert_memory_equal(&pr_netaddr_from, &test_cases[i].expected_pr_netaddr_from, sizeof(PRNetAddr));
         assert_memory_equal(&pr_netaddr_dest, &test_cases[i].expected_pr_netaddr_dest, sizeof(PRNetAddr));
@@ -316,6 +316,6 @@ void test_libslapd_haproxy_v2_valid_local(void **state) {
 
     int result = haproxy_parse_v2_hdr((const char *) &hdr_v2, &str_len, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest);
 
-    assert_int_equal(result, 0);
+    assert_int_equal(result, HAPROXY_HEADER_PARSED);
     assert_int_equal(proxy_connection, 0);
 }

@@ -80,21 +80,24 @@ int haproxy_parse_v2_hdr(const char *str, size_t *str_len, int *proxy_connection
     uint16_t hdr_v2_len = 0;
     PRNetAddr parsed_addr_from = {{0}};
     PRNetAddr parsed_addr_dest = {{0}};
-    int rc = -1;
+    int rc = HAPROXY_ERROR;
 
     *proxy_connection = 0;
 
     /* Check if we received enough bytes to contain the HAProxy v2 header */
     if (*str_len < PP2_HEADER_LEN) {
         slapi_log_err(SLAPI_LOG_CONNS, "haproxy_parse_v2_hdr", "Protocol header is short\n");
+        rc = HAPROXY_NOT_A_HEADER;
         goto done;
     }
     hdr_v2_len = ntohs(hdr_v2->len);
 
     if (memcmp(hdr_v2->sig, PP2_SIGNATURE, PP2_SIGNATURE_LEN) != 0) {
         slapi_log_err(SLAPI_LOG_CONNS, "haproxy_parse_v2_hdr", "Protocol header is invalid\n");
+        rc = HAPROXY_NOT_A_HEADER;
         goto done;
     }
+
     /* Check if the header has the correct signature */
     if ((hdr_v2->ver_cmd & 0xF0) != PP2_VERSION) {
         slapi_log_err(SLAPI_LOG_CONNS, "haproxy_parse_v2_hdr", "Protocol version is invalid\n");
@@ -146,7 +149,7 @@ int haproxy_parse_v2_hdr(const char *str, size_t *str_len, int *proxy_connection
             }
             /* Update the received string length to include the address information */
             *str_len = PP2_HEADER_LEN + hdr_v2_len;
-            rc = 0;
+            rc = HAPROXY_HEADER_PARSED;
             *proxy_connection = 1;
             /* Copy the parsed addresses to the output parameters */
             memcpy(pr_netaddr_from, &parsed_addr_from, sizeof(PRNetAddr));
@@ -155,7 +158,7 @@ int haproxy_parse_v2_hdr(const char *str, size_t *str_len, int *proxy_connection
         /* If it's a LOCAL command, there's no address information to parse, so just update the received string length */
         case PP2_VER_CMD_LOCAL:
             *str_len = PP2_HEADER_LEN + hdr_v2_len;
-            rc = 0;
+            rc = HAPROXY_HEADER_PARSED;
             goto done;
         default:
             slapi_log_err(SLAPI_LOG_CONNS, "haproxy_parse_v2_hdr", "Invalid header command\n");
@@ -278,7 +281,7 @@ int haproxy_parse_v1_hdr(const char *str, size_t *str_len, int *proxy_connection
     char *copied = NULL;
     char *after_header = NULL;
     int addr_family;
-    int rc = -1;
+    int rc = HAPROXY_ERROR;
 
     *proxy_connection = 0;
     if (strncmp(str, "PROXY ", 6) == 0) {
@@ -319,7 +322,7 @@ int haproxy_parse_v1_hdr(const char *str, size_t *str_len, int *proxy_connection
             slapi_log_err(SLAPI_LOG_CONNS, "haproxy_parse_v1_hdr", "Missing or bad server port\n");
             goto done;
         }
-        rc = 0;
+        rc = HAPROXY_HEADER_PARSED;
         *proxy_connection = 1;
         *str_len = after_header - str_saved;
         /* Copy the parsed addresses to the output parameters */
@@ -328,62 +331,10 @@ int haproxy_parse_v1_hdr(const char *str, size_t *str_len, int *proxy_connection
 
 done:
         slapi_ch_free_string(&str_saved);
+    } else {
+        rc = HAPROXY_NOT_A_HEADER;
     }
     return rc;
-}
-
-
-/** 
- * Check if the socket is in blocking mode, and if it is, set it to non-blocking mode.
- * This is done to avoid the potential for the recv call to block indefinitely if the
- * HAProxy server sends less data than expected. In non-blocking mode, recv will
- * return immediately with whatever data is available, preventing the thread from being
- * stalled if the data is not immediately available.
- */
-int set_nonblocking_if_needed(int fd, int *was_blocking) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "haproxy_receive", "Error getting socket flags: %s\n", strerror(errno));
-        return -1;
-    }
-
-    if (!(flags & O_NONBLOCK)) {
-        /* The socket is in blocking mode, set it to non-blocking mode */ 
-        if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-            slapi_log_err(SLAPI_LOG_ERR, "haproxy_receive", "Error setting socket to non-blocking mode: %s\n", strerror(errno));
-            return -1;
-        }
-        *was_blocking = 1;
-    } else {
-        *was_blocking = 0;
-    }
-
-    return 0;
-}
-
-/** 
- * Check if the socket was in blocking mode originally, and if it was, set it back to
- * blocking mode. This is done to restore the original state of the socket, as other
- * parts of the code might expect the socket to be in blocking mode and not be designed
- * to handle the EAGAIN or EWOULDBLOCK errors that can occur in non-blocking mode.
- */
-int set_blocking_if_needed(int fd, int was_blocking) {
-    int flags;
-    if (was_blocking) {
-        /* The socket was in blocking mode originally, set it back to blocking mode */
-        flags = fcntl(fd, F_GETFL, 0);
-        if (flags == -1) {
-            slapi_log_err(SLAPI_LOG_ERR, "haproxy_receive", "Error getting socket flags: %s\n", strerror(errno));
-            return -1;
-        }
-
-        if (fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) == -1) {
-            slapi_log_err(SLAPI_LOG_ERR, "haproxy_receive", "Error setting socket back to blocking mode: %s\n", strerror(errno));
-            return -1;
-        }
-    }
-
-    return 0;
 }
 
 /**
@@ -399,24 +350,16 @@ int set_blocking_if_needed(int fd, int was_blocking) {
 int haproxy_receive(int fd, int *proxy_connection, PRNetAddr *pr_netaddr_from, PRNetAddr *pr_netaddr_dest)
 {
     /* Buffer to store the header received from the HAProxy server */
-    char hdr[HAPROXY_HEADER_MAX_LEN + 1];
+    char hdr[HAPROXY_HEADER_MAX_LEN + 1] = {0};
     ssize_t recv_result = 0;
     size_t hdr_len;
-    int was_blocking;
+    int rc = HAPROXY_ERROR;
 
-    if (set_nonblocking_if_needed(fd, &was_blocking) == -1) {
-        return -1;
-    }
     /* Attempt to receive the header from the HAProxy server */
-    recv_result = recv(fd, hdr, sizeof(hdr) - 1, MSG_PEEK);
-
-    if (set_blocking_if_needed(fd, was_blocking) == -1) {
-        return -1;
-    }
-
+    recv_result = recv(fd, hdr, sizeof(hdr) - 1,  MSG_PEEK | MSG_DONTWAIT);
     if (recv_result <= 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "haproxy_receive", "EOF or error on haproxy socket: %s\n", strerror(errno));
-        return -1;
+        slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive", "EOF or error on haproxy socket: %s\n", strerror(errno));
+        return rc;
     } else {
         hdr_len = recv_result;
     }
@@ -425,33 +368,25 @@ int haproxy_receive(int fd, int *proxy_connection, PRNetAddr *pr_netaddr_from, P
     if (hdr_len < sizeof(hdr)) {
         hdr[hdr_len] = 0;
     } else {
-        slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive", "Recieved header is too long or an error is returned: %d\n", hdr_len);
-        return -1;
+        slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive", "Recieved header is too long: %d\n", hdr_len);
+        rc = HAPROXY_NOT_A_HEADER;
+        return rc;
     }
 
-    /* Try to parse the header as a version 1 header. If that fails, try as a version 2 header. */
-    if (haproxy_parse_v1_hdr(hdr, &hdr_len, proxy_connection, pr_netaddr_from, pr_netaddr_dest) != 0) {
-        slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive", "Failed to parse HAProxy v1 header. Trying v2...\n");
-        if (haproxy_parse_v2_hdr(hdr, &hdr_len, proxy_connection, pr_netaddr_from, pr_netaddr_dest) != 0) {
-            slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive",
-                          "Failed to parse HAProxy header. Assuming that it's not a proxied connection. \n");
-            return -1;
+    rc = haproxy_parse_v1_hdr(hdr, &hdr_len, proxy_connection, pr_netaddr_from, pr_netaddr_dest);
+    if (rc == HAPROXY_NOT_A_HEADER) {
+        rc = haproxy_parse_v2_hdr(hdr, &hdr_len, proxy_connection, pr_netaddr_from, pr_netaddr_dest);
+    }
+
+    if (rc == HAPROXY_HEADER_PARSED) {
+        slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive", "HAProxy header parsed successfully\n");
+        /* Consume the data from the socket */
+        recv_result = recv(fd, hdr, hdr_len, MSG_DONTWAIT);
+
+        if (recv_result != hdr_len) {
+            slapi_log_err(SLAPI_LOG_ERR, "haproxy_receive", "Read error: %s: %s\n", hdr, strerror(errno));
+            return HAPROXY_ERROR;
         }
     }
-
-    if (set_nonblocking_if_needed(fd, &was_blocking) == -1) {
-        return -1;
-    }
-    /* Consume the data from the socket */
-    recv_result = recv(fd, hdr, hdr_len, 0);
-
-    if (set_blocking_if_needed(fd, was_blocking) == -1) {
-        return -1;
-    }
-    if (recv_result != hdr_len) {
-        slapi_log_err(SLAPI_LOG_ERR, "haproxy_receive", "Read error: %s: %s\n", hdr, strerror(errno));
-        return -1;
-    }
-
-    return 0;
+    return rc;
 }
