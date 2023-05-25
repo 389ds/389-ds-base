@@ -713,8 +713,8 @@ export class Monitor extends React.Component {
                             glues: config.items,
 
                         },
+                        replInitLoaded: true,
                         replLoading: false,
-                        replInitLoaded: true
                     });
                 })
                 .fail(() => {
@@ -756,16 +756,13 @@ export class Monitor extends React.Component {
                     this.setState({
                         credRows,
                         aliasRows,
-                        replLoading: false,
                         replInitLoaded: true
                     });
                 })
                 .fail(err => {
+                    // No dsrc file, thats ok
                     const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get .dsrc information: ${errMsg.desc}`
-                    );
+                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg.desc}`);
                     this.setState({
                         replLoading: false,
                     });
@@ -862,6 +859,7 @@ export class Monitor extends React.Component {
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
                         const config = JSON.parse(content);
+                        this.loadDSRC();
                         this.setState({
                             [treeViewItem.suffix]: {
                                 ...this.state[treeViewItem.suffix],
@@ -883,7 +881,7 @@ export class Monitor extends React.Component {
                         // Notification of failure (could only be server down)
                         this.setState({
                             replLoading: false,
-                        });
+                        }, this.loadDSRC);
                     });
         } else {
             // We should enable it here because ReplMonitor never will be mounted

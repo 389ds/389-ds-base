@@ -414,7 +414,10 @@ class ReportCredentialsModal extends React.Component {
                         key="save"
                         variant="primary"
                         onClick={newEntry ? addConfig : editConfig}
-                        isDisabled={hostname === "" || binddn === "" || bindpw === ""}
+                        isDisabled={
+                            hostname === "" || binddn === "" ||
+                            (bindpw === "" && !pwInputInterractive)
+                        }
                     >
                         Save
                     </Button>,
@@ -549,7 +552,10 @@ class ReportConnectionModal extends React.Component {
                         key="save"
                         variant="primary"
                         onClick={addConn}
-                        isDisabled={name ==="" || hostname === "" || port === "" || binddn === "" || bindpw === ""}
+                        isDisabled={
+                            name ==="" || hostname === "" || port === "" ||
+                            binddn === "" || (bindpw === "" && !pwInputInterractive)
+                        }
                     >
                         Save
                     </Button>,
