@@ -234,10 +234,7 @@ export class ReplMonitor extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get .dsrc information: ${errMsg.desc}`
-                    );
+                    console.log(`loadDSRC: Could not load .dsrc file: ${errMsg.desc}`);
                     this.setState({
                         loadingDSRC: false,
                     });
@@ -262,7 +259,9 @@ export class ReplMonitor extends React.Component {
                                     credsBindpw: "",
                                     pwInputInterractive: true
                                 }
-                            ]
+                            ],
+                            credRows: [...this.props.credRows],
+                            aliasRows: [...this.props.aliasRows],
                         }));
                         if ('replAgmts' in this.props.data) {
                             for (const agmt of this.props.data.replAgmts) {
