@@ -86,6 +86,7 @@ const char *type_replicaCleanRUV = "nsds5ReplicaCleanRUV";
 const char *type_replicaAbortCleanRUV = "nsds5ReplicaAbortCleanRUV";
 const char *type_replicaProtocolTimeout = "nsds5ReplicaProtocolTimeout";
 const char *type_replicaReleaseTimeout = "nsds5ReplicaReleaseTimeout";
+const char *type_replicaLingerTimeout = "nsds5ReplicaLingerTimeout";
 const char *type_replicaBackoffMin = "nsds5ReplicaBackoffMin";
 const char *type_replicaBackoffMax = "nsds5ReplicaBackoffMax";
 const char *type_replicaPrecisePurge = "nsds5ReplicaPreciseTombstonePurging";

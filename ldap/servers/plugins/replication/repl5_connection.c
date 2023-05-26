@@ -62,8 +62,6 @@ typedef struct repl_connection
     void *tot_init_callback; /* Used during total update to do flow control */
 } repl_connection;
 
-/* #define DEFAULT_LINGER_TIME (5 * 60) */ /* 5 minutes */
-#define DEFAULT_LINGER_TIME (60)
 
 /*** from proto-slap.h ***/
 int schema_objectclasses_superset_check(struct berval **remote_schema, char *type);
@@ -174,11 +172,27 @@ Repl_Connection *
 conn_new(Repl_Agmt *agmt)
 {
     Repl_Connection *rpc;
+    Slapi_DN *replarea_sdn = NULL;
+    int32_t linger_timeout = 0;
 
     rpc = (Repl_Connection *)slapi_ch_malloc(sizeof(repl_connection));
     if ((rpc->lock = PR_NewLock()) == NULL) {
         goto loser;
     }
+
+    /* Get the linger timeout */
+    linger_timeout = agmt_get_linger_timeout(agmt);
+    if (linger_timeout == 0) {
+        /* agmt does not have a specific timeout, try the replica config */
+        linger_timeout = DEFAULT_LINGER_TIME;
+        replarea_sdn = agmt_get_replarea(agmt);
+        if (replarea_sdn) {
+            Replica *replica = replica_get_replica_from_dn(replarea_sdn);
+            slapi_sdn_free(&replarea_sdn);
+            linger_timeout = replica_get_linger_timeout(replica);
+        }
+    }
+
     rpc->hostname = agmt_get_hostname(agmt);
     rpc->port = agmt_get_port(agmt);
     rpc->binddn = agmt_get_binddn(agmt);
@@ -198,7 +212,7 @@ conn_new(Repl_Agmt *agmt)
     rpc->linger_active = PR_FALSE;
     rpc->delete_after_linger = PR_FALSE;
     rpc->linger_event = NULL;
-    rpc->linger_time = DEFAULT_LINGER_TIME;
+    rpc->linger_time = linger_timeout;
     rpc->status = STATUS_DISCONNECTED;
     rpc->agmt = agmt;
     rpc->refcnt = 1;
@@ -1019,7 +1033,7 @@ conn_start_linger(Repl_Connection *conn)
 
     PR_ASSERT(NULL != conn);
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                  "conn_start_linger -%s - Beginning linger on the connection\n",
+                  "conn_start_linger - %s - Beginning linger on the connection\n",
                   agmt_get_long_name(conn->agmt));
     if (!conn_connected(conn)) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1037,6 +1051,9 @@ conn_start_linger(Repl_Connection *conn)
         conn->linger_active = PR_TRUE;
         conn->linger_event = slapi_eq_once_rel(linger_timeout, conn, now + conn->linger_time);
         conn->status = STATUS_LINGERING;
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                      "conn_start_linger - %s - Using linger timeout %d\n",
+                      agmt_get_long_name(conn->agmt), conn->linger_time);
     }
     PR_Unlock(conn->lock);
 }

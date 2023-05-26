@@ -60,6 +60,7 @@ struct replica
     char *locking_purl;                /* supplier who has exclusive access */
     uint64_t locking_conn;             /* The supplier's connection id */
     Slapi_Counter *protocol_timeout;   /* protocol shutdown timeout */
+    Slapi_Counter *linger_timeout;     /* protocol shutdown timeout */
     Slapi_Counter *backoff_min;        /* backoff retry minimum */
     Slapi_Counter *backoff_max;        /* backoff retry maximum */
     Slapi_Counter *precise_purging;    /* Enable precise tombstone purging */
@@ -188,6 +189,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
 
     /* init the slapi_counter/atomic settings */
     r->protocol_timeout = slapi_counter_new();
+    r->linger_timeout = slapi_counter_new();
     r->release_timeout = slapi_counter_new();
     r->backoff_min = slapi_counter_new();
     r->backoff_max = slapi_counter_new();
@@ -400,11 +402,11 @@ replica_destroy(void **arg)
 
     if (NULL != r->min_csn_pl) {
         csnplFree(&r->min_csn_pl);
-        ;
     }
 
     slapi_counter_destroy(&r->protocol_timeout);
     slapi_counter_destroy(&r->release_timeout);
+    slapi_counter_destroy(&r->linger_timeout);
     slapi_counter_destroy(&r->backoff_min);
     slapi_counter_destroy(&r->backoff_max);
     slapi_counter_destroy(&r->precise_purging);
@@ -1015,6 +1017,22 @@ replica_get_protocol_timeout(Replica *r)
 }
 
 uint64_t
+replica_get_linger_timeout(Replica *r)
+{
+    if (r) {
+        uint64_t timeout = slapi_counter_get_value(r->linger_timeout);
+        if (timeout == 0) {
+            /* timeout not set, return default */
+            return DEFAULT_LINGER_TIME;
+        } else {
+            return timeout;
+        }
+    } else {
+        return DEFAULT_LINGER_TIME;
+    }
+}
+
+uint64_t
 replica_get_release_timeout(Replica *r)
 {
     if (r) {
@@ -1037,6 +1055,14 @@ replica_set_protocol_timeout(Replica *r, uint64_t timeout)
 {
     if (r) {
         slapi_counter_set_value(r->protocol_timeout, timeout);
+    }
+}
+
+void
+replica_set_linger_timeout(Replica *r, uint64_t timeout)
+{
+    if (r) {
+        slapi_counter_set_value(r->linger_timeout, timeout);
     }
 }
 
@@ -1938,6 +1964,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     int64_t backoff_min;
     int64_t backoff_max;
     int64_t ptimeout = 0;
+    int64_t ltimeout = 0;
     int64_t release_timeout = 0;
     int64_t interval = 0;
     int64_t rtype = 0;
@@ -2023,6 +2050,20 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         }
     } else {
         slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
+    }
+
+    /* get the linger timeout */
+    if (slapi_entry_attr_exists(e, type_replicaLingerTimeout)) {
+        if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaLingerTimeout))) {
+            if (repl_config_valid_num(type_replicaLingerTimeout, val, 1, INT_MAX, &rc, errormsg, &ltimeout) != 0) {
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
+            slapi_counter_set_value(r->linger_timeout, ltimeout);
+        } else {
+            slapi_counter_set_value(r->linger_timeout, DEFAULT_LINGER_TIME);
+        }
+    } else {
+        slapi_counter_set_value(r->linger_timeout, DEFAULT_LINGER_TIME);
     }
 
     /* Get the release timeout */

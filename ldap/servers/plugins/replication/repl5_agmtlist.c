@@ -361,6 +361,28 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_replicaLingerTimeout)) {
+            if (mods[i]->mod_op & LDAP_MOD_DELETE) {
+                agmt_set_linger_timeout(agmt, 0);
+            } else {
+                long ltimeout = 0;
+
+                if (val) {
+                    ltimeout = atol(val);
+                }
+                if (ltimeout <= 0) {
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
+                                type_replicaProtocolTimeout, val ? val : "");
+                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                                  "Attribute %s value (%s) is invalid, must be a number greater than zero.\n",
+                                  type_replicaLingerTimeout, val ? val : "");
+                    rc = SLAPI_DSE_CALLBACK_ERROR;
+                    break;
+                }
+                agmt_set_linger_timeout(agmt, ltimeout);
+            }
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
                                                type_nsds5ReplicaFlowControlWindow)) {
             /* New replica timeout */

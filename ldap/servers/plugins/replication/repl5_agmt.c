@@ -129,6 +129,7 @@ typedef struct repl5agmt
                               * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
     int64_t agreement_type;
     Slapi_Counter *protocol_timeout;
+    Slapi_Counter *linger_timeout;
     char *maxcsn;                      /* agmt max csn */
     int64_t flowControlWindow;         /* This is the maximum number of entries sent without acknowledgment */
     int64_t flowControlPause;          /* When nb of not acknowledged entries overpass totalUpdateWindow
@@ -262,6 +263,7 @@ agmt_new_from_entry(Slapi_Entry *e)
     char *val_nsds5BeginReplicaRefresh = "start";
     const char *val = NULL;
     int64_t ptimeout = 0;
+    int64_t ltimeout = DEFAULT_LINGER_TIME;
     int rc = 0;
 
     ra = (Repl_Agmt *)slapi_ch_calloc(1, sizeof(repl5agmt));
@@ -278,6 +280,7 @@ agmt_new_from_entry(Slapi_Entry *e)
         goto loser;
     }
     ra->protocol_timeout = slapi_counter_new();
+    ra->linger_timeout = slapi_counter_new();
 
     /* Find all the stuff we need for the agreement */
 
@@ -414,6 +417,14 @@ agmt_new_from_entry(Slapi_Entry *e)
             goto loser;
         }
         slapi_counter_set_value(ra->protocol_timeout, ptimeout);
+    }
+
+    /* If this agmt has its own linger timeout, grab it, otherwise use the replica's linger timeout */
+    if ((val = slapi_entry_attr_get_ref(e, type_replicaLingerTimeout))){
+        if (repl_config_valid_num(type_replicaLingerTimeout, (char *)val, 1, INT_MAX, &rc, errormsg, &ltimeout) != 0) {
+            goto loser;
+        }
+        slapi_counter_set_value(ra->linger_timeout, ltimeout);
     }
 
     /* Replica enabled */
@@ -706,6 +717,7 @@ agmt_delete(void **rap)
     slapi_ch_free_string(&ra->long_name);
 
     slapi_counter_destroy(&ra->protocol_timeout);
+    slapi_counter_destroy(&ra->linger_timeout);
 
     /* free the locks */
     PR_DestroyLock(ra->lock);
@@ -3204,11 +3216,28 @@ agmt_get_protocol_timeout(Repl_Agmt *agmt)
     }
 }
 
+uint64_t
+agmt_get_linger_timeout(Repl_Agmt *agmt)
+{
+    if (agmt) {
+        return slapi_counter_get_value(agmt->linger_timeout);
+    } else {
+        return 0;
+    }
+}
+
 void
 agmt_set_protocol_timeout(Repl_Agmt *agmt, uint64_t timeout)
 {
     if (agmt) {
         slapi_counter_set_value(agmt->protocol_timeout, timeout);
+    }
+}
+
+void agmt_set_linger_timeout(Repl_Agmt *agmt, uint64_t timeout)
+{
+    if (agmt) {
+        slapi_counter_set_value(agmt->linger_timeout, timeout);
     }
 }
 

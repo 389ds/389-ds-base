@@ -353,6 +353,9 @@ replica_config_modify(Slapi_PBlock *pb,
                 } else if (strcasecmp(config_attr, type_replicaProtocolTimeout) == 0) {
                     if (apply_mods)
                         replica_set_protocol_timeout(r, DEFAULT_PROTOCOL_TIMEOUT);
+                } else if (strcasecmp(config_attr, type_replicaLingerTimeout) == 0) {
+                    if (apply_mods)
+                        replica_set_linger_timeout(r, DEFAULT_LINGER_TIME);
                 } else if (strcasecmp(config_attr, type_replicaBackoffMin) == 0) {
                     if (apply_mods)
                         replica_set_backoff_min(r, PROTOCOL_BACKOFF_MINIMUM);
@@ -472,6 +475,15 @@ replica_config_modify(Slapi_PBlock *pb,
                             break;
                         }
                     }
+                } else if (strcasecmp(config_attr, type_replicaLingerTimeout) == 0) {
+                   if (apply_mods) {
+                       int64_t ltimeout = 0;
+                       if (repl_config_valid_num(config_attr, config_attr_value, 1, INT_MAX, returncode, errortext, &ltimeout) == 0) {
+                           replica_set_linger_timeout(r, ltimeout);
+                       } else {
+                           break;
+                       }
+                   }
                 } else if (strcasecmp(config_attr, type_replicaBackoffMin) == 0) {
                     if (apply_mods) {
                         int64_t val = 0;

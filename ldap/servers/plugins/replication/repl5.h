@@ -126,6 +126,8 @@
 #define DEFAULT_PROTOCOL_TIMEOUT 120
 #define DEFAULT_REPLICA_KEEPALIVE_UPDATE_INTERVAL 3600
 #define REPLICA_KEEPALIVE_UPDATE_INTERVAL_MIN 60
+/* #define DEFAULT_LINGER_TIME (5 * 60) */ /* 5 minutes */
+#define DEFAULT_LINGER_TIME (60)
 
 /* To Allow Consumer Initialization when adding an agreement - */
 #define STATE_PERFORMING_TOTAL_UPDATE       501
@@ -160,6 +162,7 @@ extern const char *type_nsds5ReplicaFlowControlWindow;
 extern const char *type_nsds5ReplicaFlowControlPause;
 extern const char *type_replicaProtocolTimeout;
 extern const char *type_replicaReleaseTimeout;
+extern const char *type_replicaLingerTimeout;
 extern const char *type_replicaBackoffMin;
 extern const char *type_replicaBackoffMax;
 extern const char *type_replicaPrecisePurge;
@@ -469,7 +472,9 @@ int agmt_set_timeout(Repl_Agmt *ra, long timeout);
 int agmt_set_ignoremissing(Repl_Agmt *ra, long ignoremissing);
 void agmt_update_done(Repl_Agmt *ra, int is_total);
 uint64_t agmt_get_protocol_timeout(Repl_Agmt *agmt);
+uint64_t agmt_get_linger_timeout(Repl_Agmt *agmt);
 void agmt_set_protocol_timeout(Repl_Agmt *agmt, uint64_t timeout);
+void agmt_set_linger_timeout(Repl_Agmt *agmt, uint64_t timeout);
 void agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn);
 void add_agmt_maxcsns(Slapi_Entry *e, Replica *r);
 void agmt_remove_maxcsn(Repl_Agmt *ra);
@@ -757,7 +762,9 @@ void replica_check_for_tasks(time_t when, void *arg);
 void replica_update_state(time_t when, void *arg);
 void replica_reset_csn_pl(Replica *r);
 uint64_t replica_get_protocol_timeout(Replica *r);
+uint64_t replica_get_linger_timeout(Replica *r);
 void replica_set_protocol_timeout(Replica *r, uint64_t timeout);
+void replica_set_linger_timeout(Replica *r, uint64_t timeout);
 uint64_t replica_get_release_timeout(Replica *r);
 void replica_set_release_timeout(Replica *r, uint64_t timeout);
 void replica_set_groupdn_checkinterval(Replica *r, int timeout);
