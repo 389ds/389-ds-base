@@ -2002,6 +2002,7 @@ plugin_call_func(struct slapdplugin *list, int operation, Slapi_PBlock *pb, int 
                 slapi_plugin_op_finished(list);
                 if (SLAPI_PLUGIN_PREOPERATION == list->plg_type ||
                     SLAPI_PLUGIN_INTERNAL_PREOPERATION == list->plg_type ||
+                    SLAPI_PLUGIN_PREEXTOPERATION == list->plg_type ||
                     SLAPI_PLUGIN_START_FN == operation) {
                     /*
                      * We bail out of plugin processing for preop plugins
