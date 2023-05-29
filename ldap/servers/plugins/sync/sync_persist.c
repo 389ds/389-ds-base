@@ -900,6 +900,7 @@ sync_send_results(void *arg)
     int conn_acq_flag = 0;
     Slapi_Connection *conn = NULL;
     Slapi_Operation *op = req->req_orig_op;
+    LDAPControl **ctrls = NULL;
     int rc;
     PRUint64 connid;
     int opid;
@@ -1046,6 +1047,12 @@ done:
     slapi_pblock_get(req->req_pblock, SLAPI_SEARCH_STRFILTER, &strFilter);
     slapi_ch_free((void **)&strFilter);
     slapi_pblock_set(req->req_pblock, SLAPI_SEARCH_STRFILTER, NULL);
+
+    slapi_pblock_get(req->req_pblock, SLAPI_REQCONTROLS, &ctrls);
+    if (ctrls) {
+        ldap_controls_free(ctrls);
+        slapi_pblock_set(req->req_pblock, SLAPI_REQCONTROLS, NULL);
+    }
 
     slapi_pblock_destroy(req->req_pblock);
     req->req_pblock = NULL;
