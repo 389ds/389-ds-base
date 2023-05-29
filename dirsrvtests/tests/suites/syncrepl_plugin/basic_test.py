@@ -231,7 +231,7 @@ class Sync_persist(threading.Thread, ReconnectLDAPObject, SyncreplConsumer):
             print('syncrepl_poll: LDAP error (%s)', e)
         self.result = ldap_connection.get_cookies()
         log.info("ZZZ result = %s" % self.result)
-        self.conn.unbind()
+        ldap_connection.unbind()
 
 def test_sync_repl_mep(topology, request):
     """Test sync repl with MEP plugin that triggers several
@@ -406,12 +406,10 @@ def test_sync_repl_cookie_add_del(topology, init_sync_repl_plugins, request):
       6.: succeeds
     """
     inst = topology[0]
-
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
     sync_repl.start()
     time.sleep(5)
-
     # create users, that automember/memberof will generate nested updates
     users = UserAccounts(inst, DEFAULT_SUFFIX)
     users_set = []
@@ -427,7 +425,6 @@ def test_sync_repl_cookie_add_del(topology, init_sync_repl_plugins, request):
     # and wait a bit to let sync_repl thread time to set its result before fetching it.
     inst.stop()
     cookies = sync_repl.get_result()
-
     # checking that the cookie are in increasing and in an acceptable range (0..1000)
     assert len(cookies) > 0
     prev = -1
