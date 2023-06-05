@@ -4058,13 +4058,13 @@ slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode 
      * Continue (not return 0) if the event is either SECURITY_TCP_ERROR
      * with one of the specified error codes, or SECURITY_HAPROXY_SUCCESS.
      */
-    if (!((event_type == SECURITY_TCP_ERROR) &&
-          ((error == SLAPD_DISCONNECT_BAD_BER_TAG || 
-            error == SLAPD_DISCONNECT_BER_TOO_BIG ||
-            error == SLAPD_DISCONNECT_BER_PEEK ||
-            error == SLAPD_DISCONNECT_PROXY_UNKNOWN ||
-            error == SLAPD_DISCONNECT_PROXY_INVALID_HEADER)) ||
-          event_type == SECURITY_HAPROXY_SUCCESS))
+    if (!((strcmp(event_type, SECURITY_TCP_ERROR) == 0) &&
+          (error == SLAPD_DISCONNECT_BAD_BER_TAG || 
+           error == SLAPD_DISCONNECT_BER_TOO_BIG ||
+           error == SLAPD_DISCONNECT_BER_PEEK ||
+           error == SLAPD_DISCONNECT_PROXY_UNKNOWN ||
+           error == SLAPD_DISCONNECT_PROXY_INVALID_HEADER)) &&
+        (strcmp(event_type, SECURITY_HAPROXY_SUCCESS) != 0))
     {
         return 0;
     }
