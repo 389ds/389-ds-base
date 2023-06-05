@@ -495,6 +495,12 @@ autoreconf -fiv
   sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' %{_builddir}/%{name}-%{version}%{?prerel}/wrappers/*.service.in
 %endif
 
+# Register CLI tools for bash completion
+for clitool in dsconf dsctl dsidm dscreate ds-replcheck
+do
+  register-python-argcomplete "${clitool}" > "/usr/share/bash-completion/completions/${clitool}"
+done
+
 %if 0%{?rhel} > 7 || 0%{?fedora}
 # lib389
 pushd ./src/lib389
