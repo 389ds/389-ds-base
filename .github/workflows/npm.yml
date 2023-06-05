@@ -6,6 +6,11 @@ on:
   schedule:
     - cron:  '0 0 * * *'
 
+permissions: 
+  actions: read
+  packages: read
+  contents: read
+
 jobs:
   npm-audit-ci:
     name: npm-audit-ci

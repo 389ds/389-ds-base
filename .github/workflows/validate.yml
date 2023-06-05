@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+permissions: 
+  actions: read
+  packages: read
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest

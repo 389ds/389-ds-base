@@ -16,6 +16,11 @@ on:
         required: false
         default: false
 
+permissions: 
+  actions: read
+  packages: read
+  contents: read
+
 jobs:
   build:
     name: Build

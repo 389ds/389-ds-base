@@ -3,6 +3,11 @@ on:
   - pull_request
   - push
 
+permissions: 
+  actions: read
+  packages: read
+  contents: read
+
 jobs:
   compile:
     runs-on: ubuntu-latest
