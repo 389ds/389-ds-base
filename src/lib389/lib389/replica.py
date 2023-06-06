@@ -45,7 +45,7 @@ from lib389.idm.services import ServiceAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.conflicts import ConflictEntries
 from lib389.lint import (DSREPLLE0001, DSREPLLE0002, DSREPLLE0003, DSREPLLE0004,
-                         DSREPLLE0005, DSCLLE0001)
+                         DSREPLLE0005, DSREPLLE0006, DSCLLE0001)
 
 
 class ReplicaLegacy(object):
@@ -1207,6 +1207,20 @@ class Replica(DSLdapObject):
                 report['check'] = f'replication:conflicts'
                 yield report
 
+    def _lint_no_ruv(self):
+        # No RUV means replica has not been initialized
+        replicas = Replicas(self._instance).list()
+        for replica in replicas:
+            ruv = replica.get_ruv()
+            ruv_dict = ruv.format_ruv()
+            ruvs = ruv_dict['ruvs']
+            suffix = replica.get_suffix()
+            if len(ruvs) == 0:
+                report = copy.deepcopy(DSREPLLE0006)
+                report['detail'] = report['detail'].replace('SUFFIX', suffix)
+                report['check'] = 'replication'
+                yield report
+
     def _validate(self, rdn, properties, basedn):
         (tdn, str_props) = super(Replica, self)._validate(rdn, properties, basedn)
         # We override the tdn here. We use the MT for the suffix.
@@ -1587,8 +1601,8 @@ class Replica(DSLdapObject):
                 serverctrls=self._server_controls, clientctrls=self._client_controls,
                 escapehatch='i am sure')[0]
             data = ensure_list_str(ent.getValues('nsds50ruv'))
-        except IndexError:
-            # There is no ruv entry, it's okay
+        except (IndexError, ldap.NO_SUCH_OBJECT):
+            # There are no ruv elements, it's okay
             pass
 
         return RUV(data)

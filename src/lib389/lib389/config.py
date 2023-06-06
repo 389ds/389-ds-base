@@ -209,7 +209,7 @@ class Config(DSLdapObject):
             yield report
 
     def _lint_passwordscheme(self):
-        allowed_schemes = ['SSHA512', 'PBKDF2_SHA256', 'GOST_YESCRYPT']
+        allowed_schemes = ['PBKDF2-SHA512', 'PBKDF2_SHA256', 'PBKDF2_SHA512', 'GOST_YESCRYPT']
         u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
         u_root_scheme = self.get_attr_val_utf8('nsslapd-rootpwstoragescheme')
         if u_root_scheme not in allowed_schemes or u_password_scheme not in allowed_schemes:
