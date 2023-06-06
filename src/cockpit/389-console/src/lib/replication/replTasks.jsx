@@ -345,7 +345,7 @@ export class ReplRUV extends React.Component {
 
         if (localRID == "") {
             localRUV =
-                <div className="ds-indent">
+                <div className="ds-indent ds-margin-top">
                     <i>
                         There is no local RUV, the database might not have been initialized yet.
                     </i>

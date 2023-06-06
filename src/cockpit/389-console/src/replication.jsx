@@ -879,7 +879,8 @@ export class Replication extends React.Component {
                                                                 })
                                                                 .fail(err => {
                                                                     const errMsg = JSON.parse(err);
-                                                                    if (errMsg.desc !== "No such object") {
+                                                                    if (errMsg.desc !== "No such object" &&
+                                                                        !errMsg.desc.includes('There is no RUV for suffix')) {
                                                                         this.props.addNotification(
                                                                             "error",
                                                                             `Error loading suffix RUV - ${errMsg.desc}`
