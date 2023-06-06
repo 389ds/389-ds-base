@@ -310,6 +310,16 @@ because the consumer server is not reachable.""",
     'fix': """Check if the consumer is running, and also check the errors log for more information."""
 }
 
+DSREPLLE0006 = {
+    'dsle': 'DSREPLLE0006',
+    'severity': 'MEDIUM',
+    'description': 'Replication has not been initilaized',
+    'items': ['Replication'],
+    'detail': """The replication for "SUFFIX" does not appear to be initialzied,
+because there is no RUV found for the suffix.""",
+    'fix': """Initialize this replica from a primary supplier replica"""
+}
+
 # Replication changelog
 DSCLLE0001 = {
     'dsle': 'DSCLLE0001',
