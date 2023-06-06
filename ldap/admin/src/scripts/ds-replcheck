@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -216,17 +216,17 @@ def get_ruv_state(opts):
     mtime = get_ruv_time(opts['supplier_ruv'], opts['rid'])
     rtime = get_ruv_time(opts['replica_ruv'], opts['rid'])
     if mtime == -1:
-        repl_state = "Replication State: Replica ID ({}) not found in Supplier's RUV".format(opts['rid'])
+        repl_state = f"Replication State: Replica ID ({opts['rid']}) not found in Supplier's RUV"
     elif rtime == -1:
-        repl_state = "Replication State: Replica ID ({}) not found in Replica's RUV (not initialized?)".format(opts['rid'])
+        repl_state = f"Replication State: Replica ID ({opts['rid']}) not found in Replica's RUV (not initialized?)"
     elif mtime == 0:
         repl_state = "Replication State: Supplier has not seen any updates"
     elif rtime == 0:
         repl_state = "Replication State: Replica has not seen any changes from the Supplier"
     elif mtime > rtime:
-        repl_state = "Replication State: Replica is behind Supplier by: {} seconds".format(mtime - rtime)
+        repl_state = f"Replication State: Replica is behind Supplier by: {mtime - rtime} seconds"
     elif mtime < rtime:
-        repl_state = "Replication State: Replica is ahead of Supplier by: {} seconds".format(rtime - mtime)
+        repl_state = f"Replication State: Replica is ahead of Supplier by: {rtime - mtime} seconds"
     else:
         repl_state = "Replication State: Supplier and Replica are in perfect synchronization"
 
@@ -928,7 +928,7 @@ def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
 
     return report
 
-def validate_suffix(ldapnode, suffix, hostname):
+def validate_suffix(ldapnode, suffix, hostname, port):
     """Validate that the suffix exists
     :param ldapnode - The LDAP object
     :param suffix - The suffix to validate
@@ -938,10 +938,11 @@ def validate_suffix(ldapnode, suffix, hostname):
     try:
         ldapnode.search_s(suffix, ldap.SCOPE_BASE)
     except ldap.NO_SUCH_OBJECT:
-        print("Error: Failed to validate suffix in {}. {} does not exist.".format(hostname, suffix))
+        print(f"Error: Failed to validate suffix in {hostname}:{port}. {suffix} " +
+              "does not exist.  Replica might need to be initialized.")
         return False
     except ldap.LDAPError as e:
-        print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
+        print(f"Error: failed to validate suffix in {hostname}:{port} ({str(e)}). ")
         return False
 
     # Check suffix is replicated
@@ -949,10 +950,10 @@ def validate_suffix(ldapnode, suffix, hostname):
         replica_filter = "(&(objectclass=nsds5replica)(nsDS5ReplicaRoot=%s))" % suffix
         supplier_replica = ldapnode.search_s("cn=config",ldap.SCOPE_SUBTREE,replica_filter)
         if (len(supplier_replica) != 1):
-            print("Error: Failed to validate suffix in {}. {} is not replicated.".format(hostname, suffix))
+            print(f"Error: Failed to validate suffix in {hostname}:{port}. {suffix} is not replicated.")
             return False
     except ldap.LDAPError as e:
-        print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
+        print(f"Error: failed to validate suffix in {hostname}:{port} ({str(e)}). ")
         return False
 
     return True
@@ -1034,10 +1035,10 @@ def connect_to_replicas(opts):
     # Validate suffix
     if opts['verbose']:
         print ("Validating suffix ...")
-    if not validate_suffix(supplier, opts['suffix'], opts['mhost']):
+    if not validate_suffix(supplier, opts['suffix'], opts['mhost'], opts['mport']):
       sys.exit(1)
 
-    if not validate_suffix(replica,opts['suffix'], opts['rhost']):
+    if not validate_suffix(replica,opts['suffix'], opts['rhost'], opts['rport']):
       sys.exit(1)
 
     # Get the RUVs
@@ -1048,8 +1049,11 @@ def connect_to_replicas(opts):
         if len(supplier_ruv) > 0:
             opts['supplier_ruv'] = ensure_list_str(supplier_ruv[0][1]['nsds50ruv'])
         else:
-            print("Error: Supplier does not have an RUV entry")
+            print("Error: Supplier does not have an RUV entry. It might need to be initialized.")
             sys.exit(1)
+    except ldap.NO_SUCH_OBJECT:
+        print("Error: Supplier does not have an RUV entry. It might need to be initialized.")
+        sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to get Supplier RUV entry: {}".format(str(e)))
         sys.exit(1)
@@ -1061,8 +1065,11 @@ def connect_to_replicas(opts):
         if len(replica_ruv) > 0:
             opts['replica_ruv'] = ensure_list_str(replica_ruv[0][1]['nsds50ruv'])
         else:
-            print("Error: Replica does not have an RUV entry")
+            print("Error: Replica does not have an RUV entry. It might need to be initialized.")
             sys.exit(1)
+    except ldap.NO_SUCH_OBJECT:
+        print("Error: Replica does not have an RUV entry. It might need to be initialized.")
+        sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to get Replica RUV entry: {}".format(str(e)))
         sys.exit(1)
