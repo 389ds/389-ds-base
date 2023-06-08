@@ -639,6 +639,8 @@ sync_persist_add(Slapi_PBlock *pb)
         assert(req); /* avoid gcc_analyzer warning */
         assert(pb); /* avoid gcc_analyzer warning */
         slapi_pblock_get(pb, SLAPI_OPERATION, &req->req_orig_op); /* neede to access original op */
+        /* Prevent worker thread to reuse the operation as sync_send_results thread need it */
+        g_pc_do_not_reuse_operation();
         req->req_pblock = sync_pblock_copy(pb);
         slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
         req->req_orig_base = slapi_ch_strdup(base);

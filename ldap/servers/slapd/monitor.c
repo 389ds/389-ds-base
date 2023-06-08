@@ -30,6 +30,7 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "fe.h"
+#include "wthreads.h"
 
 int32_t
 monitor_info(Slapi_PBlock *pb __attribute__((unused)),
@@ -46,6 +47,7 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
     struct tm utm;
     Slapi_Backend *be;
     char *cookie;
+    op_thread_stats_t wthreads;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -93,6 +95,30 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
     val.bv_len = snprintf(buf, sizeof(buf), "%d", be_nbackends_public());
     val.bv_val = buf;
     attrlist_replace(&e->e_attrs, "nbackends", vals);
+
+    if (g_pc.getstats_cb) {
+        g_pc.getstats_cb(&wthreads);
+
+        val.bv_len = snprintf(buf, sizeof(buf), "%d", wthreads.waitingthreads);
+        val.bv_val = buf;
+        attrlist_replace(&e->e_attrs, "waitingthreads", vals);
+
+        val.bv_len = snprintf(buf, sizeof(buf), "%d", wthreads.busythreads);
+        val.bv_val = buf;
+        attrlist_replace(&e->e_attrs, "busythreads", vals);
+
+        val.bv_len = snprintf(buf, sizeof(buf), "%d", wthreads.maxbusythreads);
+        val.bv_val = buf;
+        attrlist_replace(&e->e_attrs, "maxbusythreads", vals);
+
+        val.bv_len = snprintf(buf, sizeof(buf), "%d", wthreads.waitingjobs);
+        val.bv_val = buf;
+        attrlist_replace(&e->e_attrs, "waitingjobs", vals);
+
+        val.bv_len = snprintf(buf, sizeof(buf), "%d", wthreads.maxwaitingjobs);
+        val.bv_val = buf;
+        attrlist_replace(&e->e_attrs, "maxwaitingjobs", vals);
+    }
 
     /*
      * Loop through the backends, and stuff the monitor dn's
