@@ -56,11 +56,13 @@ def dbtasks_bak2db(inst, log, args):
 
 
 def dbtasks_db2ldif(inst, log, args):
-    # Check if file path exists
-    path = Path(args.ldif)
-    parent = path.parent.absolute()
-    if not parent.exists():
-        raise ValueError("The LDIF file location does not exist: " + args.ldif)
+    # If export filename is provided, check if file path exists
+    if args.ldif:
+        path = Path(args.ldif)
+        parent = path.parent.absolute()
+        if not parent.exists():
+            raise ValueError("The LDIF export location does not exist: "
+                             + args.ldif)
 
     # Export backend
     if not inst.db2ldif(bename=args.backend, encrypt=args.encrypted, repl_data=args.replication,
