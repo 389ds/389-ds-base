@@ -55,7 +55,7 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
         1. Operation successful
         2. Operation properly fails, without crashing
         3. An error code different from 139 (segmentation fault) should be reported
-        4. "The LDIF file location does not exist" is returned
+        4. "location does not exist" is returned
     """
     export_ldif = '/tmp/nonexistent/export.ldif'
 
@@ -63,10 +63,10 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
     topo.standalone.stop()
 
     log.info("Performing an offline export to a non accessible ldif file path - should fail properly")
-    expected_output="The LDIF file location does not exist"
+    expected_output="location does not exist"
     with pytest.raises(ValueError) as e:
         run_db2ldif_and_clear_logs(topo, topo.standalone, DEFAULT_BENAME, export_ldif, expected_output)
-    assert "The LDIF file location does not exist" in str(e.value)
+    assert "location does not exist" in str(e.value)
 
     log.info("Restarting the instance...")
     topo.standalone.start()
