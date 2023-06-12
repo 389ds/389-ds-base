@@ -214,6 +214,7 @@ connection_cleanup(Connection *conn)
     conn->c_idlesince = 0;
     conn->c_flags = 0;
     conn->c_needpw = 0;
+    conn->c_haproxyheader_read = 0;
     conn->c_prfd = NULL;
     /* c_ci stays as it is */
     conn->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
@@ -1134,6 +1135,28 @@ conn_buffered_data_avail_nolock(Connection *conn, int *conn_closed)
     }
 }
 
+/* Function to convert a PRNetAddr to a normalized IPv4 string and keep original address string. */
+static void
+normalize_IPv4(const PRNetAddr *addr, char *normalizedAddr, size_t normalizedAddrSize, char *originalAddr, size_t originalAddrSize)
+{
+    /* Keep the original address string */
+    PR_NetAddrToString(addr, originalAddr, originalAddrSize);
+
+    if (PR_IsNetAddrType(addr, PR_IpAddrV4Mapped)) {
+        /* Handle IPv4-mapped-to-IPv6 */
+        PRNetAddr v4addr;
+        /* v4addr gets the lower 32 bits of addr6 (the IPv4 address in the IPv6 format) */
+        v4addr.inet.family = PR_AF_INET;
+        v4addr.inet.ip = addr->ipv6.ip.pr_s6_addr32[3];
+        PR_NetAddrToString(&v4addr, normalizedAddr, normalizedAddrSize);
+    } else {
+        /* If it's not an IPv4-mapped IPv6 address, just keep the original format */
+        strncpy(normalizedAddr, originalAddr, normalizedAddrSize - 1);
+        normalizedAddr[normalizedAddrSize - 1] = '\0';
+    }
+    originalAddr[originalAddrSize - 1] = '\0';
+}
+
 /* Upon returning from this function, we have either:
    1. Read a PDU successfully.
    2. Detected some error condition with the connection which requires closing it.
@@ -1148,6 +1171,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 {
     ber_len_t len = 0;
     int ret = 0;
+    int haproxy_rc = 0;
     int32_t waits_done = 0;
     ber_int_t msgid;
     int new_operation = 1; /* Are we doing the first I/O read for a new operation ? */
@@ -1156,6 +1180,17 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     PRInt32 syserr = 0;
     size_t buffer_data_avail;
     int conn_closed = 0;
+    PRNetAddr pr_netaddr_from = {0};
+    PRNetAddr pr_netaddr_dest = {0};
+    char buf_ip[INET6_ADDRSTRLEN + 1] = {0};
+    char buf_haproxy_destip[INET6_ADDRSTRLEN + 1] = {0};
+    char str_ip[INET6_ADDRSTRLEN + 1] = {0};
+    char str_haproxy_ip[INET6_ADDRSTRLEN + 1] = {0};
+    char str_haproxy_destip[INET6_ADDRSTRLEN + 1] = {0};
+    PRStatus status = PR_SUCCESS;
+    struct berval **bvals = NULL;
+    int proxy_connection = 0;
+    int restrict_access = 0;
 
     pthread_mutex_lock(&(conn->c_mutex));
     /*
@@ -1181,6 +1216,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
         }
         new_operation = 0;
     }
+
     /* If we still haven't seen a complete PDU, read from the network */
     while (*tag == LBER_DEFAULT) {
         int32_t ioblocktimeout_waits = conn->c_ioblocktimeout / CONN_TURBO_TIMEOUT_INTERVAL;
@@ -1188,6 +1224,69 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
         PR_ASSERT(!new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
         /* We make a non-blocking read call */
         if (CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) {
+            /* Process HAProxy header */
+            if (conn->c_haproxyheader_read == 0) {
+                conn->c_haproxyheader_read = 1;
+                /* 
+                * We only check for HAProxy header if nsslapd-haproxy-trusted-ip is configured.
+                * If it is we proceed with the connection only if it's comming from trusted
+                * proxy server with correct and complete header.
+                */
+                if  ((bvals = g_get_haproxy_trusted_ip()) != NULL) {
+                    /* Can we have an unknown address at that point? */
+                    if ((haproxy_rc = haproxy_receive(conn->c_sd, &proxy_connection, &pr_netaddr_from, &pr_netaddr_dest)) == HAPROXY_ERROR) {
+                        slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation", "Error reading HAProxy header.\n");
+                        disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_PROXY_INVALID_HEADER, EPROTO);
+                        ret = CONN_DONE;
+                        goto done;
+                    }
+
+                    /* If bval is NULL and we don't have an error - we still want the proper log and update */
+                    if ((haproxy_rc == HAPROXY_HEADER_PARSED) && (proxy_connection)) {
+                        /* Normalize IP addresses */
+                        normalize_IPv4(conn->cin_addr, buf_ip, sizeof(buf_ip), str_ip, sizeof(str_ip));
+                        normalize_IPv4(&pr_netaddr_dest, buf_haproxy_destip, sizeof(buf_haproxy_destip),
+                                       str_haproxy_destip, sizeof(str_haproxy_destip));
+
+                        /* Now, reset RC and set it to 0 only if a match is found */
+                        haproxy_rc = -1;
+
+                        /* Allow only:
+                        * Trusted IP == Original Client IP == HAProxy Header Destination IP */
+                        for (size_t i = 0; bvals[i] != NULL; ++i) {
+                            if ((strlen(bvals[i]->bv_val) == strlen(buf_ip)) &&
+                                (strlen(bvals[i]->bv_val) == strlen(buf_haproxy_destip)) &&
+                                (strncasecmp(bvals[i]->bv_val, buf_ip, strlen(buf_ip)) == 0) &&
+                                (strncasecmp(bvals[i]->bv_val, buf_haproxy_destip, strlen(buf_haproxy_destip)) == 0)) {
+                                haproxy_rc = 0;
+                                break;
+                            }
+                        }
+                        if (haproxy_rc == -1) {
+                            slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation", "HAProxy header received from unknown source.\n");
+                            disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
+                            ret = CONN_DONE;
+                            goto done;
+                        }
+                        /* Get the HAProxy header client IP address */
+                        PR_NetAddrToString(&pr_netaddr_from, str_haproxy_ip, sizeof(str_haproxy_ip));
+
+                        /* Replace cin_addr and cin_destaddr in the Connection struct with received addresses */
+                        slapi_ch_free((void**)&conn->cin_addr);
+                        slapi_ch_free((void**)&conn->cin_destaddr);
+                        conn->cin_addr = (PRNetAddr*)malloc(sizeof(PRNetAddr));
+                        conn->cin_destaddr = (PRNetAddr*)malloc(sizeof(PRNetAddr));
+                        memcpy(conn->cin_addr, &pr_netaddr_from, sizeof(PRNetAddr));
+                        memcpy(conn->cin_destaddr, &pr_netaddr_dest, sizeof(PRNetAddr));
+                        conn->c_ipaddr = slapi_ch_strdup(str_haproxy_ip);
+                        conn->c_serveripaddr = slapi_ch_strdup(str_haproxy_destip);
+                        slapi_log_access(LDAP_DEBUG_STATS,
+                                         "conn=%" PRIu64 " fd=%d HAProxy new_address_from=%s to new_address_dest=%s\n",
+                                         conn->c_connid, conn->c_sd, str_haproxy_ip, str_haproxy_destip);
+                        slapi_log_security_tcp(conn, SECURITY_HAPROXY_SUCCESS, 0, "");
+                    }
+                }
+            }
             ret = connection_read_ldap_data(conn, &err);
         } else {
             ret = get_next_from_buffer(NULL, 0, &len, tag, op->o_ber, conn);
@@ -2313,7 +2412,7 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                              conn->c_connid, opid, conn->c_sd,
                              slapd_pr_strerror(reason));
         }
-        slapi_log_security_tcp(conn, reason, slapd_pr_strerror(reason));
+        slapi_log_security_tcp(conn, SECURITY_TCP_ERROR, reason, slapd_pr_strerror(reason));
 
         if (!config_check_referral_mode()) {
             slapi_counter_decrement(g_get_per_thread_snmp_vars()->ops_tbl.dsConnections);
