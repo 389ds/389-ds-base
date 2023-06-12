@@ -543,6 +543,7 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/getopt_ext.h \
 	ldap/servers/slapd/getsocketpeer.h \
 	ldap/servers/slapd/http.h \
+	ldap/servers/slapd/haproxy.h \
 	ldap/servers/slapd/intrinsics.h \
 	ldap/servers/slapd/log.h \
 	ldap/servers/slapd/openldapber.h \
@@ -1537,6 +1538,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/filterentry.c \
 	ldap/servers/slapd/generation.c \
 	ldap/servers/slapd/getfilelist.c \
+	ldap/servers/slapd/haproxy.c \
 	ldap/servers/slapd/ldaputil.c \
 	ldap/servers/slapd/lenstr.c \
 	ldap/servers/slapd/libglobs.c \
@@ -2408,6 +2410,7 @@ test_slapd_SOURCES = test/main.c \
 	test/libslapd/schema/filter_validate.c \
 	test/libslapd/operation/v3_compat.c \
 	test/libslapd/spal/meminfo.c \
+	test/libslapd/haproxy/parse.c \
 	test/plugins/test.c \
 	test/plugins/pwdstorage/pbkdf2.c
 

@@ -32,6 +32,10 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_libslapd_counters_atomic_overflow),
         cmocka_unit_test(test_libslapd_pal_meminfo),
         cmocka_unit_test(test_libslapd_util_cachesane),
+        cmocka_unit_test(test_libslapd_haproxy_v1),
+        cmocka_unit_test(test_libslapd_haproxy_v2_valid),
+        cmocka_unit_test(test_libslapd_haproxy_v2_valid_local),
+        cmocka_unit_test(test_libslapd_haproxy_v2_invalid),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

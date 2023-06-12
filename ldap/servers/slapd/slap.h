@@ -433,6 +433,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define PWD_PBE_DELIM '-'
 
 #define REFERRAL_REMOVE_CMD "remove"
+#define HAPROXY_TRUSTED_IP_REMOVE_CMD "remove"
 
 /* Filenames for DSE storage */
 #define DSE_FILENAME "dse.ldif"
@@ -488,6 +489,8 @@ struct subfilt
 };
 
 #include "filter.h" /* mr_filter_t */
+
+#include "haproxy.h"
 
 /*
  * represents a search filter
@@ -1674,6 +1677,7 @@ typedef struct conn
     Conn_private *c_private;         /* data which is not shared outside connection.c */
     int c_flags;                     /* Misc flags used only for SSL status currently */
     int c_needpw;                    /* need new password           */
+    int c_haproxyheader_read;        /* 0 if HAProxy header has not been read, 1 if it has been read */
     CERTCertificate *c_client_cert;  /* Client's Cert          */
     PRFileDesc *c_prfd;              /* NSPR 2.1 FileDesc          */
     int c_ci;                        /* An index into the Connection array. For printing. */
@@ -1698,6 +1702,7 @@ typedef struct conn
     struct connection_table *c_ct;   /* connection table that this connection belongs to */
     int c_ns_close_jobs;             /* number of current close jobs */
     char *c_ipaddr;                  /* ip address str - used by monitor */
+    char *c_serveripaddr;            /* server ip address str - used by monitor */
     /* per conn static config */
     ber_len_t c_maxbersize;
     int32_t c_ioblocktimeout;
@@ -2150,6 +2155,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PORT_ATTRIBUTE "nsslapd-port"
 #define CONFIG_WORKINGDIR_ATTRIBUTE "nsslapd-workingdir"
 #define CONFIG_LISTENHOST_ATTRIBUTE "nsslapd-listenhost"
+#define CONFIG_HAPROXY_TRUSTED_IP "nsslapd-haproxy-trusted-ip"
 #define CONFIG_SNMP_INDEX_ATTRIBUTE "nsslapd-snmp-index"
 #define CONFIG_LDAPI_FILENAME_ATTRIBUTE "nsslapd-ldapifilepath"
 #define CONFIG_LDAPI_SWITCH_ATTRIBUTE "nsslapd-ldapilisten"
@@ -2402,6 +2408,7 @@ typedef struct _slapdFrontendConfig
     char *encryptionalias;
     char *errorlog;
     char *listenhost;
+    struct berval **haproxy_trusted_ip;
     int snmp_index;
     char *localuser;
     char *localhost;

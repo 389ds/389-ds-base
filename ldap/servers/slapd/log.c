@@ -2870,6 +2870,7 @@ log__open_accesslogfile(int logfile_state, int locked)
         LOG_ACCESS_UNLOCK_WRITE();
     return LOG_SUCCESS;
 }
+
 /******************************************************************************
 * log__needrotation
 *

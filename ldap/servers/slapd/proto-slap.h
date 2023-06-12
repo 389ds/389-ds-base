@@ -242,6 +242,7 @@ int config_set_SSL3ciphers(const char *attrname, char *value, char *errorbuf, in
 int config_set_localhost(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_listenhost(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_securelistenhost(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char *errorbuf, int apply);
 int config_set_ldapi_filename(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_snmp_index(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ldapi_switch(const char *attrname, char *value, char *errorbuf, int apply);
@@ -425,6 +426,7 @@ char *config_get_SSL3ciphers(void);
 char *config_get_localhost(void);
 char *config_get_listenhost(void);
 char *config_get_securelistenhost(void);
+struct berval **config_get_haproxy_trusted_ip(void);
 char *config_get_ldapi_filename(void);
 int config_get_ldapi_switch(void);
 int config_get_ldapi_bind_switch(void);
@@ -882,6 +884,8 @@ int strarray2str(char **a, char *buf, size_t buflen, int include_quotes);
 int slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
 int slapd_comp_path(char *p0, char *p1);
 void replace_char(char *name, char c, char c2);
+char *split_string_at_delim(char *str, char delim);
+char *tokenize_string(char **str, const char *delim);
 void slapd_cert_not_found_error_help(char *cert_name);
 
 
@@ -1053,6 +1057,8 @@ PRUint64 g_get_num_entries_sent(void);
 PRUint64 g_get_num_bytes_sent(void);
 void g_set_default_referral(struct berval **ldap_url);
 struct berval **g_get_default_referral(void);
+void g_set_haproxy_trusted_ip(struct berval **ipaddress);
+struct berval **g_get_haproxy_trusted_ip(void);
 void disconnect_server(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error);
 int send_ldap_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly);
 void send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls);
