@@ -3167,13 +3167,30 @@ void slapi_rdn_set_rdn(Slapi_RDN *rdn, const Slapi_RDN *fromrdn);
 void slapi_rdn_free(Slapi_RDN **rdn);
 
 /**
+ * Checks if the value of ipAddress is a IPv4 address
+ *
+ * \param ipAddress is a string
+ * \return 1 if address is an IPv4 address
+ * \return 0 if address is not an IPv4 address
+ */
+int slapi_is_ipv4_addr(const char *ipAddress);
+
+/**
  * Checks if the value of ipAddress is a IPv6 address
  *
- * \param ipAddress is a string that is either an IPv4 or IPv6 address
+ * \param ipAddress is a string
  * \return 1 if address is an IPv6 address
- * \return 0 if address is an IPv4 address
+ * \return 0 if address is not an IPv6 address
  */
 int slapi_is_ipv6_addr(const char *ipAddress);
+
+/**
+ * Log to Error log the value of a PRNetAddr - IPv4 or IPv6
+ * For debugging purposes only
+ *
+ * \param addr is a PRNetAddr
+ */
+void slapi_log_prnetaddr(const PRNetAddr *addr);
 
 /**
  * Returns the length of a ber-encoded ldap operation
