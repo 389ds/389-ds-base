@@ -122,6 +122,19 @@ def setup_page(topology_st, page, browser_name, request):
     request.addfinalizer(fin)
 
 
+def enable_replication(frame):
+    log.info('Check if replication is enabled, if not enable it in order to proceed further with test.')
+    frame.get_by_role('tab', name='Replication').click()
+    time.sleep(2)
+    if frame.get_by_role('button', name='Enable Replication').is_visible():
+        frame.get_by_role('button', name='Enable Replication').click()
+        frame.fill('#enableBindPW', 'redhat')
+        frame.fill('#enableBindPWConfirm', 'redhat')
+        frame.get_by_role("dialog", name="Enable Replication").get_by_role("button",
+                                                                           name="Enable Replication").click()
+        frame.get_by_role('button', name='Add Replication Manager').wait_for()
+        assert frame.get_by_role('button', name='Add Replication Manager').is_visible()
+
 def load_ldap_browser_tab(frame):
     frame.get_by_role('tab', name='LDAP Browser', exact=True).click()
     frame.get_by_role('button').filter(has_text='dc=example,dc=com').click()

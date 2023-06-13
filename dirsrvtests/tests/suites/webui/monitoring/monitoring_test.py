@@ -14,7 +14,7 @@ from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-from .. import setup_page, check_frame_assignment, setup_login
+from .. import setup_page, check_frame_assignment, setup_login, enable_replication
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
 pytest.importorskip('playwright')
@@ -117,14 +117,7 @@ def test_replication_visibility(topology_st, page, browser_name):
     setup_login(page)
     time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
-
-    log.info('Enable replication in order to proceed with replication visibility testing.')
-    frame.get_by_role('tab', name='Replication').click()
-    frame.get_by_role('button', name='Enable Replication').click()
-    frame.fill('#enableBindPW', 'redhat')
-    frame.fill('#enableBindPWConfirm', 'redhat')
-    frame.get_by_role("dialog", name="Enable Replication").get_by_role("button", name="Enable Replication").click()
-    frame.get_by_role('button', name='Add Replication Manager').wait_for()
+    enable_replication(frame)
 
     log.info('Click on Monitoring tab and then on Replication in the menu and check if element is loaded.')
     frame.get_by_role('tab', name='Monitoring', exact=True).click()
@@ -225,6 +218,49 @@ def test_logging_visibility(topology_st, page, browser_name):
     frame.locator('#security-log-monitor').click()
     frame.locator('#securitylog-area').wait_for()
     assert frame.locator('#securitylog-area').is_visible()
+
+
+def test_create_credential_and_alias(topology_st, page, browser_name):
+    """ Test check that you are able to give input to input field in pop up windows when creating credential or alias
+
+    :id: 8908405c-47b9-470e-a906-42790b131e9f
+    :setup: Standalone instance
+    :steps:
+         1. Check if replication is enabled, if not enable it.
+         2. Click on Monitoring tab, click on Replication Log button on side panel.
+         3. Click on Add Credentials button and fill Hostname and Password, then click on save.
+         4. Check if new credential appeared in the credentials list.
+         5. Click on Add Alias button and fill alias name and alias hostname, click on Save button.
+         6. Check if new alias appeared in the alias list.
+    :expectedresults:
+         1. Success
+         2. Success
+         3. Success
+         4. Element is visible
+         5. Success
+         6. Element is visible
+    """
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+    enable_replication(frame)
+
+    log.info('Click on Monitoring tab, click on replication button, create new credential and check if it is created')
+    frame.get_by_role('tab', name='Monitoring', exact=True).click()
+    frame.locator('#replication-monitor').click()
+    frame.locator('#pf-tab-1-prepare-new-report').click()
+    frame.get_by_role('button', name='Add Credentials').click()
+    frame.locator('#credsHostname').fill('credential.test')
+    frame.locator('#credsBindpw').fill('redhat')
+    frame.get_by_role('button', name='Save', exact=True).click()
+    assert frame.get_by_role("gridcell", name="credential.test:389").is_visible()
+
+    log.info('Click on Add Alias, create new alias, check if new alias is created.')
+    frame.get_by_role('button', name='Add Alias').click()
+    frame.locator('#aliasName').fill('alias.test')
+    frame.locator('#aliasHostname').fill('example.com')
+    frame.get_by_role('button', name='Save', exact=True).click()
+    assert frame.get_by_role("gridcell", name="alias.test").is_visible()
 
 
 if __name__ == '__main__':
