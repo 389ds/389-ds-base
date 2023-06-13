@@ -30,7 +30,7 @@ export class AuditFailLogMonitor extends React.Component {
             auditfailLines: "50",
         };
 
-        this.refreshAuditFailLog = this.refreshAuditFailLog.bind(this);
+        this.handleRefreshAuditFailLog = this.handleRefreshAuditFailLog.bind(this);
         this.handleAuditFailChange = this.handleAuditFailChange.bind(this);
         this.auditFailRefreshCont = this.auditFailRefreshCont.bind(this);
     }
@@ -48,10 +48,10 @@ export class AuditFailLogMonitor extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
-        this.refreshAuditFailLog();
+        this.handleRefreshAuditFailLog();
     }
 
-    refreshAuditFailLog () {
+    handleRefreshAuditFailLog () {
         this.setState({
             auditfailReloading: true
         });
@@ -68,13 +68,16 @@ export class AuditFailLogMonitor extends React.Component {
 
     auditFailRefreshCont(e) {
         if (e.target.checked) {
-            this.state.auditfaillog_cont_refresh = setInterval(this.refreshAuditFailLog, 2000);
+            this.setState({
+                auditfaillog_cont_refresh: setInterval(this.handleRefreshAuditFailLog, 2000),
+                auditfailRefreshing: e.target.checked,
+            });
         } else {
             clearInterval(this.state.auditfaillog_cont_refresh);
+            this.setState({
+                auditfailRefreshing: e.target.checked,
+            });
         }
-        this.setState({
-            auditfailRefreshing: e.target.checked,
-        });
     }
 
     handleAuditFailChange(e) {
@@ -83,17 +86,18 @@ export class AuditFailLogMonitor extends React.Component {
             {
                 auditfailLines: value
             }
-        ), this.refreshAuditFailLog);
+        ), this.handleRefreshAuditFailLog);
     }
 
     render() {
         let spinner = "";
         if (this.state.auditfailReloading) {
-            spinner =
+            spinner = (
                 <div>
                     <Spinner size="sm" />
                     Reloading audit failure log...
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -102,12 +106,13 @@ export class AuditFailLogMonitor extends React.Component {
                     <GridItem span={3}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Audit Failure Log <FontAwesomeIcon
+                                Audit Failure Log
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
                                     title="Refresh audit failure log"
-                                    onClick={this.refreshAuditFailLog}
+                                    onClick={this.handleRefreshAuditFailLog}
                                 />
                             </Text>
                         </TextContent>

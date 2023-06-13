@@ -41,9 +41,9 @@ import {
     KeyIcon,
     UsersIcon,
 } from '@patternfly/react-icons';
-import PropTypes from "prop-types";
-import ExclamationCircleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
-import PlusIcon from '@patternfly/react-icons/dist/js/icons/plus-icon';
+import { PropTypes } from "prop-types";
+import { ExclamationCircleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
+import { PlusIcon } from '@patternfly/react-icons/dist/js/icons/plus-icon';
 const DB_CONFIG = "dbconfig";
 const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
@@ -261,9 +261,9 @@ export class Database extends React.Component {
                             globalDBConfig:
                                 {
                                     loading: false,
-                                    activeTab: activeTab,
-                                    db_cache_auto: db_cache_auto,
-                                    import_cache_auto: import_cache_auto,
+                                    activeTab,
+                                    db_cache_auto,
+                                    import_cache_auto,
                                     looklimit: attrs['nsslapd-lookthroughlimit'][0],
                                     idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
                                     pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
@@ -275,7 +275,7 @@ export class Database extends React.Component {
                                     txnlogdir: attrs['nsslapd-db-logdirectory'][0],
                                     dbhomedir: dbhome,
                                     dblocks: attrs['nsslapd-db-locks'][0],
-                                    dblocksMonitoring: dblocksMonitoring,
+                                    dblocksMonitoring,
                                     dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'][0],
                                     dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'][0],
                                     chxpoint: attrs['nsslapd-db-checkpoint-interval'][0],
@@ -312,7 +312,7 @@ export class Database extends React.Component {
                         {
                             chainingConfig: {
                                 ...this.state.chainingConfig,
-                                availableOids: availableOids,
+                                availableOids,
                             },
                             chainingUpdated: 1
                         }
@@ -415,9 +415,9 @@ export class Database extends React.Component {
                         {
                             chainingConfig: {
                                 ...this.state.chainingConfig,
-                                oidList: oidList,
-                                compList: compList,
-                                availableComps: availableComps
+                                oidList,
+                                compList,
+                                availableComps
                             },
                             chainingActiveKey: activeKey,
                         }
@@ -732,8 +732,8 @@ export class Database extends React.Component {
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj,
-            createNotOK: createNotOK
+            errObj,
+            createNotOK
         });
     }
 
@@ -1215,7 +1215,7 @@ export class Database extends React.Component {
 
         if (this.state.loaded) {
             if (this.state.node_name === DB_CONFIG || this.state.node_name === "") {
-                db_element =
+                db_element = (
                     <GlobalDatabaseConfig
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
@@ -1223,9 +1223,10 @@ export class Database extends React.Component {
                         data={this.state.globalDBConfig}
                         enableTree={this.enableTree}
                         key={this.state.configUpdated}
-                    />;
+                    />
+                );
             } else if (this.state.node_name === CHAINING_CONFIG) {
-                db_element =
+                db_element = (
                     <ChainingDatabaseConfig
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
@@ -1234,27 +1235,30 @@ export class Database extends React.Component {
                         enableTree={this.enableTree}
                         activeKey={this.state.chainingActiveKey}
                         key={this.state.chainingUpdated}
-                    />;
+                    />
+                );
             } else if (this.state.node_name === PWP_CONFIG) {
-                db_element =
+                db_element = (
                     <GlobalPwPolicy
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
                         attrs={this.state.attributes}
                         pwdStorageSchemes={this.state.pwdStorageSchemes}
                         enableTree={this.enableTree}
-                    />;
+                    />
+                );
             } else if (this.state.node_name === LOCAL_PWP_CONFIG) {
-                db_element =
+                db_element = (
                     <LocalPwPolicy
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
                         attrs={this.state.attributes}
                         pwdStorageSchemes={this.state.pwdStorageSchemes}
                         enableTree={this.enableTree}
-                    />;
+                    />
+                );
             } else if (this.state.node_name === BACKUP_CONFIG) {
-                db_element =
+                db_element = (
                     <Backups
                         serverId={this.props.serverId}
                         addNotification={this.props.addNotification}
@@ -1262,14 +1266,15 @@ export class Database extends React.Component {
                         suffixes={this.state.suffixList}
                         ldifs={this.state.LDIFRows}
                         enableTree={this.enableTree}
-                        reload={this.loadBackups}
+                        handleReload={this.loadBackups}
                         refreshing={this.state.backupRefreshing}
-                    />;
+                    />
+                );
             } else if (this.state.node_name !== "") {
                 // We have a suffix, or database link
                 if (this.state.dbtype === "suffix" || this.state.dbtype === "subsuffix") {
                     if (this.state.suffixLoading) {
-                        db_element =
+                        db_element = (
                             <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
                                 <TextContent>
                                     <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
@@ -1277,9 +1282,10 @@ export class Database extends React.Component {
                                     </Text>
                                 </TextContent>
                                 <Spinner className="ds-margin-top-lg" size="xl" />
-                            </div>;
+                            </div>
+                        );
                     } else {
-                        db_element =
+                        db_element = (
                             <Suffix
                                 serverId={this.props.serverId}
                                 suffix={this.state.node_text}
@@ -1299,12 +1305,13 @@ export class Database extends React.Component {
                                 attrs={this.state.attributes}
                                 enableTree={this.enableTree}
                                 key={this.state.node_text}
-                            />;
+                            />
+                        );
                     }
                 } else {
                     // Chaining
                     if (this.state.chainingLoading) {
-                        db_element =
+                        db_element = (
                             <div className="ds-margin-top ds-loading-spinner ds-center">
                                 <TextContent>
                                     <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
@@ -1312,9 +1319,10 @@ export class Database extends React.Component {
                                     </Text>
                                 </TextContent>
                                 <Spinner className="ds-margin-top-lg" size="xl" />
-                            </div>;
+                            </div>
+                        );
                     } else {
-                        db_element =
+                        db_element = (
                             <ChainingConfig
                                 serverId={this.props.serverId}
                                 suffix={this.state.node_text}
@@ -1324,11 +1332,12 @@ export class Database extends React.Component {
                                 data={this.state[this.state.node_text]}
                                 enableTree={this.enableTree}
                                 reload={this.loadChainingLink}
-                            />;
+                            />
+                        );
                     }
                 }
             }
-            body =
+            body = (
                 <div className="ds-container">
                     <div>
                         <div className="ds-tree">
@@ -1345,9 +1354,10 @@ export class Database extends React.Component {
                     <div className="ds-tree-content">
                         {db_element}
                     </div>
-                </div>;
+                </div>
+            );
         } else {
-            body =
+            body = (
                 <div className="ds-center">
                     <TextContent>
                         <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
@@ -1355,7 +1365,8 @@ export class Database extends React.Component {
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="xl" />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -1495,8 +1506,8 @@ Database.defaultProps = {
 CreateSuffixModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
-    onHandleChange: PropTypes.func,
-    onHandleSelectChange: PropTypes.func,
+    handleChange: PropTypes.func,
+    handleSelectChange: PropTypes.func,
     saveHandler: PropTypes.func,
     modalSpinning: PropTypes.bool,
     error: PropTypes.object,

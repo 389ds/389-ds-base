@@ -122,13 +122,13 @@ export class ServerSettings extends React.Component {
         this.validatePaths = this.validatePaths.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.saveConfig = this.saveConfig.bind(this);
-        this.reloadConfig = this.reloadConfig.bind(this);
-        this.saveRootDN = this.saveRootDN.bind(this);
+        this.handleSaveConfig = this.handleSaveConfig.bind(this);
+        this.handleReloadConfig = this.handleReloadConfig.bind(this);
+        this.handleSaveRootDN = this.handleSaveRootDN.bind(this);
         this.reloadRootDN = this.reloadRootDN.bind(this);
-        this.saveDiskMonitoring = this.saveDiskMonitoring.bind(this);
+        this.handleSaveDiskMonitoring = this.handleSaveDiskMonitoring.bind(this);
         this.reloadDiskMonitoring = this.reloadDiskMonitoring.bind(this);
-        this.saveAdvanced = this.saveAdvanced.bind(this);
+        this.handleSaveAdvanced = this.handleSaveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
@@ -141,7 +141,7 @@ export class ServerSettings extends React.Component {
                 maxValue = max;
             }
             let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
-            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
             this.setState({
                 [id]: newValue
             }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
@@ -150,7 +150,7 @@ export class ServerSettings extends React.Component {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
-        }
+        };
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
@@ -172,7 +172,7 @@ export class ServerSettings extends React.Component {
         const errObj = this.state.errObjConfig;
 
         for (const attr of path_attrs) {
-            const cmd = `[ -d "${this.state[attr]}" ]`
+            const cmd = `[ -d "${this.state[attr]}" ]`;
             cockpit
                     .script(cmd, [], { superuser: true, err: "message" })
                     .done(output => {
@@ -182,7 +182,7 @@ export class ServerSettings extends React.Component {
                             configSaveDisabled: disableBtn
                         });
                     })
-                    .fail(err => {
+                    .fail(() => {
                         errObj[attr] = true;
                         disableBtn = true;
                         this.setState({
@@ -199,19 +199,19 @@ export class ServerSettings extends React.Component {
         let config_attrs = [];
         let valueErr = false;
         let errObj;
-        if (nav_tab == "config") {
+        if (nav_tab === "config") {
             config_attrs = general_attrs;
             disableBtnName = "configSaveDisabled";
             errObj = this.state.errObjConfig;
-        } else if (nav_tab == "rootdn") {
+        } else if (nav_tab === "rootdn") {
             disableBtnName = "rootDNSaveDisabled";
             config_attrs = rootdn_attrs;
             errObj = this.state.errObjRootDN;
-        } else if (nav_tab == "diskmon") {
+        } else if (nav_tab === "diskmon") {
             disableBtnName = "diskMonSaveDisabled";
             config_attrs = disk_attrs;
             errObj = this.state.errObjDiskMon;
-        } else if (nav_tab == "adv") {
+        } else if (nav_tab === "adv") {
             disableBtnName = "advSaveDisabled";
             config_attrs = adv_attrs;
             errObj = this.state.errObjAdv;
@@ -219,7 +219,7 @@ export class ServerSettings extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
-            if (attr == config_attr && this.state['_' + config_attr] != value) {
+            if (attr === config_attr && this.state['_' + config_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -227,22 +227,22 @@ export class ServerSettings extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const config_attr of config_attrs) {
-            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
+            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
                 disableSaveBtn = false;
                 break;
             }
         }
 
-        if (nav_tab == "config") {
-            if (attr != 'nsslapd-listenhost' && value == "") {
+        if (nav_tab === "config") {
+            if (attr !== 'nsslapd-listenhost' && value === "") {
                 // Only listenhost is allowed to be blank
                 valueErr = true;
                 disableSaveBtn = true;
             }
-        } else if (nav_tab == "rootdn") {
+        } else if (nav_tab === "rootdn") {
             // Handle validating passwords are in sync
-            if (attr == 'nsslapd-rootpw') {
-                if (value != this.state.confirmRootpw) {
+            if (attr === 'nsslapd-rootpw') {
+                if (value !== this.state.confirmRootpw) {
                     disableSaveBtn = true;
                     valueErr = true;
                     errObj['nsslapd-rootpw'] = true;
@@ -251,8 +251,8 @@ export class ServerSettings extends React.Component {
                     errObj['nsslapd-rootpw'] = false;
                 }
             }
-            if (attr == 'confirmRootpw') {
-                if (value != this.state['nsslapd-rootpw']) {
+            if (attr === 'confirmRootpw') {
+                if (value !== this.state['nsslapd-rootpw']) {
                     disableSaveBtn = true;
                     valueErr = true;
                     errObj.confirmRootpw = true;
@@ -262,12 +262,12 @@ export class ServerSettings extends React.Component {
                 }
             }
 
-            if (value == "") {
+            if (value === "") {
                 disableSaveBtn = true;
                 valueErr = true;
             }
-        } else if (nav_tab == "diskmon") {
-            if (value == "" && (typeof value !== "boolean")) {
+        } else if (nav_tab === "diskmon") {
+            if (value === "" && (typeof value !== "boolean")) {
                 valueErr = true;
                 disableSaveBtn = true;
             }
@@ -278,13 +278,13 @@ export class ServerSettings extends React.Component {
                     disableSaveBtn = true;
                 }
             }
-        } else if (nav_tab == "adv") {
+        } else if (nav_tab === "adv") {
             // Handle special cases for anon limit dn
-            if (attr == 'nsslapd-anonlimitsdn' && !valid_dn(value)) {
+            if (attr === 'nsslapd-anonlimitsdn' && !valid_dn(value)) {
                 valueErr = true;
                 errObj[attr] = true;
             }
-            if (value == "" && attr != 'nsslapd-anonlimitsdn' && (typeof value !== "boolean")) {
+            if (value === "" && attr !== 'nsslapd-anonlimitsdn' && (typeof value !== "boolean")) {
                 valueErr = true;
                 disableSaveBtn = true;
             }
@@ -304,7 +304,7 @@ export class ServerSettings extends React.Component {
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) });
     }
 
     loadConfig() {
@@ -324,40 +324,40 @@ export class ServerSettings extends React.Component {
         let readOnly = false;
         let listenhost = "";
 
-        if (attrs['nsslapd-entryusn-global'][0] == "on") {
+        if (attrs['nsslapd-entryusn-global'][0] === "on") {
             usnGlobal = true;
         }
-        if (attrs['nsslapd-ignore-time-skew'][0] == "on") {
+        if (attrs['nsslapd-ignore-time-skew'][0] === "on") {
             ignoreSkew = true;
         }
-        if (attrs['nsslapd-readonly'][0] == "on") {
+        if (attrs['nsslapd-readonly'][0] === "on") {
             readOnly = true;
         }
-        if (attrs['nsslapd-disk-monitoring'][0] == "on") {
+        if (attrs['nsslapd-disk-monitoring'][0] === "on") {
             diskMonitoring = true;
         }
-        if (attrs['nsslapd-disk-monitoring-logging-critical'][0] == "on") {
+        if (attrs['nsslapd-disk-monitoring-logging-critical'][0] === "on") {
             diskLogCritical = true;
         }
-        if (attrs['nsslapd-schemacheck'][0] == "on") {
+        if (attrs['nsslapd-schemacheck'][0] === "on") {
             schemaCheck = true;
         }
-        if (attrs['nsslapd-syntaxcheck'][0] == "on") {
+        if (attrs['nsslapd-syntaxcheck'][0] === "on") {
             syntaxCheck = true;
         }
-        if (attrs['nsslapd-plugin-logging'][0] == "on") {
+        if (attrs['nsslapd-plugin-logging'][0] === "on") {
             pluginLogging = true;
         }
-        if (attrs['nsslapd-syntaxlogging'][0] == "on") {
+        if (attrs['nsslapd-syntaxlogging'][0] === "on") {
             syntaxLogging = true;
         }
-        if (attrs['nsslapd-plugin-binddn-tracking'][0] == "on") {
+        if (attrs['nsslapd-plugin-binddn-tracking'][0] === "on") {
             bindDNTracking = true;
         }
-        if (attrs['nsslapd-attribute-name-exceptions'][0] == "on") {
+        if (attrs['nsslapd-attribute-name-exceptions'][0] === "on") {
             nameExceptions = true;
         }
-        if (attrs['nsslapd-dn-validate-strict'][0] == "on") {
+        if (attrs['nsslapd-dn-validate-strict'][0] === "on") {
             dnValidate = true;
         }
         if ('nsslapd-listenhost' in attrs) {
@@ -432,22 +432,22 @@ export class ServerSettings extends React.Component {
         }, this.props.enableTree);
     }
 
-    saveRootDN() {
+    handleSaveRootDN() {
         this.setState({
             rootDNReloading: true,
         });
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
 
         for (const attr of rootdn_attrs) {
-            if (attr != 'confirmRootpw' && this.state['_' + attr] != this.state[attr]) {
+            if (attr !== 'confirmRootpw' && this.state['_' + attr] !== this.state[attr]) {
                 cmd.push(attr + "=" + this.state[attr]);
             }
         }
 
-        log_cmd("saveRootDN", "Saving changes to root DN", cmd);
+        log_cmd("handleSaveRootDN", "Saving changes to root DN", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -472,7 +472,7 @@ export class ServerSettings extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("reloadConfig", "Reload Directory Manager configuration", cmd);
+        log_cmd("handleReloadConfig", "Reload Directory Manager configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -506,16 +506,16 @@ export class ServerSettings extends React.Component {
                 });
     }
 
-    saveDiskMonitoring() {
+    handleSaveDiskMonitoring() {
         this.setState({
             diskMonReloading: true,
         });
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
         for (const attr of disk_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -528,7 +528,7 @@ export class ServerSettings extends React.Component {
             }
         }
 
-        log_cmd("saveRootDN", "Saving changes to Disk Monitoring", cmd);
+        log_cmd("handleSaveDiskMonitoring", "Saving changes to Disk Monitoring", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -563,10 +563,10 @@ export class ServerSettings extends React.Component {
                     let diskMonitoring = false;
                     let diskLogCritical = false;
 
-                    if (attrs['nsslapd-disk-monitoring'][0] == "on") {
+                    if (attrs['nsslapd-disk-monitoring'][0] === "on") {
                         diskMonitoring = true;
                     }
-                    if (attrs['nsslapd-disk-monitoring-logging-critical'][0] == "on") {
+                    if (attrs['nsslapd-disk-monitoring-logging-critical'][0] === "on") {
                         diskLogCritical = true;
                     }
                     this.setState(() => (
@@ -597,7 +597,7 @@ export class ServerSettings extends React.Component {
                 });
     }
 
-    saveAdvanced() {
+    handleSaveAdvanced() {
         this.setState({
             advReloading: true,
         });
@@ -606,7 +606,7 @@ export class ServerSettings extends React.Component {
             'config', 'replace'
         ];
         for (const attr of adv_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -619,7 +619,7 @@ export class ServerSettings extends React.Component {
             }
         }
 
-        log_cmd("saveAdvanced", "Saving Advanced configuration", cmd);
+        log_cmd("handleSaveAdvanced", "Saving Advanced configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -662,34 +662,34 @@ export class ServerSettings extends React.Component {
                     let ignoreSkew = false;
                     let readOnly = false;
 
-                    if (attrs['nsslapd-entryusn-global'][0] == "on") {
+                    if (attrs['nsslapd-entryusn-global'][0] === "on") {
                         usnGlobal = true;
                     }
-                    if (attrs['nsslapd-ignore-time-skew'][0] == "on") {
+                    if (attrs['nsslapd-ignore-time-skew'][0] === "on") {
                         ignoreSkew = true;
                     }
-                    if (attrs['nsslapd-readonly'][0] == "on") {
+                    if (attrs['nsslapd-readonly'][0] === "on") {
                         readOnly = true;
                     }
-                    if (attrs['nsslapd-schemacheck'][0] == "on") {
+                    if (attrs['nsslapd-schemacheck'][0] === "on") {
                         schemaCheck = true;
                     }
-                    if (attrs['nsslapd-syntaxcheck'][0] == "on") {
+                    if (attrs['nsslapd-syntaxcheck'][0] === "on") {
                         syntaxCheck = true;
                     }
-                    if (attrs['nsslapd-plugin-logging'][0] == "on") {
+                    if (attrs['nsslapd-plugin-logging'][0] === "on") {
                         pluginLogging = true;
                     }
-                    if (attrs['nsslapd-syntaxlogging'][0] == "on") {
+                    if (attrs['nsslapd-syntaxlogging'][0] === "on") {
                         syntaxLogging = true;
                     }
-                    if (attrs['nsslapd-plugin-binddn-tracking'][0] == "on") {
+                    if (attrs['nsslapd-plugin-binddn-tracking'][0] === "on") {
                         bindDNTracking = true;
                     }
-                    if (attrs['nsslapd-attribute-name-exceptions'][0] == "on") {
+                    if (attrs['nsslapd-attribute-name-exceptions'][0] === "on") {
                         nameExceptions = true;
                     }
-                    if (attrs['nsslapd-dn-validate-strict'][0] == "on") {
+                    if (attrs['nsslapd-dn-validate-strict'][0] === "on") {
                         dnValidate = true;
                     }
 
@@ -737,7 +737,7 @@ export class ServerSettings extends React.Component {
                 });
     }
 
-    saveConfig() {
+    handleSaveConfig() {
         // Build up the command list
         this.setState({
             configReloading: true,
@@ -748,17 +748,17 @@ export class ServerSettings extends React.Component {
         ];
 
         for (const attr of general_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 cmd.push(attr + "=" + this.state[attr]);
             }
         }
 
-        log_cmd("saveConfig", "Applying server config change", cmd);
+        log_cmd("handleSaveConfig", "Applying server config change", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     // Continue with the next mod
-                    this.reloadConfig();
+                    this.handleReloadConfig();
                     this.props.addNotification(
                         "warning",
                         "Successfully updated server configuration.  These " +
@@ -767,7 +767,7 @@ export class ServerSettings extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.reloadConfig();
+                    this.handleReloadConfig();
                     this.props.addNotification(
                         "error",
                         `Error updating server configuration - ${errMsg.desc}`
@@ -775,12 +775,12 @@ export class ServerSettings extends React.Component {
                 });
     }
 
-    reloadConfig() {
+    handleReloadConfig() {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("reloadConfig", "Reload server configuration", cmd);
+        log_cmd("handleReloadConfig", "Reload server configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -844,7 +844,7 @@ export class ServerSettings extends React.Component {
         }
 
         if (this.state['nsslapd-disk-monitoring']) {
-            diskMonitor =
+            diskMonitor = (
                 <Form isHorizontal autoComplete="off" className="ds-margin-top-lg ds-left-indent-lg ds-margin-bottom">
                     <Grid
                         title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. Value range: 4096 - 9223372036854775807. (nsslapd-disk-monitoring-threshold)"
@@ -856,9 +856,9 @@ export class ServerSettings extends React.Component {
                             <NumberInput
                                 value={this.state['nsslapd-disk-monitoring-threshold']}
                                 min={4096}
-                                max={9223372036854775807}
+                                max={922337203685477}
                                 onMinus={() => { this.onMinusConfig("nsslapd-disk-monitoring-threshold", "diskmon") }}
-                                onChange={(e) => { this.onConfigChange(e, "nsslapd-disk-monitoring-threshold", 1, 9223372036854775807, "diskmon") }}
+                                onChange={(e) => { this.onConfigChange(e, "nsslapd-disk-monitoring-threshold", 1, 922337203685477, "diskmon") }}
                                 onPlus={() => { this.onPlusConfig("nsslapd-disk-monitoring-threshold", "diskmon") }}
                                 inputName="input"
                                 inputAriaLabel="number input"
@@ -908,30 +908,33 @@ export class ServerSettings extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </Form>;
+                </Form>
+            );
         }
 
         if (this.state.loading) {
-            body =
+            body = (
                 <div className="ds-loading-spinner ds-margin-top ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>Loading Server Settings ...</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="md" />
-                </div>;
+                </div>
+            );
         } else {
-            body =
+            body = (
                 <div className="ds-margin-bottom-md">
                     <Grid>
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Server Settings <FontAwesomeIcon
+                                    Server Settings
+                                    <FontAwesomeIcon
                                         size="lg"
                                         className="ds-left-margin ds-refresh"
                                         icon={faSyncAlt}
                                         title="Refresh configuration settings"
-                                        onClick={this.reloadConfig}
+                                        onClick={this.handleReloadConfig}
                                     />
                                 </Text>
                             </TextContent>
@@ -1130,7 +1133,7 @@ export class ServerSettings extends React.Component {
                                     isDisabled={this.state.configSaveDisabled || this.state.configReloading}
                                     variant="primary"
                                     className="ds-margin-top-xlg"
-                                    onClick={this.saveConfig}
+                                    onClick={this.handleSaveConfig}
                                     isLoading={this.state.configReloading}
                                     spinnerAriaValueText={this.state.configReloading ? "Saving" : undefined}
                                     {...extraPrimaryProps}
@@ -1224,7 +1227,7 @@ export class ServerSettings extends React.Component {
                                     variant="primary"
                                     className="ds-margin-top-xlg"
                                     isDisabled={this.state.rootDNSaveDisabled || this.state.rootDNReloading}
-                                    onClick={this.saveRootDN}
+                                    onClick={this.handleSaveRootDN}
                                     isLoading={this.state.rootDNReloading}
                                     spinnerAriaValueText={this.state.rootDNReloading ? "Saving" : undefined}
                                     {...extraPrimaryProps}
@@ -1248,7 +1251,7 @@ export class ServerSettings extends React.Component {
                                     isDisabled={this.state.diskMonSaveDisabled || this.state.diskMonReloading}
                                     variant="primary"
                                     className="ds-margin-top-xlg"
-                                    onClick={this.saveDiskMonitoring}
+                                    onClick={this.handleSaveDiskMonitoring}
                                     isLoading={this.state.diskMonReloading}
                                     spinnerAriaValueText={this.state.diskMonReloading ? "Saving" : undefined}
                                     {...extraPrimaryProps}
@@ -1431,7 +1434,7 @@ export class ServerSettings extends React.Component {
                                     isDisabled={this.state.advSaveDisabled || this.state.advReloading}
                                     variant="primary"
                                     className="ds-margin-top-xlg"
-                                    onClick={this.saveAdvanced}
+                                    onClick={this.handleSaveAdvanced}
                                     isLoading={this.state.advReloading}
                                     spinnerAriaValueText={this.state.advReloading ? "Saving" : undefined}
                                     {...extraPrimaryProps}
@@ -1441,13 +1444,16 @@ export class ServerSettings extends React.Component {
                             </Tab>
                         </Tabs>
                     </div>
-                </div>;
+                </div>
+            );
         }
 
         return (
             <div
                 id="server-settings-page" className={this.state.configReloading || this.state.rootDNReloading ||
-                this.state.diskMonReloading || this.state.advReloading ? "ds-disabled" : ""}
+                this.state.diskMonReloading || this.state.advReloading
+                    ? "ds-disabled"
+                    : ""}
             >
                 {body}
             </div>

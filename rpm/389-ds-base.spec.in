@@ -789,3 +789,6 @@ fi
 %endif
 
 %changelog
+* Mon Jun 19 2023 User <user@port389.org> - 2.4.1-1
+- Bump version to 2.4.1-1
+

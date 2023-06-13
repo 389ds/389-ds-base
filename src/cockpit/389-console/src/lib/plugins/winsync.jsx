@@ -56,14 +56,14 @@ class WinSync extends React.Component {
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleModalChange = this.handleModalChange.bind(this);
         this.updateFields = this.updateFields.bind(this);
-        this.runFixup = this.runFixup.bind(this);
-        this.toggleFixupModal = this.toggleFixupModal.bind(this);
+        this.handleRunFixup = this.handleRunFixup.bind(this);
+        this.handleToggleFixupModal = this.handleToggleFixupModal.bind(this);
         this.validateConfig = this.validateConfig.bind(this);
         this.validateModal = this.validateModal.bind(this);
-        this.savePlugin = this.savePlugin.bind(this);
+        this.handleSavePlugin = this.handleSavePlugin.bind(this);
     }
 
-    toggleFixupModal() {
+    handleToggleFixupModal() {
         this.setState(prevState => ({
             fixupModalShow: !prevState.fixupModalShow,
             fixupDN: "",
@@ -72,7 +72,7 @@ class WinSync extends React.Component {
         }));
     }
 
-    runFixup() {
+    handleRunFixup() {
         let cmd = [
             "dsconf",
             "-j",
@@ -90,7 +90,7 @@ class WinSync extends React.Component {
         this.setState({
             savingModal: true
         });
-        log_cmd("runFixup", "Run Member UID task", cmd);
+        log_cmd("handleRunFixup", "Run Member UID task", cmd);
         cockpit
                 .spawn(cmd, {
                     superuser: true,
@@ -128,7 +128,7 @@ class WinSync extends React.Component {
             'posixWinsyncMsSFUSchema'
         ];
         for (const check_attr of attrs) {
-            if (this.state[check_attr] != this.state['_' + check_attr]) {
+            if (this.state[check_attr] !== this.state['_' + check_attr]) {
                 all_good = true;
                 break;
             }
@@ -147,7 +147,7 @@ class WinSync extends React.Component {
             all_good = false;
             errObj.fixupDN = true;
         }
-        if (this.state.fixupFilter == "") {
+        if (this.state.fixupFilter === "") {
             all_good = false;
             errObj.fixupFilter = true;
         }
@@ -179,49 +179,49 @@ class WinSync extends React.Component {
             this.setState({
                 posixWinsyncCreateMemberOfTask: !(
                     pluginRow.posixwinsynccreatememberoftask === undefined ||
-                    pluginRow.posixwinsynccreatememberoftask[0] == "false"
+                    pluginRow.posixwinsynccreatememberoftask[0] === "false"
                 ),
                 posixWinsyncLowerCaseUID: !(
                     pluginRow.posixwinsynclowercaseuid === undefined ||
-                    pluginRow.posixwinsynclowercaseuid[0] == "false"
+                    pluginRow.posixwinsynclowercaseuid[0] === "false"
                 ),
                 posixWinsyncMapMemberUID: !(
                     pluginRow.posixwinsyncmapmemberuid === undefined ||
-                    pluginRow.posixwinsyncmapmemberuid[0] == "false"
+                    pluginRow.posixwinsyncmapmemberuid[0] === "false"
                 ),
                 posixWinsyncMapNestedGrouping: !(
                     pluginRow.posixwinsyncmapnestedgrouping === undefined ||
-                    pluginRow.posixwinsyncmapnestedgrouping[0] == "false"
+                    pluginRow.posixwinsyncmapnestedgrouping[0] === "false"
                 ),
                 posixWinsyncMsSFUSchema: !(
                     pluginRow.posixwinsyncmssfuschema === undefined ||
-                    pluginRow.posixwinsyncmssfuschema[0] == "false"
+                    pluginRow.posixwinsyncmssfuschema[0] === "false"
                 ),
                 _posixWinsyncCreateMemberOfTask: !(
                     pluginRow.posixwinsynccreatememberoftask === undefined ||
-                    pluginRow.posixwinsynccreatememberoftask[0] == "false"
+                    pluginRow.posixwinsynccreatememberoftask[0] === "false"
                 ),
                 _posixWinsyncLowerCaseUID: !(
                     pluginRow.posixwinsynclowercaseuid === undefined ||
-                    pluginRow.posixwinsynclowercaseuid[0] == "false"
+                    pluginRow.posixwinsynclowercaseuid[0] === "false"
                 ),
                 _posixWinsyncMapMemberUID: !(
                     pluginRow.posixwinsyncmapmemberuid === undefined ||
-                    pluginRow.posixwinsyncmapmemberuid[0] == "false"
+                    pluginRow.posixwinsyncmapmemberuid[0] === "false"
                 ),
                 _posixWinsyncMapNestedGrouping: !(
                     pluginRow.posixwinsyncmapnestedgrouping === undefined ||
-                    pluginRow.posixwinsyncmapnestedgrouping[0] == "false"
+                    pluginRow.posixwinsyncmapnestedgrouping[0] === "false"
                 ),
                 _posixWinsyncMsSFUSchema: !(
                     pluginRow.posixwinsyncmssfuschema === undefined ||
-                    pluginRow.posixwinsyncmssfuschema[0] == "false"
+                    pluginRow.posixwinsyncmssfuschema[0] === "false"
                 )
             });
         }
     }
 
-    savePlugin() {
+    handleSavePlugin() {
         const cmd = [
             "dsconf",
             "-j",
@@ -245,7 +245,7 @@ class WinSync extends React.Component {
             saving: true
         });
 
-        log_cmd('savePlugin', 'Update Posix winsync plugin', cmd);
+        log_cmd('handleSavePlugin', 'Update Posix winsync plugin', cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -307,12 +307,12 @@ class WinSync extends React.Component {
                     title="MemberOf Task"
                     isOpen={fixupModalShow}
                     aria-labelledby="ds-modal"
-                    onClose={this.toggleFixupModal}
+                    onClose={this.handleToggleFixupModal}
                     actions={[
                         <Button
                             key="task"
                             variant="primary"
-                            onClick={this.runFixup}
+                            onClick={this.handleRunFixup}
                             isDisabled={saveBtnDisabledModal || savingModal}
                             isLoading={savingModal}
                             spinnerAriaValueText={savingModal ? "Saving" : undefined}
@@ -320,7 +320,7 @@ class WinSync extends React.Component {
                         >
                             {saveBtnNameModal}
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.toggleFixupModal}>
+                        <Button key="cancel" variant="link" onClick={this.handleToggleFixupModal}>
                             Cancel
                         </Button>
                     ]}
@@ -436,7 +436,7 @@ class WinSync extends React.Component {
                     <Button
                         className="ds-margin-top-lg"
                         variant="primary"
-                        onClick={this.toggleFixupModal}
+                        onClick={this.handleToggleFixupModal}
                         title="Corrects mismatched member and uniquemember values"
                     >
                         Run MemberOf Task
@@ -445,7 +445,7 @@ class WinSync extends React.Component {
                 <Button
                     className="ds-margin-top-lg"
                     variant="primary"
-                    onClick={this.savePlugin}
+                    onClick={this.handleSavePlugin}
                     isDisabled={saveBtnDisabled || saving}
                     isLoading={saving}
                     spinnerAriaValueText={saving ? "Saving" : undefined}

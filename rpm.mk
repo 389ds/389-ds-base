@@ -11,7 +11,7 @@ TARBALL = $(NAME_VERSION).tar.bz2
 JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
 JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
 BUNDLE_JEMALLOC = 1
-NODE_MODULES_TEST = src/cockpit/389-console/node_modules/webpack
+NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 GIT_TAG = ${TAG}
 
 # Some sanitizers are supported only by clang
@@ -47,32 +47,34 @@ bundle-rust:
 
 install-node-modules:
 ifeq ($(COCKPIT_ON), 1)
-	cd src/cockpit/389-console; make -f node_modules.mk install
+	cd src/cockpit/389-console; \
+	rm -rf node_modules; \
+	npm ci > /dev/null
+ifndef SKIP_AUDIT_CI
+	cd src/cockpit/389-console; \
+	npx audit-ci
+endif
 endif
 
 build-cockpit: install-node-modules
 ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; \
 	rm -rf cockpit_dist; \
-	NODE_ENV=production make -f node_modules.mk build-cockpit-plugin
+	NODE_ENV=production ./build.js; \
+	cp -r dist cockpit_dist
 endif
 
 dist-bz2: install-node-modules download-cargo-dependencies
 ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; \
 	rm -rf cockpit_dist; \
-	NODE_ENV=production make -f node_modules.mk build-cockpit-plugin; \
-	mv node_modules node_modules.release; \
-	touch cockpit_dist/*
-	mkdir -p $(NODE_MODULES_TEST)
-	touch -r src/cockpit/389-console/package.json $(NODE_MODULES_TEST)
+	rm -rf dist; \
+	NODE_ENV=production ./build.js; \
+	cp -r dist cockpit_dist; \
+	touch cockpit_dist/*; \
+	touch -r package.json package-lock.json
 endif
-	tar cjf $(GIT_TAG).tar.bz2 --transform "s,^,$(GIT_TAG)/," $$(git ls-files) vendor/ src/cockpit/389-console/cockpit_dist/ src/cockpit/389-console/node_modules
-ifeq ($(COCKPIT_ON), 1)
-	cd src/cockpit/389-console; \
-	rm -rf node_modules; \
-	mv node_modules.release node_modules
-endif
+	tar cjf $(GIT_TAG).tar.bz2 --transform "s,^,$(GIT_TAG)/," $$(git ls-files) vendor/ src/cockpit/389-console/cockpit_dist/
 
 local-archive: build-cockpit
 	-mkdir -p dist/$(NAME_VERSION)

@@ -1,13 +1,13 @@
 import React from 'react';
 import {
-  Pagination,
-  Spinner,
-  Text,
-  TextContent,
-  TextVariants,
+    Pagination,
+    Spinner,
+    Text,
+    TextContent,
+    TextVariants,
 } from '@patternfly/react-core';
 import {
-  Table, TableHeader, TableBody, TableVariant
+    Table, TableHeader, TableBody, TableVariant
 } from '@patternfly/react-table';
 
 class EditorTableView extends React.Component {
@@ -31,7 +31,7 @@ class EditorTableView extends React.Component {
             noBackend = true;
         }
 
-        let body =
+        let body = (
             <div className="ds-margin-top-xlg ds-center">
                 <TextContent>
                     <Text component={TextVariants.h3}>
@@ -39,11 +39,12 @@ class EditorTableView extends React.Component {
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="lg" />
-            </div>;
+            </div>
+        );
         if (!loading) {
-            body =
+            body = (
                 <div>
-                   <Table
+                    <Table
                        variant={TableVariant.compact}
                        onCollapse={noBackend ? null : this.props.onCollapse}
                        rows={rows}
@@ -51,12 +52,12 @@ class EditorTableView extends React.Component {
                        actionResolver={noBackend ? null : this.props.actionResolver}
                        aria-label="editor table view"
                        header={this.props.header ? this.props.header : ""}
-                   >
-                       <TableHeader />
-                       <TableBody />
-                   </Table>
-                   {!noBackend &&
-                       <Pagination
+                    >
+                        <TableHeader />
+                        <TableBody />
+                    </Table>
+                    {!noBackend &&
+                    <Pagination
                            id="ds-addons-editor-view-top"
                            className="ds-margin-top"
                            widgetId="pagination-options-menu-top"
@@ -66,9 +67,9 @@ class EditorTableView extends React.Component {
                            onSetPage={(_evt, value) => this.props.onSetPage(value)}
                            onPerPageSelect={(_evt, value) => this.props.onPerPageSelect(value)}
                            dropDirection="up"
-                       />
-                   }
-               </div>;
+                    />}
+                </div>
+            );
         }
 
         return (

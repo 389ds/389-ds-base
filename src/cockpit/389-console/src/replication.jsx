@@ -125,11 +125,11 @@ export class Replication extends React.Component {
                         }
                     }
                     this.setState({
-                        clDir: clDir,
-                        clMaxEntries: clMaxEntries,
-                        clMaxAge: clMaxAge,
-                        clTrimInt: clTrimInt,
-                        clEncrypt: clEncrypt,
+                        clDir,
+                        clMaxEntries,
+                        clMaxAge,
+                        clTrimInt,
+                        clEncrypt,
                         clLoading: false
                     });
                 })
@@ -326,7 +326,7 @@ export class Replication extends React.Component {
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
@@ -427,7 +427,7 @@ export class Replication extends React.Component {
                 .done(content => {
                     const obj = JSON.parse(content);
                     const ws_rows = [];
-                    for (var idx in obj.items) {
+                    for (const idx in obj.items) {
                         let state = "Enabled";
                         let update_status = "";
                         let ws_agmt_init_status = "Initialized";
@@ -532,7 +532,7 @@ export class Replication extends React.Component {
                             nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",
                             nsds5replicapurgedelay: 'nsds5replicapurgedelay' in config.attrs ? config.attrs.nsds5replicapurgedelay[0] : "",
                             nsds5replicatombstonepurgeinterval: 'nsds5replicatombstonepurgeinterval' in config.attrs ? config.attrs.nsds5replicatombstonepurgeinterval[0] : "",
-                            nsds5replicaprecisetombstonepurging: nsds5replicaprecisetombstonepurging,
+                            nsds5replicaprecisetombstonepurging,
                             nsds5replicaprotocoltimeout: 'nsds5replicaprotocoltimeout' in config.attrs ? config.attrs.nsds5replicaprotocoltimeout[0] : "",
                             nsds5replicabackoffmin: 'nsds5replicabackoffmin' in config.attrs ? config.attrs.nsds5replicabackoffmin[0] : "",
                             nsds5replicabackoffmax: 'nsds5replicabackoffmax' in config.attrs ? config.attrs.nsds5replicabackoffmax[0] : "",
@@ -675,7 +675,7 @@ export class Replication extends React.Component {
                             nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",
                             nsds5replicapurgedelay: 'nsds5replicapurgedelay' in config.attrs ? config.attrs.nsds5replicapurgedelay[0] : "",
                             nsds5replicatombstonepurgeinterval: 'nsds5replicatombstonepurgeinterval' in config.attrs ? config.attrs.nsds5replicatombstonepurgeinterval[0] : "",
-                            nsds5replicaprecisetombstonepurging: nsds5replicaprecisetombstonepurging,
+                            nsds5replicaprecisetombstonepurging,
                             nsds5replicaprotocoltimeout: 'nsds5replicaprotocoltimeout' in config.attrs ? config.attrs.nsds5replicaprotocoltimeout[0] : "",
                             nsds5replicabackoffmin: 'nsds5replicabackoffmin' in config.attrs ? config.attrs.nsds5replicabackoffmin[0] : "",
                             nsds5replicabackoffmax: 'nsds5replicabackoffmax' in config.attrs ? config.attrs.nsds5replicabackoffmax[0] : "",
@@ -716,10 +716,10 @@ export class Replication extends React.Component {
                                 this.setState({
                                     [suffix]: {
                                         ...this.state[suffix],
-                                        clMaxEntries: clMaxEntries,
-                                        clMaxAge: clMaxAge,
-                                        clTrimInt: clTrimInt,
-                                        clEncrypt: clEncrypt,
+                                        clMaxEntries,
+                                        clMaxAge,
+                                        clTrimInt,
+                                        clEncrypt,
                                     }
                                 });
 
@@ -796,7 +796,7 @@ export class Replication extends React.Component {
                                                     .done(content => {
                                                         const obj = JSON.parse(content);
                                                         const ws_rows = [];
-                                                        for (var idx in obj.items) {
+                                                        for (const idx in obj.items) {
                                                             let state = "Enabled";
                                                             let update_status = "";
                                                             let ws_agmt_init_status = "Initialized";
@@ -981,25 +981,27 @@ export class Replication extends React.Component {
             disabled = "tree-view-container ds-disabled";
         }
         if (!this.state.loaded) {
-            repl_page =
+            repl_page = (
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>Loading Replication Information ...</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />
-                </div>;
+                </div>
+            );
         } else {
             if (this.state.suffixLoading) {
-                repl_element =
+                repl_element = (
                     <div className="ds-margin-top-xlg ds-center">
                         <TextContent>
                             <Text component={TextVariants.h3}>Loading Replication Configuration For <b>{this.state.node_name} ...</b></Text>
                         </TextContent>
                         <Spinner className="ds-margin-top-lg" size="xl" />
-                    </div>;
+                    </div>
+                );
             } else {
                 if (this.state.node_name in this.state) {
-                    repl_element =
+                    repl_element = (
                         <div>
                             <ReplSuffix
                                 serverId={this.props.serverId}
@@ -1025,10 +1027,11 @@ export class Replication extends React.Component {
                                 disabled={this.state.disabled}
                                 spinning={this.state.suffixSpinning}
                             />
-                        </div>;
+                        </div>
+                    );
                 } else {
                     // Suffix is not replicated
-                    repl_element =
+                    repl_element = (
                         <ReplSuffix
                             serverId={this.props.serverId}
                             suffix={this.state.node_name}
@@ -1051,10 +1054,11 @@ export class Replication extends React.Component {
                             disabled={this.state.disabled}
                             ldifRows={this.state.ldifRows}
                             key={this.state.node_name}
-                        />;
+                        />
+                    );
                 }
             }
-            repl_page =
+            repl_page = (
                 <div className="container-fluid">
                     <div className="ds-container">
                         <div>
@@ -1072,7 +1076,8 @@ export class Replication extends React.Component {
                             {repl_element}
                         </div>
                     </div>
-                </div>;
+                </div>
+            );
         }
 
         return (

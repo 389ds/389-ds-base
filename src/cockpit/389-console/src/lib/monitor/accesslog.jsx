@@ -30,7 +30,7 @@ export class AccessLogMonitor extends React.Component {
             accessLines: "50",
         };
 
-        this.refreshAccessLog = this.refreshAccessLog.bind(this);
+        this.handleRefreshAccessLog = this.handleRefreshAccessLog.bind(this);
         this.handleAccessChange = this.handleAccessChange.bind(this);
         this.accessRefreshCont = this.accessRefreshCont.bind(this);
     }
@@ -43,7 +43,7 @@ export class AccessLogMonitor extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
-        this.refreshAccessLog();
+        this.handleRefreshAccessLog();
     }
 
     componentWillUnmount() {
@@ -53,13 +53,16 @@ export class AccessLogMonitor extends React.Component {
 
     accessRefreshCont(e) {
         if (e.target.checked) {
-            this.state.accesslog_cont_refresh = setInterval(this.refreshAccessLog, 2000);
+            this.setState({
+                accesslog_cont_refresh: setInterval(this.handleRefreshAccessLog, 2000),
+                accessRefreshing: e.target.checked,
+            });
         } else {
             clearInterval(this.state.accesslog_cont_refresh);
+            this.setState({
+                accessRefreshing: e.target.checked,
+            });
         }
-        this.setState({
-            accessRefreshing: e.target.checked,
-        });
     }
 
     handleAccessChange(e) {
@@ -68,10 +71,10 @@ export class AccessLogMonitor extends React.Component {
             {
                 accessLines: value
             }
-        ), this.refreshAccessLog);
+        ), this.handleRefreshAccessLog);
     }
 
-    refreshAccessLog () {
+    handleRefreshAccessLog () {
         this.setState({
             accessReloading: true
         });
@@ -95,11 +98,12 @@ export class AccessLogMonitor extends React.Component {
     render() {
         let spinner = "";
         if (this.state.accessReloading) {
-            spinner =
+            spinner = (
                 <div>
                     <Spinner isSVG size="sm" />
                     Reloading access log...
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -108,12 +112,13 @@ export class AccessLogMonitor extends React.Component {
                     <GridItem span={3}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Access Log <FontAwesomeIcon
+                                Access Log
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
                                     title="Refresh access log"
-                                    onClick={this.refreshAccessLog}
+                                    onClick={this.handleRefreshAccessLog}
                                 />
                             </Text>
                         </TextContent>

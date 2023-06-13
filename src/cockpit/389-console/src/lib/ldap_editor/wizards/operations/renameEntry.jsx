@@ -1,7 +1,6 @@
 import React from 'react';
 import {
     Alert,
-    Button,
     Card,
     CardBody,
     CardTitle,
@@ -53,7 +52,7 @@ class RenameEntry extends React.Component {
             commandOutput: "",
         };
 
-        this.onNext = ({ id }) => {
+        this.handleNext = ({ id }) => {
             this.setState({
                 stepIdReached: this.state.stepIdReached < id ? id : this.state.stepIdReached
             });
@@ -69,14 +68,14 @@ class RenameEntry extends React.Component {
                         operationType: 'MODRDN',
                         resultCode: result.errorCode,
                         time: Date.now(),
-                    }
+                    };
                     this.props.setWizardOperationInfo(opInfo);
                     this.props.onModrdnReload();
                     if (result.errorCode === 0) {
-                        result.output = "Successfully renamed entry"
+                        result.output = "Successfully renamed entry";
                     }
                     this.setState({
-                        commandOutput: result.errorCode === 0 ? 'Successfully renamed entry!' : 'Failed to rename entry, error: ' + result.errorCode ,
+                        commandOutput: result.errorCode === 0 ? 'Successfully renamed entry!' : 'Failed to rename entry, error: ' + result.errorCode,
                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                         renaming: false
                     });
@@ -84,23 +83,23 @@ class RenameEntry extends React.Component {
             }
         };
 
-        this.handleBaseDnSelection = (treeViewItem) => {
+        this.onBaseDnSelection = (treeViewItem) => {
             if (treeViewItem.dn.toLowerCase().includes(this.props.wizardEntryDn.toLowerCase())) {
                 this.props.addNotification("warning",
-                    "Can not select a subtree that is the current entry, or a child of the current entry.");
+                                           "Can not select a subtree that is the current entry, or a child of the current entry.");
                 return;
             }
             this.setState({
                 newRdnSuffix: treeViewItem.dn
             });
-        }
+        };
 
         this.showTreeLoadingState = (isTreeLoading) => {
             this.setState({
                 isTreeLoading,
-                searching: isTreeLoading ? true : false
+                searching: !!isTreeLoading
             });
-        }
+        };
 
         this.handleRdnAttrChange = (attr) => {
             this.setState({
@@ -118,65 +117,67 @@ class RenameEntry extends React.Component {
             this.setState({
                 deleteOldRdn: checked
             });
-        }
+        };
 
         this.generateLdifData = this.generateLdifData.bind(this);
     }
 
     componentDidMount () {
         getBaseLevelEntryAttributes(this.props.editorLdapServer,
-            this.props.wizardEntryDn,
-            (entryDetails) => {
-                let objectclasses = [];
-                let allowedAttrs = [];
-                const rdnInfo = getRdnInfo(this.props.wizardEntryDn);
+                                    this.props.wizardEntryDn,
+                                    (entryDetails) => {
+                                        const objectclasses = [];
+                                        const allowedAttrs = [];
+                                        const rdnInfo = getRdnInfo(this.props.wizardEntryDn);
 
-                entryDetails
-                .filter(data => (data.attribute + data.value !== '' && // Filter out empty lines
-                data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
-                .map((line, index) => {
-                    const attr = line.attribute;
-                    const attrLowerCase = attr.trim().toLowerCase();
-                    let val = line.value.substring(1).trim().toLowerCase();
-                    if (attrLowerCase === "objectclass") {
-                        objectclasses.push(val);
-                    }
-                });
+                                        entryDetails
+                                                .filter(data => (data.attribute + data.value !== '' && // Filter out empty lines
+                                                        data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
+                                                .map((line, index) => {
+                                                    const attr = line.attribute;
+                                                    const attrLowerCase = attr.trim().toLowerCase();
+                                                    const val = line.value.substring(1).trim()
+                                                            .toLowerCase();
+                                                    if (attrLowerCase === "objectclass") {
+                                                        objectclasses.push(val);
+                                                    }
+                                                    return [];
+                                                });
 
-                // Gather all the allowed attributes for the rdn attr
-                for (const entryOC of objectclasses) {
-                    for (const oc of this.props.allObjectclasses) {
-                        if (oc.name.toLowerCase() === entryOC) {
-                            for (const attr of oc.required) {
-                                if (allowedAttrs.indexOf(attr) === -1) {
-                                    allowedAttrs.push(attr);
-                                }
-                            }
-                            for (const attr of oc.optional) {
-                                if (allowedAttrs.indexOf(attr) === -1) {
-                                    allowedAttrs.push(attr);
-                                }
-                            }
-                        }
-                    }
-                }
+                                        // Gather all the allowed attributes for the rdn attr
+                                        for (const entryOC of objectclasses) {
+                                            for (const oc of this.props.allObjectclasses) {
+                                                if (oc.name.toLowerCase() === entryOC) {
+                                                    for (const attr of oc.required) {
+                                                        if (allowedAttrs.indexOf(attr) === -1) {
+                                                            allowedAttrs.push(attr);
+                                                        }
+                                                    }
+                                                    for (const attr of oc.optional) {
+                                                        if (allowedAttrs.indexOf(attr) === -1) {
+                                                            allowedAttrs.push(attr);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
 
-                const rdnSuffix = this.props.wizardEntryDn.replace(rdnInfo.rdnAttr + "=" + rdnInfo.rdnVal + ",", "").trim();
-                this.setState({
-                    allowedAttrs,
-                    currRdnAttr: rdnInfo.rdnAttr,
-                    currRdnVal: rdnInfo.rdnVal,
-                    currRdnSuffix: rdnSuffix,
-                    newRdnAttr: rdnInfo.rdnAttr,
-                    newRdnVal: rdnInfo.rdnVal,
-                    newRdnSuffix: rdnSuffix,
-                    baseDn: rdnSuffix,
-                });
-        });
+                                        const rdnSuffix = this.props.wizardEntryDn.replace(rdnInfo.rdnAttr + "=" + rdnInfo.rdnVal + ",", "").trim();
+                                        this.setState({
+                                            allowedAttrs,
+                                            currRdnAttr: rdnInfo.rdnAttr,
+                                            currRdnVal: rdnInfo.rdnVal,
+                                            currRdnSuffix: rdnSuffix,
+                                            newRdnAttr: rdnInfo.rdnAttr,
+                                            newRdnVal: rdnInfo.rdnVal,
+                                            newRdnSuffix: rdnSuffix,
+                                            baseDn: rdnSuffix,
+                                        });
+                                    });
     }
 
     generateLdifData () {
-        let ldifArray = [];
+        const ldifArray = [];
 
         ldifArray.push(`dn: ${this.props.wizardEntryDn}`); // DN line.
         ldifArray.push('changetype: modrdn');
@@ -191,17 +192,17 @@ class RenameEntry extends React.Component {
         }
         this.setState({
             ldifArray
-        })
+        });
     }
 
     render () {
         const {
-            allowedAttrs, stepIdReached, nextEnabled, newRdnAttr, newRdnVal,
+            allowedAttrs, stepIdReached, newRdnAttr, newRdnVal,
             newRdnSuffix, ldifArray, resultVariant, commandOutput, currRdnAttr,
             currRdnVal, currRdnSuffix
         } = this.state;
 
-        const attrValStep =
+        const attrValStep = (
             <>
                 <TextContent>
                     <Text component={TextVariants.h2}>
@@ -254,9 +255,10 @@ class RenameEntry extends React.Component {
                         />
                     </div>
                 </Grid>
-            </>;
+            </>
+        );
 
-        const locationStep =
+        const locationStep = (
             <>
                 <TextContent>
                     <Text component={TextVariants.h2}>
@@ -273,41 +275,50 @@ class RenameEntry extends React.Component {
                     <LdapNavigator
                         treeItems={[...this.props.treeViewRootSuffixes]}
                         editorLdapServer={this.props.editorLdapServer}
-                        handleNodeOnClick={this.handleBaseDnSelection}
+                        handleNodeOnClick={this.onBaseDnSelection}
                         showTreeLoadingState={this.showTreeLoadingState}
                     />
                 </CardBody>
-            </>;
+            </>
+        );
 
         // Build the New RDN Labels
         const intactRdn = newRdnAttr + "=" + newRdnVal;
-        const rdnAttrLabel = newRdnAttr !== currRdnAttr || newRdnVal !== currRdnVal ?
+        const rdnAttrLabel = newRdnAttr !== currRdnAttr || newRdnVal !== currRdnVal
+            ? (
                 <Label color="blue">
                     {newRdnAttr}={newRdnVal}
                 </Label>
-            : <div className="ds-lower-field">{intactRdn}</div>
+            )
+            : <div className="ds-lower-field">{intactRdn}</div>;
 
-        const rdnSuffixLabel = newRdnSuffix !== currRdnSuffix  ?
+        const rdnSuffixLabel = newRdnSuffix !== currRdnSuffix
+            ? (
                 <Label color="blue">
                     {newRdnSuffix}
                 </Label>
-            : <div className="ds-lower-field">{newRdnSuffix}</div>
+            )
+            : <div className="ds-lower-field">{newRdnSuffix}</div>;
 
         // Build the Current RDN labels
         const intactCurrRdn = currRdnAttr + "=" + currRdnVal;
-        const rdnCurrAttrLabel = currRdnAttr !== newRdnAttr || newRdnVal !== currRdnVal ?
+        const rdnCurrAttrLabel = currRdnAttr !== newRdnAttr || newRdnVal !== currRdnVal
+            ? (
                 <Label variant="outline" color="grey">
                     {currRdnAttr}={currRdnVal}
                 </Label>
-            : <div className="ds-lower-field">{intactCurrRdn}</div>
+            )
+            : <div className="ds-lower-field">{intactCurrRdn}</div>;
 
-        const rdnCurrSuffixLabel = newRdnSuffix !== currRdnSuffix  ?
+        const rdnCurrSuffixLabel = newRdnSuffix !== currRdnSuffix
+            ? (
                 <Label variant="outline" color="grey">
                     {currRdnSuffix}
                 </Label>
-            : <div className="ds-lower-field">{currRdnSuffix}</div>
+            )
+            : <div className="ds-lower-field">{currRdnSuffix}</div>;
 
-        const reviewChangesStep =
+        const reviewChangesStep = (
             <>
                 <TextContent>
                     <Text component={TextVariants.h2}>
@@ -348,7 +359,8 @@ class RenameEntry extends React.Component {
                         </GridItem>
                     </Grid>
                 </div>
-            </>;
+            </>
+        );
 
         const ldifListItems = ldifArray.map((line, index) =>
             <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
@@ -356,7 +368,7 @@ class RenameEntry extends React.Component {
             </SimpleListItem>
         );
 
-        const ldifStatementsStep =
+        const ldifStatementsStep = (
             <>
                 <div className="ds-addons-bottom-margin">
                     <Alert
@@ -370,11 +382,11 @@ class RenameEntry extends React.Component {
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data modrdn">
                                 {ldifListItems}
-                            </SimpleList>
-                        }
+                            </SimpleList>}
                     </CardBody>
                 </Card>
-            </>;
+            </>
+        );
 
         let nb = -1;
         const ldifLines = ldifArray.map(line => {
@@ -395,8 +407,7 @@ class RenameEntry extends React.Component {
                             <div>
                                 <Spinner className="ds-left-margin" size="md" />
                                 &nbsp;&nbsp;Renaming entry ...
-                            </div>
-                        }
+                            </div>}
                     </Alert>
                 </div>
                 {resultVariant === 'danger' &&
@@ -407,11 +418,9 @@ class RenameEntry extends React.Component {
                                 <h6 key={line.id}>{line.data}</h6>
                             ))}
                         </CardBody>
-                    </Card>
-                }
+                    </Card>}
             </div>
         );
-
 
         const renameSteps = [
             {
@@ -440,7 +449,7 @@ class RenameEntry extends React.Component {
                 name: 'LDIF Statements',
                 component: ldifStatementsStep,
                 nextButtonText: 'Change Entry Name',
-                canJumpTo: stepIdReached >+ 4 && stepIdReached < 5,
+                canJumpTo: stepIdReached > +4 && stepIdReached < 5,
             },
             {
                 id: 5,
@@ -453,18 +462,19 @@ class RenameEntry extends React.Component {
             }
         ];
 
-        const desc =
+        const desc = (
             <>
                 Old DN: &nbsp;&nbsp;&nbsp;<b>{currRdnAttr}={currRdnVal},{currRdnSuffix}</b>
                 <br /><br />
                 New DN: &nbsp;&nbsp;<b>{newRdnAttr}={newRdnVal},{newRdnSuffix}</b>
-            </>;
+            </>
+        );
 
         return (
             <Wizard
                 isOpen={this.props.isWizardOpen}
-                onClose={this.props.toggleOpenWizard}
-                onNext={this.onNext}
+                onClose={this.props.handleToggleWizard}
+                onNext={this.handleNext}
                 title="Rename LDAP Entry"
                 description={desc}
                 steps={renameSteps}
