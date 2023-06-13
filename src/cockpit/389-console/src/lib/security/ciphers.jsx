@@ -38,24 +38,24 @@ export class Ciphers extends React.Component {
         };
 
         // Allow Ciphers
-        this.onAllowCipherToggle = isAllowCipherOpen => {
+        this.handleAllowCipherToggle = isAllowCipherOpen => {
             this.setState({
                 isAllowCipherOpen
             });
         };
-        this.onAllowCipherClear = () => {
+        this.handleAllowCipherClear = () => {
             this.setState({
                 allowCiphers: [],
                 isAllowCipherOpen: false
             });
         };
 
-        this.onDenyCipherToggle = isDenyCipherOpen => {
+        this.handleDenyCipherToggle = isDenyCipherOpen => {
             this.setState({
                 isDenyCipherOpen
             });
         };
-        this.onDenyCipherClear = () => {
+        this.handleDenyCipherClear = () => {
             this.setState({
                 denyCiphers: [],
                 isDenyCipherOpen: false
@@ -75,16 +75,16 @@ export class Ciphers extends React.Component {
         const availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
 
         // Parse SSL cipher attributes (nsSSL3Ciphers)
-        if (this.props.cipherPref != "") {
+        if (this.props.cipherPref !== "") {
             let rawCiphers = this.props.cipherPref.split(",");
 
             // First check the first element as it has special meaning
-            if (rawCiphers[0].toLowerCase() == "default") {
+            if (rawCiphers[0].toLowerCase() === "default") {
                 rawCiphers.shift();
-            } else if (rawCiphers[0].toLowerCase() == "+all") {
+            } else if (rawCiphers[0].toLowerCase() === "+all") {
                 cipherPref = "+all";
                 rawCiphers.shift();
-            } else if (rawCiphers[0].toLowerCase() == "-all") {
+            } else if (rawCiphers[0].toLowerCase() === "-all") {
                 cipherPref = "-all";
                 rawCiphers.shift();
             }
@@ -132,13 +132,13 @@ export class Ciphers extends React.Component {
         }
 
         this.setState({
-            cipherPref: cipherPref,
+            cipherPref,
             _cipherPref: cipherPref,
             allowCiphers: allowedCiphers,
             _allowCiphers: [...allowedCiphers],
             denyCiphers: deniedCiphers,
             _denyCiphers: [...deniedCiphers],
-            availableCiphers: availableCiphers,
+            availableCiphers,
         });
     }
 
@@ -199,17 +199,17 @@ export class Ciphers extends React.Component {
     handlePrefChange (val) {
         let disableSaveBtn = true;
 
-        if (JSON.stringify(this.state.allowCiphers) != JSON.stringify(this.state._allowCiphers) ||
-            JSON.stringify(this.state.denyCiphers) != JSON.stringify(this.state._denyCiphers)) {
+        if (JSON.stringify(this.state.allowCiphers) !== JSON.stringify(this.state._allowCiphers) ||
+            JSON.stringify(this.state.denyCiphers) !== JSON.stringify(this.state._denyCiphers)) {
             disableSaveBtn = false;
         }
-        if (this.state._cipherPref != val) {
+        if (this.state._cipherPref !== val) {
             disableSaveBtn = false;
         }
 
         this.setState({
             cipherPref: val,
-            disableSaveBtn: disableSaveBtn,
+            disableSaveBtn,
         });
     }
 
@@ -217,7 +217,7 @@ export class Ciphers extends React.Component {
         let disableSaveBtn = true;
         const availableCiphers = [...this.state.availableCiphers];
 
-        if (this.state.cipherPref != this.state._cipherPref) {
+        if (this.state.cipherPref !== this.state._cipherPref) {
             disableSaveBtn = false;
         }
 
@@ -233,7 +233,7 @@ export class Ciphers extends React.Component {
             if (index > -1) {
                 copy_new_ciphers.splice(index, 1);
             }
-            if (JSON.stringify(this.state._allowCiphers) != JSON.stringify(copy_new_ciphers)) {
+            if (JSON.stringify(this.state._allowCiphers) !== JSON.stringify(copy_new_ciphers)) {
                 disableSaveBtn = false;
             }
 
@@ -241,8 +241,8 @@ export class Ciphers extends React.Component {
                 (prevState) => ({
                     allowCiphers: prevState.allowCiphers.filter((item) => item !== selection),
                     isAllowCipherOpen: false,
-                    availableCiphers: availableCiphers,
-                    disableSaveBtn: disableSaveBtn,
+                    availableCiphers,
+                    disableSaveBtn,
                 }),
             );
         } else {
@@ -252,15 +252,15 @@ export class Ciphers extends React.Component {
                 availableCiphers.splice(index, 1);
                 availableCiphers.sort();
             }
-            if (JSON.stringify(this.state._allowCiphers) != JSON.stringify([...this.state.allowCiphers, selection])) {
+            if (JSON.stringify(this.state._allowCiphers) !== JSON.stringify([...this.state.allowCiphers, selection])) {
                 disableSaveBtn = false;
             }
             this.setState(
                 (prevState) => ({
                     allowCiphers: [...prevState.allowCiphers, selection],
                     isAllowCipherOpen: false,
-                    availableCiphers: availableCiphers,
-                    disableSaveBtn: disableSaveBtn,
+                    availableCiphers,
+                    disableSaveBtn,
                 }),
             );
         }
@@ -270,7 +270,7 @@ export class Ciphers extends React.Component {
         let disableSaveBtn = true;
         const availableCiphers = [...this.state.availableCiphers];
 
-        if (this.state.cipherPref != this.state._cipherPref) {
+        if (this.state.cipherPref !== this.state._cipherPref) {
             disableSaveBtn = false;
         }
 
@@ -286,7 +286,7 @@ export class Ciphers extends React.Component {
             if (index > -1) {
                 copy_new_ciphers.splice(index, 1);
             }
-            if (JSON.stringify(this.state._denyCiphers) != JSON.stringify(copy_new_ciphers)) {
+            if (JSON.stringify(this.state._denyCiphers) !== JSON.stringify(copy_new_ciphers)) {
                 disableSaveBtn = false;
             }
 
@@ -294,8 +294,8 @@ export class Ciphers extends React.Component {
                 (prevState) => ({
                     denyCiphers: prevState.denyCiphers.filter((item) => item !== selection),
                     isDenyCipherOpen: false,
-                    availableCiphers: availableCiphers,
-                    disableSaveBtn: disableSaveBtn,
+                    availableCiphers,
+                    disableSaveBtn,
                 }),
             );
         } else {
@@ -305,7 +305,7 @@ export class Ciphers extends React.Component {
                 availableCiphers.splice(index, 1);
                 availableCiphers.sort();
             }
-            if (JSON.stringify(this.state._denyCiphers) != JSON.stringify([...this.state.denyCiphers, selection])) {
+            if (JSON.stringify(this.state._denyCiphers) !== JSON.stringify([...this.state.denyCiphers, selection])) {
                 disableSaveBtn = false;
             }
 
@@ -313,8 +313,8 @@ export class Ciphers extends React.Component {
                 (prevState) => ({
                     denyCiphers: [...prevState.denyCiphers, selection],
                     isDenyCipherOpen: false,
-                    availableCiphers: availableCiphers,
-                    disableSaveBtn: disableSaveBtn,
+                    availableCiphers,
+                    disableSaveBtn,
                 }),
             );
         }
@@ -343,18 +343,18 @@ export class Ciphers extends React.Component {
         let supportedList = supportedCiphers.map((name) =>
             <SimpleListItem key={name}>{name}</SimpleListItem>
         );
-        if (supportedList.length == 0) {
+        if (supportedList.length === 0) {
             supportedList = "";
         }
         let enabledList = enabledCiphers.map((name) =>
             <SimpleListItem key={name}>{name}</SimpleListItem>
         );
-        if (enabledList.length == 0) {
+        if (enabledList.length === 0) {
             enabledList = "";
         }
 
         if (this.state.saving) {
-            cipherPage =
+            cipherPage = (
                 <div className="ds-center ds-margin-top-lg">
                     <TextContent>
                         <Text component={TextVariants.h3}>
@@ -362,9 +362,10 @@ export class Ciphers extends React.Component {
                         </Text>
                     </TextContent>
                     <Spinner size="lg" />
-                </div>;
+                </div>
+            );
         } else {
-            cipherPage =
+            cipherPage = (
                 <div className="ds-indent">
                     <Form className="ds-margin-top-lg" isHorizontal>
                         <Grid>
@@ -426,9 +427,9 @@ export class Ciphers extends React.Component {
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a cipher"
                                     isDisabled={this.state.cipherPref === "default"}
-                                    onToggle={this.onAllowCipherToggle}
+                                    onToggle={this.handleAllowCipherToggle}
                                     onSelect={this.handleAllowCipherChange}
-                                    onClear={this.onAllowCipherClear}
+                                    onClear={this.handleAllowCipherClear}
                                     selections={this.state.allowCiphers}
                                     isOpen={this.state.isAllowCipherOpen}
                                     aria-labelledby="typeAhead-allow-cipher"
@@ -454,9 +455,9 @@ export class Ciphers extends React.Component {
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a cipher"
                                     isDisabled={this.state.cipherPref === "default"}
-                                    onToggle={this.onDenyCipherToggle}
+                                    onToggle={this.handleDenyCipherToggle}
                                     onSelect={this.handleDenyCipherChange}
-                                    onClear={this.onDenyCipherClear}
+                                    onClear={this.handleDenyCipherClear}
                                     selections={this.state.denyCiphers}
                                     isOpen={this.state.isDenyCipherOpen}
                                     aria-labelledby="typeAhead-allow-deny"
@@ -487,7 +488,8 @@ export class Ciphers extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
-                </div>;
+                </div>
+            );
         }
 
         return (

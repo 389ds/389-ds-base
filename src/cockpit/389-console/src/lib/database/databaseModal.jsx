@@ -438,7 +438,7 @@ class ImportModal extends React.Component {
 
         const suffixRows = [];
         for (const row of rows) {
-            if (row[3] == suffix) {
+            if (row[3] === suffix) {
                 suffixRows.push(row);
             }
         }

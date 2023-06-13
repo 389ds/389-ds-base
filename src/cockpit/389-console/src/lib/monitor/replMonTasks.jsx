@@ -1,6 +1,4 @@
 import React from "react";
-import cockpit from "cockpit";
-import { log_cmd } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     CleanALLRUVTable,
@@ -48,28 +46,28 @@ export class ReplMonTasks extends React.Component {
     viewCleanLog (name) {
         let logData = "";
         for (const task of this.props.data.cleanTasks) {
-            if (task.attrs.cn[0] == name) {
+            if (task.attrs.cn[0] === name) {
                 logData = task.attrs.nstasklog[0];
                 break;
             }
         }
         this.setState({
             showLogModal: true,
-            logData: logData
+            logData
         });
     }
 
     viewAbortLog (name) {
         let logData = "";
         for (const task of this.props.data.abortTasks) {
-            if (task.attrs.cn[0] == name) {
+            if (task.attrs.cn[0] === name) {
                 logData = task.attrs.nstasklog[0];
                 break;
             }
         }
         this.setState({
             showLogModal: true,
-            logData: logData
+            logData
         });
     }
 
@@ -94,7 +92,7 @@ export class ReplMonTasks extends React.Component {
                                 className="ds-left-margin ds-refresh"
                                 icon={faSyncAlt}
                                 title="Refresh replication monitor"
-                                onClick={this.props.reload}
+                                onClick={this.props.handleReload}
                             />
                         </Text>
                     </TextContent>
@@ -131,16 +129,11 @@ export class ReplMonTasks extends React.Component {
 
 ReplMonTasks.propTypes = {
     data: PropTypes.object,
-    suffix: PropTypes.string,
-    serverId: PropTypes.string,
-    addNotification: PropTypes.func,
     enableTree: PropTypes.func,
 };
 
 ReplMonTasks.defaultProps = {
     data: {},
-    suffix: "",
-    serverId: "",
 };
 
 export default ReplMonTasks;

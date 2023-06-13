@@ -17,7 +17,7 @@ export class SuffixConfig extends React.Component {
         if (this.props.autoTuning) {
             const cacheValue = this.props.cachesize + "  (auto-sized)";
             const cachememValue = this.props.cachememsize + "  (auto-sized)";
-            cacheInputs =
+            cacheInputs = (
                 <Form isHorizontal autoComplete="off">
                     <Grid title="The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration">
                         <GridItem className="ds-label" span={3}>
@@ -66,9 +66,10 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </Form>;
+                </Form>
+            );
         } else {
-            cacheInputs =
+            cacheInputs = (
                 <Form isHorizontal autoComplete="off">
                     <Grid title="The size for the available memory space in bytes for the entry cache (nsslapd-cachememsize).">
                         <GridItem className="ds-label" span={3}>
@@ -121,7 +122,8 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </Form>;
+                </Form>
+            );
         }
 
         let saveBtnName = "Save Configuration";
@@ -187,7 +189,7 @@ export class SuffixConfig extends React.Component {
                 <div className="ds-margin-top-lg">
                     <Button
                         className="ds-margin-top-lg"
-                        onClick={this.props.saveHandler}
+                        onClick={this.props.handleSave}
                         variant="primary"
                         isLoading={this.props.saving}
                         spinnerAriaValueText={this.props.saving ? "Saving" : undefined}

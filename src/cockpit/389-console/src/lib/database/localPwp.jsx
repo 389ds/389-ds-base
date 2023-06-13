@@ -101,27 +101,27 @@ class CreatePolicy extends React.Component {
             isTPRExpanded: false,
         };
 
-        this.onGeneralToggle = (isGeneralExpanded) => {
+        this.handleGeneralToggle = (isGeneralExpanded) => {
             this.setState({
                 isGeneralExpanded
             });
         };
-        this.onLockoutToggle = (isLockoutExpanded) => {
+        this.handleLockoutToggle = (isLockoutExpanded) => {
             this.setState({
                 isLockoutExpanded
             });
         };
-        this.onExpiredToggle = (isExpiredExpanded) => {
+        this.handleExpiredToggle = (isExpiredExpanded) => {
             this.setState({
                 isExpiredExpanded
             });
         };
-        this.onSyntaxToggle = (isSyntaxExpanded) => {
+        this.handleSyntaxToggle = (isSyntaxExpanded) => {
             this.setState({
                 isSyntaxExpanded
             });
         };
-        this.onTPRToggle = (isTPRExpanded) => {
+        this.handleTPRToggle = (isTPRExpanded) => {
             this.setState({
                 isTPRExpanded
             });
@@ -168,7 +168,7 @@ class CreatePolicy extends React.Component {
                                 }}
                                 validated={this.props.invalid_dn ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!this.props.invalid_dn && this.props.policyDN != ""}>
+                            <FormHelperText isError isHidden={!this.props.invalid_dn && this.props.policyDN !== ""}>
                                 {helper_text}
                             </FormHelperText>
                         </GridItem>
@@ -177,7 +177,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isGeneralExpanded ? 'Hide General Settings' : 'Show General Settings'}
-                        onToggle={this.onGeneralToggle}
+                        onToggle={this.handleGeneralToggle}
                         isExpanded={this.state.isGeneralExpanded}
                     >
                         <div className="ds-margin-left">
@@ -326,7 +326,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isExpiredExpanded ? 'Hide Expiration Settings' : 'Show Expiration Settings'}
-                        onToggle={this.onExpiredToggle}
+                        onToggle={this.handleExpiredToggle}
                         isExpanded={this.state.isExpiredExpanded}
                     >
                         <div className="ds-margin-left">
@@ -421,7 +421,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isLockoutExpanded ? 'Hide Lockout Settings' : 'Show Lockout Settings'}
-                        onToggle={this.onLockoutToggle}
+                        onToggle={this.handleLockoutToggle}
                         isExpanded={this.state.isLockoutExpanded}
                     >
                         <div className="ds-margin-left">
@@ -509,7 +509,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isSyntaxExpanded ? 'Hide Syntax Settings' : 'Show Syntax Settings'}
-                        onToggle={this.onSyntaxToggle}
+                        onToggle={this.handleSyntaxToggle}
                         isExpanded={this.state.isSyntaxExpanded}
                     >
                         <div className="ds-margin-left">
@@ -814,11 +814,11 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isTPRExpanded ? 'Hide Temporary Password Settings' : 'Show Temporary Password Settings'}
-                        onToggle={this.onTPRToggle}
+                        onToggle={this.handleTPRToggle}
                         isExpanded={this.state.isTPRExpanded}
                     >
                         <div className="ds-margin-left">
-                                {this.props.create_passwordmustchange == false && (
+                            {this.props.create_passwordmustchange === false && (
                                 <FormAlert>
                                     <Alert
                                         variant="info"
@@ -827,7 +827,7 @@ class CreatePolicy extends React.Component {
                                         isInline
                                     />
                                 </FormAlert>
-                                 )}
+                            )}
                             <Grid
                                 title="Number of times the temporary password can be used to authenticate (passwordTPRMaxUse)."
                                 className="ds-margin-top"
@@ -895,7 +895,7 @@ class CreatePolicy extends React.Component {
                     isDisabled={this.props.createDisabled}
                     variant="primary"
                     className="ds-margin-top-lg ds-margin-left"
-                    onClick={this.props.createPolicy}
+                    onClick={this.props.handleCreatePolicy}
                 >
                     Create New Policy
                 </Button>
@@ -1145,12 +1145,12 @@ export class LocalPwPolicy extends React.Component {
         };
 
         // Check User Attributes Create
-        this.onUserAttrsCreateToggle = isUserAttrsCreateOpen => {
+        this.handleUserAttrsCreateToggle = isUserAttrsCreateOpen => {
             this.setState({
                 isUserAttrsCreateOpen
             });
         };
-        this.onUserAttrsCreateClear = () => {
+        this.handleUserAttrsCreateClear = () => {
             this.setState({
                 create_passworduserattributes: [],
                 isUserAttrsCreateOpen: false
@@ -1183,32 +1183,44 @@ export class LocalPwPolicy extends React.Component {
             });
         };
 
+        this.handleSelectToggle = isSelectOpen => {
+            this.setState({
+                isSelectOpen
+            });
+        };
+
+        this.handleSelectClear = () => {
+            this.setState({
+                passworduserattributes: [],
+            });
+        };
+
         this.createPolicy = this.createPolicy.bind(this);
         this.closeDeletePolicy = this.closeDeletePolicy.bind(this);
         this.deletePolicy = this.deletePolicy.bind(this);
-        this.handleCreateChange = this.handleCreateChange.bind(this);
-        this.handleCreateSelectChange = this.handleCreateSelectChange.bind(this);
+        this.onCreateChange = this.onCreateChange.bind(this);
+        this.onCreateSelectChange = this.onCreateSelectChange.bind(this);
         this.handleExpChange = this.handleExpChange.bind(this);
         this.handleGeneralChange = this.handleGeneralChange.bind(this);
         this.handleLockoutChange = this.handleLockoutChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
         this.handleSyntaxChange = this.handleSyntaxChange.bind(this);
         this.handleTPRChange = this.handleTPRChange.bind(this);
         this.loadLocal = this.loadLocal.bind(this);
-        this.loadPolicies = this.loadPolicies.bind(this);
-        this.resetTab = this.resetTab.bind(this);
-        this.saveExp = this.saveExp.bind(this);
-        this.saveGeneral = this.saveGeneral.bind(this);
-        this.saveLockout = this.saveLockout.bind(this);
-        this.saveSyntax = this.saveSyntax.bind(this);
-        this.saveTPR = this.saveTPR.bind(this);
+        this.handleLoadPolicies = this.handleLoadPolicies.bind(this);
+        this.handleResetTab = this.handleResetTab.bind(this);
+        this.handleSaveExp = this.handleSaveExp.bind(this);
+        this.handleSaveGeneral = this.handleSaveGeneral.bind(this);
+        this.handleSaveLockout = this.handleSaveLockout.bind(this);
+        this.handleSaveSyntax = this.handleSaveSyntax.bind(this);
+        this.handleSaveTPR = this.handleSaveTPR.bind(this);
         this.showDeletePolicy = this.showDeletePolicy.bind(this);
     }
 
     componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
-            this.loadPolicies();
+            this.handleLoadPolicies();
         } else {
             this.props.enableTree();
         }
@@ -1229,12 +1241,12 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    resetTab() {
+    handleResetTab() {
         // Reset to the table tab
         this.setState({ localActiveTabKey: 0 });
     }
 
-    handleModalChange(e) {
+    onModalChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
 
@@ -1243,13 +1255,13 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    handleCreateSelectChange(value) {
+    onCreateSelectChange(value) {
         this.setState({
             createPolicyType: value
         });
     }
 
-    handleCreateChange(e, selection) {
+    onCreateChange(e, selection) {
         let attr;
         let value;
         let disableSaveBtn = true;
@@ -1266,15 +1278,15 @@ export class LocalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const all_attr of all_attrs) {
-            if (all_attr == 'passworduserattributes' && attr == 'create_passworduserattributes') {
+            if (all_attr === 'passworduserattributes' && attr === 'create_passworduserattributes') {
                 const orig_val = this.state['_' + all_attr].join(' ');
-                if (orig_val != value) {
+                if (orig_val !== value) {
                     value = selection; // restore value
                     disableSaveBtn = false;
                     break;
                 }
                 value = selection; // restore value
-            } else if (attr == "create_" + all_attr && this.state['_create_' + all_attr] != value) {
+            } else if (attr === "create_" + all_attr && this.state['_create_' + all_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1282,32 +1294,32 @@ export class LocalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const all_attr of all_attrs) {
-            if (all_attr == 'passworduserattributes' && attr != 'create_passworduserattributes') {
+            if (all_attr === 'passworduserattributes' && attr !== 'create_passworduserattributes') {
                 // Typeahead attribute needs special care
                 const orig_val = this.state['_' + all_attr].join(' ');
                 const new_val = this.state[all_attr].join(' ');
-                if (orig_val != new_val) {
+                if (orig_val !== new_val) {
                     disableSaveBtn = false;
                     break;
                 }
-            } else if (attr != "create_" + all_attr && this.state['_create_' + all_attr] != this.state["create_" + all_attr]) {
+            } else if (attr !== "create_" + all_attr && this.state['_create_' + all_attr] !== this.state["create_" + all_attr]) {
                 disableSaveBtn = false;
                 break;
             }
         }
 
         // Lastly check the target DN is valid
-        if (attr == "policyDN") {
+        if (attr === "policyDN") {
             if (valid_dn(value)) {
                 disableSaveBtn = false;
             } else {
-                if (value != "") {
+                if (value !== "") {
                     invalid_dn = true;
                 }
                 disableSaveBtn = true;
             }
         } else {
-            if (this.state.policyDN == "") {
+            if (this.state.policyDN === "") {
                 disableSaveBtn = true;
             } else {
                 disableSaveBtn = false;
@@ -1321,7 +1333,7 @@ export class LocalPwPolicy extends React.Component {
                     (prevState) => ({
                         [attr]: prevState[attr].filter((item) => item !== selection),
                         createDisabled: disableSaveBtn,
-                        invalid_dn: invalid_dn,
+                        invalid_dn,
                         isUserAttrsCreateOpen: false
                     }),
                 );
@@ -1330,7 +1342,7 @@ export class LocalPwPolicy extends React.Component {
                     (prevState) => ({
                         [attr]: [...prevState[attr], selection],
                         createDisabled: disableSaveBtn,
-                        invalid_dn: invalid_dn,
+                        invalid_dn,
                         isUserAttrsCreateOpen: false
                     }),
                 );
@@ -1339,7 +1351,7 @@ export class LocalPwPolicy extends React.Component {
             this.setState({
                 [attr]: value,
                 createDisabled: disableSaveBtn,
-                invalid_dn: invalid_dn
+                invalid_dn
             });
         }
     }
@@ -1352,10 +1364,10 @@ export class LocalPwPolicy extends React.Component {
             loading: true
         });
 
-        if (this.state.createPolicyType == "Subtree Policy") {
+        if (this.state.createPolicyType === "Subtree Policy") {
             action = "addsubtree";
         }
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', action, this.state.policyDN
         ];
@@ -1363,17 +1375,17 @@ export class LocalPwPolicy extends React.Component {
         for (const attr of all_attrs) {
             let old_val = this.state['_create_' + attr];
             let new_val = this.state['create_' + attr];
-            if (new_val != old_val) {
+            if (new_val !== old_val) {
                 if (typeof new_val === "boolean") {
                     if (new_val) {
                         new_val = "on";
                     } else {
                         new_val = "off";
                     }
-                } else if (attr == 'passworduserattributes') {
+                } else if (attr === 'passworduserattributes') {
                     old_val = this.state._create_passworduserattributes.join(' ');
                     new_val = this.state.create_passworduserattributes.join(' ');
-                    if (old_val == new_val) {
+                    if (old_val === new_val) {
                         continue;
                     }
                 }
@@ -1385,7 +1397,7 @@ export class LocalPwPolicy extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadPolicies();
+                    this.handleLoadPolicies();
                     this.setState({
                         loading: false,
                     });
@@ -1396,7 +1408,7 @@ export class LocalPwPolicy extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.loadPolicies();
+                    this.handleLoadPolicies();
                     this.setState({
                         loading: false
                     });
@@ -1414,7 +1426,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const general_attr of general_attrs) {
-            if (attr == general_attr && this.state['_' + general_attr] != value) {
+            if (attr === general_attr && this.state['_' + general_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1422,7 +1434,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const general_attr of general_attrs) {
-            if (attr != general_attr && this.state['_' + general_attr] != this.state[general_attr]) {
+            if (attr !== general_attr && this.state['_' + general_attr] !== this.state[general_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1434,18 +1446,18 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    saveGeneral() {
+    handleSaveGeneral() {
         this.setState({
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
         for (const attr of general_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -1458,7 +1470,7 @@ export class LocalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveGeneral", "Saving general pwpolicy settings", cmd);
+        log_cmd("handleSaveGeneral", "Saving general pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -1491,7 +1503,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const exp_attr of exp_attrs) {
-            if (attr == exp_attr && this.state['_' + exp_attr] != value) {
+            if (attr === exp_attr && this.state['_' + exp_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1499,7 +1511,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const exp_attr of exp_attrs) {
-            if (attr != exp_attr && this.state['_' + exp_attr] != this.state[exp_attr]) {
+            if (attr !== exp_attr && this.state['_' + exp_attr] !== this.state[exp_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1511,18 +1523,18 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    saveExp() {
+    handleSaveExp() {
         this.setState({
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
         for (const attr of exp_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -1535,7 +1547,7 @@ export class LocalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveExp", "Saving Expiration pwpolicy settings", cmd);
+        log_cmd("handleSaveExp", "Saving Expiration pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -1568,7 +1580,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const lockout_attr of lockout_attrs) {
-            if (attr == lockout_attr && this.state['_' + lockout_attr] != value) {
+            if (attr === lockout_attr && this.state['_' + lockout_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1576,7 +1588,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const lockout_attr of lockout_attrs) {
-            if (attr != lockout_attr && this.state['_' + lockout_attr] != this.state[lockout_attr]) {
+            if (attr !== lockout_attr && this.state['_' + lockout_attr] !== this.state[lockout_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1588,18 +1600,18 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    saveLockout() {
+    handleSaveLockout() {
         this.setState({
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
         for (const attr of lockout_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -1612,7 +1624,7 @@ export class LocalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveLockout", "Saving lockout pwpolicy settings", cmd);
+        log_cmd("handleSaveLockout", "Saving lockout pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -1651,15 +1663,15 @@ export class LocalPwPolicy extends React.Component {
         let disableSaveBtn = true;
         // Check if a setting was changed, if so enable the save button
         for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr == 'passworduserattributes' && attr == 'passworduserattributes') {
+            if (syntax_attr === 'passworduserattributes' && attr === 'passworduserattributes') {
                 const orig_val = this.state['_' + syntax_attr].join(' ');
-                if (orig_val != value) {
+                if (orig_val !== value) {
                     value = selection; // restore value
                     disableSaveBtn = false;
                     break;
                 }
                 value = selection; // restore value
-            } else if (attr == syntax_attr && this.state['_' + syntax_attr] != value) {
+            } else if (attr === syntax_attr && this.state['_' + syntax_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1667,15 +1679,15 @@ export class LocalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr == 'passworduserattributes' && attr != 'passworduserattributes') {
+            if (syntax_attr === 'passworduserattributes' && attr !== 'passworduserattributes') {
                 // Typeahead attribute needs special care
                 const orig_val = this.state['_' + syntax_attr].join(' ');
                 const new_val = this.state[syntax_attr].join(' ');
-                if (orig_val != new_val) {
+                if (orig_val !== new_val) {
                     disableSaveBtn = false;
                     break;
                 }
-            } else if (attr != syntax_attr && this.state['_' + syntax_attr] != this.state[syntax_attr]) {
+            } else if (attr !== syntax_attr && this.state['_' + syntax_attr] !== this.state[syntax_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1708,18 +1720,18 @@ export class LocalPwPolicy extends React.Component {
         }
     }
 
-    saveSyntax() {
+    handleSaveSyntax() {
         this.setState({
             loading: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
         for (const attr of syntax_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -1732,7 +1744,7 @@ export class LocalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveSyntax", "Saving syntax checking pwpolicy settings", cmd);
+        log_cmd("handleSaveSyntax", "Saving syntax checking pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -1765,7 +1777,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const tpr_attr of tpr_attrs) {
-            if (attr == tpr_attr && this.state['_' + tpr_attr] != value) {
+            if (attr === tpr_attr && this.state['_' + tpr_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1773,7 +1785,7 @@ export class LocalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const tpr_attr of tpr_attrs) {
-            if (attr != tpr_attr && this.state['_' + tpr_attr] != this.state[tpr_attr]) {
+            if (attr !== tpr_attr && this.state['_' + tpr_attr] !== this.state[tpr_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1785,24 +1797,24 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    saveTPR() {
+    handleSaveTPR() {
         this.setState({
             saving: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'localpwp', 'set', this.state.policyName
         ];
 
         for (const attr of tpr_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
-                let val = this.state[attr];
+            if (this.state['_' + attr] !== this.state[attr]) {
+                const val = this.state[attr];
                 cmd.push(this.state.attrMap[attr] + "=" + val);
             }
         }
 
-        log_cmd("saveTPR", "Saving TPR pwpolicy settings", cmd);
+        log_cmd("handleSaveTPR", "Saving TPR pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -1842,11 +1854,11 @@ export class LocalPwPolicy extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadPolicies();
+                    this.handleLoadPolicies();
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.loadPolicies();
+                    this.handleLoadPolicies();
                     this.props.addNotification(
                         "error",
                         `Error deleting local password policy - ${errMsg.desc}`
@@ -1854,7 +1866,7 @@ export class LocalPwPolicy extends React.Component {
                 });
     }
 
-    loadPolicies() {
+    handleLoadPolicies() {
         this.setState({
             loading: true,
         });
@@ -1862,7 +1874,7 @@ export class LocalPwPolicy extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "localpwp", "list"
         ];
-        log_cmd("loadPolicies", "Load all the local password policies for the table", cmd);
+        log_cmd("handleLoadPolicies", "Load all the local password policies for the table", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -2044,13 +2056,13 @@ export class LocalPwPolicy extends React.Component {
                             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                             "config", "get", "passwordstoragescheme"
                         ];
-                        log_cmd("loadPolicies", "Load global password policy password scheme", gcmd);
+                        log_cmd("handleLoadPolicies", "Load global password policy password scheme", gcmd);
                         cockpit
                                 .spawn(gcmd, { superuser: true, err: "message" })
                                 .done(content => {
                                     const config = JSON.parse(content);
                                     const attrs = config.attrs;
-                                    const defaultStorageScheme = attrs['passwordstoragescheme'][0];
+                                    const defaultStorageScheme = attrs.passwordstoragescheme[0];
                                     this.setState({
                                         create_passwordstoragescheme: defaultStorageScheme,
                                         _create_passwordstoragescheme: defaultStorageScheme,
@@ -2200,40 +2212,40 @@ export class LocalPwPolicy extends React.Component {
                     if ('passwordinhistory' in attrs) {
                         pwInHistory = attrs.passwordinhistory[0];
                     }
-                    if ('passwordchange' in attrs && attrs.passwordchange[0] == "on") {
+                    if ('passwordchange' in attrs && attrs.passwordchange[0] === "on") {
                         pwChange = true;
                     }
-                    if ('passwordmustchange' in attrs && attrs.passwordmustchange[0] == "on") {
+                    if ('passwordmustchange' in attrs && attrs.passwordmustchange[0] === "on") {
                         pwMustChange = true;
                     }
-                    if ('passwordhistory' in attrs && attrs.passwordhistory[0] == "on") {
+                    if ('passwordhistory' in attrs && attrs.passwordhistory[0] === "on") {
                         pwHistory = true;
                     }
-                    if ('passwordtrackupdatetime' in attrs && attrs.passwordtrackupdatetime[0] == "on") {
+                    if ('passwordtrackupdatetime' in attrs && attrs.passwordtrackupdatetime[0] === "on") {
                         pwTrackUpdate = true;
                     }
-                    if ('passwordsendexpiringtime' in attrs && attrs.passwordsendexpiringtime[0] == "on") {
+                    if ('passwordsendexpiringtime' in attrs && attrs.passwordsendexpiringtime[0] === "on") {
                         pwSendExpire = true;
                     }
-                    if ('passwordlockout' in attrs && attrs.passwordlockout[0] == "on") {
+                    if ('passwordlockout' in attrs && attrs.passwordlockout[0] === "on") {
                         pwLockout = true;
                     }
-                    if ('passwordunlock' in attrs && attrs.passwordunlock[0] == "on") {
+                    if ('passwordunlock' in attrs && attrs.passwordunlock[0] === "on") {
                         pwUnlock = true;
                     }
-                    if ('passwordexp' in attrs && attrs.passwordexp[0] == "on") {
+                    if ('passwordexp' in attrs && attrs.passwordexp[0] === "on") {
                         pwExpire = true;
                     }
-                    if ('passwordchecksyntax' in attrs && attrs.passwordchecksyntax[0] == "on") {
+                    if ('passwordchecksyntax' in attrs && attrs.passwordchecksyntax[0] === "on") {
                         pwCheckSyntax = true;
                     }
-                    if ('passwordpalindrome' in attrs && attrs.passwordpalindrome[0] == "on") {
+                    if ('passwordpalindrome' in attrs && attrs.passwordpalindrome[0] === "on") {
                         pwPalindrome = true;
                     }
-                    if ('passworddictcheck' in attrs && attrs.passworddictcheck[0] == "on") {
+                    if ('passworddictcheck' in attrs && attrs.passworddictcheck[0] === "on") {
                         pwDictCheck = true;
                     }
-                    if ('passwordbadwords' in attrs && attrs.passwordbadwords[0] != "") {
+                    if ('passwordbadwords' in attrs && attrs.passwordbadwords[0] !== "") {
                         // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                         if (attrs.passwordbadwords.length > 1) {
                             pwBadWords = attrs.passwordbadwords.join(' ');
@@ -2241,7 +2253,7 @@ export class LocalPwPolicy extends React.Component {
                             pwBadWords = attrs.passwordbadwords[0];
                         }
                     }
-                    if ('passworduserattributes' in attrs && attrs.passworduserattributes[0] != "") {
+                    if ('passworduserattributes' in attrs && attrs.passworduserattributes[0] !== "") {
                         if (attrs.passworduserattributes.length > 1) {
                             // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                             attrs.passworduserattributes[0] = attrs.passworduserattributes.join(' ');
@@ -2266,7 +2278,7 @@ export class LocalPwPolicy extends React.Component {
                     if ('passwordadmindn' in attrs) {
                         pwAdminDN = attrs.passwordadmindn[0];
                     }
-                    if ('passwordadminskipinfoupdate' in attrs && attrs.passwordadminskipinfoupdate[0] == "on") {
+                    if ('passwordadminskipinfoupdate' in attrs && attrs.passwordadminskipinfoupdate[0] === "on") {
                         pwAdminSkipUpdates = true;
                     }
 
@@ -2393,7 +2405,7 @@ export class LocalPwPolicy extends React.Component {
         }
 
         if (this.state.passwordchecksyntax) {
-            pwSyntaxRows =
+            pwSyntaxRows = (
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
@@ -2609,9 +2621,9 @@ export class LocalPwPolicy extends React.Component {
                             <Select
                                 variant={SelectVariant.typeaheadMulti}
                                 typeAheadAriaLabel="Type an attribute to check"
-                                onToggle={this.onSelectToggle}
+                                onToggle={this.handleSelectToggle}
                                 onSelect={this.handleSyntaxChange}
-                                onClear={this.onSelectClear}
+                                onClear={this.handleSelectClear}
                                 selections={this.state.passworduserattributes}
                                 isOpen={this.state.isSelectOpen}
                                 aria-labelledby="typeAhead-user-attr"
@@ -2652,11 +2664,12 @@ export class LocalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
         }
 
         if (this.state.passwordlockout) {
-            pwLockoutRows =
+            pwLockoutRows = (
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top" title="The maximum number of failed logins before account gets locked (passwordMaxFailure).">
                         <GridItem className="ds-label" span={5}>
@@ -2721,11 +2734,12 @@ export class LocalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
         }
 
         if (this.state.passwordexp) {
-            pwExpirationRows =
+            pwExpirationRows = (
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top" title="The maxiumum age of a password in seconds before it expires (passwordMaxAge).">
                         <GridItem className="ds-label" span={5}>
@@ -2790,20 +2804,22 @@ export class LocalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
         }
 
         if (!this.state.editPolicy) {
-            edit_tab =
+            edit_tab = (
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text className="ds-center" component={TextVariants.h3}>
-                            Please choose a policy from the <a onClick={this.resetTab}>Local Policy Table</a>.
+                            Please choose a policy from the <a onClick={this.handleResetTab}>Local Policy Table</a>.
                         </Text>
                     </TextContent>
-                </div>;
+                </div>
+            );
         } else {
-            edit_tab =
+            edit_tab = (
                 <div className={this.state.loading ? 'ds-fadeout ds-left-margin' : 'ds-fadein ds-left-margin'}>
                     <TextContent>
                         <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
@@ -2955,7 +2971,7 @@ export class LocalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveGeneralDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left-sm ds-margin-bottom-md"
-                                onClick={this.saveGeneral}
+                                onClick={this.handleSaveGeneral}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -2983,7 +2999,7 @@ export class LocalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveExpDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-lg ds-margin-left"
-                                onClick={this.saveExp}
+                                onClick={this.handleSaveExp}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -3011,7 +3027,7 @@ export class LocalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveLockoutDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-lg ds-margin-left"
-                                onClick={this.saveLockout}
+                                onClick={this.handleSaveLockout}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -3039,7 +3055,7 @@ export class LocalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveSyntaxDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
-                                onClick={this.saveSyntax}
+                                onClick={this.handleSaveSyntax}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -3049,16 +3065,16 @@ export class LocalPwPolicy extends React.Component {
                         </Tab>
                         <Tab eventKey={4} title={<TabTitleText>Temporary Password Rules</TabTitleText>}>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
-                                {this.state.passwordmustchange == false && (
-                                <FormAlert className="ds-margin-top">
-                                    <Alert
+                                {this.state.passwordmustchange === false && (
+                                    <FormAlert className="ds-margin-top">
+                                        <Alert
                                         variant="info"
                                         title='"User Must Change Password After Reset" must be enabled in General Settings to activate TPR.'
                                         aria-live="polite"
                                         isInline
-                                    />
-                                </FormAlert>
-                                 )}
+                                        />
+                                    </FormAlert>
+                                )}
                                 <Grid
                                     title="Number of times the temporary password can be used to authenticate (passwordTPRMaxUse)."
                                 >
@@ -3128,7 +3144,7 @@ export class LocalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveTPRDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left ds-margin-bottom-md"
-                                onClick={this.saveTPR}
+                                onClick={this.handleSaveTPR}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -3137,10 +3153,11 @@ export class LocalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                     </Tabs>
-                </div>;
+                </div>
+            );
         }
 
-        let body =
+        let body = (
             <div className="ds-margin-top-lg">
                 <Tabs activeKey={this.state.localActiveTabKey} onSelect={this.handleLocalNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Local Policy Table</TabTitleText>}>
@@ -3158,15 +3175,15 @@ export class LocalPwPolicy extends React.Component {
                     </Tab>
                     <Tab eventKey={2} title={<TabTitleText>Create A Policy</TabTitleText>}>
                         <CreatePolicy
-                            handleChange={this.handleCreateChange}
-                            handleSelectChange={this.handleCreateSelectChange}
+                            handleChange={this.onCreateChange}
+                            handleSelectChange={this.onCreateSelectChange}
                             attrs={this.props.attrs}
                             passwordexp={this.state.create_passwordexp}
                             passwordchecksyntax={this.state.create_passwordchecksyntax}
                             passwordlockout={this.state.create_passwordlockout}
                             createDisabled={this.state.createDisabled}
                             passworduserattributes={this.state.create_passworduserattributes}
-                            createPolicy={this.createPolicy}
+                            handleCreatePolicy={this.createPolicy}
                             invalid_dn={this.state.invalid_dn}
                             key={this.state.rows}
                             policyDN={this.state.policyDN}
@@ -3185,20 +3202,22 @@ export class LocalPwPolicy extends React.Component {
                             create_passwordstoragescheme={this.state.create_passwordstoragescheme}
                             create_passwordadmindn={this.state.create_passwordadmindn}
                             create_passwordadminskipinfoupdate={this.state.create_passwordadminskipinfoupdate}
-                            onUserAttrsCreateToggle={this.onUserAttrsCreateToggle}
-                            onUserAttrsCreateClear={this.onUserAttrsCreateClear}
+                            onUserAttrsCreateToggle={this.handleUserAttrsCreateToggle}
+                            onUserAttrsCreateClear={this.handleUserAttrsCreateClear}
                             isUserAttrsCreateOpen={this.state.isUserAttrsCreateOpen}
                             pwdStorageSchemes={this.props.pwdStorageSchemes}
                         />
                     </Tab>
                 </Tabs>
-            </div>;
+            </div>
+        );
 
         if (this.state.loading || !this.state.loaded) {
-            body =
+            body = (
                 <div className="ds-margin-top-xlg ds-center">
                     <Spinner isSVG size="xl" />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -3207,12 +3226,13 @@ export class LocalPwPolicy extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Local Password Policies <FontAwesomeIcon
+                                Local Password Policies
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
                                     title="Refresh the local password policies"
-                                    onClick={this.loadPolicies}
+                                    onClick={this.handleLoadPolicies}
                                 />
                             </Text>
                         </TextContent>
@@ -3222,7 +3242,7 @@ export class LocalPwPolicy extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showDeletePolicy}
                     closeHandler={this.closeDeletePolicy}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deletePolicy}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}

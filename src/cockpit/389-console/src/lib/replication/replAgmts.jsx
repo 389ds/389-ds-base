@@ -83,12 +83,12 @@ export class ReplAgmts extends React.Component {
         };
 
         // Create - Exclude Attributes
-        this.onExcludeAttrsCreateToggle = isExcludeAttrsCreateOpen => {
+        this.handleExcludeAttrsCreateToggle = isExcludeAttrsCreateOpen => {
             this.setState({
                 isExcludeAttrsCreateOpen
             });
         };
-        this.onExcludeAttrsCreateClear = () => {
+        this.handleExcludeAttrsCreateClear = () => {
             this.setState({
                 agmtFracAttrs: [],
                 isExcludeAttrsCreateOpen: false
@@ -96,12 +96,12 @@ export class ReplAgmts extends React.Component {
         };
 
         // Create - Exclude Init Attributes
-        this.onExcludeAttrsInitCreateToggle = isExcludeInitAttrsCreateOpen => {
+        this.handleExcludeAttrsInitCreateToggle = isExcludeInitAttrsCreateOpen => {
             this.setState({
                 isExcludeInitAttrsCreateOpen
             });
         };
-        this.onExcludeAttrsInitCreateClear = () => {
+        this.handleExcludeAttrsInitCreateClear = () => {
             this.setState({
                 agmtFracInitAttrs: [],
                 isExcludeInitAttrsCreateOpen: false
@@ -114,7 +114,7 @@ export class ReplAgmts extends React.Component {
                 isStripAttrsCreateOpen
             });
         };
-        this.onStripAttrsCreateClear = () => {
+        this.handleStripAttrsCreateClear = () => {
             this.setState({
                 agmtStripAttrs: [],
                 isStripAttrsCreateOpen: false
@@ -122,12 +122,12 @@ export class ReplAgmts extends React.Component {
         };
 
         // Edit - Exclude Attributes
-        this.onExcludeAttrsEditToggle = isExcludeAttrsEditOpen => {
+        this.handleExcludeAttrsEditToggle = isExcludeAttrsEditOpen => {
             this.setState({
                 isExcludeAttrsEditOpen
             });
         };
-        this.onExcludeAttrsEditClear = () => {
+        this.handleExcludeAttrsEditClear = () => {
             this.setState({
                 agmtFracAttrs: [],
                 isExcludeAttrsEditOpen: false
@@ -135,12 +135,12 @@ export class ReplAgmts extends React.Component {
         };
 
         // Edit - Exclude Init Attributes
-        this.onExcludeAttrsInitEditToggle = isExcludeInitAttrsEditOpen => {
+        this.handleExcludeAttrsInitEditToggle = isExcludeInitAttrsEditOpen => {
             this.setState({
                 isExcludeInitAttrsEditOpen
             });
         };
-        this.onExcludeAttrsInitEditClear = () => {
+        this.handleExcludeAttrsInitEditClear = () => {
             this.setState({
                 agmtFracInitAttrs: [],
                 isExcludeInitAttrsEditOpen: false
@@ -153,27 +153,27 @@ export class ReplAgmts extends React.Component {
                 isStripAttrsEditOpen
             });
         };
-        this.onStripAttrsEditClear = () => {
+        this.handleStripAttrsEditClear = () => {
             this.setState({
                 agmtStripAttrs: [],
                 isStripAttrsEditOpen: false
             });
         };
 
-        this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
+        this.handleShowCreateAgmtModal = this.handleShowCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
         this.closeEditAgmtModal = this.closeEditAgmtModal.bind(this);
         this.handleTASelectChange = this.handleTASelectChange.bind(this);
-        this.handleTimeChange = this.handleTimeChange.bind(this);
-        this.handleCreateChange = this.handleCreateChange.bind(this);
-        this.handleEditChange = this.handleEditChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.handleTAFracInitAttrChange = this.handleTAFracInitAttrChange.bind(this);
-        this.handleTAFracAttrChange = this.handleTAFracAttrChange.bind(this);
-        this.handleTAStripAttrChange = this.handleTAStripAttrChange.bind(this);
-        this.handleTAFracInitAttrChangeEdit = this.handleTAFracInitAttrChangeEdit.bind(this);
-        this.handleTAFracAttrChangeEdit = this.handleTAFracAttrChangeEdit.bind(this);
-        this.handleTAStripAttrChangeEdit = this.handleTAStripAttrChangeEdit.bind(this);
+        this.onTimeChange = this.onTimeChange.bind(this);
+        this.onCreateChange = this.onCreateChange.bind(this);
+        this.onEditChange = this.onEditChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.onTAFracInitAttrChange = this.onTAFracInitAttrChange.bind(this);
+        this.onTAFracAttrChange = this.onTAFracAttrChange.bind(this);
+        this.onTAStripAttrChange = this.onTAStripAttrChange.bind(this);
+        this.onTAFracInitAttrChangeEdit = this.onTAFracInitAttrChangeEdit.bind(this);
+        this.onTAFracAttrChangeEdit = this.onTAFracAttrChangeEdit.bind(this);
+        this.onTAStripAttrChangeEdit = this.onTAStripAttrChangeEdit.bind(this);
         this.createAgmt = this.createAgmt.bind(this);
         this.showEditAgmt = this.showEditAgmt.bind(this);
         this.saveAgmt = this.saveAgmt.bind(this);
@@ -199,14 +199,14 @@ export class ReplAgmts extends React.Component {
     componentDidMount () {
         this._mounted = true;
         const rows = JSON.parse(JSON.stringify(this.props.rows));
-        this.setState({ rows: rows });
+        this.setState({ rows });
     }
 
     componentWillUnmount () {
         this._mounted = false;
     }
 
-    handleModalChange (e) {
+    onModalChange (e) {
         this.setState({
             [e.target.id]: e.target.checked,
         });
@@ -223,12 +223,12 @@ export class ReplAgmts extends React.Component {
         ];
 
         // If we disable
-        if (attr == 'agmtBootstrap' && value == false) {
+        if (attr === 'agmtBootstrap' && value === false) {
             errObj.agmtBootstrapBindDN = false;
             errObj.agmtBootstrapBindPW = false;
             errObj.agmtBootstrapBindPWConfirm = false;
         }
-        if (attr == 'agmtSync' && value == true) {
+        if (attr === 'agmtSync' && value === true) {
             errObj.agmtSyncMon = false;
             errObj.agmtSyncTue = false;
             errObj.agmtSyncWed = false;
@@ -241,21 +241,21 @@ export class ReplAgmts extends React.Component {
         }
 
         for (const configAttr of configAttrs) {
-            if (attr == configAttr) {
-                if (value == "") {
+            if (attr === configAttr) {
+                if (value === "") {
                     errObj[attr] = true;
                     all_good = false;
                 } else {
                     errObj[attr] = false;
                 }
-            } else if (this.state[configAttr] == "") {
+            } else if (this.state[configAttr] === "") {
                 errObj[configAttr] = true;
                 all_good = false;
             }
         }
 
         for (const dnAttr of dnAttrs) {
-            if (attr == dnAttr) {
+            if (attr === dnAttr) {
                 if (!valid_dn(value)) {
                     errObj[dnAttr] = true;
                     all_good = false;
@@ -268,47 +268,47 @@ export class ReplAgmts extends React.Component {
             }
         }
 
-        if (attr == 'agmtPort') {
+        if (attr === 'agmtPort') {
             if (!valid_port(value)) {
                 errObj.agmtPort = true;
                 all_good = false;
             } else {
                 errObj.agmtPort = false;
             }
-        } else if (attr == 'agmtProtocol') {
-            if (value == "LDAP") {
+        } else if (attr === 'agmtProtocol') {
+            if (value === "LDAP") {
                 modalData.agmtBindMethodOptions = ldapOptions;
             } else {
                 modalData.agmtBindMethodOptions = ldapsOptions;
             }
-            if (modalData.agmtBindMethodOptions.indexOf(this.state.agmtBindMethod) == -1) {
+            if (modalData.agmtBindMethodOptions.indexOf(this.state.agmtBindMethod) === -1) {
                 // Auto adjust the current state to account for the new method
                 modalData.agmtBindMethod = modalData.agmtBindMethodOptions[0];
             }
-        } else if (attr == "agmtBindMethod") {
+        } else if (attr === "agmtBindMethod") {
             modalData.agmtBindMethod = value;
-        } else if (attr == "agmtBootstrapBindMethod") {
+        } else if (attr === "agmtBootstrapBindMethod") {
             modalData.agmtBootstrapBindMethod = value;
-        } else if (attr == 'agmtBootstrapProtocol') {
-            if (value == "LDAP") {
+        } else if (attr === 'agmtBootstrapProtocol') {
+            if (value === "LDAP") {
                 modalData.agmtBootstrapBindMethodOptions = ldapBootstrapOptions;
             } else {
                 modalData.agmtBootstrapBindMethodOptions = ldapsBootstrapOptions;
             }
-            if (modalData.agmtBootstrapBindMethodOptions.indexOf(this.state.agmtBootstrapBindMethod) == -1) {
+            if (modalData.agmtBootstrapBindMethodOptions.indexOf(this.state.agmtBootstrapBindMethod) === -1) {
                 // Auto adjust the current state to account for the new method
                 modalData.agmtBootstrapBindMethod = modalData.agmtBootstrapBindMethodOptions[0];
             }
         }
 
         // Check passwords match
-        if (attr == 'agmtBindMethod' && (value != "SIMPLE" && value != "SASL/DIGEST-MD5")) {
+        if (attr === 'agmtBindMethod' && (value !== "SIMPLE" && value !== "SASL/DIGEST-MD5")) {
             errObj.agmtBindPW = false;
             errObj.agmtBindPWConfirm = false;
-        } else if ((this.state.agmtBindMethod == "SIMPLE" || this.state.agmtBindMethod == "SASL/DIGEST-MD5") ||
-                   (attr == 'agmtBindMethod' && (value == "SIMPLE" || value == "SASL/DIGEST-MD5"))) {
-            if (attr == 'agmtBindPW') {
-                if (value != this.state.agmtBindPWConfirm || value == "") {
+        } else if ((this.state.agmtBindMethod === "SIMPLE" || this.state.agmtBindMethod === "SASL/DIGEST-MD5") ||
+                   (attr === 'agmtBindMethod' && (value === "SIMPLE" || value === "SASL/DIGEST-MD5"))) {
+            if (attr === 'agmtBindPW') {
+                if (value !== this.state.agmtBindPWConfirm || value === "") {
                     errObj.agmtBindPW = true;
                     errObj.agmtBindPWConfirm = true;
                     all_good = false;
@@ -316,8 +316,8 @@ export class ReplAgmts extends React.Component {
                     errObj.agmtBindPW = false;
                     errObj.agmtBindPWConfirm = false;
                 }
-            } else if (attr == 'agmtBindPWConfirm') {
-                if (value != this.state.agmtBindPW || value == "") {
+            } else if (attr === 'agmtBindPWConfirm') {
+                if (value !== this.state.agmtBindPW || value === "") {
                     errObj.agmtBindPW = true;
                     errObj.agmtBindPWConfirm = true;
                     all_good = false;
@@ -325,7 +325,7 @@ export class ReplAgmts extends React.Component {
                     errObj.agmtBindPW = false;
                     errObj.agmtBindPWConfirm = false;
                 }
-            } else if (this.state.agmtBindPW != this.state.agmtBindPWConfirm || this.state.agmtBindPW == "" || this.state.agmtBindPWConfirm == "") {
+            } else if (this.state.agmtBindPW !== this.state.agmtBindPWConfirm || this.state.agmtBindPW === "" || this.state.agmtBindPWConfirm === "") {
                 // Not a pasword change, but the values are no good
                 errObj.agmtBindPW = true;
                 errObj.agmtBindPWConfirm = true;
@@ -344,16 +344,16 @@ export class ReplAgmts extends React.Component {
         // the bootstrap settings if one of the bootstrap settings is
         // changed - so there is a lot of overlap of checks, and setting and
         // unsetting the errObj, etc
-        if (attr == 'agmtBootstrap') {
+        if (attr === 'agmtBootstrap') {
             if (value) {
                 // Bootstrapping is enabled, validate the settings
-                if (this.state.agmtBootstrapBindMethod == "SIMPLE") {
-                    if (this.state.agmtBootstrapBindPW == "" || this.state.agmtBootstrapBindPWConfirm == "") {
+                if (this.state.agmtBootstrapBindMethod === "SIMPLE") {
+                    if (this.state.agmtBootstrapBindPW === "" || this.state.agmtBootstrapBindPWConfirm === "") {
                         // Can't be empty
                         errObj.agmtBootstrapBindPW = true;
                         errObj.agmtBootstrapBindPWConfirm = true;
                         all_good = false;
-                    } else if (this.state.agmtBootstrapBindPW != this.state.agmtBootstrapBindPWConfirm) {
+                    } else if (this.state.agmtBootstrapBindPW !== this.state.agmtBootstrapBindPWConfirm) {
                         // Must match
                         errObj.agmtBootstrapBindPW = true;
                         errObj.agmtBootstrapBindPWConfirm = true;
@@ -367,21 +367,21 @@ export class ReplAgmts extends React.Component {
                     errObj.agmtBootstrapProtocol = false;
                     errObj.agmtBootstrapBindMethod = false;
                 }
-                if (this.state.agmtBootstrapBindDN == "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
+                if (this.state.agmtBootstrapBindDN === "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
                     errObj.agmtBootstrapBindDN = true;
                     all_good = false;
                 }
             }
         } else if (this.state.agmtBootstrap) {
             // Check all the bootstrap settings
-            if (attr == "agmtBootstrapBindDN") {
-                if (value == "" || !valid_dn(value)) {
+            if (attr === "agmtBootstrapBindDN") {
+                if (value === "" || !valid_dn(value)) {
                     errObj.agmtBootstrapBindDN = true;
                     all_good = false;
                 } else {
                     errObj.agmtBootstrapBindDN = false;
                 }
-            } else if (this.state.agmtBootstrapBindDN == "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
+            } else if (this.state.agmtBootstrapBindDN === "" || !valid_dn(this.state.agmtBootstrapBindDN)) {
                 errObj.agmtBootstrapBindDN = true;
                 all_good = false;
             } else {
@@ -389,16 +389,16 @@ export class ReplAgmts extends React.Component {
                 errObj.agmtBootstrapBindDN = false;
             }
 
-            if (attr == 'agmtBootstrapBindMethod') {
+            if (attr === 'agmtBootstrapBindMethod') {
                 // Adjusting the Bind Method, if SIMPLE then verify the
                 // passwords are set and correct
-                if (value == "SIMPLE") {
-                    if (this.state.agmtBootstrapBindPW == "" || this.state.agmtBootstrapBindPWConfirm == "") {
+                if (value === "SIMPLE") {
+                    if (this.state.agmtBootstrapBindPW === "" || this.state.agmtBootstrapBindPWConfirm === "") {
                         // Can't be empty
                         errObj.agmtBootstrapBindPW = true;
                         errObj.agmtBootstrapBindPWConfirm = true;
                         all_good = false;
-                    } else if (this.state.agmtBootstrapBindPW != this.state.agmtBootstrapBindPWConfirm) {
+                    } else if (this.state.agmtBootstrapBindPW !== this.state.agmtBootstrapBindPWConfirm) {
                         // Must match
                         errObj.agmtBootstrapBindPW = true;
                         errObj.agmtBootstrapBindPWConfirm = true;
@@ -408,7 +408,7 @@ export class ReplAgmts extends React.Component {
                     // Not SIMPLE, ignore the passwords and reset errObj
                     errObj.agmtBootstrapBindPW = false;
                     errObj.agmtBootstrapBindPWConfirm = false;
-                    if (this.state.agmtBootstrapProtocol == "LDAP") {
+                    if (this.state.agmtBootstrapProtocol === "LDAP") {
                         errObj.agmtBootstrapBindMethod = true;
                         all_good = false;
                     } else {
@@ -417,15 +417,15 @@ export class ReplAgmts extends React.Component {
                         errObj.agmtBootstrapBindMethod = false;
                     }
                 }
-            } else if (this.state.agmtBootstrapBindMethod == "SIMPLE") {
+            } else if (this.state.agmtBootstrapBindMethod === "SIMPLE") {
                 // Current bind method is SIMPLE, check old password values,
                 // and new ones.
-                if (attr == 'agmtBootstrapBindPW') {
+                if (attr === 'agmtBootstrapBindPW') {
                     // Modifying password
-                    if (value == "") {
+                    if (value === "") {
                         all_good = false;
                         errObj.agmtBootstrapBindPW = true;
-                    } else if (value != this.state.agmtBootstrapBindPWConfirm) {
+                    } else if (value !== this.state.agmtBootstrapBindPWConfirm) {
                         errObj.agmtBootstrapBindPW = true;
                         errObj.agmtBootstrapBindPWConfirm = true;
                         all_good = false;
@@ -433,16 +433,16 @@ export class ReplAgmts extends React.Component {
                         errObj.agmtBootstrapBindPW = false;
                         errObj.agmtBootstrapBindPWConfirm = false;
                     }
-                } else if (this.state.agmtBootstrapBindPW == "") {
+                } else if (this.state.agmtBootstrapBindPW === "") {
                     // Current value is no good
                     all_good = false;
                 }
-                if (attr == 'agmtBootstrapBindPWConfirm') {
+                if (attr === 'agmtBootstrapBindPWConfirm') {
                     // Modifying password confirmation
-                    if (value == "") {
+                    if (value === "") {
                         all_good = false;
                         errObj.agmtBootstrapBindPWConfirm = true;
-                    } else if (value != this.state.agmtBootstrapBindPW) {
+                    } else if (value !== this.state.agmtBootstrapBindPW) {
                         errObj.agmtBootstrapBindPW = true;
                         errObj.agmtBootstrapBindPWConfirm = true;
                         all_good = false;
@@ -450,13 +450,13 @@ export class ReplAgmts extends React.Component {
                         errObj.agmtBootstrapBindPW = false;
                         errObj.agmtBootstrapBindPWConfirm = false;
                     }
-                } else if (this.state.agmtBootstrapBindPWConfirm == "") {
+                } else if (this.state.agmtBootstrapBindPWConfirm === "") {
                     // Current value is no good
                     all_good = false;
                 }
             } else {
                 // Bind method is SSLCLIENTAUTH, make sure the connection protocol is LDAPS
-                if (this.state.agmtBootstrapProtocol == "LDAP") {
+                if (this.state.agmtBootstrapProtocol === "LDAP") {
                     errObj.agmtBootstrapProtocol = true;
                     all_good = false;
                 } else {
@@ -467,7 +467,7 @@ export class ReplAgmts extends React.Component {
             }
         }
 
-        if (attr == 'agmtSync') {
+        if (attr === 'agmtSync') {
             if (value) {
                 // Just set all the days and let the user remove days as needed
                 errObj.agmtStartTime = false;
@@ -492,7 +492,7 @@ export class ReplAgmts extends React.Component {
                 "agmtSyncThu", "agmtSyncFri", "agmtSyncSat"
             ];
             for (const day of days) {
-                if ((attr != day && this.state[day]) || (attr == day && value)) {
+                if ((attr !== day && this.state[day]) || (attr === day && value)) {
                     have_days = true;
                     break;
                 }
@@ -513,8 +513,8 @@ export class ReplAgmts extends React.Component {
                 errObj.agmtSyncFri = true;
                 errObj.agmtSyncSat = true;
                 all_good = false;
-            } else if (attr == 'agmtStartTime') {
-                if (value == "") {
+            } else if (attr === 'agmtStartTime') {
+                if (value === "") {
                     all_good = false;
                     errObj.agmtStartTime = true;
                 } else if (value >= this.state.agmtEndTime) {
@@ -525,8 +525,8 @@ export class ReplAgmts extends React.Component {
                     errObj.agmtStartTime = false;
                     errObj.agmtEndTime = false;
                 }
-            } else if (attr == 'agmtEndTime') {
-                if (value == "") {
+            } else if (attr === 'agmtEndTime') {
+                if (value === "") {
                     errObj.agmtEndTime = true;
                     all_good = false;
                 } else if (this.state.agmtStartTime >= value) {
@@ -546,22 +546,22 @@ export class ReplAgmts extends React.Component {
         return all_good;
     }
 
-    handleTimeChange(action, attr, val) {
+    onTimeChange(action, attr, val) {
         let value = val.replace(":", "");
         const errObj = this.state.errObj;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
 
-        if (value == "") {
+        if (value === "") {
             value = "0000";
         }
-        if (attr == "agmtStartTime") {
+        if (attr === "agmtStartTime") {
             if (value > this.state.agmtEndTime) {
                 errObj.agmtStartTime = true;
             } else {
                 errObj.agmtStartTime = false;
                 errObj.agmtEndTime = false;
             }
-        } else if (attr == "agmtEndTime") {
+        } else if (attr === "agmtEndTime") {
             if (this.state.agmtStartTime > value) {
                 errObj.agmtEndTime = true;
             } else {
@@ -572,11 +572,11 @@ export class ReplAgmts extends React.Component {
 
         this.setState({
             [attr]: value,
-            errObj: errObj,
-        }, () => { action == "edit" ? this.handleEditChange(e) : this.handleCreateChange(e) });
+            errObj,
+        }, () => { action === "edit" ? this.onEditChange(e) : this.onCreateChange(e) });
     }
 
-    handleCreateChange (e) {
+    onCreateChange (e) {
         let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
         const errObj = this.state.errObj;
@@ -587,7 +587,7 @@ export class ReplAgmts extends React.Component {
             agmtBootstrapBindMethod: this.state.agmtBootstrapBindMethod,
             agmtBootstrapBindMethodOptions: this.state.agmtBootstrapBindMethodOptions
         };
-        if (e.target.type == "time") {
+        if (e.target.type === "time") {
             // Strip out the colon from the time
             value = value.replace(':', '');
         }
@@ -596,7 +596,7 @@ export class ReplAgmts extends React.Component {
 
         this.setState({
             [attr]: value,
-            errObj: errObj,
+            errObj,
             agmtSaveOK: all_good,
             agmtBindMethod: modalData.agmtBindMethod,
             agmtBindMethodOptions: modalData.agmtBindMethodOptions,
@@ -606,7 +606,7 @@ export class ReplAgmts extends React.Component {
         });
     }
 
-    handleEditChange (e) {
+    onEditChange (e) {
         let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
         const errObj = this.state.errObj;
@@ -619,7 +619,7 @@ export class ReplAgmts extends React.Component {
         };
         errObj[attr] = false;
 
-        if (e.target.type == "time") {
+        if (e.target.type === "time") {
             // Strip out the colon from the time
             value = value.replace(':', '');
         }
@@ -630,52 +630,52 @@ export class ReplAgmts extends React.Component {
             // All the values are valid, but did something change that warrants
             // the save button to be enabled?
             all_good = false;
-            if ((attr != 'agmtHost' && this.state.agmtHost != this.state._agmtHost) ||
-                (attr != 'agmtPort' && this.state.agmtPort != this.state._agmtPort) ||
-                (attr != 'agmtBindDN' && this.state.agmtBindDN != this.state._agmtBindDN) ||
-                (attr != 'agmtBindMethod' && this.state.agmtBindMethod != this.state._agmtBindMethod) ||
-                (attr != 'agmtProtocol' && this.state.agmtProtocol != this.state._agmtProtocol) ||
-                (attr != 'agmtSync' && this.state.agmtSync != this.state._agmtSync) ||
-                (attr != 'agmtBootstrap' && this.state.agmtBootstrap != this.state._agmtBootstrap) ||
-                (attr != 'agmtStripAttrs' && !listsEqual(this.state.agmtStripAttrs, this.state._agmtStripAttrs)) ||
-                (attr != 'agmtFracAttrs' && !listsEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs)) ||
-                (attr != 'agmtFracInitAttrs' && !listsEqual(this.state.agmtFracInitAttrs, this.state._agmtFracInitAttrs))) {
+            if ((attr !== 'agmtHost' && this.state.agmtHost !== this.state._agmtHost) ||
+                (attr !== 'agmtPort' && this.state.agmtPort !== this.state._agmtPort) ||
+                (attr !== 'agmtBindDN' && this.state.agmtBindDN !== this.state._agmtBindDN) ||
+                (attr !== 'agmtBindMethod' && this.state.agmtBindMethod !== this.state._agmtBindMethod) ||
+                (attr !== 'agmtProtocol' && this.state.agmtProtocol !== this.state._agmtProtocol) ||
+                (attr !== 'agmtSync' && this.state.agmtSync !== this.state._agmtSync) ||
+                (attr !== 'agmtBootstrap' && this.state.agmtBootstrap !== this.state._agmtBootstrap) ||
+                (attr !== 'agmtStripAttrs' && !listsEqual(this.state.agmtStripAttrs, this.state._agmtStripAttrs)) ||
+                (attr !== 'agmtFracAttrs' && !listsEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs)) ||
+                (attr !== 'agmtFracInitAttrs' && !listsEqual(this.state.agmtFracInitAttrs, this.state._agmtFracInitAttrs))) {
                 all_good = true;
             }
-            if ((attr != "agmtSync" && this.state.agmtSync) || (attr == "agmtSync" && value)) {
-                if ((attr != 'agmtSyncMon' && this.state.agmtSyncMon != this.state._agmtSyncMon) ||
-                    (attr != 'agmtSyncTue' && this.state.agmtSyncTue != this.state._agmtSyncTue) ||
-                    (attr != 'agmtSyncWed' && this.state.agmtSyncWed != this.state._agmtSyncWed) ||
-                    (attr != 'agmtSyncThu' && this.state.agmtSyncThu != this.state._agmtSyncThu) ||
-                    (attr != 'agmtSyncFri' && this.state.agmtSyncFri != this.state._agmtSyncFri) ||
-                    (attr != 'agmtSyncSat' && this.state.agmtSyncSat != this.state._agmtSyncSat) ||
-                    (attr != 'agmtSyncSun' && this.state.agmtSyncSun != this.state._agmtSyncSun) ||
-                    (attr != 'agmtStartTime' && this.state.agmtStartTime != this.state._agmtStartTime) ||
-                    (attr != 'agmtEndTime' && this.state.agmtEndTime != this.state._agmtEndTime)) {
+            if ((attr !== "agmtSync" && this.state.agmtSync) || (attr === "agmtSync" && value)) {
+                if ((attr !== 'agmtSyncMon' && this.state.agmtSyncMon !== this.state._agmtSyncMon) ||
+                    (attr !== 'agmtSyncTue' && this.state.agmtSyncTue !== this.state._agmtSyncTue) ||
+                    (attr !== 'agmtSyncWed' && this.state.agmtSyncWed !== this.state._agmtSyncWed) ||
+                    (attr !== 'agmtSyncThu' && this.state.agmtSyncThu !== this.state._agmtSyncThu) ||
+                    (attr !== 'agmtSyncFri' && this.state.agmtSyncFri !== this.state._agmtSyncFri) ||
+                    (attr !== 'agmtSyncSat' && this.state.agmtSyncSat !== this.state._agmtSyncSat) ||
+                    (attr !== 'agmtSyncSun' && this.state.agmtSyncSun !== this.state._agmtSyncSun) ||
+                    (attr !== 'agmtStartTime' && this.state.agmtStartTime !== this.state._agmtStartTime) ||
+                    (attr !== 'agmtEndTime' && this.state.agmtEndTime !== this.state._agmtEndTime)) {
                     all_good = true;
                 }
             }
-            if ((attr != "agmtBootstrap" && this.state.agmtBootstrap) || (attr == "agmtBootstrap" && value)) {
-                if ((attr != 'agmtBootstrapBindDN' && this.state.agmtBootstrapBindDN != this.state._agmtBootstrapBindDN) ||
-                    (attr != 'agmtBootstrapBindPW' && this.state.agmtBootstrapBindPW != this.state._agmtBootstrapBindPW) ||
-                    (attr != 'agmtBootstrapBindPWConfirm' && this.state.agmtBootstrapBindPWConfirm != this.state._agmtBootstrapBindPWConfirm) ||
-                    (attr != 'agmtBootstrapBindMethod' && this.state.agmtBootstrapBindMethod != this.state._agmtBootstrapBindMethod) ||
-                    (attr != 'agmtBootstrapProtocol' && this.state.agmtBootstrapProtocol != this.state._agmtBootstrapProtocol)) {
+            if ((attr !== "agmtBootstrap" && this.state.agmtBootstrap) || (attr === "agmtBootstrap" && value)) {
+                if ((attr !== 'agmtBootstrapBindDN' && this.state.agmtBootstrapBindDN !== this.state._agmtBootstrapBindDN) ||
+                    (attr !== 'agmtBootstrapBindPW' && this.state.agmtBootstrapBindPW !== this.state._agmtBootstrapBindPW) ||
+                    (attr !== 'agmtBootstrapBindPWConfirm' && this.state.agmtBootstrapBindPWConfirm !== this.state._agmtBootstrapBindPWConfirm) ||
+                    (attr !== 'agmtBootstrapBindMethod' && this.state.agmtBootstrapBindMethod !== this.state._agmtBootstrapBindMethod) ||
+                    (attr !== 'agmtBootstrapProtocol' && this.state.agmtBootstrapProtocol !== this.state._agmtBootstrapProtocol)) {
                     all_good = true;
                 }
             }
-            if ((attr == 'agmtStripAttrs' && !listsEqual(value, this.state._agmtStripAttrs)) ||
-                (attr == 'agmtFracAttrs' && !listsEqual(value, this.state._agmtFracAttrs)) ||
-                (attr == 'agmtFracInitAttrs' && !listsEqual(value, this.state._agmtFracInitAttrs))) {
+            if ((attr === 'agmtStripAttrs' && !listsEqual(value, this.state._agmtStripAttrs)) ||
+                (attr === 'agmtFracAttrs' && !listsEqual(value, this.state._agmtFracAttrs)) ||
+                (attr === 'agmtFracInitAttrs' && !listsEqual(value, this.state._agmtFracInitAttrs))) {
                 all_good = true;
-            } else if (attr != 'dummy' && value != this.state['_' + attr]) {
+            } else if (attr !== 'dummy' && value !== this.state['_' + attr]) {
                 all_good = true;
             }
         }
 
         this.setState({
             [attr]: value,
-            errObj: errObj,
+            errObj,
             agmtSaveOK: all_good,
             agmtBindMethod: modalData.agmtBindMethod,
             agmtBindMethodOptions: modalData.agmtBindMethodOptions,
@@ -690,7 +690,7 @@ export class ReplAgmts extends React.Component {
         const attr = e.target.id;
         let valueErr = false;
         const errObj = this.state.errObj;
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         errObj[attr] = valueErr;
@@ -701,7 +701,7 @@ export class ReplAgmts extends React.Component {
                 this.setState(
                     (prevState) => ({
                         [attr]: prevState[attr].filter((item) => item !== e.target.value),
-                        errObj: errObj,
+                        errObj,
                         [e.target.toggle]: false
                     }),
                 );
@@ -709,7 +709,7 @@ export class ReplAgmts extends React.Component {
                 this.setState(
                     (prevState) => ({
                         [attr]: [...prevState[attr], value],
-                        errObj: errObj,
+                        errObj,
                         [e.target.toggle]: false
                     }),
                 );
@@ -717,13 +717,13 @@ export class ReplAgmts extends React.Component {
         } else {
             this.setState({
                 [attr]: value,
-                errObj: errObj,
+                errObj,
                 [e.target.toggle]: false
             });
         }
     }
 
-    handleTAStripAttrChangeEdit (selection) {
+    onTAStripAttrChangeEdit (selection) {
         // TypeAhead handling
         const { agmtStripAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -732,17 +732,17 @@ export class ReplAgmts extends React.Component {
             this.setState({
                 agmtStripAttrs: new_values,
                 isStripAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         } else {
             const new_values = [...this.state.agmtStripAttrs, selection];
             this.setState({
                 agmtStripAttrs: new_values,
                 isStripAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         }
     }
 
-    handleTAFracAttrChangeEdit (selection) {
+    onTAFracAttrChangeEdit (selection) {
         // TypeAhead handling
         const { agmtFracAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -751,17 +751,17 @@ export class ReplAgmts extends React.Component {
             this.setState({
                 agmtFracAttrs: new_values,
                 isExcludeAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         } else {
             const new_values = [...this.state.agmtFracAttrs, selection];
             this.setState({
                 agmtFracAttrs: new_values,
                 isExcludeAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         }
     }
 
-    handleTAFracInitAttrChangeEdit (selection) {
+    onTAFracInitAttrChangeEdit (selection) {
         // TypeAhead handling
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
         const { agmtFracInitAttrs } = this.state;
@@ -770,17 +770,17 @@ export class ReplAgmts extends React.Component {
             this.setState({
                 agmtFracInitAttrs: new_values,
                 isExcludeInitAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         } else {
             const new_values = [...this.state.agmtFracInitAttrs, selection];
             this.setState({
                 agmtFracInitAttrs: new_values,
                 isExcludeInitAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         }
     }
 
-    handleTAStripAttrChange (values) {
+    onTAStripAttrChange (values) {
         // TypeAhead handling
         const e = {
             target: {
@@ -794,7 +794,7 @@ export class ReplAgmts extends React.Component {
         this.handleTASelectChange(e);
     }
 
-    handleTAFracAttrChange (values) {
+    onTAFracAttrChange (values) {
         // TypeAhead handling
         const e = {
             target: {
@@ -808,7 +808,7 @@ export class ReplAgmts extends React.Component {
         this.handleTASelectChange(e);
     }
 
-    handleTAFracInitAttrChange (values) {
+    onTAFracInitAttrChange (values) {
         // TypeAhead handling
         const e = {
             target: {
@@ -826,18 +826,18 @@ export class ReplAgmts extends React.Component {
         this.setState({
             [toggleId]: isExpanded
         });
-    }
+    };
 
     onSelectClear = (toggleId, collection) => {
         this.setState({
             [toggleId]: false,
             [collection]: []
         });
-    }
+    };
 
     showConfirmDeleteAgmt (agmtName) {
         this.setState({
-            agmtName: agmtName,
+            agmtName,
             showConfirmDeleteAgmt: true,
             modalChecked: false,
             modalSpinning: false,
@@ -854,7 +854,7 @@ export class ReplAgmts extends React.Component {
 
     showConfirmInitAgmt (agmtName) {
         this.setState({
-            agmtName: agmtName,
+            agmtName,
             showConfirmInitAgmt: true,
             modalChecked: false,
             modalSpinning: false,
@@ -869,7 +869,7 @@ export class ReplAgmts extends React.Component {
         });
     }
 
-    showCreateAgmtModal () {
+    handleShowCreateAgmtModal () {
         this.setState({
             showCreateAgmtModal: true,
             agmtName: "",
@@ -958,54 +958,54 @@ export class ReplAgmts extends React.Component {
                     let agmtEndTime = "2359";
                     for (const attr in config.attrs) {
                         const val = config.attrs[attr][0];
-                        if (attr == "cn") {
+                        if (attr === "cn") {
                             agmtName = val;
                         }
-                        if (attr == "nsds5replicahost") {
+                        if (attr === "nsds5replicahost") {
                             agmtHost = val;
                         }
-                        if (attr == "nsds5replicaport") {
+                        if (attr === "nsds5replicaport") {
                             agmtPort = val;
                         }
-                        if (attr == "nsds5replicatransportinfo") {
+                        if (attr === "nsds5replicatransportinfo") {
                             agmtProtocol = val;
                         }
-                        if (attr == "nsds5replicabindmethod") {
+                        if (attr === "nsds5replicabindmethod") {
                             agmtBindMethod = val.toUpperCase();
                         }
-                        if (attr == "nsds5replicabinddn") {
+                        if (attr === "nsds5replicabinddn") {
                             agmtBindDN = val;
                         }
-                        if (attr == "nsds5replicacredentials") {
+                        if (attr === "nsds5replicacredentials") {
                             agmtBindPW = val;
                             agmtBindPWConfirm = val;
                         }
-                        if (attr == "nsds5replicabootstraptransportinfo") {
+                        if (attr === "nsds5replicabootstraptransportinfo") {
                             agmtBootstrapProtocol = val;
                         }
-                        if (attr == "nsds5replicabootstrapbindmethod") {
+                        if (attr === "nsds5replicabootstrapbindmethod") {
                             agmtBootstrapBindMethod = val.toUpperCase();
                         }
-                        if (attr == "nsds5replicabootstrapbinddn") {
+                        if (attr === "nsds5replicabootstrapbinddn") {
                             agmtBootstrapBindDN = val;
                             agmtBootstrap = true;
                         }
-                        if (attr == "nsds5replicabootstrapcredentials") {
+                        if (attr === "nsds5replicabootstrapcredentials") {
                             agmtBootstrapBindPW = val;
                             agmtBootstrapBindPWConfirm = val;
                         }
-                        if (attr == "nsds5replicatedattributelist") {
+                        if (attr === "nsds5replicatedattributelist") {
                             const attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
                             agmtFracAttrs = attrs.split(' ');
                         }
-                        if (attr == "nsds5replicatedattributelisttotal") {
+                        if (attr === "nsds5replicatedattributelisttotal") {
                             const attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
                             agmtFracInitAttrs = attrs.split(' ');
                         }
-                        if (attr == "nsds5replicastripattrs") {
+                        if (attr === "nsds5replicastripattrs") {
                             agmtStripAttrs = val.split(' ');
                         }
-                        if (attr == "nsds5replicaupdateschedule") {
+                        if (attr === "nsds5replicaupdateschedule") {
                             agmtSync = true;
                             // Parse schedule
                             const parts = val.split(' ');
@@ -1043,33 +1043,33 @@ export class ReplAgmts extends React.Component {
                     if (this._mounted) {
                         this.setState({
                             showEditAgmtModal: true,
-                            agmtName: agmtName,
-                            agmtHost: agmtHost,
-                            agmtPort: agmtPort,
-                            agmtProtocol: agmtProtocol,
-                            agmtBindMethod: agmtBindMethod,
-                            agmtBindDN: agmtBindDN,
-                            agmtBindPW: agmtBindPW,
-                            agmtBindPWConfirm: agmtBindPWConfirm,
-                            agmtBootstrap: agmtBootstrap,
-                            agmtBootstrapProtocol: agmtBootstrapProtocol,
-                            agmtBootstrapBindMethod: agmtBootstrapBindMethod,
-                            agmtBootstrapBindDN: agmtBootstrapBindDN,
-                            agmtBootstrapBindPW: agmtBootstrapBindPW,
-                            agmtBootstrapBindPWConfirm: agmtBootstrapBindPWConfirm,
-                            agmtStripAttrs: agmtStripAttrs,
-                            agmtFracAttrs: agmtFracAttrs,
-                            agmtFracInitAttrs: agmtFracInitAttrs,
-                            agmtSync: agmtSync,
-                            agmtSyncMon: agmtSyncMon,
-                            agmtSyncTue: agmtSyncTue,
-                            agmtSyncWed: agmtSyncWed,
-                            agmtSyncThu: agmtSyncThu,
-                            agmtSyncFri: agmtSyncFri,
-                            agmtSyncSat: agmtSyncSat,
-                            agmtSyncSun: agmtSyncSun,
-                            agmtStartTime: agmtStartTime,
-                            agmtEndTime: agmtEndTime,
+                            agmtName,
+                            agmtHost,
+                            agmtPort,
+                            agmtProtocol,
+                            agmtBindMethod,
+                            agmtBindDN,
+                            agmtBindPW,
+                            agmtBindPWConfirm,
+                            agmtBootstrap,
+                            agmtBootstrapProtocol,
+                            agmtBootstrapBindMethod,
+                            agmtBootstrapBindDN,
+                            agmtBootstrapBindPW,
+                            agmtBootstrapBindPWConfirm,
+                            agmtStripAttrs,
+                            agmtFracAttrs,
+                            agmtFracInitAttrs,
+                            agmtSync,
+                            agmtSyncMon,
+                            agmtSyncTue,
+                            agmtSyncWed,
+                            agmtSyncThu,
+                            agmtSyncFri,
+                            agmtSyncSat,
+                            agmtSyncSun,
+                            agmtStartTime,
+                            agmtEndTime,
                             agmtSaveOK: false,
                             modalMsg: "",
                             errObj: {},
@@ -1114,7 +1114,7 @@ export class ReplAgmts extends React.Component {
     }
 
     saveAgmt () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'set', this.state.agmtName, '--suffix=' + this.props.suffix,
         ];
@@ -1146,48 +1146,48 @@ export class ReplAgmts extends React.Component {
                 agmt_days += "6";
             }
             cmd.push('--schedule=' + this.state.agmtStartTime.replace(':', '') + "-" + this.state.agmtEndTime.replace(':', '') + " " + agmt_days);
-        } else if (this.state.agmtSync != this.state._agmtSync && !this.state.agmtSync) {
+        } else if (this.state.agmtSync !== this.state._agmtSync && !this.state.agmtSync) {
             // We disabled custom scheduleRow
             cmd.push('--schedule=');
         }
-        if (this.state.agmtBindMethod != this.state._agmtBindMethod) {
+        if (this.state.agmtBindMethod !== this.state._agmtBindMethod) {
             cmd.push('--bind-method=' + this.state.agmtBindMethod);
         }
-        if (this.state.agmtProtocol != this.state._agmtProtocol) {
+        if (this.state.agmtProtocol !== this.state._agmtProtocol) {
             cmd.push('--conn-protocol=' + this.state.agmtProtocol);
         }
-        if (this.state.agmtBindPW != this.state._agmtBindPW) {
+        if (this.state.agmtBindPW !== this.state._agmtBindPW) {
             passwd = this.state.agmtBindPW;
         }
-        if (this.state.agmtBindDN != this.state._agmtBindDN) {
+        if (this.state.agmtBindDN !== this.state._agmtBindDN) {
             cmd.push('--bind-dn=' + this.state.agmtBindDN);
         }
-        if (this.state.agmtFracAttrs != this.state._agmtFracAttrs) {
+        if (this.state.agmtFracAttrs !== this.state._agmtFracAttrs) {
             cmd.push('--frac-list=' + this.state.agmtFracAttrs.join(' '));
         }
-        if (this.state.agmtFracInitAttrs != this.state._agmtFracInitAttrs) {
+        if (this.state.agmtFracInitAttrs !== this.state._agmtFracInitAttrs) {
             cmd.push('--frac-list-total=' + this.state.agmtFracInitAttrs.join(' '));
         }
-        if (this.state.agmtStripAttrs != this.state._agmtStripAttrs) {
+        if (this.state.agmtStripAttrs !== this.state._agmtStripAttrs) {
             cmd.push('--strip-list=' + this.state.agmtStripAttrs.join(' '));
         }
-        if (this.state.agmtHost != this.state._agmtHost) {
+        if (this.state.agmtHost !== this.state._agmtHost) {
             cmd.push('--host=' + this.state.agmtHost);
         }
-        if (this.state.agmtPort != this.state._agmtPort) {
+        if (this.state.agmtPort !== this.state._agmtPort) {
             cmd.push('--port=' + this.state.agmtPort);
         }
         if (this.state.agmtBootstrap) {
-            if (this.state.agmtBootstrapBindMethod != this.state._agmtBootstrapBindMethod) {
+            if (this.state.agmtBootstrapBindMethod !== this.state._agmtBootstrapBindMethod) {
                 cmd.push('--bootstrap-bind-method=' + this.state.agmtBootstrapBindMethod);
             }
-            if (this.state.agmtBootstrapProtocol != this.state._agmtBootstrapProtocol) {
+            if (this.state.agmtBootstrapProtocol !== this.state._agmtBootstrapProtocol) {
                 cmd.push('--bootstrap-conn-protocol=' + this.state.agmtBootstrapProtocol);
             }
-            if (this.state.agmtBootstrapBindPW != this.state._agmtBootstrapBindPW) {
-                bootstrap_passwd = this.state.agmtBootstrapBindPW
+            if (this.state.agmtBootstrapBindPW !== this.state._agmtBootstrapBindPW) {
+                bootstrap_passwd = this.state.agmtBootstrapBindPW;
             }
-            if (this.state.agmtBootstrapBindDN != this.state._agmtBootstrapBindDN) {
+            if (this.state.agmtBootstrapBindDN !== this.state._agmtBootstrapBindDN) {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
             }
         }
@@ -1277,8 +1277,8 @@ export class ReplAgmts extends React.Component {
         cockpit
                 .spawn(init_cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    var agmtIntervalCount = this.state.agmtInitCounter + 1;
-                    var intervals = this.state.agmtInitIntervals;
+                    const agmtIntervalCount = this.state.agmtInitCounter + 1;
+                    const intervals = this.state.agmtInitIntervals;
                     this.props.reload(this.props.suffix);
                     intervals[agmtIntervalCount] = setInterval(this.watchAgmtInit, 2000, this.state.agmtName, agmtIntervalCount);
                     if (this._mounted) {
@@ -1302,16 +1302,16 @@ export class ReplAgmts extends React.Component {
     }
 
     confirmToggle (agmtName, state) {
-        if (state == 'Enabled') {
+        if (state === 'Enabled') {
             this.setState({
-                agmtName: agmtName,
+                agmtName,
                 showConfirmDisableAgmt: true,
                 modalChecked: false,
                 modalSpinning: false,
             });
         } else {
             this.setState({
-                agmtName: agmtName,
+                agmtName,
                 showConfirmEnableAgmt: true,
                 modalChecked: false,
                 modalSpinning: false,
@@ -1422,7 +1422,7 @@ export class ReplAgmts extends React.Component {
         let passwd = "";
         let bootstrap_passwd = "";
 
-        if (this.state.agmtBindPW != "") {
+        if (this.state.agmtBindPW !== "") {
             passwd = this.state.agmtBindPW;
         }
 
@@ -1466,16 +1466,16 @@ export class ReplAgmts extends React.Component {
 
         // Handle bootstrap settings
         if (this.state.agmtBootstrap) {
-            if (this.state.agmtBootstrapBindDN != "") {
+            if (this.state.agmtBootstrapBindDN !== "") {
                 cmd.push('--bootstrap-bind-dn=' + this.state.agmtBootstrapBindDN);
             }
-            if (this.state.agmtBootstrapBindDNPW != "") {
+            if (this.state.agmtBootstrapBindDNPW !== "") {
                 bootstrap_passwd = this.state.agmtBootstrapBindDNPW;
             }
-            if (this.state.agmtBootstrapBindMethod != "") {
+            if (this.state.agmtBootstrapBindMethod !== "") {
                 cmd.push('--bootstrap-bind-method=' + this.state.agmtBootstrapBindMethod);
             }
-            if (this.state.agmtBootstrapProtocol != "") {
+            if (this.state.agmtBootstrapProtocol !== "") {
                 cmd.push('--bootstrap-conn-protocol=' + this.state.agmtBootstrapProtocol);
             }
         }
@@ -1511,7 +1511,7 @@ export class ReplAgmts extends React.Component {
                         'success',
                         'Successfully created replication agreement'
                     );
-                    if (this.state.agmtInit == 'online-init') {
+                    if (this.state.agmtInit === 'online-init') {
                         this.initAgmt(this.state.agmtName);
                     }
                 })
@@ -1565,26 +1565,26 @@ export class ReplAgmts extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    onSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3], row[4], row[5]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             rows = JSON.parse(JSON.stringify(this.props.rows));
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1601,15 +1601,15 @@ export class ReplAgmts extends React.Component {
                     enable={this.confirmToggle}
                     delete={this.showConfirmDeleteAgmt}
                     page={this.state.page}
-                    sort={this.onSort}
+                    handleSort={this.onSort}
                     sortBy={this.state.sortBy}
-                    search={this.onSearchChange}
+                    handleSearch={this.onSearchChange}
                     value={this.state.value}
                 />
                 <div className="ds-margin-top ds-container ds-inline">
                     <Button
                         variant="primary"
-                        onClick={this.showCreateAgmtModal}
+                        onClick={this.handleShowCreateAgmtModal}
                     >
                         Create Agreement
                     </Button>
@@ -1627,17 +1627,17 @@ export class ReplAgmts extends React.Component {
                     key={this.state.showCreateAgmtModal ? "create1" : "create0"}
                     showModal={this.state.showCreateAgmtModal}
                     closeHandler={this.closeCreateAgmtModal}
-                    handleChange={this.handleCreateChange}
-                    handleTimeChange={this.handleTimeChange}
-                    handleStripChange={this.handleTAStripAttrChange}
-                    handleFracChange={this.handleTAFracAttrChange}
-                    handleFracInitChange={this.handleTAFracInitAttrChange}
-                    onExcludeAttrsToggle={this.onExcludeAttrsCreateToggle}
-                    onExcludeAttrsClear={this.onExcludeAttrsCreateClear}
-                    onExcludeAttrsInitToggle={this.onExcludeAttrsInitCreateToggle}
-                    onExcludeAttrsInitClear={this.onExcludeAttrsInitCreateClear}
-                    onStripAttrsToggle={this.onStripAttrsCreateToggle}
-                    onStripAttrsClear={this.onStripAttrsCreateClear}
+                    handleChange={this.onCreateChange}
+                    handleTimeChange={this.onTimeChange}
+                    handleStripChange={this.onTAStripAttrChange}
+                    handleFracChange={this.onTAFracInitAttrChange}
+                    handleFracInitChange={this.onTAFracInitAttrChange}
+                    onExcludeAttrsToggle={this.handleExcludeAttrsCreateToggle}
+                    onExcludeAttrsClear={this.handleExcludeAttrsCreateClear}
+                    onExcludeAttrsInitToggle={this.handleExcludeAttrsInitCreateToggle}
+                    onExcludeAttrsInitClear={this.handleExcludeAttrsInitCreateClear}
+                    handleStripAttrsToggle={this.onStripAttrsCreateToggle}
+                    onStripAttrsClear={this.handleStripAttrsCreateClear}
                     isExcludeAttrsOpen={this.state.isExcludeAttrsCreateOpen}
                     isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsCreateOpen}
                     isStripAttrsOpen={this.state.isStripAttrsCreateOpen}
@@ -1681,17 +1681,17 @@ export class ReplAgmts extends React.Component {
                     key={this.state.showEditAgmtModal ? "edit1" : "edit0"}
                     showModal={this.state.showEditAgmtModal}
                     closeHandler={this.closeEditAgmtModal}
-                    handleChange={this.handleEditChange}
-                    handleTimeChange={this.handleTimeChange}
-                    handleStripChange={this.handleTAStripAttrChangeEdit}
-                    handleFracChange={this.handleTAFracAttrChangeEdit}
-                    handleFracInitChange={this.handleTAFracInitAttrChangeEdit}
-                    onExcludeAttrsToggle={this.onExcludeAttrsEditToggle}
-                    onExcludeAttrsClear={this.onExcludeAttrsEditClear}
-                    onExcludeAttrsInitToggle={this.onExcludeAttrsInitEditToggle}
-                    onExcludeAttrsInitClear={this.onExcludeAttrsInitEditClear}
-                    onStripAttrsToggle={this.onStripAttrsEditToggle}
-                    onStripAttrsClear={this.onStripAttrsEditClear}
+                    handleChange={this.onEditChange}
+                    handleTimeChange={this.onTimeChange}
+                    handleStripChange={this.onTAStripAttrChangeEdit}
+                    handleFracChange={this.onTAFracAttrChangeEdit}
+                    handleFracInitChange={this.onTAFracInitAttrChangeEdit}
+                    onExcludeAttrsToggle={this.handleExcludeAttrsEditToggle}
+                    onExcludeAttrsClear={this.handleExcludeAttrsEditClear}
+                    onExcludeAttrsInitToggle={this.handleExcludeAttrsInitEditToggle}
+                    onExcludeAttrsInitClear={this.handleExcludeAttrsInitEditClear}
+                    handleStripAttrsToggle={this.onStripAttrsEditToggle}
+                    onStripAttrsClear={this.handleStripAttrsEditClear}
                     isExcludeAttrsOpen={this.state.isExcludeAttrsEditOpen}
                     isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsEditOpen}
                     isStripAttrsOpen={this.state.isStripAttrsEditOpen}
@@ -1735,7 +1735,7 @@ export class ReplAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteAgmt}
                     closeHandler={this.closeConfirmDeleteAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
@@ -1748,7 +1748,7 @@ export class ReplAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmInitAgmt}
                     closeHandler={this.closeConfirmInitAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.initAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
@@ -1761,7 +1761,7 @@ export class ReplAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmEnableAgmt}
                     closeHandler={this.closeConfirmEnableAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.enableAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
@@ -1774,7 +1774,7 @@ export class ReplAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDisableAgmt}
                     closeHandler={this.closeConfirmDisableAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.disableAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}

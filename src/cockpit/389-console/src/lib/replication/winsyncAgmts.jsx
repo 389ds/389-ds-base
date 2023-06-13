@@ -73,12 +73,12 @@ export class WinsyncAgmts extends React.Component {
         };
 
         // Create - Exclude Attributes
-        this.onExcludeAttrCreateToggle = isExcludeAttrCreateOpen => {
+        this.handleExcludeAttrCreateToggle = isExcludeAttrCreateOpen => {
             this.setState({
                 isExcludeAttrCreateOpen
             });
         };
-        this.onExcludeAttrCreateClear = () => {
+        this.handleExcludeAttrCreateClear = () => {
             this.setState({
                 agmtFracAttrs: [],
                 isExcludeAttrCreateOpen: false
@@ -86,28 +86,28 @@ export class WinsyncAgmts extends React.Component {
         };
 
         // Edit - Exclude Attributes
-        this.onExcludeAttrEditToggle = isExcludeAttrEditOpen => {
+        this.handleExcludeAttrEditToggle = isExcludeAttrEditOpen => {
             this.setState({
                 isExcludeAttrEditOpen
             });
         };
-        this.onExcludeAttrEditClear = () => {
+        this.handleExcludeAttrEditClear = () => {
             this.setState({
                 agmtFracAttrs: [],
                 isExcludeAttrEditOpen: false
             });
         };
 
-        this.showCreateAgmtModal = this.showCreateAgmtModal.bind(this);
+        this.handleShowCreateAgmtModal = this.handleShowCreateAgmtModal.bind(this);
         this.closeCreateAgmtModal = this.closeCreateAgmtModal.bind(this);
         this.closeEditAgmtModal = this.closeEditAgmtModal.bind(this);
         this.handleTASelectChange = this.handleTASelectChange.bind(this);
-        this.handleTimeChange = this.handleTimeChange.bind(this);
-        this.handleCreateChange = this.handleCreateChange.bind(this);
-        this.handleEditChange = this.handleEditChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.handleTAFracAttrChange = this.handleTAFracAttrChange.bind(this);
-        this.handleTAFracAttrChangeEdit = this.handleTAFracAttrChangeEdit.bind(this);
+        this.onTimeChange = this.onTimeChange.bind(this);
+        this.onCreateChange = this.onCreateChange.bind(this);
+        this.onEditChange = this.onEditChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.onTAFracAttrChange = this.onTAFracAttrChange.bind(this);
+        this.onTAFracAttrChangeEdit = this.onTAFracAttrChangeEdit.bind(this);
         this.createAgmt = this.createAgmt.bind(this);
         this.showEditAgmt = this.showEditAgmt.bind(this);
         this.saveAgmt = this.saveAgmt.bind(this);
@@ -132,14 +132,14 @@ export class WinsyncAgmts extends React.Component {
     componentDidMount () {
         this._mounted = true;
         const rows = JSON.parse(JSON.stringify(this.props.rows));
-        this.setState({ rows: rows });
+        this.setState({ rows });
     }
 
     componentWillUnmount () {
         this._mounted = false;
     }
 
-    handleModalChange (e) {
+    onModalChange (e) {
         this.setState({
             [e.target.id]: e.target.checked,
         });
@@ -156,7 +156,7 @@ export class WinsyncAgmts extends React.Component {
         ];
 
         // If we disable
-        if (attr == 'agmtSync' && value == true) {
+        if (attr === 'agmtSync' && value === true) {
             errObj.agmtSyncMon = false;
             errObj.agmtSyncTue = false;
             errObj.agmtSyncWed = false;
@@ -169,21 +169,21 @@ export class WinsyncAgmts extends React.Component {
         }
 
         for (const configAttr of configAttrs) {
-            if (attr == configAttr) {
-                if (value == "") {
+            if (attr === configAttr) {
+                if (value === "") {
                     errObj[attr] = true;
                     all_good = false;
                 } else {
                     errObj[attr] = false;
                 }
-            } else if (this.state[configAttr] == "") {
+            } else if (this.state[configAttr] === "") {
                 errObj[configAttr] = true;
                 all_good = false;
             }
         }
 
         for (const dnAttr of dnAttrs) {
-            if (attr == dnAttr) {
+            if (attr === dnAttr) {
                 if (!valid_dn(value)) {
                     errObj[dnAttr] = true;
                     all_good = false;
@@ -196,7 +196,7 @@ export class WinsyncAgmts extends React.Component {
             }
         }
 
-        if (attr == 'agmtPort') {
+        if (attr === 'agmtPort') {
             if (!valid_port(value)) {
                 errObj.agmtPort = true;
                 all_good = false;
@@ -206,8 +206,8 @@ export class WinsyncAgmts extends React.Component {
         }
 
         // Check passwords match
-        if (attr == 'agmtBindPW') {
-            if (value != this.state.agmtBindPWConfirm || value == "") {
+        if (attr === 'agmtBindPW') {
+            if (value !== this.state.agmtBindPWConfirm || value === "") {
                 errObj.agmtBindPW = true;
                 errObj.agmtBindPWConfirm = true;
                 all_good = false;
@@ -215,8 +215,8 @@ export class WinsyncAgmts extends React.Component {
                 errObj.agmtBindPW = false;
                 errObj.agmtBindPWConfirm = false;
             }
-        } else if (attr == 'agmtBindPWConfirm') {
-            if (value != this.state.agmtBindPW || value == "") {
+        } else if (attr === 'agmtBindPWConfirm') {
+            if (value !== this.state.agmtBindPW || value === "") {
                 errObj.agmtBindPW = true;
                 errObj.agmtBindPWConfirm = true;
                 all_good = false;
@@ -224,14 +224,14 @@ export class WinsyncAgmts extends React.Component {
                 errObj.agmtBindPW = false;
                 errObj.agmtBindPWConfirm = false;
             }
-        } else if (this.state.agmtBindPW != this.state.agmtBindPWConfirm || this.state.agmtBindPW == "" || this.state.agmtBindPWConfirm == "") {
+        } else if (this.state.agmtBindPW !== this.state.agmtBindPWConfirm || this.state.agmtBindPW === "" || this.state.agmtBindPWConfirm === "") {
             // Not a pasword change, but the values are no good
             errObj.agmtBindPW = true;
             errObj.agmtBindPWConfirm = true;
             all_good = false;
         }
 
-        if (attr == 'agmtSync') {
+        if (attr === 'agmtSync') {
             if (value) {
                 // Just set all the days and let the user remove days as needed
                 errObj.agmtStartTime = false;
@@ -256,7 +256,7 @@ export class WinsyncAgmts extends React.Component {
                 "agmtSyncThu", "agmtSyncFri", "agmtSyncSat"
             ];
             for (const day of days) {
-                if ((attr != day && this.state[day]) || (attr == day && value)) {
+                if ((attr !== day && this.state[day]) || (attr === day && value)) {
                     have_days = true;
                     break;
                 }
@@ -277,8 +277,8 @@ export class WinsyncAgmts extends React.Component {
                 errObj.agmtSyncFri = true;
                 errObj.agmtSyncSat = true;
                 all_good = false;
-            } else if (attr == 'agmtStartTime') {
-                if (value == "") {
+            } else if (attr === 'agmtStartTime') {
+                if (value === "") {
                     all_good = false;
                     errObj.agmtStartTime = true;
                 } else if (value >= this.state.agmtEndTime) {
@@ -289,8 +289,8 @@ export class WinsyncAgmts extends React.Component {
                     errObj.agmtStartTime = false;
                     errObj.agmtEndTime = false;
                 }
-            } else if (attr == 'agmtEndTime') {
-                if (value == "") {
+            } else if (attr === 'agmtEndTime') {
+                if (value === "") {
                     errObj.agmtEndTime = true;
                     all_good = false;
                 } else if (this.state.agmtStartTime >= value) {
@@ -310,22 +310,22 @@ export class WinsyncAgmts extends React.Component {
         return all_good;
     }
 
-    handleTimeChange(action, attr, val) {
+    onTimeChange(action, attr, val) {
         let value = val.replace(":", "");
         const errObj = this.state.errObj;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
 
-        if (value == "") {
+        if (value === "") {
             value = "0000";
         }
-        if (attr == "agmtStartTime") {
+        if (attr === "agmtStartTime") {
             if (value > this.state.agmtEndTime) {
                 errObj.agmtStartTime = true;
             } else {
                 errObj.agmtStartTime = false;
                 errObj.agmtEndTime = false;
             }
-        } else if (attr == "agmtEndTime") {
+        } else if (attr === "agmtEndTime") {
             if (this.state.agmtStartTime > value) {
                 errObj.agmtEndTime = true;
             } else {
@@ -336,17 +336,17 @@ export class WinsyncAgmts extends React.Component {
 
         this.setState({
             [attr]: value,
-            errObj: errObj,
-        }, () => { action == "edit" ? this.handleEditChange(e) : this.handleCreateChange(e) });
+            errObj,
+        }, () => { action === "edit" ? this.onEditChange(e) : this.onCreateChange(e) });
     }
 
-    handleCreateChange (e) {
+    onCreateChange (e) {
         let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
         const errObj = this.state.errObj;
         let all_good = true;
 
-        if (e.target.type == "time") {
+        if (e.target.type === "time") {
             // Strip out the colon from the time
             value = value.replace(':', '');
         }
@@ -355,20 +355,20 @@ export class WinsyncAgmts extends React.Component {
 
         this.setState({
             [attr]: value,
-            errObj: errObj,
+            errObj,
             agmtSaveOK: all_good,
             [e.target.toggle]: false
         });
     }
 
-    handleEditChange (e) {
+    onEditChange (e) {
         let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
         const errObj = this.state.errObj;
         let all_good = true;
         errObj[attr] = false;
 
-        if (e.target.type == "time") {
+        if (e.target.type === "time") {
             // Strip out the colon from the time
             value = value.replace(':', '');
         }
@@ -379,45 +379,45 @@ export class WinsyncAgmts extends React.Component {
             // All the values are valid, but did something change that warrants
             // the save button to be enabled?
             all_good = false;
-            if ((attr != 'agmtHost' && this.state.agmtHost != this.state._agmtHost) ||
-                (attr != 'agmtPort' && this.state.agmtPort != this.state._agmtPort) ||
-                (attr != 'agmtBindDN' && this.state.agmtBindDN != this.state._agmtBindDN) ||
-                (attr != 'agmtBindMethod' && this.state.agmtBindMethod != this.state._agmtBindMethod) ||
-                (attr != 'agmtProtocol' && this.state.agmtProtocol != this.state._agmtProtocol) ||
-                (attr != 'agmtSync' && this.state.agmtSync != this.state._agmtSync) ||
-                (attr != 'agmtFracAttrs' && !listsEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs)) ||
-                (attr != 'agmtSyncGroups' && this.state.agmtSyncGroups != this.state._agmtSyncGroups) ||
-                (attr != 'agmtSyncUsers' && this.state.agmtSyncUsers != this.state._agmtSyncUsers) ||
-                (attr != 'agmtWinDomain' && this.state.agmtWinDomain != this.state._agmtWinDomain) ||
-                (attr != 'agmtWinSubtree' && this.state.agmtWinSubtree != this.state._agmtWinSubtree) ||
-                (attr != 'agmtDSSubtree' && this.state.agmtDSSubtree != this.state._agmtDSSubtree) ||
-                (attr != 'agmtOneWaySync' && this.state.agmtOneWaySync != this.state._agmtOneWaySync) ||
-                (attr != 'agmtSyncInterval' && this.state.agmtSyncInterval != this.state._agmtSyncInterval)) {
+            if ((attr !== 'agmtHost' && this.state.agmtHost !== this.state._agmtHost) ||
+                (attr !== 'agmtPort' && this.state.agmtPort !== this.state._agmtPort) ||
+                (attr !== 'agmtBindDN' && this.state.agmtBindDN !== this.state._agmtBindDN) ||
+                (attr !== 'agmtBindMethod' && this.state.agmtBindMethod !== this.state._agmtBindMethod) ||
+                (attr !== 'agmtProtocol' && this.state.agmtProtocol !== this.state._agmtProtocol) ||
+                (attr !== 'agmtSync' && this.state.agmtSync !== this.state._agmtSync) ||
+                (attr !== 'agmtFracAttrs' && !listsEqual(this.state.agmtFracAttrs, this.state._agmtFracAttrs)) ||
+                (attr !== 'agmtSyncGroups' && this.state.agmtSyncGroups !== this.state._agmtSyncGroups) ||
+                (attr !== 'agmtSyncUsers' && this.state.agmtSyncUsers !== this.state._agmtSyncUsers) ||
+                (attr !== 'agmtWinDomain' && this.state.agmtWinDomain !== this.state._agmtWinDomain) ||
+                (attr !== 'agmtWinSubtree' && this.state.agmtWinSubtree !== this.state._agmtWinSubtree) ||
+                (attr !== 'agmtDSSubtree' && this.state.agmtDSSubtree !== this.state._agmtDSSubtree) ||
+                (attr !== 'agmtOneWaySync' && this.state.agmtOneWaySync !== this.state._agmtOneWaySync) ||
+                (attr !== 'agmtSyncInterval' && this.state.agmtSyncInterval !== this.state._agmtSyncInterval)) {
                 all_good = true;
             }
-            if ((attr != "agmtSync" && this.state.agmtSync) || (attr == "agmtSync" && value)) {
-                if ((attr != 'agmtSyncMon' && this.state.agmtSyncMon != this.state._agmtSyncMon) ||
-                    (attr != 'agmtSyncTue' && this.state.agmtSyncTue != this.state._agmtSyncTue) ||
-                    (attr != 'agmtSyncWed' && this.state.agmtSyncWed != this.state._agmtSyncWed) ||
-                    (attr != 'agmtSyncThu' && this.state.agmtSyncThu != this.state._agmtSyncThu) ||
-                    (attr != 'agmtSyncFri' && this.state.agmtSyncFri != this.state._agmtSyncFri) ||
-                    (attr != 'agmtSyncSat' && this.state.agmtSyncSat != this.state._agmtSyncSat) ||
-                    (attr != 'agmtSyncSun' && this.state.agmtSyncSun != this.state._agmtSyncSun) ||
-                    (attr != 'agmtStartTime' && this.state.agmtStartTime != this.state._agmtStartTime) ||
-                    (attr != 'agmtEndTime' && this.state.agmtEndTime != this.state._agmtEndTime)) {
+            if ((attr !== "agmtSync" && this.state.agmtSync) || (attr === "agmtSync" && value)) {
+                if ((attr !== 'agmtSyncMon' && this.state.agmtSyncMon !== this.state._agmtSyncMon) ||
+                    (attr !== 'agmtSyncTue' && this.state.agmtSyncTue !== this.state._agmtSyncTue) ||
+                    (attr !== 'agmtSyncWed' && this.state.agmtSyncWed !== this.state._agmtSyncWed) ||
+                    (attr !== 'agmtSyncThu' && this.state.agmtSyncThu !== this.state._agmtSyncThu) ||
+                    (attr !== 'agmtSyncFri' && this.state.agmtSyncFri !== this.state._agmtSyncFri) ||
+                    (attr !== 'agmtSyncSat' && this.state.agmtSyncSat !== this.state._agmtSyncSat) ||
+                    (attr !== 'agmtSyncSun' && this.state.agmtSyncSun !== this.state._agmtSyncSun) ||
+                    (attr !== 'agmtStartTime' && this.state.agmtStartTime !== this.state._agmtStartTime) ||
+                    (attr !== 'agmtEndTime' && this.state.agmtEndTime !== this.state._agmtEndTime)) {
                     all_good = true;
                 }
             }
-            if (attr == 'agmtFracAttrs' && !this.listEqual(value, this.state._agmtFracAttrs)) {
+            if (attr === 'agmtFracAttrs' && !this.listEqual(value, this.state._agmtFracAttrs)) {
                 all_good = true;
-            } else if (attr != 'dummy' && value != this.state['_' + attr]) {
+            } else if (attr !== 'dummy' && value !== this.state['_' + attr]) {
                 all_good = true;
             }
         }
 
         this.setState({
             [attr]: value,
-            errObj: errObj,
+            errObj,
             agmtSaveOK: all_good,
             [e.target.toggle]: false
         });
@@ -428,7 +428,7 @@ export class WinsyncAgmts extends React.Component {
         const attr = e.target.id;
         let valueErr = false;
         const errObj = this.state.errObj;
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         errObj[attr] = valueErr;
@@ -439,7 +439,7 @@ export class WinsyncAgmts extends React.Component {
                 this.setState(
                     (prevState) => ({
                         [attr]: prevState[attr].filter((item) => item !== e.target.value),
-                        errObj: errObj,
+                        errObj,
                         [e.target.toggle]: false
                     }),
                 );
@@ -447,7 +447,7 @@ export class WinsyncAgmts extends React.Component {
                 this.setState(
                     (prevState) => ({
                         [attr]: [...prevState[attr], value],
-                        errObj: errObj,
+                        errObj,
                         [e.target.toggle]: false
                     }),
                 );
@@ -455,13 +455,13 @@ export class WinsyncAgmts extends React.Component {
         } else {
             this.setState({
                 [attr]: value,
-                errObj: errObj,
+                errObj,
                 [e.target.toggle]: false
             });
         }
     }
 
-    handleTAFracAttrChangeEdit (selection) {
+    onTAFracAttrChangeEdit (selection) {
         // TypeAhead handling
         const { agmtFracAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
@@ -470,17 +470,17 @@ export class WinsyncAgmts extends React.Component {
             this.setState({
                 agmtFracAttrs: new_values,
                 isExcludeAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         } else {
             const new_values = [...this.state.agmtFracAttrs, selection];
             this.setState({
                 agmtFracAttrs: new_values,
                 isExcludeAttrsEditOpen: false,
-            }, () => { this.handleEditChange(e) });
+            }, () => { this.onEditChange(e) });
         }
     }
 
-    handleTAFracAttrChange (values) {
+    onTAFracAttrChange (values) {
         // TypeAhead handling
         const e = {
             target: {
@@ -496,7 +496,7 @@ export class WinsyncAgmts extends React.Component {
 
     showConfirmDeleteAgmt (agmtName) {
         this.setState({
-            agmtName: agmtName,
+            agmtName,
             showConfirmDeleteAgmt: true,
             modalSpinning: false,
             modalChecked: false,
@@ -512,7 +512,7 @@ export class WinsyncAgmts extends React.Component {
 
     showConfirmInitAgmt (agmtName) {
         this.setState({
-            agmtName: agmtName,
+            agmtName,
             showConfirmInitAgmt: true,
             modalSpinning: false,
             modalChecked: false,
@@ -526,7 +526,7 @@ export class WinsyncAgmts extends React.Component {
         });
     }
 
-    showCreateAgmtModal () {
+    handleShowCreateAgmtModal () {
         this.setState({
             showCreateAgmtModal: true,
             agmtName: "",
@@ -622,55 +622,55 @@ export class WinsyncAgmts extends React.Component {
 
                     for (const attr in config.attrs) {
                         const val = config.attrs[attr][0];
-                        if (attr == "winsyncinterval") {
+                        if (attr === "winsyncinterval") {
                             agmtSyncInterval = val;
                         }
-                        if (attr == "onewaysync") {
+                        if (attr === "onewaysync") {
                             agmtOneWaySync = val;
                         }
-                        if (attr == "nsds7directoryreplicasubtree") {
+                        if (attr === "nsds7directoryreplicasubtree") {
                             agmtDSSubtree = val;
                         }
-                        if (attr == "nsds7windowsreplicasubtree") {
+                        if (attr === "nsds7windowsreplicasubtree") {
                             agmtWinSubtree = val;
                         }
-                        if (attr == "nsds7windowsdomain") {
+                        if (attr === "nsds7windowsdomain") {
                             agmtWinDomain = val;
                         }
-                        if (attr == "nsds7newwinusersyncenabled") {
-                            if (val.toLowerCase() == "on") {
+                        if (attr === "nsds7newwinusersyncenabled") {
+                            if (val.toLowerCase() === "on") {
                                 agmtSyncUsers = true;
                             }
                         }
-                        if (attr == "nsds7newwingroupsyncenabled") {
-                            if (val.toLowerCase() == "on") {
+                        if (attr === "nsds7newwingroupsyncenabled") {
+                            if (val.toLowerCase() === "on") {
                                 agmtSyncGroups = true;
                             }
                         }
-                        if (attr == "cn") {
+                        if (attr === "cn") {
                             agmtName = val;
                         }
-                        if (attr == "nsds5replicahost") {
+                        if (attr === "nsds5replicahost") {
                             agmtHost = val;
                         }
-                        if (attr == "nsds5replicaport") {
+                        if (attr === "nsds5replicaport") {
                             agmtPort = val;
                         }
-                        if (attr == "nsds5replicatransportinfo") {
+                        if (attr === "nsds5replicatransportinfo") {
                             agmtProtocol = val;
                         }
-                        if (attr == "nsds5replicabinddn") {
+                        if (attr === "nsds5replicabinddn") {
                             agmtBindDN = val;
                         }
-                        if (attr == "nsds5replicacredentials") {
+                        if (attr === "nsds5replicacredentials") {
                             agmtBindPW = val;
                             agmtBindPWConfirm = val;
                         }
-                        if (attr == "nsds5replicatedattributelist") {
+                        if (attr === "nsds5replicatedattributelist") {
                             const attrs = val.replace("(objectclass=*) $ EXCLUDE", "").trim();
                             agmtFracAttrs = attrs.split(' ');
                         }
-                        if (attr == "nsds5replicaupdateschedule") {
+                        if (attr === "nsds5replicaupdateschedule") {
                             agmtSync = true;
                             // Parse schedule
                             const parts = val.split(' ');
@@ -709,31 +709,31 @@ export class WinsyncAgmts extends React.Component {
                         this.setState({
                             showEditAgmtModal: true,
                             errObj: {},
-                            agmtName: agmtName,
-                            agmtHost: agmtHost,
-                            agmtPort: agmtPort,
-                            agmtProtocol: agmtProtocol,
-                            agmtBindDN: agmtBindDN,
-                            agmtBindPW: agmtBindPW,
-                            agmtBindPWConfirm: agmtBindPWConfirm,
-                            agmtFracAttrs: agmtFracAttrs,
-                            agmtSync: agmtSync,
-                            agmtSyncMon: agmtSyncMon,
-                            agmtSyncTue: agmtSyncTue,
-                            agmtSyncWed: agmtSyncWed,
-                            agmtSyncThu: agmtSyncThu,
-                            agmtSyncFri: agmtSyncFri,
-                            agmtSyncSat: agmtSyncSat,
-                            agmtSyncSun: agmtSyncSun,
-                            agmtStartTime: agmtStartTime,
-                            agmtEndTime: agmtEndTime,
-                            agmtSyncGroups: agmtSyncGroups,
-                            agmtSyncUsers: agmtSyncUsers,
-                            agmtWinDomain: agmtWinDomain,
-                            agmtWinSubtree: agmtWinSubtree,
-                            agmtDSSubtree: agmtDSSubtree,
-                            agmtOneWaySync: agmtOneWaySync,
-                            agmtSyncInterval: agmtSyncInterval,
+                            agmtName,
+                            agmtHost,
+                            agmtPort,
+                            agmtProtocol,
+                            agmtBindDN,
+                            agmtBindPW,
+                            agmtBindPWConfirm,
+                            agmtFracAttrs,
+                            agmtSync,
+                            agmtSyncMon,
+                            agmtSyncTue,
+                            agmtSyncWed,
+                            agmtSyncThu,
+                            agmtSyncFri,
+                            agmtSyncSat,
+                            agmtSyncSun,
+                            agmtStartTime,
+                            agmtEndTime,
+                            agmtSyncGroups,
+                            agmtSyncUsers,
+                            agmtWinDomain,
+                            agmtWinSubtree,
+                            agmtDSSubtree,
+                            agmtOneWaySync,
+                            agmtSyncInterval,
                             agmtSaveOK: false,
                             // Record original values before editing
                             _agmtName: agmtName,
@@ -774,12 +774,12 @@ export class WinsyncAgmts extends React.Component {
     }
 
     saveAgmt () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'set', this.state.agmtName, '--suffix=' + this.props.suffix,
         ];
 
-        let passwd = "";
+        const passwd = "";
 
         // Handle Schedule
         if (this.state.agmtSync) {
@@ -806,59 +806,59 @@ export class WinsyncAgmts extends React.Component {
                 agmt_days += "6";
             }
             cmd.push('--schedule=' + this.state.agmtStartTime.replace(':', '') + "-" + this.state.agmtEndTime.replace(':', '') + " " + agmt_days);
-        } else if (this.state.agmtSync != this.state._agmtSync && !this.state.agmtSync) {
+        } else if (this.state.agmtSync !== this.state._agmtSync && !this.state.agmtSync) {
             // We disabled custom scheduleRow
             cmd.push('--schedule=');
         }
-        if (this.state.agmtSyncGroups != this.state._agmtSyncGroups) {
+        if (this.state.agmtSyncGroups !== this.state._agmtSyncGroups) {
             let val = "off";
             if (this.state.agmtSyncGroups) {
                 val = "on";
             }
             cmd.push('--sync-groups=' + val);
         }
-        if (this.state.agmtSyncUsers != this.state._agmtSyncUsers) {
+        if (this.state.agmtSyncUsers !== this.state._agmtSyncUsers) {
             let val = "off";
             if (this.state.agmtSyncUsers) {
                 val = "on";
             }
             cmd.push('--sync-users=' + val);
         }
-        if (this.state.agmtWinDomain != this.state._agmtWinDomain) {
+        if (this.state.agmtWinDomain !== this.state._agmtWinDomain) {
             cmd.push('--win-domain=' + this.state.agmtWinDomain);
         }
-        if (this.state.agmtWinSubtree != this.state._agmtWinSubtree) {
+        if (this.state.agmtWinSubtree !== this.state._agmtWinSubtree) {
             cmd.push('--win-subtree=' + this.state.agmtWinSubtree);
         }
-        if (this.state.agmtDSSubtree != this.state._agmtDSSubtree) {
+        if (this.state.agmtDSSubtree !== this.state._agmtDSSubtree) {
             cmd.push('--ds-subtree=' + this.state.agmtDSSubtree);
         }
-        if (this.state.agmtOneWaySync != this.state._agmtOneWaySync) {
+        if (this.state.agmtOneWaySync !== this.state._agmtOneWaySync) {
             let value = this.state.agmtOneWaySync;
-            if (value == "both") {
+            if (value === "both") {
                 value = "";
             }
             cmd.push('--one-way-sync=' + value);
         }
-        if (this.state.agmtSyncInterval != this.state._agmtSyncInterval) {
+        if (this.state.agmtSyncInterval !== this.state._agmtSyncInterval) {
             cmd.push('--sync-interval=' + this.state.agmtSyncInterval);
         }
-        if (this.state.agmtProtocol != this.state._agmtProtocol) {
+        if (this.state.agmtProtocol !== this.state._agmtProtocol) {
             cmd.push('--conn-protocol=' + this.state.agmtProtocol);
         }
-        if (this.state.agmtBindPW != this.state._agmtBindPW) {
+        if (this.state.agmtBindPW !== this.state._agmtBindPW) {
             cmd.push('--bind-passwd=' + this.state.agmtBindPW);
         }
-        if (this.state.agmtBindDN != this.state._agmtBindDN) {
+        if (this.state.agmtBindDN !== this.state._agmtBindDN) {
             cmd.push('--bind-passwd=' + this.state.agmtBindDN);
         }
-        if (this.state.agmtFracAttrs != this.state._agmtFracAttrs) {
+        if (this.state.agmtFracAttrs !== this.state._agmtFracAttrs) {
             cmd.push('--frac-list=' + this.state.agmtFracAttrs.join(' '));
         }
-        if (this.state.agmtHost != this.state._agmtHost) {
+        if (this.state.agmtHost !== this.state._agmtHost) {
             cmd.push('--host=' + this.state.agmtHost);
         }
-        if (this.state.agmtPort != this.state._agmtPort) {
+        if (this.state.agmtPort !== this.state._agmtPort) {
             cmd.push('--port=' + this.state.agmtPort);
         }
 
@@ -868,9 +868,9 @@ export class WinsyncAgmts extends React.Component {
 
         // Something changed, perform the update
         const config = {
-            cmd: cmd,
+            cmd,
             promptArg: "--bind-passwd-prompt",
-            passwd: passwd,
+            passwd,
             addNotification: this.props.addNotification,
             success_msg: "Successfully updated winsync agreement",
             error_msg: "Failed to update winsync agreement",
@@ -878,7 +878,7 @@ export class WinsyncAgmts extends React.Component {
                 this.setState({
                     savingAgmt: false,
                     showEditAgmtModal: false,
-                })
+                });
             },
             reload_func: this.props.reload,
             reload_arg: this.props.suffix,
@@ -920,8 +920,8 @@ export class WinsyncAgmts extends React.Component {
         cockpit
                 .spawn(init_cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    var agmtIntervalCount = this.state.agmtInitCounter + 1;
-                    var intervals = this.state.agmtInitIntervals;
+                    const agmtIntervalCount = this.state.agmtInitCounter + 1;
+                    const intervals = this.state.agmtInitIntervals;
                     this.props.reload(this.props.suffix);
                     intervals[agmtIntervalCount] = setInterval(this.watchAgmtInit, 2000, this.state.agmtName, agmtIntervalCount);
                     // This triggers error and does not actually work
@@ -946,16 +946,16 @@ export class WinsyncAgmts extends React.Component {
     }
 
     confirmToggle (agmtName, state) {
-        if (state == 'Enabled') {
+        if (state === 'Enabled') {
             this.setState({
-                agmtName: agmtName,
+                agmtName,
                 showConfirmDisableAgmt: true,
                 modalSpinning: false,
                 modalChecked: false,
             });
         } else {
             this.setState({
-                agmtName: agmtName,
+                agmtName,
                 showConfirmEnableAgmt: true,
                 modalSpinning: false,
                 modalChecked: false,
@@ -1058,7 +1058,7 @@ export class WinsyncAgmts extends React.Component {
     }
 
     createAgmt () {
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-winsync-agmt', 'create', this.state.agmtName, '--suffix=' + this.props.suffix,
             '--host=' + this.state.agmtHost, '--port=' + this.state.agmtPort,
@@ -1068,7 +1068,7 @@ export class WinsyncAgmts extends React.Component {
             '--win-domain=' + this.state.agmtWinDomain, '--one-way-sync=' + this.state.agmtOneWaySync
         ];
 
-        let passwd = this.state.agmtBindPW;
+        const passwd = this.state.agmtBindPW;
 
         // Handle Schedule
         if (this.state.agmtSync) {
@@ -1106,7 +1106,7 @@ export class WinsyncAgmts extends React.Component {
         if (this.state.agmtSyncUsers) {
             cmd.push('--sync-users=on');
         }
-        if (this.state.agmtSyncInterval != "") {
+        if (this.state.agmtSyncInterval !== "") {
             cmd.push('--sync-interval=' + this.state.agmtSyncInterval);
         }
 
@@ -1115,16 +1115,16 @@ export class WinsyncAgmts extends React.Component {
         });
 
         // Something changed, perform the update
-        let ext_func = ""
+        let ext_func = "";
         if (this.state.agmtInit === 'online-init') {
             ext_func = this.initAgmt;
         }
 
         log_cmd('createAgmt', 'Create winsync agmt', cmd);
         const config = {
-            cmd: cmd,
+            cmd,
             promptArg: "--bind-passwd-prompt",
-            passwd: passwd,
+            passwd,
             addNotification: this.props.addNotification,
             success_msg: "Successfully created winsync agreement",
             error_msg: "Failed to create winsync agreement",
@@ -1132,11 +1132,11 @@ export class WinsyncAgmts extends React.Component {
                 this.setState({
                     savingAgmt: false,
                     showCreateAgmtModal: false,
-                })
+                });
             },
             reload_func: this.props.reload,
             reload_arg: this.props.suffix,
-            ext_func: ext_func,
+            ext_func,
             ext_arg: this.state.agmtName,
             funcName: "createAgmt",
             funcDesc: "Create winsync agreement"
@@ -1173,26 +1173,26 @@ export class WinsyncAgmts extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    onSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3], row[4], row[5]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             rows = JSON.parse(JSON.stringify(this.props.rows));
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1217,7 +1217,7 @@ export class WinsyncAgmts extends React.Component {
                 <div className="ds-margin-top ds-container ds-inline ds-margin-bottom-md">
                     <Button
                         variant="primary"
-                        onClick={this.showCreateAgmtModal}
+                        onClick={this.handleShowCreateAgmtModal}
                     >
                         Create Agreement
                     </Button>
@@ -1234,11 +1234,11 @@ export class WinsyncAgmts extends React.Component {
                 <WinsyncAgmtModal
                     showModal={this.state.showCreateAgmtModal}
                     closeHandler={this.closeCreateAgmtModal}
-                    handleChange={this.handleCreateChange}
-                    handleTimeChange={this.handleTimeChange}
-                    handleFracChange={this.handleTAFracAttrChange}
-                    onSelectToggle={this.onExcludeAttrCreateToggle}
-                    onSelectClear={this.onExcludeAttrCreateClear}
+                    handleChange={this.onCreateChange}
+                    handleTimeChange={this.onTimeChange}
+                    handleFracChange={this.onTAFracAttrChange}
+                    onSelectToggle={this.handleExcludeAttrCreateToggle}
+                    onSelectClear={this.handleExcludeAttrCreateClear}
                     isExcludeAttrOpen={this.state.isExcludeAttrCreateOpen}
                     saveHandler={this.createAgmt}
                     getToggleId={this.getToggleId}
@@ -1277,11 +1277,11 @@ export class WinsyncAgmts extends React.Component {
                     key={this.state.showEditAgmtModal ? "edit1" : "edit0"}
                     showModal={this.state.showEditAgmtModal}
                     closeHandler={this.closeEditAgmtModal}
-                    handleChange={this.handleEditChange}
-                    handleTimeChange={this.handleTimeChange}
-                    handleFracChange={this.handleTAFracAttrChangeEdit}
-                    onSelectToggle={this.onExcludeAttrEditToggle}
-                    onSelectClear={this.onExcludeAttrEditClear}
+                    handleChange={this.onEditChange}
+                    handleTimeChange={this.onTimeChange}
+                    handleFracChange={this.onTAFracAttrChangeEdit}
+                    onSelectToggle={this.handleExcludeAttrEditToggle}
+                    onSelectClear={this.handleExcludeAttrEditClear}
                     isExcludeAttrOpen={this.state.isExcludeAttrEditOpen}
                     getToggleId={this.getToggleId}
                     saveHandler={this.saveAgmt}
@@ -1322,7 +1322,7 @@ export class WinsyncAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteAgmt}
                     closeHandler={this.closeConfirmDeleteAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
@@ -1335,7 +1335,7 @@ export class WinsyncAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmInitAgmt}
                     closeHandler={this.closeConfirmInitAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.initAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
@@ -1348,7 +1348,7 @@ export class WinsyncAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmEnableAgmt}
                     closeHandler={this.closeConfirmEnableAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.enableAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
@@ -1361,7 +1361,7 @@ export class WinsyncAgmts extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDisableAgmt}
                     closeHandler={this.closeConfirmDisableAgmt}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.disableAgmt}
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}

@@ -86,7 +86,7 @@ export class ServerAuditLog extends React.Component {
             });
         };
 
-        this.onDisplayAttrSelect = (event, selection) => {
+        this.handleOnDisplayAttrSelect = (event, selection) => {
             if (this.state.displayAttrs.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -103,12 +103,12 @@ export class ServerAuditLog extends React.Component {
                 );
             }
         };
-        this.onDisplayAttrToggle = isDisplayAttrOpen => {
+        this.handleOnDisplayAttrToggle = isDisplayAttrOpen => {
             this.setState({
                 isDisplayAttrOpen
             });
         };
-        this.onDisplayAttrClear = () => {
+        this.handleOnDisplayAttrClear = () => {
             this.setState({
                 displayAttrs: [],
                 isDisplayAttrOpen: false
@@ -131,7 +131,7 @@ export class ServerAuditLog extends React.Component {
                 maxValue = max;
             }
             let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
-            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
             this.setState({
                 [id]: newValue
             }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
@@ -140,7 +140,7 @@ export class ServerAuditLog extends React.Component {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
-        }
+        };
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
@@ -202,7 +202,7 @@ l
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) });
     }
 
     handleTimeChange(time_str) {
@@ -250,7 +250,7 @@ l
             config_attrs = exp_attrs;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -271,7 +271,7 @@ l
 
         if (!this.state.displayAllAttrs && !listsEqual(this.state.displayAttrs, this.state._displayAttrs)) {
             if (this.state.displayAttrs.length > 0) {
-                let val = this.state.displayAttrs.join(' ');
+                const val = this.state.displayAttrs.join(' ');
                 cmd.push('nsslapd-auditlog-display-attrs=' + val);
             } else {
                 cmd.push('nsslapd-auditlog-display-attrs=');
@@ -366,7 +366,7 @@ l
                         'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
                         'nsslapd-auditlog-logbuffering': buffering,
                         displayAttrs: display_attrs,
-                        displayAllAttrs: displayAllAttrs,
+                        displayAllAttrs,
                         // Record original values
                         '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
                         '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
@@ -442,7 +442,7 @@ l
             'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
             'nsslapd-auditlog-logbuffering': buffering,
             displayAttrs: display_attrs,
-            displayAllAttrs: displayAllAttrs,
+            displayAllAttrs,
             // Record original values,
             '_nsslapd-auditlog': attrs['nsslapd-auditlog'][0],
             '_nsslapd-auditlog-logexpirationtime': attrs['nsslapd-auditlog-logexpirationtime'][0],
@@ -488,7 +488,7 @@ l
         }
         rotationTime = hour + ":" + min;
 
-        let body =
+        let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
@@ -540,9 +540,9 @@ l
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
-                                        onToggle={this.onDisplayAttrToggle}
-                                        onSelect={this.onDisplayAttrSelect}
-                                        onClear={this.onDisplayAttrClear}
+                                        onToggle={this.handleOnDisplayAttrToggle}
+                                        onSelect={this.handleOnDisplayAttrSelect}
+                                        onClear={this.handleOnDisplayAttrClear}
                                         selections={this.state.displayAttrs}
                                         isOpen={this.state.isDisplayAttrOpen}
                                         aria-labelledby="typeAhead-audit-display-attr"
@@ -799,16 +799,18 @@ l
                         </Button>
                     </Tab>
                 </Tabs>
-            </div>;
+            </div>
+        );
 
         if (!this.state.loaded) {
-            body =
+            body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>Loading Audit Log settings ...</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -817,7 +819,8 @@ l
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Audit Log Settings <FontAwesomeIcon
+                                Audit Log Settings
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}

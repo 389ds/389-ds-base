@@ -53,7 +53,7 @@ class LinkedAttributes extends React.Component {
         };
 
         // Link Type
-        this.onLinkTypeSelect = (event, selection) => {
+        this.handleLinkTypeSelect = (event, selection) => {
             if (this.state.linkType.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -70,12 +70,12 @@ class LinkedAttributes extends React.Component {
                 );
             }
         };
-        this.onLinkTypeToggle = isLinkTypeOpen => {
+        this.handleLinkTypeToggle = isLinkTypeOpen => {
             this.setState({
                 isLinkTypeOpen
             });
         };
-        this.onLinkTypeClear = () => {
+        this.handleLinkTypeClear = () => {
             this.setState({
                 linkType: [],
                 isLinkTypeOpen: false
@@ -83,7 +83,7 @@ class LinkedAttributes extends React.Component {
         };
 
         // Managed Type
-        this.onManagedTypeSelect = (event, selection) => {
+        this.handleManagedTypeSelect = (event, selection) => {
             if (this.state.managedType.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -100,24 +100,24 @@ class LinkedAttributes extends React.Component {
                 );
             }
         };
-        this.onManagedTypeToggle = isManagedTypeOpen => {
+        this.handleManagedTypeToggle = isManagedTypeOpen => {
             this.setState({
                 isManagedTypeOpen
             });
         };
-        this.onManagedTypeClear = () => {
+        this.handleManagedTypeClear = () => {
             this.setState({
                 managedType: [],
                 isManagedTypeOpen: false
             }, () => { this.validate() });
         };
 
-        this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.onFieldChange = this.onFieldChange.bind(this);
         this.loadConfigs = this.loadConfigs.bind(this);
         this.showEditConfigModal = this.showEditConfigModal.bind(this);
         this.showConfirmDelete = this.showConfirmDelete.bind(this);
-        this.showAddConfigModal = this.showAddConfigModal.bind(this);
-        this.closeModal = this.closeModal.bind(this);
+        this.handleShowAddConfigModal = this.handleShowAddConfigModal.bind(this);
+        this.handleCloseModal = this.handleCloseModal.bind(this);
         this.openModal = this.openModal.bind(this);
         this.cmdOperation = this.cmdOperation.bind(this);
         this.deleteConfig = this.deleteConfig.bind(this);
@@ -148,11 +148,11 @@ class LinkedAttributes extends React.Component {
         const errObj = {};
         let all_good = true;
 
-        if (this.state.configName == "") {
+        if (this.state.configName === "") {
             errObj.configName = true;
             all_good = false;
         }
-        if (this.state.linkScope == "" || !valid_dn(this.state.linkScope)) {
+        if (this.state.linkScope === "" || !valid_dn(this.state.linkScope)) {
             errObj.linkScope = true;
             all_good = false;
         }
@@ -164,7 +164,7 @@ class LinkedAttributes extends React.Component {
                 'linkScope', 'managedType', 'linkType', 'configName'
             ];
             for (const check_attr of attrs) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     all_good = true;
                     break;
                 }
@@ -176,7 +176,7 @@ class LinkedAttributes extends React.Component {
         });
     }
 
-    handleFieldChange(e) {
+    onFieldChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
@@ -200,13 +200,13 @@ class LinkedAttributes extends React.Component {
                     const tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
-                        tableKey: tableKey,
+                        tableKey,
                         firstLoad: false
                     });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    if (err != 0) {
+                    if (err !== 0) {
                         console.log("loadConfigs failed", errMsg.desc);
                     }
                 });
@@ -216,7 +216,7 @@ class LinkedAttributes extends React.Component {
         this.openModal(rowData);
     }
 
-    showAddConfigModal(rowData) {
+    handleShowAddConfigModal(rowData) {
         this.openModal();
     }
 
@@ -288,7 +288,7 @@ class LinkedAttributes extends React.Component {
         }
     }
 
-    closeModal() {
+    handleCloseModal() {
         this.setState({ configEntryModalShow: false });
     }
 
@@ -305,22 +305,22 @@ class LinkedAttributes extends React.Component {
             configName,
             action,
             "--link-scope",
-            linkScope || action == "add" ? linkScope : "delete"
+            linkScope || action === "add" ? linkScope : "delete"
         ];
 
         cmd = [...cmd, "--link-type"];
-        if (linkType.length != 0) {
+        if (linkType.length !== 0) {
             cmd = [...cmd, linkType[0]];
-        } else if (action == "add") {
+        } else if (action === "add") {
             cmd = [...cmd, ""];
         } else {
             cmd = [...cmd, "delete"];
         }
 
         cmd = [...cmd, "--managed-type"];
-        if (managedType.length != 0) {
+        if (managedType.length !== 0) {
             cmd = [...cmd, managedType[0]];
-        } else if (action == "add") {
+        } else if (action === "add") {
             cmd = [...cmd, ""];
         } else {
             cmd = [...cmd, "delete"];
@@ -344,7 +344,7 @@ class LinkedAttributes extends React.Component {
                         `The ${action} operation was successfully done on "${configName}" entry`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
@@ -354,7 +354,7 @@ class LinkedAttributes extends React.Component {
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.props.toggleLoadingHandler();
                 });
     }
@@ -388,7 +388,7 @@ class LinkedAttributes extends React.Component {
                         `Config entry ${this.state.deleteName} was successfully deleted`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
@@ -398,7 +398,7 @@ class LinkedAttributes extends React.Component {
                         `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.closeConfirmDelete();
                 });
     }
@@ -443,7 +443,7 @@ class LinkedAttributes extends React.Component {
                     title={title}
                     isOpen={configEntryModalShow}
                     aria-labelledby="ds-modal"
-                    onClose={this.closeModal}
+                    onClose={this.handleCloseModal}
                     actions={[
                         <Button
                             key="confirm"
@@ -456,7 +456,7 @@ class LinkedAttributes extends React.Component {
                         >
                             {saveBtnName}
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                        <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
                             Cancel
                         </Button>
                     ]}
@@ -474,7 +474,7 @@ class LinkedAttributes extends React.Component {
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configName"
                                     onChange={(str, e) => {
-                                        this.handleFieldChange(e);
+                                        this.onFieldChange(e);
                                     }}
                                     validated={error.configName ? ValidatedOptions.error : ValidatedOptions.default}
                                     isDisabled={!newEntry}
@@ -489,9 +489,9 @@ class LinkedAttributes extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel="Type an attribute name"
-                                    onToggle={this.onLinkTypeToggle}
-                                    onSelect={this.onLinkTypeSelect}
-                                    onClear={this.onLinkTypeClear}
+                                    onToggle={this.handleLinkTypeToggle}
+                                    onSelect={this.handleLinkTypeSelect}
+                                    onClear={this.handleLinkTypeClear}
                                     selections={linkType}
                                     isOpen={this.state.isLinkTypeOpen}
                                     aria-labelledby="typeAhead-link-type"
@@ -515,9 +515,9 @@ class LinkedAttributes extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel="Type an attribute name"
-                                    onToggle={this.onManagedTypeToggle}
-                                    onSelect={this.onManagedTypeSelect}
-                                    onClear={this.onManagedTypeClear}
+                                    onToggle={this.handleManagedTypeToggle}
+                                    onSelect={this.handleManagedTypeSelect}
+                                    onClear={this.handleManagedTypeClear}
                                     selections={managedType}
                                     isOpen={this.state.isManagedTypeOpen}
                                     placeholderText="Type an attribute..."
@@ -545,7 +545,7 @@ class LinkedAttributes extends React.Component {
                                     aria-describedby="horizontal-form-name-helper"
                                     name="linkScope"
                                     onChange={(str, e) => {
-                                        this.handleFieldChange(e);
+                                        this.onFieldChange(e);
                                     }}
                                     validated={error.linkScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
@@ -577,7 +577,7 @@ class LinkedAttributes extends React.Component {
                             <Button
                                 key="addconf"
                                 variant="primary"
-                                onClick={this.showAddConfigModal}
+                                onClick={this.handleShowAddConfigModal}
                             >
                                 Add Config
                             </Button>
@@ -587,7 +587,7 @@ class LinkedAttributes extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleFieldChange}
+                    handleChange={this.onFieldChange}
                     actionHandler={this.deleteConfig}
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}

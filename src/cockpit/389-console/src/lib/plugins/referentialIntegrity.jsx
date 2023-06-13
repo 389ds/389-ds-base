@@ -89,7 +89,7 @@ class ReferentialIntegrity extends React.Component {
         };
 
         // Config Membership Attribute
-        this.onConfigMembershipAttrSelect = (event, selection) => {
+        this.handleConfigMembershipAttrSelect = (event, selection) => {
             if (this.state.configMembershipAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -106,12 +106,12 @@ class ReferentialIntegrity extends React.Component {
                 );
             }
         };
-        this.onConfigMembershipAttrToggle = isConfigMembershipAttrOpen => {
+        this.handleConfigMembershipAttrToggle = isConfigMembershipAttrOpen => {
             this.setState({
                 isConfigMembershipAttrOpen
             });
         };
-        this.onConfigMembershipAttrClear = () => {
+        this.handleConfigMembershipAttrClear = () => {
             this.setState({
                 configMembershipAttr: [],
                 isConfigMembershipAttrOpen: false
@@ -119,7 +119,7 @@ class ReferentialIntegrity extends React.Component {
         };
 
         // Membership Attribute
-        this.onMembershipAttrSelect = (event, selection) => {
+        this.handleMembershipAttrSelect = (event, selection) => {
             if (this.state.membershipAttr.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -137,12 +137,12 @@ class ReferentialIntegrity extends React.Component {
                 );
             }
         };
-        this.onMembershipAttrToggle = isMembershipAttrOpen => {
+        this.handleMembershipAttrToggle = isMembershipAttrOpen => {
             this.setState({
                 isMembershipAttrOpen
             });
         };
-        this.onMembershipAttrClear = () => {
+        this.handleMembershipAttrClear = () => {
             this.setState({
                 membershipAttr: [],
                 isMembershipAttrOpen: false
@@ -168,23 +168,23 @@ class ReferentialIntegrity extends React.Component {
         };
 
         this.updateFields = this.updateFields.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onChange = this.onChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleModalChange = this.handleModalChange.bind(this);
-        this.openModal = this.openModal.bind(this);
-        this.closeModal = this.closeModal.bind(this);
-        this.addConfig = this.addConfig.bind(this);
-        this.editConfig = this.editConfig.bind(this);
+        this.handleOpenModal = this.handleOpenModal.bind(this);
+        this.handleCloseModal = this.handleCloseModal.bind(this);
+        this.handleAddConfig = this.handleAddConfig.bind(this);
+        this.handleEditConfig = this.handleEditConfig.bind(this);
         this.deleteConfig = this.deleteConfig.bind(this);
         this.cmdConfigOperation = this.cmdConfigOperation.bind(this);
         this.validateConfig = this.validateConfig.bind(this);
         this.validateModal = this.validateModal.bind(this);
-        this.saveConfig = this.saveConfig.bind(this);
-        this.showConfirmDelete = this.showConfirmDelete.bind(this);
+        this.handleSaveConfig = this.handleSaveConfig.bind(this);
+        this.handleShowConfirmDelete = this.handleShowConfirmDelete.bind(this);
         this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
     }
 
-    showConfirmDelete() {
+    handleShowConfirmDelete() {
         this.setState({
             showConfirmDelete: true,
             modalChecked: false,
@@ -210,13 +210,13 @@ class ReferentialIntegrity extends React.Component {
 
         for (const attr of dnAttrs) {
             errObj[attr] = false;
-            if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
+            if (this.state[attr] !== "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
             }
         }
         for (const attr of reqAttrs) {
-            if (this.state[attr] == "") {
+            if (this.state[attr] === "") {
                 errObj[attr] = true;
                 all_good = false;
             }
@@ -228,7 +228,7 @@ class ReferentialIntegrity extends React.Component {
         }
 
         errObj.membershipAttr = false;
-        if (this.state.membershipAttr.length == 0) {
+        if (this.state.membershipAttr.length === 0) {
             errObj.membershipAttr = true;
             all_good = false;
         }
@@ -240,7 +240,7 @@ class ReferentialIntegrity extends React.Component {
                 'referintConfigEntry', 'updateDelay', 'logFile'
             ];
             for (const check_attr of attrs) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     all_good = true;
                     break;
                 }
@@ -266,13 +266,13 @@ class ReferentialIntegrity extends React.Component {
         const reqAttrs = ['configDN', 'configLogFile'];
 
         for (const attr of dnAttrs) {
-            if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
+            if (this.state[attr] !== "" && !valid_dn(this.state[attr])) {
                 errObj[attr] = true;
                 all_good = false;
             }
         }
         for (const attr of reqAttrs) {
-            if (this.state[attr] == "") {
+            if (this.state[attr] === "") {
                 errObj[attr] = true;
                 all_good = false;
             }
@@ -283,7 +283,7 @@ class ReferentialIntegrity extends React.Component {
         }
 
         errObj.configMembershipAttr = false;
-        if (this.state.configMembershipAttr.length == 0) {
+        if (this.state.configMembershipAttr.length === 0) {
             errObj.configMembershipAttr = true;
             all_good = false;
         }
@@ -295,7 +295,7 @@ class ReferentialIntegrity extends React.Component {
                 'configContainerScope', 'configUpdateDelay'
             ];
             for (const check_attr of attrs) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     all_good = true;
                     break;
                 }
@@ -310,7 +310,7 @@ class ReferentialIntegrity extends React.Component {
         });
     }
 
-    handleChange(e) {
+    onChange(e) {
         // Generic handler for things that don't need validating
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
@@ -330,7 +330,7 @@ class ReferentialIntegrity extends React.Component {
         }, () => { this.validateModal() });
     }
 
-    saveConfig() {
+    handleSaveConfig() {
         const {
             membershipAttr,
             entryScope,
@@ -364,7 +364,7 @@ class ReferentialIntegrity extends React.Component {
 
         // Delete attributes if the user set an empty value to the field
         cmd = [...cmd, "--membership-attr"];
-        if (membershipAttr.length != 0) {
+        if (membershipAttr.length !== 0) {
             for (const value of membershipAttr) {
                 cmd = [...cmd, value];
             }
@@ -377,7 +377,7 @@ class ReferentialIntegrity extends React.Component {
         });
 
         log_cmd(
-            "saveConfig",
+            "handleSaveConfig",
             `Save Referential Integrity Plugin`,
             cmd
         );
@@ -414,7 +414,7 @@ class ReferentialIntegrity extends React.Component {
                 });
     }
 
-    openModal() {
+    handleOpenModal() {
         if (!this.state.referintConfigEntry) {
             this.setState({
                 configEntryModalShow: true,
@@ -449,7 +449,7 @@ class ReferentialIntegrity extends React.Component {
                 this.state.referintConfigEntry
             ];
 
-            log_cmd("openModal", "Fetch the Referential Integrity Plugin config entry", cmd);
+            log_cmd("handleOpenModal", "Fetch the Referential Integrity Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
                         superuser: true,
@@ -542,7 +542,7 @@ class ReferentialIntegrity extends React.Component {
         }
     }
 
-    closeModal() {
+    handleCloseModal() {
         this.setState({
             configEntryModalShow: false,
             savingModal: false,
@@ -572,31 +572,31 @@ class ReferentialIntegrity extends React.Component {
             action,
             configDN,
             "--update-delay",
-            configUpdateDelay || action == "add" ? configUpdateDelay : "delete",
+            configUpdateDelay || action === "add" ? configUpdateDelay : "delete",
             "--entry-scope",
-            configEntryScope || action == "add" ? configEntryScope : "delete",
+            configEntryScope || action === "add" ? configEntryScope : "delete",
             "--exclude-entry-scope",
-            configExcludeEntryScope || action == "add" ? configExcludeEntryScope : "delete",
+            configExcludeEntryScope || action === "add" ? configExcludeEntryScope : "delete",
             "--container-scope",
-            configContainerScope || action == "add" ? configContainerScope : "delete",
+            configContainerScope || action === "add" ? configContainerScope : "delete",
             "--log-file",
-            configLogFile || action == "add" ? configLogFile : "delete"
+            configLogFile || action === "add" ? configLogFile : "delete"
         ];
 
         // Delete attributes if the user set an empty value to the field
         cmd = [...cmd, "--membership-attr"];
-        if (configMembershipAttr.length != 0) {
+        if (configMembershipAttr.length !== 0) {
             for (const value of configMembershipAttr) {
                 cmd = [...cmd, value];
             }
-        } else if (action == "add") {
+        } else if (action === "add") {
             cmd = [...cmd, ""];
         } else {
             cmd = [...cmd, "delete"];
         }
 
         let spinning = "savingModal";
-        if (action == "add") {
+        if (action === "add") {
             spinning = "addSpinning";
         }
 
@@ -621,7 +621,7 @@ class ReferentialIntegrity extends React.Component {
                         `Config entry ${configDN} was successfully ${action}ed`
                     );
                     this.props.pluginListHandler();
-                    this.closeModal();
+                    this.handleCloseModal();
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -630,7 +630,7 @@ class ReferentialIntegrity extends React.Component {
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
-                    this.closeModal();
+                    this.handleCloseModal();
                 });
     }
 
@@ -662,7 +662,7 @@ class ReferentialIntegrity extends React.Component {
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
-                    this.closeModal();
+                    this.handleCloseModal();
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -672,15 +672,15 @@ class ReferentialIntegrity extends React.Component {
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
-                    this.closeModal();
+                    this.handleCloseModal();
                 });
     }
 
-    addConfig() {
+    handleAddConfig() {
         this.cmdConfigOperation("add");
     }
 
-    editConfig() {
+    handleEditConfig() {
         this.cmdConfigOperation("set");
     }
 
@@ -803,14 +803,14 @@ class ReferentialIntegrity extends React.Component {
                 <Button
                     key="del"
                     variant="primary"
-                    onClick={this.showConfirmDelete}
+                    onClick={this.handleShowConfirmDelete}
                 >
                     Delete Config
                 </Button>,
                 <Button
                     key="save"
                     variant="primary"
-                    onClick={this.editConfig}
+                    onClick={this.handleEditConfig}
                     isDisabled={saveBtnDisabledModal || savingModal}
                     isLoading={savingModal}
                     spinnerAriaValueText={savingModal ? "Saving" : undefined}
@@ -818,7 +818,7 @@ class ReferentialIntegrity extends React.Component {
                 >
                     {saveBtnText}
                 </Button>,
-                <Button key="cancel" variant="link" onClick={this.closeModal}>
+                <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
                     Cancel
                 </Button>
             ];
@@ -827,7 +827,7 @@ class ReferentialIntegrity extends React.Component {
                 <Button
                     key="add"
                     variant="primary"
-                    onClick={this.addConfig}
+                    onClick={this.handleAddConfig}
                     isDisabled={saveBtnDisabledModal || addSpinning}
                     isLoading={addSpinning}
                     spinnerAriaValueText={addSpinning ? "Saving" : undefined}
@@ -835,7 +835,7 @@ class ReferentialIntegrity extends React.Component {
                 >
                     {addBtnText}
                 </Button>,
-                <Button key="cancel" variant="link" onClick={this.closeModal}>
+                <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
                     Cancel
                 </Button>
             ];
@@ -848,7 +848,7 @@ class ReferentialIntegrity extends React.Component {
                     title="Manage Referential Integrity Plugin Shared Config Entry"
                     isOpen={configEntryModalShow}
                     aria-labelledby="ds-modal"
-                    onClose={this.closeModal}
+                    onClose={this.handleCloseModal}
                     actions={modalButtons}
                 >
                     <Form isHorizontal autoComplete="off">
@@ -880,9 +880,9 @@ class ReferentialIntegrity extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
-                                    onToggle={this.onConfigMembershipAttrToggle}
-                                    onSelect={this.onConfigMembershipAttrSelect}
-                                    onClear={this.onConfigMembershipAttrClear}
+                                    onToggle={this.handleConfigMembershipAttrToggle}
+                                    onSelect={this.handleConfigMembershipAttrSelect}
+                                    onClear={this.handleConfigMembershipAttrClear}
                                     selections={configMembershipAttr}
                                     isOpen={this.state.isConfigMembershipAttrOpen}
                                     aria-labelledby="typeAhead-config-membership-attr"
@@ -932,7 +932,6 @@ class ReferentialIntegrity extends React.Component {
                                     id="configExcludeEntryScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configExcludeEntryScope"
-
                                     onChange={(str, e) => { this.handleModalChange(e) }}
                                     validated={errorModal.configExcludeEntryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
@@ -975,7 +974,6 @@ class ReferentialIntegrity extends React.Component {
                                     id="configLogFile"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configLogFile"
-
                                     onChange={(str, e) => { this.handleModalChange(e) }}
                                     validated={errorModal.configLogFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
@@ -1029,9 +1027,9 @@ class ReferentialIntegrity extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
-                                    onToggle={this.onMembershipAttrToggle}
-                                    onSelect={this.onMembershipAttrSelect}
-                                    onClear={this.onMembershipAttrClear}
+                                    onToggle={this.handleMembershipAttrToggle}
+                                    onSelect={this.handleMembershipAttrSelect}
+                                    onClear={this.handleMembershipAttrClear}
                                     selections={membershipAttr}
                                     isOpen={this.state.isMembershipAttrOpen}
                                     aria-labelledby="typeAhead-membership-attr"
@@ -1062,7 +1060,6 @@ class ReferentialIntegrity extends React.Component {
                                     id="entryScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="entryScope"
-
                                     onChange={(str, e) => { this.handleFieldChange(e) }}
                                     validated={error.entryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
@@ -1174,7 +1171,7 @@ class ReferentialIntegrity extends React.Component {
                                 <Button
                                     className="ds-left-margin"
                                     variant="primary"
-                                    onClick={this.openModal}
+                                    onClick={this.handleOpenModal}
                                 >
                                     Manage
                                 </Button>
@@ -1187,7 +1184,7 @@ class ReferentialIntegrity extends React.Component {
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Loading" : undefined}
                         variant="primary"
-                        onClick={this.saveConfig}
+                        onClick={this.handleSaveConfig}
                         {...extraPrimaryProps}
                         isDisabled={saveBtnDisabled || saving}
                     >
@@ -1197,7 +1194,7 @@ class ReferentialIntegrity extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.deleteConfig}
                     spinning={this.state.modalSpinning}
                     item={this.state.configDN}

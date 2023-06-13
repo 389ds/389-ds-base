@@ -2617,16 +2617,16 @@ lib389: src/lib389/setup.py
 lib389-install: lib389
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
 
-NODE_MODULES_TEST = src/cockpit/389-console/node_modules/webpack
+NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 WEBPACK_TEST = src/cockpit/389-console/cockpit_dist/index.html
 
 # Cockpit UI plugin - we install the dependancies and build the JS sources
 # and then we use install-data-hook for copying the results on 'make install'
 $(NODE_MODULES_TEST):
-	cd src/cockpit/389-console; make -f node_modules.mk install
+	cd src/cockpit/389-console; npm install
 
 $(WEBPACK_TEST): $(NODE_MODULES_TEST)
-	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
+	cd src/cockpit/389-console; npx audit-ci; ./build.js
 
 389-console: $(WEBPACK_TEST)
 
@@ -2638,8 +2638,9 @@ $(WEBPACK_TEST): $(NODE_MODULES_TEST)
 	ln -s $$(pwd)/dist ~/.local/share/cockpit/389-console
 
 389-console-clean:
-	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk clean
-
+	cd $(srcdir)/src/cockpit/389-console; \
+	rm -rf dist; \
+	rm -rf cockpit_dist
 
 if HAVE_DOXYGEN
 

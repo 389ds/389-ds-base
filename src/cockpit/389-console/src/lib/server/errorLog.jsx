@@ -118,7 +118,7 @@ export class ServerErrorLog extends React.Component {
             ],
         };
 
-        this.onToggle = isExpanded => {
+        this.handleOnToggle = isExpanded => {
             this.setState({
                 isExpanded
             });
@@ -134,9 +134,9 @@ export class ServerErrorLog extends React.Component {
         this.handleChange = this.handleChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.refreshConfig = this.refreshConfig.bind(this);
+        this.handleRefreshConfig = this.handleRefreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
-        this.onSelect = this.onSelect.bind(this);
+        this.handleOnSelect = this.handleOnSelect.bind(this);
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
                 [id]: Number(this.state[id]) - 1
@@ -148,7 +148,7 @@ export class ServerErrorLog extends React.Component {
                 maxValue = max;
             }
             let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
-            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
             this.setState({
                 [id]: newValue
             }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
@@ -157,7 +157,7 @@ export class ServerErrorLog extends React.Component {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
-        }
+        };
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
@@ -223,7 +223,7 @@ export class ServerErrorLog extends React.Component {
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) });
     }
 
     handleTimeChange(time_str) {
@@ -272,7 +272,7 @@ export class ServerErrorLog extends React.Component {
             config_attrs = exp_attrs;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -312,7 +312,7 @@ export class ServerErrorLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.refreshConfig();
+                    this.handleRefreshConfig();
                     this.props.addNotification(
                         "success",
                         "Successfully updated Error Log settings"
@@ -320,7 +320,7 @@ export class ServerErrorLog extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.refreshConfig();
+                    this.handleRefreshConfig();
                     this.props.addNotification(
                         "error",
                         `Error saving Error Log settings - ${errMsg.desc}`
@@ -328,7 +328,7 @@ export class ServerErrorLog extends React.Component {
                 });
     }
 
-    refreshConfig() {
+    handleRefreshConfig() {
         this.setState({
             loading: true,
             loaded: false,
@@ -338,7 +338,7 @@ export class ServerErrorLog extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("refreshConfig", "load Error Log configuration", cmd);
+        log_cmd("handleRefreshConfig", "load Error Log configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -470,7 +470,7 @@ export class ServerErrorLog extends React.Component {
         }, this.props.enableTree);
     }
 
-    onSelect(event, isSelected, rowId) {
+    handleOnSelect(event, isSelected, rowId) {
         let disableSaveBtn = true;
         const rows = [...this.state.rows];
 
@@ -528,7 +528,7 @@ export class ServerErrorLog extends React.Component {
         }
         rotationTime = hour + ":" + min;
 
-        let body =
+        let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
@@ -564,12 +564,12 @@ export class ServerErrorLog extends React.Component {
                         <ExpandableSection
                             className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
                             toggleText={this.state.isExpanded ? 'Hide Verbose Logging Levels' : 'Show Verbose Logging Levels'}
-                            onToggle={this.onToggle}
+                            onToggle={this.handleOnToggle}
                             isExpanded={this.state.isExpanded}
                         >
                             <Table
                                 className="ds-left-margin"
-                                onSelect={this.onSelect}
+                                onSelect={this.handleOnSelect}
                                 canSelectAll={this.state.canSelectAll}
                                 variant={TableVariant.compact}
                                 aria-label="Selectable Table"
@@ -811,16 +811,18 @@ export class ServerErrorLog extends React.Component {
                         </Button>
                     </Tab>
                 </Tabs>
-            </div>;
+            </div>
+        );
 
         if (!this.state.loaded) {
-            body =
+            body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>Loading Error Log Settings ...</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -829,13 +831,14 @@ export class ServerErrorLog extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Error Log Settings <FontAwesomeIcon
+                                Error Log Settings
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
                                     title="Refresh log settings"
                                     onClick={() => {
-                                        this.refreshConfig();
+                                        this.handleRefreshConfig();
                                     }}
                                 />
                             </Text>

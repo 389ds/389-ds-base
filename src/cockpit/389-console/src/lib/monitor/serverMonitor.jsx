@@ -52,7 +52,7 @@ export class ServerMonitor extends React.Component {
             conn_tick_values: [250, 500, 750, 1000],
             mem_ratio: 0,
             chart_refresh: "",
-            initChart: initChart,
+            initChart,
             cpuChart: [...initChart],
             memVirtChart: [...initChart],
             memResChart: [...initChart],
@@ -113,22 +113,22 @@ export class ServerMonitor extends React.Component {
     }
 
     convertMemory(mem_str) {
-        mem_str = mem_str.replace(",", ".")
+        mem_str = mem_str.replace(",", ".");
         if (mem_str.endsWith('m')) {
             // Convert MB to KB
-            let mem = mem_str.slice(0, -1);
+            const mem = mem_str.slice(0, -1);
             return parseInt(Math.round(mem * 1024));
         } else if (mem_str.endsWith('g')) {
             // Convert GB to KB
-            let mem = mem_str.slice(0, -1);
+            const mem = mem_str.slice(0, -1);
             return parseInt(Math.round(mem * 1024 * 1024));
         } else if (mem_str.endsWith('t')) {
             // Convert TB to KB
-            let mem = mem_str.slice(0, -1);
+            const mem = mem_str.slice(0, -1);
             return parseInt(Math.round(mem * 1024 * 1024 * 1024));
         } else if (mem_str.endsWith('p')) {
             // Convert PB to KB
-            let mem = mem_str.slice(0, -1);
+            const mem = mem_str.slice(0, -1);
             return parseInt(Math.round(mem * 1024 * 1024 * 1024 * 1024));
         } else {
             return mem_str;
@@ -175,7 +175,7 @@ export class ServerMonitor extends React.Component {
                                                     .done(conn_output => {
                                                         current_conns = parseInt(conn_output);
                                                         let count = this.state.count + 1; // This is used by all the charts
-                                                        if (count == 100) {
+                                                        if (count === 100) {
                                                             // Keep progress count in check
                                                             count = 1;
                                                         }
@@ -237,19 +237,19 @@ export class ServerMonitor extends React.Component {
                                                         connChart.push({ name: "Connections", x: count.toString(), y: parseInt(current_conns) });
 
                                                         this.setState({
-                                                            count: count,
-                                                            cpu_tick_values: cpu_tick_values,
-                                                            conn_tick_values: conn_tick_values,
-                                                            cpuChart: cpuChart,
-                                                            memVirtChart: memVirtChart,
-                                                            memResChart: memResChart,
-                                                            connChart: connChart,
-                                                            conn_highmark: conn_highmark,
-                                                            current_conns: current_conns,
+                                                            count,
+                                                            cpu_tick_values,
+                                                            conn_tick_values,
+                                                            cpuChart,
+                                                            memVirtChart,
+                                                            memResChart,
+                                                            connChart,
+                                                            conn_highmark,
+                                                            current_conns,
                                                             mem_virt_size: virt_mem,
                                                             mem_res_size: res_mem,
                                                             mem_ratio: Math.round((virt_mem / max_mem) * 100),
-                                                            cpu: cpu,
+                                                            cpu,
                                                         });
                                                     })
                                                     .fail(() => {
@@ -270,7 +270,9 @@ export class ServerMonitor extends React.Component {
     }
 
     startRefresh() {
-        this.state.chart_refresh = setInterval(this.refreshCharts, 3000);
+        this.setState({
+            chart_refresh: setInterval(this.refreshCharts, 3000),
+        });
     }
 
     stopRefresh() {
@@ -322,12 +324,13 @@ export class ServerMonitor extends React.Component {
                     <GridItem span={9}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Server Statistics <FontAwesomeIcon
+                                Server Statistics
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
                                     title="Refresh suffix monitor"
-                                    onClick={this.props.reload}
+                                    onClick={this.props.handleReload}
                                 />
                             </Text>
                         </TextContent>
@@ -592,7 +595,7 @@ export class ServerMonitor extends React.Component {
                         />
                         <Button
                             className="ds-margin-top"
-                            onClick={this.props.reloadDisks}
+                            onClick={this.props.handleReloadDisks}
                         >
                             Refresh
                         </Button>
@@ -760,7 +763,7 @@ export class ServerMonitor extends React.Component {
 ServerMonitor.propTypes = {
     serverId: PropTypes.string,
     data: PropTypes.object,
-    reload: PropTypes.func,
+    handleReload: PropTypes.func,
     enableTree: PropTypes.func,
 };
 

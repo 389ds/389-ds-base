@@ -58,10 +58,10 @@ export class VLVIndexes extends React.Component {
         };
 
         // Create VLV Modal
-        this.showVLVModal = this.showVLVModal.bind(this);
+        this.handleShowVLVModal = this.handleShowVLVModal.bind(this);
         this.closeVLVModal = this.closeVLVModal.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.handleVLVChange = this.handleVLVChange.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.onVLVChange = this.onVLVChange.bind(this);
         this.saveVLV = this.saveVLV.bind(this);
         this.deleteVLV = this.deleteVLV.bind(this);
         this.reindexVLV = this.reindexVLV.bind(this);
@@ -70,8 +70,8 @@ export class VLVIndexes extends React.Component {
         this.showReindexConfirm = this.showReindexConfirm.bind(this);
         this.closeReindexConfirm = this.closeReindexConfirm.bind(this);
         // Select typeahead
-        this.onSelectToggle = this.onSelectToggle.bind(this);
-        this.onSelectClear = this.onSelectClear.bind(this);
+        this.handleSelectToggle = this.handleSelectToggle.bind(this);
+        this.handleSelectClear = this.handleSelectClear.bind(this);
         this.deleteSortIndex = this.deleteSortIndex.bind(this);
         this.createSortIndex = this.createSortIndex.bind(this);
         // Sort index
@@ -84,7 +84,7 @@ export class VLVIndexes extends React.Component {
     //
     // VLV index functions
     //
-    showVLVModal() {
+    handleShowVLVModal() {
         this.setState({
             showVLVModal: true,
             errObj: {},
@@ -103,7 +103,7 @@ export class VLVIndexes extends React.Component {
         });
     }
 
-    handleVLVChange(e) {
+    onVLVChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         const errObj = this.state.errObj;
@@ -112,11 +112,11 @@ export class VLVIndexes extends React.Component {
         const vlvCreateAttrs = ['vlvName', 'vlvBase', 'vlvFilter'];
 
         for (const createAttr of vlvCreateAttrs) {
-            if (attr != createAttr && this.state[createAttr] == "") {
+            if (attr !== createAttr && this.state[createAttr] === "") {
                 saveBtnDisabled = true;
             }
         }
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
             saveBtnDisabled = true;
         }
@@ -124,12 +124,12 @@ export class VLVIndexes extends React.Component {
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj,
-            saveBtnDisabled: saveBtnDisabled
+            errObj,
+            saveBtnDisabled
         });
     }
 
-    handleModalChange(e) {
+    onModalChange(e) {
         // Basic handler, no error checking
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
@@ -162,7 +162,7 @@ export class VLVIndexes extends React.Component {
 
     createSortIndex(index) {
         const index_value = index.join(' ');
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "vlv-index", "add-index", "--parent-name=" + this.state.createIndexParent,
             "--index-name=" + this.state.createIndexParent + " - " + index_value,
@@ -395,18 +395,18 @@ export class VLVIndexes extends React.Component {
                 });
     }
 
-    onSelectToggle = (isExpanded, toggleId) => {
+    handleSelectToggle = (isExpanded, toggleId) => {
         this.setState({
             [toggleId]: isExpanded
         });
-    }
+    };
 
-    onSelectClear = item => event => {
+    handleSelectClear = item => event => {
         this.setState({
             sortValue: [],
             isVlvSortIndexSelectOpen: false
         });
-    }
+    };
 
     render() {
         return (
@@ -422,18 +422,18 @@ export class VLVIndexes extends React.Component {
                 />
                 <Button
                     variant="primary"
-                    onClick={this.showVLVModal}
+                    onClick={this.handleShowVLVModal}
                 >
                     Create VLV Index
                 </Button>
                 <AddVLVIndexModal
                     showModal={this.state.showCreateSortIndex}
-                    closeHandler={this.closeCreateSortIndex}
-                    handleChange={this.handleModalChange}
+                    handleClose={this.closeCreateSortIndex}
+                    handleChange={this.onModalChange}
                     saveHandler={this.createSortIndex}
-                    onSelectToggle={this.onSelectToggle}
-                    onSelectClear={this.onSelectClear}
-                    handleTypeaheadChange={this.handleTypeaheadChange}
+                    onSelectToggle={this.handleSelectToggle}
+                    onSelectClear={this.handleSelectClear}
+                    handleTypeaheadChange={this.onTypeaheadChange}
                     attrs={this.props.attrs}
                     reindexVLV={this.state.reindexVLV}
                     vlvSortList={this.state.vlvSortList}
@@ -443,7 +443,7 @@ export class VLVIndexes extends React.Component {
                 <AddVLVModal
                     showModal={this.state.showVLVModal}
                     closeHandler={this.closeVLVModal}
-                    handleChange={this.handleVLVChange}
+                    handleChange={this.onVLVChange}
                     saveHandler={this.saveVLV}
                     error={this.state.errObj}
                     vlvName={this.state.vlvName}
@@ -456,7 +456,7 @@ export class VLVIndexes extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteVLV}
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteVLVName}
@@ -469,7 +469,7 @@ export class VLVIndexes extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
                     closeHandler={this.closeReindexConfirm}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.reindexVLV}
                     spinning={this.state.modalSpinning}
                     item={this.state.reindexVLVName}
@@ -482,7 +482,7 @@ export class VLVIndexes extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteSortIndexConfirm}
                     closeHandler={this.closeDeleteSortIndexConfirm}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteSortIndex}
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteIndexName}
@@ -508,22 +508,22 @@ class AddVLVIndexModal extends React.Component {
         };
 
         // VLV Sort indexes
-        this.onVLVSortToggle = isVLVSortOpen => {
+        this.handleVLVSortToggle = isVLVSortOpen => {
             this.setState({
                 isVLVSortOpen
             });
         };
-        this.onVLVSortClear = () => {
+        this.handleVLVSortClear = () => {
             this.setState({
                 sortValue: [],
                 isVLVSortOpen: false
             });
         };
 
-        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
+        this.onTypeaheadChange = this.onTypeaheadChange.bind(this);
     }
 
-    handleTypeaheadChange(e, selection) {
+    onTypeaheadChange(e, selection) {
         if (this.state.sortValue.includes(selection)) {
             this.setState(
                 (prevState) => ({
@@ -561,23 +561,23 @@ class AddVLVIndexModal extends React.Component {
                 aria-labelledby="ds-modal"
                 title="Create VLV Sort Index"
                 isOpen={showModal}
-                onClose={this.props.closeHandler}
+                onClose={this.props.handleClose}
                 className={this.state.isVLVSortOpen ? "ds-modal-select-tall" : "ds-modal-select"}
                 actions={[
                     <Button
                         key="confirm"
                         variant="primary"
                         onClick={() => {
-                            this.props.saveHandler(this.state.sortValue);
+                            this.props.handleSave(this.state.sortValue);
                         }}
                         isLoading={saving}
                         spinnerAriaValueText={saving ? "Saving" : undefined}
                         {...extraPrimaryProps}
-                        isDisabled={this.state.sortValue.length == 0 || saving}
+                        isDisabled={this.state.sortValue.length === 0 || saving}
                     >
                         {saveBtnName}
                     </Button>,
-                    <Button key="cancel" variant="link" onClick={this.props.closeHandler}>
+                    <Button key="cancel" variant="link" onClick={this.props.handleClose}>
                         Cancel
                     </Button>
                 ]}
@@ -591,8 +591,8 @@ class AddVLVIndexModal extends React.Component {
                             variant={SelectVariant.typeaheadMulti}
                             typeAheadAriaLabel="Type an attribute names to create a sort index"
                             className="ds-margin-top-lg"
-                            onToggle={this.onVLVSortToggle}
-                            onClear={this.onVLVSortClear}
+                            onToggle={this.handleVLVSortToggle}
+                            onClear={this.handleVLVSortClear}
                             onSelect={this.handleTypeaheadChange}
                             maxHeight={1000}
                             selections={this.state.sortValue}

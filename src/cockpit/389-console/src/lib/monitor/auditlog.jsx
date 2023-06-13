@@ -29,7 +29,7 @@ export class AuditLogMonitor extends React.Component {
             auditRefreshing: false,
             auditLines: "50",
         };
-        this.refreshAuditLog = this.refreshAuditLog.bind(this);
+        this.handleRefreshAuditLog = this.handleRefreshAuditLog.bind(this);
         this.handleAuditChange = this.handleAuditChange.bind(this);
         this.auditRefreshCont = this.auditRefreshCont.bind(this);
     }
@@ -47,10 +47,10 @@ export class AuditLogMonitor extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
-        this.refreshAuditLog();
+        this.handleRefreshAuditLog();
     }
 
-    refreshAuditLog () {
+    handleRefreshAuditLog () {
         this.setState({
             auditReloading: true
         });
@@ -67,13 +67,16 @@ export class AuditLogMonitor extends React.Component {
 
     auditRefreshCont(e) {
         if (e.target.checked) {
-            this.state.auditlog_cont_refresh = setInterval(this.refreshAuditLog, 2000);
+            this.setState({
+                auditlog_cont_refresh: setInterval(this.handleRefreshAuditLog, 2000),
+                auditRefreshing: e.target.checked,
+            });
         } else {
             clearInterval(this.state.auditlog_cont_refresh);
+            this.setState({
+                auditRefreshing: e.target.checked,
+            });
         }
-        this.setState({
-            auditRefreshing: e.target.checked,
-        });
     }
 
     handleAuditChange(e) {
@@ -82,17 +85,18 @@ export class AuditLogMonitor extends React.Component {
             {
                 auditLines: value
             }
-        ), this.refreshAuditLog);
+        ), this.handleRefreshAuditLog);
     }
 
     render() {
         let spinner = "";
         if (this.state.auditReloading) {
-            spinner =
+            spinner = (
                 <div>
                     <Spinner size="sm" />
                     Reloading audit log...
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -101,12 +105,13 @@ export class AuditLogMonitor extends React.Component {
                     <GridItem span={3}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Audit Log <FontAwesomeIcon
+                                Audit Log
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
                                     title="Refresh audit log"
-                                    onClick={this.refreshAuditLog}
+                                    onClick={this.handleRefreshAuditLog}
                                 />
                             </Text>
                         </TextContent>

@@ -164,7 +164,7 @@ export class Security extends React.Component {
             this.setState({
                 sslVersionMin: selection,
                 isMinSSLOpen: false,
-                disableSaveBtn: disableSaveBtn
+                disableSaveBtn
             });
         };
 
@@ -183,7 +183,7 @@ export class Security extends React.Component {
             this.setState({
                 sslVersionMax: selection,
                 isMaxSSLOpen: false,
-                disableSaveBtn: disableSaveBtn
+                disableSaveBtn
             });
         };
 
@@ -203,7 +203,7 @@ export class Security extends React.Component {
             this.setState({
                 clientAuth: selection,
                 isClientAuthOpen: false,
-                disableSaveBtn: disableSaveBtn
+                disableSaveBtn
             });
         };
 
@@ -222,7 +222,7 @@ export class Security extends React.Component {
             this.setState({
                 validateCert: selection,
                 isValidateCertOpen: false,
-                disableSaveBtn: disableSaveBtn
+                disableSaveBtn
             });
         };
 
@@ -546,7 +546,7 @@ export class Security extends React.Component {
                             sslVersionMin: attrs.sslversionmin,
                             sslVersionMax: attrs.sslversionmax,
                             allowWeakCipher: allowWeak,
-                            cipherPref: cipherPref,
+                            cipherPref,
                             nstlsallowclientrenegotiation: renegot,
                             _nstlsallowclientrenegotiation: renegot,
                             _securityEnabled: secEnabled,
@@ -637,59 +637,59 @@ export class Security extends React.Component {
             ];
             log_cmd("enableSecurity", "Update RSA", rsa_cmd);
             cockpit
-                .spawn(rsa_cmd, { superuser: true, err: "message" })
-                .done(() => {
-                    this.loadSecurityConfig();
-                    log_cmd("enableSecurity", "Enable security", cmd);
-                    cockpit
-                            .spawn(cmd, { superuser: true, err: "message" })
-                            .done(() => {
-                                this.loadSecurityConfig();
-                                this.props.addNotification(
-                                    "success",
-                                    `Successfully enabled security.`
-                                );
-                                this.props.addNotification(
-                                    "warning",
-                                    `You must restart the Directory Server for these changes to take effect.`
-                                );
-                                this.setState({
-                                    securityEnabled: true,
-                                    secEnableSpinner: false,
-                                    showSecurityEnableModal: false,
+                    .spawn(rsa_cmd, { superuser: true, err: "message" })
+                    .done(() => {
+                        this.loadSecurityConfig();
+                        log_cmd("enableSecurity", "Enable security", cmd);
+                        cockpit
+                                .spawn(cmd, { superuser: true, err: "message" })
+                                .done(() => {
+                                    this.loadSecurityConfig();
+                                    this.props.addNotification(
+                                        "success",
+                                        `Successfully enabled security.`
+                                    );
+                                    this.props.addNotification(
+                                        "warning",
+                                        `You must restart the Directory Server for these changes to take effect.`
+                                    );
+                                    this.setState({
+                                        securityEnabled: true,
+                                        secEnableSpinner: false,
+                                        showSecurityEnableModal: false,
+                                    });
+                                })
+                                .fail(err => {
+                                    const errMsg = JSON.parse(err);
+                                    let msg = errMsg.desc;
+                                    if ('info' in errMsg) {
+                                        msg = errMsg.desc + " - " + errMsg.info;
+                                    }
+                                    this.props.addNotification(
+                                        "error",
+                                        `Error enabling security - ${msg}`
+                                    );
+                                    this.setState({
+                                        secEnableSpinner: false,
+                                        showSecurityEnableModal: false,
+                                    });
                                 });
-                            })
-                            .fail(err => {
-                                const errMsg = JSON.parse(err);
-                                let msg = errMsg.desc;
-                                if ('info' in errMsg) {
-                                    msg = errMsg.desc + " - " + errMsg.info;
-                                }
-                                this.props.addNotification(
-                                    "error",
-                                    `Error enabling security - ${msg}`
-                                );
-                                this.setState({
-                                    secEnableSpinner: false,
-                                    showSecurityEnableModal: false,
-                                });
-                            });
-                })
-                .fail(err => {
-                    const errMsg = JSON.parse(err);
-                    let msg = errMsg.desc;
-                    if ('info' in errMsg) {
-                        msg = errMsg.desc + " - " + errMsg.info;
-                    }
-                    this.props.addNotification(
-                        "error",
-                        `Error enabling security (RSA cert name)- ${msg}`
-                    );
-                    this.setState({
-                        secEnableSpinner: false,
-                        showSecurityEnableModal: false,
+                    })
+                    .fail(err => {
+                        const errMsg = JSON.parse(err);
+                        let msg = errMsg.desc;
+                        if ('info' in errMsg) {
+                            msg = errMsg.desc + " - " + errMsg.info;
+                        }
+                        this.props.addNotification(
+                            "error",
+                            `Error enabling security (RSA cert name)- ${msg}`
+                        );
+                        this.setState({
+                            secEnableSpinner: false,
+                            showSecurityEnableModal: false,
+                        });
                     });
-                });
         } else {
             log_cmd("enableSecurity", "Enable security", cmd);
             cockpit
@@ -964,7 +964,7 @@ export class Security extends React.Component {
 
         this.setState({
             [attr]: value,
-            disableSaveBtn: disableSaveBtn
+            disableSaveBtn
         });
     }
 
@@ -972,14 +972,14 @@ export class Security extends React.Component {
         this.setState({
             [toggleId]: isExpanded
         });
-    }
+    };
 
     onSelectClear = (toggleId, collection) => {
         this.setState({
             [toggleId]: false,
             [collection]: []
         });
-    }
+    };
 
     render() {
         let securityPage = "";
@@ -994,7 +994,7 @@ export class Security extends React.Component {
         if (this.state.loaded && !this.state.saving) {
             let configPage = "";
             if (this.state.securityEnabled) {
-                configPage =
+                configPage = (
                     <div className="ds-margin-bottom-md">
                         <Form isHorizontal autoComplete="off">
                             <Grid
@@ -1208,10 +1208,11 @@ export class Security extends React.Component {
                         >
                             {saveBtnName}
                         </Button>
-                    </div>;
+                    </div>
+                );
             }
 
-            securityPage =
+            securityPage = (
                 <div className="ds-margin-bottom-md">
                     <Grid>
                         <GridItem span={12}>
@@ -1272,9 +1273,10 @@ export class Security extends React.Component {
                             </Tab>
                         </Tabs>
                     </div>
-                </div>;
+                </div>
+            );
         } else {
-            securityPage =
+            securityPage = (
                 <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
@@ -1282,7 +1284,8 @@ export class Security extends React.Component {
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="lg" />
-                </div>;
+                </div>
+            );
         }
         return (
             <div className={this.state.saving ? "ds-disabled" : ""}>
