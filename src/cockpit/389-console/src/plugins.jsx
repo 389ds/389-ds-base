@@ -185,7 +185,7 @@ export class Plugins extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    var myObject = JSON.parse(content);
+                    const myObject = JSON.parse(content);
                     const pluginTableKey = this.state.pluginTableKey + 1;
                     if (this.state.firstLoad) {
                         this.setState(prevState => ({
@@ -195,12 +195,12 @@ export class Plugins extends React.Component {
                             },
                             rows: myObject.items,
                             firstLoad: false,
-                            pluginTableKey: pluginTableKey,
+                            pluginTableKey,
                         }));
                     } else {
                         this.setState({
                             rows: myObject.items,
-                            pluginTableKey: pluginTableKey,
+                            pluginTableKey,
                         });
                     }
                 })
@@ -708,9 +708,11 @@ export class Plugins extends React.Component {
                             ? "Are you really sure you want to disable this plugin?  Disabling some plugins can cause the server to not start, please use caution."
                             : "Are you sure you want to enable this plugin?"}
                         mSpinningMsg={this.state.togglePluginEnabled
-                            ? "Disabling plugin ..." : "Enabling plugin ..."}
+                            ? "Disabling plugin ..."
+                            : "Enabling plugin ..."}
                         mBtnName={this.state.togglePluginEnabled
-                            ? "Disable Plugin" : "Enable Plugin"}
+                            ? "Disable Plugin"
+                            : "Enable Plugin"}
                     />
                 </div>
             </div>

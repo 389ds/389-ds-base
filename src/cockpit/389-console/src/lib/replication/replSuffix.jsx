@@ -58,19 +58,19 @@ export class ReplSuffix extends React.Component {
             modalSpinning: false,
         };
 
-        this.onMinus = () => {
+        this.handleMinusChange = () => {
             this.setState({
                 enableRID: Number(this.state.enableRID) - 1
             });
         };
-        this.onNumberChange = (event) => {
+        this.handleNumberChange = (event) => {
             const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
             this.setState({
                 enableRID: newValue > 65534 ? 65534 : newValue < 1 ? 1 : newValue
             });
         };
 
-        this.onPlus = () => {
+        this.handlePlusChange = () => {
             this.setState({
                 enableRID: Number(this.state.enableRID) + 1
             });
@@ -86,9 +86,9 @@ export class ReplSuffix extends React.Component {
 
         // General bindings
         this.handleReplChange = this.handleReplChange.bind(this);
-        this.handleEnableChange = this.handleEnableChange.bind(this);
+        this.onEnableChange = this.onEnableChange.bind(this);
         this.validateEnable = this.validateEnable.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onChange = this.onChange.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.disableReplication = this.disableReplication.bind(this);
         this.enableReplication = this.enableReplication.bind(this);
@@ -121,17 +121,17 @@ export class ReplSuffix extends React.Component {
         }
     }
 
-    handleChange (e) {
+    onChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         const errObj = this.state.errObj;
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
@@ -141,14 +141,14 @@ export class ReplSuffix extends React.Component {
 
         const dnAttrs = ['enableBindDN', 'enableBindGroupDN'];
         for (const attr of dnAttrs) {
-            if (this.state[attr] != "" && (!valid_dn(this.state[attr]) || !this.state[attr].includes(','))) {
+            if (this.state[attr] !== "" && (!valid_dn(this.state[attr]) || !this.state[attr].includes(','))) {
                 all_good = false;
                 errObj[attr] = true;
             }
         }
 
         if (this.state.enableBindDN) {
-            if (this.state.enableBindPW == "" || this.state.enableBindPW != this.state.enableBindPWConfirm) {
+            if (this.state.enableBindPW === "" || this.state.enableBindPW !== this.state.enableBindPWConfirm) {
                 errObj.enableBindPW = true;
                 errObj.enableBindPWConfirm = true;
                 all_good = false;
@@ -156,12 +156,12 @@ export class ReplSuffix extends React.Component {
         }
 
         this.setState({
-            errObj: errObj,
+            errObj,
             disabled: !all_good
         });
     }
 
-    handleEnableChange (e) {
+    onEnableChange (e) {
         const value = e.target.value;
         const attr = e.target.id;
 
@@ -178,28 +178,28 @@ export class ReplSuffix extends React.Component {
 
     enableReplication () {
         // First, Validate
-        if (this.state.enableBindDN != "" && !valid_dn(this.state.enableBindDN)) {
+        if (this.state.enableBindDN !== "" && !valid_dn(this.state.enableBindDN)) {
             this.props.addNotification(
                 "error",
                 `The Bind DN is not a valid DN (Distinguished Name) ${this.state.enableBindDN}`
             );
             return;
         }
-        if (this.state.enableBindGroupDN != "" && !valid_dn(this.state.enableBindGroupDN)) {
+        if (this.state.enableBindGroupDN !== "" && !valid_dn(this.state.enableBindGroupDN)) {
             this.props.addNotification(
                 "error",
                 `The Group DN is not a valid DN (Distinguished Name)`
             );
             return;
         }
-        if (this.state.enableBindPW != this.state.enableBindPWConfirm) {
+        if (this.state.enableBindPW !== this.state.enableBindPWConfirm) {
             this.props.addNotification(
                 "error",
                 `The Bind DN passwords do not match`
             );
             return;
         }
-        if (this.state.enableRID != "" && (this.state.enableRID < 1 || this.state.enableRID > 65534)) {
+        if (this.state.enableRID !== "" && (this.state.enableRID < 1 || this.state.enableRID > 65534)) {
             this.props.addNotification(
                 "error",
                 `The Replica ID is not in the valid range of 1 - 65534`
@@ -208,22 +208,22 @@ export class ReplSuffix extends React.Component {
         }
 
         // Now enable replication
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'enable', '--suffix=' + this.props.suffix,
             '--role=' + this.state.enableRole
         ];
         let passwd = "";
-        if (this.state.enableBindDN != "") {
+        if (this.state.enableBindDN !== "") {
             cmd.push('--bind-dn=' + this.state.enableBindDN);
         }
-        if (this.state.enableBindPW != "") {
+        if (this.state.enableBindPW !== "") {
             passwd = this.state.enableBindPW;
         }
-        if (this.state.enableBindGroupDN != "") {
+        if (this.state.enableBindGroupDN !== "") {
             cmd.push('--bind-group-dn=' + this.state.enableBindGroupDN);
         }
-        if (this.state.enableRole == "Supplier") {
+        if (this.state.enableRole === "Supplier") {
             cmd.push('--replica-id=' + this.state.enableRID);
         }
 
@@ -233,12 +233,11 @@ export class ReplSuffix extends React.Component {
 
         this.props.disableTree();
 
-
         // Something changed, perform the update
         const config = {
-            cmd: cmd,
+            cmd,
             promptArg: "--bind-passwd-prompt",
-            passwd: passwd,
+            passwd,
             addNotification: this.props.addNotification,
             success_msg: `Successfully enabled replication for "${this.props.suffix}"`,
             error_msg: `Failed to enable replication for "${this.props.suffix}"`,
@@ -299,7 +298,7 @@ export class ReplSuffix extends React.Component {
         if (this.props.replicated) {
             suffixIcon = faClone;
         } else {
-            if (this.props.repl == "subsuffix") {
+            if (this.props.repl === "subsuffix") {
                 suffixIcon = faLeaf;
             }
         }
@@ -314,7 +313,7 @@ export class ReplSuffix extends React.Component {
             suffixClass = "ds-margin-top-lg ds-disabled";
         }
 
-        let enabledContent =
+        let enabledContent = (
             <div className={suffixClass}>
                 <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Configuration</TabTitleText>}>
@@ -377,11 +376,12 @@ export class ReplSuffix extends React.Component {
                         />
                     </Tab>
                 </Tabs>
-            </div>;
+            </div>
+        );
 
         let replActionButton = "";
         if (this.props.replicated) {
-            replActionButton =
+            replActionButton = (
                 <Button
                     className="ds-float-right"
                     variant="danger"
@@ -389,9 +389,10 @@ export class ReplSuffix extends React.Component {
                     title="Disable replication, and remove all replication agreements."
                 >
                     Disable
-                </Button>;
+                </Button>
+            );
         } else {
-            enabledContent =
+            enabledContent = (
                 <div className="ds-center ds-margin-top-xlg">
                     <TextContent>
                         <Text component={TextVariants.h3}>
@@ -405,7 +406,8 @@ export class ReplSuffix extends React.Component {
                     >
                         Enable Replication
                     </Button>
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -429,22 +431,22 @@ export class ReplSuffix extends React.Component {
                 <EnableReplModal
                     showModal={this.state.showEnableReplModal}
                     closeHandler={this.closeEnableReplModal}
-                    handleChange={this.handleEnableChange}
+                    handleChange={this.onEnableChange}
                     saveHandler={this.enableReplication}
                     spinning={this.state.enableSpinning}
                     enableRole={this.state.enableRole}
                     enableRID={this.state.enableRID}
                     enableBindDN={this.state.enableBindDN}
                     disabled={this.state.disabled}
-                    onMinus={this.onMinus}
-                    onNumberChange={this.onNumberChange}
-                    onPlus={this.onPlus}
+                    onMinus={this.handleMinusChange}
+                    onNumberChange={this.handleNumberChange}
+                    onPlus={this.handlePlusChange}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showDisableReplModal}
                     closeHandler={this.closeDisableReplModal}
-                    handleChange={this.handleChange}
+                    onChange={this.handleChange}
                     actionHandler={this.disableReplication}
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}

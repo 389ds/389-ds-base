@@ -15,7 +15,7 @@ class GenericWizard extends React.Component {
             wizardEntryDn: this.props.wizardEntryDn,
             editorLdapServer: this.props.editorLdapServer,
             // Functions
-            toggleOpenWizard: this.props.toggleOpenWizard,
+            handleToggleWizard: this.props.toggleOpenWizard,
             setWizardOperationInfo: this.props.setWizardOperationInfo,
             onReload: this.props.onReload,
             onModrdnReload: this.props.onModrdnReload,
@@ -26,33 +26,45 @@ class GenericWizard extends React.Component {
         };
 
         switch (this.props.wizardName) {
-            case ENTRY_MENU.acis:
-                return <AciWizard
+        case ENTRY_MENU.acis:
+            return (
+                <AciWizard
                     {...wizardProps }
-                />;
-            case ENTRY_MENU.new:
-                return <NewEntryWizard
+                />
+            );
+        case ENTRY_MENU.new:
+            return (
+                <NewEntryWizard
                     {...wizardProps }
-                />;
-            case ENTRY_MENU.edit:
-                return <EditLdapEntry
+                />
+            );
+        case ENTRY_MENU.edit:
+            return (
+                <EditLdapEntry
                     {...wizardProps}
-                />;
-            case ENTRY_MENU.rename:
-                return <RenameEntry
+                />
+            );
+        case ENTRY_MENU.rename:
+            return (
+                <RenameEntry
                     {...wizardProps}
-                />;
-            case ENTRY_MENU.cos:
-                return <CoSEntryWizard
+                />
+            );
+        case ENTRY_MENU.cos:
+            return (
+                <CoSEntryWizard
                     {...wizardProps}
-                />;
-            case ENTRY_MENU.delete:
-                return <DeleteOperationWizard
+                />
+            );
+        case ENTRY_MENU.delete:
+            return (
+                <DeleteOperationWizard
                     {...wizardProps }
-                />;
-            default:
-                console.log(`Unknown Wizard in GenericWizard class: ${this.props.wizardName}`);
-                return null;
+                />
+            );
+        default:
+            console.log(`Unknown Wizard in GenericWizard class: ${this.props.wizardName}`);
+            return null;
         }
     }
 }

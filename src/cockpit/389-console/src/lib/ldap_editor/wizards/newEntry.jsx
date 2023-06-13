@@ -5,7 +5,7 @@ import {
     CardTitle,
     CardBody,
     Radio,
-}   from '@patternfly/react-core';
+} from '@patternfly/react-core';
 import {
     ENTRY_TYPE
 } from '../lib/constants.jsx';
@@ -30,7 +30,7 @@ class NewEntryWizard extends React.Component {
         this.setState({ getStartedStepRadio: event.currentTarget.value });
     };
 
-    createInitialLayout=() => {
+    createInitialLayout = () => {
         // console.log(`this.props.createRootEntry = ${this.props.createRootEntry}`);
         // Creation of a root entry.
         if (this.props.createRootEntry) {
@@ -42,7 +42,8 @@ class NewEntryWizard extends React.Component {
                         <Card isSelectable>
                             <CardTitle>Requirement for a root entry creation</CardTitle>
                             <CardBody>
-                                <Alert variant="info" isInline
+                                <Alert
+variant="info" isInline
                                     title="The object class must contain the attribute used to name the suffix."
                                 />
                             </CardBody>
@@ -52,17 +53,18 @@ class NewEntryWizard extends React.Component {
                                 another object class that allows the <code>ou</code> attribute.
                             </CardBody>
                             <CardBody>
-                                <Alert variant="default" isInline
+                                <Alert
+variant="default" isInline
                                     title={`The root entry to create is "${this.props.entryParentDn}"`}
                                 >
                                     Make sure to select an <strong>ObjectClass</strong> that allows or requires the attribute
                                     <strong> {this.props.entryParentDn.split('=')[0]}</strong>
-                                </ Alert>
+                                </Alert>
                             </CardBody>
                         </Card>
                     )
                 }
-            ])
+            ]);
         }
 
         // Creation of a normal (non-root) entry.
@@ -124,7 +126,11 @@ class NewEntryWizard extends React.Component {
                     </div>
                 )
             }
-        ])
+        ]);
+    };
+
+    onToggleWizard () {
+        this.props.handleToggleWizard();
     }
 
     render () {
@@ -136,7 +142,7 @@ class NewEntryWizard extends React.Component {
 
         const wizardProps = {
             isWizardOpen: this.props.isWizardOpen,
-            toggleOpenWizard: this.props.toggleOpenWizard,
+            handleToggleWizard: this.props.handleToggleWizard,
             wizardEntryDn: this.props.wizardEntryDn,
             editorLdapServer: this.props.editorLdapServer,
             setWizardOperationInfo: this.props.setWizardOperationInfo,
@@ -145,35 +151,45 @@ class NewEntryWizard extends React.Component {
         };
 
         if (getStartedStepRadio === 'User') {
-            return <AddUser
-                {...wizardProps}
-            />
+            return (
+                <AddUser
+                    {...wizardProps}
+                />
+            );
         } else if (getStartedStepRadio === 'Group') {
-            return <AddGroup
-                {...wizardProps}
+            return (
+                <AddGroup
+                    {...wizardProps}
                 treeViewRootSuffixes={this.props.treeViewRootSuffixes}
-            />
+                />
+            );
         } else if (getStartedStepRadio === 'Role') {
-            return <AddRole
-                {...wizardProps}
+            return (
+                <AddRole
+                    {...wizardProps}
                 treeViewRootSuffixes={this.props.treeViewRootSuffixes}
-            />
+                />
+            );
         } else if (getStartedStepRadio === 'OrganizationalUnit') {
-            return <GenericUpdate
-                editorLdapServer={this.props.editorLdapServer}
-                entryType={ENTRY_TYPE.ou}
-                isWizardOpen={this.props.isWizardOpen}
-                toggleOpenWizard={this.props.toggleOpenWizard}
-                setWizardOperationInfo={this.props.setWizardOperationInfo}
-                wizardEntryDn={this.props.wizardEntryDn}
-                firstStep={initialStep}
-                onReload={this.props.onReload}
-            />;
+            return (
+                <GenericUpdate
+                    editorLdapServer={this.props.editorLdapServer}
+                    entryType={ENTRY_TYPE.ou}
+                    isWizardOpen={this.props.isWizardOpen}
+                    handleToggleWizard={this.onToggleWizard}
+                    setWizardOperationInfo={this.props.setWizardOperationInfo}
+                    wizardEntryDn={this.props.wizardEntryDn}
+                    firstStep={initialStep}
+                    onReload={this.props.onReload}
+                />
+            );
         } else {
-            return <AddLdapEntry
-                allObjectclasses={this.props.allObjectclasses}
-                {...wizardProps}
-            />
+            return (
+                <AddLdapEntry
+                    allObjectclasses={this.props.allObjectclasses}
+                    {...wizardProps}
+                />
+            );
         }
     }
 }

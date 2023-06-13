@@ -99,7 +99,7 @@ export class ServerAuditFailLog extends React.Component {
                 maxValue = max;
             }
             let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
-            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
             this.setState({
                 [id]: newValue
             }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
@@ -108,7 +108,7 @@ export class ServerAuditFailLog extends React.Component {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
-        }
+        };
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
@@ -163,7 +163,7 @@ export class ServerAuditFailLog extends React.Component {
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) });
     }
 
     handleSwitchChange(value) {
@@ -220,7 +220,7 @@ export class ServerAuditFailLog extends React.Component {
             config_attrs = exp_attrs;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -417,7 +417,7 @@ export class ServerAuditFailLog extends React.Component {
         }
         rotationTime = hour + ":" + min;
 
-        let body =
+        let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
@@ -691,16 +691,18 @@ export class ServerAuditFailLog extends React.Component {
                         </Button>
                     </Tab>
                 </Tabs>
-            </div>;
+            </div>
+        );
 
         if (!this.state.loaded) {
-            body =
+            body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>Loading Audit Fail Log Settings ...</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -709,7 +711,8 @@ export class ServerAuditFailLog extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Audit Fail Log Settings <FontAwesomeIcon
+                                Audit Fail Log Settings
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}

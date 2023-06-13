@@ -41,25 +41,25 @@ class PluginTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    onCollapse(event, rowKey, isOpen) {
+    handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -68,7 +68,7 @@ class PluginTable extends React.Component {
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -105,12 +105,12 @@ class PluginTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         let count = 0;
 
@@ -118,8 +118,8 @@ class PluginTable extends React.Component {
             const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && row.cn[0].toLowerCase().indexOf(val) == -1 &&
-                row["nsslapd-pluginType"][0].toLowerCase().indexOf(val) == -1) {
+            if (val !== "" && row.cn[0].toLowerCase().indexOf(val) === -1 &&
+                row["nsslapd-pluginType"][0].toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
@@ -143,8 +143,8 @@ class PluginTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -160,7 +160,7 @@ class PluginTable extends React.Component {
             ? ""
             : rowData["nsslapd-pluginprecedence"][0];
 
-        const plugin_enabled = rowData["nsslapd-pluginEnabled"][0] == "on";
+        const plugin_enabled = rowData["nsslapd-pluginEnabled"][0] === "on";
         // const plugin_name = (' ' + rowData["cn"][0]).slice(1);
         const plugin_name = rowData.cn[0];
         const enabled = <i>Plugin is enabled</i>;
@@ -223,7 +223,7 @@ class PluginTable extends React.Component {
             count += 2;
         }
         this.setState({
-            rows: rows,
+            rows,
         });
     }
 
@@ -243,8 +243,8 @@ class PluginTable extends React.Component {
                 <SearchInput
                     placeholder='Search Plugins'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -253,8 +253,8 @@ class PluginTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
-                    onCollapse={this.onCollapse}
+                    onSort={this.handleSort}
+                    onCollapse={this.handleCollapse}
                 >
                     <TableHeader />
                     <TableBody />
@@ -265,8 +265,8 @@ class PluginTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -298,20 +298,20 @@ class AttrUniqConfigTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     actions() {
@@ -339,11 +339,11 @@ class AttrUniqConfigTable extends React.Component {
             rows.push([row.cn[0], row['uniqueness-attribute-name'].join(", "), row["nsslapd-pluginenabled"][0]]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -354,27 +354,27 @@ class AttrUniqConfigTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 rows.push([row.cn[0], row['uniqueness-attribute-name'].join(", "), row["nsslapd-pluginenabled"][0]]);
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -384,7 +384,7 @@ class AttrUniqConfigTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Attribute Uniqueness Configurations' }];
             tableRows = [{ cells: ['No Configurations'] }];
@@ -397,8 +397,8 @@ class AttrUniqConfigTable extends React.Component {
                 <SearchInput
                     placeholder='Search Configurations'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -407,7 +407,7 @@ class AttrUniqConfigTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -421,8 +421,8 @@ class AttrUniqConfigTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -457,20 +457,20 @@ class LinkedAttributesTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     actions() {
@@ -502,11 +502,11 @@ class LinkedAttributesTable extends React.Component {
             rows.push([configName, linkType, managedType, linkScope]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -517,21 +517,21 @@ class LinkedAttributesTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1 &&
-                row[3].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1 &&
+                row[3].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 const configName = row.cn === undefined ? "" : row.cn[0];
@@ -542,8 +542,8 @@ class LinkedAttributesTable extends React.Component {
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -553,7 +553,7 @@ class LinkedAttributesTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Linked Attributes Configurations' }];
             tableRows = [{ cells: ['No Configurations'] }];
@@ -566,8 +566,8 @@ class LinkedAttributesTable extends React.Component {
                 <SearchInput
                     placeholder='Search Configurations'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -576,7 +576,7 @@ class LinkedAttributesTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -590,8 +590,8 @@ class LinkedAttributesTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -625,20 +625,20 @@ class DNATable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -652,11 +652,11 @@ class DNATable extends React.Component {
             rows.push([configName, scope, filter, nextValue]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -667,21 +667,21 @@ class DNATable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1 &&
-                row[3].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1 &&
+                row[3].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 const configName = row.cn === undefined ? "" : row.cn[0];
@@ -692,8 +692,8 @@ class DNATable extends React.Component {
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -721,7 +721,7 @@ class DNATable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'DNA Configurations' }];
             tableRows = [{ cells: ['No Configurations'] }];
@@ -735,8 +735,8 @@ class DNATable extends React.Component {
                 <SearchInput
                     placeholder='Search Configurations'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -745,7 +745,7 @@ class DNATable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -759,8 +759,8 @@ class DNATable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -793,20 +793,20 @@ class DNASharedTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -819,11 +819,11 @@ class DNASharedTable extends React.Component {
             ]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -834,20 +834,20 @@ class DNASharedTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 rows.push([
@@ -858,8 +858,8 @@ class DNASharedTable extends React.Component {
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -887,7 +887,7 @@ class DNASharedTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'DNA Shared Configurations' }];
             tableRows = [{ cells: ['No Configurations'] }];
@@ -901,8 +901,8 @@ class DNASharedTable extends React.Component {
                 <SearchInput
                     placeholder='Search Shared Configurations'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -911,7 +911,7 @@ class DNASharedTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -925,8 +925,8 @@ class DNASharedTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -960,20 +960,20 @@ class AutoMembershipDefinitionTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -987,11 +987,11 @@ class AutoMembershipDefinitionTable extends React.Component {
             ]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -1002,21 +1002,21 @@ class AutoMembershipDefinitionTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1 &&
-                row[3].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1 &&
+                row[3].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 rows.push([
@@ -1028,8 +1028,8 @@ class AutoMembershipDefinitionTable extends React.Component {
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1057,7 +1057,7 @@ class AutoMembershipDefinitionTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Automembership Definitions' }];
             tableRows = [{ cells: ['No Definitions'] }];
@@ -1071,8 +1071,8 @@ class AutoMembershipDefinitionTable extends React.Component {
                     className="ds-margin-top-lg"
                     placeholder='Search Definitions'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -1081,7 +1081,7 @@ class AutoMembershipDefinitionTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -1095,8 +1095,8 @@ class AutoMembershipDefinitionTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -1130,20 +1130,20 @@ class AutoMembershipRegexTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -1155,11 +1155,11 @@ class AutoMembershipRegexTable extends React.Component {
             rows.push([row.cn[0], excludeReg, includeReg, targetGrp]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -1170,21 +1170,21 @@ class AutoMembershipRegexTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1 &&
-                row[3].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1 &&
+                row[3].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 const includeReg = row.automemberinclusiveregex === undefined ? "" : row.automemberinclusiveregex[0];
@@ -1199,8 +1199,8 @@ class AutoMembershipRegexTable extends React.Component {
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1228,7 +1228,7 @@ class AutoMembershipRegexTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Automembership Regular Expressions' }];
             tableRows = [{ cells: ['No regular expressions'] }];
@@ -1242,8 +1242,8 @@ class AutoMembershipRegexTable extends React.Component {
                     className="ds-margin-top-lg"
                     placeholder='Search Regular Expressions'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -1252,7 +1252,7 @@ class AutoMembershipRegexTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -1266,8 +1266,8 @@ class AutoMembershipRegexTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -1301,20 +1301,20 @@ class ManagedDefinitionTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -1326,11 +1326,11 @@ class ManagedDefinitionTable extends React.Component {
             rows.push([row.cn[0], scope, filter, managedBase]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -1341,21 +1341,21 @@ class ManagedDefinitionTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1 &&
-                row[3].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1 &&
+                row[3].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 const managedBase = row.managedbase === undefined ? "" : row.managedbase[0];
@@ -1365,8 +1365,8 @@ class ManagedDefinitionTable extends React.Component {
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1394,7 +1394,7 @@ class ManagedDefinitionTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Managed Entry Definitions' }];
             tableRows = [{ cells: ['No definitions'] }];
@@ -1408,8 +1408,8 @@ class ManagedDefinitionTable extends React.Component {
                     className="ds-margin-top-lg"
                     placeholder='Search Definitions'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -1418,7 +1418,7 @@ class ManagedDefinitionTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -1432,8 +1432,8 @@ class ManagedDefinitionTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -1464,20 +1464,20 @@ class ManagedTemplateTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -1486,11 +1486,11 @@ class ManagedTemplateTable extends React.Component {
             rows.push([row.entrydn[0]]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -1501,25 +1501,25 @@ class ManagedTemplateTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" && row[0].indexOf(val) == -1) {
+            if (val !== "" && row[0].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 rows.push([row.entrydn[0]]);
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1547,7 +1547,7 @@ class ManagedTemplateTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Managed Entry Templates' }];
             tableRows = [{ cells: ['No templates'] }];
@@ -1561,8 +1561,8 @@ class ManagedTemplateTable extends React.Component {
                     placeholder='Search Templates'
                     className="ds-margin-top-lg"
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -1571,7 +1571,7 @@ class ManagedTemplateTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -1585,8 +1585,8 @@ class ManagedTemplateTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -1617,20 +1617,20 @@ class PassthroughAuthURLsTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -1639,11 +1639,11 @@ class PassthroughAuthURLsTable extends React.Component {
             rows.push([row.url]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -1654,25 +1654,25 @@ class PassthroughAuthURLsTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" && row[0].indexOf(val) == -1) {
+            if (val !== "" && row[0].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 rows.push([row.url]);
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1700,7 +1700,7 @@ class PassthroughAuthURLsTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Pass-Through Authentication URLs' }];
             tableRows = [{ cells: ['No URLs'] }];
@@ -1714,8 +1714,8 @@ class PassthroughAuthURLsTable extends React.Component {
                     placeholder='Search'
                     className="ds-margin-top-lg"
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -1724,7 +1724,7 @@ class PassthroughAuthURLsTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -1738,8 +1738,8 @@ class PassthroughAuthURLsTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -1773,20 +1773,20 @@ class PassthroughAuthConfigsTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -1798,11 +1798,11 @@ class PassthroughAuthConfigsTable extends React.Component {
             rows.push([row.cn[0], attr, mapMethod, filter]);
         }
         this.setState({
-            rows: rows
+            rows
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -1813,21 +1813,21 @@ class PassthroughAuthConfigsTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         const val = value.toLowerCase();
         for (const row of this.state.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1 &&
-                row[3].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1 &&
+                row[3].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2], row[3]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             for (const row of this.props.rows) {
                 const attr = row.pamidattr === undefined ? "" : row.pamidattr[0];
@@ -1837,8 +1837,8 @@ class PassthroughAuthConfigsTable extends React.Component {
             }
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -1866,7 +1866,7 @@ class PassthroughAuthConfigsTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'PAM Configurations' }];
             tableRows = [{ cells: ['No PAM configurations'] }];
@@ -1880,8 +1880,8 @@ class PassthroughAuthConfigsTable extends React.Component {
                     placeholder='Search'
                     className="ds-margin-top-lg"
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -1890,7 +1890,7 @@ class PassthroughAuthConfigsTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -1904,8 +1904,8 @@ class PassthroughAuthConfigsTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );

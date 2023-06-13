@@ -117,25 +117,25 @@ export class GlobalPwPolicy extends React.Component {
         };
 
         this.handleGeneralChange = this.handleGeneralChange.bind(this);
-        this.saveGeneral = this.saveGeneral.bind(this);
+        this.handleSaveGeneral = this.handleSaveGeneral.bind(this);
         this.handleExpChange = this.handleExpChange.bind(this);
-        this.saveExp = this.saveExp.bind(this);
+        this.handleSaveExp = this.handleSaveExp.bind(this);
         this.handleLockoutChange = this.handleLockoutChange.bind(this);
-        this.saveLockout = this.saveLockout.bind(this);
+        this.handleSaveLockout = this.handleSaveLockout.bind(this);
         this.handleSyntaxChange = this.handleSyntaxChange.bind(this);
-        this.saveSyntax = this.saveSyntax.bind(this);
+        this.handleSaveSyntax = this.handleSaveSyntax.bind(this);
         this.handleTPRChange = this.handleTPRChange.bind(this);
-        this.saveTPR = this.saveTPR.bind(this);
-        this.loadGlobal = this.loadGlobal.bind(this);
+        this.handleSaveTPR = this.handleSaveTPR.bind(this);
+        this.handleLoadGlobal = this.handleLoadGlobal.bind(this);
         // Select Typeahead
-        this.onSelectToggle = this.onSelectToggle.bind(this);
-        this.onSelectClear = this.onSelectClear.bind(this);
+        this.handleSelectToggle = this.handleSelectToggle.bind(this);
+        this.handleSelectClear = this.handleSelectClear.bind(this);
     }
 
     componentDidMount() {
         // Loading config TODO
         if (!this.state.loaded) {
-            this.loadGlobal();
+            this.handleLoadGlobal();
         } else {
             this.props.enableTree();
         }
@@ -152,7 +152,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const general_attr of general_attrs) {
-            if (attr == general_attr && this.state['_' + general_attr] != value) {
+            if (attr === general_attr && this.state['_' + general_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -160,7 +160,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const general_attr of general_attrs) {
-            if (attr != general_attr && this.state['_' + general_attr] != this.state[general_attr]) {
+            if (attr !== general_attr && this.state['_' + general_attr] !== this.state[general_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -172,18 +172,18 @@ export class GlobalPwPolicy extends React.Component {
         });
     }
 
-    saveGeneral() {
+    handleSaveGeneral() {
         this.setState({
             saving: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
         for (const attr of general_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -196,11 +196,11 @@ export class GlobalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveGeneral", "Saving general pwpolicy settings", cmd);
+        log_cmd("handleSaveGeneral", "Saving general pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -211,7 +211,7 @@ export class GlobalPwPolicy extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -229,7 +229,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const user_attr of this.state.user_attrs) {
-            if (attr == user_attr && this.state['_' + user_attr] != value) {
+            if (attr === user_attr && this.state['_' + user_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -237,7 +237,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const user_attr of this.state.user_attrs) {
-            if (attr != user_attr && this.state['_' + user_attr] != this.state[user_attr]) {
+            if (attr !== user_attr && this.state['_' + user_attr] !== this.state[user_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -256,7 +256,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const exp_attr of exp_attrs) {
-            if (attr == exp_attr && this.state['_' + exp_attr] != value) {
+            if (attr === exp_attr && this.state['_' + exp_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -264,7 +264,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const exp_attr of exp_attrs) {
-            if (attr != exp_attr && this.state['_' + exp_attr] != this.state[exp_attr]) {
+            if (attr !== exp_attr && this.state['_' + exp_attr] !== this.state[exp_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -276,18 +276,18 @@ export class GlobalPwPolicy extends React.Component {
         });
     }
 
-    saveExp() {
+    handleSaveExp() {
         this.setState({
             saving: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
         for (const attr of exp_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -300,11 +300,11 @@ export class GlobalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveExp", "Saving Expiration pwpolicy settings", cmd);
+        log_cmd("handleSaveExp", "Saving Expiration pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -315,7 +315,7 @@ export class GlobalPwPolicy extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -333,7 +333,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const lockout_attr of lockout_attrs) {
-            if (attr == lockout_attr && this.state['_' + lockout_attr] != value) {
+            if (attr === lockout_attr && this.state['_' + lockout_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -341,7 +341,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const lockout_attr of lockout_attrs) {
-            if (attr != lockout_attr && this.state['_' + lockout_attr] != this.state[lockout_attr]) {
+            if (attr !== lockout_attr && this.state['_' + lockout_attr] !== this.state[lockout_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -353,18 +353,18 @@ export class GlobalPwPolicy extends React.Component {
         });
     }
 
-    saveLockout() {
+    handleSaveLockout() {
         this.setState({
             saving: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
         for (const attr of lockout_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -377,11 +377,11 @@ export class GlobalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveLockout", "Saving lockout pwpolicy settings", cmd);
+        log_cmd("handleSaveLockout", "Saving lockout pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -392,7 +392,7 @@ export class GlobalPwPolicy extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -418,15 +418,15 @@ export class GlobalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr == 'passworduserattributes' && attr == 'passworduserattributes') {
+            if (syntax_attr === 'passworduserattributes' && attr === 'passworduserattributes') {
                 const orig_val = this.state['_' + syntax_attr].join(' ');
-                if (orig_val != value) {
+                if (orig_val !== value) {
                     value = selection; // restore value
                     disableSaveBtn = false;
                     break;
                 }
                 value = selection; // restore value
-            } else if (attr == syntax_attr && this.state['_' + syntax_attr] != value) {
+            } else if (attr === syntax_attr && this.state['_' + syntax_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -434,15 +434,15 @@ export class GlobalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const syntax_attr of syntax_attrs) {
-            if (syntax_attr == 'passworduserattributes' && attr != 'passworduserattributes') {
+            if (syntax_attr === 'passworduserattributes' && attr !== 'passworduserattributes') {
                 // Typeahead attribute needs special care
                 const orig_val = this.state['_' + syntax_attr].join(' ');
                 const new_val = this.state[syntax_attr].join(' ');
-                if (orig_val != new_val) {
+                if (orig_val !== new_val) {
                     disableSaveBtn = false;
                     break;
                 }
-            } else if (attr != syntax_attr && this.state['_' + syntax_attr] != this.state[syntax_attr]) {
+            } else if (attr !== syntax_attr && this.state['_' + syntax_attr] !== this.state[syntax_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -472,20 +472,20 @@ export class GlobalPwPolicy extends React.Component {
                 isSelectOpen: false
             });
         }
-    }
+    };
 
-    saveSyntax() {
+    handleSaveSyntax() {
         this.setState({
             saving: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
         for (const attr of syntax_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -498,11 +498,11 @@ export class GlobalPwPolicy extends React.Component {
             }
         }
 
-        log_cmd("saveSyntax", "Saving syntax checking pwpolicy settings", cmd);
+        log_cmd("handleSaveSyntax", "Saving syntax checking pwpolicy settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -513,7 +513,7 @@ export class GlobalPwPolicy extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -531,7 +531,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const tpr_attr of tpr_attrs) {
-            if (attr == tpr_attr && this.state['_' + tpr_attr] != value) {
+            if (attr === tpr_attr && this.state['_' + tpr_attr] !== value) {
                 disableSaveBtn = false;
                 break;
             }
@@ -539,7 +539,7 @@ export class GlobalPwPolicy extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const tpr_attr of tpr_attrs) {
-            if (attr != tpr_attr && this.state['_' + tpr_attr] != this.state[tpr_attr]) {
+            if (attr !== tpr_attr && this.state['_' + tpr_attr] !== this.state[tpr_attr]) {
                 disableSaveBtn = false;
                 break;
             }
@@ -551,28 +551,28 @@ export class GlobalPwPolicy extends React.Component {
         });
     }
 
-    saveTPR() {
+    handleSaveTPR() {
         this.setState({
             saving: true
         });
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
 
         for (const attr of tpr_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
-                let val = this.state[attr];
+            if (this.state['_' + attr] !== this.state[attr]) {
+                const val = this.state[attr];
                 cmd.push(attr + "=" + val);
             }
         }
 
-        log_cmd("saveTPR", "Saving TPR settings", cmd);
+        log_cmd("handleSaveTPR", "Saving TPR settings", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -583,7 +583,7 @@ export class GlobalPwPolicy extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.loadGlobal();
+                    this.handleLoadGlobal();
                     this.setState({
                         saving: false
                     });
@@ -594,7 +594,7 @@ export class GlobalPwPolicy extends React.Component {
                 });
     }
 
-    loadGlobal() {
+    handleLoadGlobal() {
         this.setState({
             loading: true
         });
@@ -602,7 +602,7 @@ export class GlobalPwPolicy extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
         ];
-        log_cmd("loadGlobal", "Load global password policy", cmd);
+        log_cmd("handleLoadGlobal", "Load global password policy", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -811,18 +811,18 @@ export class GlobalPwPolicy extends React.Component {
                 });
     }
 
-    onSelectToggle = isSelectOpen => {
+    handleSelectToggle = isSelectOpen => {
         this.setState({
             isSelectOpen
         });
-    }
+    };
 
-    onSelectClear = () => {
+    handleSelectClear = () => {
         this.setState({
             passworduserattributes: [],
             isSelectOpen: false
         });
-    }
+    };
 
     render() {
         let pwp_element = "";
@@ -837,7 +837,7 @@ export class GlobalPwPolicy extends React.Component {
         }
 
         if (this.state.passwordchecksyntax) {
-            pwSyntaxRows =
+            pwSyntaxRows = (
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
@@ -1053,8 +1053,8 @@ export class GlobalPwPolicy extends React.Component {
                             <Select
                                 variant={SelectVariant.typeaheadMulti}
                                 typeAheadAriaLabel="Type an attribute to check"
-                                onToggle={this.onSelectToggle}
-                                onClear={this.onSelectClear}
+                                onToggle={this.handleSelectToggle}
+                                onClear={this.handleSelectClear}
                                 onSelect={this.handleSyntaxChange}
                                 selections={this.state.passworduserattributes}
                                 isOpen={this.state.isSelectOpen}
@@ -1096,11 +1096,12 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
         }
 
         if (this.state.passwordlockout) {
-            pwLockoutRows =
+            pwLockoutRows = (
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top" title="The maximum number of failed logins before account gets locked (passwordMaxFailure).">
                         <GridItem className="ds-label" span={5}>
@@ -1165,11 +1166,12 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
         }
 
         if (this.state.passwordexp) {
-            pwExpirationRows =
+            pwExpirationRows = (
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top" title="The maxiumum age of a password in seconds before it expires (passwordMaxAge).">
                         <GridItem className="ds-label" span={5}>
@@ -1234,16 +1236,18 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
         }
 
         if (this.state.loading || !this.state.loaded) {
-            pwp_element =
+            pwp_element = (
                 <div className="ds-margin-top-xlg ds-center">
                     <Spinner isSVG size="xl" />
-                </div>;
+                </div>
+            );
         } else {
-            pwp_element =
+            pwp_element = (
                 <div className={this.state.loading ? 'ds-fadeout ds-margin-bottom-md' : 'ds-fadein ds-left-margin ds-margin-bottom-md'}>
                     <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
@@ -1438,7 +1442,7 @@ export class GlobalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveGeneralDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left-sm"
-                                onClick={this.saveGeneral}
+                                onClick={this.handleSaveGeneral}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -1466,7 +1470,7 @@ export class GlobalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveExpDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
-                                onClick={this.saveExp}
+                                onClick={this.handleSaveExp}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -1494,7 +1498,7 @@ export class GlobalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveLockoutDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
-                                onClick={this.saveLockout}
+                                onClick={this.handleSaveLockout}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -1522,7 +1526,7 @@ export class GlobalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveSyntaxDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
-                                onClick={this.saveSyntax}
+                                onClick={this.handleSaveSyntax}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -1532,16 +1536,16 @@ export class GlobalPwPolicy extends React.Component {
                         </Tab>
                         <Tab eventKey={4} title={<TabTitleText>Temporary Password Rules</TabTitleText>}>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
-                                {this.state.passwordmustchange == false && (
-                                <FormAlert className="ds-margin-top">
-                                    <Alert
+                                {this.state.passwordmustchange === false && (
+                                    <FormAlert className="ds-margin-top">
+                                        <Alert
                                         variant="info"
                                         title='"User Must Change Password After Reset" must be enabled in General Settings to activate TPR.'
                                         aria-live="polite"
                                         isInline
-                                    />
-                                </FormAlert>
-                                 )}
+                                        />
+                                    </FormAlert>
+                                )}
                                 <Grid
                                     title="Number of times the temporary password can be used to authenticate (passwordTPRMaxUse)."
                                 >
@@ -1611,7 +1615,7 @@ export class GlobalPwPolicy extends React.Component {
                                 isDisabled={this.state.saveTPRDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left"
-                                onClick={this.saveTPR}
+                                onClick={this.handleSaveTPR}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                 {...extraPrimaryProps}
@@ -1620,7 +1624,8 @@ export class GlobalPwPolicy extends React.Component {
                             </Button>
                         </Tab>
                     </Tabs>
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -1629,12 +1634,13 @@ export class GlobalPwPolicy extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Global Password Policy <FontAwesomeIcon
+                                Global Password Policy
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
                                     title="Refresh global password policy settings"
-                                    onClick={this.loadGlobal}
+                                    onClick={this.handleLoadGlobal}
                                 />
                             </Text>
                         </TextContent>

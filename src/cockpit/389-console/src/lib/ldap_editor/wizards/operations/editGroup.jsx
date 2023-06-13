@@ -16,7 +16,6 @@ import {
     TabTitleText,
     Text,
     TextContent,
-    TextInput,
     TextVariants,
 } from '@patternfly/react-core';
 import {
@@ -68,32 +67,32 @@ class EditGroup extends React.Component {
             });
         };
 
-        this.handleBaseDnSelection = (treeViewItem) => {
+        this.onBaseDnSelection = (treeViewItem) => {
             this.setState({
                 usersSearchBaseDn: treeViewItem.dn
             });
-        }
+        };
 
         this.showTreeLoadingState = (isTreeLoading) => {
             this.setState({
                 isTreeLoading,
-                searching: isTreeLoading ? true : false
+                searching: !!isTreeLoading
             });
-        }
+        };
 
-        this.openLDAPNavModal = () => {
+        this.handleOpenLDAPNavModal = () => {
             this.setState({
                 showLDAPNavModal: true
             });
         };
 
-        this.closeLDAPNavModal = () => {
+        this.handleCloseLDAPNavModal = () => {
             this.setState({
                 showLDAPNavModal: false
             });
         };
 
-        this.closeModal = () => {
+        this.handleCloseModal = () => {
             this.setState({
                 modalOpen: false
             });
@@ -103,7 +102,7 @@ class EditGroup extends React.Component {
             this.setState({
                 isSearchRunning: true,
                 usersAvailableOptions: []
-            }, () => { this.getEntries () });
+            }, () => { this.getEntries() });
         };
 
         this.handleSearchPattern = searchPattern => {
@@ -120,9 +119,9 @@ class EditGroup extends React.Component {
 
             const params = {
                 serverId: this.props.editorLdapServer,
-                baseDn: baseDn,
+                baseDn,
                 scope: 'sub',
-                filter: filter,
+                filter,
                 attributes: attrs
             };
             runGenericSearch(params, (resultArray) => {
@@ -147,13 +146,13 @@ class EditGroup extends React.Component {
                     // Check here is member is already in the group
                     if (this.props.members.includes(dnLine)) {
                         return (
-                            <span className="ds-pf-green-color" title={dnLine + " (ALREADY A MEMBER)"}>
+                            <span className="ds-pf-green-color" key={dnLine} title={dnLine + " (ALREADY A MEMBER)"}>
                                 {dnLine}
                             </span>
                         );
                     } else {
                         return (
-                            <span title={dnLine}>
+                            <span title={dnLine} key={dnLine}>
                                 {dnLine}
                             </span>
                         );
@@ -166,11 +165,11 @@ class EditGroup extends React.Component {
                     isSearchRunning: false
                 });
             });
-        }
+        };
 
-        this.usersOnListChange = (newAvailableOptions, newChosenOptions) => {
-            let newNewAvailOptions = [...newAvailableOptions];
-            let newNewChosenOptions = []
+        this.handleUsersOnListChange = (newAvailableOptions, newChosenOptions) => {
+            const newNewAvailOptions = [...newAvailableOptions];
+            const newNewChosenOptions = [];
 
             for (const option of newChosenOptions) {
                 if ('className' in option.props && option.props.className.indexOf("ds-pf-green-color") !== -1) {
@@ -192,16 +191,16 @@ class EditGroup extends React.Component {
         this.closeConfirmMemberDelete = this.closeConfirmMemberDelete.bind(this);
         this.showConfirmBulkDelete = this.showConfirmBulkDelete.bind(this);
         this.closeConfirmBulkDelete = this.closeConfirmBulkDelete.bind(this);
-        this.addMembers = this.addMembers.bind(this);
+        this.handleAddMembers = this.handleAddMembers.bind(this);
         this.delMember = this.delMember.bind(this);
-        this.onSelectMember = this.onSelectMember.bind(this);
+        this.handleSelectMember = this.handleSelectMember.bind(this);
         this.delBulkMembers = this.delBulkMembers.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.switchEditor = this.switchEditor.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.handleSwitchEditor = this.handleSwitchEditor.bind(this);
         this.editEntry = this.editEntry.bind(this);
         this.viewEntry = this.viewEntry.bind(this);
-        this.closeViewEntry = this.closeViewEntry.bind(this);
-    };
+        this.handleCloseViewEntry = this.handleCloseViewEntry.bind(this);
+    }
 
     componentDidMount() {
         this.setState({
@@ -211,7 +210,7 @@ class EditGroup extends React.Component {
         });
     }
 
-    switchEditor () {
+    handleSwitchEditor () {
         this.setState({
             modalOpen: false,
         }, () => {
@@ -229,39 +228,40 @@ class EditGroup extends React.Component {
 
     viewEntry (memberdn) {
         getBaseLevelEntryAttributes(this.props.editorLdapServer,
-            memberdn,
-            (entryDetails) => {
-                let ldifArray = [];
-                entryDetails
-                .filter(data => (data.attribute + data.value !== '' && // Filter out empty lines
-                data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
-                .map((line, index) => {
-                    if (index === 1000) {
-                        ldifArray.push({
-                            'attribute': '... Truncated',
-                            'value': " - Entry too large to display ..."
-                        });
-                        return;
-                    } else if (index > 1000) {
-                        return;
-                    }
-                    ldifArray.push(line);
-                });
-                this.setState({
-                    showViewEntry: true,
-                    ldifArray: ldifArray,
-                });
-        });
+                                    memberdn,
+                                    (entryDetails) => {
+                                        const ldifArray = [];
+                                        entryDetails
+                                                .filter(data => (data.attribute + data.value !== '' && // Filter out empty lines
+                                                        data.attribute !== '???: ')) // and data for empty suffix(es) and in case of failure.
+                                                .map((line, index) => {
+                                                    if (index === 1000) {
+                                                        ldifArray.push({
+                                                            attribute: '... Truncated',
+                                                            value: " - Entry too large to display ..."
+                                                        });
+                                                        return [];
+                                                    } else if (index > 1000) {
+                                                        return [];
+                                                    }
+                                                    ldifArray.push(line);
+                                                    return [];
+                                                });
+                                        this.setState({
+                                            showViewEntry: true,
+                                            ldifArray,
+                                        });
+                                    });
     }
 
-    closeViewEntry () {
+    handleCloseViewEntry () {
         this.setState({
             showViewEntry: false,
             ldifArray: [],
         });
     }
 
-    handleModalChange(e) {
+    onModalChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
@@ -269,7 +269,7 @@ class EditGroup extends React.Component {
     }
 
     showConfirmMemberDelete (name) {
-        let ldifArray = [];
+        const ldifArray = [];
         let memberAttr = "uniquemember";
 
         if (this.props.isGroupOfNames) {
@@ -285,7 +285,7 @@ class EditGroup extends React.Component {
             delMember: name,
             modalChecked: false,
             modalSpinning: false,
-            ldifArray: ldifArray,
+            ldifArray,
         });
     }
 
@@ -298,9 +298,9 @@ class EditGroup extends React.Component {
         });
     }
 
-    addMembers () {
+    handleAddMembers () {
         const params = { serverId: this.props.editorLdapServer };
-        let ldifArray = [];
+        const ldifArray = [];
         let memberAttr = "uniquemember";
         let memCount = 0;
 
@@ -363,15 +363,15 @@ class EditGroup extends React.Component {
         });
     }
 
-    onSelectMember(memberdn, isSelected) {
-        let delMemList = [...this.state.delMemberList];
+    handleSelectMember(memberdn, isSelected) {
+        const delMemList = [...this.state.delMemberList];
         if (isSelected) {
             if (!delMemList.includes(memberdn)) {
                 // Add member to delete
                 delMemList.push(memberdn);
             }
         } else {
-            let idx = delMemList.indexOf(memberdn);
+            const idx = delMemList.indexOf(memberdn);
             if (idx !== -1) {
                 // Remove member from delete list
                 delMemList.splice(idx, 1);
@@ -381,7 +381,7 @@ class EditGroup extends React.Component {
         this.setState({
             delMemberList: delMemList
         });
-    };
+    }
 
     showConfirmBulkDelete () {
         this.setState({
@@ -404,7 +404,7 @@ class EditGroup extends React.Component {
         this.setState({
             bulkDeleting: true,
         });
-        let ldifArray = [];
+        const ldifArray = [];
         let memberAttr = "uniquemember";
 
         if (this.props.isGroupOfNames) {
@@ -418,8 +418,8 @@ class EditGroup extends React.Component {
             ldifArray.push(`-`);
         }
         this.setState({
-            ldifArray: ldifArray,
-        }, () => this.delMember() );
+            ldifArray,
+        }, () => this.delMember());
     }
 
     render () {
@@ -446,12 +446,12 @@ class EditGroup extends React.Component {
                     variant={ModalVariant.large}
                     title={title}
                     isOpen={modalOpen}
-                    onClose={this.closeModal}
+                    onClose={this.handleCloseModal}
                     actions={[
                         <Button
                             key="switch"
                             variant="secondary"
-                            onClick={this.switchEditor}
+                            onClick={this.handleSwitchEditor}
                             className="ds-float-right"
                         >
                             Switch To Generic Editor
@@ -467,8 +467,8 @@ class EditGroup extends React.Component {
                                 key={members + delMemberList}
                                 rows={members}
                                 removeMember={this.showConfirmMemberDelete}
-                                onSelectMember={this.onSelectMember}
-                                showConfirmBulkDelete={this.showConfirmBulkDelete}
+                                onSelectMember={this.handleSelectMember}
+                                handleShowConfirmBulkDelete={this.showConfirmBulkDelete}
                                 delMemberList={delMemberList}
                                 viewEntry={this.viewEntry}
                                 editEntry={this.props.openEditEntry}
@@ -485,7 +485,7 @@ class EditGroup extends React.Component {
                                                 <Text
                                                     className="ds-left-margin"
                                                     component={TextVariants.a}
-                                                    onClick={this.openLDAPNavModal}
+                                                    onClick={this.handleOpenLDAPNavModal}
                                                     href="#"
                                                 >
                                                     {usersSearchBaseDn}
@@ -495,11 +495,11 @@ class EditGroup extends React.Component {
                                     </GridItem>
                                     <GridItem span={12} className="ds-margin-top-lg">
                                         <SearchInput
-                                          placeholder="Find members..."
-                                          value={this.state.searchPattern}
-                                          onChange={this.handleSearchPattern}
-                                          onSearch={this.handleSearchClick}
-                                          onClear={() => { this.handleSearchPattern('') }}
+                                            placeholder="Find members..."
+                                            value={this.state.searchPattern}
+                                            onChange={(evt, val) => this.handleSearchPattern(val)}
+                                            onSearch={this.handleSearchClick}
+                                            onClear={() => { this.handleSearchPattern('') }}
                                         />
                                     </GridItem>
                                     <GridItem span={12} className="ds-margin-top-xlg">
@@ -508,14 +508,14 @@ class EditGroup extends React.Component {
                                             chosenOptions={usersChosenOptions}
                                             availableOptionsTitle="Available Members"
                                             chosenOptionsTitle="Chosen Members"
-                                            onListChange={this.usersOnListChange}
+                                            onListChange={this.handleUsersOnListChange}
                                             id="usersSelector"
                                         />
                                         <Button
                                             className="ds-margin-top"
                                             isDisabled={usersChosenOptions.length === 0 || this.state.saving}
                                             variant="primary"
-                                            onClick={this.addMembers}
+                                            onClick={this.handleAddMembers}
                                             isLoading={this.state.saving}
                                             spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
                                             {...extraPrimaryProps}
@@ -527,12 +527,12 @@ class EditGroup extends React.Component {
                                         variant={ModalVariant.medium}
                                         title="Choose A Branch To Search"
                                         isOpen={showLDAPNavModal}
-                                        onClose={this.closeLDAPNavModal}
+                                        onClose={this.handleCloseLDAPNavModal}
                                         actions={[
                                             <Button
                                                 key="confirm"
                                                 variant="primary"
-                                                onClick={this.closeLDAPNavModal}
+                                                onClick={this.handleCloseLDAPNavModal}
                                             >
                                                 Done
                                             </Button>
@@ -543,8 +543,8 @@ class EditGroup extends React.Component {
                                                 <LdapNavigator
                                                     treeItems={[...this.props.treeViewRootSuffixes]}
                                                     editorLdapServer={this.props.editorLdapServer}
-                                                    skipLeafEntries={true}
-                                                    handleNodeOnClick={this.handleBaseDnSelection}
+                                                    skipLeafEntries
+                                                    handleNodeOnClick={this.onBaseDnSelection}
                                                     showTreeLoadingState={this.showTreeLoadingState}
                                                 />
                                             </CardBody>
@@ -561,12 +561,12 @@ class EditGroup extends React.Component {
                         variant={ModalVariant.medium}
                         title="View Entry"
                         isOpen={showViewEntry}
-                        onClose={this.closeViewEntry}
+                        onClose={this.handleCloseViewEntry}
                     >
                         <Card isSelectable className="ds-indent ds-margin-bottom-md">
                             <CardBody className="ds-textarea">
                                 {ldifArray.map((line) => (
-                                    <h6 key={line.attribute+line.value}>{line.attribute}{line.value}</h6>
+                                    <h6 key={line.attribute + line.value}>{line.attribute}{line.value}</h6>
                                 ))}
                             </CardBody>
                         </Card>
@@ -574,7 +574,7 @@ class EditGroup extends React.Component {
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmMemberDelete}
                         closeHandler={this.closeConfirmMemberDelete}
-                        handleChange={this.handleModalChange}
+                        handleChange={this.onModalChange}
                         actionHandler={this.delMember}
                         spinning={this.state.modalSpinning}
                         item={this.state.delMember}
@@ -587,7 +587,7 @@ class EditGroup extends React.Component {
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmBulkDelete}
                         closeHandler={this.closeConfirmBulkDelete}
-                        handleChange={this.handleModalChange}
+                        handleChange={this.onModalChange}
                         actionHandler={this.delBulkMembers}
                         spinning={this.state.modalSpinning}
                         item={delMemList}

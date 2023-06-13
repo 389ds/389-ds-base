@@ -43,25 +43,25 @@ class ObjectClassesTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -99,7 +99,7 @@ class ObjectClassesTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -153,19 +153,19 @@ class ObjectClassesTable extends React.Component {
             );
             count += 2;
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             noRows = true;
             rows = [{ cells: ['No Objectclasses'] }];
             columns = [{ title: 'Objectclasses' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns,
-            noRows: noRows,
+            rows,
+            columns,
+            noRows,
         });
     }
 
-    onCollapse(event, rowKey, isOpen) {
+    handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -174,7 +174,7 @@ class ObjectClassesTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         let count = 0;
 
@@ -183,8 +183,8 @@ class ObjectClassesTable extends React.Component {
             const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && row.name[0].toLowerCase().indexOf(val) == -1 &&
-                row.oid[0].toLowerCase().indexOf(val) == -1) {
+            if (val !== "" && row.name[0].toLowerCase().indexOf(val) === -1 &&
+                row.oid[0].toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
@@ -209,8 +209,8 @@ class ObjectClassesTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -241,7 +241,7 @@ class ObjectClassesTable extends React.Component {
             tableRows[idx].parent = count;
         }
 
-        let content =
+        let content = (
             <div className="ds-center ds-margin-top-xlg">
                 <TextContent>
                     <Text component={TextVariants.h3}>
@@ -249,18 +249,19 @@ class ObjectClassesTable extends React.Component {
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
-            </div>;
+            </div>
+        );
 
         if (!this.props.loading) {
-            content =
+            content = (
                 <div>
                     <Grid>
                         <GridItem span={3}>
                             <SearchInput
                                 placeholder='Search Objectclasses'
                                 value={this.state.value}
-                                onChange={this.onSearchChange}
-                                onClear={(evt) => this.onSearchChange('', evt)}
+                                onChange={this.handleSearchChange}
+                                onClear={(evt) => this.handleSearchChange(evt, '')}
                             />
                         </GridItem>
                     </Grid>
@@ -271,8 +272,8 @@ class ObjectClassesTable extends React.Component {
                         rows={tableRows}
                         variant={TableVariant.compact}
                         sortBy={sortBy}
-                        onSort={this.onSort}
-                        onCollapse={this.onCollapse}
+                        onSort={this.handleSort}
+                        onCollapse={this.handleCollapse}
                         actions={noRows ? null : this.actions()}
                         dropdownPosition="right"
                         dropdownDirection="bottom"
@@ -286,10 +287,11 @@ class ObjectClassesTable extends React.Component {
                         perPage={perPage}
                         page={page}
                         variant={PaginationVariant.bottom}
-                        onSetPage={this.onSetPage}
-                        onPerPageSelect={this.onPerPageSelect}
+                        onSetPage={this.handleSetPage}
+                        onPerPageSelect={this.handlePerPageSelect}
                     />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -332,25 +334,25 @@ class AttributesTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1 // reset page back to 1
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -389,7 +391,7 @@ class AttributesTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -450,19 +452,19 @@ class AttributesTable extends React.Component {
             );
             count += 2;
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             noRows = true;
             rows = [{ cells: ['No Attributes'] }];
             columns = [{ title: 'Attributes' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns,
-            noRows: noRows,
+            rows,
+            columns,
+            noRows,
         });
     }
 
-    onCollapse(event, rowKey, isOpen) {
+    handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -471,7 +473,7 @@ class AttributesTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         let count = 0;
 
@@ -480,9 +482,9 @@ class AttributesTable extends React.Component {
             const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && row.name[0].toLowerCase().indexOf(val) == -1 &&
-                row.oid[0].toLowerCase().indexOf(val) == -1 &&
-                row.syntax[0].toLowerCase().indexOf(val) == -1) {
+            if (val !== "" && row.name[0].toLowerCase().indexOf(val) === -1 &&
+                row.oid[0].toLowerCase().indexOf(val) === -1 &&
+                row.syntax[0].toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
@@ -507,8 +509,8 @@ class AttributesTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -539,7 +541,7 @@ class AttributesTable extends React.Component {
             tableRows[idx].parent = count;
         }
 
-        let content =
+        let content = (
             <div className="ds-center ds-margin-top-xlg">
                 <TextContent>
                     <Text component={TextVariants.h3}>
@@ -547,18 +549,19 @@ class AttributesTable extends React.Component {
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
-            </div>;
+            </div>
+        );
 
         if (!this.props.loading) {
-            content =
+            content = (
                 <div>
                     <Grid>
                         <GridItem span={3}>
                             <SearchInput
                                 placeholder='Search Attributes'
                                 value={this.state.value}
-                                onChange={this.onSearchChange}
-                                onClear={(evt) => this.onSearchChange('', evt)}
+                                onChange={this.handleSearchChange}
+                                onClear={(evt) => this.handleSearchChange(evt, '')}
                             />
                         </GridItem>
                     </Grid>
@@ -569,8 +572,8 @@ class AttributesTable extends React.Component {
                         rows={tableRows}
                         variant={TableVariant.compact}
                         sortBy={sortBy}
-                        onSort={this.onSort}
-                        onCollapse={this.onCollapse}
+                        onSort={this.handleSort}
+                        onCollapse={this.handleCollapse}
                         actions={noRows ? null : this.actions()}
                         dropdownPosition="right"
                         dropdownDirection="bottom"
@@ -584,10 +587,11 @@ class AttributesTable extends React.Component {
                         perPage={perPage}
                         page={page}
                         variant={PaginationVariant.bottom}
-                        onSetPage={this.onSetPage}
-                        onPerPageSelect={this.onPerPageSelect}
+                        onSetPage={this.handleSetPage}
+                        onPerPageSelect={this.handlePerPageSelect}
                     />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -632,25 +636,25 @@ class MatchingRulesTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1 // reset page back to 1
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -687,7 +691,7 @@ class MatchingRulesTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -725,17 +729,17 @@ class MatchingRulesTable extends React.Component {
             );
             count += 2;
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Matching Rules'] }];
             columns = [{ title: 'Matching Rules' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onCollapse(event, rowKey, isOpen) {
+    handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -744,7 +748,7 @@ class MatchingRulesTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         let count = 0;
 
@@ -755,16 +759,16 @@ class MatchingRulesTable extends React.Component {
             if (row.names.length > 0) {
                 name = row.name[0].toLowerCase();
             }
-            if (val != "" && name.indexOf(val) == -1 &&
-                row.oid[0].indexOf(val) == -1 &&
-                row.syntax[0].indexOf(val) == -1) {
+            if (val !== "" && name.indexOf(val) === -1 &&
+                row.oid[0].indexOf(val) === -1 &&
+                row.syntax[0].indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
             rows.push(
                 {
                     isOpen: false,
-                    cells: [{title: name === "" ? <i>&lt;No Name&gt;</i> : name}, row.oid[0], row.syntax[0]],
+                    cells: [{ title: name === "" ? <i>&lt;No Name&gt;</i> : name }, row.oid[0], row.syntax[0]],
                 },
                 {
                     parent: count,
@@ -776,8 +780,8 @@ class MatchingRulesTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -800,8 +804,8 @@ class MatchingRulesTable extends React.Component {
                         <SearchInput
                             placeholder='Search Matching Rules'
                             value={this.state.value}
-                            onChange={this.onSearchChange}
-                            onClear={(evt) => this.onSearchChange('', evt)}
+                            onChange={this.handleSearchChange}
+                            onClear={(evt) => this.handleSearchChange(evt, '')}
                         />
                     </GridItem>
                 </Grid>
@@ -812,8 +816,8 @@ class MatchingRulesTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
-                    onCollapse={this.onCollapse}
+                    onSort={this.handleSort}
+                    onCollapse={this.handleCollapse}
                 >
                     <TableHeader />
                     <TableBody />
@@ -824,8 +828,8 @@ class MatchingRulesTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );

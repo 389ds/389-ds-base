@@ -36,15 +36,15 @@ class KeyTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
     }
@@ -63,15 +63,15 @@ class KeyTable extends React.Component {
             );
         }
 
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Orphan keys'] }];
             columns = [{ title: 'Orphan keys' }];
             hasRows = false;
         }
 
         this.setState({
-            rows: rows,
-            columns: columns,
+            rows,
+            columns,
             hasRows
         });
     }
@@ -82,7 +82,7 @@ class KeyTable extends React.Component {
                 title: 'Delete Key',
                 onClick: (event, rowId, rowData, extra) => {
                     if (rowData.cells[1]) {
-                        this.props.delKey(rowData.cells[1])
+                        this.props.delKey(rowData.cells[1]);
                     }
                 }
             }
@@ -96,19 +96,19 @@ class KeyTable extends React.Component {
             <div className="ds-margin-top-lg">
                 <Tooltip
                         content={
-                        <div>
-                            <p align="justify">
-                            An orphan key is a private key in the NSS DB for which there is NO cert
-                            with the corresponding public key. An orphan key is created during CSR creation,
-                            when the certificate associated with a CSR has been imported into the NSS DB its
-                            orphan state will be removed.
-                            <br /><br />
-                            Make sure an orphan key is not associated with a submitted CSR before you delete it.
-                            </p>
-                        </div>
+                            <div>
+                                <p>
+                                    An orphan key is a private key in the NSS DB for which there is NO cert
+                                    with the corresponding public key. An orphan key is created during CSR creation,
+                                    when the certificate associated with a CSR has been imported into the NSS DB its
+                                    orphan state will be removed.
+                                    <br /><br />
+                                    Make sure an orphan key is not associated with a submitted CSR before you delete it.
+                                </p>
+                            </div>
                         }
-                    >
-                        <a className="ds-font-size-sm">What is an orphan key?</a>
+                >
+                    <a className="ds-font-size-sm">What is an orphan key?</a>
                 </Tooltip>
                 <Table
                     className="ds-margin-top"
@@ -118,8 +118,8 @@ class KeyTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
-                    actions={hasRows? this.actions() : null}
+                    onSort={this.handleSort}
+                    actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
                 >
@@ -130,13 +130,12 @@ class KeyTable extends React.Component {
                     <Pagination
                         itemCount={this.state.rows.length}
                         widgetId="pagination-options-menu-bottom"
-                        perPage={this.state.perPage}
+                        perPage={perPage}
                         page={page}
                         variant={PaginationVariant.bottom}
-                        onSetPage={this.onSetPage}
-                        onPerPageSelect={this.onPerPageSelect}
-                    />
-                }
+                        onSetPage={this.handleSetPage}
+                        onPerPageSelect={this.handlePerPageSelect}
+                    />}
             </div>
         );
     }
@@ -160,25 +159,24 @@ class CSRTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -205,30 +203,30 @@ class CSRTable extends React.Component {
                 },
             );
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Certificate Signing Requests'] }];
             columns = [{ title: 'Certificate Signing Requests' }];
             hasRows = false;
         }
         this.setState({
-            rows: rows,
-            columns: columns,
+            rows,
+            columns,
             hasRows,
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
-        let count = 0;
 
         for (const cert of this.props.ServerCSRs) {
             const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && cert.attrs.name.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.subject_alt_names.join().toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.modified.toLowerCase().indexOf(val) == -1) {
+            if (val !== "" && cert.attrs.name.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.subject_alt_names.join().toLowerCase()
+                        .indexOf(val) === -1 &&
+                cert.attrs.modified.toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
@@ -247,8 +245,8 @@ class CSRTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -259,7 +257,7 @@ class CSRTable extends React.Component {
                 title: 'Delete CSR',
                 onClick: (event, rowId, rowData, extra) => {
                     if (rowData.cells.length > 1) {
-                        this.props.delCSR(rowData.cells[0])
+                        this.props.delCSR(rowData.cells[0]);
                     }
                 }
             },
@@ -267,7 +265,7 @@ class CSRTable extends React.Component {
                 title: 'View CSR',
                 onClick: (event, rowId, rowData, extra) => {
                     if (rowData.cells.length > 1) {
-                        this.props.viewCSR(rowData.cells[0])
+                        this.props.viewCSR(rowData.cells[0]);
                     }
                 }
             }
@@ -283,10 +281,9 @@ class CSRTable extends React.Component {
                     <SearchInput
                         placeholder='Search CSRs'
                         value={this.state.value}
-                        onChange={this.onSearchChange}
-                        onClear={(evt) => this.onSearchChange('', evt)}
-                    />
-                }
+                        onChange={this.handleSearchChange}
+                        onClear={(evt) => this.handleSearchChange(evt, '')}
+                    />}
                 <Table
                     className="ds-margin-top"
                     aria-label="csr table"
@@ -295,7 +292,7 @@ class CSRTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -310,10 +307,9 @@ class CSRTable extends React.Component {
                         perPage={perPage}
                         page={page}
                         variant={PaginationVariant.bottom}
-                        onSetPage={this.onSetPage}
-                        onPerPageSelect={this.onPerPageSelect}
-                    />
-                }
+                        onSetPage={this.handleSetPage}
+                        onPerPageSelect={this.handlePerPageSelect}
+                    />}
             </div>
         );
     }
@@ -342,25 +338,25 @@ class CertTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -401,7 +397,7 @@ class CertTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -441,19 +437,19 @@ class CertTable extends React.Component {
             );
             count += 2;
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Certificates'] }];
             columns = [{ title: 'Certificates' }];
             hasRows = false;
         }
         this.setState({
-            rows: rows,
-            columns: columns,
+            rows,
+            columns,
             hasRows,
         });
     }
 
-    onCollapse(event, rowKey, isOpen) {
+    handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -462,7 +458,7 @@ class CertTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         let count = 0;
 
@@ -470,10 +466,10 @@ class CertTable extends React.Component {
             const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && cert.attrs.nickname.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.issuer.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.expires.toLowerCase().indexOf(val) == -1) {
+            if (val !== "" && cert.attrs.nickname.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.issuer.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.expires.toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
@@ -496,8 +492,8 @@ class CertTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -542,10 +538,9 @@ class CertTable extends React.Component {
                     <SearchInput
                         placeholder='Search Certificates'
                         value={this.state.value}
-                        onChange={this.onSearchChange}
-                        onClear={(evt) => this.onSearchChange('', evt)}
-                    />
-                }
+                        onChange={this.handleSearchChange}
+                        onClear={(evt) => this.handleSearchChange(evt, '')}
+                    />}
                 <Table
                     className="ds-margin-top"
                     aria-label="cert table"
@@ -554,8 +549,8 @@ class CertTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
-                    onCollapse={this.onCollapse}
+                    onSort={this.handleSort}
+                    onCollapse={this.handleCollapse}
                     actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -570,10 +565,9 @@ class CertTable extends React.Component {
                         perPage={perPage}
                         page={page}
                         variant={PaginationVariant.bottom}
-                        onSetPage={this.onSetPage}
-                        onPerPageSelect={this.onPerPageSelect}
-                    />
-                }
+                        onSetPage={this.handleSetPage}
+                        onPerPageSelect={this.handlePerPageSelect}
+                    />}
             </div>
         );
     }
@@ -600,23 +594,23 @@ class CRLTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -656,12 +650,12 @@ class CRLTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         const rows = [];
         let count = 0;
 
@@ -669,10 +663,10 @@ class CRLTable extends React.Component {
             const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && cert.attrs.nickname.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.subject.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.issuer.toLowerCase().indexOf(val) == -1 &&
-                cert.attrs.expires.toLowerCase().indexOf(val) == -1) {
+            if (val !== "" && cert.attrs.nickname.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.subject.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.issuer.toLowerCase().indexOf(val) === -1 &&
+                cert.attrs.expires.toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
@@ -695,10 +689,10 @@ class CRLTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
-            hasRows: rows.length === 0 ? false : true,
+            hasRows: rows.length !== 0,
         });
     }
 
@@ -723,14 +717,14 @@ class CRLTable extends React.Component {
                 <SearchInput
                     placeholder="Search CRL's"
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     variant={TableVariant.compact} aria-label="Cred Table"
-                    sortBy={this.sortBy} onSort={this.onSort} cells={this.state.columns}
+                    sortBy={this.sortBy} onSort={this.handleSort} cells={this.state.columns}
                     rows={this.state.rows}
-                    actions={has_rows ? this.actions() : null}
+                    actions={this.state.hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
                 >
@@ -744,10 +738,9 @@ class CRLTable extends React.Component {
                         perPage={this.state.perPage}
                         page={this.state.page}
                         variant={PaginationVariant.bottom}
-                        onSetPage={this.onSetPage}
-                        onPerPageSelect={this.onPerPageSelect}
-                    />
-                }
+                        onSetPage={this.handleSetPage}
+                        onPerPageSelect={this.handlePerPageSelect}
+                    />}
             </div>
         );
     }

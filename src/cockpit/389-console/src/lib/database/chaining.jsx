@@ -98,7 +98,7 @@ export class ChainingDatabaseConfig extends React.Component {
             _defUseStartTLS: this.props.data.defUseStartTLS,
         };
 
-        this.onToggle = (isExpanded) => {
+        this.handleToggle = (isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -118,19 +118,19 @@ export class ChainingDatabaseConfig extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.save_chaining_config = this.save_chaining_config.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.handleSaveChainingConfig = this.handleSaveChainingConfig.bind(this);
         // Chaining Control OIDs
-        this.showOidModal = this.showOidModal.bind(this);
+        this.handleShowOidModal = this.handleShowOidModal.bind(this);
         this.closeOidModal = this.closeOidModal.bind(this);
-        this.handleOidChange = this.handleOidChange.bind(this);
+        this.onOIDChange = this.onOIDChange.bind(this);
         this.saveOids = this.saveOids.bind(this);
         this.deleteOids = this.deleteOids.bind(this);
         this.handleSelectOids = this.handleSelectOids.bind(this);
         // Chaining comps
-        this.showCompsModal = this.showCompsModal.bind(this);
+        this.handleShowCompsModal = this.handleShowCompsModal.bind(this);
         this.closeCompsModal = this.closeCompsModal.bind(this);
-        this.handleCompsChange = this.handleCompsChange.bind(this);
+        this.onCompsChange = this.onCompsChange.bind(this);
         this.saveComps = this.saveComps.bind(this);
         this.deleteComps = this.deleteComps.bind(this);
         this.handleSelectComps = this.handleSelectComps.bind(this);
@@ -143,7 +143,7 @@ export class ChainingDatabaseConfig extends React.Component {
         this.props.enableTree();
     }
 
-    handleModalChange(e) {
+    onModalChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
@@ -164,93 +164,93 @@ export class ChainingDatabaseConfig extends React.Component {
         ];
 
         for (const check_attr of check_attrs) {
-            if (attr != check_attr) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+            if (attr !== check_attr) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
                 }
-            } else if (value != this.state['_' + check_attr]) {
+            } else if (value !== this.state['_' + check_attr]) {
                 saveBtnDisabled = false;
             }
         }
 
         this.setState({
             [attr]: value,
-            saveBtnDisabled: saveBtnDisabled
+            saveBtnDisabled
         });
     }
 
-    save_chaining_config () {
+    handleSaveChainingConfig () {
         // Build up the command list
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'chaining', 'config-set-def'
         ];
         let val = "";
-        if (this.state._defUseStartTLS != this.state.defUseStartTLS) {
+        if (this.state._defUseStartTLS !== this.state.defUseStartTLS) {
             val = "off";
             if (this.state.defUseStartTLS) {
                 val = "on";
             }
             cmd.push("--use-starttls=" + val);
         }
-        if (this.state._defCheckAci != this.state.defCheckAci) {
+        if (this.state._defCheckAci !== this.state.defCheckAci) {
             val = "off";
             if (this.state.defCheckAci) {
                 val = "on";
             }
             cmd.push("--check-aci=" + val);
         }
-        if (this.state._defRefOnScoped != this.state.defRefOnScoped) {
+        if (this.state._defRefOnScoped !== this.state.defRefOnScoped) {
             val = "off";
             if (this.state.defRefOnScoped) {
                 val = "on";
             }
             cmd.push("--return-ref=" + val);
         }
-        if (this.state._defProxy != this.state.defProxy) {
+        if (this.state._defProxy !== this.state.defProxy) {
             val = "off";
             if (this.state.defProxy) {
                 val = "on";
             }
             cmd.push("--proxied-auth=" + val);
         }
-        if (this.state._defTestDelay != this.state.defTestDelay) {
+        if (this.state._defTestDelay !== this.state.defTestDelay) {
             cmd.push("--test-response-delay=" + this.state.defTestDelay);
         }
-        if (this.state._defOpConnLimit != this.state.defOpConnLimit) {
+        if (this.state._defOpConnLimit !== this.state.defOpConnLimit) {
             cmd.push("--conn-op-limit=" + this.state.defOpConnLimit);
         }
-        if (this.state._defSizeLimit != this.state.defSizeLimit) {
+        if (this.state._defSizeLimit !== this.state.defSizeLimit) {
             cmd.push("--size-limit=" + this.state.defSizeLimit);
         }
-        if (this.state._defTimeLimit != this.state.defTimeLimit) {
+        if (this.state._defTimeLimit !== this.state.defTimeLimit) {
             cmd.push("--time-limit=" + this.state.defTimeLimit);
         }
-        if (this.state._defSearchCheck != this.state.defSearchCheck) {
+        if (this.state._defSearchCheck !== this.state.defSearchCheck) {
             cmd.push("--abandon-check-interval=" + this.state.defSearchCheck);
         }
-        if (this.state._defBindTimeout != this.state.defBindTimeout) {
+        if (this.state._defBindTimeout !== this.state.defBindTimeout) {
             cmd.push("--bind-timeout=" + this.state.defBindTimeout);
         }
-        if (this.state._defBindRetryLimit != this.state.defBindRetryLimit) {
+        if (this.state._defBindRetryLimit !== this.state.defBindRetryLimit) {
             cmd.push("--bind-attempts=" + this.state.defBindRetryLimit);
         }
-        if (this.state._defConcurLimit != this.state.defConcurLimit) {
+        if (this.state._defConcurLimit !== this.state.defConcurLimit) {
             cmd.push("--bind-limit=" + this.state.defConcurLimit);
         }
-        if (this.state._defConcurOpLimit != this.state.defConcurOpLimit) {
+        if (this.state._defConcurOpLimit !== this.state.defConcurOpLimit) {
             cmd.push("--op-limit=" + this.state.defConcurOpLimit);
         }
-        if (this.state._defConnLife != this.state.defConnLife) {
+        if (this.state._defConnLife !== this.state.defConnLife) {
             cmd.push("--conn-lifetime=" + this.state.defConnLife);
         }
-        if (this.state._defHopLimit != this.state.defHopLimit) {
+        if (this.state._defHopLimit !== this.state.defHopLimit) {
             cmd.push("--hop-limit=" + this.state.defHopLimit);
         }
-        if (this.state._defDelay != this.state.defDelay) {
+        if (this.state._defDelay !== this.state.defDelay) {
             cmd.push("--response-delay=" + this.state.defDelay);
         }
-        if (this.state._defBindConnLimit != this.state.defBindConnLimit) {
+        if (this.state._defBindConnLimit !== this.state.defBindConnLimit) {
             cmd.push("--conn-bind-limit=" + this.state.defBindConnLimit);
         }
 
@@ -259,7 +259,7 @@ export class ChainingDatabaseConfig extends React.Component {
             this.setState({
                 saving: true
             });
-            log_cmd("save_chaining_config", "Applying default chaining config change", cmd);
+            log_cmd("handleSaveChainingConfig", "Applying default chaining config change", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
@@ -290,7 +290,7 @@ export class ChainingDatabaseConfig extends React.Component {
     //
     // Chaining OID modal functions
     //
-    showOidModal () {
+    handleShowOidModal () {
         this.setState({
             showOidModal: true,
             selectedOid: "",
@@ -303,9 +303,9 @@ export class ChainingDatabaseConfig extends React.Component {
         });
     }
 
-    handleOidChange (selectedItem, selectedItemProps) {
+    onOIDChange (selectedItem, selectedItemProps) {
         const oid = selectedItemProps.children;
-        if (oid != this.state.selectedOid) {
+        if (oid !== this.state.selectedOid) {
             this.setState({
                 selectedOid: oid
             });
@@ -314,7 +314,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
     saveOids () {
         // Save chaining control oids
-        if (this.state.selectedOid == "") {
+        if (this.state.selectedOid === "") {
             return;
         }
         const cmd = [
@@ -356,7 +356,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
     handleSelectOids (selectedItem, selectedItemProps) {
         const oid = selectedItemProps.children;
-        if (oid != this.state.removeOid) {
+        if (oid !== this.state.removeOid) {
             this.setState({
                 removeOid: oid
             });
@@ -365,7 +365,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
     deleteOids(props) {
         // Remove chaining oid control
-        if (this.state.removeOid == "") {
+        if (this.state.removeOid === "") {
             return;
         }
         const cmd = [
@@ -399,7 +399,7 @@ export class ChainingDatabaseConfig extends React.Component {
     //
     // Chaining Component modal functions
     //
-    showCompsModal () {
+    handleShowCompsModal () {
         this.setState({
             showCompsModal: true,
             selectedComp: "",
@@ -412,9 +412,9 @@ export class ChainingDatabaseConfig extends React.Component {
         });
     }
 
-    handleCompsChange (selectedItem, selectedItemProps) {
+    onCompsChange (selectedItem, selectedItemProps) {
         const comp = selectedItemProps.children;
-        if (comp != this.state.selectedComp) {
+        if (comp !== this.state.selectedComp) {
             this.setState({
                 selectedComp: comp
             });
@@ -423,7 +423,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
     handleSelectComps (selectedItem, selectedItemProps) {
         const comp = selectedItemProps.children;
-        if (comp != this.state.removeComp) {
+        if (comp !== this.state.removeComp) {
             this.setState({
                 removeComp: comp
             });
@@ -432,7 +432,7 @@ export class ChainingDatabaseConfig extends React.Component {
 
     saveComps () {
         // Save chaining control Components
-        if (this.state.selectedComp == "") {
+        if (this.state.selectedComp === "") {
             return;
         }
         const cmd = [
@@ -474,7 +474,7 @@ export class ChainingDatabaseConfig extends React.Component {
     }
 
     deleteComps(props) {
-        if (this.state.removeComp == "") {
+        if (this.state.removeComp === "") {
             return;
         }
         // Remove chaining comps
@@ -510,13 +510,13 @@ export class ChainingDatabaseConfig extends React.Component {
     // Confirm deletion functions
     //
     showConfirmDelete(item) {
-        if (item == "oid") {
+        if (item === "oid") {
             if (this.state.removeOid.length) {
                 this.setState({
                     showConfirmOidDelete: true
                 });
             }
-        } else if (item == "comp") {
+        } else if (item === "comp") {
             if (this.state.removeComp.length) {
                 this.setState({
                     showConfirmCompDelete: true
@@ -542,13 +542,13 @@ export class ChainingDatabaseConfig extends React.Component {
         let oids = this.state.oidList.map((oid) =>
             <SimpleListItem key={oid}>{oid}</SimpleListItem>
         );
-        if (oids.length == 0) {
+        if (oids.length === 0) {
             oids = "";
         }
         let comps = this.state.compList.map((comps) =>
             <SimpleListItem key={comps}>{comps}</SimpleListItem>
         );
-        if (comps.length == 0) {
+        if (comps.length === 0) {
             comps = "";
         }
         let saveBtnName = "Save Settings";
@@ -853,7 +853,7 @@ export class ChainingDatabaseConfig extends React.Component {
                             <Button
                                 className="ds-margin-top-xlg"
                                 variant="primary"
-                                onClick={this.save_chaining_config}
+                                onClick={this.handleSaveChainingConfig}
                                 isDisabled={this.state.saveBtnDisabled || this.state.saving}
                                 isLoading={this.state.saving}
                                 spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -882,7 +882,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         <div className="ds-panel-left">
                                             <Button
                                                 variant="primary"
-                                                onClick={this.showOidModal}
+                                                onClick={this.handleShowOidModal}
                                                 className="ds-button-left"
                                             >
                                                 Add
@@ -893,7 +893,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                                 variant="primary"
                                                 onClick={e => this.showConfirmDelete("oid")}
                                                 className="ds-button-right"
-                                                isDisabled={this.state.removeOid == ""}
+                                                isDisabled={this.state.removeOid === ""}
                                             >
                                                 Delete
                                             </Button>
@@ -914,7 +914,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         <div className="ds-panel-left">
                                             <Button
                                                 variant="primary"
-                                                onClick={this.showCompsModal}
+                                                onClick={this.handleShowCompsModal}
                                                 className="ds-button-left"
                                             >
                                                 Add
@@ -925,7 +925,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                                 variant="primary"
                                                 onClick={e => this.showConfirmDelete("comp")}
                                                 className="ds-button-right"
-                                                isDisabled={this.state.removeComp == ""}
+                                                isDisabled={this.state.removeComp === ""}
                                             >
                                                 Delete
                                             </Button>
@@ -940,7 +940,7 @@ export class ChainingDatabaseConfig extends React.Component {
                 <ChainControlsModal
                     showModal={this.state.showOidModal}
                     closeHandler={this.closeOidModal}
-                    handleChange={this.handleOidChange}
+                    handleChange={this.onOIDChange}
                     saveHandler={this.saveOids}
                     oidList={this.state.availableOids}
                     spinning={this.state.modalSpinning}
@@ -948,7 +948,7 @@ export class ChainingDatabaseConfig extends React.Component {
                 <ChainCompsModal
                     showModal={this.state.showCompsModal}
                     closeHandler={this.closeCompsModal}
-                    handleChange={this.handleCompsChange}
+                    handleChange={this.onCompsChange}
                     saveHandler={this.saveComps}
                     compList={this.state.availableComps}
                     spinning={this.state.modalSpinning}
@@ -956,7 +956,7 @@ export class ChainingDatabaseConfig extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmOidDelete}
                     closeHandler={this.closeConfirmOidDelete}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteOids}
                     spinning={this.state.modalSpinning}
                     item={this.state.removeOid}
@@ -969,7 +969,7 @@ export class ChainingDatabaseConfig extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmCompDelete}
                     closeHandler={this.closeConfirmCompDelete}
-                    handleChange={this.handleModalChange}
+                    handleChange={this.onModalChange}
                     actionHandler={this.deleteComps}
                     spinning={this.state.modalSpinning}
                     item={this.state.removeComp}
@@ -1052,13 +1052,13 @@ export class ChainingConfig extends React.Component {
             };
         }
 
-        this.onSelectToggle = isOpen => {
+        this.handleSelectToggle = isOpen => {
             this.setState({
                 isOpen
             });
         };
 
-        this.onSelect = (event, selection, isPlaceholder) => {
+        this.handleSelect = (event, selection, isPlaceholder) => {
             let saveBtnDisabled = true;
             const check_attrs = [
                 "nsfarmserverurl", "nsmultiplexorbinddn", "nsmultiplexorcredentials",
@@ -1071,24 +1071,24 @@ export class ChainingConfig extends React.Component {
             ];
 
             for (const check_attr of check_attrs) {
-                if (check_attr != "nsbindmechanism" && this.state[check_attr] !== this.state['_' + check_attr]) {
+                if (check_attr !== "nsbindmechanism" && this.state[check_attr] !== this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
                 }
             }
-            if (selection != this.state._nsbindmechanism) {
+            if (selection !== this.state._nsbindmechanism) {
                 saveBtnDisabled = false;
             }
             this.setState({
                 nsbindmechanism: selection,
-                saveBtnDisabled: saveBtnDisabled,
+                saveBtnDisabled,
                 isOpen: false
             });
         };
 
-        this.handleChange = this.handleChange.bind(this);
-        this.saveLink = this.saveLink.bind(this);
+        this.onChange = this.onChange.bind(this);
+        this.handleSaveLink = this.handleSaveLink.bind(this);
         this.deleteLink = this.deleteLink.bind(this);
-        this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
+        this.handleShowDeleteConfirm = this.handleShowDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
     }
 
@@ -1096,7 +1096,7 @@ export class ChainingConfig extends React.Component {
         this.props.enableTree();
     }
 
-    showDeleteConfirm () {
+    handleShowDeleteConfirm () {
         this.setState({
             showDeleteConfirm: true,
             modalSpinning: false,
@@ -1114,7 +1114,7 @@ export class ChainingConfig extends React.Component {
 
     checkPasswords() {
         let pwdMatch = false;
-        if (this.state.nsmultiplexorcredentials == this.state.nsmultiplexorcredentials_confirm) {
+        if (this.state.nsmultiplexorcredentials === this.state.nsmultiplexorcredentials_confirm) {
             pwdMatch = true;
         }
 
@@ -1123,7 +1123,7 @@ export class ChainingConfig extends React.Component {
         });
     }
 
-    handleChange (e) {
+    onChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         const attr = e.target.id;
@@ -1140,32 +1140,32 @@ export class ChainingConfig extends React.Component {
             "nsreferralonscopedsearch", "nsproxiedauthorization", "nschecklocalaci"
         ];
         for (const check_attr of check_attrs) {
-            if (attr != check_attr) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+            if (attr !== check_attr) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
                 }
-            } else if (value != this.state['_' + check_attr]) {
+            } else if (value !== this.state['_' + check_attr]) {
                 saveBtnDisabled = false;
             }
         }
 
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            errObj: errObj,
-            saveBtnDisabled: saveBtnDisabled
+            errObj,
+            saveBtnDisabled
         }, this.checkPasswords);
     }
 
-    saveLink() {
+    handleSaveLink() {
         const missingArgs = {};
         let bind_pw = "";
         let errors = false;
 
-        if (this.state.nsfarmserverurl == "") {
+        if (this.state.nsfarmserverurl === "") {
             this.props.addNotification(
                 "warning",
                 `Missing Remote Server LDAP URL`
@@ -1173,7 +1173,7 @@ export class ChainingConfig extends React.Component {
             missingArgs.nsfarmserverurl = true;
             errors = true;
         }
-        if (this.state.nsmultiplexorbinddn == "") {
+        if (this.state.nsmultiplexorbinddn === "") {
             this.props.addNotification(
                 "warning",
                 `Missing Remote Bind DN`
@@ -1181,7 +1181,7 @@ export class ChainingConfig extends React.Component {
             missingArgs.nsmultiplexorbinddn = true;
             errors = true;
         }
-        if (this.state.nsmultiplexorcredentials == "") {
+        if (this.state.nsmultiplexorcredentials === "") {
             this.props.addNotification(
                 "warning",
                 `Missing Remote Bind DN Password`
@@ -1189,7 +1189,7 @@ export class ChainingConfig extends React.Component {
             missingArgs.nsmultiplexorcredentials = true;
             errors = true;
         }
-        if (this.state.nsmultiplexorcredentials_confirm == "") {
+        if (this.state.nsmultiplexorcredentials_confirm === "") {
             this.props.addNotification(
                 "warning",
                 `Missing Remote Bind DN Password Confirmation`
@@ -1197,7 +1197,7 @@ export class ChainingConfig extends React.Component {
             missingArgs.nsmultiplexorcredentials_confirm = true;
             errors = true;
         }
-        if (this.state.nsmultiplexorcredentials != this.state.nsmultiplexorcredentials_confirm) {
+        if (this.state.nsmultiplexorcredentials !== this.state.nsmultiplexorcredentials_confirm) {
             this.props.addNotification(
                 "warning",
                 `Remote Bind DN Password Do Not Match`
@@ -1214,79 +1214,79 @@ export class ChainingConfig extends React.Component {
         }
 
         // Build up the command of all the changes we need to make
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-set", this.props.suffix
         ];
 
-        if (this.state.nsfarmserverurl != this.state._nsfarmserverurl) {
+        if (this.state.nsfarmserverurl !== this.state._nsfarmserverurl) {
             cmd.push('--server-url=' + this.state.nsfarmserverurl);
         }
-        if (this.state.nsmultiplexorbinddn != this.state._nsmultiplexorbinddn) {
+        if (this.state.nsmultiplexorbinddn !== this.state._nsmultiplexorbinddn) {
             cmd.push('--bind-dn=' + this.state.nsmultiplexorbinddn);
         }
-        if (this.state.nsmultiplexorcredentials != this.state._nsmultiplexorcredentials) {
-            bind_pw = this.state.nsmultiplexorcredentials
+        if (this.state.nsmultiplexorcredentials !== this.state._nsmultiplexorcredentials) {
+            bind_pw = this.state.nsmultiplexorcredentials;
         }
-        if (this.state.timelimit != this.state._timelimit) {
+        if (this.state.timelimit !== this.state._timelimit) {
             cmd.push('--time-limit=' + this.state.timelimit);
         }
-        if (this.state.sizelimit != this.state._sizelimit) {
+        if (this.state.sizelimit !== this.state._sizelimit) {
             cmd.push('--size-limit=' + this.state.sizelimit);
         }
-        if (this.state.bindconnlimit != this.state._bindconnlimit) {
+        if (this.state.bindconnlimit !== this.state._bindconnlimit) {
             cmd.push('--conn-bind-limit=' + this.state.bindconnlimit);
         }
-        if (this.state.opconnlimit != this.state._opconnlimit) {
+        if (this.state.opconnlimit !== this.state._opconnlimit) {
             cmd.push('--conn-op-limit=' + this.state.opconnlimit);
         }
-        if (this.state.concurrbindlimit != this.state._concurrbindlimit) {
+        if (this.state.concurrbindlimit !== this.state._concurrbindlimit) {
             cmd.push('--bind-limit=' + this.state.concurrbindlimit);
         }
-        if (this.state.bindtimeout != this.state._bindtimeout) {
+        if (this.state.bindtimeout !== this.state._bindtimeout) {
             cmd.push('--bind-timeout=' + this.state.bindtimeout);
         }
-        if (this.state.bindretrylimit != this.state._bindretrylimit) {
+        if (this.state.bindretrylimit !== this.state._bindretrylimit) {
             cmd.push('--bind-attempts=' + this.state.bindretrylimit);
         }
-        if (this.state.concurroplimit != this.state._concurroplimit) {
+        if (this.state.concurroplimit !== this.state._concurroplimit) {
             cmd.push('--op-limit=' + this.state.concurroplimit);
         }
-        if (this.state.connlifetime != this.state._connlifetime) {
+        if (this.state.connlifetime !== this.state._connlifetime) {
             cmd.push('--conn-lifetime=' + this.state.connlifetime);
         }
-        if (this.state.searchcheckinterval != this.state._searchcheckinterval) {
+        if (this.state.searchcheckinterval !== this.state._searchcheckinterval) {
             cmd.push('--abandon-check-interval=' + this.state.searchcheckinterval);
         }
-        if (this.state.hoplimit != this.state._hoplimit) {
+        if (this.state.hoplimit !== this.state._hoplimit) {
             cmd.push('--hop-limit=' + this.state.hoplimit);
         }
-        if (this.state.nsbindmechanism != this.state._nsbindmechanism) {
+        if (this.state.nsbindmechanism !== this.state._nsbindmechanism) {
             cmd.push('--bind-mech=' + this.state.nsbindmechanism);
         }
 
-        if (this.state.nsusestarttls != this.state._nsusestarttls) {
+        if (this.state.nsusestarttls !== this.state._nsusestarttls) {
             if (this.state.nsusestarttls) {
                 cmd.push('--use-starttls=on');
             } else {
                 cmd.push('--use-starttls=off');
             }
         }
-        if (this.state.nsreferralonscopedsearch != this.state._nsreferralonscopedsearch) {
+        if (this.state.nsreferralonscopedsearch !== this.state._nsreferralonscopedsearch) {
             if (this.state.nsreferralonscopedsearch) {
                 cmd.push('--return-ref=on');
             } else {
                 cmd.push('--return-ref=off');
             }
         }
-        if (this.state.nsproxiedauthorization != this.state._nsproxiedauthorization) {
+        if (this.state.nsproxiedauthorization !== this.state._nsproxiedauthorization) {
             if (this.state.nsproxiedauthorization) {
                 cmd.push('--proxied-auth=on');
             } else {
                 cmd.push('--proxied-auth=off');
             }
         }
-        if (this.state.nschecklocalaci != this.state._nschecklocalaci) {
+        if (this.state.nschecklocalaci !== this.state._nschecklocalaci) {
             if (this.state.nschecklocalaci) {
                 cmd.push('--check-aci=on');
             } else {
@@ -1300,7 +1300,7 @@ export class ChainingConfig extends React.Component {
             });
             // Something changed, perform the update
             const config = {
-                cmd: cmd,
+                cmd,
                 promptArg: "--bind-pw-prompt",
                 passwd: bind_pw,
                 addNotification: this.props.addNotification,
@@ -1309,7 +1309,7 @@ export class ChainingConfig extends React.Component {
                 state_callback: () => { this.setState({ saving: false }) },
                 reload_func: this.props.reload,
                 reload_arg: this.props.suffix,
-                funcName: "saveLink",
+                funcName: "handleSaveLink",
                 funcDesc: "Save chaining link config"
             };
             callCmdStreamPassword(config);
@@ -1370,7 +1370,7 @@ export class ChainingConfig extends React.Component {
                         <Button
                             className="ds-float-right"
                             variant="danger"
-                            onClick={this.showDeleteConfirm}
+                            onClick={this.handleShowDeleteConfirm}
                         >
                             Delete Link
                         </Button>
@@ -1392,7 +1392,7 @@ export class ChainingConfig extends React.Component {
                             aria-describedby="nsfarmserverurl"
                             name="nsfarmserverurl"
                             onChange={(str, e) => {
-                                this.handleChange(e);
+                                this.onChange(e);
                             }}
                         />
                     </GridItem>
@@ -1412,7 +1412,7 @@ export class ChainingConfig extends React.Component {
                             aria-describedby="nsmultiplexorbinddn"
                             name="nsmultiplexorbinddn"
                             onChange={(str, e) => {
-                                this.handleChange(e);
+                                this.onChange(e);
                             }}
                         />
                     </GridItem>
@@ -1432,7 +1432,7 @@ export class ChainingConfig extends React.Component {
                             aria-describedby="nsmultiplexorcredentials"
                             name="nsmultiplexorcredentials"
                             onChange={(str, e) => {
-                                this.handleChange(e);
+                                this.onChange(e);
                             }}
                             validated={(error.nsmultiplexorcredentials || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
                         />
@@ -1453,7 +1453,7 @@ export class ChainingConfig extends React.Component {
                             aria-describedby="nsmultiplexorcredentials_confirm"
                             name="nsmultiplexorcredentials_confirm"
                             onChange={(str, e) => {
-                                this.handleChange(e);
+                                this.onChange(e);
                             }}
                             validated={(error.nsmultiplexorcredentials_confirm || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
                         />
@@ -1470,8 +1470,8 @@ export class ChainingConfig extends React.Component {
                         <Select
                             variant={SelectVariant.single}
                             aria-label="Select Input"
-                            onToggle={this.onSelectToggle}
-                            onSelect={this.onSelect}
+                            onToggle={this.handleSelectToggle}
+                            onSelect={this.handleSelect}
                             selections={this.state.nsbindmechanism}
                             isOpen={this.state.isOpen}
                             aria-labelledby="UID"
@@ -1492,7 +1492,7 @@ export class ChainingConfig extends React.Component {
                             id="nsusestarttls"
                             isChecked={this.state.nsusestarttls}
                             onChange={(str, e) => {
-                                this.handleChange(e);
+                                this.onChange(e);
                             }}
                             aria-label="check startTLS"
                         />
@@ -1502,7 +1502,7 @@ export class ChainingConfig extends React.Component {
                 <ExpandableSection
                     className="ds-margin-top-xlg"
                     toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                    onToggle={this.onToggle}
+                    onToggle={this.handleToggle}
                     isExpanded={this.state.isExpanded}
                 >
                     <div className="ds-margin-top ds-margin-left">
@@ -1521,7 +1521,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="sizelimit"
                                     name="sizelimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1541,7 +1541,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="timelimit"
                                     name="timelimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1561,7 +1561,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="bindconnlimit"
                                     name="bindconnlimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1581,7 +1581,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="opconnlimit"
                                     name="opconnlimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1601,7 +1601,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="concurrbindlimit"
                                     name="concurrbindlimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1621,7 +1621,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="bindtimeout"
                                     name="bindtimeout"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1641,7 +1641,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="bindretrylimit"
                                     name="bindretrylimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1661,7 +1661,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="concurroplimit"
                                     name="concurroplimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1681,7 +1681,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="connlifetime"
                                     name="connlifetime"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1701,7 +1701,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="searchcheckinterval"
                                     name="searchcheckinterval"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1721,7 +1721,7 @@ export class ChainingConfig extends React.Component {
                                     aria-describedby="hoplimit"
                                     name="hoplimit"
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                 />
                             </GridItem>
@@ -1736,7 +1736,7 @@ export class ChainingConfig extends React.Component {
                                     id="nsproxiedauthorization"
                                     isChecked={this.state.nsproxiedauthorization}
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                     aria-label="send ref"
                                 />
@@ -1752,7 +1752,7 @@ export class ChainingConfig extends React.Component {
                                     id="nschecklocalaci"
                                     isChecked={this.state.nschecklocalaci}
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                     aria-label="send ref"
                                 />
@@ -1768,7 +1768,7 @@ export class ChainingConfig extends React.Component {
                                     id="nsreferralonscopedsearch"
                                     isChecked={this.state.nsreferralonscopedsearch}
                                     onChange={(str, e) => {
-                                        this.handleChange(e);
+                                        this.onChange(e);
                                     }}
                                     aria-label="send ref"
                                 />
@@ -1779,7 +1779,7 @@ export class ChainingConfig extends React.Component {
                 </ExpandableSection>
                 <Button
                     className="ds-margin-top-lg"
-                    onClick={this.saveLink}
+                    onClick={this.handleSaveLink}
                     variant="primary"
                     isLoading={this.state.saving}
                     spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -1791,7 +1791,7 @@ export class ChainingConfig extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.deleteLink}
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
