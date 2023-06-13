@@ -15,7 +15,6 @@ import {
     getOneLevelEntries,
     getRootSuffixEntryDetails,
     runGenericSearch,
-    ldapPing
 } from './utils.jsx';
 import PropTypes from "prop-types";
 
@@ -28,13 +27,13 @@ class LdapNavigator extends React.Component {
             allItems: [{
                 name: 'Loading LDAP entries...',
                 id: 'Loading',
-                icon: <Spinner size="sm"/>
+                icon: <Spinner size="sm" />
             }],
             activeItems: [],
             ldapFailure: false
         };
 
-        this.treeOnClick = (evt, treeViewItem, parentItem) => {
+        this.handleTreeOnClick = (evt, treeViewItem, parentItem) => {
             if (treeViewItem.isFakeEntry) {
                 return;
             }
@@ -48,65 +47,65 @@ class LdapNavigator extends React.Component {
                 activeItems: [treeViewItem, parentItem]
                 // updatingTree: true
             },
-            () => {
-                if (typeof this.props.showTreeLoadingState === 'function') {
-                    this.props.showTreeLoadingState(true);
-                }
-                this.refreshNode(treeViewItem, true);
-            });
+                          () => {
+                              if (typeof this.props.showTreeLoadingState === 'function') {
+                                  this.props.showTreeLoadingState(true);
+                              }
+                              this.refreshNode(treeViewItem, true);
+                          });
         };
 
         this.refreshNode = (treeViewItem, forceReloadChildren) => {
             getBaseLevelEntryAttributes(this.props.editorLdapServer,
-                treeViewItem.dn,
-                (entryDetails) => {
-                    // TODO: No need to set the 'fullEntry' property when only navigating ( when called from the ACI Wizard for instance ).
-                    treeViewItem.fullEntry = [...entryDetails];
-                    // For root suffixes, check if they are empty.
-                    if ((treeViewItem.id.indexOf('.') === -1) && // No dot in the id ==> Entry is a root node in the tree.
+                                        treeViewItem.dn,
+                                        (entryDetails) => {
+                                            // TODO: No need to set the 'fullEntry' property when only navigating ( when called from the ACI Wizard for instance ).
+                                            treeViewItem.fullEntry = [...entryDetails];
+                                            // For root suffixes, check if they are empty.
+                                            if ((treeViewItem.id.indexOf('.') === -1) && // No dot in the id ==> Entry is a root node in the tree.
                         (!this.state.ldapFailure)) {
-                        // A suffix is empty if the LDAP server is up
-                        // and there is no existing root entry.
-                        const entryIsAnEmptySuffix = entryDetails[0].errorCode === 32;
-                        treeViewItem.isEmptySuffix = entryIsAnEmptySuffix;
-                        if (entryIsAnEmptySuffix) {
-                            this.props.handleNodeOnClick(treeViewItem);
-                            this.props.showTreeLoadingState(false);
-                            return;
-                        }
-                    }
+                                                // A suffix is empty if the LDAP server is up
+                                                // and there is no existing root entry.
+                                                const entryIsAnEmptySuffix = entryDetails[0].errorCode === 32;
+                                                treeViewItem.isEmptySuffix = entryIsAnEmptySuffix;
+                                                if (entryIsAnEmptySuffix) {
+                                                    this.props.handleNodeOnClick(treeViewItem);
+                                                    this.props.showTreeLoadingState(false);
+                                                    return;
+                                                }
+                                            }
 
-                    // Update the entry details table.
-                    if (!this.state.ldapFailure) {
-                        this.props.handleNodeOnClick(treeViewItem);
-                    }
+                                            // Update the entry details table.
+                                            if (!this.state.ldapFailure) {
+                                                this.props.handleNodeOnClick(treeViewItem);
+                                            }
 
-                    if ((treeViewItem.loadChildren) || // Load child entries if any
+                                            if ((treeViewItem.loadChildren) || // Load child entries if any
                         (forceReloadChildren)) { // or if requested to load.
-                        const params = {
-                            serverId: this.props.editorLdapServer,
-                            baseDn: treeViewItem.dn,
-                            name: treeViewItem.name,
-                            fullEntry: treeViewItem.fullEntry,
-                            modTime: treeViewItem.modTime,
-                            addNotification: this.props.addNotification,
-                            filter: this.props.skipLeafEntries
-                                ? '(|(&(numSubordinates=*)(numSubordinates>=1))(objectClass=organizationalunit)(objectClass=organization))'
-                                : null // getOneLevelEntries() will use its default filter '(|(objectClass=*)(objectClass=ldapSubEntry))'
-                        };
+                                                const params = {
+                                                    serverId: this.props.editorLdapServer,
+                                                    baseDn: treeViewItem.dn,
+                                                    name: treeViewItem.name,
+                                                    fullEntry: treeViewItem.fullEntry,
+                                                    modTime: treeViewItem.modTime,
+                                                    addNotification: this.props.addNotification,
+                                                    filter: this.props.skipLeafEntries
+                                                        ? '(|(&(numSubordinates=*)(numSubordinates>=1))(objectClass=organizationalunit)(objectClass=organization))'
+                                                        : null // getOneLevelEntries() will use its default filter '(|(objectClass=*)(objectClass=ldapSubEntry))'
+                                                };
 
-                        if (this.props.skipLeafEntries) {
-                            // updateDirectChildren() will call processDirectChildren() with the updated children array.
-                            getOneLevelEntries(params, this.updateDirectChildren);
-                        } else {
-                            getOneLevelEntries(params, this.processDirectChildren);
-                        }
-                    } else {
-                        // No children to load so the tree will not be updated.
-                        // this.setState({ updatingTree: false });
-                        this.props.showTreeLoadingState(false);
-                    }
-                });
+                                                if (this.props.skipLeafEntries) {
+                                                    // updateDirectChildren() will call processDirectChildren() with the updated children array.
+                                                    getOneLevelEntries(params, this.updateDirectChildren);
+                                                } else {
+                                                    getOneLevelEntries(params, this.processDirectChildren);
+                                                }
+                                            } else {
+                                                // No children to load so the tree will not be updated.
+                                                // this.setState({ updatingTree: false });
+                                                this.props.showTreeLoadingState(false);
+                                            }
+                                        });
         };
 
         this.updateMyParent = (treeNode, nodeIdObject, nodeChildren, removePreviousChildren) => {
@@ -127,9 +126,9 @@ class LdapNavigator extends React.Component {
 
                 const newNodeIdObject = {
                     fullId: nodeIdObject.fullId,
-                    remainingId: remainingId,
-                    startingId: startingId
-                }
+                    remainingId,
+                    startingId
+                };
                 this.updateMyParent(parentNode.children, newNodeIdObject, nodeChildren, removePreviousChildren);
             }
         };
@@ -180,14 +179,14 @@ class LdapNavigator extends React.Component {
 
                 const newNodeIdObject = {
                     fullId: nodeIdObject.fullId,
-                    remainingId: remainingId,
-                    startingId: startingId
-                }
+                    remainingId,
+                    startingId
+                };
                 // console.log(newNodeIdObject);
                 // this.updateMyChildren(treeNode[parentId].children, newNodeIdObject, childArray, removePreviousChildren);
                 this.updateMyChildren(parentNode.children, newNodeIdObject, childArray, removePreviousChildren);
             }
-        }
+        };
 
         // Update a root suffix node.
         this.updateRootSuffixNode = (isAdded) => {
@@ -213,14 +212,14 @@ class LdapNavigator extends React.Component {
                     icon: <ResourcesEmptyIcon color="var(--pf-global--palette--orange-300)" />,
                     name: rootSuffixNode.name,
                     fullEntry: []
-                }
+                };
 
                 treeAllItems.splice(rootSuffId, 1, emptyItem);
                 this.setState({ allItems: treeAllItems });
                 // Update the entry table.
                 this.props.updateEntryRows(emptyItem);
             }
-        }
+        };
     } // End constructor.
 
     componentDidMount () {
@@ -261,7 +260,7 @@ class LdapNavigator extends React.Component {
         // Stop if there was an LDAP error. In that case the tree should not be updated.
         if (this.props.wizardOperationInfo.resultCode !== 0) {
             const msg = `There was an LDAP error (code ${this.props.wizardOperationInfo.resultCode}). ` +
-            'Not updating the LDAP tree.'
+            'Not updating the LDAP tree.';
             console.log(msg);
             return;
         }
@@ -271,71 +270,71 @@ class LdapNavigator extends React.Component {
         }
 
         switch (this.props.wizardOperationInfo.operationType) {
-            case 'DELETE': {
-                const currentActiveNode = this.state.activeItems[0];
-                const nodeId = currentActiveNode.id;
+        case 'DELETE': {
+            const currentActiveNode = this.state.activeItems[0];
+            const nodeId = currentActiveNode.id;
 
-                if (nodeId.indexOf('.') === -1) { // No dot in the id ==> Entry is a root node in the tree.
-                    // Update the tree data after a suffix deletion.
-                    this.updateRootSuffixNode(false);
-                } else {
-                    // Handle non-suffix deletion.
-                    // console.log('Normal entry deletion');
-                    const treeAllItems = this.state.allItems;
-                    const parentNode = this.state.activeItems[1];
-                    const parentId = parentNode.id;
-                    // const parentDn = parentNode.dn;
-                    const parentChildren = [...parentNode.children];
-                    const nodeIndex = parentChildren.findIndex(datum => datum.id === nodeId);
-                    console.log(`nodeIndex = ${nodeIndex}`);
+            if (nodeId.indexOf('.') === -1) { // No dot in the id ==> Entry is a root node in the tree.
+                // Update the tree data after a suffix deletion.
+                this.updateRootSuffixNode(false);
+            } else {
+                // Handle non-suffix deletion.
+                // console.log('Normal entry deletion');
+                const treeAllItems = this.state.allItems;
+                const parentNode = this.state.activeItems[1];
+                const parentId = parentNode.id;
+                // const parentDn = parentNode.dn;
+                const parentChildren = [...parentNode.children];
+                const nodeIndex = parentChildren.findIndex(datum => datum.id === nodeId);
+                console.log(`nodeIndex = ${nodeIndex}`);
 
-                    if (nodeIndex >= 0) { // Should always be the case since the node is visible. TODO: Use an assertion.
-                        parentChildren.splice(nodeIndex, 1); // Remove the deleted child.
-                        // 4th parameter set at true to remove the node and its children ( if any ).
-                        const parentIdObject = {
-                            fullId: parentId,
-                            remainingId: parentId
-                        }
-                        this.updateMyChildren(treeAllItems, parentIdObject, parentChildren, true);
-                        const activeItems = this.state.activeItems.shift();
-                        this.setState({
-                            allItems: treeAllItems,
-                            // Unset the current active items.
-                            // If there is an active item, it will give the false perception that the
-                            // entry details ( empty ) table is showing its information.
-                            activeItems
-                        },
-                        () => {
-                            this.props.handleNodeOnClick(null);
-                        });
-                    }
+                if (nodeIndex >= 0) { // Should always be the case since the node is visible. TODO: Use an assertion.
+                    parentChildren.splice(nodeIndex, 1); // Remove the deleted child.
+                    // 4th parameter set at true to remove the node and its children ( if any ).
+                    const parentIdObject = {
+                        fullId: parentId,
+                        remainingId: parentId
+                    };
+                    this.updateMyChildren(treeAllItems, parentIdObject, parentChildren, true);
+                    const activeItems = this.state.activeItems.shift();
+                    this.setState({
+                        allItems: treeAllItems,
+                        // Unset the current active items.
+                        // If there is an active item, it will give the false perception that the
+                        // entry details ( empty ) table is showing its information.
+                        activeItems
+                    },
+                                  () => {
+                                      this.props.handleNodeOnClick(null);
+                                  });
                 }
-                break;
             }
-            case 'ADD':
-            {
-                const nodeDn = this.props.wizardOperationInfo.entryDn;
-                const relativeDn = this.props.wizardOperationInfo.relativeDn;
-                const myFutureParent = this.state.activeItems[0]; // The future parent is the current node.
-                const parentId = myFutureParent.id;
-                const idArray = myFutureParent.children
-                    ? myFutureParent.children.map(elt => elt.id.split('.').pop())
-                    : [];
-                const maxId = idArray.length > 0
-                    ? Math.max(...idArray)
-                    : 0;
-                const mySubId = maxId + 1;
-                const params = {
-                    serverId: this.props.editorLdapServer,
-                    baseDn: nodeDn,
-                    addNotification: this.props.addNotification,
-                };
+            break;
+        }
+        case 'ADD':
+        {
+            const nodeDn = this.props.wizardOperationInfo.entryDn;
+            const relativeDn = this.props.wizardOperationInfo.relativeDn;
+            const myFutureParent = this.state.activeItems[0]; // The future parent is the current node.
+            const parentId = myFutureParent.id;
+            const idArray = myFutureParent.children
+                ? myFutureParent.children.map(elt => elt.id.split('.').pop())
+                : [];
+            const maxId = idArray.length > 0
+                ? Math.max(...idArray)
+                : 0;
+            const mySubId = maxId + 1;
+            const params = {
+                serverId: this.props.editorLdapServer,
+                baseDn: nodeDn,
+                addNotification: this.props.addNotification,
+            };
 
-                // TODO: Change the name of this function to a more generic one!!
-                getRootSuffixEntryDetails(params,
-                    (result) => {
-                        const info = JSON.parse(result);
-                        const entryTreeData =
+            // TODO: Change the name of this function to a more generic one!!
+            getRootSuffixEntryDetails(params,
+                                      (result) => {
+                                          const info = JSON.parse(result);
+                                          const entryTreeData =
                         {
                             name: relativeDn,
                             fullEntry: info.fullEntry,
@@ -345,28 +344,28 @@ class LdapNavigator extends React.Component {
                             loadChildren: false
                         };
 
-                        const treeAllItems = this.state.allItems;
-                        const parentIdObject = {
-                            fullId: parentId,
-                            remainingId: parentId
-                        }
-                        this.updateMyChildren(treeAllItems, parentIdObject, [entryTreeData]);
-                        this.setState({ allItems: treeAllItems });
-                        // this.props.handleNodeOnClick(entryTreeData);
-                    });
+                                          const treeAllItems = this.state.allItems;
+                                          const parentIdObject = {
+                                              fullId: parentId,
+                                              remainingId: parentId
+                                          };
+                                          this.updateMyChildren(treeAllItems, parentIdObject, [entryTreeData]);
+                                          this.setState({ allItems: treeAllItems });
+                                          // this.props.handleNodeOnClick(entryTreeData);
+                                      });
 
-                break;
-            }
-
-            case 'MODRDN':
-            case 'MODIFY':
-                this.refreshNode(this.state.activeItems[0]);
-                break;
-
-            default:
-                console.log(`Unknown operation type in LdapNavigator class: ${this.props.wizardOperationInfo.operationType}`);
+            break;
         }
-    }
+
+        case 'MODRDN':
+        case 'MODIFY':
+            this.refreshNode(this.state.activeItems[0]);
+            break;
+
+        default:
+            console.log(`Unknown operation type in LdapNavigator class: ${this.props.wizardOperationInfo.operationType}`);
+        }
+    };
 
     updateDirectChildren = (potentialChildren, params, resCode) => {
         // When leaf entries ( but Organizations and Organization Units ) should be skipped
@@ -387,7 +386,7 @@ class LdapNavigator extends React.Component {
             return;
         }
 
-        let updatedChildren = [];
+        const updatedChildren = [];
         let nbIterations = 0;
 
         const child_params = {
@@ -413,14 +412,15 @@ class LdapNavigator extends React.Component {
                     this.processDirectChildren(updatedChildren, params, null);
                 }
             });
+            return [];
         });
-    }
+    };
 
     // Process the entries that are direct children.
     processDirectChildren = (directChildren, params, resCode) => {
         // Retrieve the selected node from ==> this.state.activeItems: [treeViewItem, parentItem]
         const myActiveNode = this.state.activeItems[0];
-        let myChildren = [];
+        const myChildren = [];
         let childId = 0; // Used to quickly locate the node in the tree data.
 
         if (directChildren === null) { // There was a failure to connect to the LDAP server.
@@ -433,8 +433,9 @@ class LdapNavigator extends React.Component {
                     `Error searching database - ${resCode.msg.split("\n").pop()}`
                 );
 
-                const randomId = Math.random().toString(36).substring(2, 15);
-                let nodeChildren = [{
+                const randomId = Math.random().toString(36)
+                        .substring(2, 15);
+                const nodeChildren = [{
                     name: 'Encountered an error, unable to display child entries',
                     id: randomId,
                     icon: <ExclamationTriangleIcon />,
@@ -445,7 +446,7 @@ class LdapNavigator extends React.Component {
                 const parentIdObject = {
                     fullId: myActiveNode.id,
                     remainingId: myActiveNode.id
-                }
+                };
                 this.updateMyParent(treeAllItems, parentIdObject, nodeChildren, true);
                 this.setState({
                     allItems: treeAllItems
@@ -465,12 +466,13 @@ class LdapNavigator extends React.Component {
             // The property showChildren is added in the function updateDirectChildren().
             const showChildren = !this.props.skipLeafEntries || info.showChildren;
             if ((numSubValue > 0) && showChildren) {
-                const randomId = Math.random().toString(36).substring(2, 15);
+                const randomId = Math.random().toString(36)
+                        .substring(2, 15);
                 nodeChildren = [{
                     name: 'Loading...',
                     id: randomId,
                     // icon: <UnknownIcon />,
-                    icon: <Spinner size="sm"/>,
+                    icon: <Spinner size="sm" />,
                     isFakeEntry: true
                 }];
             }
@@ -504,35 +506,34 @@ class LdapNavigator extends React.Component {
             const parentIdObject = {
                 fullId: myActiveNode.id,
                 remainingId: myActiveNode.id
-            }
+            };
             // this.updateMyChildren(treeAllItems, myActiveNode.id, myChildren, true);
             this.updateMyChildren(treeAllItems, parentIdObject, myChildren, true);
             this.setState({ allItems: treeAllItems });
         }
 
         this.props.showTreeLoadingState(false);
-    } // End processDirectChildren().
+    }; // End processDirectChildren().
 
     render () {
         const { allItems, activeItems } = this.state;
         return (
-            <React.Fragment>
+            <>
                 {allItems.length === 0 &&
                     <Bullseye>
                         <div>No Databases</div>
-                    </Bullseye>
-                }
+                    </Bullseye>}
                 <div className={this.props.isDisabled ? "ds-disabled ds-editor-tree" : "ds-editor-tree"}>
                     <TreeView
                         data={allItems}
-                        onSelect={this.treeOnClick}
+                        onSelect={this.handleTreeOnClick}
                         activeItems={activeItems}
                         icon={this.props.skipLeafEntries ? null : <FolderIcon />}
                         expandedIcon={this.props.skipLeafEntries ? null : <FolderOpenIcon />}
                         hasBadges={!this.props.skipLeafEntries}
                     />
                 </div>
-            </React.Fragment>
+            </>
         );
     }
 }

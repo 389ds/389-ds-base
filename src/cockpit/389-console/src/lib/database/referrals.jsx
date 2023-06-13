@@ -45,22 +45,22 @@ export class SuffixReferrals extends React.Component {
         this.deleteRef = this.deleteRef.bind(this);
         this.saveRef = this.saveRef.bind(this);
         // Referral modal
-        this.showRefModal = this.showRefModal.bind(this);
+        this.handleShowRefModal = this.handleShowRefModal.bind(this);
         this.closeRefModal = this.closeRefModal.bind(this);
-        this.handleRefChange = this.handleRefChange.bind(this);
+        this.onRefChange = this.onRefChange.bind(this);
         this.buildRef = this.buildRef.bind(this);
-        this.handleChange = this.handleChange.bind(this);
-        this.handleScopeChange = this.handleScopeChange.bind(this);
-        this.handleLdapChange = this.handleLdapChange.bind(this);
+        this.onChange = this.onChange.bind(this);
+        this.onScopeChange = this.onScopeChange.bind(this);
+        this.onLdapChange = this.onLdapChange.bind(this);
     }
 
-    handleScopeChange(value, event) {
+    onScopeChange(value, event) {
         this.setState({
             refScope: value,
         });
     }
 
-    handleLdapChange(value, event) {
+    onLdapChange(value, event) {
         this.setState({
             refProtocol: value,
         });
@@ -75,7 +75,7 @@ export class SuffixReferrals extends React.Component {
         });
     }
 
-    showRefModal() {
+    handleShowRefModal() {
         this.setState({
             showRefModal: true,
             errObj: {},
@@ -181,22 +181,22 @@ export class SuffixReferrals extends React.Component {
         const ref_filter = this.state.refFilter;
         const ref_scope = this.state.refScope;
 
-        if (ref_port != "") {
+        if (ref_port !== "") {
             previewRef += ":" + ref_port;
         }
-        if (ref_suffix != "" || ref_attrs != "" || ref_filter != "" || ref_scope != "") {
+        if (ref_suffix !== "" || ref_attrs !== "" || ref_filter !== "" || ref_scope !== "") {
             previewRef += "/" + encodeURIComponent(ref_suffix);
-            if (ref_attrs != "") {
+            if (ref_attrs !== "") {
                 previewRef += "?" + encodeURIComponent(ref_attrs);
-            } else if (ref_filter != "" || ref_scope != "") {
+            } else if (ref_filter !== "" || ref_scope !== "") {
                 previewRef += "?";
             }
-            if (ref_scope != "") {
+            if (ref_scope !== "") {
                 previewRef += "?" + encodeURIComponent(ref_scope);
-            } else if (ref_filter != "") {
+            } else if (ref_filter !== "") {
                 previewRef += "?";
             }
-            if (ref_filter != "") {
+            if (ref_filter !== "") {
                 previewRef += "?" + encodeURIComponent(ref_filter);
             }
         }
@@ -207,7 +207,7 @@ export class SuffixReferrals extends React.Component {
         });
     }
 
-    handleRefChange(e) {
+    onRefChange(e) {
         const value = e.target.value;
         const attr = e.target.id;
         const errObj = this.state.errObj;
@@ -217,22 +217,22 @@ export class SuffixReferrals extends React.Component {
         // Check previously set values
         const check_attrs = ['refHost', 'refPort'];
         for (const check_attr of check_attrs) {
-            if (attr != check_attr) {
-                if (this.state[check_attr] == "") {
+            if (attr !== check_attr) {
+                if (this.state[check_attr] === "") {
                     saveBtnDisabled = true;
                 }
             }
         }
         // Check changes
-        if (attr == "refHost" && value == "") {
+        if (attr === "refHost" && value === "") {
             saveBtnDisabled = true;
             valueErr = true;
         }
-        if (attr == "refPort" && (value == "" || !valid_port(value))) {
+        if (attr === "refPort" && (value === "" || !valid_port(value))) {
             saveBtnDisabled = true;
             valueErr = true;
         }
-        if (attr == "refSuffix" && (value != "" && !valid_dn(value))) {
+        if (attr === "refSuffix" && (value !== "" && !valid_dn(value))) {
             saveBtnDisabled = true;
             valueErr = true;
         }
@@ -240,12 +240,12 @@ export class SuffixReferrals extends React.Component {
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj,
-            saveBtnDisabled: saveBtnDisabled
+            errObj,
+            saveBtnDisabled
         }, this.buildRef);
     }
 
-    handleChange(e) {
+    onChange(e) {
         // Basic handler, no error checking
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
@@ -261,13 +261,13 @@ export class SuffixReferrals extends React.Component {
                     rows={this.props.rows}
                     deleteRef={this.showConfirmRefDelete}
                 />
-                <Button variant="primary" onClick={this.showRefModal}>
+                <Button variant="primary" onClick={this.handleShowRefModal}>
                     Create Referral
                 </Button>
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRefDelete}
                     closeHandler={this.closeConfirmRefDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.deleteRef}
                     spinning={this.state.modalSpinning}
                     item={this.state.removeRef}
@@ -280,9 +280,9 @@ export class SuffixReferrals extends React.Component {
                 <AddReferralModal
                     showModal={this.state.showRefModal}
                     closeHandler={this.closeRefModal}
-                    handleChange={this.handleRefChange}
-                    handleScopeChange={this.handleScopeChange}
-                    handleLdapChange={this.handleLdapChange}
+                    handleChange={this.onRefChange}
+                    handleScopeChange={this.onScopeChange}
+                    handleLdapChange={this.onLdapChange}
                     saveHandler={this.saveRef}
                     previewValue={this.state.refValue}
                     refProtocol={this.state.refProtocol}
@@ -313,7 +313,7 @@ class AddReferralModal extends React.Component {
             refScope,
         } = this.props;
 
-        if (previewValue == "") {
+        if (previewValue === "") {
             previewValue = "ldap://";
         }
         let saveBtnName = "Create Referral";

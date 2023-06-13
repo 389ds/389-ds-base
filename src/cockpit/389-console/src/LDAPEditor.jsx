@@ -125,7 +125,7 @@ export class LDAPEditor extends React.Component {
         };
 
         // Actions when user clicks on the Entry Details menu
-        this.handleToggleEntryMenu = isOpen => {
+        this.onToggleEntryMenu = isOpen => {
             this.setState({
                 entryMenuIsOpen: isOpen
             });
@@ -271,12 +271,13 @@ export class LDAPEditor extends React.Component {
                 const params = {
                     serverId: this.props.serverId,
                     baseDn: suffixDN,
-                    parentId: parentId,
+                    parentId,
                     addNotification: this.props.addNotification,
                 };
 
                 getRootSuffixEntryDetails(params, this.updateTableRootSuffixes);
                 parentId += 2; // The next DN row will be two rows below.
+                return [];
             });
             getOneLevelEntries(params, this.processDirectChildren);
         }
@@ -440,7 +441,7 @@ export class LDAPEditor extends React.Component {
             };
             getOneLevelEntries(params, this.processDirectChildren);
         }
-    }
+    };
 
     // Handle clicks on the numSubordinates links.
     handleClickNumSubordinates = (dn) => {
@@ -500,7 +501,7 @@ export class LDAPEditor extends React.Component {
             addNotification: this.props.addNotification,
         };
         getOneLevelEntries(params, this.processDirectChildren);
-    }
+    };
 
     // Process the entries that are direct children.
     processDirectChildren = (directChildren, params) => {
@@ -527,10 +528,11 @@ export class LDAPEditor extends React.Component {
             // TODO Add isActive func
             let dn = info.dn;
             if (info.ldapsubentry) {
-                dn =
+                dn = (
                     <div className="ds-info-icon">
                         {info.dn} <InfoCircleIcon title="This is a hidden LDAP subentry" className="ds-info-icon" />
-                    </div>;
+                    </div>
+                );
             }
 
             childrenRows.push(
@@ -557,6 +559,7 @@ export class LDAPEditor extends React.Component {
 
             // Increment by 2 the row number.
             rowNumber += 2;
+            return [];
         });
 
         this.setState({
@@ -572,7 +575,7 @@ export class LDAPEditor extends React.Component {
                 this.handleCollapse(null, this.state.currentRowKey, true, null);
             }
         });
-    }
+    };
 
     handleCollapse (event, rowKey, isOpen, data) {
         const { pagedRows } = this.state;
@@ -598,7 +601,7 @@ export class LDAPEditor extends React.Component {
                 entryArray.map(line => {
                     const attr = line.attribute;
                     const attrJpegVal = line.attribute.toLowerCase() === "jpegphoto"
-                        ?
+                        ? (
                             <div>
                                 <img
                                     src={`data:image/png;base64,${line.value.substr(3)}`} // strip ':: '
@@ -606,11 +609,12 @@ export class LDAPEditor extends React.Component {
                                     style={{ width: '256px' }} // height will adjust automatically.
                                 />
                             </div>
+                        )
                         : line.value;
                     const val = line.value.toLowerCase() === ": ldapsubentry" ? <span className="ds-info-color">{line.value}</span> : line.attribute.toLowerCase() === "userpassword" ? ": ********" : attrJpegVal;
 
                     // <div key={line.attribute + line.value}></div>
-                    entryRows.push({ attr: attr, value: val });
+                    entryRows.push({ attr, value: val });
 
                     const myVal = line.value.substring(1).trim()
                             .toLowerCase();
@@ -624,10 +628,11 @@ export class LDAPEditor extends React.Component {
                     if (myVal === 'nsroledefinition') {
                         isRole = true;
                     }
+                    return [];
                 });
                 let entryState = "";
                 const cmd = ["dsidm", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-                    "-b", entryDn, isRole ? "role" : "account", "entry-status", entryDn];
+                    "-b", entryDn, (isRole ? "role" : "account"), "entry-status", entryDn];
                 log_cmd("handleCollapse", "Checking if entry is activated", cmd);
                 cockpit
                         .spawn(cmd, { superuser: true, err: 'message' })
@@ -655,7 +660,7 @@ export class LDAPEditor extends React.Component {
                         .finally(() => {
                             let entryStateIconFinal = "";
                             if ((entryState !== "") && (entryStateIcon !== "") && (entryState !== "activated")) {
-                                entryStateIconFinal =
+                                entryStateIconFinal = (
                                     <Tooltip
                                         position="bottom"
                                         content={
@@ -665,7 +670,8 @@ export class LDAPEditor extends React.Component {
                                         }
                                     >
                                         <a className="ds-font-size-md">{entryStateIcon}</a>
-                                    </Tooltip>;
+                                    </Tooltip>
+                                );
                             }
                             pagedRows[rowKey].entryState = entryState;
                             pagedRows[rowKey + 1].cells = [{
@@ -674,15 +680,17 @@ export class LDAPEditor extends React.Component {
                                         {entryRows.map((line) => {
                                             let attrLine = "";
                                             if (line.attr === "dn") {
-                                                attrLine =
+                                                attrLine = (
                                                     <div key={line.attr + line.value}>
                                                         <strong>{line.attr}</strong>{line.value} {entryStateIconFinal}
-                                                    </div>;
+                                                    </div>
+                                                );
                                             } else {
-                                                attrLine =
+                                                attrLine = (
                                                     <div key={line.attr + line.value}>
                                                         <strong>{line.attr}</strong>{line.value}
-                                                    </div>;
+                                                    </div>
+                                                );
                                             }
                                             return attrLine;
                                         }
@@ -747,7 +755,7 @@ export class LDAPEditor extends React.Component {
                     ],
                     rawdn: info.dn,
                     customRowId: info.parentId,
-                    isEmptySuffix: isEmptySuffix,
+                    isEmptySuffix,
                     entryState: ""
                 },
                 {
@@ -798,7 +806,7 @@ export class LDAPEditor extends React.Component {
             // The DN value can also be retrieved from info.fullEntry
             // ( but will require to retrieve the DN line and then split it. Taking a lazy approach here ;-))
             dn: info.dn,
-            isEmptySuffix: isEmptySuffix,
+            isEmptySuffix,
             loadChildren: numSubValue > 0 // Used to insert child nodes when needed.
         };
 
@@ -853,7 +861,7 @@ export class LDAPEditor extends React.Component {
         } // TODO: If there was an error, the loading state would continue for ever.
         // Use better logic or render an empty table after a while ( 15 seconds? )
         // with some meaningful error message.
-    }
+    };
 
     // Process the root suffixes
     processRootSuffixes = (userSuffData) => {
@@ -879,14 +887,15 @@ export class LDAPEditor extends React.Component {
                 const params = {
                     serverId: this.props.serverId,
                     baseDn: suffixDN,
-                    parentId: parentId,
+                    parentId,
                     addNotification: this.props.addNotification,
                 };
                 getRootSuffixEntryDetails(params, this.updateTableRootSuffixes);
                 parentId += 2; // The next DN row will be two rows below.
+                return [];
             });
         });
-    }
+    };
 
     showSuffixes = (label, event) => {
         getUserSuffixes(this.props.serverId, this.processRootSuffixes);
@@ -918,7 +927,7 @@ export class LDAPEditor extends React.Component {
                 searching: false
             });
         }
-    }
+    };
 
     actionResolver = (rowData, { rowIndex }) => {
         // No action on the children.
@@ -947,7 +956,7 @@ export class LDAPEditor extends React.Component {
                             const entryType = rowData.isRole ? "role" : "account";
                             this.setState({
                                 entryDn: rowData.rawdn,
-                                entryType: entryType,
+                                entryType,
                                 operationType: "lock",
                                 currentRowKey: rowData.secretTableRowKeyId
                             }, () => { this.handleConfirmModalToggle() });
@@ -961,7 +970,7 @@ export class LDAPEditor extends React.Component {
                             const entryType = rowData.isRole ? "role" : "account";
                             this.setState({
                                 entryDn: rowData.rawdn,
-                                entryType: entryType,
+                                entryType,
                                 operationType: "unlock",
                                 currentRowKey: rowData.secretTableRowKeyId
                             }, () => { this.handleConfirmModalToggle() });
@@ -976,7 +985,7 @@ export class LDAPEditor extends React.Component {
                         const entryType = rowData.isRole ? "role" : "account";
                         this.setState({
                             entryDn: rowData.rawdn,
-                            entryType: entryType,
+                            entryType,
                             operationType: "lock",
                             currentRowKey: rowData.secretTableRowKeyId
                         }, () => { this.handleConfirmModalToggle() });
@@ -1092,7 +1101,7 @@ export class LDAPEditor extends React.Component {
         return [
             ...updateActions,
         ];
-    }
+    };
 
     render () {
         const {
@@ -1152,7 +1161,7 @@ export class LDAPEditor extends React.Component {
                     <Tab eventKey={0} title={<TabTitleText>Tree View</TabTitleText>}>
                         <EditorTreeView
                             key={loading}
-                            onToggleEntryMenu={this.handleToggleEntryMenu}
+                            handleToggleEntryMenu={this.onToggleEntryMenu}
                             onSelectEntryOptions={this.handleSelectEntryOptions}
                             entryMenuIsOpen={entryMenuIsOpen}
                             treeViewRootSuffixes={treeViewRootSuffixes}

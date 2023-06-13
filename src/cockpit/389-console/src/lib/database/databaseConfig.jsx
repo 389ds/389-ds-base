@@ -4,7 +4,6 @@ import { log_cmd } from "../tools.jsx";
 import {
     Button,
     Checkbox,
-    ExpandableSection,
     Grid,
     GridItem,
     NumberInput,
@@ -18,10 +17,9 @@ import {
     TextVariants,
     TimePicker,
     Tooltip,
-    ValidatedOptions,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 export class GlobalDatabaseConfig extends React.Component {
     constructor(props) {
@@ -80,8 +78,8 @@ export class GlobalDatabaseConfig extends React.Component {
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
-        this.select_db_locks_monitoring = this.select_db_locks_monitoring.bind(this);
-        this.save_db_config = this.save_db_config.bind(this);
+        this.handleSelectDBLocksMonitoring = this.handleSelectDBLocksMonitoring.bind(this);
+        this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
 
         this.maxValue = 2147483647;
         this.onMinusConfig = (id) => {
@@ -103,7 +101,7 @@ export class GlobalDatabaseConfig extends React.Component {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn() });
-        }
+        };
 
         // Toggle currently active tab
         this.handleNavSelect = (event, tabIndex) => {
@@ -117,7 +115,7 @@ export class GlobalDatabaseConfig extends React.Component {
         this.props.enableTree();
     }
 
-    select_db_locks_monitoring (val, e) {
+    handleSelectDBLocksMonitoring (val, e) {
         this.setState({
             dblocksMonitoring: !this.state.dblocksMonitoring
         }, this.handleChange(val, e));
@@ -138,13 +136,13 @@ export class GlobalDatabaseConfig extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of check_attrs) {
-            if (this.state[config_attr] != this.state['_' + config_attr]) {
+            if (this.state[config_attr] !== this.state['_' + config_attr]) {
                 saveBtnDisabled = false;
                 break;
             }
         }
         this.setState({
-            saveBtnDisabled: saveBtnDisabled,
+            saveBtnDisabled,
         });
     }
 
@@ -166,7 +164,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
     save_ndn_cache(requireRestart) {
         const msg = "Successfully updated database configuration";
-        if (this.state._ndncachemaxsize != this.state.ndncachemaxsize) {
+        if (this.state._ndncachemaxsize !== this.state.ndncachemaxsize) {
             const cmd = [
                 'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
                 'config', 'replace', 'nsslapd-ndn-cache-max-size=' + this.state.ndncachemaxsize
@@ -222,73 +220,73 @@ export class GlobalDatabaseConfig extends React.Component {
         }
     }
 
-    save_db_config() {
+    handleSaveDBConfig() {
         // Build up the command list
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'config', 'set'
         ];
         let requireRestart = false;
 
-        if (this.state._looklimit != this.state.looklimit) {
+        if (this.state._looklimit !== this.state.looklimit) {
             cmd.push("--lookthroughlimit=" + this.state.looklimit);
         }
-        if (this.state._idscanlimit != this.state.idscanlimit) {
+        if (this.state._idscanlimit !== this.state.idscanlimit) {
             cmd.push("--idlistscanlimit=" + this.state.idscanlimit);
         }
-        if (this.state._pagelooklimit != this.state.pagelooklimit) {
+        if (this.state._pagelooklimit !== this.state.pagelooklimit) {
             cmd.push("--pagedlookthroughlimit=" + this.state.pagelooklimit);
         }
-        if (this.state._pagescanlimit != this.state.pagescanlimit) {
+        if (this.state._pagescanlimit !== this.state.pagescanlimit) {
             cmd.push("--pagedidlistscanlimit=" + this.state.pagescanlimit);
         }
-        if (this.state._rangelooklimit != this.state.rangelooklimit) {
+        if (this.state._rangelooklimit !== this.state.rangelooklimit) {
             cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
         }
         if (this.state.db_cache_auto) {
             // Auto cache is selected
-            if (this.state._db_cache_auto != this.state.db_cache_auto) {
+            if (this.state._db_cache_auto !== this.state.db_cache_auto) {
                 // We just enabled auto cache,
-                if (this.state.autosize == "0") {
+                if (this.state.autosize === "0") {
                     cmd.push("--cache-autosize=10");
                 } else {
                     cmd.push("--cache-autosize=" + this.state.autosize);
                 }
                 requireRestart = true;
-            } else if (this.state._autosize != this.state.autosize) {
+            } else if (this.state._autosize !== this.state.autosize) {
                 // Update auto cache settings if it changed
                 cmd.push("--cache-autosize=" + this.state.autosize);
                 requireRestart = true;
             }
         } else {
             // No auto cache, check if we need to reset the value
-            if (this.state._db_cache_auto != this.state.db_cache_auto) {
+            if (this.state._db_cache_auto !== this.state.db_cache_auto) {
                 // We just disabled auto cache
                 cmd.push("--cache-autosize=0");
                 requireRestart = true;
             }
         }
-        if (this.state._autosizesplit != this.state.autosizesplit) {
+        if (this.state._autosizesplit !== this.state.autosizesplit) {
             cmd.push("--cache-autosize-split=" + this.state.autosizesplit);
             requireRestart = true;
         }
-        if (this.state._dbcachesize != this.state.dbcachesize) {
+        if (this.state._dbcachesize !== this.state.dbcachesize) {
             cmd.push("--dbcachesize=" + this.state.dbcachesize);
             requireRestart = true;
         }
-        if (this.state._txnlogdir != this.state.txnlogdir) {
+        if (this.state._txnlogdir !== this.state.txnlogdir) {
             cmd.push("--logdirectory=" + this.state.txnlogdir);
             requireRestart = true;
         }
-        if (this.state._dbhomedir != this.state.dbhomedir) {
+        if (this.state._dbhomedir !== this.state.dbhomedir) {
             cmd.push("--db-home-directory=" + this.state.dbhomedir);
             requireRestart = true;
         }
-        if (this.state._dblocks != this.state.dblocks) {
+        if (this.state._dblocks !== this.state.dblocks) {
             cmd.push("--locks=" + this.state.dblocks);
             requireRestart = true;
         }
-        if (this.state._dblocksMonitoring != this.state.dblocksMonitoring) {
+        if (this.state._dblocksMonitoring !== this.state.dblocksMonitoring) {
             if (this.state.dblocksMonitoring) {
                 cmd.push("--locks-monitoring-enabled=on");
             } else {
@@ -296,53 +294,53 @@ export class GlobalDatabaseConfig extends React.Component {
             }
             requireRestart = true;
         }
-        if (this.state._dblocksMonitoringThreshold != this.state.dblocksMonitoringThreshold) {
+        if (this.state._dblocksMonitoringThreshold !== this.state.dblocksMonitoringThreshold) {
             cmd.push("--locks-monitoring-threshold=" + this.state.dblocksMonitoringThreshold);
             requireRestart = true;
         }
-        if (this.state._dblocksMonitoringPause != this.state.dblocksMonitoringPause) {
+        if (this.state._dblocksMonitoringPause !== this.state.dblocksMonitoringPause) {
             cmd.push("--locks-monitoring-pause=" + this.state.dblocksMonitoringPause);
         }
-        if (this.state._chxpoint != this.state.chxpoint) {
+        if (this.state._chxpoint !== this.state.chxpoint) {
             cmd.push("--checkpoint-interval=" + this.state.chxpoint);
             requireRestart = true;
         }
-        if (this.state._compactinterval != this.state.compactinterval) {
+        if (this.state._compactinterval !== this.state.compactinterval) {
             cmd.push("--compactdb-interval=" + this.state.compactinterval);
             requireRestart = true;
         }
-        if (this.state._compacttime != this.state.compacttime) {
+        if (this.state._compacttime !== this.state.compacttime) {
             cmd.push("--compactdb-time=" + this.state.compacttime);
             requireRestart = true;
         }
         if (this.state.import_cache_auto) {
             // Auto cache is selected
-            if (this.state._import_cache_auto != this.state.import_cache_auto) {
+            if (this.state._import_cache_auto !== this.state.import_cache_auto) {
                 // We just enabled auto cache,
-                if (this.state.importcachesize == "0") {
+                if (this.state.importcachesize === "0") {
                     cmd.push("--import-cache-autosize=-1");
                 } else {
                     cmd.push("--import-cache-autosize=" + this.state.importcacheauto);
                 }
-            } else if (this.state._importcacheauto != this.state.importcacheauto) {
+            } else if (this.state._importcacheauto !== this.state.importcacheauto) {
                 // Update auto cache settings if it changed
                 cmd.push("--import-cache-autosize=" + this.state.importcacheauto);
             }
         } else {
             // Auto cache is not selected, check if we need to reset the value
-            if (this.state._import_cache_auto != this.state.import_cache_auto) {
+            if (this.state._import_cache_auto !== this.state.import_cache_auto) {
                 // We just disabled auto cache
                 cmd.push("--import-cache-autosize=0");
             }
         }
-        if (this.state._importcachesize != this.state.importcachesize) {
+        if (this.state._importcachesize !== this.state.importcachesize) {
             cmd.push("--import-cachesize=" + this.state.importcachesize);
         }
         if (cmd.length > 6) {
             this.setState({
                 saving: true
             });
-            log_cmd("save_db_config", "Applying config change", cmd);
+            log_cmd("handleSaveDBConfig", "Applying config change", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
@@ -377,7 +375,7 @@ export class GlobalDatabaseConfig extends React.Component {
         const dblocksPause = this.state.dblocksMonitoringPause;
 
         if (this.state.dblocksMonitoring) {
-            dblocksMonitor =
+            dblocksMonitor = (
                 <div className="ds-margin-left ds-margin-top">
                     <Grid
                         title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)."
@@ -426,11 +424,12 @@ export class GlobalDatabaseConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
         }
 
         if (this.state.db_cache_auto) {
-            db_cache_form =
+            db_cache_form = (
                 <div className="ds-margin-left">
                     <Grid
                         title="Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead."
@@ -480,19 +479,21 @@ export class GlobalDatabaseConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
             db_auto_checked = true;
         } else {
-            db_cache_form = <div className="ds-margin-left">
-                <Grid
+            db_cache_form = (
+                <div className="ds-margin-left">
+                    <Grid
                     title="Specifies the database index cache size in bytes (nsslapd-dbcachesize)."
                     className="ds-margin-top"
-                >
-                    <GridItem className="ds-label" span={3}>
-                        Database Cache Size
-                    </GridItem>
-                    <GridItem span={9}>
-                        <NumberInput
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            Database Cache Size
+                        </GridItem>
+                        <GridItem span={9}>
+                            <NumberInput
                             value={this.state.dbcachesize}
                             min={512000}
                             max={this.maxValue}
@@ -504,15 +505,16 @@ export class GlobalDatabaseConfig extends React.Component {
                             minusBtnAriaLabel="minus"
                             plusBtnAriaLabel="plus"
                             widthChars={10}
-                        />
-                    </GridItem>
-                </Grid>
-            </div>;
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>
+            );
             db_auto_checked = false;
         }
 
         if (this.state.import_cache_auto) {
-            import_cache_form =
+            import_cache_form = (
                 <div id="auto-import-cache-form" className="ds-margin-left">
                     <Grid
                         title="Enter '-1' to use 50% of available memory, '0' to disable autotuning, or enter the percentage of available memory to use.  Value range -1 through 100, default is '-1' (nsslapd-import-cache-autosize)."
@@ -538,10 +540,11 @@ export class GlobalDatabaseConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
             import_auto_checked = true;
         } else {
-            import_cache_form =
+            import_cache_form = (
                 <div className="ds-margin-left">
                     <Grid
                         title="The size of the database cache in bytes used in the bulk import process. (nsslapd-import-cachesize)."
@@ -566,13 +569,14 @@ export class GlobalDatabaseConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                </div>;
+                </div>
+            );
             import_auto_checked = false;
         }
 
         let spinner = "";
         if (this.state.loading) {
-            spinner =
+            spinner = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
@@ -580,7 +584,8 @@ export class GlobalDatabaseConfig extends React.Component {
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" loading size="md" />
-                </div>;
+                </div>
+            );
         }
 
         let saveBtnName = "Save Config";
@@ -821,7 +826,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                     label="Enable DB Lock Monitoring"
                                                     id="dblocksMonitoring"
                                                     isChecked={this.state.dblocksMonitoring}
-                                                    onChange={this.select_db_locks_monitoring}
+                                                    onChange={this.handleSelectDBLocksMonitoring}
                                                     aria-label="uncontrolled checkbox example"
                                                 />
                                             </div>
@@ -956,7 +961,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
                     <Button
                         className="ds-margin-top-lg"
-                        onClick={this.save_db_config}
+                        onClick={this.handleSaveDBConfig}
                         variant="primary"
                         isLoading={this.state.saving}
                         spinnerAriaValueText={this.state.saving ? "Saving" : undefined}

@@ -5,12 +5,10 @@ import {
     Card,
     CardBody,
     CardTitle,
-    Checkbox,
     DualListSelector,
     Form,
     Grid,
     GridItem,
-    Label,
     Modal,
     ModalVariant,
     NumberInput,
@@ -33,17 +31,13 @@ import {
     runGenericSearch,
     decodeLine
 } from '../../lib/utils.jsx';
-import {
-    InfoCircleIcon
-} from '@patternfly/react-icons';
-
 
 class AddGroup extends React.Component {
     constructor (props) {
         super(props);
 
         // gid range
-        this.minValue = 0
+        this.minValue = 0;
         this.maxValue = 1878982656;
 
         this.state = {
@@ -71,32 +65,32 @@ class AddGroup extends React.Component {
             groupDesc: "",
         };
 
-        this.handleBaseDnSelection = (treeViewItem) => {
+        this.onBaseDnSelection = (treeViewItem) => {
             this.setState({
                 usersSearchBaseDn: treeViewItem.dn
             });
-        }
+        };
 
         this.showTreeLoadingState = (isTreeLoading) => {
             this.setState({
                 isTreeLoading,
-                searching: isTreeLoading ? true : false
+                searching: !!isTreeLoading
             });
-        }
+        };
 
-        this.openLDAPNavModal = () => {
+        this.handleOpenLDAPNavModal = () => {
             this.setState({
                 showLDAPNavModal: true
             });
         };
 
-        this.closeLDAPNavModal = () => {
+        this.handleCloseLDAPNavModal = () => {
             this.setState({
                 showLDAPNavModal: false
             });
         };
 
-        this.onNext = ({ id }) => {
+        this.handleNext = ({ id }) => {
             this.setState({
                 stepIdReached: this.state.stepIdReached < id ? id : this.state.stepIdReached
             });
@@ -107,32 +101,32 @@ class AddGroup extends React.Component {
                 // Create the LDAP entry.
                 const myLdifArray = this.state.ldifArray;
                 createLdapEntry(this.props.editorLdapServer,
-                    myLdifArray,
-                    (result) => {
-                        this.setState({
-                            commandOutput: result.errorCode === 0 ? 'Group successfully created!' : 'Failed to create group, error: ' + result.errorCode,
-                            resultVariant: result.errorCode === 0 ? 'success' : 'danger',
-                            adding: false,
-                        }, () => {
-                            this.props.onReload();
-                        });
-                        // Update the wizard operation information.
-                        const myDn = myLdifArray[0].substring(4);
-                        const relativeDn = myLdifArray[3].replace(": ", "="); // cn val
-                        const opInfo = {
-                            operationType: 'ADD',
-                            resultCode: result.errorCode,
-                            time: Date.now(),
-                            entryDn: myDn,
-                            relativeDn: relativeDn
-                        }
-                        this.props.setWizardOperationInfo(opInfo);
-                    }
+                                myLdifArray,
+                                (result) => {
+                                    this.setState({
+                                        commandOutput: result.errorCode === 0 ? 'Group successfully created!' : 'Failed to create group, error: ' + result.errorCode,
+                                        resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                                        adding: false,
+                                    }, () => {
+                                        this.props.onReload();
+                                    });
+                                    // Update the wizard operation information.
+                                    const myDn = myLdifArray[0].substring(4);
+                                    const relativeDn = myLdifArray[3].replace(": ", "="); // cn val
+                                    const opInfo = {
+                                        operationType: 'ADD',
+                                        resultCode: result.errorCode,
+                                        time: Date.now(),
+                                        entryDn: myDn,
+                                        relativeDn
+                                    };
+                                    this.props.setWizardOperationInfo(opInfo);
+                                }
                 );
             }
         };
 
-        this.onBack = ({ id }) => {
+        this.handleBack = ({ id }) => {
             if (id === 5) {
                 this.updateValuesTableRows(true);
             }
@@ -142,7 +136,7 @@ class AddGroup extends React.Component {
             this.setState({
                 isSearchRunning: true,
                 usersAvailableOptions: []
-            }, () => { this.getEntries () });
+            }, () => { this.getEntries() });
         };
 
         this.handleSearchPattern = searchPattern => {
@@ -159,9 +153,9 @@ class AddGroup extends React.Component {
 
             const params = {
                 serverId: this.props.editorLdapServer,
-                baseDn: baseDn,
+                baseDn,
                 scope: 'sub',
-                filter: filter,
+                filter,
                 attributes: attrs
             };
             runGenericSearch(params, (resultArray) => {
@@ -180,11 +174,11 @@ class AddGroup extends React.Component {
                         dnLine = `${decoded[0]}: ${decoded[1]}`;
                     }
                     const value = pos1 === -1
-                    ? (lines[1]).split(': ')[1]
-                    : decodeLine(lines[1])[1];
+                        ? (lines[1]).split(': ')[1]
+                        : decodeLine(lines[1])[1];
 
                     return (
-                        <span title={dnLine}>
+                        <span title={dnLine} key={dnLine}>
                             {value}
                         </span>
                     );
@@ -195,18 +189,18 @@ class AddGroup extends React.Component {
                     isSearchRunning: false
                 });
             });
-        }
+        };
 
         this.removeDuplicates = (options) => {
             const titles = options.map(item => item.props.title);
             const noDuplicates = options
-                .filter((item, index) => {
-                    return titles.indexOf(item.props.title) === index;
-                });
+                    .filter((item, index) => {
+                        return titles.indexOf(item.props.title) === index;
+                    });
             return noDuplicates;
         };
 
-        this.usersOnListChange = (newAvailableOptions, newChosenOptions) => {
+        this.handleUsersOnListChange = (newAvailableOptions, newChosenOptions) => {
             const newAvailNoDups = this.removeDuplicates(newAvailableOptions);
             const newChosenNoDups = this.removeDuplicates(newChosenOptions);
 
@@ -214,7 +208,6 @@ class AddGroup extends React.Component {
                 usersAvailableOptions: newAvailNoDups.sort(),
                 usersChosenOptions: newChosenNoDups.sort()
             });
-
         };
 
         this.handleRadioChange = (_, event) => {
@@ -224,18 +217,18 @@ class AddGroup extends React.Component {
         };
 
         // Group Type handling
-        this.onToggleType = isOpenType => {
+        this.handleToggleType = isOpenType => {
             this.setState({
                 isOpenType
             });
-        }
-        this.onSelectType = (event, selection) => {
+        };
+        this.handleSelectType = (event, selection) => {
             this.setState({
                 posixGroup: selection === "Posix Group",
                 groupType: selection,
                 isOpenType: false,
             });
-        }
+        };
 
         // gid/uid input handling
         this.onMinusConfig = (id) => {
@@ -273,12 +266,12 @@ class AddGroup extends React.Component {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [attr]: value,
-        })
+        });
     }
 
     generateLdifData = () => {
         const objectClassData = ['objectClass: top'];
-        let valueData = [];
+        const valueData = [];
         let memberAttr = "";
 
         if (this.state.posixGroup) {
@@ -314,7 +307,7 @@ class AddGroup extends React.Component {
             ...valueData
         ];
         this.setState({ ldifArray });
-    }
+    };
 
     render () {
         const {
@@ -338,8 +331,8 @@ class AddGroup extends React.Component {
                         variant={SelectVariant.single}
                         className="ds-margin-top-lg"
                         aria-label="Select group type"
-                        onToggle={this.onToggleType}
-                        onSelect={this.onSelectType}
+                        onToggle={this.handleToggleType}
+                        onSelect={this.handleSelectType}
                         selections={this.state.groupType}
                         isOpen={this.state.isOpenType}
                     >
@@ -434,15 +427,14 @@ class AddGroup extends React.Component {
                                     className="ds-margin-top"
                                 />
                             </div>
-                        </>
-                    }
+                        </>}
                     {this.state.posixGroup &&
                         <>
                             <Grid
                                 title="This setting corresponds to the attribute: gidNumber.  The gid must be greater than zero for this attribute to be set."
                                 className="ds-margin-top"
                             >
-                                <GridItem className="ds-label" span={2} >
+                                <GridItem className="ds-label" span={2}>
                                     Group ID Number
                                 </GridItem>
                                 <GridItem span={10}>
@@ -461,14 +453,13 @@ class AddGroup extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                        </>
-                    }
+                        </>}
                 </Form>
             </div>
         );
 
         const selectMembersStep = (
-            <React.Fragment>
+            <>
                 <Form autoComplete="off">
                     <Grid>
                         <GridItem span={12}>
@@ -485,7 +476,7 @@ class AddGroup extends React.Component {
                                     <Text
                                         className="ds-left-margin"
                                         component={TextVariants.a}
-                                        onClick={this.openLDAPNavModal}
+                                        onClick={this.handleOpenLDAPNavModal}
                                         href="#"
                                     >
                                         {usersSearchBaseDn}
@@ -497,7 +488,7 @@ class AddGroup extends React.Component {
                             <SearchInput
                               placeholder="Find members..."
                               value={this.state.searchPattern}
-                              onChange={this.handleSearchPattern}
+                              onChange={(_event, value) => this.handleSearchPattern(value)}
                               onSearch={this.handleSearchClick}
                               onClear={() => { this.handleSearchPattern('') }}
                             />
@@ -508,7 +499,7 @@ class AddGroup extends React.Component {
                                 chosenOptions={usersChosenOptions}
                                 availableOptionsTitle="Available Members"
                                 chosenOptionsTitle="Chosen Members"
-                                onListChange={this.usersOnListChange}
+                                onListChange={this.handleUsersOnListChange}
                                 id="usersSelector"
                             />
                         </GridItem>
@@ -517,12 +508,12 @@ class AddGroup extends React.Component {
                             variant={ModalVariant.medium}
                             title="Choose A Branch To Search"
                             isOpen={showLDAPNavModal}
-                            onClose={this.closeLDAPNavModal}
+                            onClose={this.handleCloseLDAPNavModal}
                             actions={[
                                 <Button
                                     key="confirm"
                                     variant="primary"
-                                    onClick={this.closeLDAPNavModal}
+                                    onClick={this.handleCloseLDAPNavModal}
                                 >
                                     Done
                                 </Button>
@@ -533,8 +524,8 @@ class AddGroup extends React.Component {
                                     <LdapNavigator
                                         treeItems={[...this.props.treeViewRootSuffixes]}
                                         editorLdapServer={this.props.editorLdapServer}
-                                        skipLeafEntries={true}
-                                        handleNodeOnClick={this.handleBaseDnSelection}
+                                        skipLeafEntries
+                                        handleNodeOnClick={this.onBaseDnSelection}
                                         showTreeLoadingState={this.showTreeLoadingState}
                                     />
                                 </CardBody>
@@ -542,7 +533,7 @@ class AddGroup extends React.Component {
                         </Modal>
                     </Grid>
                 </Form>
-            </React.Fragment>
+            </>
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
@@ -563,8 +554,7 @@ class AddGroup extends React.Component {
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
                                 {ldifListItems}
-                            </SimpleList>
-                        }
+                            </SimpleList>}
                     </CardBody>
                 </Card>
             </div>
@@ -574,7 +564,7 @@ class AddGroup extends React.Component {
         const ldifLines = ldifArray.map(line => {
             nb++;
             return { data: line, id: nb };
-        })
+        });
         const groupReviewStep = (
             <div>
                 <Alert
@@ -587,8 +577,7 @@ class AddGroup extends React.Component {
                         <div>
                             <Spinner className="ds-left-margin" size="md" />
                             &nbsp;&nbsp;Adding group ...
-                        </div>
-                    }
+                        </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
@@ -600,8 +589,7 @@ class AddGroup extends React.Component {
                                 <h6 key={line.id}>{line.data}</h6>
                             ))}
                         </CardBody>
-                    </Card>
-                }
+                    </Card>}
             </div>
         );
 
@@ -624,7 +612,7 @@ class AddGroup extends React.Component {
                 name: 'Select Name',
                 component: groupNameStep,
                 canJumpTo: stepIdReached >= 3 && stepIdReached < 6,
-                enableNext: groupName === '' ? false : true,
+                enableNext: groupName !== '',
             },
             {
                 id: 4,
@@ -650,16 +638,18 @@ class AddGroup extends React.Component {
             }
         ];
 
-        const title = <>
-            Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
-        </>;
+        const title = (
+            <>
+                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+            </>
+        );
 
         return (
             <Wizard
                 isOpen={this.props.isWizardOpen}
-                onClose={this.props.toggleOpenWizard}
-                onNext={this.onNext}
-                onBack={this.onBack}
+                onClose={this.props.handleToggleWizard}
+                onNext={this.handleNext}
+                onBack={this.handleBack}
                 title="Add A Group"
                 description={title}
                 steps={addGroupSteps}

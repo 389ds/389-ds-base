@@ -81,8 +81,7 @@ export class CreateInstanceModal extends React.Component {
         // Check that the attr is only letters  [A-Za-z]+  and the value does not
         // start with a space (?=\\S) AND all the characters are standard
         // ascii ([ -~]+)
-        const dn_regex = new RegExp("^([A-Za-z]+=(?=\\S)([ -~]+)$)");
-
+        const dn_regex = /^([A-Za-z]+=(?=\\S)([ -~]+)$)/;
         const result = dn_regex.test(dn);
         return result;
     }
@@ -153,8 +152,8 @@ export class CreateInstanceModal extends React.Component {
 
         this.setState({
             createOK: all_good,
-            createServerIdMsg: createServerIdMsg,
-            errObj: errObj
+            createServerIdMsg,
+            errObj
         });
     }
 
@@ -325,12 +324,12 @@ export class CreateInstanceModal extends React.Component {
                                                                     cockpit.spawn(rm_cmd, { superuser: true });
 
                                                                     const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
-                                                                                       'directory_manager', 'password_change'];
+                                                                        'directory_manager', 'password_change'];
                                                                     const config = {
                                                                         cmd: dm_pw_cmd,
                                                                         promptArg: "",
                                                                         passwd: createDMPassword,
-                                                                        addNotification: addNotification,
+                                                                        addNotification,
                                                                         success_msg: `Successfully created instance: slapd-${createServerId}`,
                                                                         error_msg: "Failed to set Directory Manager password",
                                                                         state_callback: () => { this.setState({ loadingCreate: false }) },
@@ -1082,7 +1081,7 @@ export class ManageBackupsModal extends React.Component {
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 

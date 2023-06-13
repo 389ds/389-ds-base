@@ -17,7 +17,7 @@ export class SASLMappingModal extends React.Component {
         let title = this.props.type;
         let btnText = "Create Mapping";
         const extraPrimaryProps = {};
-        if (title != "Create") {
+        if (title !== "Create") {
             btnText = "Save Mapping";
         }
         title = title + " SASL Mapping";
@@ -32,7 +32,7 @@ export class SASLMappingModal extends React.Component {
                 aria-labelledby="ds-modal"
                 title={title}
                 isOpen={this.props.showModal}
-                onClose={this.props.closeHandler}
+                onClose={this.props.handleClose}
                 actions={[
                     <Button
                         key="confirm"
@@ -47,7 +47,7 @@ export class SASLMappingModal extends React.Component {
                     >
                         {btnText}
                     </Button>,
-                    <Button key="cancel" variant="link" onClick={this.props.closeHandler}>
+                    <Button key="cancel" variant="link" onClick={this.props.handleClose}>
                         Cancel
                     </Button>
                 ]}

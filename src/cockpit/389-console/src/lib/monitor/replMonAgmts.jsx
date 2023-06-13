@@ -63,14 +63,14 @@ export class ReplAgmtMonitor extends React.Component {
                                 className="ds-left-margin ds-refresh"
                                 icon={faSyncAlt}
                                 title="Refresh replication monitor"
-                                onClick={this.props.reload}
+                                onClick={this.props.handleReload}
                             />
                         </Text>
                     </TextContent>
                 </div>
                 <AgmtTable
                     agmts={replAgmts}
-                    pokeAgmt={this.pokeAgmt}
+                    handlePokeAgmt={this.pokeAgmt}
                 />
             </div>
         );

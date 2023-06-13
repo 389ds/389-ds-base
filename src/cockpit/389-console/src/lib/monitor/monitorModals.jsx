@@ -20,11 +20,10 @@ import {
 import {
     CopyIcon,
 } from '@patternfly/react-icons';
-import faSyncAlt from '@fortawesome/free-solid-svg-icons';
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
-import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 class TaskLogModal extends React.Component {
     render() {
@@ -72,7 +71,7 @@ class AgmtDetailsModal extends React.Component {
         const dateAttrs = ['last-update-start', 'last-update-end',
             'last-init-start', 'last-init-end'];
         for (const attr of dateAttrs) {
-            if (agmt[attr][0] == "19700101000000Z") {
+            if (agmt[attr][0] === "19700101000000Z") {
                 convertedDate[attr] = "Unavailable";
             } else {
                 convertedDate[attr] = get_date_string(agmt[attr][0]);
@@ -215,13 +214,13 @@ class ConflictCompareModal extends React.Component {
         let conflictChildren = "0";
         let validChildren = "0";
         let orig_rdn = newRDN;
-        if (newRDN == "") {
+        if (newRDN === "") {
             // Create an example rdn value based off the conflict rdn
             orig_rdn = conflictEntry.dn.split('+');
             orig_rdn = orig_rdn[0] + "-MUST_CHANGE";
         }
         for (const key in conflictEntry.attrs) {
-            if (key == "numsubordinates") {
+            if (key === "numsubordinates") {
                 conflictChildren = conflictEntry.attrs[key];
             }
             if (!ignoreAttrs.includes(key)) {
@@ -231,7 +230,7 @@ class ConflictCompareModal extends React.Component {
             }
         }
         for (const key in validEntry.attrs) {
-            if (key == "numsubordinates") {
+            if (key === "numsubordinates") {
                 validChildren = <font color="red">{validEntry.attrs[key]}</font>;
             }
             if (!ignoreAttrs.includes(key)) {
@@ -553,7 +552,7 @@ class ReportConnectionModal extends React.Component {
                         variant="primary"
                         onClick={addConn}
                         isDisabled={
-                            name ==="" || hostname === "" || port === "" ||
+                            name === "" || hostname === "" || port === "" ||
                             binddn === "" || (bindpw === "" && !pwInputInterractive)
                         }
                     >
@@ -708,7 +707,7 @@ class ReportAliasesModal extends React.Component {
                         key="confirm"
                         variant="primary"
                         onClick={newEntry ? addConfig : editConfig}
-                        isDisabled={alias == "" || hostname == ""}
+                        isDisabled={alias === "" || hostname === ""}
                     >
                         Save
                     </Button>,
@@ -807,7 +806,7 @@ class ReportLoginModal extends React.Component {
                     <Button
                         key="confirm"
                         variant="primary"
-                        isDisabled={loginBinddn == "" || loginBindpw == ""}
+                        isDisabled={loginBinddn === "" || loginBindpw === ""}
                         onClick={processCredsInput}
                     >
                         Confirm Credentials Input
@@ -917,12 +916,13 @@ class FullReportContent extends React.Component {
                 </div>
             );
         }
-        let reportHeader =
+        let reportHeader = (
             <TextContent>
                 <Text className="ds-margin-top-xlg" component={TextVariants.h4}>
                     There is no report, you must first generate the report in the <b>Prepare Report</b> tab.
                 </Text>
-            </TextContent>;
+            </TextContent>
+        );
         if (reportData.length > 0) {
             reportHeader = (
                 <div>
@@ -973,7 +973,7 @@ class FullReportContent extends React.Component {
                     while (idx--) {
                         if (!this.state.showDisabledAgreements &&
                             'replica-enabled' in agmts[idx] &&
-                            agmts[idx]['replica-enabled'][0] == "off") {
+                            agmts[idx]['replica-enabled'][0] === "off") {
                             // remove disabled agmt
                             agmts.splice(idx, 1);
                         }
@@ -981,13 +981,14 @@ class FullReportContent extends React.Component {
                     resultGrids = resultGrids.concat(agmts);
                 }
             }
-            suppliers = [(<div>
-                <ReportSingleTable
-                    key={resultGrids}
-                    rows={resultGrids}
-                    viewAgmt={this.props.viewAgmt}
-                />
-            </div>
+            suppliers = [(
+                <div key="supp1">
+                    <ReportSingleTable
+                        key={resultGrids}
+                        rows={resultGrids}
+                        viewAgmt={this.props.viewAgmt}
+                    />
+                </div>
             )];
         } else {
             for (const supplier of reportData) {
@@ -1013,7 +1014,7 @@ class FullReportContent extends React.Component {
                         while (idx--) {
                             if (!this.state.showDisabledAgreements &&
                                 'replica-enabled' in replica.agmts_status[idx] &&
-                                replica.agmts_status[idx]['replica-enabled'][0] == "off") {
+                                replica.agmts_status[idx]['replica-enabled'][0] === "off") {
                                 // remove disabled agmt
                                 replica.agmts_status.splice(idx, 1);
                             }
@@ -1052,13 +1053,15 @@ class FullReportContent extends React.Component {
 
                             {"agmts_status" in replica &&
                             replica.agmts_status.length > 0 &&
-                            "agmt-name" in replica.agmts_status[0] ? (
-                                <ReportConsumersTable
+                            "agmt-name" in replica.agmts_status[0]
+                                ? (
+                                    <ReportConsumersTable
                                     key={replica.agmts_status}
                                     rows={replica.agmts_status}
                                     viewAgmt={this.props.viewAgmt}
                                     />
-                                ) : (
+                                )
+                                : (
                                     <TextContent>
                                         <Text component={TextVariants.h4}>
                                             <b><i>No Agreements Were Found</i></b>
@@ -1089,10 +1092,11 @@ class FullReportContent extends React.Component {
             </div>
         ));
         if (reportLoading) {
-            report =
+            report = (
                 <GridItem span={12} className="ds-center ds-margin-top">
                     {spinner}
-                </GridItem>;
+                </GridItem>
+            );
         }
 
         return (

@@ -1,5 +1,5 @@
-import "./css/patternfly-4-cockpit.scss";
-// import "core-js/stable";
+import "cockpit-dark-theme";
+import "patternfly/patternfly-5-cockpit.scss";
 import React from "react";
 import ReactDOM from "react-dom";
 import "./css/ds.css";

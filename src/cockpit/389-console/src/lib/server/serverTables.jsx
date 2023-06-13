@@ -39,25 +39,25 @@ export class SASLTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleOnSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handleOnPerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1
             });
         };
 
         this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleOnCollapse = this.handleOnCollapse.bind(this);
+        this.handleOnSearchChange = this.handleOnSearchChange.bind(this);
     }
 
-    onSort(_event, index, direction) {
+    handleOnSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -98,7 +98,7 @@ export class SASLTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -136,17 +136,17 @@ export class SASLTable extends React.Component {
             );
             count += 2;
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No SASL Mappings'] }];
             columns = [{ title: 'SASL Mappings' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onCollapse(event, rowKey, isOpen) {
+    handleOnCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -155,7 +155,7 @@ export class SASLTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleOnSearchChange(value, event) {
         const rows = [];
         let count = 0;
 
@@ -163,9 +163,9 @@ export class SASLTable extends React.Component {
             const val = value.toLowerCase();
 
             // Check for matches of all the parts
-            if (val != "" && row.cn[0].toLowerCase().indexOf(val) == -1 &&
-                row.nssaslmapbasedntemplate[0].toLowerCase().indexOf(val) == -1 &&
-                row.nssaslmappriority[0].toLowerCase().indexOf(val) == -1) {
+            if (val !== "" && row.cn[0].toLowerCase().indexOf(val) === -1 &&
+                row.nssaslmapbasedntemplate[0].toLowerCase().indexOf(val) === -1 &&
+                row.nssaslmappriority[0].toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
@@ -188,8 +188,8 @@ export class SASLTable extends React.Component {
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -231,8 +231,8 @@ export class SASLTable extends React.Component {
                 <SearchInput
                     placeholder='Search Mappings'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleOnSearchChange}
+                    onClear={(evt) => this.handleOnSearchChange('', evt)}
                 />
                 <Table
                     className="ds-margin-top"
@@ -241,8 +241,8 @@ export class SASLTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
-                    onCollapse={this.onCollapse}
+                    onSort={this.handleOnSort}
+                    onCollapse={this.handleOnCollapse}
                     actions={tableRows.length > 0 ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -256,8 +256,8 @@ export class SASLTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleOnSetPage}
+                    onPerPageSelect={this.handleOnPerPageSelect}
                 />
             </div>
         );

@@ -13,7 +13,6 @@ import {
     Form,
     Grid,
     GridItem,
-    Label,
     Modal,
     ModalVariant,
     Pagination,
@@ -40,13 +39,10 @@ import EditableTable from '../../lib/editableTable.jsx';
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
 import {
     createLdapEntry,
+    decodeLine,
     runGenericSearch,
     generateUniqueId
 } from '../../lib/utils.jsx';
-import {
-    InfoCircleIcon
-} from '@patternfly/react-icons';
-
 
 class AddRole extends React.Component {
     constructor (props) {
@@ -120,32 +116,32 @@ class AddRole extends React.Component {
             adding: true,
         };
 
-        this.handleBaseDnSelection = (treeViewItem) => {
+        this.onBaseDnSelection = (treeViewItem) => {
             this.setState({
                 rolesSearchBaseDn: treeViewItem.dn
             });
-        }
+        };
 
         this.showTreeLoadingState = (isTreeLoading) => {
             this.setState({
                 isTreeLoading,
-                searching: isTreeLoading ? true : false
+                searching: !!isTreeLoading
             });
-        }
+        };
 
-        this.openLDAPNavModal = () => {
+        this.handleOpenLDAPNavModal = () => {
             this.setState({
                 showLDAPNavModal: true
             });
         };
 
-        this.closeLDAPNavModal = () => {
+        this.handleCloseLDAPNavModal = () => {
             this.setState({
                 showLDAPNavModal: false
             });
         };
 
-        this.onNext = ({ id }) => {
+        this.handleNext = ({ id }) => {
             this.setState({
                 stepIdReached: this.state.stepIdReached < id ? id : this.state.stepIdReached
             });
@@ -163,32 +159,32 @@ class AddRole extends React.Component {
                 // Create the LDAP entry.
                 const myLdifArray = this.state.ldifArray;
                 createLdapEntry(this.props.editorLdapServer,
-                    myLdifArray,
-                    (result) => {
-                        this.setState({
-                            commandOutput: result.errorCode === 0 ? 'Role successfully created!' : 'Failed to create role, error: ' + result.errorCode,
-                            resultVariant: result.errorCode === 0 ? 'success' : 'danger',
-                            adding: false,
-                        }, () => {
-                            this.props.onReload();
-                        });
-                        // Update the wizard operation information.
-                        const myDn = myLdifArray[0].substring(4);
-                        const relativeDn = myLdifArray[6].replace(": ", "="); // cn val
-                        const opInfo = {
-                            operationType: 'ADD',
-                            resultCode: result.errorCode,
-                            time: Date.now(),
-                            entryDn: myDn,
-                            relativeDn: relativeDn
-                        }
-                        this.props.setWizardOperationInfo(opInfo);
-                    }
+                                myLdifArray,
+                                (result) => {
+                                    this.setState({
+                                        commandOutput: result.errorCode === 0 ? 'Role successfully created!' : 'Failed to create role, error: ' + result.errorCode,
+                                        resultVariant: result.errorCode === 0 ? 'success' : 'danger',
+                                        adding: false,
+                                    }, () => {
+                                        this.props.onReload();
+                                    });
+                                    // Update the wizard operation information.
+                                    const myDn = myLdifArray[0].substring(4);
+                                    const relativeDn = myLdifArray[6].replace(": ", "="); // cn val
+                                    const opInfo = {
+                                        operationType: 'ADD',
+                                        resultCode: result.errorCode,
+                                        time: Date.now(),
+                                        entryDn: myDn,
+                                        relativeDn
+                                    };
+                                    this.props.setWizardOperationInfo(opInfo);
+                                }
                 );
             }
         };
 
-        this.onBack = ({ id }) => {
+        this.handleBack = ({ id }) => {
             if (id === 5) {
                 // true ==> Do not check the attribute selection when navigating back.
                 this.updateValuesTableRows(true);
@@ -199,7 +195,7 @@ class AddRole extends React.Component {
             this.setState({
                 isSearchRunning: true,
                 rolesAvailableOptions: []
-            }, () => { this.getEntries () });
+            }, () => { this.getEntries() });
         };
 
         this.handleSearchPattern = searchPattern => {
@@ -216,9 +212,9 @@ class AddRole extends React.Component {
 
             const params = {
                 serverId: this.props.editorLdapServer,
-                baseDn: baseDn,
+                baseDn,
                 scope: 'sub',
-                filter: filter,
+                filter,
                 attributes: attrs
             };
             runGenericSearch(params, (resultArray) => {
@@ -237,11 +233,11 @@ class AddRole extends React.Component {
                         dnLine = `${decoded[0]}: ${decoded[1]}`;
                     }
                     const value = pos1 === -1
-                    ? (lines[1]).split(': ')[1]
-                    : decodeLine(lines[1])[1];
+                        ? (lines[1]).split(': ')[1]
+                        : decodeLine(lines[1])[1];
 
                     return (
-                        <span title={dnLine}>
+                        <span title={dnLine} key={dnLine}>
                             {value}
                         </span>
                     );
@@ -252,18 +248,18 @@ class AddRole extends React.Component {
                     isSearchRunning: false
                 });
             });
-        }
+        };
 
         this.removeDuplicates = (options) => {
             const titles = options.map(item => item.props.title);
             const noDuplicates = options
-                .filter((item, index) => {
-                    return titles.indexOf(item.props.title) === index;
-                });
+                    .filter((item, index) => {
+                        return titles.indexOf(item.props.title) === index;
+                    });
             return noDuplicates;
         };
 
-        this.usersOnListChange = (newAvailableOptions, newChosenOptions) => {
+        this.handleUsersListChange = (newAvailableOptions, newChosenOptions) => {
             const newAvailNoDups = this.removeDuplicates(newAvailableOptions);
             const newChosenNoDups = this.removeDuplicates(newChosenOptions);
 
@@ -271,7 +267,6 @@ class AddRole extends React.Component {
                 rolesAvailableOptions: newAvailNoDups.sort(),
                 rolesChosenOptions: newChosenNoDups.sort()
             });
-
         };
 
         this.handleRadioChange = (_, event) => {
@@ -284,7 +279,7 @@ class AddRole extends React.Component {
     }
 
     updateAttributesTableRows () {
-        let attributesArray = [];
+        const attributesArray = [];
         attributesArray.push({
             cells: ['cn', 'LdapSubEntry'],
             selected: true,
@@ -294,23 +289,28 @@ class AddRole extends React.Component {
 
         this.roleDefinitionArray.map(attr => {
             attributesArray.push({ cells: [attr, 'nsRoleDefinition'] });
+            return [];
         });
 
         if (this.state.roleType === 'filtered') {
             this.filteredRoleDefinitionArray.map(attr => {
-                attributesArray.push({ cells: [attr, 'nsFilteredRoleDefinition'],
-                                       selected: true,
-                                       isAttributeSelected: true,
-                                       disableCheckbox: true
-                                    });
+                attributesArray.push({
+                    cells: [attr, 'nsFilteredRoleDefinition'],
+                    selected: true,
+                    isAttributeSelected: true,
+                    disableCheckbox: true
+                });
+                return [];
             });
         } else if (this.state.roleType === 'nested') {
             this.nestedRoleDefinitionArray.map(attr => {
-                attributesArray.push({ cells: [attr, 'nsNestedRoleDefinition'],
-                                       selected: true,
-                                       isAttributeSelected: true,
-                                       disableCheckbox: true
-                                    });
+                attributesArray.push({
+                    cells: [attr, 'nsNestedRoleDefinition'],
+                    selected: true,
+                    isAttributeSelected: true,
+                    disableCheckbox: true
+                });
+                return [];
             });
         }
 
@@ -319,8 +319,8 @@ class AddRole extends React.Component {
 
         this.setState({
             selectedAttributes: ['cn',
-                                ...(this.state.roleType === 'filtered' ? ['nsRoleFilter'] : []),
-                                ...(this.state.roleType === 'nested' ? ['nsRoleDN'] : [])],
+                ...(this.state.roleType === 'filtered' ? ['nsRoleFilter'] : []),
+                ...(this.state.roleType === 'nested' ? ['nsRoleDN'] : [])],
             itemCountAddRole: attributesArray.length,
             rowsRole: attributesArray,
             pagedRowsRole: attributesArray.slice(0, this.state.perpageAddRole),
@@ -336,14 +336,14 @@ class AddRole extends React.Component {
         });
     }
 
-    onSetpageAddRole = (_event, pageNumber) => {
+    handleSetpageAddRole = (_event, pageNumber) => {
         this.setState({
             pageAddRole: pageNumber,
             pagedRowsRole: this.getAttributesToShow(pageNumber, this.state.perpageAddRole)
         });
     };
 
-    onPerPageSelectAddRole = (_event, perPage) => {
+    handlePerPageSelectAddRole = (_event, perPage) => {
         this.setState({
             pageAddRole: 1,
             perpageAddRole: perPage,
@@ -364,9 +364,9 @@ class AddRole extends React.Component {
 
     isAttributeRequired = attr => {
         return this.requiredAttributes.includes(attr);
-    }
+    };
 
-    onSelect = (event, isSelected, rowId) => {
+    handleSelect = (event, isSelected, rowId) => {
         let rows;
         let selectedAttributes;
         if (rowId === -1) {
@@ -397,12 +397,12 @@ class AddRole extends React.Component {
                 allAttributesSelected: isSelected,
                 selectedAttributes
             },
-            () => {
-                this.setState({
-                    pagedRowsRole: this.getAttributesToShow(this.state.pageAddRole, this.state.perpageAddRole)
-                });
-                this.updateValuesTableRows();
-            });
+                          () => {
+                              this.setState({
+                                  pagedRowsRole: this.getAttributesToShow(this.state.pageAddRole, this.state.perpageAddRole)
+                              });
+                              this.updateValuesTableRows();
+                          });
         } else {
             // Quick hack until the code is upgraded to a version that supports "disableCheckbox"
             if (this.state.pagedRowsRole[rowId].disableCheckbox === true) {
@@ -416,31 +416,31 @@ class AddRole extends React.Component {
             // The property 'isAttributeSelected' is used to build the LDAP entry to add.
             // The row ID cannot be used since it changes with the pagination.
             const attrName = this.state.pagedRowsRole[rowId].cells[0];
-            let allItems = [...this.state.rowsRole];
+            const allItems = [...this.state.rowsRole];
             const index = allItems.findIndex(item => item.cells[0] === attrName);
             allItems[index].isAttributeSelected = isSelected;
             const selectedAttributes = allItems
-                .filter(item => item.isAttributeSelected)
-                .map(selectedAttr => selectedAttr.cells[0]);
+                    .filter(item => item.isAttributeSelected)
+                    .map(selectedAttr => selectedAttr.cells[0]);
 
             this.setState({
                 rowsRole: allItems,
                 pagedRowsRole: rows,
                 selectedAttributes
             },
-            () => this.updateValuesTableRows());
+                          () => this.updateValuesTableRows());
         }
     };
 
     updateValuesTableRows = (skipAttributeSelection) => {
         const newSelectedAttrs = this.state.allAttributesSelected
             ? ['cn',
-            ...this.roleDefinitionArray,
-            ...this.filteredRoleDefinitionArray,
-            ...this.nestedRoleDefinitionArray]
+                ...this.roleDefinitionArray,
+                ...this.filteredRoleDefinitionArray,
+                ...this.nestedRoleDefinitionArray]
             : [...this.state.selectedAttributes];
         let namingRowID = this.state.namingRowID;
-        let namingAttrVal = this.state.namingAttrVal
+        let namingAttrVal = this.state.namingAttrVal;
         let editableTableData = [];
         let namingAttr = this.state.namingAttr;
         let namingVal = this.state.namingVal;
@@ -450,14 +450,14 @@ class AddRole extends React.Component {
                 const obj = {
                     id: generateUniqueId(),
                     attr: attrName,
-                    val: namingVal ? namingVal : '',
+                    val: namingVal || '',
                     required: false,
                     namingAttr: false,
-                }
+                };
                 return obj;
             });
             editableTableData.sort((a, b) => (a.attr > b.attr) ? 1 : -1);
-            namingRowID = editableTableData[0].id,
+            namingRowID = editableTableData[0].id;
             namingAttrVal = editableTableData[0].attr + "=" + editableTableData[0].val;
             namingAttr = editableTableData[0].attr;
             namingVal = editableTableData[0].val;
@@ -465,11 +465,12 @@ class AddRole extends React.Component {
                 for (const userObj of this.state.rolesChosenOptions) {
                     const dn_val = userObj.props.title.replace(/^dn: /, "");
                     editableTableData = editableTableData.filter((item) => ((item.attr.toLowerCase() !== 'nsroledn') || (item.val !== dn_val)));
-                    editableTableData.push({id: generateUniqueId(),
-                                            attr: 'nsRoleDN',
-                                            val: dn_val,
-                                            required: true,
-                                            namingAttr: false,
+                    editableTableData.push({
+                        id: generateUniqueId(),
+                        attr: 'nsRoleDN',
+                        val: dn_val,
+                        required: true,
+                        namingAttr: false,
                     });
                 }
             }
@@ -480,7 +481,7 @@ class AddRole extends React.Component {
             if (skipAttributeSelection) { // Do not check the attribute selection ( because it has not changed ).
                 editableTableData = [...this.state.savedRows];
             } else {
-                let arrayOfAttrObjects = [...this.state.savedRows];
+                const arrayOfAttrObjects = [...this.state.savedRows];
                 for (const myAttr of newSelectedAttrs) {
                     const found = arrayOfAttrObjects.find(el => el.attr === myAttr);
                     if (found === undefined) {
@@ -496,27 +497,28 @@ class AddRole extends React.Component {
                 }
                 // Remove the newly unselected attribute(s).
                 editableTableData = arrayOfAttrObjects
-                    .filter(datum => {
-                        const attrName = datum.attr;
-                        const found = newSelectedAttrs.find(attr => attr === attrName);
-                        return (found !== undefined);
-                    });
+                        .filter(datum => {
+                            const attrName = datum.attr;
+                            const found = newSelectedAttrs.find(attr => attr === attrName);
+                            return (found !== undefined);
+                        });
 
                 // Sort the rows
                 editableTableData.sort((a, b) => (a.attr > b.attr) ? 1 : -1);
                 if (this.state.namingRowID === -1) {
-                    namingRowID = editableTableData[0].id
+                    namingRowID = editableTableData[0].id;
                 }
             }
             if (this.state.roleType === 'nested') {
                 for (const userObj of this.state.rolesChosenOptions) {
                     const dn_val = userObj.props.title.replace(/^dn: /, "");
                     editableTableData = editableTableData.filter((item) => ((item.attr.toLowerCase() !== 'nsroledn') || (item.val !== dn_val)));
-                    editableTableData.push({id: generateUniqueId(),
-                                            attr: 'nsRoleDN',
-                                            val: dn_val,
-                                            required: true,
-                                            namingAttr: false,
+                    editableTableData.push({
+                        id: generateUniqueId(),
+                        attr: 'nsRoleDN',
+                        val: dn_val,
+                        required: true,
+                        namingAttr: false,
                     });
                 }
             }
@@ -547,7 +549,7 @@ class AddRole extends React.Component {
         let rows = this.state.savedRows;
 
         if (rows.length === 0) {
-            rows = this.state.editableTableData
+            rows = this.state.editableTableData;
         }
         for (const row of rows) {
             if (row.id === namingRowID) {
@@ -566,13 +568,13 @@ class AddRole extends React.Component {
         });
     };
 
-    onAttrDropDownToggle = isOpen => {
+    handleAttrDropDownToggle = isOpen => {
         this.setState({
             isAttrDropDownOpen: isOpen
         });
     };
 
-    onAttrDropDownSelect = event => {
+    handleAttrDropDownSelect = event => {
         this.setState((prevState, props) => {
             return { isAttrDropDownOpen: !prevState.isAttrDropDownOpen };
         });
@@ -588,10 +590,10 @@ class AddRole extends React.Component {
         return (
             <Dropdown
                 className="ds-dropdown-padding"
-                onSelect={this.onAttrDropDownSelect}
+                onSelect={this.handleAttrDropDownSelect}
                 position={DropdownPosition.left}
                 toggle={
-                    <BadgeToggle id="toggle-attr-select" onToggle={this.onAttrDropDownToggle}>
+                    <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
                         {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
                     </BadgeToggle>
                 }
@@ -599,34 +601,35 @@ class AddRole extends React.Component {
                 dropdownItems={items}
             />
         );
-    }
+    };
 
     saveCurrentRows = (savedRows, namingID) => {
-        this.setState({ savedRows },
-            () => {
-                // Update the naming information after the new rows have been saved.
-                if (namingID != -1) { // The namingIndex is set to -1 if the row is not the naming one.
-                    this.setNamingRowID(namingID);
-                }
-            });
-    }
+        this.setState({
+            savedRows
+        }, () => {
+            // Update the naming information after the new rows have been saved.
+            if (namingID !== -1) { // The namingIndex is set to -1 if the row is not the naming one.
+                this.setNamingRowID(namingID);
+            }
+        });
+    };
 
     generateLdifData = () => {
-        let objectClassData = ['ObjectClass: top',
-                                 'ObjectClass: LdapSubEntry',
-                                 'ObjectClass: nsRoleDefinition'];
+        const objectClassData = ['ObjectClass: top',
+            'ObjectClass: LdapSubEntry',
+            'ObjectClass: nsRoleDefinition'];
         if (this.state.roleType === 'managed') {
             objectClassData.push('ObjectClass: nsSimpleRoleDefinition',
-                                'ObjectClass: nsManagedRoleDefinition');
+                                 'ObjectClass: nsManagedRoleDefinition');
         } else if (this.state.roleType === 'filtered') {
             objectClassData.push('ObjectClass: nsComplexRoleDefinition',
-                                'ObjectClass: nsFilteredRoleDefinition');
+                                 'ObjectClass: nsFilteredRoleDefinition');
         } else if (this.state.roleType === 'nested') {
             objectClassData.push('ObjectClass: nsComplexRoleDefinition',
-                                'ObjectClass: nsNestedRoleDefinition');
+                                 'ObjectClass: nsNestedRoleDefinition');
         }
 
-        let valueData = [];
+        const valueData = [];
         for (const item of this.state.savedRows) {
             const attrName = item.attr;
             valueData.push(`${attrName}: ${item.val}`);
@@ -634,14 +637,14 @@ class AddRole extends React.Component {
                 continue;
             }
             // TODO: Find a better logic!
-            //if ((!objectClassData.includes('ObjectClass: InetOrgPerson')) &&
-            //this.inetorgPersonArray.includes(attrName)) {
+            // if ((!objectClassData.includes('ObjectClass: InetOrgPerson')) &&
+            // this.inetorgPersonArray.includes(attrName)) {
             //    objectClassData.push('ObjectClass: InetOrgPerson');
-            //}
-            //if (!objectClassData.includes('ObjectClass: OrganizationalPerson') &&
-            //this.organizationalPersonArray.includes(attrName)) {
+            // }
+            // if (!objectClassData.includes('ObjectClass: OrganizationalPerson') &&
+            // this.organizationalPersonArray.includes(attrName)) {
             //    objectClassData.push('ObjectClass: OrganizationalPerson');
-            //}
+            // }
         }
 
         const ldifArray = [
@@ -651,23 +654,23 @@ class AddRole extends React.Component {
         ];
 
         this.setState({ ldifArray });
-    }
+    };
 
     handleChange (e) {
         const attr = e.target.id;
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [attr]: value,
-        })
+        });
     }
 
     render () {
         const {
-            itemCountAddRole, pageAddRole, perpageAddRole, columnsRole, pagedRowsRole,
-            ldifArray, cleanLdifArray, columnsValues, noEmptyValue, alertVariant,
-            namingAttrVal, namingAttr, resultVariant, editableTableData,
-            stepIdReached, namingVal, rolesSearchBaseDn, rolesAvailableOptions,
-            rolesChosenOptions, showLDAPNavModal, commandOutput, roleType
+            itemCountAddRole, pageAddRole, perpageAddRole, columnsRole,
+            pagedRowsRole, ldifArray, noEmptyValue, namingAttrVal, namingAttr,
+            resultVariant, editableTableData, stepIdReached, namingVal,
+            rolesSearchBaseDn, rolesAvailableOptions, rolesChosenOptions,
+            showLDAPNavModal, commandOutput, roleType
         } = this.state;
 
         const rdnValue = namingVal;
@@ -743,7 +746,7 @@ class AddRole extends React.Component {
         );
 
         const addRolesStep = (
-            <React.Fragment>
+            <>
                 <Form autoComplete="off">
                     <Grid>
                         <GridItem span={12}>
@@ -760,7 +763,7 @@ class AddRole extends React.Component {
                                     <Text
                                         className="ds-left-margin"
                                         component={TextVariants.a}
-                                        onClick={this.openLDAPNavModal}
+                                        onClick={this.handleOpenLDAPNavModal}
                                         href="#"
                                     >
                                         {rolesSearchBaseDn}
@@ -770,11 +773,11 @@ class AddRole extends React.Component {
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top">
                             <SearchInput
-                            placeholder="Find roles..."
-                            value={this.state.searchPattern}
-                            onChange={this.handleSearchPattern}
-                            onSearch={this.handleSearchClick}
-                            onClear={() => { this.handleSearchPattern('') }}
+                                placeholder="Find roles..."
+                                value={this.state.searchPattern}
+                                onChange={(evt, val) => this.handleSearchPattern(val)}
+                                onSearch={this.handleSearchClick}
+                                onClear={() => { this.handleSearchPattern('') }}
                             />
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
@@ -783,7 +786,7 @@ class AddRole extends React.Component {
                                 chosenOptions={rolesChosenOptions}
                                 availableOptionsTitle="Available Roles"
                                 chosenOptionsTitle="Chosen Roles"
-                                onListChange={this.usersOnListChange}
+                                onListChange={this.handleUsersListChange}
                                 id="usersSelector"
                             />
                         </GridItem>
@@ -792,12 +795,12 @@ class AddRole extends React.Component {
                             variant={ModalVariant.medium}
                             title="Choose A Branch To Search"
                             isOpen={showLDAPNavModal}
-                            onClose={this.closeLDAPNavModal}
+                            onClose={this.handleCloseLDAPNavModal}
                             actions={[
                                 <Button
                                     key="confirm"
                                     variant="primary"
-                                    onClick={this.closeLDAPNavModal}
+                                    onClick={this.handleCloseLDAPNavModal}
                                 >
                                     Done
                                 </Button>
@@ -808,8 +811,8 @@ class AddRole extends React.Component {
                                     <LdapNavigator
                                         treeItems={[...this.props.treeViewRootSuffixes]}
                                         editorLdapServer={this.props.editorLdapServer}
-                                        skipLeafEntries={true}
-                                        handleNodeOnClick={this.handleBaseDnSelection}
+                                        skipLeafEntries
+                                        handleNodeOnClick={this.onBaseDnSelection}
                                         showTreeLoadingState={this.showTreeLoadingState}
                                     />
                                 </CardBody>
@@ -817,7 +820,7 @@ class AddRole extends React.Component {
                         </Modal>
                     </Grid>
                 </Form>
-            </React.Fragment>
+            </>
         );
 
         const roleAttributesStep = (
@@ -834,15 +837,15 @@ class AddRole extends React.Component {
                     itemCount={itemCountAddRole}
                     page={pageAddRole}
                     perPage={perpageAddRole}
-                    onSetPage={this.onSetpageAddRole}
+                    onSetPage={this.handleSetpageAddRole}
                     widgetId="pagination-options-menu-add-role"
-                    onPerPageSelect={this.onPerPageSelectAddRole}
+                    onPerPageSelect={this.handlePerPageSelectAddRole}
                     isCompact
                 />
                 <Table
                     cells={columnsRole}
                     rows={pagedRowsRole}
-                    onSelect={this.onSelect}
+                    onSelect={this.handleSelect}
                     variant={TableVariant.compact}
                     aria-label="Pagination Role Attributes"
                 >
@@ -853,7 +856,7 @@ class AddRole extends React.Component {
         );
 
         const roleValuesStep = (
-            <React.Fragment>
+            <>
                 <Form autoComplete="off">
                     <Grid>
                         <GridItem className="ds-margin-top" span={12}>
@@ -864,7 +867,7 @@ class AddRole extends React.Component {
                                 isInline
                                 title={myTitle}
                             >
-                                <b>Entry DN:&nbsp;&nbsp;&nbsp;</b>{(namingAttr ? namingAttr : "??????")}={namingVal ? namingVal : "??????"},{this.props.wizardEntryDn}
+                                <b>Entry DN:&nbsp;&nbsp;&nbsp;</b>{(namingAttr || "??????")}={namingVal || "??????"},{this.props.wizardEntryDn}
                             </Alert>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
@@ -888,7 +891,7 @@ class AddRole extends React.Component {
                         namingAttr={this.state.namingAttr}
                     />
                 </GridItem>
-            </React.Fragment>
+            </>
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
@@ -909,8 +912,7 @@ class AddRole extends React.Component {
                         { (ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
                                 {ldifListItems}
-                            </SimpleList>
-                        }
+                            </SimpleList>}
                     </CardBody>
                 </Card>
             </div>
@@ -920,7 +922,7 @@ class AddRole extends React.Component {
         const ldifLines = ldifArray.map(line => {
             nb++;
             return { data: line, id: nb };
-        })
+        });
         const roleReviewStep = (
             <div>
                 <Alert
@@ -933,8 +935,7 @@ class AddRole extends React.Component {
                         <div>
                             <Spinner className="ds-left-margin" size="md" />
                             &nbsp;&nbsp;Adding Role ...
-                        </div>
-                    }
+                        </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
@@ -946,8 +947,7 @@ class AddRole extends React.Component {
                                 <h6 key={line.id}>{line.data}</h6>
                             ))}
                         </CardBody>
-                    </Card>
-                }
+                    </Card>}
             </div>
         );
 
@@ -963,17 +963,19 @@ class AddRole extends React.Component {
                 id: 2,
                 name: 'Select Name & Type',
                 component: namingValAndTypeStep,
-                enableNext: namingVal === '' ? false : true,
+                enableNext: namingVal !== '',
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 7,
             },
-            ...(roleType === 'nested' ? [
-                {
-                    id: 3,
-                    name: 'Add Nested Roles',
-                    component: addRolesStep,
-                    canJumpTo: stepIdReached >= 3 && stepIdReached < 7
-                },
-            ] : []),
+            ...(roleType === 'nested'
+                ? [
+                    {
+                        id: 3,
+                        name: 'Add Nested Roles',
+                        component: addRolesStep,
+                        canJumpTo: stepIdReached >= 3 && stepIdReached < 7
+                    },
+                ]
+                : []),
             {
                 id: 4,
                 name: 'Select Attributes',
@@ -1005,16 +1007,18 @@ class AddRole extends React.Component {
             }
         ];
 
-        const title = <>
-            Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
-        </>;
+        const title = (
+            <>
+                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+            </>
+        );
 
         return (
             <Wizard
                 isOpen={this.props.isWizardOpen}
-                onClose={this.props.toggleOpenWizard}
-                onNext={this.onNext}
-                onBack={this.onBack}
+                onClose={this.props.handleToggleWizard}
+                onNext={this.handleNext}
+                onBack={this.handleBack}
                 title="Add A Role"
                 description={title}
                 steps={addRoleSteps}

@@ -7,7 +7,6 @@ import {
     SearchInput,
 } from '@patternfly/react-core';
 import {
-    expandable,
     Table,
     TableHeader,
     TableBody,
@@ -15,7 +14,6 @@ import {
     sortable,
     SortByDirection,
 } from '@patternfly/react-table';
-import PropTypes from "prop-types";
 
 class GroupTable extends React.Component {
     constructor(props) {
@@ -33,25 +31,25 @@ class GroupTable extends React.Component {
         };
         this.selectedCount = 0;
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount() {
         let rows = [];
-        let columns = this.state.columns;
+        const columns = this.state.columns;
 
         for (const attrRow of this.props.rows) {
             let selected = false;
@@ -60,23 +58,23 @@ class GroupTable extends React.Component {
             }
             rows.push({
                 cells: [attrRow],
-                selected: selected,
+                selected,
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Members'], disableSelection: true }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
         for (const row of this.props.rows) {
-            if (val !== "" && val != "*" && row.indexOf(val) === -1 ) {
+            if (val !== "" && val !== "*" && row.indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
@@ -84,18 +82,18 @@ class GroupTable extends React.Component {
                 cells: [row]
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Members'], disableSelection: true }];
         }
 
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const rows = [];
         const sortedAttrs = [...this.props.rows];
 
@@ -113,7 +111,7 @@ class GroupTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -157,15 +155,15 @@ class GroupTable extends React.Component {
                     className="ds-margin-top"
                     placeholder='Search Members'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
                     canSelectAll={canSelectAll}
                     onSelect={(_event, isSelecting, rowIndex) => {
                         if (rowIndex !== -1) {
-                            this.props.onSelectMember(this.state.rows[rowIndex].cells[0], isSelecting)
+                            this.props.onSelectMember(this.state.rows[rowIndex].cells[0], isSelecting);
                         }
                     }}
                     aria-label="group table"
@@ -173,7 +171,7 @@ class GroupTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={rows.length > 0 ? this.actions() : null}
                 >
                     <TableHeader />
@@ -185,13 +183,13 @@ class GroupTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
                 <Button
                     isDisabled={this.props.delMemberList.length === 0 || this.props.saving}
                     variant="primary"
-                    onClick={this.props.showConfirmBulkDelete}
+                    onClick={this.props.handleShowConfirmBulkDelete}
                     isLoading={this.props.saving}
                     spinnerAriaValueText={this.state.saving ? "Updating group ..." : undefined}
                     {...extraPrimaryProps}

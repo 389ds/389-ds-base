@@ -1,15 +1,11 @@
 import React from 'react';
 import {
-    Alert,
     Button,
-    Label,
     Modal, ModalVariant,
     TextArea,
     Pagination, PaginationVariant,
-    Wizard,
 } from '@patternfly/react-core';
 import {
-    cellWidth,
     expandable,
     Table,
     TableHeader,
@@ -17,9 +13,7 @@ import {
     TableVariant,
     sortable,
     SortByDirection,
-    info,
 } from '@patternfly/react-table';
-import InfoCircleIcon from '@patternfly/react-icons/dist/js/icons/info-circle-icon';
 import {
     retrieveAllAcis, modifyLdapEntry
 } from '../lib/utils.jsx';
@@ -75,26 +69,26 @@ class AciWizard extends React.Component {
             });
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage,
+                perPage,
                 page: 1
             });
         };
 
-        this.closeModal = () => {
+        this.handleCloseModal = () => {
             this.setState({
                 showModal: false,
             });
-        }
+        };
 
-        this.handleChange = (e) => {
+        this.onChange = (e) => {
             // Handle the modal changes
             const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
             this.setState({
@@ -110,7 +104,7 @@ class AciWizard extends React.Component {
                 modalChecked: false,
                 modalSpinning: false,
             });
-        }
+        };
 
         this.closeDeleteConfirm = (rowData) => {
             this.setState({
@@ -119,7 +113,7 @@ class AciWizard extends React.Component {
                 modalChecked: false,
                 modalSpinning: false,
             });
-        }
+        };
 
         this.showEditAci = (rowData) => {
             this.setState({
@@ -129,24 +123,24 @@ class AciWizard extends React.Component {
                 modalChecked: false,
                 modalSpinning: false,
             });
-        }
+        };
 
-        this.closeEditAci = () => {
+        this.handleCloseEditAci = () => {
             this.setState({
                 showEditAci: false,
             });
         };
 
-        this.resetACIText = () => {
+        this.handleResetACIText = () => {
             const orig = this.state.aciText;
             this.setState({
                 aciTextNew: orig
             });
         };
 
-        this.saveACI = () => {
+        this.handleSaveACI = () => {
             const params = { serverId: this.props.editorLdapServer };
-            let ldifArray = [];
+            const ldifArray = [];
             ldifArray.push(`dn: ${this.props.wizardEntryDn}`);
             ldifArray.push('changetype: modify');
             ldifArray.push('delete: aci');
@@ -172,19 +166,19 @@ class AciWizard extends React.Component {
                         `Failed to update ACI: error ${result.errorCode} - ${result.output}`
                     );
                 }
-                this.closeEditAci();
-                const opInfo = {  // This is what refreshes treeView
+                this.handleCloseEditAci();
+                const opInfo = { // This is what refreshes treeView
                     operationType: 'MODIFY',
                     resultCode: result.errorCode,
                     time: Date.now()
-                }
+                };
                 this.props.setWizardOperationInfo(opInfo);
             });
         };
 
         this.deleteACI = () => {
             const params = { serverId: this.props.editorLdapServer };
-            let ldifArray = [];
+            const ldifArray = [];
             ldifArray.push(`dn: ${this.props.wizardEntryDn}`);
             ldifArray.push('changetype: modify');
             ldifArray.push('delete: aci');
@@ -208,18 +202,18 @@ class AciWizard extends React.Component {
                     );
                 }
                 this.closeDeleteConfirm();
-                const opInfo = {  // This is what refreshes treeView
+                const opInfo = { // This is what refreshes treeView
                     operationType: 'MODIFY',
                     resultCode: result.errorCode,
                     time: Date.now()
-                }
+                };
                 this.props.setWizardOperationInfo(opInfo);
             });
         };
 
-        this.addAciManual = () => {
+        this.handleAddAciManual = () => {
             const params = { serverId: this.props.editorLdapServer };
-            let ldifArray = [];
+            const ldifArray = [];
             ldifArray.push(`dn: ${this.props.wizardEntryDn}`);
             ldifArray.push('changetype: modify');
             ldifArray.push(`add: aci`);
@@ -242,19 +236,19 @@ class AciWizard extends React.Component {
                         `Failed to add ACI: error ${result.errorCode} - ${result.output}`
                     );
                 }
-                this.toggleManual();
-                const opInfo = {  // This is what refreshes the treeView
+                this.handleToggleManual();
+                const opInfo = { // This is what refreshes the treeView
                     operationType: 'MODIFY',
                     resultCode: result.errorCode,
                     time: Date.now()
-                }
+                };
                 this.props.setWizardOperationInfo(opInfo);
             });
         };
 
         // this.buildAciTable = this.buildAciTable.bind(this);
-        this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollpase = this.handleCollpase.bind(this);
     } // End constructor
 
     componentDidMount () {
@@ -270,12 +264,12 @@ class AciWizard extends React.Component {
             baseDn: this.props.wizardEntryDn
         };
         retrieveAllAcis(params, (resultArray) => {
-            let rows = [];
-            let columns = [...this.state.columns];
-            let actions = this.state.actions;
+            const rows = [];
+            const columns = [...this.state.columns];
+            const actions = this.state.actions;
             let count = 0;
 
-            if (resultArray.length != 0) {
+            if (resultArray.length !== 0) {
                 const myAciArray = [...resultArray[0].aciArray];
                 for (const anAci of myAciArray) {
                     const aciName = getAciActualName(anAci);
@@ -296,14 +290,14 @@ class AciWizard extends React.Component {
             }
 
             this.setState({
-                rows: rows,
-                columns: columns,
+                rows,
+                columns,
                 actions,
-            }, () => { if (!firstLoad) { this.props.onReload() }}); // refreshes table view
+            }, () => { if (!firstLoad) { this.props.onReload() } }); // refreshes table view
         });
     };
 
-    onCollapse(event, rowKey, isOpen) {
+    handleCollpase(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -312,7 +306,7 @@ class AciWizard extends React.Component {
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -356,24 +350,30 @@ class AciWizard extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
 
-    toggleWizard = () => {
+    handleToggleWizard = () => {
         this.setState({
             isWizardOpen: !this.state.isWizardOpen
         });
-    }
+    };
 
-    toggleManual = () => {
+    onToggleWizard = () => {
+        this.setState({
+            isWizardOpen: !this.state.isWizardOpen
+        });
+    };
+
+    handleToggleManual = () => {
         this.setState({
             isManualOpen: !this.state.isManualOpen,
             aciTextNew: "",
             modalSpinning: false,
         });
-    }
+    };
 
     render () {
         // We are using an expandable list, so every row has a child row with an
@@ -414,23 +414,23 @@ class AciWizard extends React.Component {
                     className="ds-modal-select"
                     title={title}
                     isOpen={showModal}
-                    onClose={this.closeModal}
+                    onClose={this.handleCloseModal}
                     actions={[
                         <Button
                             key="acc aci"
                             variant="primary"
-                            onClick={this.toggleWizard}
+                            onClick={this.handleToggleWizard}
                         >
                             Add ACI Wizard
                         </Button>,
                         <Button
                             key="acc aci manual"
                             variant="primary"
-                            onClick={this.toggleManual}
+                            onClick={this.handleToggleManual}
                         >
                             Add ACI Manually
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                        <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
                             Close
                         </Button>
                     ]}
@@ -441,10 +441,10 @@ class AciWizard extends React.Component {
                         cells={cols}
                         rows={tableRows}
                         actions={rows.length > 0 ? actions : null}
-                        onCollapse={this.onCollapse}
+                        onCollapse={this.handleCollpase}
                         variant={TableVariant.compact}
                         sortBy={sortBy}
-                        onSort={this.onSort}
+                        onSort={this.handleSort}
                         key={tableRows}
                     >
                         <TableHeader />
@@ -457,10 +457,9 @@ class AciWizard extends React.Component {
                             perPage={perPage}
                             page={page}
                             variant={PaginationVariant.bottom}
-                            onSetPage={this.onSetPage}
-                            onPerPageSelect={this.onPerPageSelect}
-                        />
-                    }
+                            onSetPage={this.handleSetPage}
+                            onPerPageSelect={this.handlePerPageSelect}
+                        />}
                     <div className="ds-margin-top-xlg" />
                     {this.state.isWizardOpen &&
                         <AddNewAci
@@ -469,16 +468,15 @@ class AciWizard extends React.Component {
                             onReload={this.props.onReload}
                             refreshAciTable={this.buildAciTable}
                             isWizardOpen={this.state.isWizardOpen}
-                            toggleOpenWizard={this.toggleWizard}
+                            handleToggleWizard={this.onToggleWizard}
                             setWizardOperationInfo={this.props.setWizardOperationInfo}
                             treeViewRootSuffixes={this.props.treeViewRootSuffixes}
                             addNotification={this.props.addNotification}
-                        />
-                    }
+                        />}
                     <DoubleConfirmModal
                         showModal={this.state.showDeleteConfirm}
                         closeHandler={this.closeDeleteConfirm}
-                        handleChange={this.handleChange}
+                        handleChange={this.onChange}
                         actionHandler={this.deleteACI}
                         spinning={modalSpinning}
                         item={this.state.aciName}
@@ -493,12 +491,12 @@ class AciWizard extends React.Component {
                     variant={ModalVariant.medium}
                     title="Edit ACI"
                     isOpen={this.state.showEditAci}
-                    onClose={this.closeEditAci}
+                    onClose={this.handleCloseEditAci}
                     actions={[
                         <Button
                             key="acc aci"
                             variant="primary"
-                            onClick={this.saveACI}
+                            onClick={this.handleSaveACI}
                             isLoading={modalSpinning}
                             spinnerAriaValueText={modalSpinning ? "Loading" : undefined}
                             {...extraPrimaryProps}
@@ -506,7 +504,7 @@ class AciWizard extends React.Component {
                         >
                             {btnName}
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.closeEditAci}>
+                        <Button key="cancel" variant="link" onClick={this.handleCloseEditAci}>
                             Close
                         </Button>
                     ]}
@@ -515,7 +513,7 @@ class AciWizard extends React.Component {
                         className="ds-textarea"
                         id="aciTextNew"
                         value={this.state.aciTextNew}
-                        onChange={(str, e) => { this.handleChange(e) }}
+                        onChange={(str, e) => { this.onChange(e) }}
                         aria-label="aci text edit area"
                         autoResize
                         resizeOrientation="vertical"
@@ -524,7 +522,7 @@ class AciWizard extends React.Component {
                         className="ds-margin-top"
                         key="reset"
                         variant="secondary"
-                        onClick={this.resetACIText}
+                        onClick={this.handleResetACIText}
                         isDisabled={this.state.aciText === this.state.aciTextNew}
                         isSmall
                     >
@@ -535,12 +533,12 @@ class AciWizard extends React.Component {
                     variant={ModalVariant.medium}
                     title="Add ACI Manually"
                     isOpen={this.state.isManualOpen}
-                    onClose={this.toggleManual}
+                    onClose={this.handleToggleManual}
                     actions={[
                         <Button
                             key="acc aci manual add"
                             variant="primary"
-                            onClick={this.addAciManual}
+                            onClick={this.handleAddAciManual}
                             isLoading={modalSpinning}
                             spinnerAriaValueText={modalSpinning ? "Loading" : undefined}
                             {...extraPrimaryProps}
@@ -548,7 +546,7 @@ class AciWizard extends React.Component {
                         >
                             {btnName}
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.toggleManual}>
+                        <Button key="cancel" variant="link" onClick={this.handleToggleManual}>
                             Close
                         </Button>
                     ]}
@@ -557,7 +555,7 @@ class AciWizard extends React.Component {
                         className="ds-textarea"
                         id="aciTextNew"
                         value={this.state.aciTextNew}
-                        onChange={(str, e) => { this.handleChange(e) }}
+                        onChange={(str, e) => { this.onChange(e) }}
                         aria-label="aci text edit area"
                         autoResize
                         resizeOrientation="vertical"

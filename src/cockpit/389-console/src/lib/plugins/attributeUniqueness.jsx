@@ -69,13 +69,13 @@ class AttributeUniqueness extends React.Component {
         };
 
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onChange = this.onChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadConfigs = this.loadConfigs.bind(this);
         this.showEditConfigModal = this.showEditConfigModal.bind(this);
-        this.showAddConfigModal = this.showAddConfigModal.bind(this);
-        this.closeModal = this.closeModal.bind(this);
+        this.handleShowAddConfigModal = this.handleShowAddConfigModal.bind(this);
+        this.handleCloseModal = this.handleCloseModal.bind(this);
         this.openModal = this.openModal.bind(this);
         this.cmdOperation = this.cmdOperation.bind(this);
         this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
@@ -86,7 +86,7 @@ class AttributeUniqueness extends React.Component {
         this.validateConfig = this.validateConfig.bind(this);
 
         // Attribute Name
-        this.onAttributeNameSelect = (event, selection) => {
+        this.handleAttributeNameSelect = (event, selection) => {
             if (this.state.attrNames.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -103,12 +103,12 @@ class AttributeUniqueness extends React.Component {
                 );
             }
         };
-        this.onAttributeNameToggle = isAttributeNameOpen => {
+        this.handleAttributeNameToggle = isAttributeNameOpen => {
             this.setState({
                 isAttributeNameOpen
             }, () => { this.validateConfig() });
         };
-        this.onAttributeNameClear = () => {
+        this.handleAttributeNameClear = () => {
             this.setState({
                 attrNames: [],
                 isAttributeNameOpen: false
@@ -116,7 +116,7 @@ class AttributeUniqueness extends React.Component {
         };
 
         // Subtrees
-        this.onSubtreesSelect = (event, selection) => {
+        this.handleSubtreesSelect = (event, selection) => {
             if (this.state.subtrees.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -133,18 +133,18 @@ class AttributeUniqueness extends React.Component {
                 );
             }
         };
-        this.onSubtreesToggle = isSubtreesOpen => {
+        this.handleSubtreesToggle = isSubtreesOpen => {
             this.setState({
                 isSubtreesOpen
             }, () => { this.validateConfig() });
         };
-        this.onSubtreesClear = () => {
+        this.handleSubtreesClear = () => {
             this.setState({
                 subtrees: [],
                 isSubtreesOpen: false
             }, () => { this.validateConfig() });
         };
-        this.onSubtreesCreateOption = newValue => {
+        this.handleSubtreesCreateOption = newValue => {
             if (!this.state.subtreesOptions.includes(newValue)) {
                 this.setState({
                     subtreesOptions: [...this.state.subtreesOptions, newValue],
@@ -160,7 +160,7 @@ class AttributeUniqueness extends React.Component {
 
         // Must have a subtree and attribute set
         for (const attrList of ['attrNames', 'subtrees']) {
-            if (this.state[attrList].length == 0) {
+            if (this.state[attrList].length === 0) {
                 errObj[attrList] = true;
                 all_good = false;
             }
@@ -175,7 +175,7 @@ class AttributeUniqueness extends React.Component {
             }
         }
 
-        if (this.state.configName == "") {
+        if (this.state.configName === "") {
             errObj.configName = true;
             all_good = false;
         }
@@ -197,7 +197,7 @@ class AttributeUniqueness extends React.Component {
                 'configEnabled'
             ];
             for (const check_attr of configAttrs) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     all_good = true;
                     break;
                 }
@@ -215,7 +215,7 @@ class AttributeUniqueness extends React.Component {
         }, () => { this.validateConfig() });
     }
 
-    handleChange(e) {
+    onChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
             [e.target.id]: value
@@ -234,7 +234,7 @@ class AttributeUniqueness extends React.Component {
         // instead of string.  Grab the "label" in this case
         const new_values = [];
         for (let val of values) {
-            if (val != "") {
+            if (val !== "") {
                 if (typeof val === 'object') {
                     val = val.label;
                 }
@@ -268,11 +268,11 @@ class AttributeUniqueness extends React.Component {
                     const tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
-                        tableKey: tableKey
+                        tableKey
                     });
                 })
                 .fail(err => {
-                    if (err != 0) {
+                    if (err !== 0) {
                         const errMsg = JSON.parse(err);
                         console.log("loadConfigs failed", errMsg.desc);
                     }
@@ -283,7 +283,7 @@ class AttributeUniqueness extends React.Component {
         this.openModal(name);
     }
 
-    showAddConfigModal(rowData) {
+    handleShowAddConfigModal(rowData) {
         this.openModal();
     }
 
@@ -327,11 +327,11 @@ class AttributeUniqueness extends React.Component {
                             configName: configEntry.cn === undefined ? "" : configEntry.cn[0],
                             configEnabled: !(
                                 configEntry["nsslapd-pluginenabled"] === undefined ||
-                            configEntry["nsslapd-pluginenabled"][0] == "off"
+                            configEntry["nsslapd-pluginenabled"][0] === "off"
                             ),
                             acrossAllSubtrees: !(
                                 configEntry["uniqueness-across-all-subtrees"] === undefined ||
-                            configEntry["uniqueness-across-all-subtrees"][0] == "off"
+                            configEntry["uniqueness-across-all-subtrees"][0] === "off"
                             ),
                             topEntryOc:
                             configEntry["uniqueness-top-entry-oc"] === undefined
@@ -344,11 +344,11 @@ class AttributeUniqueness extends React.Component {
 
                             _configEnabled: !(
                                 configEntry["nsslapd-pluginenabled"] === undefined ||
-                            configEntry["nsslapd-pluginenabled"][0] == "off"
+                            configEntry["nsslapd-pluginenabled"][0] === "off"
                             ),
                             _acrossAllSubtrees: !(
                                 configEntry["uniqueness-across-all-subtrees"] === undefined ||
-                            configEntry["uniqueness-across-all-subtrees"][0] == "off"
+                            configEntry["uniqueness-across-all-subtrees"][0] === "off"
                             ),
                             _topEntryOc:
                             configEntry["uniqueness-top-entry-oc"] === undefined
@@ -393,7 +393,7 @@ class AttributeUniqueness extends React.Component {
         }
     }
 
-    closeModal() {
+    handleCloseModal() {
         this.setState({ configEntryModalShow: false });
     }
 
@@ -422,7 +422,7 @@ class AttributeUniqueness extends React.Component {
             acrossAllSubtrees ? "on" : "off"
         ];
 
-        if (subtrees.length == 0 && subtreeEnriesOc.length == 0) {
+        if (subtrees.length === 0 && subtreeEnriesOc.length === 0) {
             // There mustr a subtree or entry OC sets
             this.props.addNotification(
                 "error",
@@ -436,26 +436,26 @@ class AttributeUniqueness extends React.Component {
         });
 
         // Delete attributes if the user set an empty value to the field
-        if (!(action == "add" && attrNames.length == 0)) {
+        if (!(action === "add" && attrNames.length === 0)) {
             cmd = [...cmd, "--attr-name"];
-            if (attrNames.length != 0) {
+            if (attrNames.length !== 0) {
                 for (const value of attrNames) {
                     cmd = [...cmd, value];
                 }
-            } else if (action == "add") {
+            } else if (action === "add") {
                 cmd = [...cmd, ""];
             } else {
                 cmd = [...cmd, "delete"];
             }
         }
 
-        if (!(action == "add" && subtrees.length == 0)) {
+        if (!(action === "add" && subtrees.length === 0)) {
             cmd = [...cmd, "--subtree"];
-            if (subtrees.length != 0) {
+            if (subtrees.length !== 0) {
                 for (const value of subtrees) {
                     cmd = [...cmd, value];
                 }
-            } else if (action == "add") {
+            } else if (action === "add") {
                 cmd = [...cmd, ""];
             } else {
                 cmd = [...cmd, "delete"];
@@ -463,18 +463,18 @@ class AttributeUniqueness extends React.Component {
         }
 
         cmd = [...cmd, "--top-entry-oc"];
-        if (topEntryOc.length != 0) {
+        if (topEntryOc.length !== 0) {
             cmd = [...cmd, topEntryOc];
-        } else if (action == "add") {
+        } else if (action === "add") {
             cmd = [...cmd, ""];
         } else {
             cmd = [...cmd, "delete"];
         }
 
         cmd = [...cmd, "--subtree-entries-oc"];
-        if (subtreeEnriesOc.length != 0) {
+        if (subtreeEnriesOc.length !== 0) {
             cmd = [...cmd, subtreeEnriesOc];
-        } else if (action == "add") {
+        } else if (action === "add") {
             cmd = [...cmd, ""];
         } else {
             cmd = [...cmd, "delete"];
@@ -497,7 +497,7 @@ class AttributeUniqueness extends React.Component {
                         `The ${action} operation was successfully done on "${configName}" entry`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.setState({
                         saving: false
                     });
@@ -509,7 +509,7 @@ class AttributeUniqueness extends React.Component {
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.setState({
                         saving: false
                     });
@@ -562,7 +562,7 @@ class AttributeUniqueness extends React.Component {
                         `Config entry ${this.state.deleteName} was successfully deleted`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.closeConfirmDelete();
                 })
                 .fail(err => {
@@ -573,7 +573,7 @@ class AttributeUniqueness extends React.Component {
                     );
                     this.loadConfigs();
                     this.closeConfirmDelete();
-                    this.closeModal();
+                    this.handleCloseModal();
                 });
     }
 
@@ -616,7 +616,7 @@ class AttributeUniqueness extends React.Component {
                     title={title}
                     aria-labelledby="ds-modal"
                     isOpen={configEntryModalShow}
-                    onClose={this.closeModal}
+                    onClose={this.handleCloseModal}
                     actions={[
                         <Button
                             className="ds-margin-top"
@@ -630,7 +630,7 @@ class AttributeUniqueness extends React.Component {
                         >
                             {saveBtnName}
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                        <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
                             Cancel
                         </Button>
                     ]}
@@ -654,7 +654,7 @@ class AttributeUniqueness extends React.Component {
                                     onChange={(str, e) => {
                                         this.handleFieldChange(e);
                                     }}
-                                    validated={this.state.error.configName || this.state.configName == "" ? ValidatedOptions.error : ValidatedOptions.default}
+                                    validated={this.state.error.configName || this.state.configName === "" ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                             </GridItem>
                         </Grid>
@@ -666,9 +666,9 @@ class AttributeUniqueness extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
-                                    onToggle={this.onAttributeNameToggle}
-                                    onSelect={this.onAttributeNameSelect}
-                                    onClear={this.onAttributeNameClear}
+                                    onToggle={this.handleAttributeNameToggle}
+                                    onSelect={this.handleAttributeNameSelect}
+                                    onClear={this.handleAttributeNameClear}
                                     selections={attrNames}
                                     isOpen={this.state.isAttributeNameOpen}
                                     aria-labelledby="typeAhead-attr-name"
@@ -693,16 +693,16 @@ class AttributeUniqueness extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={this.onSubtreesToggle}
-                                    onSelect={this.onSubtreesSelect}
-                                    onClear={this.onSubtreesClear}
+                                    onToggle={this.handleSubtreesToggle}
+                                    onSelect={this.handleSubtreesSelect}
+                                    onClear={this.handleSubtreesClear}
                                     selections={subtrees}
                                     isOpen={this.state.isSubtreesOpen}
                                     aria-labelledby="typeAhead-subtrees"
                                     placeholderText="Type a subtree DN..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
-                                    onCreateOption={this.onSubtreesCreateOption}
+                                    onCreateOption={this.handleSubtreesCreateOption}
                                     validated={this.state.error.subtrees ? "error" : "default"}
                                 >
                                     {[""].map((dn, index) => (
@@ -805,7 +805,7 @@ class AttributeUniqueness extends React.Component {
                             <Button
                                 key="add-config"
                                 variant="primary"
-                                onClick={this.showAddConfigModal}
+                                onClick={this.handleShowAddConfigModal}
                             >
                                 Add Config
                             </Button>
@@ -815,7 +815,7 @@ class AttributeUniqueness extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.deleteConfig}
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}

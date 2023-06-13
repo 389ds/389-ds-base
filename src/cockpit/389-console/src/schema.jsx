@@ -1279,8 +1279,8 @@ export class Schema extends React.Component {
 
         this.setState({
             [attr]: value,
-            saveBtnDisabled: saveBtnDisabled,
-            errObj: errObj
+            saveBtnDisabled,
+            errObj
         });
     }
 
@@ -1331,8 +1331,8 @@ export class Schema extends React.Component {
 
         this.setState({
             [attr]: value,
-            saveBtnDisabled: saveBtnDisabled,
-            errObj: errObj
+            saveBtnDisabled,
+            errObj
         });
     }
 
