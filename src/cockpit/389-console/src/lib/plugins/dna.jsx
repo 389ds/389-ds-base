@@ -86,20 +86,20 @@ class DNAPlugin extends React.Component {
             saveBtnDisabled: true,
         };
 
-        this.onToggle = isOpen => {
+        this.handleToggle = isOpen => {
             this.setState({
                 isOpen
             });
         };
 
-        this.clearSelection = () => {
+        this.handleClearSelection = () => {
             this.setState({
                 selected: [],
                 isOpen: false
             }, () => { this.validateConfig() });
         };
 
-        this.onSelect = (event, selection) => {
+        this.handleSelect = (event, selection) => {
             const { selected } = this.state;
             if (selected.includes(selection)) {
                 this.setState(
@@ -148,24 +148,24 @@ class DNAPlugin extends React.Component {
         this.validateConfig = this.validateConfig.bind(this);
 
         this.openModal = this.openModal.bind(this);
-        this.closeModal = this.closeModal.bind(this);
+        this.handleCloseModal = this.handleCloseModal.bind(this);
         this.showEditConfigModal = this.showEditConfigModal.bind(this);
-        this.showAddConfigModal = this.showAddConfigModal.bind(this);
+        this.handleShowAddConfigModal = this.handleShowAddConfigModal.bind(this);
         this.cmdOperation = this.cmdOperation.bind(this);
         this.deleteConfig = this.deleteConfig.bind(this);
         this.addConfig = this.addConfig.bind(this);
         this.editConfig = this.editConfig.bind(this);
 
         this.openSharedModal = this.openSharedModal.bind(this);
-        this.closeSharedModal = this.closeSharedModal.bind(this);
+        this.handleCloseSharedModal = this.handleCloseSharedModal.bind(this);
         this.showEditSharedConfigModal = this.showEditSharedConfigModal.bind(this);
         this.deleteSharedConfig = this.deleteSharedConfig.bind(this);
-        this.editSharedConfig = this.editSharedConfig.bind(this);
+        this.handleEditSharedConfig = this.handleEditSharedConfig.bind(this);
         this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
         this.showSharedDeleteConfirm = this.showSharedDeleteConfirm.bind(this);
         this.closeSharedDeleteConfirm = this.closeSharedDeleteConfirm.bind(this);
-        this.handleConfirmChange = this.handleConfirmChange.bind(this);
+        this.onConfirmChange = this.onConfirmChange.bind(this);
     }
 
     componentDidMount() {
@@ -212,7 +212,7 @@ class DNAPlugin extends React.Component {
         });
     }
 
-    handleConfirmChange(e) {
+    onConfirmChange(e) {
         this.setState({
             modalChecked: e.target.checked
         });
@@ -242,13 +242,13 @@ class DNAPlugin extends React.Component {
                     const tableKey = this.state.tableKey + 1;
                     this.setState({
                         configRows: myObject.items.map(item => item.attrs),
-                        tableKey: tableKey,
+                        tableKey,
                         loading: false,
                     });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    if (err != 0) {
+                    if (err !== 0) {
                         console.log("loadConfigs failed", errMsg.desc);
                     }
                     this.setState({
@@ -258,7 +258,7 @@ class DNAPlugin extends React.Component {
     }
 
     loadSharedConfigs(basedn) {
-        if (basedn == "") {
+        if (basedn === "") {
             // No shared configs, reset table rows
             this.setState({
                 sharedConfigRows: [],
@@ -290,7 +290,7 @@ class DNAPlugin extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    if (err != 0) {
+                    if (err !== 0) {
                         console.log("loadSharedConfigs failed", errMsg.desc);
                     }
                 });
@@ -300,7 +300,7 @@ class DNAPlugin extends React.Component {
         this.openModal(rowData);
     }
 
-    showAddConfigModal() {
+    handleShowAddConfigModal() {
         this.openModal();
     }
 
@@ -402,32 +402,32 @@ class DNAPlugin extends React.Component {
                             activeTabKey: 1,
                             configName: configEntry.cn[0],
                             prefix: configEntry.dnaprefix,
-                            nextValue: Number(configEntry.dnanextvalue) == 0 ? 1 : Number(configEntry.dnanextvalue),
-                            maxValue: Number(configEntry.dnamaxvalue) == 0 ? -1 : Number(configEntry.dnamaxvalue),
-                            interval: Number(configEntry.dnainterval) == 0 ? 1 : Number(configEntry.dnainterval),
+                            nextValue: Number(configEntry.dnanextvalue) === 0 ? 1 : Number(configEntry.dnanextvalue),
+                            maxValue: Number(configEntry.dnamaxvalue) === 0 ? -1 : Number(configEntry.dnamaxvalue),
+                            interval: Number(configEntry.dnainterval) === 0 ? 1 : Number(configEntry.dnainterval),
                             magicRegen: configEntry.dnamagicregen,
                             filter: configEntry.dnafilter,
                             scope: configEntry.dnascope,
                             remoteBindDN: configEntry.dnaremotebinddn,
                             remoteBindCred: configEntry.dnaremotebindcred,
                             sharedConfigEntry: configEntry.dnasharedcfgdn,
-                            threshold: Number(configEntry.dnathreshold) == 0 ? 1 : Number(configEntry.dnathreshold),
+                            threshold: Number(configEntry.dnathreshold) === 0 ? 1 : Number(configEntry.dnathreshold),
                             nextRange: configEntry.dnanextrange,
-                            rangeRequestTimeout: Number(configEntry.dnarangerequesttimeout) == 0 ? 600 : Number(configEntry.dnarangerequesttimeout),
+                            rangeRequestTimeout: Number(configEntry.dnarangerequesttimeout) === 0 ? 600 : Number(configEntry.dnarangerequesttimeout),
                             // Preserve original values
                             _prefix: configEntry.dnaprefix,
-                            _nextValue: Number(configEntry.dnanextvalue) == 0 ? 1 : Number(configEntry.dnanextvalue),
-                            _maxValue: Number(configEntry.dnamaxvalue) == 0 ? -1 : Number(configEntry.dnamaxvalue),
-                            _interval: Number(configEntry.dnainterval) == 0 ? 1 : Number(configEntry.dnainterval),
+                            _nextValue: Number(configEntry.dnanextvalue) === 0 ? 1 : Number(configEntry.dnanextvalue),
+                            _maxValue: Number(configEntry.dnamaxvalue) === 0 ? -1 : Number(configEntry.dnamaxvalue),
+                            _interval: Number(configEntry.dnainterval) === 0 ? 1 : Number(configEntry.dnainterval),
                             _magicRegen: configEntry.dnamagicregen,
                             _filter: configEntry.dnafilter,
                             _scope: configEntry.dnascope,
                             _remoteBindDN: configEntry.dnaremotebinddn,
                             _remoteBindCred: configEntry.dnaremotebindcred,
                             _sharedConfigEntry: configEntry.dnasharedcfgdn,
-                            _threshold: Number(configEntry.dnathreshold) == 0 ? 1 : Number(configEntry.dnathreshold),
+                            _threshold: Number(configEntry.dnathreshold) === 0 ? 1 : Number(configEntry.dnathreshold),
                             _nextRange: configEntry.dnanextrange,
-                            _rangeRequestTimeout: Number(configEntry.dnarangerequesttimeout) == 0 ? 600 : Number(configEntry.dnarangerequesttimeout),
+                            _rangeRequestTimeout: Number(configEntry.dnarangerequesttimeout) === 0 ? 600 : Number(configEntry.dnarangerequesttimeout),
                             saveBtnDisabled: true,
                             error: {},
                         }, () => { this.loadSharedConfigs(sharedCfgDN) });
@@ -469,11 +469,11 @@ class DNAPlugin extends React.Component {
         this.openSharedModal(sharedName);
     }
 
-    closeModal() {
+    handleCloseModal() {
         this.setState({ configEntryModalShow: false });
     }
 
-    closeSharedModal() {
+    handleCloseSharedModal() {
         this.setState({ sharedConfigEntryModalShow: false });
     }
 
@@ -506,37 +506,37 @@ class DNAPlugin extends React.Component {
             configName,
             action,
             "--prefix",
-            prefix || action == "add" ? prefix : "delete",
-            "--next-value=" + (nextValue || action == "add" ? nextValue : "delete"),
-            "--max-value=" + (maxValue || action == "add" ? maxValue : "delete"),
-            "--interval=" + (interval || action == "add" ? interval : "delete"),
+            prefix || action === "add" ? prefix : "delete",
+            "--next-value=" + (nextValue || action === "add" ? nextValue : "delete"),
+            "--max-value=" + (maxValue || action === "add" ? maxValue : "delete"),
+            "--interval=" + (interval || action === "add" ? interval : "delete"),
             "--magic-regen",
-            magicRegen || action == "add" ? magicRegen : "delete",
+            magicRegen || action === "add" ? magicRegen : "delete",
             "--filter",
-            filter || action == "add" ? filter : "delete",
+            filter || action === "add" ? filter : "delete",
             "--scope",
-            scope || action == "add" ? scope : "delete",
+            scope || action === "add" ? scope : "delete",
             "--remote-bind-dn",
-            remoteBindDN || action == "add" ? remoteBindDN : "delete",
+            remoteBindDN || action === "add" ? remoteBindDN : "delete",
             "--remote-bind-cred",
-            remoteBindCred || action == "add" ? remoteBindCred : "delete",
+            remoteBindCred || action === "add" ? remoteBindCred : "delete",
             "--shared-config-entry",
-            sharedConfigEntry || action == "add" ? sharedConfigEntry : "delete",
-            "--threshold=" + (threshold || action == "add" ? threshold : "delete"),
+            sharedConfigEntry || action === "add" ? sharedConfigEntry : "delete",
+            "--threshold=" + (threshold || action === "add" ? threshold : "delete"),
             "--next-range",
-            nextRange || action == "add" ? nextRange : "delete",
-            "--range-request-timeout=" + (rangeRequestTimeout || action == "add" ? rangeRequestTimeout : "delete"),
+            nextRange || action === "add" ? nextRange : "delete",
+            "--range-request-timeout=" + (rangeRequestTimeout || action === "add" ? rangeRequestTimeout : "delete"),
 
         ];
 
         // Delete attributes if the user set an empty value to the field
-        if (!(action == "add" && selected.length == 0)) {
+        if (!(action === "add" && selected.length === 0)) {
             cmd = [...cmd, "--type"];
-            if (selected.length != 0) {
+            if (selected.length !== 0) {
                 for (const value of selected) {
                     cmd = [...cmd, value];
                 }
-            } else if (action == "add") {
+            } else if (action === "add") {
                 cmd = [...cmd, ""];
             } else {
                 cmd = [...cmd, "delete"];
@@ -560,7 +560,7 @@ class DNAPlugin extends React.Component {
                         `The ${action} operation was successfully done on "${configName}" entry`
                     );
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.setState({
                         saving: false
                     });
@@ -574,7 +574,7 @@ class DNAPlugin extends React.Component {
                         );
                     }
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                     this.setState({
                         saving: false
                     });
@@ -611,7 +611,7 @@ class DNAPlugin extends React.Component {
                     );
                     this.closeDeleteConfirm();
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -621,7 +621,7 @@ class DNAPlugin extends React.Component {
                     );
                     this.closeDeleteConfirm();
                     this.loadConfigs();
-                    this.closeModal();
+                    this.handleCloseModal();
                 });
     }
 
@@ -722,7 +722,7 @@ class DNAPlugin extends React.Component {
         }
     }
 
-    editSharedConfig() {
+    handleEditSharedConfig() {
         const {
             configName,
             sharedHostname,
@@ -752,7 +752,7 @@ class DNAPlugin extends React.Component {
             savingShared: true
         });
         log_cmd(
-            "editSharedConfig",
+            "handleEditSharedConfig",
             `Do the set operation on the DNA Plugin Shared Entry`,
             cmd
         );
@@ -767,7 +767,7 @@ class DNAPlugin extends React.Component {
                         `The set operation was successfully done on "${sharedHostname}:${sharedPort}" entry`
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
-                    this.closeSharedModal();
+                    this.handleCloseSharedModal();
                     this.setState({
                         savingShared: false
                     });
@@ -779,7 +779,7 @@ class DNAPlugin extends React.Component {
                         `Error during the config entry set operation - ${errMsg.desc}`
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
-                    this.closeSharedModal();
+                    this.handleCloseSharedModal();
                     this.setState({
                         savingShared: false
                     });
@@ -837,49 +837,49 @@ class DNAPlugin extends React.Component {
         let validatedConnText = "";
 
         // Handle the shared config remote bind settings validation
-        if (this.state.sharedRemoteBindMethod == "SSL" && this.state.sharedRemoteConnProtocol != "TLS") {
+        if (this.state.sharedRemoteBindMethod === "SSL" && this.state.sharedRemoteConnProtocol !== "TLS") {
             validatedBindMethodText = "You can not use 'SSL' if the connection protocol is not 'TLS'";
             validatedBindMethod = ValidatedOptions.error;
-        } else if (this.state.sharedRemoteBindMethod.startsWith("SASL") && this.state.sharedRemoteConnProtocol == "TLS") {
+        } else if (this.state.sharedRemoteBindMethod.startsWith("SASL") && this.state.sharedRemoteConnProtocol === "TLS") {
             validatedBindMethodText = "You can not use a 'SASL' method if the connection protocol is 'TLS'";
             validatedBindMethod = ValidatedOptions.error;
-        } else if ((this.state.sharedRemoteBindMethod == "" && this.state.sharedRemoteConnProtocol != "") ||
-            (this.state.sharedRemoteBindMethod != "" && this.state.sharedRemoteConnProtocol == "")) {
+        } else if ((this.state.sharedRemoteBindMethod === "" && this.state.sharedRemoteConnProtocol !== "") ||
+            (this.state.sharedRemoteBindMethod !== "" && this.state.sharedRemoteConnProtocol === "")) {
             validatedBindMethodText = "You must either set, or unset, both preferences";
             validatedBindMethod = ValidatedOptions.error;
         }
 
-        if (this.state.sharedRemoteConnProtocol == "TLS" && this.state.sharedRemoteBindMethod.startsWith("SASL/")) {
+        if (this.state.sharedRemoteConnProtocol === "TLS" && this.state.sharedRemoteBindMethod.startsWith("SASL/")) {
             validatedConnText = "You can not use the 'TLS' protocol if the BindMethod is a 'SASL' method";
             validatedConnProtocol = ValidatedOptions.error;
-        } else if (this.state.sharedRemoteConnProtocol == "LDAP" && this.state.sharedRemoteBindMethod == "SSL") {
+        } else if (this.state.sharedRemoteConnProtocol === "LDAP" && this.state.sharedRemoteBindMethod === "SSL") {
             validatedConnText = "You can not use the 'LDAP' protocol if the BindMethod is a 'TLS'";
             validatedConnProtocol = ValidatedOptions.error;
-        } else if ((this.state.sharedRemoteConnProtocol == "" && this.state.sharedRemoteBindMethod != "") ||
-                   (this.state.sharedRemoteConnProtocol != "" && this.state.sharedRemoteBindMethod == "")) {
+        } else if ((this.state.sharedRemoteConnProtocol === "" && this.state.sharedRemoteBindMethod !== "") ||
+                   (this.state.sharedRemoteConnProtocol !== "" && this.state.sharedRemoteBindMethod === "")) {
             validatedConnText = "You must either set, or unset, both preferences";
             validatedConnProtocol = ValidatedOptions.error;
         }
 
         let saveNotOK = (
-            validatedBindMethod != ValidatedOptions.default ||
-            validatedConnProtocol != ValidatedOptions.default
+            validatedBindMethod !== ValidatedOptions.default ||
+            validatedConnProtocol !== ValidatedOptions.default
         );
 
         if (!adding && !saveNotOK) {
             // Everything is valid, but if we are editing we can only save if
             // something was actually changed
-            if (this.state._sharedRemoteConnProtocol == this.state.sharedRemoteConnProtocol &&
-                this.state._sharedRemoteBindMethod == this.state.sharedRemoteBindMethod) {
+            if (this.state._sharedRemoteConnProtocol === this.state.sharedRemoteConnProtocol &&
+                this.state._sharedRemoteBindMethod === this.state.sharedRemoteBindMethod) {
                 // Nothing changed, so there is nothing to save
                 saveNotOK = true;
             }
         }
         return {
-            validatedBindMethodText: validatedBindMethodText,
-            validatedBindMethod: validatedBindMethod,
-            validatedConnText: validatedConnText,
-            validatedConnProtocol: validatedConnProtocol,
+            validatedBindMethodText,
+            validatedBindMethod,
+            validatedConnText,
+            validatedConnProtocol,
             saveSharedNotOK: saveNotOK
         };
     }
@@ -895,19 +895,19 @@ class DNAPlugin extends React.Component {
             'configName', 'nextValue', 'filter', 'scope',
         ];
 
-        if (this.state.selected == "" || this.state.selected.length == 0) {
+        if (this.state.selected === "" || this.state.selected.length === 0) {
             all_good = false;
         }
 
         for (const attr of reqAttrs) {
-            if (this.state[attr] == "") {
+            if (this.state[attr] === "") {
                 error[attr] = true;
                 all_good = false;
             }
         }
 
         for (const attr of dnAttrs) {
-            if (this.state[attr] != "" && !valid_dn(this.state[attr])) {
+            if (this.state[attr] !== "" && !valid_dn(this.state[attr])) {
                 error[attr] = true;
                 all_good = false;
             }
@@ -922,7 +922,7 @@ class DNAPlugin extends React.Component {
                 'threshold', 'nextRange', 'rangeRequestTimeout'
             ];
             for (const check_attr of attrs) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     all_good = true;
                     break;
                 }
@@ -934,7 +934,7 @@ class DNAPlugin extends React.Component {
 
         this.setState({
             saveBtnDisabled: !all_good,
-            error: error
+            error
         });
     }
 
@@ -1042,7 +1042,7 @@ class DNAPlugin extends React.Component {
                     title={newEntry ? "Create DNA Config Entry" : "Edit DNA Config Entry"}
                     isOpen={configEntryModalShow}
                     aria-labelledby="ds-modal"
-                    onClose={this.closeModal}
+                    onClose={this.handleCloseModal}
                     actions={[
                         <Button
                             key="saveshared"
@@ -1055,7 +1055,7 @@ class DNAPlugin extends React.Component {
                         >
                             {saveBtnName}
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                        <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
                             Cancel
                         </Button>
                     ]}
@@ -1088,14 +1088,14 @@ class DNAPlugin extends React.Component {
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
                                             typeAheadAriaLabel="Type an attribute"
-                                            onToggle={this.onToggle}
-                                            onSelect={this.onSelect}
-                                            onClear={this.clearSelection}
+                                            onToggle={this.handleToggle}
+                                            onSelect={this.handleSelect}
+                                            onClear={this.handleClearSelection}
                                             selections={selected}
                                             isOpen={this.state.isOpen}
                                             aria-labelledby="typeAhead-1"
                                             placeholderText="Type an attribute..."
-                                            validated={selected.length == 0 ? 'error' : 'default'}
+                                            validated={selected.length === 0 ? 'error' : 'default'}
                                         >
                                             {this.props.attributes.map((attr) => (
                                                 <SelectOption
@@ -1334,20 +1334,20 @@ class DNAPlugin extends React.Component {
                     title="Manage DNA Plugin Shared Config Entry"
                     isOpen={sharedConfigEntryModalShow}
                     aria-labelledby="ds-modal"
-                    onClose={this.closeSharedModal}
+                    onClose={this.handleCloseSharedModal}
                     actions={[
                         <Button
                             key="confirm"
                             isDisabled={sharedResult.saveSharedNotOK || savingShared}
                             variant="primary"
-                            onClick={this.editSharedConfig}
+                            onClick={this.handleEditSharedConfig}
                             isLoading={savingShared}
                             spinnerAriaValueText={savingShared ? "Saving" : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveSharedBtnName}
                         </Button>,
-                        <Button key="cancel" variant="link" onClick={this.closeSharedModal}>
+                        <Button key="cancel" variant="link" onClick={this.handleCloseSharedModal}>
                             Cancel
                         </Button>
                     ]}
@@ -1451,7 +1451,7 @@ class DNAPlugin extends React.Component {
                             <Button
                                 className="ds-margin-top"
                                 variant="primary"
-                                onClick={this.showAddConfigModal}
+                                onClick={this.handleShowAddConfigModal}
                             >
                                 Add Config
                             </Button>
@@ -1461,7 +1461,7 @@ class DNAPlugin extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.deleteConfig}
                     spinning={this.state.modalSpinning}
                     item={this.state.configName}
@@ -1474,7 +1474,7 @@ class DNAPlugin extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showSharedDeleteConfirm}
                     closeHandler={this.closeSharedDeleteConfirm}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.deleteSharedConfig}
                     spinning={this.state.modalSpinning}
                     item={this.state.sharedConfigEntry}

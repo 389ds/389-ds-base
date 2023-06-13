@@ -86,27 +86,27 @@ export class CertificateManagement extends React.Component {
         };
 
         // File Upload functions
-        this.handleFileInputChange = (e, file) => {
+        this.onFileInputChange = (e, file) => {
             this.setState({
                 uploadFile: file.name
             });
         };
-        this.handleTextOrDataChange = (value) => {
+        this.onTextOrDataChange = (value) => {
             this.setState({
                 uploadValue: value.trim()
             }, () => this.validateCertText());
         };
-        this.handleFileReadStarted = () => {
+        this.onFileReadStarted = () => {
             this.setState({
                 uploadIsLoading: true
             });
         };
-        this.handleFileReadFinished = () => {
+        this.onFileReadFinished = () => {
             this.setState({
                 uploadIsLoading: false
             });
         };
-        this.handleClear = () => {
+        this.onClear = () => {
             this.setState({
                 uploadValue: "",
                 uploadFileName: "",
@@ -126,12 +126,12 @@ export class CertificateManagement extends React.Component {
         };
 
         this.sortFlags = (str) => {
-            let flags = str.split('');
-            let sorted_flags = flags.sort();
+            const flags = str.split('');
+            const sorted_flags = flags.sort();
             return sorted_flags.join('');
         };
 
-        this.handleCertSelect = (value) => {
+        this.onCertSelect = (value) => {
             this.setState({
                 selectCertName: value,
             });
@@ -141,7 +141,7 @@ export class CertificateManagement extends React.Component {
             if (this.state.csrAltNames.includes(selection)) {
                 this.setState(
                     (prevState) => ({
-                        csrAltNames: prevState['csrAltNames'].filter((item) => item !== selection),
+                        csrAltNames: prevState.csrAltNames.filter((item) => item !== selection),
                         csrIsSelectOpen: false
                     }),
                 );
@@ -156,11 +156,11 @@ export class CertificateManagement extends React.Component {
             this.setState({
                 csrIsSelectOpen: isOpen,
             });
-        }
+        };
 
-        this.handleChange = this.handleChange.bind(this);
-        this.handleCSRChange = this.handleCSRChange.bind(this);
-        this.handleAltNameChange = this.handleAltNameChange.bind(this);
+        this.onChange = this.onChange.bind(this);
+        this.onCSRChange = this.onCSRChange.bind(this);
+        this.onAltNameChange = this.onAltNameChange.bind(this);
         this.addCert = this.addCert.bind(this);
         this.showAddModal = this.showAddModal.bind(this);
         this.showAddCAModal = this.showAddCAModal.bind(this);
@@ -173,7 +173,7 @@ export class CertificateManagement extends React.Component {
         this.showEditModal = this.showEditModal.bind(this);
         this.closeEditModal = this.closeEditModal.bind(this);
         this.showEditCAModal = this.showEditCAModal.bind(this);
-        this.handleFlagChange = this.handleFlagChange.bind(this);
+        this.onFlagChange = this.onFlagChange.bind(this);
         this.editCert = this.editCert.bind(this);
         this.doEditCert = this.doEditCert.bind(this);
         this.closeConfirmCAChange = this.closeConfirmCAChange.bind(this);
@@ -196,7 +196,7 @@ export class CertificateManagement extends React.Component {
         this.showExportModal = this.showExportModal.bind(this);
         this.closeExportModal = this.closeExportModal.bind(this);
         this.exportCert = this.exportCert.bind(this);
-        this.handleRadioChange = this.handleRadioChange.bind(this);
+        this.onRadioChange = this.onRadioChange.bind(this);
         this.validateCertText = this.validateCertText.bind(this);
         this.getCertFiles = this.getCertFiles.bind(this);
     }
@@ -251,7 +251,7 @@ export class CertificateManagement extends React.Component {
         });
     }
 
-    handleRadioChange(_, e) {
+    onRadioChange(_, e) {
         // Handle the add cert options
         let certRadioFile = false;
 
@@ -284,7 +284,7 @@ export class CertificateManagement extends React.Component {
             csrSubjectCountry: "",
             csrSubjectEmail: "",
             csrAltNames: [],
-            errObj: { csrName: true, csrSubjectCommonName: true},
+            errObj: { csrName: true, csrSubjectCommonName: true },
         });
     }
 
@@ -304,11 +304,11 @@ export class CertificateManagement extends React.Component {
     }
 
     showViewCSRModal (name) {
-        this.showCSR(name)
+        this.showCSR(name);
         this.setState({
             showViewCSRModal: true,
             csrName: name,
-            errObj: { csrName: true},
+            errObj: { csrName: true },
         });
     }
 
@@ -343,13 +343,13 @@ export class CertificateManagement extends React.Component {
         let exportFileName = this.state.exportFileName;
         if (this.state.exportDERFormat && !exportFileName.toLowerCase().endsWith(".crt")) {
             // DER
-            exportFileName += ".crt"
+            exportFileName += ".crt";
         }
         if (!this.state.exportDERFormat && !exportFileName.toLowerCase().endsWith(".pem")) {
             // pem
-            exportFileName += ".pem"
+            exportFileName += ".pem";
         }
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "export-cert", this.state.exportNickname, "--output-file=" + exportFileName
         ];
@@ -409,7 +409,7 @@ export class CertificateManagement extends React.Component {
 
     getCertFiles () {
         const cmd = [
-            //'/bin/sh', '-c',
+            // '/bin/sh', '-c',
             'find',
             this.props.certDir,
             '-type',
@@ -425,7 +425,7 @@ export class CertificateManagement extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done((certs_raw) => {
                     const certs = certs_raw.split(/\r?\n/);
-                    let certNames = [];
+                    const certNames = [];
                     for (let i = 0, count = 0; i < certs.length; i++) {
                         if (certs[i] !== "") {
                             certNames[count] = certs[i].replace(this.props.certDir + "/", "");
@@ -441,7 +441,7 @@ export class CertificateManagement extends React.Component {
                     this.setState({
                         availCertNames: certNames,
                         selectCertName,
-                    })
+                    });
                 })
                 .fail(err => {
                     console.log("Failed to get cert file names: ", err);
@@ -465,7 +465,7 @@ export class CertificateManagement extends React.Component {
             const certText = this.state.uploadValue;
             const create_cert_cmd = [
                 '/bin/sh', '-c',
-                '/usr/bin/echo -e \'' + certText  + '\' > ' + certFile
+                '/usr/bin/echo -e \'' + certText + '\' > ' + certFile
             ];
 
             log_cmd("addCert", "creating tmp cert file for importing: ", create_cert_cmd);
@@ -492,7 +492,7 @@ export class CertificateManagement extends React.Component {
                                         "success",
                                         `Successfully added certificate`
                                     );
-                                    this.closeAddCAModal()
+                                    this.closeAddCAModal();
                                     this.closeAddModal();
                                 })
                                 .fail(err => {
@@ -502,7 +502,7 @@ export class CertificateManagement extends React.Component {
                                         msg = errMsg.desc + " - " + errMsg.info;
                                     }
                                     this.deleteTmpCert(certFile);
-                                    this.closeAddCAModal()
+                                    this.closeAddCAModal();
                                     this.closeAddModal();
                                     this.setState({
                                         modalSpinning: false,
@@ -526,7 +526,7 @@ export class CertificateManagement extends React.Component {
                     });
         } else {
             // Import existing file into NSS db
-            let cmd = [
+            const cmd = [
                 "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "security", certType, "add", "--name=" + this.state.certName
             ];
@@ -542,7 +542,7 @@ export class CertificateManagement extends React.Component {
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(() => {
                         this.reloadCACerts();
-                        this.closeAddCAModal()
+                        this.closeAddCAModal();
                         this.closeAddModal();
                         this.setState({
                             showAddModal: false,
@@ -562,7 +562,7 @@ export class CertificateManagement extends React.Component {
                         if ('info' in errMsg) {
                             msg = errMsg.desc + " - " + errMsg.info;
                         }
-                        this.closeAddCAModal()
+                        this.closeAddCAModal();
                         this.closeAddModal();
                         this.setState({
                             modalSpinning: false,
@@ -581,7 +581,7 @@ export class CertificateManagement extends React.Component {
             modalSpinning: true,
             loading: true,
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "security", "csr", "req", "--name=" + this.state.csrName, "--subject=" + this.state.csrSubject
         ];
@@ -622,7 +622,6 @@ export class CertificateManagement extends React.Component {
                         modalSpinning: false,
                         loading: false,
                     });
-
                 });
     }
 
@@ -642,7 +641,7 @@ export class CertificateManagement extends React.Component {
 
         log_cmd("showCSR", "Displaying CSR", cmd);
         cockpit
-                .spawn(cmd, { superuser: true, err: "message"})
+                .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.setState({
                         csrContent: content,
@@ -817,7 +816,7 @@ export class CertificateManagement extends React.Component {
         this.setState({
             showEditModal: true,
             certName: name,
-            flags: flags,
+            flags,
             isCACert: false,
         });
     }
@@ -833,7 +832,7 @@ export class CertificateManagement extends React.Component {
         this.setState({
             showEditModal: true,
             certName: nickname,
-            flags: flags,
+            flags,
             _flags: flags,
             isCACert: true,
         });
@@ -924,7 +923,7 @@ export class CertificateManagement extends React.Component {
         }
     }
 
-    handleChange (e) {
+    onChange (e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         const errObj = this.state.errObj;
@@ -935,11 +934,11 @@ export class CertificateManagement extends React.Component {
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
-    handleCSRChange (e) {
+    onCSRChange (e) {
         const value = e.target.value;
         const attr = e.target.id;
         const errObj = this.state.errObj;
@@ -951,22 +950,22 @@ export class CertificateManagement extends React.Component {
         errObj[e.target.id] = valueErr;
         this.setState({
             [attr]: value,
-            errObj: errObj
+            errObj
         }, this.buildSubject);
     }
 
-    handleAltNameChange (altName) {
+    onAltNameChange (altName) {
         if (this.state.csrAltNames.includes(altName)) {
             this.setState(
                 (prevState) => ({
-                    csrAltNames: prevState['csrAltNames'].filter((item) => item !== altName),
+                    csrAltNames: prevState.csrAltNames.filter((item) => item !== altName),
                     csrIsSelectOpen: false
                 }),
             );
         } else {
             this.setState(
                 (prevState) => ({
-                    csrAltNames: [...prevState['csrAltNames'], altName],
+                    csrAltNames: [...prevState.csrAltNames, altName],
                     csrIsSelectOpen: false,
                 }),
             );
@@ -974,7 +973,7 @@ export class CertificateManagement extends React.Component {
     }
 
     buildSubject () {
-        let subject = ""
+        let subject = "";
         const csrSubjectCN = this.state.csrSubjectCommonName;
         const csrSubjectO = this.state.csrSubjectOrg;
         const csrSubjectOU = this.state.csrSubjectOrgUnit;
@@ -1013,7 +1012,7 @@ export class CertificateManagement extends React.Component {
         });
     }
 
-    handleFlagChange (e) {
+    onFlagChange (e) {
         const checked = e.target.checked;
         const id = e.target.id;
         const flags = this.state.flags;
@@ -1067,7 +1066,7 @@ export class CertificateManagement extends React.Component {
         }
         this.setState({
             flags: newFlags,
-            disableSaveBtn: disableSaveBtn
+            disableSaveBtn
         });
     }
 
@@ -1228,7 +1227,7 @@ export class CertificateManagement extends React.Component {
         let certificatePage = '';
 
         if (this.state.loading) {
-            certificatePage =
+            certificatePage = (
                 <div className="ds-loading-spinner ds-center ds-margin-top-xlg">
                     <TextContent>
                         <Text component={TextVariants.h3}>
@@ -1236,9 +1235,10 @@ export class CertificateManagement extends React.Component {
                         </Text>
                     </TextContent>
                     <Spinner size="lg" />
-                </div>;
+                </div>
+            );
         } else {
-            certificatePage =
+            certificatePage = (
                 <Tabs isBox isSecondary className="ds-margin-top-xlg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Trusted Certificate Authorites <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
@@ -1308,7 +1308,8 @@ export class CertificateManagement extends React.Component {
                             />
                         </div>
                     </Tab>
-                </Tabs>;
+                </Tabs>
+            );
         }
 
         return (
@@ -1317,7 +1318,7 @@ export class CertificateManagement extends React.Component {
                 <ExportCertModal
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     saveHandler={this.exportCert}
                     nickName={this.state.exportNickname}
                     binaryFormat={this.state.exportDERFormat}
@@ -1328,7 +1329,7 @@ export class CertificateManagement extends React.Component {
                 <EditCertModal
                     showModal={this.state.showEditModal}
                     closeHandler={this.closeEditModal}
-                    handleChange={this.handleFlagChange}
+                    handleChange={this.onFlagChange}
                     saveHandler={this.editCert}
                     flags={this.state.flags}
                     disableSaveBtn={this.state.disableSaveBtn}
@@ -1337,7 +1338,7 @@ export class CertificateManagement extends React.Component {
                 <SecurityAddCertModal
                     showModal={this.state.showAddModal}
                     closeHandler={this.closeAddModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     saveHandler={this.addCert}
                     spinning={this.state.modalSpinning}
                     certFile={this.state.certFile}
@@ -1345,28 +1346,28 @@ export class CertificateManagement extends React.Component {
                     certNames={this.state.availCertNames}
                     selectCertName={this.state.selectCertName}
                     isSelectCertOpen={this.state.isSelectCertOpen}
-                    handleCertSelect={this.handleCertSelect}
+                    handleCertSelect={this.onCertSelect}
                     certRadioFile={this.state.certRadioFile}
                     certRadioSelect={this.state.certRadioSelect}
                     certRadioUpload={this.state.certRadioUpload}
-                    handleRadioChange={this.handleRadioChange}
+                    handleRadioChange={this.onRadioChange}
                     badCertText={this.state.badCertText}
                     uploadValue={this.state.uploadValue}
                     uploadFileName={this.state.uploadFileName}
                     uploadIsLoading={this.state.uploadIsLoading}
                     uploadIsRejected={this.state.uploadIsRejected}
-                    handleFileInputChange={this.handleFileInputChange}
-                    handleTextOrDataChange={this.handleTextOrDataChange}
-                    handleFileReadStarted={this.handleFileReadStarted}
-                    handleFileReadFinished={this.handleFileReadFinished}
-                    handleClear={this.handleClear}
+                    handleFileInputChange={this.onFileInputChange}
+                    handleTextOrDataChange={this.onTextOrDataChange}
+                    handleFileReadStarted={this.onFileReadStarted}
+                    handleFileReadFinished={this.onFileReadFinished}
+                    handleClear={this.onClear}
                     handleFileRejected={this.state.uploadIsRejected}
                 />
                 <SecurityAddCertModal
                     showModal={this.state.showAddCAModal}
                     isCACert
                     closeHandler={this.closeAddCAModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     saveHandler={this.addCert}
                     spinning={this.state.modalSpinning}
                     certFile={this.state.certFile}
@@ -1374,28 +1375,28 @@ export class CertificateManagement extends React.Component {
                     certNames={this.state.availCertNames}
                     selectCertName={this.state.selectCertName}
                     isSelectCertOpen={this.state.isSelectCertOpen}
-                    handleCertSelect={this.handleCertSelect}
+                    handleCertSelect={this.onCertSelect}
                     certRadioFile={this.state.certRadioFile}
                     certRadioSelect={this.state.certRadioSelect}
                     certRadioUpload={this.state.certRadioUpload}
-                    handleRadioChange={this.handleRadioChange}
+                    handleRadioChange={this.onRadioChange}
                     badCertText={this.state.badCertText}
                     uploadValue={this.state.uploadValue}
                     uploadFileName={this.state.uploadFileName}
                     uploadIsLoading={this.state.uploadIsLoading}
                     uploadIsRejected={this.state.uploadIsRejected}
-                    handleFileInputChange={this.handleFileInputChange}
-                    handleTextOrDataChange={this.handleTextOrDataChange}
-                    handleFileReadStarted={this.handleFileReadStarted}
-                    handleFileReadFinished={this.handleFileReadFinished}
-                    handleClear={this.handleClear}
+                    handleFileInputChange={this.onFileInputChange}
+                    handleTextOrDataChange={this.onTextOrDataChange}
+                    handleFileReadStarted={this.onFileReadStarted}
+                    handleFileReadFinished={this.onFileReadFinished}
+                    handleClear={this.onClear}
                     handleFileRejected={this.state.uploadIsRejected}
                 />
                 <SecurityAddCSRModal
                     showModal={this.state.showAddCSRModal}
                     closeHandler={this.closeAddCSRModal}
-                    handleChange={this.handleCSRChange}
-                    handleAltNameChange={this.handleAltNameChange}
+                    handleChange={this.onCSRChange}
+                    handleAltNameChange={this.onAltNameChange}
                     saveHandler={this.addCSR}
                     previewValue={this.state.csrSubject}
                     csrName={this.state.csrName}
@@ -1416,7 +1417,7 @@ export class CertificateManagement extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.delCert}
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}
@@ -1429,7 +1430,7 @@ export class CertificateManagement extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showCSRConfirmDelete}
                     closeHandler={this.closeCSRConfirmDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.delCSR}
                     spinning={this.state.modalSpinning}
                     item={this.state.csrName}
@@ -1442,7 +1443,7 @@ export class CertificateManagement extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showKeyConfirmDelete}
                     closeHandler={this.closeKeyConfirmDelete}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.delKey}
                     spinning={this.state.modalSpinning}
                     item={this.state.keyID}
@@ -1455,7 +1456,7 @@ export class CertificateManagement extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmCAChange}
                     closeHandler={this.closeConfirmCAChange}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.doEditCert}
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}

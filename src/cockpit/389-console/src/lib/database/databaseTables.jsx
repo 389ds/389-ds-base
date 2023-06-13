@@ -16,8 +16,8 @@ import {
     sortable,
     SortByDirection,
 } from '@patternfly/react-table';
-import TrashAltIcon from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
-import ArrowRightIcon from '@patternfly/react-icons/dist/js/icons/arrow-right-icon';
+import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
+import { ArrowRightIcon } from '@patternfly/react-icons/dist/js/icons/arrow-right-icon';
 import PropTypes from "prop-types";
 
 class ReferralTable extends React.Component {
@@ -36,19 +36,19 @@ class ReferralTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
+        this.handleSort = this.handleSort.bind(this);
         this.getDeleteButton = this.getDeleteButton.bind(this);
     }
 
@@ -74,17 +74,17 @@ class ReferralTable extends React.Component {
                 cells: [refRow, { props: { textCenter: true }, title: this.getDeleteButton(refRow) }]
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Referrals'] }];
             columns = [{ title: 'Referrals' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const rows = [];
         const sortedRefs = [...this.props.rows];
 
@@ -102,7 +102,7 @@ class ReferralTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -119,7 +119,7 @@ class ReferralTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                 >
                     <TableHeader />
                     <TableBody />
@@ -130,8 +130,8 @@ class ReferralTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -155,20 +155,20 @@ class IndexTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onSearchChange = this.onSearchChange.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
     componentDidMount () {
@@ -199,7 +199,7 @@ class IndexTable extends React.Component {
         ];
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
         this.setState({
             sortBy: {
@@ -210,26 +210,26 @@ class IndexTable extends React.Component {
         });
     }
 
-    onSearchChange(value, event) {
+    handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
         for (const row of this.props.rows) {
-            if (val != "" &&
-                row[0].indexOf(val) == -1 &&
-                row[1].indexOf(val) == -1 &&
-                row[2].indexOf(val) == -1) {
+            if (val !== "" &&
+                row[0].indexOf(val) === -1 &&
+                row[1].indexOf(val) === -1 &&
+                row[2].indexOf(val) === -1) {
                 // Not a match, skip it
                 continue;
             }
             rows.push([row[0], row[1], row[2]]);
         }
-        if (val == "") {
+        if (val === "") {
             // reset rows
             rows = [...this.props.rows];
         }
         this.setState({
-            rows: rows,
-            value: value,
+            rows,
+            value,
             page: 1,
         });
     }
@@ -239,7 +239,7 @@ class IndexTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: 'Indexes' }];
             tableRows = [{ cells: ['No Indexes'] }];
@@ -253,8 +253,8 @@ class IndexTable extends React.Component {
                     className="ds-margin-top-xlg"
                     placeholder='Search indexes'
                     value={this.state.value}
-                    onChange={this.onSearchChange}
-                    onClear={(evt) => this.onSearchChange('', evt)}
+                    onChange={this.handleSearchChange}
+                    onClear={(evt, val) => this.handleSearchChange(evt, '')}
                 />
                 <Table
                     className="ds-margin-top"
@@ -263,7 +263,7 @@ class IndexTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={this.state.sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={has_rows && this.props.editable ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -277,8 +277,8 @@ class IndexTable extends React.Component {
                     perPage={this.state.perPage}
                     page={this.state.page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -301,19 +301,19 @@ class EncryptedAttrTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
+        this.handleSort = this.handleSort.bind(this);
         this.getDeleteButton = this.getDeleteButton.bind(this);
     }
 
@@ -339,17 +339,17 @@ class EncryptedAttrTable extends React.Component {
                 cells: [attrRow, { props: { textCenter: true }, title: this.getDeleteButton(attrRow) }]
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Attributes'] }];
             columns = [{ title: 'Encrypted Attribute' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const rows = [];
         const sortedAttrs = [...this.props.rows];
 
@@ -367,7 +367,7 @@ class EncryptedAttrTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -384,7 +384,7 @@ class EncryptedAttrTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                 >
                     <TableHeader />
                     <TableBody />
@@ -395,8 +395,8 @@ class EncryptedAttrTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -421,19 +421,19 @@ class LDIFTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
+        this.handleSort = this.handleSort.bind(this);
         this.getImportButton = this.getImportButton.bind(this);
     }
 
@@ -461,17 +461,17 @@ class LDIFTable extends React.Component {
                 ]
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No LDIF files'] }];
             columns = [{ title: 'LDIF File' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const rows = [];
         const sortedLDIF = [...this.props.rows];
 
@@ -494,7 +494,7 @@ class LDIFTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -521,7 +521,7 @@ class LDIFTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={this.props.rows.length > 0 ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -535,8 +535,8 @@ class LDIFTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -561,19 +561,19 @@ class LDIFManageTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
+        this.handleSort = this.handleSort.bind(this);
     }
 
     componentDidMount() {
@@ -584,17 +584,17 @@ class LDIFManageTable extends React.Component {
                 cells: [ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No LDIF files'] }];
             columns = [{ title: 'LDIF File' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const rows = [];
         const sortedLDIF = [...this.props.rows];
 
@@ -614,7 +614,7 @@ class LDIFManageTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -637,7 +637,7 @@ class LDIFManageTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         let hasRows = true;
-        if (this.props.rows.length == 0) {
+        if (this.props.rows.length === 0) {
             hasRows = false;
         }
         return (
@@ -649,7 +649,7 @@ class LDIFManageTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -663,8 +663,8 @@ class LDIFManageTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -688,19 +688,19 @@ class BackupTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
+        this.handleSort = this.handleSort.bind(this);
     }
 
     componentDidMount() {
@@ -711,17 +711,17 @@ class BackupTable extends React.Component {
                 cells: [bakRow[0], bakRow[1], bakRow[2]]
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Backups'] }];
             columns = [{ title: 'Backups' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const rows = [];
         const sortedBaks = [...this.props.rows];
 
@@ -741,7 +741,7 @@ class BackupTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -764,7 +764,7 @@ class BackupTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         let hasRows = true;
-        if (this.props.rows.length == 0) {
+        if (this.props.rows.length === 0) {
             hasRows = false;
         }
         return (
@@ -776,7 +776,7 @@ class BackupTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="up"
@@ -790,8 +790,8 @@ class BackupTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -815,19 +815,19 @@ class PwpTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
+        this.handleSort = this.handleSort.bind(this);
     }
 
     componentDidMount() {
@@ -838,17 +838,17 @@ class PwpTable extends React.Component {
                 cells: [pwpRow[0], pwpRow[1], pwpRow[2]]
             });
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No Local Policies'] }];
             columns = [{ title: 'Local Password Policies' }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const rows = [];
         const sortedPwp = [...this.props.rows];
 
@@ -868,7 +868,7 @@ class PwpTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -891,7 +891,7 @@ class PwpTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         let hasRows = true;
-        if (this.props.rows.length == 0) {
+        if (this.props.rows.length === 0) {
             hasRows = false;
         }
         return (
@@ -903,7 +903,7 @@ class PwpTable extends React.Component {
                     rows={rows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
+                    onSort={this.handleSort}
                     actions={hasRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -917,8 +917,8 @@ class PwpTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );
@@ -949,23 +949,23 @@ class VLVTable extends React.Component {
             ],
         };
 
-        this.onSetPage = (_event, pageNumber) => {
+        this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber
             });
         };
 
-        this.onPerPageSelect = (_event, perPage) => {
+        this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage: perPage
+                perPage
             });
         };
 
-        this.onSort = this.onSort.bind(this);
-        this.onCollapse = this.onCollapse.bind(this);
+        this.handleSort = this.handleSort.bind(this);
+        this.handleCollapse = this.handleCollapse.bind(this);
     }
 
-    onSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -1002,7 +1002,7 @@ class VLVTable extends React.Component {
                 index,
                 direction
             },
-            rows: rows,
+            rows,
             page: 1,
         });
     }
@@ -1019,7 +1019,7 @@ class VLVTable extends React.Component {
     getExpandedRow(row) {
         const sort_indexes = row.sorts.map((sort) => {
             let indexState;
-            if (sort.attrs.vlvenabled[0] == "0") {
+            if (sort.attrs.vlvenabled[0] === "0") {
                 // html 5 deprecated font ...
                 indexState = <font size="2" color="#d01c8b"><b>Disabled</b></font>;
             } else {
@@ -1108,20 +1108,20 @@ class VLVTable extends React.Component {
             );
             count += 2;
         }
-        if (rows.length == 0) {
+        if (rows.length === 0) {
             rows = [{ cells: ['No VLV Indexes'] }];
             columns = [{ title: 'VLV Indexes' }];
         } else {
             noRows = false;
         }
         this.setState({
-            rows: rows,
-            columns: columns,
-            noRows: noRows,
+            rows,
+            columns,
+            noRows,
         });
     }
 
-    onCollapse(event, rowKey, isOpen) {
+    handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
         const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
@@ -1166,8 +1166,8 @@ class VLVTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.onSort}
-                    onCollapse={this.onCollapse}
+                    onSort={this.handleSort}
+                    onCollapse={this.handleCollapse}
                     actions={!this.state.noRows ? this.actions() : null}
                     dropdownPosition="right"
                     dropdownDirection="bottom"
@@ -1181,8 +1181,8 @@ class VLVTable extends React.Component {
                     perPage={perPage}
                     page={page}
                     variant={PaginationVariant.bottom}
-                    onSetPage={this.onSetPage}
-                    onPerPageSelect={this.onPerPageSelect}
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
                 />
             </div>
         );

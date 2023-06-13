@@ -35,7 +35,7 @@ import {
     TextContent,
     TextVariants
 } from "@patternfly/react-core";
-import CaretDownIcon from '@patternfly/react-icons/dist/esm/icons/caret-down-icon';
+import { CaretDownIcon } from '@patternfly/react-icons/dist/esm/icons/caret-down-icon';
 
 const staticStates = {
     noPackage: (
@@ -183,7 +183,7 @@ export class DSInstance extends React.Component {
         }
 
         this.setState({
-            notifications: [...this.state.notifications, { title: title, variant: variant, key }]
+            notifications: [...this.state.notifications, { title, variant, key }]
         });
     }
 
@@ -240,7 +240,7 @@ export class DSInstance extends React.Component {
                                                 jsx: staticStates.ldapiIssue,
                                                 loading: "ldapiError"
                                             },
-                                            serverId: serverId,
+                                            serverId,
                                             wasActiveList: []
                                         });
                                         return;
@@ -262,7 +262,7 @@ export class DSInstance extends React.Component {
                                                 this.updateProgress(25);
                                                 this.setState(
                                                     {
-                                                        serverId: serverId,
+                                                        serverId,
                                                         wasActiveList: [this.state.activeTabKey]
                                                     },
                                                     () => {
@@ -277,7 +277,7 @@ export class DSInstance extends React.Component {
                                                         },
                                                         () => {
                                                             this.setState({
-                                                                serverId: serverId,
+                                                                serverId,
                                                                 wasActiveList: [this.state.activeTabKey]
                                                             });
                                                         }
@@ -297,7 +297,7 @@ export class DSInstance extends React.Component {
                                                     () => {
                                                         this.setState(
                                                             {
-                                                                serverId: serverId,
+                                                                serverId,
                                                                 wasActiveList: []
                                                             },
                                                             () => {
@@ -321,7 +321,7 @@ export class DSInstance extends React.Component {
                                         () => {
                                             this.setState(
                                                 {
-                                                    serverId: serverId,
+                                                    serverId,
                                                     wasActiveList: []
                                                 },
                                                 () => {
@@ -342,7 +342,7 @@ export class DSInstance extends React.Component {
                             () => {
                                 this.setState(
                                     {
-                                        serverId: serverId,
+                                        serverId,
                                         wasActiveList: []
                                     }
                                 );
@@ -363,7 +363,7 @@ export class DSInstance extends React.Component {
                         () => {
                             this.setState(
                                 {
-                                    serverId: serverId,
+                                    serverId,
                                     wasActiveList: []
                                 },
                                 () => {
@@ -719,7 +719,7 @@ export class DSInstance extends React.Component {
         if (pageLoadingState.state !== "loading" &&
             pageLoadingState.state !== "noInsts" &&
             pageLoadingState.state !== "noPackage") {
-            serverDropdown =
+            serverDropdown = (
                 <Grid className="ds-logo" hidden={pageLoadingState.state === "loading"}>
                     <GridItem span={10}>
                         <TextContent className="ds-logo-style" title={this.state.version}>
@@ -762,12 +762,13 @@ export class DSInstance extends React.Component {
                             dropdownItems={dropdownItems}
                         />
                     </GridItem>
-                </Grid>;
+                </Grid>
+            );
         }
 
         let mainPage = <div>{mainContent}</div>;
         if (serverId !== "" && (pageLoadingState.state === "success" || pageLoadingState.state === "loading")) {
-            mainPage =
+            mainPage = (
                 <div className="ds-margin-top">
                     <div hidden={pageLoadingState.state === "loading" || pageLoadingState.state === "notRunning"}>
                         <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
@@ -832,7 +833,8 @@ export class DSInstance extends React.Component {
                         </Tabs>
                     </div>
                     <div hidden={pageLoadingState.state !== "loading"}>{mainContent}</div>
-                </div>;
+                </div>
+            );
         }
 
         return (

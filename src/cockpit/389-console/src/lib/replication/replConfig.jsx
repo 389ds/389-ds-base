@@ -30,7 +30,7 @@ export class ReplConfig extends React.Component {
             manager: "cn=replication manager,cn=config",
             manager_passwd: "",
             manager_passwd_confirm: "",
-            newRole: this.props.role == "Supplier" ? "Hub" : "Supplier",
+            newRole: this.props.role === "Supplier" ? "Hub" : "Supplier",
             newRID: 1,
             modalSpinning: false,
             modalChecked: false,
@@ -40,47 +40,47 @@ export class ReplConfig extends React.Component {
             // Config Settings
             nsds5replicabinddn: this.props.data.nsds5replicabinddn,
             nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
-            nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) == 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
+            nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) === 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
             nsds5replicareleasetimeout: Number(this.props.data.nsds5replicareleasetimeout),
-            nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) == 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
-            nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) == 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
+            nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) === 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
+            nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) === 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
             nsds5replicaprecisetombstonepurging: Number(this.props.data.nsds5replicaprecisetombstonepurging),
-            nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
-            nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
-            nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
-            nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) == 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
+            nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) === 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
+            nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) === 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
+            nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) === 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
+            nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) === 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
             // Original settings
             _nsds5replicabinddn: this.props.data.nsds5replicabinddn,
             _nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
-            _nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) == 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
+            _nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) === 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
             _nsds5replicareleasetimeout: this.props.data.nsds5replicareleasetimeout,
-            _nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) == 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
-            _nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) == 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
+            _nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) === 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
+            _nsds5replicatombstonepurgeinterval: Number(this.props.data.nsds5replicatombstonepurgeinterval) === 0 ? 86400 : Number(this.props.data.nsds5replicatombstonepurgeinterval),
             _nsds5replicaprecisetombstonepurging: this.props.data.nsds5replicaprecisetombstonepurging,
-            _nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) == 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
-            _nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) == 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
-            _nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) == 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
-            _nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) == 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
+            _nsds5replicaprotocoltimeout: Number(this.props.data.nsds5replicaprotocoltimeout) === 0 ? 120 : Number(this.props.data.nsds5replicaprotocoltimeout),
+            _nsds5replicabackoffmin: Number(this.props.data.nsds5replicabackoffmin) === 0 ? 3 : Number(this.props.data.nsds5replicabackoffmin),
+            _nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) === 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
+            _nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) === 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
         };
 
-        this.onToggle = (isExpanded) => {
+        this.handleToggle = (isExpanded) => {
             this.setState({
                 isExpanded
             });
         };
 
-        this.onMinus = () => {
+        this.handleMinusChange = () => {
             this.setState({
                 newRID: Number(this.state.newRID) - 1
             });
         };
-        this.onNumberChange = (event) => {
+        this.handleNumberChange = (event) => {
             const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
             this.setState({
                 newRID: newValue > 65534 ? 65534 : newValue < 1 ? 1 : newValue
             });
         };
-        this.onPlus = () => {
+        this.handlePlusChange = () => {
             this.setState({
                 newRID: Number(this.state.newRID) + 1
             });
@@ -107,27 +107,27 @@ export class ReplConfig extends React.Component {
         this.confirmManagerDelete = this.confirmManagerDelete.bind(this);
         this.closeConfirmManagerDelete = this.closeConfirmManagerDelete.bind(this);
         this.deleteManager = this.deleteManager.bind(this);
-        this.showAddManager = this.showAddManager.bind(this);
+        this.handleShowAddManager = this.handleShowAddManager.bind(this);
         this.closeAddManagerModal = this.closeAddManagerModal.bind(this);
         this.addManager = this.addManager.bind(this);
         this.handleChange = this.handleChange.bind(this);
-        this.handleModalChange = this.handleModalChange.bind(this);
-        this.handleManagerChange = this.handleManagerChange.bind(this);
-        this.showPromoteDemoteModal = this.showPromoteDemoteModal.bind(this);
+        this.onModalChange = this.onModalChange.bind(this);
+        this.onManagerChange = this.onManagerChange.bind(this);
+        this.handleShowPromoteDemoteModal = this.handleShowPromoteDemoteModal.bind(this);
         this.closePromoteDemoteModal = this.closePromoteDemoteModal.bind(this);
         this.doRoleChange = this.doRoleChange.bind(this);
-        this.saveConfig = this.saveConfig.bind(this);
+        this.handleSaveConfig = this.handleSaveConfig.bind(this);
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
     doRoleChange (changeType) {
         let action = "demote";
-        if (changeType == "Promoting") {
+        if (changeType === "Promoting") {
             action = "promote";
         }
-        let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
+        const cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
             '--suffix=' + this.props.suffix, "--newrole=" + this.state.newRole];
-        if (this.state.newRole == "Supplier") {
+        if (this.state.newRole === "Supplier") {
             const ridNum = parseInt(this.state.newRID, 10);
             if (ridNum < 1 || ridNum >= 65535) {
                 this.props.addNotification(
@@ -175,7 +175,7 @@ export class ReplConfig extends React.Component {
         });
     }
 
-    showPromoteDemoteModal () {
+    handleShowPromoteDemoteModal () {
         this.setState({
             showPromoteDemoteModal: true,
             modalChecked: false,
@@ -188,7 +188,7 @@ export class ReplConfig extends React.Component {
         });
     }
 
-    showAddManager () {
+    handleShowAddManager () {
         this.setState({
             showAddManagerModal: true,
             manager: "cn=replication manager,cn=config",
@@ -211,13 +211,13 @@ export class ReplConfig extends React.Component {
             return;
         }
 
-        if (this.state.manager_passwd == "" || this.state.manager_passwd_confirm == "") {
+        if (this.state.manager_passwd === "" || this.state.manager_passwd_confirm === "") {
             this.props.addNotification(
                 "error", "You must provide a password for the Replication Manager"
             );
             return;
         }
-        if (this.state.manager_passwd != this.state.manager_passwd_confirm) {
+        if (this.state.manager_passwd !== this.state.manager_passwd_confirm) {
             this.props.addNotification(
                 "error", "Passwords do not match"
             );
@@ -228,15 +228,15 @@ export class ReplConfig extends React.Component {
             addManagerSpinning: true
         });
 
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication", "create-manager", "--suffix=" + this.props.suffix, "--name=" + this.state.manager,
         ];
 
         // Something changed, perform the update
         const config = {
-            cmd: cmd,
-            promptArg: "",  // repl manager auto prompts when passwd is missing
+            cmd,
+            promptArg: "", // repl manager auto prompts when passwd is missing
             passwd: this.state.manager_passwd,
             addNotification: this.props.addNotification,
             msg: "Replication Manager",
@@ -246,7 +246,7 @@ export class ReplConfig extends React.Component {
                 this.setState({
                     addManagerSpinning: false,
                     showAddManagerModal: false
-                })
+                });
             },
             reload_func: this.props.reloadConfig,
             reload_arg: this.props.suffix,
@@ -256,7 +256,7 @@ export class ReplConfig extends React.Component {
         callCmdStreamPassword(config);
     }
 
-    handleModalChange(e) {
+    onModalChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
         this.setState({
@@ -275,13 +275,13 @@ export class ReplConfig extends React.Component {
         ];
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
-            if (this.state[config_attr] != this.state['_' + config_attr]) {
+            if (this.state[config_attr] !== this.state['_' + config_attr]) {
                 saveBtnDisabled = false;
                 break;
             }
         }
         this.setState({
-            saveBtnDisabled: saveBtnDisabled,
+            saveBtnDisabled,
         });
     }
 
@@ -301,7 +301,7 @@ export class ReplConfig extends React.Component {
         ];
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
-            if (attr == config_attr && this.state['_' + config_attr] != value) {
+            if (attr === config_attr && this.state['_' + config_attr] !== value) {
                 saveBtnDisabled = false;
                 break;
             }
@@ -309,47 +309,47 @@ export class ReplConfig extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const config_attr of config_attrs) {
-            if (attr != config_attr && this.state['_' + config_attr] != this.state[config_attr]) {
+            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
                 saveBtnDisabled = false;
                 break;
             }
         }
-        if (attr == 'nsds5replicabinddngroup') {
+        if (attr === 'nsds5replicabinddngroup') {
             if (!valid_dn(value)) {
                 valueErr = true;
                 saveBtnDisabled = true;
             }
-        } else if (this.state.nsds5replicabinddngroup != "" && !valid_dn(this.state.nsds5replicabinddngroup)) {
+        } else if (this.state.nsds5replicabinddngroup !== "" && !valid_dn(this.state.nsds5replicabinddngroup)) {
             saveBtnDisabled = true;
         }
 
         errObj[e.target.id] = valueErr;
         this.setState({
             [attr]: value,
-            saveBtnDisabled: saveBtnDisabled,
-            errObj: errObj
+            saveBtnDisabled,
+            errObj
         });
     }
 
-    handleManagerChange(e) {
+    onManagerChange(e) {
         const value = e.target.value;
         const attr = e.target.id;
         let valueErr = false;
         const errObj = this.state.errObj;
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         // Handle password chnages
-        if (attr == "manager_passwd") {
-            if (value != this.state.manager_passwd_confirm) {
+        if (attr === "manager_passwd") {
+            if (value !== this.state.manager_passwd_confirm) {
                 // No match
                 valueErr = true;
             } else {
                 errObj[attr] = false;
                 errObj.manager_passwd_confirm = false;
             }
-        } else if (attr == "manager_passwd_confirm") {
-            if (value != this.state.manager_passwd) {
+        } else if (attr === "manager_passwd_confirm") {
+            if (value !== this.state.manager_passwd) {
                 // No match
                 valueErr = true;
             } else {
@@ -361,7 +361,7 @@ export class ReplConfig extends React.Component {
         errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            errObj: errObj
+            errObj
         });
     }
 
@@ -415,45 +415,45 @@ export class ReplConfig extends React.Component {
                 });
     }
 
-    saveConfig () {
+    handleSaveConfig () {
         const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set', '--suffix=' + this.props.suffix
         ];
 
-        if (this.state.nsds5replicabackoffmax != this.state._nsds5replicabackoffmax) {
+        if (this.state.nsds5replicabackoffmax !== this.state._nsds5replicabackoffmax) {
             cmd.push("--repl-backoff-max=" + this.state.nsds5replicabackoffmax);
         }
-        if (this.state.nsds5replicabackoffmin != this.state._nsds5replicabackoffmin) {
+        if (this.state.nsds5replicabackoffmin !== this.state._nsds5replicabackoffmin) {
             cmd.push("--repl-backoff-min=" + this.state.nsds5replicabackoffmin);
         }
 
-        if (this.state.nsds5replicaprotocoltimeout != this.state._nsds5replicaprotocoltimeout) {
+        if (this.state.nsds5replicaprotocoltimeout !== this.state._nsds5replicaprotocoltimeout) {
             cmd.push("--repl-protocol-timeout=" + this.state.nsds5replicaprotocoltimeout);
         }
-        if (this.state.nsds5replicaprecisetombstonepurging != this.state._nsds5replicaprecisetombstonepurging) {
+        if (this.state.nsds5replicaprecisetombstonepurging !== this.state._nsds5replicaprecisetombstonepurging) {
             if (this.state.nsds5replicaprecisetombstonepurging) {
                 cmd.push("--repl-fast-tombstone-purging=on");
             } else {
                 cmd.push("--repl-fast-tombstone-purging=off");
             }
         }
-        if (this.state.nsds5replicatombstonepurgeinterval != this.state._nsds5replicatombstonepurgeinterval) {
+        if (this.state.nsds5replicatombstonepurgeinterval !== this.state._nsds5replicatombstonepurgeinterval) {
             cmd.push("--repl-tombstone-purge-interval=" + this.state.nsds5replicatombstonepurgeinterval);
         }
-        if (this.state.nsds5replicabinddngroup != this.state._nsds5replicabinddngroup) {
+        if (this.state.nsds5replicabinddngroup !== this.state._nsds5replicabinddngroup) {
             cmd.push("--repl-bind-group=" + this.state.nsds5replicabinddngroup);
         }
-        if (this.state.nsds5replicabinddngroupcheckinterval != this.state._nsds5replicabinddngroupcheckinterval) {
+        if (this.state.nsds5replicabinddngroupcheckinterval !== this.state._nsds5replicabinddngroupcheckinterval) {
             cmd.push("--repl-bind-group-interval=" + this.state.nsds5replicabinddngroupcheckinterval);
         }
-        if (this.state.nsds5replicakeepaliveupdateinterval != this.state._nsds5replicakeepaliveupdateinterval) {
+        if (this.state.nsds5replicakeepaliveupdateinterval !== this.state._nsds5replicakeepaliveupdateinterval) {
             cmd.push("--repl-keepalive-update-interval=" + this.state.nsds5replicakeepaliveupdateinterval);
         }
-        if (this.state.nsds5replicareleasetimeout != this.state._nsds5replicareleasetimeout) {
+        if (this.state.nsds5replicareleasetimeout !== this.state._nsds5replicareleasetimeout) {
             cmd.push("--repl-release-timeout=" + this.state.nsds5replicareleasetimeout);
         }
-        if (this.state.nsds5replicapurgedelay != this.state._nsds5replicapurgedelay) {
+        if (this.state.nsds5replicapurgedelay !== this.state._nsds5replicapurgedelay) {
             cmd.push("--repl-purge-delay=" + this.state.nsds5replicapurgedelay);
         }
         if (cmd.length > 6) {
@@ -461,7 +461,7 @@ export class ReplConfig extends React.Component {
                 // Start the spinner
                 saving: true
             });
-            log_cmd("saveConfig", "Applying replication changes", cmd);
+            log_cmd("handleSaveConfig", "Applying replication changes", cmd);
             const msg = "Successfully updated replication configuration.";
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
@@ -506,37 +506,40 @@ export class ReplConfig extends React.Component {
             manager_rows.push(row);
         }
 
-        if (this.props.role == "Supplier") {
-            roleButton =
+        if (this.props.role === "Supplier") {
+            roleButton = (
                 <Button
                     variant="primary"
-                    onClick={this.showPromoteDemoteModal}
+                    onClick={this.handleShowPromoteDemoteModal}
                     title="Demote this Supplier replica to a Hub or Consumer"
                     className="ds-left-margin"
                 >
                     Change Role
-                </Button>;
-        } else if (this.props.role == "Hub") {
-            roleButton =
+                </Button>
+            );
+        } else if (this.props.role === "Hub") {
+            roleButton = (
                 <Button
                     variant="primary"
-                    onClick={this.showPromoteDemoteModal}
+                    onClick={this.handleShowPromoteDemoteModal}
                     title="Promote or Demote this Hub replica to a Supplier or Consumer"
                     className="ds-left-margin"
                 >
                     Change Role
-                </Button>;
+                </Button>
+            );
         } else {
             // Consumer
-            roleButton =
+            roleButton = (
                 <Button
                     variant="primary"
-                    onClick={this.showPromoteDemoteModal}
+                    onClick={this.handleShowPromoteDemoteModal}
                     title="Promote this Consumer replica to a Supplier or Hub"
                     className="ds-left-margin"
                 >
                     Change Role
-                </Button>;
+                </Button>
+            );
         }
 
         return (
@@ -591,7 +594,7 @@ export class ReplConfig extends React.Component {
                             <GridItem span={2}>
                                 <Button
                                     variant="secondary"
-                                    onClick={this.showAddManager}
+                                    onClick={this.handleShowAddManager}
                                 >
                                     Add Replication Manager
                                 </Button>
@@ -599,7 +602,7 @@ export class ReplConfig extends React.Component {
                         </Grid>
                         <ExpandableSection
                             toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                            onToggle={this.onToggle}
+                            onToggle={this.handleToggle}
                             isExpanded={this.state.isExpanded}
                         >
                             <div className="ds-margin-top ds-margin-left ds-margin-bottom-md">
@@ -620,7 +623,7 @@ export class ReplConfig extends React.Component {
                                             onChange={(str, e) => {
                                                 this.handleChange(e);
                                             }}
-                                            validated={this.state.errObj.nsds5replicabinddngroup && this.state.nsds5replicabinddngroup != "" ? ValidatedOptions.error : ValidatedOptions.default}
+                                            validated={this.state.errObj.nsds5replicabinddngroup && this.state.nsds5replicabinddngroup !== "" ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -829,7 +832,7 @@ export class ReplConfig extends React.Component {
                                     <GridItem span={2}>
                                         <Button
                                             variant="primary"
-                                            onClick={this.saveConfig}
+                                            onClick={this.handleSaveConfig}
                                             isDisabled={this.state.saveBtnDisabled}
                                             isLoading={this.state.saving}
                                             spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -845,7 +848,7 @@ export class ReplConfig extends React.Component {
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmManagerDelete}
                         closeHandler={this.closeConfirmManagerDelete}
-                        handleChange={this.handleModalChange}
+                        handleChange={this.onModalChange}
                         actionHandler={this.deleteManager}
                         spinning={this.state.modalSpinning}
                         item={this.state.manager}
@@ -858,7 +861,7 @@ export class ReplConfig extends React.Component {
                     <AddManagerModal
                         showModal={this.state.showAddManagerModal}
                         closeHandler={this.closeAddManagerModal}
-                        handleChange={this.handleManagerChange}
+                        handleChange={this.onManagerChange}
                         saveHandler={this.addManager}
                         spinning={this.state.addManagerSpinning}
                         manager={this.state.manager}
@@ -869,16 +872,16 @@ export class ReplConfig extends React.Component {
                     <ChangeReplRoleModal
                         showModal={this.state.showPromoteDemoteModal}
                         closeHandler={this.closePromoteDemoteModal}
-                        handleChange={this.handleModalChange}
+                        handleChange={this.onModalChange}
                         saveHandler={this.doRoleChange}
                         spinning={this.state.roleChangeSpinning}
                         role={this.props.role}
                         newRole={this.state.newRole}
                         checked={this.state.modalChecked}
                         newRID={this.state.newRID}
-                        onMinus={this.onMinus}
-                        onNumberChange={this.onNumberChange}
-                        onPlus={this.onPlus}
+                        onMinus={this.handleMinusChange}
+                        onNumberChange={this.handleNumberChange}
+                        onPlus={this.handlePlusChange}
                     />
                 </div>
             </div>

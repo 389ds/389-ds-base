@@ -54,7 +54,7 @@ export class ServerTuning extends React.Component {
             isExpanded: false,
         };
 
-        this.onToggle = (isExpanded) => {
+        this.handleOnToggle = (isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -80,12 +80,12 @@ export class ServerTuning extends React.Component {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn() });
-        }
+        };
 
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
-        this.saveConfig = this.saveConfig.bind(this);
+        this.handleSaveConfig = this.handleSaveConfig.bind(this);
     }
 
     componentDidMount() {
@@ -100,7 +100,7 @@ export class ServerTuning extends React.Component {
         let saveBtnDisabled = true;
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of tuning_attrs) {
-            if (this.state[config_attr] != this.state['_' + config_attr]) {
+            if (this.state[config_attr].toString() !== this.state['_' + config_attr].toString()) {
                 saveBtnDisabled = false;
                 break;
             }
@@ -116,7 +116,7 @@ export class ServerTuning extends React.Component {
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn() } );
+        }, () => { this.validateSaveBtn() });
     }
 
     loadConfig(reloading) {
@@ -141,16 +141,16 @@ export class ServerTuning extends React.Component {
                     let connNoCannon = false;
                     let turboMode = false;
 
-                    if (attrs['nsslapd-ndn-cache-enabled'][0] == "on") {
+                    if (attrs['nsslapd-ndn-cache-enabled'][0] === "on") {
                         ndnEnabled = true;
                     }
-                    if (attrs['nsslapd-ignore-virtual-attrs'][0] == "on") {
+                    if (attrs['nsslapd-ignore-virtual-attrs'][0] === "on") {
                         ignoreVirtAttrs = true;
                     }
-                    if (attrs['nsslapd-connection-nocanon'][0] == "on") {
+                    if (attrs['nsslapd-connection-nocanon'][0] === "on") {
                         connNoCannon = true;
                     }
-                    if (attrs['nsslapd-enable-turbo-mode'][0] == "on") {
+                    if (attrs['nsslapd-enable-turbo-mode'][0] === "on") {
                         turboMode = true;
                     }
                     this.setState({
@@ -207,8 +207,8 @@ export class ServerTuning extends React.Component {
                 });
     }
 
-    saveConfig() {
-        let cmd = [
+    handleSaveConfig() {
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
@@ -218,7 +218,7 @@ export class ServerTuning extends React.Component {
         });
 
         for (const attr of tuning_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (this.state['_' + attr] !== this.state[attr]) {
                 let val = this.state[attr];
                 if (typeof val === "boolean") {
                     if (val) {
@@ -231,7 +231,7 @@ export class ServerTuning extends React.Component {
             }
         }
 
-        log_cmd("saveConfig", "Saving Tuning configuration", cmd);
+        log_cmd("handleSaveConfig", "Saving Tuning configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -261,21 +261,23 @@ export class ServerTuning extends React.Component {
         }
 
         if (!this.state.loaded) {
-            body =
+            body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>Loading Tuning Configuration ...</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
-                </div>;
+                </div>
+            );
         } else {
-            body =
+            body = (
                 <div className={this.state.loading ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"}>
                     <Grid>
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Tuning & Limits <FontAwesomeIcon
+                                    Tuning & Limits
+                                    <FontAwesomeIcon
                                         size="lg"
                                         className="ds-left-margin ds-refresh"
                                         icon={faSyncAlt}
@@ -426,7 +428,7 @@ export class ServerTuning extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-xlg"
                         toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                        onToggle={this.onToggle}
+                        onToggle={this.handleOnToggle}
                         isExpanded={this.state.isExpanded}
                     >
                         <div className="ds-margin-top ds-indent">
@@ -629,14 +631,15 @@ export class ServerTuning extends React.Component {
                         isDisabled={this.state.saveDisabled || this.state.loading}
                         variant="primary"
                         className="ds-margin-top-xlg"
-                        onClick={this.saveConfig}
+                        onClick={this.handleSaveConfig}
                         isLoading={this.state.loading}
                         spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
                     </Button>
-                </div>;
+                </div>
+            );
         }
 
         return (

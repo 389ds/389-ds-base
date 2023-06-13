@@ -17,7 +17,7 @@ import {
     TextVariants,
     Tooltip,
 } from '@patternfly/react-core';
-import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 export class Changelog extends React.Component {
     constructor (props) {
@@ -28,16 +28,16 @@ export class Changelog extends React.Component {
             showConfirmDelete: false,
             saveBtnDisabled: true,
             // Changelog settings
-            clMaxEntries: Number(this.props.clMaxEntries) == 0 ? -1 : Number(this.props.clMaxEntries),
-            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
-            clMaxAgeUnit: this.props.clMaxAge != "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
-            clTrimInt: Number(this.props.clTrimInt) == 0 ? -1 : Number(this.props.clTrimInt),
+            clMaxEntries: Number(this.props.clMaxEntries) === 0 ? -1 : Number(this.props.clMaxEntries),
+            clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            clMaxAgeUnit: this.props.clMaxAge !== "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            clTrimInt: Number(this.props.clTrimInt) === 0 ? -1 : Number(this.props.clTrimInt),
             clEncrypt: this.props.clEncrypt,
             // Preserve original settings
-            _clMaxEntries: Number(this.props.clMaxEntries) == 0 ? -1 : Number(this.props.clMaxEntries),
-            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) == 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
-            _clMaxAgeUnit: this.props.clMaxAge != "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
-            _clTrimInt: Number(this.props.clTrimInt) == 0 ? -1 : Number(this.props.clTrimInt),
+            _clMaxEntries: Number(this.props.clMaxEntries) === 0 ? -1 : Number(this.props.clMaxEntries),
+            _clMaxAge: Number(this.props.clMaxAge.slice(0, -1)) === 0 ? -1 : Number(this.props.clMaxAge.slice(0, -1)),
+            _clMaxAgeUnit: this.props.clMaxAge !== "" ? this.props.clMaxAge.slice(-1).toLowerCase() : "s",
+            _clTrimInt: Number(this.props.clTrimInt) === 0 ? -1 : Number(this.props.clTrimInt),
             _clEncrypt: this.props.clEncrypt,
         };
 
@@ -64,27 +64,27 @@ export class Changelog extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
-        this.saveSettings = this.saveSettings.bind(this);
+        this.handleSaveSettings = this.handleSaveSettings.bind(this);
     }
 
-    saveSettings () {
-        let cmd = [
+    handleSaveSettings () {
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'replication', 'set-changelog', '--suffix', this.props.suffix
         ];
         let requires_restart = false;
         let msg = "Successfully updated changelog configuration.";
 
-        if (this.state.clMaxEntries != this.state._clMaxEntries) {
+        if (this.state.clMaxEntries !== this.state._clMaxEntries) {
             cmd.push("--max-entries=" + this.state.clMaxEntries);
         }
-        if (this.state.clMaxAge != this.state._clMaxAge || this.state.clMaxAgeUnit != this.state._clMaxAgeUnit) {
+        if (this.state.clMaxAge !== this.state._clMaxAge || this.state.clMaxAgeUnit !== this.state._clMaxAgeUnit) {
             cmd.push("--max-age=" + this.state.clMaxAge + this.state.clMaxAgeUnit);
         }
-        if (this.state.clTrimInt != this.state._clTrimInt) {
+        if (this.state.clTrimInt !== this.state._clTrimInt) {
             cmd.push("--trim-interval=" + this.state.clTrimInt);
         }
-        if (this.state.clEncrypt != this.state._clEncrypt) {
+        if (this.state.clEncrypt !== this.state._clEncrypt) {
             if (this.state.clEncrypt) {
                 cmd.push("--encrypt");
                 msg += "  This requires a server restart to take effect";
@@ -98,7 +98,7 @@ export class Changelog extends React.Component {
                 // Start the spinner
                 saving: true
             });
-            log_cmd("saveSettings", "Applying replication changelog changes", cmd);
+            log_cmd("handleSaveSettings", "Applying replication changelog changes", cmd);
             cockpit
                     .spawn(cmd, { superuser: true, err: "message" })
                     .done(content => {
@@ -133,16 +133,16 @@ export class Changelog extends React.Component {
     validateSaveBtn() {
         let saveBtnDisabled = true;
 
-        if (this.state.clMaxEntries != this.state._clMaxEntries ||
-            this.state.clMaxAge != this.state._clMaxAge ||
-            this.state.clMaxAgeUnit != this.state._clMaxAgeUnit ||
-            this.state.clTrimInt != this.state._clTrimInt ||
-            this.state.clEncrypt != this.state._clEncrypt) {
+        if (this.state.clMaxEntries !== this.state._clMaxEntries ||
+            this.state.clMaxAge !== this.state._clMaxAge ||
+            this.state.clMaxAgeUnit !== this.state._clMaxAgeUnit ||
+            this.state.clTrimInt !== this.state._clTrimInt ||
+            this.state.clEncrypt !== this.state._clEncrypt) {
             saveBtnDisabled = false;
         }
 
         this.setState({
-            saveBtnDisabled: saveBtnDisabled,
+            saveBtnDisabled,
         });
     }
 
@@ -174,28 +174,28 @@ export class Changelog extends React.Component {
                     let clEncrypt = false;
                     for (const attr in config.attrs) {
                         const val = config.attrs[attr][0];
-                        if (attr == "nsslapd-changelogmaxentries") {
+                        if (attr === "nsslapd-changelogmaxentries") {
                             clMaxEntries = val;
-                        } else if (attr == "nsslapd-changelogmaxage") {
+                        } else if (attr === "nsslapd-changelogmaxage") {
                             clMaxAge = val.slice(0, -1);
                             clMaxAgeUnit = val.slice(-1).toLowerCase();
-                        } else if (attr == "nsslapd-changelogtrim-interval") {
+                        } else if (attr === "nsslapd-changelogtrim-interval") {
                             clTrimInt = val;
-                        } else if (attr == "nsslapd-encryptionalgorithm") {
+                        } else if (attr === "nsslapd-encryptionalgorithm") {
                             clEncrypt = true;
                         }
                     }
                     this.setState({
-                        clMaxEntries: Number(clMaxEntries) == 0 ? -1 : Number(clMaxEntries),
-                        clMaxAge: Number(clMaxAge) == 0 ? -1 : Number(clMaxAge),
-                        clMaxAgeUnit: clMaxAgeUnit,
-                        clTrimInt: Number(clTrimInt) == 0 ? -1 : Number(clTrimInt),
-                        clEncrypt: clEncrypt,
+                        clMaxEntries: Number(clMaxEntries) === 0 ? -1 : Number(clMaxEntries),
+                        clMaxAge: Number(clMaxAge) === 0 ? -1 : Number(clMaxAge),
+                        clMaxAgeUnit,
+                        clTrimInt: Number(clTrimInt) === 0 ? -1 : Number(clTrimInt),
+                        clEncrypt,
                         // Preserve original settings
-                        _clMaxEntries: Number(clMaxEntries) == 0 ? -1 : Number(clMaxEntries),
-                        _clMaxAge: Number(clMaxAge) == 0 ? -1 : Number(clMaxAge),
+                        _clMaxEntries: Number(clMaxEntries) === 0 ? -1 : Number(clMaxEntries),
+                        _clMaxAge: Number(clMaxAge) === 0 ? -1 : Number(clMaxAge),
                         _clMaxAgeUnit: clMaxAgeUnit,
-                        _clTrimInt: Number(clTrimInt) == 0 ? -1 : Number(clTrimInt),
+                        _clTrimInt: Number(clTrimInt) === 0 ? -1 : Number(clTrimInt),
                         _clEncrypt: clEncrypt,
                         saveBtnDisabled: true,
                         loading: false,
@@ -223,7 +223,7 @@ export class Changelog extends React.Component {
             saveBtnName = "Saving settings ...";
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         } else if (this.loading) {
-            clPage =
+            clPage = (
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
@@ -231,9 +231,10 @@ export class Changelog extends React.Component {
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="md" />
-                </div>;
+                </div>
+            );
         } else {
-            clPage =
+            clPage = (
                 <div className="ds-margin-top-lg">
                     <Form isHorizontal>
                         <Grid
@@ -353,7 +354,7 @@ export class Changelog extends React.Component {
                     <Button
                         className="ds-margin-top-xlg"
                         variant="primary"
-                        onClick={this.saveSettings}
+                        onClick={this.handleSaveSettings}
                         isDisabled={this.state.saveBtnDisabled || this.state.saving}
                         isLoading={this.state.saving}
                         spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
@@ -361,7 +362,8 @@ export class Changelog extends React.Component {
                     >
                         {saveBtnName}
                     </Button>
-                </div>;
+                </div>
+            );
         }
 
         return (

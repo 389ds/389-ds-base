@@ -108,12 +108,12 @@ export class Suffix extends React.Component {
         // config.autoAddCss = false;
 
         // Dropdown tasks
-        this.onToggle = dropdownIsOpen => {
+        this.handleToggle = dropdownIsOpen => {
             this.setState({
                 dropdownIsOpen
             });
         };
-        this.onSelect = event => {
+        this.handleSelect = event => {
             this.setState({
                 dropdownIsOpen: !this.state.dropdownIsOpen
             });
@@ -132,39 +132,39 @@ export class Suffix extends React.Component {
 
         // General bindings
         // Import modal
-        this.showImportModal = this.showImportModal.bind(this);
+        this.handleShowImportModal = this.handleShowImportModal.bind(this);
         this.closeImportModal = this.closeImportModal.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onChange = this.onChange.bind(this);
         this.doImport = this.doImport.bind(this);
         this.importLDIF = this.importLDIF.bind(this);
         this.showConfirmLDIFImport = this.showConfirmLDIFImport.bind(this);
         this.closeConfirmLDIFImport = this.closeConfirmLDIFImport.bind(this);
         // Export modal
-        this.showExportModal = this.showExportModal.bind(this);
+        this.handleShowExportModal = this.handleShowExportModal.bind(this);
         this.closeExportModal = this.closeExportModal.bind(this);
         this.doExport = this.doExport.bind(this);
-        this.handleExportChange = this.handleExportChange.bind(this);
+        this.onExportChange = this.onExportChange.bind(this);
         // Reindex Suffix Modal
-        this.showReindexConfirm = this.showReindexConfirm.bind(this);
+        this.handleShowReindexConfirm = this.handleShowReindexConfirm.bind(this);
         this.closeReindexConfirm = this.closeReindexConfirm.bind(this);
         this.doReindex = this.doReindex.bind(this);
         // Create sub suffix modal
-        this.showSubSuffixModal = this.showSubSuffixModal.bind(this);
+        this.handleShowSubSuffixModal = this.handleShowSubSuffixModal.bind(this);
         this.closeSubSuffixModal = this.closeSubSuffixModal.bind(this);
         this.createSubSuffix = this.createSubSuffix.bind(this);
-        this.handleSubSuffixOnSelect = this.handleSubSuffixOnSelect.bind(this);
-        this.handleSubSuffixChange = this.handleSubSuffixChange.bind(this);
+        this.onSubSuffixOnSelect = this.onSubSuffixOnSelect.bind(this);
+        this.onSubSuffixChange = this.onSubSuffixChange.bind(this);
         // Create link modal
-        this.showLinkModal = this.showLinkModal.bind(this);
+        this.handleShowLinkModal = this.handleShowLinkModal.bind(this);
         this.closeLinkModal = this.closeLinkModal.bind(this);
         this.createLink = this.createLink.bind(this);
-        this.handleLinkChange = this.handleLinkChange.bind(this);
-        this.handleLinkOnSelect = this.handleLinkOnSelect.bind(this);
+        this.onLinkChange = this.onLinkChange.bind(this);
+        this.onLinkOnSelect = this.onLinkOnSelect.bind(this);
         // Suffix config
         this.saveSuffixConfig = this.saveSuffixConfig.bind(this);
-        this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
+        this.handleShowDeleteConfirm = this.handleShowDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
-        this.handleConfigChange = this.handleConfigChange.bind(this);
+        this.onConfigChange = this.onConfigChange.bind(this);
         this.doDelete = this.doDelete.bind(this);
     }
 
@@ -175,7 +175,7 @@ export class Suffix extends React.Component {
     //
     // Import Modal
     //
-    showImportModal() {
+    handleShowImportModal() {
         this.setState({
             ldifLocation: "",
             attrEncryption: false,
@@ -190,21 +190,21 @@ export class Suffix extends React.Component {
         });
     }
 
-    handleChange(e) {
+    onChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         const errObj = this.state.errObj;
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
-    handleConfigChange(e) {
+    onConfigChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
         let saveBtnDisabled = true;
@@ -214,18 +214,18 @@ export class Suffix extends React.Component {
             'readOnly', 'requireIndex', 'dbstate'
         ];
         for (const check_attr of configAttrs) {
-            if (attr != check_attr) {
-                if (this.state[check_attr] != this.state['_' + check_attr]) {
+            if (attr !== check_attr) {
+                if (this.state[check_attr] !== this.state['_' + check_attr]) {
                     saveBtnDisabled = false;
                 }
-            } else if (value != this.state['_' + check_attr]) {
+            } else if (value !== this.state['_' + check_attr]) {
                 saveBtnDisabled = false;
             }
         }
 
         this.setState({
             [attr]: value,
-            saveBtnDisabled: saveBtnDisabled
+            saveBtnDisabled
         });
     }
 
@@ -288,7 +288,7 @@ export class Suffix extends React.Component {
 
     doImport() {
         // Validate form before proceeding
-        if (this.state.ldifLocation != "") {
+        if (this.state.ldifLocation !== "") {
             this.setState({
                 showConfirmLDIFImport: true,
                 importLDIFName: this.state.ldifLocation,
@@ -299,7 +299,7 @@ export class Suffix extends React.Component {
     //
     // Export modal
     //
-    showExportModal() {
+    handleShowExportModal() {
         this.setState({
             ldifLocation: "",
             attrEncryption: false,
@@ -319,7 +319,7 @@ export class Suffix extends React.Component {
 
     doExport() {
         const missingArgs = { ldifLocation: false };
-        if (this.state.ldifLocation == "") {
+        if (this.state.ldifLocation === "") {
             this.props.addNotification(
                 "warning",
                 `LDIF name is empty`
@@ -413,7 +413,7 @@ export class Suffix extends React.Component {
     //
     // Reindex entire database
     //
-    showReindexConfirm() {
+    handleShowReindexConfirm() {
         this.setState({
             showReindexConfirm: true,
             modalChecked: false,
@@ -465,7 +465,7 @@ export class Suffix extends React.Component {
     //
     // Create sub suffix
     //
-    showSubSuffixModal() {
+    handleShowSubSuffixModal() {
         this.setState({
             showSubSuffixModal: true,
             errObj: {},
@@ -480,7 +480,7 @@ export class Suffix extends React.Component {
 
     createSubSuffix() {
         // Create a new suffix
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "create", "--be-name", this.state.subSuffixBeName,
             "--suffix=" + this.state.subSuffixValue + "," + this.props.suffix,
@@ -529,7 +529,7 @@ export class Suffix extends React.Component {
     //
     // Create Chaining Link
     //
-    showLinkModal() {
+    handleShowLinkModal() {
         this.setState({
             showLinkModal: true,
             errObj: {},
@@ -547,7 +547,7 @@ export class Suffix extends React.Component {
         this.setState({
             linkSaving: true
         });
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "chaining", "link-create",
             "--suffix=" + this.state.createLinkSuffix + "," + this.props.suffix,
@@ -588,13 +588,13 @@ export class Suffix extends React.Component {
                 });
     }
 
-    handleLinkOnSelect(value, event) {
+    onLinkOnSelect(value, event) {
         this.setState({
             createNsbindmechanism: value,
         });
     }
 
-    handleLinkChange(e) {
+    onLinkChange(e) {
         // Check for matching credentials
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
@@ -608,19 +608,19 @@ export class Suffix extends React.Component {
             "createNsmultiplexorcredentialsConfirm", "createNsbindmechanism"
         ];
         for (const check_attr of check_attrs) {
-            if (attr != check_attr && this.state[check_attr] == "") {
+            if (attr !== check_attr && this.state[check_attr] === "") {
                 saveBtnDisabled = true;
             }
         }
 
         // Handle password validation
-        if (attr != "createNsmultiplexorcredentials" && attr != "createNsmultiplexorcredentialsConfirm") {
-            if (this.state.createNsmultiplexorcredentials != this.state.createNsmultiplexorcredentialsConfirm) {
+        if (attr !== "createNsmultiplexorcredentials" && attr !== "createNsmultiplexorcredentialsConfirm") {
+            if (this.state.createNsmultiplexorcredentials !== this.state.createNsmultiplexorcredentialsConfirm) {
                 saveBtnDisabled = true;
             }
         } else {
-            if (attr == "createNsmultiplexorcredentials") {
-                if (value != this.state.createNsmultiplexorcredentialsConfirm) {
+            if (attr === "createNsmultiplexorcredentials") {
+                if (value !== this.state.createNsmultiplexorcredentialsConfirm) {
                     errObj.createNsmultiplexorcredentials = true;
                     errObj.createNsmultiplexorcredentialsConfirm = true;
                     saveBtnDisabled = true;
@@ -628,8 +628,8 @@ export class Suffix extends React.Component {
                     errObj.createNsmultiplexorcredentials = false;
                     errObj.createNsmultiplexorcredentialsConfirm = false;
                 }
-            } else if (attr == "createNsmultiplexorcredentialsConfirm") {
-                if (value != this.state.createNsmultiplexorcredentials) {
+            } else if (attr === "createNsmultiplexorcredentialsConfirm") {
+                if (value !== this.state.createNsmultiplexorcredentials) {
                     errObj.createNsmultiplexorcredentials = true;
                     errObj.createNsmultiplexorcredentialsConfirm = true;
                     saveBtnDisabled = true;
@@ -640,26 +640,26 @@ export class Suffix extends React.Component {
             }
         }
 
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
             saveBtnDisabled = true;
         }
         errObj[attr] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj,
+            errObj,
             linkSaveBtnDisabled: saveBtnDisabled
         });
     }
 
-    handleSubSuffixOnSelect(value, event) {
+    onSubSuffixOnSelect(value, event) {
         let noInit = false;
         let addSuffix = false;
         let addSample = false;
 
-        if (value == "noInit") {
+        if (value === "noInit") {
             noInit = true;
-        } else if (value == "addSuffix") {
+        } else if (value === "addSuffix") {
             addSuffix = true;
         } else { // addSample
             addSample = true;
@@ -672,46 +672,46 @@ export class Suffix extends React.Component {
         });
     }
 
-    handleSubSuffixChange(e) {
+    onSubSuffixChange(e) {
         const value = e.target.value;
         let valueErr = false;
         const errObj = this.state.errObj;
         let saveBtnDisabled = false;
         const check_attrs = ["subSuffixBeName", "subSuffixValue"];
         for (const check_attr of check_attrs) {
-            if (this.state[check_attr] == "") {
+            if (this.state[check_attr] === "") {
                 saveBtnDisabled = true;
             }
         }
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
             saveBtnDisabled = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj,
+            errObj,
             saveSubSuffixBtnDisabled: saveBtnDisabled
         });
     }
 
-    handleExportChange(e) {
+    onExportChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         const errObj = this.state.errObj;
         let saveBtnDisabled = false;
 
-        if (e.target.id != "ldifLocation" && this.state.ldifLocation == 0) {
+        if (e.target.id !== "ldifLocation" && this.state.ldifLocation === 0) {
             saveBtnDisabled = true;
         }
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
             saveBtnDisabled = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj,
+            errObj,
             saveExportBtnDisabled: saveBtnDisabled
         });
     }
@@ -719,7 +719,7 @@ export class Suffix extends React.Component {
     //
     // Delete suffix
     //
-    showDeleteConfirm(item) {
+    handleShowDeleteConfirm(item) {
         this.setState({
             showDeleteConfirm: true,
             modalSpinning: false,
@@ -739,8 +739,8 @@ export class Suffix extends React.Component {
         // Delete suffix
         this.setState({
             modalSpinning: true
-        })
-        let cmd = [
+        });
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "delete", this.props.suffix, "--do-it"
         ];
@@ -769,38 +769,38 @@ export class Suffix extends React.Component {
     // Save config
     saveSuffixConfig() {
         console.log("Save suffix config: ", this.props.suffix);
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'backend', 'suffix', 'set', this.props.suffix
         ];
         let requireRestart = false;
-        if (this.state._readOnly != this.state.readOnly) {
+        if (this.state._readOnly !== this.state.readOnly) {
             if (this.state.readOnly) {
                 cmd.push("--enable-readonly");
             } else {
                 cmd.push("--disable-readonly");
             }
         }
-        if (this.state._requireIndex != this.state.requireIndex) {
+        if (this.state._requireIndex !== this.state.requireIndex) {
             if (this.state.requireIndex) {
                 cmd.push("--require-index");
             } else {
                 cmd.push("--ignore-index");
             }
         }
-        if (this.state._cachememsize != this.state.cachememsize) {
+        if (this.state._cachememsize !== this.state.cachememsize) {
             cmd.push("--cache-memsize=" + this.state.cachememsize);
             requireRestart = true;
         }
-        if (this.state._cachesize != this.state.cachesize) {
+        if (this.state._cachesize !== this.state.cachesize) {
             cmd.push("--cache-size=" + this.state.cachesize);
             requireRestart = true;
         }
-        if (this.state._dncachememsize != this.state.dncachememsize) {
+        if (this.state._dncachememsize !== this.state.dncachememsize) {
             cmd.push("--dncache-memsize=" + this.state.dncachememsize);
             requireRestart = true;
         }
-        if (this.state._dbstate != this.state.dbstate) {
+        if (this.state._dbstate !== this.state.dbstate) {
             cmd.push("--state=" + this.state.dbstate);
             requireRestart = true;
         }
@@ -848,29 +848,29 @@ export class Suffix extends React.Component {
     //
     render () {
         let suffixIcon = faTree;
-        if (this.props.dbtype == "subsuffix") {
+        if (this.props.dbtype === "subsuffix") {
             suffixIcon = faLeaf;
         }
         const { dropdownIsOpen, activeTabKey } = this.state;
 
         const dropdownItems = [
-            <DropdownItem key="import" component="button" onClick={this.showImportModal} title="Import an LDIF file to initialize the database">
+            <DropdownItem key="import" component="button" onClick={this.handleShowImportModal} title="Import an LDIF file to initialize the database">
                 Initialize Suffix
             </DropdownItem>,
-            <DropdownItem key="export" component="button" onClick={this.showExportModal} title="Export the database to an LDIF file">
+            <DropdownItem key="export" component="button" onClick={this.handleShowExportModal} title="Export the database to an LDIF file">
                 Export Suffix
             </DropdownItem>,
-            <DropdownItem key="reindex" component="button" onClick={this.showReindexConfirm} title="Reindex the entire database">
+            <DropdownItem key="reindex" component="button" onClick={this.handleShowReindexConfirm} title="Reindex the entire database">
                 Reindex Suffix
             </DropdownItem>,
-            <DropdownItem key="subSuffix" component="button" onClick={this.showSubSuffixModal} title="Create a sub-suffix under this suffix">
+            <DropdownItem key="subSuffix" component="button" onClick={this.handleShowSubSuffixModal} title="Create a sub-suffix under this suffix">
                 Create Sub-Suffix
             </DropdownItem>,
-            <DropdownItem key="dbLink" component="button" onClick={this.showLinkModal} title="Create a database chaining link subtree">
+            <DropdownItem key="dbLink" component="button" onClick={this.handleShowLinkModal} title="Create a database chaining link subtree">
                 Create Database Link
             </DropdownItem>,
             <DropdownSeparator key="separator" />,
-            <DropdownItem key="deleteSuffix" component="button" onClick={this.showDeleteConfirm} title="This will permanently delete the database">
+            <DropdownItem key="deleteSuffix" component="button" onClick={this.handleShowDeleteConfirm} title="This will permanently delete the database">
                 Delete Suffix
             </DropdownItem>,
         ];
@@ -891,9 +891,9 @@ export class Suffix extends React.Component {
                         <Dropdown
                             className="ds-float-right"
                             position={DropdownPosition.right}
-                            onSelect={this.onSelect}
+                            onSelect={this.handleSelect}
                             toggle={
-                                <DropdownToggle id="suffix-dropdown" isPrimary onToggle={this.onToggle}>
+                                <DropdownToggle id="suffix-dropdown" isPrimary onToggle={this.handleToggle}>
                                     Suffix Tasks
                                 </DropdownToggle>
                             }
@@ -914,8 +914,8 @@ export class Suffix extends React.Component {
                                 readOnly={this.state.readOnly}
                                 requireIndex={this.state.requireIndex}
                                 autoTuning={this.state.autoTuning}
-                                handleChange={this.handleConfigChange}
-                                saveHandler={this.saveSuffixConfig}
+                                handleChange={this.onConfigChange}
+                                handleSave={this.saveSuffixConfig}
                                 saving={this.state.savingConfig}
                                 saveBtnDisabled={this.state.saveBtnDisabled}
                             />
@@ -966,7 +966,7 @@ export class Suffix extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.doDelete}
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
@@ -979,8 +979,8 @@ export class Suffix extends React.Component {
                 <CreateLinkModal
                     showModal={this.state.showLinkModal}
                     closeHandler={this.closeLinkModal}
-                    handleChange={this.handleLinkChange}
-                    handleSelectChange={this.handleLinkOnSelect}
+                    handleChange={this.onLinkChange}
+                    handleSelectChange={this.onLinkOnSelect}
                     saveHandler={this.createLink}
                     suffix={this.props.suffix}
                     starttls_checked={this.state.createUseStartTLS}
@@ -992,8 +992,8 @@ export class Suffix extends React.Component {
                 <CreateSubSuffixModal
                     showModal={this.state.showSubSuffixModal}
                     closeHandler={this.closeSubSuffixModal}
-                    handleChange={this.handleSubSuffixChange}
-                    handleSelectChange={this.handleSubSuffixOnSelect}
+                    handleChange={this.onSubSuffixChange}
+                    handleSelectChange={this.onSubSuffixOnSelect}
                     saveHandler={this.createSubSuffix}
                     suffix={this.props.suffix}
                     error={this.state.errObj}
@@ -1004,17 +1004,17 @@ export class Suffix extends React.Component {
                 <ImportModal
                     showModal={this.state.showImportModal}
                     closeHandler={this.closeImportModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     saveHandler={this.doImport}
                     showConfirmImport={this.showConfirmLDIFImport}
                     rows={this.props.LDIFRows}
                     suffix={this.props.suffix}
-                    saveBtnDisabled={this.state.ldifLocation == ""}
+                    saveBtnDisabled={this.state.ldifLocation === ""}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFImport}
                     closeHandler={this.closeConfirmLDIFImport}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.importLDIF}
                     spinning={this.state.modalSpinning}
                     item={this.state.importLDIFName}
@@ -1027,17 +1027,17 @@ export class Suffix extends React.Component {
                 <ExportModal
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
-                    handleChange={this.handleExportChange}
+                    handleChange={this.onExportChange}
                     saveHandler={this.doExport}
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
                     includeReplData={this.state.includeReplData}
-                    saveBtnDisabled={this.state.ldifLocation == ""}
+                    saveBtnDisabled={this.state.ldifLocation === ""}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
                     closeHandler={this.closeReindexConfirm}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.doReindex}
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}

@@ -7,7 +7,7 @@ const LdapOptions = {
 // Size limit.
 export function setSizeLimit (limit) {
     LdapOptions.sizeLimit = limit;
-};
+}
 
 export function getSizeLimit () {
     return LdapOptions.sizeLimit;
@@ -16,7 +16,7 @@ export function getSizeLimit () {
 // Time limit.
 export function setTimeLimit (limit) {
     LdapOptions.timeLimit = limit;
-};
+}
 
 export function getTimeLimit () {
     return LdapOptions.timeLimit;

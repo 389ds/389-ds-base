@@ -89,9 +89,9 @@ export class ServerAccessLog extends React.Component {
             canSelectAll: false,
             isExpanded: false,
             rows: [
-                { cells: [{ title: this.defaultLevel}], level: 256, selected: true },
-                { cells: [{ title: this.internalOpLevel}], level: 4, selected: false },
-                { cells: [{ title: this.refLevel}], level: 512, selected: false }
+                { cells: [{ title: this.defaultLevel }], level: 256, selected: true },
+                { cells: [{ title: this.internalOpLevel }], level: 4, selected: false },
+                { cells: [{ title: this.refLevel }], level: 512, selected: false }
             ],
             columns: [
                 { title: 'Logging Level' },
@@ -105,7 +105,7 @@ export class ServerAccessLog extends React.Component {
             });
         };
 
-        this.onToggle = isExpanded => {
+        this.handleOnToggle = isExpanded => {
             this.setState({
                 isExpanded
             });
@@ -117,7 +117,7 @@ export class ServerAccessLog extends React.Component {
         this.loadConfig = this.loadConfig.bind(this);
         this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
-        this.onSelect = this.onSelect.bind(this);
+        this.handleOnSelect = this.handleOnSelect.bind(this);
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
                 [id]: Number(this.state[id]) - 1
@@ -129,7 +129,7 @@ export class ServerAccessLog extends React.Component {
                 maxValue = max;
             }
             let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
-            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
             this.setState({
                 [id]: newValue
             }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
@@ -138,7 +138,7 @@ export class ServerAccessLog extends React.Component {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
-        }
+        };
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
 
@@ -204,7 +204,7 @@ export class ServerAccessLog extends React.Component {
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
+        }, () => { this.validateSaveBtn(nav_tab, attr, value) });
     }
 
     handleSwitchChange(value) {
@@ -262,7 +262,7 @@ export class ServerAccessLog extends React.Component {
             config_attrs = exp_attrs;
         }
 
-        let cmd = [
+        const cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'config', 'replace'
         ];
@@ -379,7 +379,7 @@ export class ServerAccessLog extends React.Component {
                         'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
                         'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
                         'nsslapd-accesslog-compress': compress,
-                        rows: rows,
+                        rows,
                         // Record original values
                         _rows:  JSON.parse(JSON.stringify(rows)),
                         '_nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
@@ -460,7 +460,7 @@ export class ServerAccessLog extends React.Component {
             'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
             'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
             'nsslapd-accesslog-compress': compress,
-            rows: rows,
+            rows,
             // Record original values
             _rows: JSON.parse(JSON.stringify(rows)),
             '_nsslapd-accesslog': attrs['nsslapd-accesslog'][0],
@@ -482,9 +482,9 @@ export class ServerAccessLog extends React.Component {
         }, this.props.enableTree);
     }
 
-    onSelect(event, isSelected, rowId) {
+    handleOnSelect(event, isSelected, rowId) {
         let disableSaveBtn = true;
-        let rows = [...this.state.rows];
+        const rows = [...this.state.rows];
 
         // Update the row
         rows[rowId].selected = isSelected;
@@ -540,7 +540,7 @@ export class ServerAccessLog extends React.Component {
         }
         rotationTime = hour + ":" + min;
 
-        let body =
+        let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                     <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
@@ -583,16 +583,15 @@ export class ServerAccessLog extends React.Component {
                             label="Access Log Buffering Enabled"
                         />
 
-
                         <ExpandableSection
                             className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
                             toggleText={this.state.isExpanded ? 'Hide Logging Levels' : 'Show Logging Levels'}
-                            onToggle={this.onToggle}
+                            onToggle={this.handleOnToggle}
                             isExpanded={this.state.isExpanded}
                         >
                             <Table
                                 className="ds-left-margin"
-                                onSelect={this.onSelect}
+                                onSelect={this.handleOnSelect}
                                 canSelectAll={this.state.canSelectAll}
                                 variant={TableVariant.compact}
                                 aria-label="Selectable Table"
@@ -847,16 +846,18 @@ export class ServerAccessLog extends React.Component {
                         </Button>
                     </Tab>
                 </Tabs>
-            </div>;
+            </div>
+        );
 
         if (!this.state.loaded) {
-            body =
+            body = (
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>Loading Access Log Settings ...</Text>
                     </TextContent>
                     <Spinner size="xl" />
-                </div>;
+                </div>
+            );
         }
 
         return (
@@ -865,7 +866,8 @@ export class ServerAccessLog extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Access Log Settings <FontAwesomeIcon
+                                Access Log Settings
+                                <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}

@@ -20,12 +20,12 @@
 
 .ds-refresh {
     background-color: #0088ce;
-    background-image: linear-gradient(to bottom,#39a5dc 0,#0088ce 100%);
-    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff39a5dc', endColorstr='#ff0088ce', GradientType=0);
+    background-image: linear-gradient(to bottom, #39a5dc 0, #0088ce 100%);
+    filter: progid:dximagetransform.microsoft.gradient(startColorstr="#ff39a5dc", endColorstr="#ff0088ce", GradientType=0);
     border-color: #00659c;
     color: #fff;
     padding: 3px;
-    box-shadow: 0 3px 3px rgba(3,3,3,.1);
+    box-shadow: 0 3px 3px rgb(3 3 3 / 10%);
     border-radius: 50%;
     border: 1px solid transparent;
     text-align: center;
@@ -34,12 +34,12 @@
 
 .ds-refresh-sm {
     background-color: #0088ce;
-    background-image: linear-gradient(to bottom,#39a5dc 0,#0088ce 100%);
-    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff39a5dc', endColorstr='#ff0088ce', GradientType=0);
+    background-image: linear-gradient(to bottom, #39a5dc 0, #0088ce 100%);
+    filter: progid:dximagetransform.microsoft.gradient(startColorstr="#ff39a5dc", endColorstr="#ff0088ce", GradientType=0);
     border-color: #00659c;
     color: #fff;
     padding: 2px;
-    box-shadow: 0 2px 2px rgba(3,3,3,.1);
+    box-shadow: 0 2px 2px rgb(3 3 3 / 10%);
     border-radius: 50%;
     border: 1px solid transparent;
     text-align: center;
@@ -53,7 +53,7 @@ td {
 }
 
 .ds-no-padding {
-    padding: 0px !important;
+    padding: 0 !important;
 }
 
 .ds-width-sm {
@@ -75,7 +75,7 @@ td {
 
 .pf-theme-dark .ds-tree {
     border: 1px solid #909090;
-    background-color: rgb(54, 55, 58);
+    background-color: rgb(54 55 58);
     width: 300px;
     min-width: 300px;
     min-height: 350px;
@@ -125,7 +125,7 @@ td {
 }
 
 .ds-hidden {
-    display: none
+    display: none;
 }
 
 .ds-error-msg {
@@ -164,7 +164,7 @@ td {
 }
 
 .ds-dblink-dropdown a {
-    padding: 0px !important;
+    padding: 0 !important;
     padding-left: 10px !important;
     line-height: 0 !important;
     width: 140px !important;
@@ -179,7 +179,7 @@ td {
 .ds-box {
     min-height: 350px !important;
     max-height: 350px !important;
-    border: .5px solid #909090;
+    border: 0.5px solid #909090;
     overflow-y: scroll;
 }
 
@@ -306,7 +306,7 @@ textarea {
 }
 
 .modal {
-  overflow-y:auto;
+  overflow-y: auto;
 }
 
 .ds-hide-vertical-scrollbar {
@@ -427,7 +427,7 @@ textarea {
 
 @media screen and (max-width: 1300px) {
     .ds-plugin-spinner {
-        margin-left: 0px;
+        margin-left: 0;
     }
 }
 
@@ -455,8 +455,8 @@ textarea {
 
 @media screen and (max-width: 770px) {
     .ds-plugin-tab-header {
-        margin-top: 0px;
-        margin-bottom: 0px;
+        margin-top: 0;
+        margin-bottom: 0;
     }
 }
 
@@ -522,7 +522,7 @@ hr {
 }
 
 .pf-c-tree-view__node-toggle {
-    padding-left: 0px !important;
+    padding-left: 0 !important;
 }
 
 pre {
@@ -561,11 +561,11 @@ pre {
 }
 
 .ds-info-icon svg {
-    fill: rgb(57, 165, 220);
+    fill: rgb(57 165 220);
 }
 
 .ds-info-color {
-    color: rgb(0, 102, 204) !important; /* rgb(57, 165, 220); */
+    color: rgb(0 102 204) !important; /* rgb(57, 165, 220); */
 }
 
 .ds-icon-sm {

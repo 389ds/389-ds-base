@@ -90,7 +90,7 @@ export class Server extends React.Component {
                     this.setState(
                         {
                             loaded: true,
-                            attrs: attrs
+                            attrs
                         },
                         this.loadTree()
                     );
@@ -119,7 +119,7 @@ export class Server extends React.Component {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
                     this.setState({
-                        attrs: attrs
+                        attrs
                     });
                 })
                 .fail(err => {

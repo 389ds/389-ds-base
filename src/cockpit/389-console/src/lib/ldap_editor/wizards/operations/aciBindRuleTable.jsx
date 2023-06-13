@@ -1,5 +1,4 @@
 import React from 'react';
-import { SelectOption } from '@patternfly/react-core';
 import {
     Table,
     TableHeader,
@@ -31,8 +30,8 @@ class AciBindRuleTable extends React.Component {
             rows = [{ cells: ['No bind rules'] }];
         }
         this.setState({
-            rows: rows,
-            columns: columns
+            rows,
+            columns
         });
     }
 

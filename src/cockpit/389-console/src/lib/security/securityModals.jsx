@@ -2,7 +2,7 @@ import React from "react";
 import {
     Button,
     Checkbox,
-    ClipboardCopy, ClipboardCopyVariant, Card, CardBody, CardFooter, CardTitle,
+    ClipboardCopy, ClipboardCopyVariant,
     Divider,
     FileUpload,
     Form,
@@ -19,14 +19,13 @@ import {
     SelectOption,
     SelectVariant,
     Text,
-    TextArea,
     TextContent,
     TextVariants,
     TextInput,
     Tooltip,
     ValidatedOptions,
 } from "@patternfly/react-core";
-import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 import PropTypes from "prop-types";
 import { bad_file_name, validHostname } from "../tools.jsx";
 
@@ -52,7 +51,7 @@ export class ExportCertModal extends React.Component {
         }
 
         const title = <>Export Certificate: &nbsp;&nbsp;<i>{nickName}</i></>;
-        const desc = <>Enter the full path and file name, if the path portion is omitted the cetificate is written to the server's certificate directory <i>{certDir}</i></>
+        const desc = <>Enter the full path and file name, if the path portion is omitted the cetificate is written to the server's certificate directory <i>{certDir}</i></>;
 
         return (
             <Modal
@@ -132,7 +131,6 @@ export class SecurityAddCertModal extends React.Component {
             spinning,
             certName,
             certFile,
-            certText,
             certRadioFile,
             certRadioSelect,
             certRadioUpload,
@@ -141,8 +139,6 @@ export class SecurityAddCertModal extends React.Component {
             certNames,
             // Select server cert
             handleCertSelect,
-            handleCertToggle,
-            isSelectCertOpen,
             selectCertName,
             // File Upload
             uploadValue,
@@ -165,7 +161,7 @@ export class SecurityAddCertModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
-        const certTextLabel =
+        const certTextLabel = (
             <div>
                 <Tooltip
                     content={
@@ -176,12 +172,12 @@ export class SecurityAddCertModal extends React.Component {
                             Make sure there are no special carriage return
                             characters after each line.
                         </div>
-                      }
+                    }
                 >
                     <div>Upload PEM File, or Certificate Text <OutlinedQuestionCircleIcon /></div>
                 </Tooltip>
-            </div>;
-
+            </div>
+        );
 
         let title = "Add Server Certificate";
         let desc = "Add a Server Certificate to the security database.";
@@ -251,7 +247,7 @@ export class SecurityAddCertModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" >
+                    <Grid className="ds-margin-top">
                         <GridItem span={12}>
                             <div title="Upload the contents of a PEM file from the client's system.">
                                 <Radio
@@ -283,7 +279,9 @@ export class SecurityAddCertModal extends React.Component {
                                     validated={
                                         uploadIsRejected ||
                                         (certRadioUpload && uploadValue === "") ||
-                                        (certRadioUpload && badCertText) ? 'error' : 'default'
+                                        (certRadioUpload && badCertText)
+                                            ? 'error'
+                                            : 'default'
                                     }
                                     browseButtonText="Upload PEM File"
                                 />
@@ -314,8 +312,7 @@ export class SecurityAddCertModal extends React.Component {
                                             label="No certificates present"
                                             isDisabled
                                             isPlaceholder
-                                        />
-                                    }
+                                        />}
                                     {certNames.length > 0 && certNames.map((option, index) => (
                                         <FormSelectOption
                                             key={index}
@@ -331,7 +328,6 @@ export class SecurityAddCertModal extends React.Component {
                                     className="ds-margin-top-lg"
                                     label="Certificate File Location"
                                     name="certChoice"
-
                                     isChecked={certRadioFile}
                                     onChange={handleRadioChange}
                                 />
@@ -383,9 +379,7 @@ export class SecurityAddCSRModal extends React.Component {
 
         let validAltNames = true;
         let invalidNames = "";
-        let index = 0;
         for (const hostname of csrAltNames) {
-            index += 1;
             if (!validHostname(hostname)) {
                 validAltNames = false;
                 if (invalidNames === "") {
@@ -634,7 +628,7 @@ export class SecurityViewCSRModal extends React.Component {
                     <Text component={TextVariants.pre}>
                         <Text component={TextVariants.small}>
                             <ClipboardCopy hoverTip="Copy to clipboard" clickTip="Copied" variant={ClipboardCopyVariant.expansion} isBlock>
-                                {item ? item : "Nothing to display"}
+                                {item || "Nothing to display"}
                             </ClipboardCopy>
                         </Text>
                     </Text>
@@ -768,7 +762,7 @@ export class EditCertModal extends React.Component {
         let EmailFlags = '';
         let OSFlags = '';
 
-        if (flags != "") {
+        if (flags !== "") {
             [SSLFlags, EmailFlags, OSFlags] = flags.split(',');
             if (SSLFlags.includes('T')) {
                 TSSLChecked = true;
@@ -1134,14 +1128,9 @@ SecurityAddCSRModal.defaultProps = {
 SecurityViewCSRModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
-    handleChange: PropTypes.func,
-    saveHandler: PropTypes.func,
-    spinning: PropTypes.bool,
-    error: PropTypes.object,
 };
 
 SecurityViewCSRModal.defaultProps = {
     showModal: false,
     spinning: false,
-    error: {},
 };

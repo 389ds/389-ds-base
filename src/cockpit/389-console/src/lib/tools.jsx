@@ -34,7 +34,7 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
 export function log_cmd(js_func, desc, cmd_array) {
     if (console) {
         const pw_args = ["--passwd", "--bind-pw", "--nsslapd-rootpw"];
-        let cmd_list = [];
+        const cmd_list = [];
         let converted_pw = false;
 
         for (const idx in cmd_array) {
@@ -45,7 +45,7 @@ export function log_cmd(js_func, desc, cmd_array) {
                     // We are setting a password, if it has a value we need to hide it
                     const arg_len = cmd.indexOf("=");
                     const arg = cmd.substring(0, arg_len);
-                    if (cmd.length != arg_len + 1) {
+                    if (cmd.length !== arg_len + 1) {
                         // We are setting a password value...
                         cmd_list.push(arg + "=**********");
                         converted_pw = true;
@@ -124,22 +124,22 @@ export function get_date_diff(start, end) {
     seconds = seconds - days * 24 * 60 * 60 - hours * 60 * 60 - minutes * 60;
 
     // Handle plurals
-    if (days == "1") {
+    if (days === "1") {
         day = "day";
     } else {
         day = "days";
     }
-    if (hours == "1") {
+    if (hours === "1") {
         hour = "hour";
     } else {
         hour = "hours";
     }
-    if (minutes == "1") {
+    if (minutes === "1") {
         minute = "minute";
     } else {
         minute = "minutes";
     }
-    if (seconds == "1") {
+    if (seconds === "1") {
         sec = "second";
     } else {
         sec = "seconds";
@@ -178,10 +178,10 @@ export function valid_port(val) {
 
 export function valid_dn(dn) {
     // Validate value is a valid DN (sanity validation)
-    if (dn == "" || dn.endsWith(",")) {
+    if (dn === "" || dn.endsWith(",")) {
         return false;
     }
-    const dn_regex = new RegExp("^([A-Za-z])+=\\S.*");
+    const dn_regex = /^([A-Za-z])+=\S.*/;
     const result = dn_regex.test(dn);
     return result;
 }
@@ -227,11 +227,11 @@ export function listsEqual(list1, list2) {
     if (Array.isArray(list1) && Array.isArray(list2)) {
         const list1_sorted = [...list1].sort();
         const list2_sorted = [...list2].sort();
-        if (list1_sorted.length != list2_sorted.length) {
+        if (list1_sorted.length !== list2_sorted.length) {
             return false;
         }
         for (let i = list1_sorted.length; i--;) {
-            if (list1_sorted[i].toLowerCase() != list2_sorted[i].toLowerCase()) {
+            if (list1_sorted[i].toLowerCase() !== list2_sorted[i].toLowerCase()) {
                 return false;
             }
         }
@@ -244,13 +244,13 @@ export function listsEqual(list1, list2) {
 }
 
 export function validHostname(hostname) {
-    var reHostname = new RegExp(/^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/);
+    const reHostname = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$/;
     return reHostname.exec(hostname);
 }
 
 export function callCmdStreamPassword(config) {
     // Cmd will trigger CLI to prompt for password, add it via stream
-    let cmd = [...config.cmd];
+    const cmd = [...config.cmd];
     if (config.passwd !== "" && config.promptArg !== "") {
         // Add password file arg
         cmd.push(config.promptArg);

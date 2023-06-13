@@ -62,8 +62,8 @@ export class Backups extends React.Component {
             });
         };
 
-        this.handleChange = this.handleChange.bind(this);
-        this.handleConfirmChange = this.handleConfirmChange.bind(this);
+        this.onChange = this.onChange.bind(this);
+        this.onConfirmChange = this.onConfirmChange.bind(this);
 
         // Backups
         this.doBackup = this.doBackup.bind(this);
@@ -75,7 +75,7 @@ export class Backups extends React.Component {
         this.closeConfirmBackup = this.closeConfirmBackup.bind(this);
         this.showConfirmBackupDelete = this.showConfirmBackupDelete.bind(this);
         this.closeConfirmBackupDelete = this.closeConfirmBackupDelete.bind(this);
-        this.showBackupModal = this.showBackupModal.bind(this);
+        this.handleShowBackupModal = this.handleShowBackupModal.bind(this);
         this.closeBackupModal = this.closeBackupModal.bind(this);
         this.validateBackup = this.validateBackup.bind(this);
         this.closeConfirmRestoreReplace = this.closeConfirmRestoreReplace.bind(this);
@@ -87,7 +87,7 @@ export class Backups extends React.Component {
         this.showConfirmLDIFDelete = this.showConfirmLDIFDelete.bind(this);
         this.closeConfirmLDIFDelete = this.closeConfirmLDIFDelete.bind(this);
         this.doExport = this.doExport.bind(this);
-        this.showExportModal = this.showExportModal.bind(this);
+        this.handleShowExportModal = this.handleShowExportModal.bind(this);
         this.closeExportModal = this.closeExportModal.bind(this);
         this.validateLDIF = this.validateLDIF.bind(this);
         this.closeConfirmLDIFReplace = this.closeConfirmLDIFReplace.bind(this);
@@ -97,7 +97,7 @@ export class Backups extends React.Component {
         this.props.enableTree();
     }
 
-    showExportModal () {
+    handleShowExportModal () {
         this.setState({
             showExportModal: true,
             exportSpinner: false,
@@ -131,7 +131,7 @@ export class Backups extends React.Component {
         });
     }
 
-    showBackupModal () {
+    handleShowBackupModal () {
         this.setState({
             showBackupModal: true,
             backupSpinning: false,
@@ -247,7 +247,7 @@ export class Backups extends React.Component {
         });
     }
 
-    handleConfirmChange(e) {
+    onConfirmChange(e) {
         this.setState({
             modalChecked: e.target.checked
         });
@@ -314,7 +314,7 @@ export class Backups extends React.Component {
 
     validateBackup() {
         for (let i = 0; i < this.props.backups.length; i++) {
-            if (this.state.backupName == this.props.backups[i].name) {
+            if (this.state.backupName === this.props.backups[i].name) {
                 this.setState({
                     showConfirmRestoreReplace: true
                 });
@@ -325,11 +325,11 @@ export class Backups extends React.Component {
     }
 
     doBackup () {
-        let cmd = [
+        const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "create"
         ];
-        if (this.state.backupName != "") {
+        if (this.state.backupName !== "") {
             if (bad_file_name(this.state.backupName)) {
                 this.props.addNotification(
                     "warning",
@@ -375,7 +375,7 @@ export class Backups extends React.Component {
                                     "error",
                                     `Error while trying to get the server's backup directory- ${errMsg.desc}`
                                 );
-                        });
+                            });
                 }
                 )
                 .fail(err => {
@@ -390,7 +390,7 @@ export class Backups extends React.Component {
     }
 
     restoreBackup () {
-        if (this.props.suffixes.length == 0) {
+        if (this.props.suffixes.length === 0) {
             this.props.addNotification(
                 "error",
                 `There are no databases defined to restore`
@@ -454,17 +454,17 @@ export class Backups extends React.Component {
                 });
     }
 
-    handleChange(e) {
+    onChange(e) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         const errObj = this.state.errObj;
-        if (value == "") {
+        if (value === "") {
             valueErr = true;
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj
         });
     }
 
@@ -475,7 +475,7 @@ export class Backups extends React.Component {
             ldifname = ldifname + ".ldif";
         }
         for (let i = 0; i < this.props.ldifs.length; i++) {
-            if (ldifname == this.props.ldifs[i].name) {
+            if (ldifname === this.props.ldifs[i].name) {
                 this.setState({
                     showConfirmLDIFReplace: true
                 });
@@ -487,7 +487,7 @@ export class Backups extends React.Component {
 
     doExport() {
         const missingArgs = { ldifName: false };
-        if (this.state.ldifName == "") {
+        if (this.state.ldifName === "") {
             this.props.addNotification(
                 "warning",
                 `LDIF name is empty`
@@ -605,7 +605,7 @@ export class Backups extends React.Component {
                             <div className="ds-inline">
                                 <Button
                                     variant="primary"
-                                    onClick={this.showBackupModal}
+                                    onClick={this.handleShowBackupModal}
                                     className="ds-margin-top"
                                 >
                                     Create Backup
@@ -638,14 +638,14 @@ export class Backups extends React.Component {
                             <div className="ds-inline">
                                 <Button
                                     variant="primary"
-                                    onClick={this.showExportModal}
+                                    onClick={this.handleShowExportModal}
                                     className="ds-margin-top"
                                 >
                                     Create LDIF
                                 </Button>
                                 <Button
                                     variant="secondary"
-                                    onClick={this.props.reload}
+                                    onClick={this.props.handleReload}
                                     className="ds-left-margin ds-margin-top"
                                     isLoading={this.props.refreshing}
                                     spinnerAriaValueText={this.props.refreshing ? "Refreshing" : undefined}
@@ -661,7 +661,7 @@ export class Backups extends React.Component {
                 <ExportModal
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     saveHandler={this.validateLDIF}
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
@@ -671,7 +671,7 @@ export class Backups extends React.Component {
                 <BackupModal
                     showModal={this.state.showBackupModal}
                     closeHandler={this.closeBackupModal}
-                    handleChange={this.handleChange}
+                    handleChange={this.onChange}
                     saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
                     error={this.state.errObj}
@@ -684,7 +684,7 @@ export class Backups extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFDelete}
                     closeHandler={this.closeConfirmLDIFDelete}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.deleteLDIF}
                     spinning={this.state.modalSpinning}
                     item={this.state.ldifName}
@@ -697,7 +697,7 @@ export class Backups extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFImport}
                     closeHandler={this.closeConfirmLDIFImport}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.importLDIF}
                     spinning={this.state.modalSpinning}
                     item={this.state.ldifName}
@@ -710,7 +710,7 @@ export class Backups extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRestore}
                     closeHandler={this.closeConfirmRestore}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.restoreBackup}
                     spinning={this.state.modalSpinning}
                     item={this.state.backupName}
@@ -723,7 +723,7 @@ export class Backups extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmBackupDelete}
                     closeHandler={this.closeConfirmBackupDelete}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.deleteBackup}
                     spinning={this.state.modalSpinning}
                     item={this.state.backupName}
@@ -736,7 +736,7 @@ export class Backups extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRestoreReplace}
                     closeHandler={this.closeConfirmRestoreReplace}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.doBackup}
                     spinning={this.state.modalSpinning}
                     item={this.state.backupName}
@@ -749,7 +749,7 @@ export class Backups extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFReplace}
                     closeHandler={this.closeConfirmLDIFReplace}
-                    handleChange={this.handleConfirmChange}
+                    handleChange={this.onConfirmChange}
                     actionHandler={this.doExport}
                     spinning={this.state.modalSpinning}
                     item={this.state.ldifName}
@@ -783,10 +783,11 @@ class ExportModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = "Creating";
         }
         if (spinning) {
-            exportMsg =
+            exportMsg = (
                 <div className="ds-margin-top">
                     <font size="2">(You can safely close this window)</font>
-                </div>;
+                </div>
+            );
         }
 
         const suffixList = suffixes.map((suffix) => (
@@ -886,10 +887,11 @@ export class BackupModal extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = "Backing up";
         }
         if (spinning) {
-            exportMsg =
+            exportMsg = (
                 <div className="ds-margin-top">
                     <font size="2">(You can safely close this window)</font>
-                </div>;
+                </div>
+            );
         }
 
         return (
