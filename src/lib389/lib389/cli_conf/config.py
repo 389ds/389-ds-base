@@ -60,7 +60,7 @@ def _config_get_existing_attrs(conf, args, op_type):
                 if op_type == OpType.delete:
                     conf.remove_all(attr)
                 else:
-                    raise ValueError("You must specify a value to add for the attribute ({})".format(attr_name))
+                    raise ValueError(f"You must specify a value to add for the attribute ({attr_name})")
         return existing_attrs
     else:
         # Missing value
@@ -100,7 +100,7 @@ def config_add_attr(inst, basedn, log, args):
                 except ldap.TYPE_OR_VALUE_EXISTS:
                     pass
             else:
-                raise ValueError("You must specify a value to add for the attribute ({})".format(attr_name))
+                raise ValueError(f"You must specify a value to add for the attribute ({attr_name})")
     else:
         # Missing value
         raise ValueError("Missing attribute to add")    
