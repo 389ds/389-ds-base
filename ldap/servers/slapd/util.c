@@ -479,64 +479,6 @@ replace_char(char *str, char c, char c2)
     }
 }
 
-
-/*
-** Break a string at the delimiter
-** If the delimiter is not found, the string is not modified. 
-** The position immediately following the delimiter is returned.
-*/
-char *split_string_at_delim(char *str, char delim) {
-    if (str == NULL) {
-        return NULL;
-    }
-
-    char *delim_position = strchr(str, delim);
-
-    if (delim_position != NULL) {
-        *delim_position = '\0';
-        delim_position++;
-    }
-
-    return delim_position;
-}
-
-
-/* a simple string tokenizer */
-char *tokenize_string(char **str, const char *delim)
-{
-    char   *cp = *str;
-    char   *result;
-
-    /* The string is empty or has been fully tokenized */
-    if (cp == NULL) {
-        return NULL;
-    }
-
-    /* The first loop skips any leading delimiter characters in the input string */
-    while (*cp && strchr(delim, *cp)) {
-        cp++;
-    }
-    if (cp == NULL) {
-        return NULL;
-    }
-
-    /* The second loop tries to find a delimiter character or reaches the end of the string */
-    result = cp;
-    while (*cp && strchr(delim, *cp) == 0) {
-        cp++;
-    }
-
-    /* Found! Replace the delimiter with a null character */
-    if (*cp) {
-            *cp++ = '\0';
-    }
-
-    /* In future, search from the updated position */
-    *str = cp;
-    return (result);
-}
-
-
 /*
 ** This function takes a quoted attribute value of the form "abc",
 ** and strips off the enclosing quotes.  It also deals with quoted
@@ -1571,7 +1513,7 @@ util_get_capped_hardware_threads(long min, long max)
     threads = CPU_COUNT(&cs);
     if (threads == 0) {
         threads = sysconf(_SC_NPROCESSORS_ONLN);
-    }
+	}
     slapi_log_err(SLAPI_LOG_TRACE, "util_get_hardware_threads",
              "Detected %ld hardware threads\n", threads);
 
@@ -1773,9 +1715,9 @@ void dup_ldif_line(struct berval *copy, const char *line, const char *endline)
     while (pt && pt < ptend) {
         line = pt;
         /* Search end of line */
-        while (pt < ptend && *pt != '\n' && *pt != 0) {
-            pt++;
-        }
+		while (pt < ptend && *pt != '\n' && *pt != 0) {
+			pt++;
+		}
         PR_ASSERT(pt <= ptend);
         copylen = pt - line;
         if (copylen>0 && line[copylen-1] == '\r') {

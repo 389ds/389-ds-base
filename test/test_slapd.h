@@ -55,12 +55,6 @@ void test_libslapd_counters_atomic_overflow(void **state);
 void test_libslapd_pal_meminfo(void **state);
 void test_libslapd_util_cachesane(void **state);
 
-/* libslapd-haproxy */
-void test_libslapd_haproxy_v1(void **state);
-void test_libslapd_haproxy_v2_valid(void **state);
-void test_libslapd_haproxy_v2_valid_local(void **state);
-void test_libslapd_haproxy_v2_invalid(void **state);
-
 /* plugins */
 
 void test_plugin_hello(void **state);

@@ -24,7 +24,6 @@ from lib389._constants import *
 from lib389.cli_base import LogCapture
 
 TLS_HOSTNAME_CHECK = os.getenv('TLS_HOSTNAME_CHECK', default=True)
-HAPROXY_TRUSTED_IP = os.getenv('HAPROXY_TRUSTED_IP', default='')
 DEBUGGING = os.getenv('DEBUGGING', default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -150,8 +149,6 @@ def _create_instances(topo_dict, suffix):
                 instance.config.set('nsslapd-auditlog-logging-enabled','on')
                 instance.config.set('nsslapd-auditfaillog-logging-enabled','on')
                 instance.config.set('nsslapd-plugin-logging', 'on')
-            if HAPROXY_TRUSTED_IP:
-                instance.config.set('nsslapd-haproxy-trusted-ip', HAPROXY_TRUSTED_IP)
             log.info("Instance with parameters {} was created.".format(args_instance))
 
     if "standalone1" in instances and len(instances) == 1:

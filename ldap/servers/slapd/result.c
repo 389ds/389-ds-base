@@ -158,58 +158,6 @@ g_get_default_referral()
     return slapdFrontendConfig->defaultreferral;
 }
 
-static void
-delete_haproxy_trusted_ip(struct berval **ipaddress)
-{
-    if (ipaddress) {
-        int ii = 0;
-        for (ii = 0; ipaddress[ii]; ++ii)
-            ber_bvfree(ipaddress[ii]);
-        slapi_ch_free((void **)&ipaddress);
-    }
-}
-
-void
-g_set_haproxy_trusted_ip(struct berval **ipaddress)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    struct berval **haproxy_trusted_ip = NULL;
-    int nTrustedIPs = 0;
-
-    /* check to see if we want to delete all values */
-    if (ipaddress && ipaddress[0] &&
-        PL_strncasecmp((char *)ipaddress[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, ipaddress[0]->bv_len) == 0) {
-        delete_haproxy_trusted_ip(slapdFrontendConfig->haproxy_trusted_ip);
-        slapdFrontendConfig->haproxy_trusted_ip = NULL;
-        return;
-    }
-
-    /* count the number of ip addresses */
-    for (nTrustedIPs = 0; ipaddress && ipaddress[nTrustedIPs]; nTrustedIPs++)
-        ;
-
-    haproxy_trusted_ip = (struct berval **)
-        slapi_ch_malloc((nTrustedIPs + 1) * sizeof(struct berval *));
-
-    /* terminate the end, and add the trusted IPs backwards */
-    haproxy_trusted_ip[nTrustedIPs--] = NULL;
-
-    while (nTrustedIPs >= 0) {
-        haproxy_trusted_ip[nTrustedIPs] = ber_bvdup(ipaddress[nTrustedIPs]);
-        nTrustedIPs--;
-    }
-
-    delete_haproxy_trusted_ip(slapdFrontendConfig->haproxy_trusted_ip);
-    slapdFrontendConfig->haproxy_trusted_ip = haproxy_trusted_ip;
-}
-
-struct berval **
-g_get_haproxy_trusted_ip()
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    return slapdFrontendConfig->haproxy_trusted_ip;
-}
-
 /*
  * routines to manage keeping track of the current number of connections
  * to the server. this information is used by the listener thread to

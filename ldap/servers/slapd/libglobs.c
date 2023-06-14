@@ -157,7 +157,6 @@ typedef enum {
     CONFIG_STRING_OR_UNKNOWN,            /* use "unknown" instead of an empty string */
     CONFIG_CONSTANT_INT,                 /* for #define values, e.g. */
     CONFIG_CONSTANT_STRING,              /* for #define values, e.g. */
-    CONFIG_SPECIAL_TRUSTED_IP_LIST,      /* this is a berval list */
     CONFIG_SPECIAL_REFERRALLIST,         /* this is a berval list */
     CONFIG_SPECIAL_SSLCLIENTAUTH,        /* maps strings to an enumeration */
     CONFIG_SPECIAL_ERRORLOGLEVEL,        /* requires & with LDAP_DEBUG_ANY */
@@ -856,10 +855,6 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.listenhost,
      CONFIG_STRING, NULL, "", NULL /* Empty value is allowed */},
-    {CONFIG_HAPROXY_TRUSTED_IP, (ConfigSetFunc)config_set_haproxy_trusted_ip,
-     NULL, 0,
-     (void **)&global_slapdFrontendConfig.haproxy_trusted_ip,
-     CONFIG_SPECIAL_TRUSTED_IP_LIST, NULL, NULL, NULL},
     {CONFIG_SNMP_INDEX_ATTRIBUTE, config_set_snmp_index,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.snmp_index,
@@ -2686,59 +2681,6 @@ config_set_listenhost(const char *attrname __attribute__((unused)), char *value,
         slapi_ch_free((void **)&(slapdFrontendConfig->listenhost));
         slapdFrontendConfig->listenhost = slapi_ch_strdup(value);
 
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
-    }
-    return retVal;
-}
-
-int
-config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char *errorbuf, int apply)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal = LDAP_SUCCESS;
-    int conn_buffer = 0;
-    size_t end = 0;
-
-    if (config_value_is_null(attrname, (char *)value, errorbuf, 0)) {
-        return LDAP_OPERATIONS_ERROR;
-    }
-
-    CFG_LOCK_READ(slapdFrontendConfig);
-    conn_buffer = slapdFrontendConfig->connection_buffer;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-    if (CONNECTION_BUFFER_OFF == conn_buffer) {
-        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "HAProxy is not supported when nsslapd-connection-buffer is disabled (set to '0')\n");
-        return LDAP_OPERATIONS_ERROR;
-    }
-
-    if (value && value[0] &&
-        PL_strncasecmp((char *)value[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, value[0]->bv_len) != 0) {
-        for (size_t i = 0; value[i] != NULL; i++) {
-            end = strspn(value[i]->bv_val, "0123456789:ABCDEFabcdef.*");
-            /* 
-            * If no valid characters are found, or if there are characters after the valid ones,
-            * then print an error message and exit with LDAP_OPERATIONS_ERROR.
-            */
-            if (!end || value[i]->bv_val[end] != '\0') {
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "IP address contains invalid characters (%s), skipping\n",
-                                value[i]->bv_val);
-                return LDAP_OPERATIONS_ERROR;
-            }
-            if (strstr(value[i]->bv_val, ":") == 0) {
-                /* IPv4 - make sure it's just numbers, dots, and wildcard */
-                end = strspn(value[i]->bv_val, "0123456789.*");
-                if (!end || value[i]->bv_val[end] != '\0') {
-                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "IPv4 address contains invalid characters (%s), skipping\n",
-                                    value[i]->bv_val);
-                    return LDAP_OPERATIONS_ERROR;
-                }
-            }
-        }
-    }
-
-    if (apply) {
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        g_set_haproxy_trusted_ip(value);
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
     return retVal;
@@ -6038,38 +5980,6 @@ config_get_securelistenhost(void)
     return retVal;
 }
 
-struct berval **
-config_get_haproxy_trusted_ip(void)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    struct berval **retVal = NULL;
-    int nTrustedIPs = 0;
-
-    CFG_LOCK_READ(slapdFrontendConfig);
-    /* count the number of trusted IPs */
-    for (nTrustedIPs = 0;
-         slapdFrontendConfig->haproxy_trusted_ip &&
-         slapdFrontendConfig->haproxy_trusted_ip[nTrustedIPs];
-         nTrustedIPs++)
-        ;
-
-    retVal = (struct berval **) slapi_ch_malloc((nTrustedIPs + 1) * sizeof(struct berval *));
-
-    /*terminate the end, and add the trusted IPs backwards */
-    retVal[nTrustedIPs--] = NULL;
-
-    while (nTrustedIPs >= 0) {
-        retVal[nTrustedIPs] = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-        retVal[nTrustedIPs]->bv_val =
-            config_copy_strval(slapdFrontendConfig->haproxy_trusted_ip[nTrustedIPs]->bv_val);
-        retVal[nTrustedIPs]->bv_len = slapdFrontendConfig->haproxy_trusted_ip[nTrustedIPs]->bv_len;
-        nTrustedIPs--;
-    }
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
-}
-
 char *
 config_get_srvtab(void)
 {
@@ -8957,19 +8867,6 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
             retval = config_set_defaultreferral(attr, values, errorbuf, apply);
         }
         break;
-    case CONFIG_SPECIAL_TRUSTED_IP_LIST:
-        if (NULL == values) /* special token which means to remove trusted IPs */
-        {
-            struct berval val;
-            struct berval *vals[2] = {0, 0};
-            vals[0] = &val;
-            val.bv_val = HAPROXY_TRUSTED_IP_REMOVE_CMD;
-            val.bv_len = strlen(HAPROXY_TRUSTED_IP_REMOVE_CMD);
-            retval = config_set_haproxy_trusted_ip(attr, vals, errorbuf, apply);
-        } else {
-            retval = config_set_haproxy_trusted_ip(attr, values, errorbuf, apply);
-        }
-        break;
 
     default:
         if (values == NULL && (cgas->initvalue != NULL || cgas->geninitfunc != NULL)) {
@@ -9080,14 +8977,6 @@ config_set_value(
 
     case CONFIG_SPECIAL_REFERRALLIST:
         /* referral list is already an array of berval* */
-        if (value)
-            slapi_entry_attr_replace(e, cgas->attr_name, (struct berval **)*value);
-        else
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
-        break;
-
-    case CONFIG_SPECIAL_TRUSTED_IP_LIST:
-        /* trusted IP list is already an array of berval* */
         if (value)
             slapi_entry_attr_replace(e, cgas->attr_name, (struct berval **)*value);
         else

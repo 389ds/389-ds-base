@@ -4034,7 +4034,7 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
  * to rely on just the Connection struct.
  */
 int
-slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode error, const char *msg)
+slapi_log_security_tcp(Connection *pb_conn, PRErrorCode error, const char *msg)
 {
     char *server_ip = NULL;
     char *client_ip = NULL;
@@ -4046,25 +4046,12 @@ slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode 
     uint64_t conn_id = 0;
     json_object *log_json = NULL;
 
-    /* Check if security log is valid and functioning */
     if (!(loginfo.log_security_state & LOGGING_ENABLED) ||
         !loginfo.log_security_fdes ||
-        !loginfo.log_security_file)
-    {
-        return 0;
-    }
-
-    /* 
-     * Continue (not return 0) if the event is either SECURITY_TCP_ERROR
-     * with one of the specified error codes, or SECURITY_HAPROXY_SUCCESS.
-     */
-    if (!((strcmp(event_type, SECURITY_TCP_ERROR) == 0) &&
-          (error == SLAPD_DISCONNECT_BAD_BER_TAG || 
-           error == SLAPD_DISCONNECT_BER_TOO_BIG ||
-           error == SLAPD_DISCONNECT_BER_PEEK ||
-           error == SLAPD_DISCONNECT_PROXY_UNKNOWN ||
-           error == SLAPD_DISCONNECT_PROXY_INVALID_HEADER)) &&
-        (strcmp(event_type, SECURITY_HAPROXY_SUCCESS) != 0))
+        !loginfo.log_security_file ||
+        (error != SLAPD_DISCONNECT_BAD_BER_TAG && /* We only care about B1, B2, B3 */
+         error != SLAPD_DISCONNECT_BER_TOO_BIG &&
+         error != SLAPD_DISCONNECT_BER_PEEK))
     {
         return 0;
     }
@@ -4094,7 +4081,7 @@ slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode 
     log_json = json_object_new_object();
     json_object_object_add(log_json, "date",         json_object_new_string(local_time));
     json_object_object_add(log_json, "utc_time",     json_object_new_string(utc_time));
-    json_object_object_add(log_json, "event",        json_object_new_string(event_type));
+    json_object_object_add(log_json, "event",        json_object_new_string(SECURITY_TCP_ERROR));
     json_object_object_add(log_json, "client_ip",    json_object_new_string(client_ip));
     json_object_object_add(log_json, "server_ip",    json_object_new_string(server_ip));
     json_object_object_add(log_json, "ldap_version", json_object_new_int(ldap_version));
