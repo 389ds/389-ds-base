@@ -89,7 +89,7 @@ static void sm_merge_ancestors(Slapi_Value **member_ndn_val, sm_memberof_get_gro
 static int  sm_memberof_entry_in_scope(Slapi_MemberOfConfig *config, Slapi_DN *sdn);
 static int  sm_memberof_get_groups_callback(Slapi_Entry *e, void *callback_data);
 static void sm_report_error_msg(Slapi_MemberOfConfig *config, char* msg);
-static int  sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, char *memberof_attr,
+static int  sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn,
                                 Slapi_ValueSet *groupvals, Slapi_ValueSet *nsuniqueidvals);
 static PRBool sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool all_backends, 
                                          PRBool skip_nested, Slapi_DN **include_scope, Slapi_DN **exclude_scope, PRBool enabled_only);
@@ -696,7 +696,7 @@ sm_report_error_msg(Slapi_MemberOfConfig *config, char* msg)
 }
 
 static int
-sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, char *memberof_attr, Slapi_ValueSet *groupvals, Slapi_ValueSet *nsuniqueidvals)
+sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_ValueSet *groupvals, Slapi_ValueSet *nsuniqueidvals)
 {
     Slapi_PBlock *member_pb = NULL;
     Slapi_PBlock *group_pb = NULL;
@@ -710,7 +710,7 @@ sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, char *me
     int rc = 0;
 
     /* Retrieve the 'memberof' from the target entry */
-    attrs[0] = memberof_attr;
+    attrs[0] = (char *) config->memberof_attr;
     attrs[1] = NULL;
     rc = slapi_search_get_entry(&member_pb, member_sdn, attrs, &member_entry, plugin_get_default_component_id());
     if (rc != LDAP_SUCCESS || member_entry == NULL) {
@@ -724,7 +724,7 @@ sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, char *me
     }
 
     /* For each group that the target entry is memberof, retrieve its dn/nsuniqueid */
-    groups_dn = slapi_entry_attr_get_charray(member_entry, memberof_attr);
+    groups_dn = slapi_entry_attr_get_charray(member_entry, config->memberof_attr);
     attrs[0] = "nsuniqueid";
     attrs[1] = NULL;
     for (size_t i = 0; groups_dn && groups_dn[i]; i++) {
@@ -812,7 +812,7 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     if ((memberof_attr == NULL) || (memberof_config->memberof_attr == NULL) || (strcasecmp(memberof_attr, memberof_config->memberof_attr))) {
         /* just be conservative, we should speak about the same attribute */
         slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof",
-                      "sm_compare_memberof_config: fails memberof attribute differs (require %s vs config %s)\n",
+                      "sm_compare_memberof_config: fails memberof attribute differs (require '%s' vs config '%s')\n",
                       memberof_attr ? memberof_attr : "NULL",
                       memberof_config->memberof_attr ? memberof_config->memberof_attr : NULL);
         return PR_FALSE;
@@ -829,7 +829,7 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     for (cnt1 = 0; groupattrs[cnt1]; cnt1++) {
         if (charray_inlist(memberof_config->groupattrs, groupattrs[cnt1]) == 0) {
             slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof",
-                          "sm_compare_memberof_config: fails because requested group attribute %s is not configured\n",
+                          "sm_compare_memberof_config: fails because requested group attribute '%s' is not configured\n",
                           groupattrs[cnt1]);
             return PR_FALSE;
         }
@@ -891,7 +891,7 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     for (cnt2 = 0; memberof_config->exclude_scope && memberof_config->exclude_scope[cnt2]; cnt2++);
     if (cnt1 != cnt2) {
         /* make sure exclude_scope is not a subset of memberof_config->exclude_scope */
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested included scopes differs from config\n");
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested exclude scopes differs from config\n");
         return PR_FALSE;
     }
     slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: succeeds. requested options match config\n");
@@ -1246,26 +1246,27 @@ slapi_memberof(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_MemberO
     }
     groupvals = slapi_valueset_new();
     nsuniqueidvals = slapi_valueset_new();
-    if ((config->flag == MEMBEROF_REUSE_ONLY) && sm_compare_memberof_config(NULL,
-            NULL,
-            PR_FALSE,
-            PR_FALSE,
-            NULL,
-            NULL, PR_TRUE)) {
-        /* Whatever the configuration of memberof plugin as long
-         * as it is enabled, return the groups referenced in the target entry
-         */
-        rc = sm_entry_get_groups(config, member_sdn, "memberof", groupvals, nsuniqueidvals);
-    } else if ((config->flag == MEMBEROF_REUSE_IF_POSSIBLE) && sm_compare_memberof_config("memberof",
-            config->groupattrs,
-            config->allBackends,
-            !config->recurse,
-            config->entryScopes,
-            config->entryScopeExcludeSubtrees, PR_FALSE)) {
+    if (config->flag == MEMBEROF_REUSE_ONLY) {
+        if (sm_compare_memberof_config(NULL, NULL, PR_FALSE, PR_FALSE,
+                                       NULL, NULL, PR_TRUE)) {
+            /* Whatever the configuration of memberof plugin as long
+             * as it is enabled, return the groups referenced in the target entry
+             */
+            rc = sm_entry_get_groups(config, member_sdn, groupvals, nsuniqueidvals);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "memberof plugin is not enabled, with MEMBEROF_REUSE_ONLY return empty result");
+        }
+    } else if ((config->flag == MEMBEROF_REUSE_IF_POSSIBLE) &&
+               sm_compare_memberof_config(config->memberof_attr,
+                                          config->groupattrs,
+                                          config->allBackends,
+                                          !config->recurse,
+                                          config->entryScopes,
+                                          config->entryScopeExcludeSubtrees, PR_FALSE)) {
         /* If the configuration of memberof plugin match the requested config
          * (and the plugin is enabled), return the groups referenced in the target entry
          */
-        rc = sm_entry_get_groups(config, member_sdn, "memberof", groupvals, nsuniqueidvals);
+        rc = sm_entry_get_groups(config, member_sdn, groupvals, nsuniqueidvals);
     } else {
         /* This is RECOMPUTE mode or memberof plugin config does not satisfy
          * the requested config, then recompute the membership
