@@ -168,6 +168,9 @@ idl_set_free_idls(IDListSet *idl_set)
 void
 idl_set_destroy(IDListSet *idl_set)
 {
+    if (idl_set->complement_head) {
+        idl_free(&idl_set->complement_head);
+    }
     slapi_ch_free((void **)&(idl_set));
 }
 
