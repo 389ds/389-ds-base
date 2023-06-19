@@ -368,7 +368,7 @@ int haproxy_receive(int fd, int *proxy_connection, PRNetAddr *pr_netaddr_from, P
     if (hdr_len < sizeof(hdr)) {
         hdr[hdr_len] = 0;
     } else {
-        slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive", "Recieved header is too long: %d\n", hdr_len);
+        slapi_log_err(SLAPI_LOG_CONNS, "haproxy_receive", "Recieved header is too long: %ld\n", hdr_len);
         rc = HAPROXY_NOT_A_HEADER;
         return rc;
     }

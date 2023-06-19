@@ -26,62 +26,81 @@ test_input test_cases[] = {
         .expected_result = HAPROXY_HEADER_PARSED,
         .expected_len = 39,
         .expected_proxy_connection = 1,
+
+/* We need to support both big-endian (x390x) and little-endian (x86) architectures,
+ * it's better to dynamically adjust the byte order in our test cases based on
+ * the architecture of the system executing the tests.*/
+#ifdef __s390x__
+        .expected_pr_netaddr_from = { .inet = { .family = PR_AF_INET, .ip = 0xC0A80001, .port = 0x3039 }},
+        .expected_pr_netaddr_dest = { .inet = { .family = PR_AF_INET, .ip = 0xC0A80002, .port = 0x0185 }}
+#else
         .expected_pr_netaddr_from = { .inet = { .family = PR_AF_INET, .ip = 0x0100A8C0, .port = 0x3930 }},
         .expected_pr_netaddr_dest = { .inet = { .family = PR_AF_INET, .ip = 0x0200A8C0, .port = 0x8501 }}
+#endif
     },
     {
         .input_str = "PROXY TCP6 2001:db8::1 2001:db8::2 12345 389\r\n",
         .expected_result = HAPROXY_HEADER_PARSED,
         .expected_len = 46,
         .expected_proxy_connection = 1,
-        .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, .port = 0x3930 }},
-        .expected_pr_netaddr_dest = { .ipv6 = { .family = PR_AF_INET6, .ip = {0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}, .port = 0x8501 }},
+#ifdef __s390x__
+        .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}}}, .port = 0x3039 }},
+        .expected_pr_netaddr_dest = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}}}, .port = 0x0185 }}
+#else
+        .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}}}, .port = 0x3930 }},
+        .expected_pr_netaddr_dest = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02}}}, .port = 0x8501 }}
+#endif
     },
     {
-    .input_str = "PROXY TCP6 ::ffff:192.168.0.1 ::ffff:192.168.0.2 12345 389\r\n",
-    .expected_result = HAPROXY_HEADER_PARSED,
-    .expected_len = 54,
-    .expected_proxy_connection = 1,
-    .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc0, 0xa8, 0x00, 0x01}, .port = 0x3930 }},
-    .expected_pr_netaddr_dest = { .ipv6 = { .family = PR_AF_INET6, .ip = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc0, 0xa8, 0x00, 0x02}, .port = 0x8501 }},
+        .input_str = "PROXY TCP6 ::ffff:192.168.0.1 ::ffff:192.168.0.2 12345 389\r\n",
+        .expected_result = HAPROXY_HEADER_PARSED,
+        .expected_len = 54,
+        .expected_proxy_connection = 1,
+#ifdef __s390x__
+        .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc0, 0xa8, 0x00, 0x01}}}, .port = 0x3039 }},
+        .expected_pr_netaddr_dest = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc0, 0xa8, 0x00, 0x02}}}, .port = 0x0185 }}
+#else
+        .expected_pr_netaddr_from = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc0, 0xa8, 0x00, 0x01}}}, .port = 0x3930 }},
+        .expected_pr_netaddr_dest = { .ipv6 = { .family = PR_AF_INET6, .ip = {{{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc0, 0xa8, 0x00, 0x02}}}, .port = 0x8501 }}
+#endif
     },
-    // Invalid IP
+    /* Invalid IP */
     {
         .input_str = "PROXY TCP4 256.168.0.1 192.168.0.2 12345 389\r\n",
         .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
-    // Invalid port
+    /* Invalid port */
     {
         .input_str = "PROXY TCP4 192.168.0.1 192.168.0.2 123456 389\r\n",
         .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
-    // One port
+    /* One port */
     {
         .input_str = "PROXY TCP4 192.168.0.1 192.168.0.2 12345\r\n",
         .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
-    // No ports
+    /* No ports */
     {
         .input_str = "PROXY TCP4 192.168.0.1 192.168.0.2\r\n",
         .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
-    // Empty string
+    /* Empty string */
     {
         .input_str = "",
         .expected_result = HAPROXY_NOT_A_HEADER,
         .expected_proxy_connection = 0,
     },
-    // Invalid protocol
+    /* Invalid protocol */
     {
         .input_str = "PROXY TCP3 192.168.0.1 192.168.0.2 12345 389\r\n",
         .expected_result = HAPROXY_ERROR,
         .expected_proxy_connection = 0,
     },
-    // Missing protocol
+    /* Missing protocol */
     {
         .input_str = "PROXY 192.168.0.1 192.168.0.2 12345 389\r\n",
         .expected_result = HAPROXY_ERROR,
