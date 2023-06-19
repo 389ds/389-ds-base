@@ -82,6 +82,7 @@ PRFileDesc *signalpipe[2];
 static int writesignalpipe = SLAPD_INVALID_SOCKET;
 static int readsignalpipe = SLAPD_INVALID_SOCKET;
 #define FDS_SIGNAL_PIPE 0
+#define FDS_PROCESS_MAX 64000
 
 static PRThread *accept_thread_p = NULL;
 static PRThread *disk_thread_p = NULL;
@@ -107,7 +108,7 @@ static PRFileDesc *tls_listener = NULL; /* Stashed tls listener for get_ssl_list
 
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
 
-static int get_configured_connection_table_size(void);
+static int get_connection_table_size(void);
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
 static void get_loopback_by_addr(void);
 #endif
@@ -1063,7 +1064,7 @@ slapd_daemon(daemon_ports_t *ports)
     PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
     uint64_t threads;
     int in_referral_mode = config_check_referral_mode();
-    int connection_table_size = get_configured_connection_table_size();
+    int connection_table_size = get_connection_table_size();
     the_connection_table = connection_table_new(connection_table_size);
 
     /*
@@ -2845,16 +2846,23 @@ catch_signals()
 #endif /* HPUX */
 
 static int
-get_configured_connection_table_size(void)
+get_connection_table_size(void)
 {
-    int size = config_get_conntablesize();
+    int size = 0;
+    int resrvdesc = 0;
     int maxdesc = config_get_maxdescriptors();
 
-    /*
-     * Cap the table size at nsslapd-maxdescriptors.
-     */
-    if (maxdesc >= 0 && size > maxdesc) {
-        size = maxdesc;
+    /* Validate configured reserve descriptors */
+    validate_num_config_reservedescriptors();
+
+    resrvdesc = config_get_reservedescriptors();
+    if (maxdesc > resrvdesc) {
+         size = (maxdesc - resrvdesc);
+    }
+
+    /* Verify size does not exceed process max fds */
+    if (size > FDS_PROCESS_MAX) {
+        size = (FDS_PROCESS_MAX - resrvdesc);
     }
 
     return size;
