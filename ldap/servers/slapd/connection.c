@@ -1187,10 +1187,8 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     char str_ip[INET6_ADDRSTRLEN + 1] = {0};
     char str_haproxy_ip[INET6_ADDRSTRLEN + 1] = {0};
     char str_haproxy_destip[INET6_ADDRSTRLEN + 1] = {0};
-    PRStatus status = PR_SUCCESS;
     struct berval **bvals = NULL;
     int proxy_connection = 0;
-    int restrict_access = 0;
 
     pthread_mutex_lock(&(conn->c_mutex));
     /*
