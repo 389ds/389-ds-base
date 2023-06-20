@@ -154,6 +154,7 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
         newcfg->login_history_attr = slapi_ch_strdup(LASTLOGIN_HISTORY_ATTR);
         if (has_attr(e, LASTLOGIN_HISTORY_SIZE_ATTR, &hist_size)) {
             newcfg->login_history_size = atoi(hist_size);
+            slapi_ch_free_string(&hist_size);
         } else {
             newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
         }

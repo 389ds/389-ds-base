@@ -1462,6 +1462,14 @@ def ensure_int(val):
         return int(val)
     return val
 
+def ensure_positive_int(val):
+    try:
+        int(val)
+    except (TypeError):
+        raise TypeError("Value must be a positive int.")
+    if int(val) < 0:
+        raise ValueError("Value must be a positive int.")
+    return val
 
 def ensure_list_bytes(val):
     return [ensure_bytes(v) for v in val]
