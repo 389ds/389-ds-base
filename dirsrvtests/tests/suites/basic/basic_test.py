@@ -25,7 +25,7 @@ from lib389.rootdse import RootDSE
 from ....conftest import get_rpm_version
 from lib389._mapped_object import DSLdapObjects
 from lib389.replica import Replicas, Changelog
-from lib389.backend import Backends
+from lib389.backend import Backends, BackendSuffixView
 from lib389.idm.domain import Domain
 from lib389.nss_ssl import NssSsl
 
@@ -888,65 +888,29 @@ def test_basic_referrals(topology_st, import_example_ldif):
     """
 
     log.info('Running test_basic_referrals...')
-    SUFFIX_CONFIG = 'cn="dc=example,dc=com",cn=mapping tree,cn=config'
-    #
-    # Set the referral, and the backend state
-    #
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG,
-                                        [(ldap.MOD_REPLACE,
-                                          'nsslapd-referral',
-                                          b'ldap://localhost.localdomain:389/o%3dnetscaperoot')])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to set referral: error ' + e.args[0]['desc'])
-        assert False
+    backends = Backends(topology_st.standalone)
+    backend = backends.list()[0]
+    bev = BackendSuffixView(topology_st.standalone, backend)
+    bev.set('nsslapd-referral', 'ldap://localhost.localdomain:389/o%3dnetscaperoot')
+    bev.set('nsslapd-state', 'referral')
 
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_REPLACE,
-                                                         'nsslapd-state', b'Referral')])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to set backend state: error '
-                  + e.args[0]['desc'])
-        assert False
+    log.info('Checking that the settings were applied...')
+    assert bev.get_attr_val_utf8('nsslapd-referral') == 'ldap://localhost.localdomain:389/o%3dnetscaperoot'
+    assert bev.get_attr_val_utf8('nsslapd-state') == 'referral'
 
-    #
-    # Test that a referral error is returned
-    #
+    log.info('Testing that a referral error is returned...')
     topology_st.standalone.set_option(ldap.OPT_REFERRALS, 0)  # Do not follow referral
-    try:
+    with pytest.raises(ldap.REFERRAL):
         topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=top')
-    except ldap.REFERRAL:
-        pass
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Search failed: ' + e.args[0]['desc'])
-        assert False
 
-    #
     # Make sure server can restart in referral mode
-    #
+    log.info('Restarting the server...')
     topology_st.standalone.restart(timeout=10)
 
-    #
-    # Cleanup
-    #
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_REPLACE,
-                                                         'nsslapd-state', b'Backend')])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to set backend state: error '
-                  + e.args[0]['desc'])
-        assert False
-
-    try:
-        topology_st.standalone.modify_s(SUFFIX_CONFIG, [(ldap.MOD_DELETE,
-                                                         'nsslapd-referral', None)])
-    except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to delete referral: error '
-                  + e.args[0]['desc'])
-        assert False
+    log.info('Cleaning up...')
+    bev.set('nsslapd-state', 'backend')
+    bev.remove_all('nsslapd-referral')
     topology_st.standalone.set_option(ldap.OPT_REFERRALS, 1)
-
-    log.info('test_basic_referrals: PASSED')
 
 
 def test_basic_systemctl(topology_st, import_example_ldif):

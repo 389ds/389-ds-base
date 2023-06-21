@@ -883,7 +883,7 @@ def create_parser(subparsers):
     set_backend_parser.add_argument('--cache-size', help='Sets the maximum number of entries to keep in the entry cache')
     set_backend_parser.add_argument('--cache-memsize', help='Sets the maximum size in bytes that the entry cache can grow to')
     set_backend_parser.add_argument('--dncache-memsize', help='Sets the maximum size in bytes that the DN cache can grow to')
-    set_backend_parser.add_argument('--state', help='Changes the backend state to: "database", "disabled", "referral", or "referral on update"')
+    set_backend_parser.add_argument('--state', help='Changes the backend state to: "backend", "disabled", "referral", or "referral on update"')
     set_backend_parser.add_argument('be_name', help='The backend name or suffix')
 
     #########################################
