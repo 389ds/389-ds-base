@@ -112,6 +112,40 @@ def accpol_local(topology_st, accpol_global, request):
     request.addfinalizer(fin)
 
 
+@pytest.fixture(scope="module")
+def setup_account_policy_plugin(topology_st):
+    inst = topology_st[0]
+
+    # Enable plugin and restart
+    plugin = AccountPolicyPlugin(inst)
+    plugin.disable()
+    plugin.enable()
+    inst.restart()
+
+    # Add config entry, set alwaysrecordlogin to yes (lastLoginHistorySize defaults to 5)
+    ap_configs = AccountPolicyConfigs(inst)
+    try:
+        ap_config = ap_configs.create(properties={'cn': 'config', 'alwaysrecordlogin': 'yes', })
+    except ldap.ALREADY_EXISTS:
+        ap_config = ap_configs.get('config')
+        ap_config.replace('alwaysrecordlogin', 'yes')
+
+    return ap_config
+
+
+@pytest.fixture(scope="module")
+def setup_test_user(topology_st, setup_account_policy_plugin):
+    inst = topology_st[0]
+    USER_PW = 'password'
+
+    # Add a test user entry
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create_test_user(uid=1000, gid=2000)
+    user.replace('userPassword', USER_PW)
+
+    return user
+
+
 def pwacc_lock(topology_st, suffix, subtree, userid, nousrs):
     """Lockout user account by attempting invalid password binds"""
 
@@ -424,7 +458,7 @@ def test_glremv_lastlogin(topology_st, accpol_global):
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 
-def test_lastlogin_history(topology_st, request):
+def test_login_history_valid_values(topology_st, setup_test_user, setup_account_policy_plugin):
     """Verify a user account with attr alwaysrecordlogin=yes returns no more
     than the last login history size and that the timestamps are in chronological order.
 
@@ -432,19 +466,16 @@ def test_lastlogin_history(topology_st, request):
     :setup: Standalone instance, Global account policy plugin configuration,
             set alwaysrecordlogin to yes.
     :steps:
-        1. Enable account policy plugin and restart instance.
-        2. Add a config entry, setting alwaysrecordlogin to yes (lastLoginHistorySize defaults to 5)
-        3. Create a test user and reset its password.
-        4. Bind as test user more times than lastLoginHistorySize.
-        5. Search on the test user DN for lastLoginTimeHistory attribute.
-        6. Verify returned entry contains only LOGIN_HIST_SIZE_FIVE timestamps in chronological order.
-        7. Modify plugin config entry, setting lastLoginHistorySize to LOGIN_HIST_SIZE_TWO
-        8. Bind as test user more times than lastLoginHistorySize.
+        1. Bind as test user more times than lastLoginHistorySize.
+        2. Search on the test user DN for lastLoginTimeHistory attribute.
+        3. Verify returned entry contains only LOGIN_HIST_SIZE_FIVE timestamps in chronological order.
+        4. Modify plugin config entry, setting lastLoginHistorySize to LOGIN_HIST_SIZE_TWO
+        5. Bind as test user more times than lastLoginHistorySize.
+        6. Search on the test user DN for lastLoginTimeHistory attribute.
+        7. Verify returned entry contains only LOGIN_HIST_SIZE_TWO timestamps in chronological order.
+        8. Modify plugin config entry, setting lastLoginHistorySize to LOGIN_HIST_SIZE_FIVE
         9. Search on the test user DN for lastLoginTimeHistory attribute.
-        10. Verify returned entry contains only LOGIN_HIST_SIZE_TWO timestamps in chronological order.
-        11. Modify plugin config entry, setting lastLoginHistorySize to LOGIN_HIST_SIZE_FIVE
-        12. Search on the test user DN for lastLoginTimeHistory attribute.
-        13. Verify returned entry contains only LOGIN_HIST_SIZE_FIVE timestamps in chronological order.
+        10. Verify returned entry contains only LOGIN_HIST_SIZE_FIVE timestamps in chronological order.
     :expectedresults:
         1. Success
         2. Success
@@ -456,9 +487,6 @@ def test_lastlogin_history(topology_st, request):
         8. Success
         9. Success
         10. Success
-        11. Success
-        12. Success
-        13. Success
     """
 
     USER_DN = 'uid=test_user_1000,ou=people,dc=example,dc=com'
@@ -468,25 +496,8 @@ def test_lastlogin_history(topology_st, request):
     LOGIN_HIST_SIZE_TWO = 2
 
     inst = topology_st[0]
-
-    # Enable plugin and restart
-    plugin = AccountPolicyPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-    inst.restart()
-
-    # Add config entry, set alwaysrecordlogin to yes (lastLoginHistorySize defaults to 5)
-    ap_configs = AccountPolicyConfigs(inst)
-    try:
-        ap_config = ap_configs.create(properties={'cn': 'config', 'alwaysrecordlogin': 'yes', })
-    except ldap.ALREADY_EXISTS:
-        ap_config = ap_configs.get('config')
-        ap_config.replace('alwaysrecordlogin', 'yes')
-
-    # Add a test user entry
-    users = UserAccounts(inst, DEFAULT_SUFFIX)
-    user = users.create_test_user(uid=1000, gid=2000)
-    user.replace('userPassword', USER_PW)
+    user = setup_test_user
+    ap_configs = setup_account_policy_plugin
 
     # Bind as test user more times than lastLoginHistorySize
     user_binds(user, USER_PW, LOGIN_HIST_NUM_BINDS_SEVEN)
@@ -520,11 +531,92 @@ def test_lastlogin_history(topology_st, request):
     # Verify lastLoginTimeHistory attribute returns the correct number of entries in chronological order
     verify_last_login_entries(inst, USER_DN, LOGIN_HIST_SIZE_FIVE)
 
-    def fin():
-        log.info('test_lastlogin_history cleanup')
-        user.delete()
 
-    request.addfinalizer(fin)
+def test_lastlogin_history_size_zero(topology_st, setup_test_user, setup_account_policy_plugin):
+    """Verify that when lastLoginHistorySize is set to zero, no login history is recorded.
+
+    :id: c1169b98-ebd9-4fe9-8402-c95f6f80a184
+    :setup: Standalone instance, Global account policy plugin configuration,
+            set alwaysrecordlogin to yes, and a test user.
+    :steps:
+        1. Set the lastLoginHistorySize to 0.
+        2. Bind as the test user more times than the lastLoginHistorySize.
+        3. Search for the lastLoginTimeHistory attribute on the test user DN.
+    :expectedresults:
+        1. The lastLoginHistorySize is successfully set to 0.
+        2. Success.
+        3. The returned entry has no timestamps, as the size was set to zero.
+    """
+
+    USER_DN = 'uid=test_user_1000,ou=people,dc=example,dc=com'
+    USER_PW = 'password'
+    LOGIN_HIST_NUM_BINDS_THREE = 3
+    LOGIN_HIST_SIZE_ZERO = 0
+
+    inst = topology_st[0]
+    user = setup_test_user
+    ap_configs = setup_account_policy_plugin
+
+    # Set lastLoginHistorySize to 0
+    try:
+        ap_configs.create(properties={'cn': 'config', 'lastLoginHistorySize': str(LOGIN_HIST_SIZE_ZERO)})
+    except ldap.ALREADY_EXISTS:
+        ap_config = ap_configs.get('config')
+        ap_config.replace('lastLoginHistorySize', str(LOGIN_HIST_SIZE_ZERO))
+
+    # Bind as test user more times than lastLoginHistorySize
+    user_binds(user, USER_PW, LOGIN_HIST_NUM_BINDS_THREE)
+
+    # Verify no entries in lastLoginTimeHistory attribute
+    verify_last_login_entries(inst, USER_DN, LOGIN_HIST_SIZE_ZERO)
+
+
+def test_lastlogin_history_size_negative(topology_st, setup_account_policy_plugin):
+    """Verify that setting the lastLoginHistorySize to a negative number raises an error.
+
+    :id: 3e3252e0-ad66-4d49-b9a1-3e097f88f2c4
+    :setup: Standalone instance, Global account policy plugin configuration,
+            set alwaysrecordlogin to yes.
+    :steps:
+        1. Try to set the lastLoginHistorySize to a negative number.
+    :expectedresults:
+        1. An ldap.INVALID_SYNTAX error is raised.
+    """
+
+    LOGIN_HIST_SIZE_NEGATIVE = -1
+    ap_configs = setup_account_policy_plugin
+
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        # Try to set lastLoginHistorySize to negative
+        try:
+            ap_configs.create(properties={'cn': 'config', 'lastLoginHistorySize': str(LOGIN_HIST_SIZE_NEGATIVE)})
+        except ldap.ALREADY_EXISTS:
+            ap_config = ap_configs.get('config')
+            ap_config.replace('lastLoginHistorySize', str(LOGIN_HIST_SIZE_NEGATIVE))
+
+
+def test_lastlogin_history_size_non_integer(topology_st, setup_account_policy_plugin):
+    """Verify that setting the lastLoginHistorySize to a non-integer value raises an error.
+
+    :id: 460e17a0-4d76-4c1e-94e8-a09e185b4dca
+    :setup: Standalone instance, Global account policy plugin configuration,
+            set alwaysrecordlogin to yes.
+    :steps:
+        1. Try to set the lastLoginHistorySize to a non-integer value.
+    :expectedresults:
+        1. An ldap.INVALID_SYNTAX error is raised.
+    """
+
+    LOGIN_HIST_SIZE_NON_INTEGER = 'five'
+    ap_configs = setup_account_policy_plugin
+
+    with pytest.raises(ldap.INVALID_SYNTAX):
+        # Try to set lastLoginHistorySize to a non-integer
+        try:
+            ap_configs.create(properties={'cn': 'config', 'lastLoginHistorySize': str(LOGIN_HIST_SIZE_NON_INTEGER)})
+        except ldap.ALREADY_EXISTS:
+            ap_config = ap_configs.get('config')
+            ap_config.replace('lastLoginHistorySize', str(LOGIN_HIST_SIZE_NON_INTEGER))
 
 
 def test_glact_login(topology_st, accpol_global):
