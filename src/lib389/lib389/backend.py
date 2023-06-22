@@ -498,11 +498,11 @@ class Backend(DSLdapObject):
         * missing indices if we are local and have log access?
         """
         # Check for the missing mapping tree.
-        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
         bename = self.lint_uid()
         try:
             mt = self._mts.get(suffix)
-            if mt.get_attr_val_utf8('nsslapd-backend') != bename and mt.get_attr_val_utf8('nsslapd-state') != 'backend':
+            if mt.get_attr_val_utf8_l('nsslapd-backend') != bename.lower() and mt.get_attr_val_utf8('nsslapd-state') != 'backend':
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
             result = DSBLE0001

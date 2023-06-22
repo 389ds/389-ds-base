@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,7 +11,7 @@ import pytest
 import os
 import subprocess
 
-from lib389.backend import Backends
+from lib389.backend import Backends, DatabaseConfig
 from lib389.cos import CosTemplates, CosPointerDefinitions
 from lib389.dbgen import dbgen_users
 from lib389.idm.account import Accounts
@@ -112,6 +112,7 @@ def test_healthcheck_logging_format_should_be_revised(topology_st):
 
     log.info('Set nsslapd-logging-hr-timestamps-enabled to off')
     standalone.config.set('nsslapd-logging-hr-timestamps-enabled', 'off')
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
@@ -359,6 +360,7 @@ def test_healthcheck_low_disk_space(topology_st):
     RET_CODE = 'DSDSLE0001'
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
     file = '{}/foo'.format(standalone.ds_paths.log_dir)
 
     log.info('Count the disk space to allocate')
@@ -406,10 +408,13 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     standalone = topology_st.standalone
 
     log.info('Delete the previous access logs')
-    topology_st.standalone.deleteAccessLogs()
+    standalone.deleteAccessLogs()
 
     log.info('Set nsslapd-accesslog-logbuffering to off')
     standalone.config.set("nsslapd-accesslog-logbuffering", "off")
+    db_cfg = DatabaseConfig(standalone)
+    db_cfg.set([('nsslapd-idlistscanlimit', '100')])
+
 
     log.info('Stopping the server and running offline import...')
     standalone.stop()
@@ -423,6 +428,8 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
 
     log.info('Check that access log contains "notes=A"')
     assert standalone.ds_access_log.match(r'.*notes=A.*')
+
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
@@ -459,6 +466,8 @@ def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
 
     log.info('Set nsslapd-accesslog-logbuffering to off')
     standalone.config.set("nsslapd-accesslog-logbuffering", "off")
+    db_cfg = DatabaseConfig(standalone)
+    db_cfg.set([('nsslapd-idlistscanlimit', '100')])
 
     log.info('Stopping the server and running offline import...')
     standalone.stop()
@@ -473,8 +482,73 @@ def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     log.info('Check that access log contains "notes=F"')
     assert standalone.ds_access_log.match(r'.*notes=F.*')
 
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+
+def test_healthcheck_unauth_binds(topology_st):
+    """Check if HealthCheck returns DSCLE0003 code when unauthorized binds are
+    allowed
+
+    :id: 13b88a3b-0dc5-4ce9-9fbf-058ad072339b
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-allow-unauthenticated-binds to on
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports DSCLE0003
+        4. Healthcheck reports DSCLE0003
+    """
+
+    RET_CODE = 'DSCLE0003'
+
+    inst = topology_st.standalone
+
+    log.info('nsslapd-allow-unauthenticated-binds to on')
+    inst.config.set("nsslapd-allow-unauthenticated-binds", "on")
+
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+
+    # reset setting
+    log.info('Reset nsslapd-allow-unauthenticated-binds to off')
+    inst.config.set("nsslapd-allow-unauthenticated-binds", "off")
+
+def test_healthcheck_accesslog_buffering(topology_st):
+    """Check if HealthCheck returns DSCLE0004 code when acccess log biffering
+    is disabled
+
+    :id: 5a6512fd-1c7b-4557-9278-45150423148b
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-accesslog-logbuffering to off
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports DSCLE0004
+        4. Healthcheck reports DSCLE0004
+    """
+
+    RET_CODE = 'DSCLE0004'
+
+    inst = topology_st.standalone
+
+    log.info('nsslapd-accesslog-logbuffering to off')
+    inst.config.set("nsslapd-accesslog-logbuffering", "off")
+
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+
+    # reset setting
+    log.info('Reset nsslapd-accesslog-logbuffering to on')
+    inst.config.set("nsslapd-accesslog-logbuffering", "on")
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -22,7 +22,9 @@ from lib389._constants import *
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
-from lib389.lint import DSCLE0001, DSCLE0002, DSELE0001
+from lib389.lint import (
+    DSCLE0001, DSCLE0002, DSCLE0003, DSCLE0004, DSELE0001
+)
 
 class Config(DSLdapObject):
     """
@@ -217,6 +219,24 @@ class Config(DSLdapObject):
             report = copy.deepcopy(DSCLE0002)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             report['check'] = "config:passwordscheme"
+            yield report
+
+    def _lint_unauth_binds(self):
+        # Allow unauthenticated binds
+        unauthbinds = self.get_attr_val_utf8_l('nsslapd-allow-unauthenticated-binds')
+        if unauthbinds == "on":
+            report = copy.deepcopy(DSCLE0003)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "config:unauthorizedbinds"
+            yield report
+
+    def _lint_accesslog_buffering(self):
+        # access log buffering
+        buffering = self.get_attr_val_utf8_l('nsslapd-accesslog-logbuffering')
+        if buffering == "off":
+            report = copy.deepcopy(DSCLE0004)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "config:accesslogbuffering"
             yield report
 
     def disable_plaintext_port(self):

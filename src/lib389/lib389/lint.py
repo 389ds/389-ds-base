@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -111,6 +111,36 @@ is started, they will use the server provided defaults that are secure.
 You can also use 'dsconf' to replace these values.  Here is an example:
 
     # dsconf slapd-YOUR_INSTANCE config replace passwordStorageScheme=PBKDF2-SHA512 nsslapd-rootpwstoragescheme=PBKDF2-SHA512"""
+}
+
+DSCLE0003 = {
+    'dsle': 'DSCLE0003',
+    'severity': 'MEDIUM',
+    'description': 'Unauthorized Binds Allowed',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-allow-unauthenticated-binds is set to 'on' this can
+lead to unexpected results with clients and potential security issues
+""",
+    'fix': """Set nsslapd-allow-unauthenticated-binds to off.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-allow-unauthenticated-binds=off"""
+}
+
+DSCLE0004 = {
+    'dsle': 'DSCLE0004',
+    'severity': 'LOW',
+    'description': 'Access Log buffering disabled',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-accesslog-logbuffering is set to 'off' this will cause high
+disk IO and can significantly impact server performance.  This should only be used
+for debug purposes
+""",
+    'fix': """Set nsslapd-accesslog-logbuffering to 'on'.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-accesslog-logbuffering=on
+"""
 }
 
 # Security checks
