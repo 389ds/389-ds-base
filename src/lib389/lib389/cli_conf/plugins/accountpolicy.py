@@ -9,7 +9,6 @@
 import ldap
 from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfig
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
-from lib389.utils import ensure_positive_int
 
 arg_to_attr = {
     'config_entry': 'nsslapd_pluginconfigarea'
@@ -99,7 +98,7 @@ def _add_parser_args(parser):
                              'are account policy configuration entries (specAttrName)')
     parser.add_argument('--state-attr',
                         help='Specifies the primary time attribute used to evaluate an account policy (stateAttrName)')
-    parser.add_argument('--login-history-size', type=ensure_positive_int,
+    parser.add_argument('--login-history-size',
                         help='Specifies the number of login timestamps to store (lastLoginHistSize) )')
     parser.add_argument('--check-all-state-attrs', choices=['yes', 'no'], type=str.lower,
                         help="Check both state and alternate state attributes for account state")

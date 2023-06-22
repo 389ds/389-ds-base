@@ -19,6 +19,13 @@
 # Schema for the account policy plugin
 #
 dn: cn=schema
+## lastLoginHistorySize determines the number of login histories to store
+##
+attributeTypes: ( 2.16.840.1.113730.3.1.2397 NAME 'lastLoginHistorySize'
+  DESC 'Number of entries to store in last login history'
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+  SINGLE-VALUE
+  X-ORIGIN '389 Directory Server' )
 ##
 ## lastLoginHistory holds successful logins in an entry (GeneralizedTime syntax)
 attributeTypes: ( 2.16.840.1.113730.3.1.2394 NAME 'lastLoginHistory'

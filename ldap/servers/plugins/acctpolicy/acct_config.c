@@ -74,6 +74,7 @@ static int
 acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
 {
     char *config_val;
+    int value = 0;
     int rc = 0;
 
     if (newcfg == NULL) {
@@ -150,11 +151,24 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
     slapi_ch_free_string(&config_val);
 
     if (newcfg->always_record_login) {
-        char *hist_size = NULL;
-        newcfg->login_history_attr = slapi_ch_strdup(LASTLOGIN_HISTORY_ATTR);
-        if (has_attr(e, LASTLOGIN_HISTORY_SIZE_ATTR, &hist_size)) {
-            newcfg->login_history_size = atoi(hist_size);
-            slapi_ch_free_string(&hist_size);
+        char *hist_size_str = NULL;
+        newcfg->login_history_attr = get_attr_string_val(e, LASTLOGIN_HISTORY_ATTR);
+        if (newcfg->login_history_attr == NULL) {
+            newcfg->login_history_attr = slapi_ch_strdup(LASTLOGIN_HISTORY_ATTR);
+        }
+        if (has_attr(e, LASTLOGIN_HISTORY_SIZE_ATTR, &hist_size_str)) {
+            if (hist_size_str) {
+                value = strtoul(hist_size_str, 0, 0);
+                if (value >= 0) {
+                    newcfg->login_history_size = value;
+                    slapi_ch_free_string(&hist_size_str);
+                } else {
+                    slapi_log_err(SLAPI_LOG_WARNING, PLUGIN_NAME,
+                                  "acct_policy_entry2config - Invalid value for login-history-size: %d, "
+                                  "Using default value of %d\n", value, DEFAULT_LASTLOGIN_HISTORY_SIZE);
+                    newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
+                }
+            }
         } else {
             newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
         }
