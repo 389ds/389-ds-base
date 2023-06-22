@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -87,6 +87,7 @@ def test_healthcheck_disabled_suffix(topology_st):
     mts = MappingTrees(topology_st.standalone)
     mt = mts.get(DEFAULT_SUFFIX)
     mt.replace("nsslapd-state", "disabled")
+    topology_st.standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     run_healthcheck_and_flush_log(topology_st, topology_st.standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, topology_st.standalone, RET_CODE, json=True)
@@ -184,6 +185,9 @@ def test_healthcheck_list_errors(topology_st):
                    'DSCERTLE0002 :: Certificate expired',
                    'DSCLE0001 :: Different log timestamp format',
                    'DSCLE0002 :: Weak passwordStorageScheme',
+                   'DSCLE0003 :: Unauthorized Binds Allowed',
+                   'DSCLE0004 :: Access Log buffering disabled',
+                   'DSCLE0005 :: Security Log buffering disabled',
                    'DSCLLE0001 :: Changelog trimming not configured',
                    'DSDSLE0001 :: Low disk space',
                    'DSELE0001 :: Weak TLS protocol version',
@@ -228,6 +232,9 @@ def test_healthcheck_check_option(topology_st):
 
     output_list = ['config:hr_timestamp',
                    'config:passwordscheme',
+                   # 'config:accesslog_buffering',  Skip test access log buffering is disabled
+                   'config:securitylog_buffering',
+                   'config:unauth_binds',
                    'backends:userroot:cl_trimming',
                    'backends:userroot:mappingtree',
                    'backends:userroot:search',
@@ -236,9 +243,11 @@ def test_healthcheck_check_option(topology_st):
                    'fschecks:file_perms',
                    'refint:attr_indexes',
                    'refint:update_delay',
+                   'memberof:member_attr_indexes',
                    'monitor-disk-space:disk_space',
                    'replication:agmts_status',
                    'replication:conflicts',
+                   'replication:no_ruv',
                    'dseldif:nsstate',
                    'tls:certificate_expiration',
                    'logs:notes']
@@ -306,6 +315,8 @@ def test_healthcheck_replication(topology_m2):
     # If we don't set changelog trimming, we will get error DSCLLE0001
     set_changelog_trimming(M1)
     set_changelog_trimming(M2)
+    M1.config.set("nsslapd-accesslog-logbuffering", "on")
+    M2.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('Run healthcheck for supplier1')
     run_healthcheck_and_flush_log(topology_m2, M1, CMD_OUTPUT, json=False)
@@ -345,6 +356,8 @@ def test_healthcheck_replication_tls(topology_m2):
     M2.enable_tls()
 
     log.info('Run healthcheck for supplier1')
+    M1.config.set("nsslapd-accesslog-logbuffering", "on")
+    M2.config.set("nsslapd-accesslog-logbuffering", "on")
     run_healthcheck_and_flush_log(topology_m2, M1, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2, M1, JSON_OUTPUT, json=True)
 
@@ -397,7 +410,7 @@ def test_healthcheck_backend_missing_mapping_tree(topology_st):
     mts.create(properties={
         'cn': DEFAULT_SUFFIX,
         'nsslapd-state': 'backend',
-        'nsslapd-backend': 'userRoot',
+        'nsslapd-backend': 'USERROOT',
     })
 
     run_healthcheck_and_flush_log(topology_st, standalone, CMD_OUTPUT, json=False)
