@@ -469,6 +469,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     char **entryScopeExcludeSubtrees = NULL;
     char *sharedcfg = NULL;
     const char *skip_nested = NULL;
+    const char *deferred_update = NULL;
     char *auto_add_oc = NULL;
     int num_vals = 0;
 
@@ -503,6 +504,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
     allBackends = slapi_entry_attr_get_ref(e, MEMBEROF_BACKEND_ATTR);
     skip_nested = slapi_entry_attr_get_ref(e, MEMBEROF_SKIP_NESTED_ATTR);
+    deferred_update = slapi_entry_attr_get_ref(e, MEMBEROF_DEFERRED_UPDATE_ATTR);
     auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
 
     if (auto_add_oc == NULL) {
@@ -614,7 +616,16 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
             theConfig.skip_nested = 0;
         }
     }
+    
 
+    if (deferred_update) {
+        if (strcasecmp(deferred_update, "on") == 0) {
+            theConfig.deferred_update = PR_TRUE;
+        } else {
+            theConfig.deferred_update = PR_FALSE;
+        }
+    }
+    
     if (allBackends) {
         if (strcasecmp(allBackends, "on") == 0) {
             theConfig.allBackends = 1;

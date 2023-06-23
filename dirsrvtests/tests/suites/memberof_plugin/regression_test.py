@@ -302,6 +302,10 @@ def test_scheme_violation_errors_logged(topo_m2):
     memberof = MemberOfPlugin(inst)
     memberof.enable()
     memberof.set_autoaddoc('nsMemberOf')
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     inst.restart()
 
     users = UserAccounts(inst, SUFFIX)
@@ -315,6 +319,7 @@ def test_scheme_violation_errors_logged(topo_m2):
 
     testgroup.add('member', testuser.dn)
 
+    time.sleep(delay)
     user_memberof_attr = testuser.get_attr_val_utf8('memberof')
     assert user_memberof_attr
     log.info('memberOf attr value - {}'.format(user_memberof_attr))
@@ -483,6 +488,10 @@ def test_memberof_group(topology_st):
     memberof = MemberOfPlugin(inst)
     memberof.enable()
     memberof.replace('memberOfEntryScope', SUBTREE_1)
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     inst.restart()
 
     add_container(inst, SUFFIX, 'sub1')
@@ -492,6 +501,7 @@ def test_memberof_group(topology_st):
     add_group(inst, 'g1', SUBTREE_1)
     add_group(inst, 'g2', SUBTREE_2)
 
+    time.sleep(delay)
     # _check_memberof
     dn1 = '%s,%s' % ('uid=test_m1', SUBTREE_1)
     dn2 = '%s,%s' % ('uid=test_m2', SUBTREE_1)
@@ -504,6 +514,7 @@ def test_memberof_group(topology_st):
 
     rename_entry(inst, 'cn=g2', SUBTREE_2, SUBTREE_1)
 
+    time.sleep(delay)
     g2n = '%s,%s' % ('cn=g2-new', SUBTREE_1)
     _find_memberof_ext(inst, dn1, g1, True)
     _find_memberof_ext(inst, dn2, g1, True)
@@ -566,6 +577,11 @@ def test_entrycache_on_modrdn_failure(topology_st):
 
     # only scopes peoplebase
     _config_memberof_entrycache_on_modrdn_failure(topology_st.standalone)
+    memberof = MemberOfPlugin(topology_st.standalone)
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     topology_st.standalone.restart(timeout=10)
 
     # create 10 users
@@ -587,6 +603,7 @@ def test_entrycache_on_modrdn_failure(topology_st):
                                    ],
                              'description': 'mygroup'})))
 
+    time.sleep(delay)
     # Check the those entries have memberof with group0
     for i in range(2):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
@@ -609,6 +626,7 @@ def test_entrycache_on_modrdn_failure(topology_st):
                                    ],
                              'description': 'mygroup'})))
 
+    time.sleep(delay)
     # Check the those entries have not memberof with group1
     for i in range(2):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
@@ -625,6 +643,8 @@ def test_entrycache_on_modrdn_failure(topology_st):
     # move group1 into the scope and check user0 and user1 are memberof group1
     topology_st.standalone.rename_s(group1_dn, 'cn=group_in1', newsuperior=peoplebase, delold=0)
     new_group1_dn = 'cn=group_in1,%s' % peoplebase
+
+    time.sleep(delay)
     for i in range(2):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
         ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
@@ -646,7 +666,7 @@ def test_entrycache_on_modrdn_failure(topology_st):
                                    'cn=user3,%s' % peoplebase,
                                    ],
                              'description': entry_description})))
-
+    time.sleep(delay)
     # Check the those entries have not memberof with group2
     for i in (2, 3):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
@@ -657,24 +677,32 @@ def test_entrycache_on_modrdn_failure(topology_st):
     _disable_auto_oc_memberof(topology_st.standalone)
     topology_st.standalone.restart(timeout=10)
 
-    # move group2 into the scope and check it fails
-    try:
-        topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
-        topology_st.standalone.log.info("This is unexpected, modrdn should fail as the member entry have not the appropriate objectclass")
-        assert False
-    except ldap.OBJECT_CLASS_VIOLATION:
-        pass
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        # move group2 into the scope and check it fails
+        try:
+            topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
+            topology_st.standalone.log.info("This is expected, modrdn does not fail only updates of members will fail")
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
+    else:
+        # move group2 into the scope and check it fails
+        try:
+            topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
+            topology_st.standalone.log.info("This is unexpected, modrdn should fail as the member entry have not the appropriate objectclass")
+            assert False
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
 
-    # retrieve the entry having the specific description value
-    # check that the entry DN is the original group2 DN
-    ents = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=gr*)')
-    found = False
-    for ent in ents:
-        topology_st.standalone.log.info("retrieve: %s with desc=%s" % (ent.dn, ent.getValue('description')))
-        if ent.getValue('description') == entry_description.encode():
-            found = True
-            assert ent.dn == group2_dn
-    assert found
+        # retrieve the entry having the specific description value
+        # check that the entry DN is the original group2 DN
+        ents = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(cn=gr*)')
+        found = False
+        for ent in ents:
+            topology_st.standalone.log.info("retrieve: %s with desc=%s" % (ent.dn, ent.getValue('description')))
+            if ent.getValue('description') == entry_description.encode():
+                found = True
+                assert ent.dn == group2_dn
+        assert found
 
 
 def _config_memberof_silent_memberof_failure(server):
@@ -720,6 +748,11 @@ def test_silent_memberof_failure(topology_st):
     """
     # only scopes peoplebase
     _config_memberof_silent_memberof_failure(topology_st.standalone)
+    memberof = MemberOfPlugin(topology_st.standalone)
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     topology_st.standalone.restart(timeout=10)
 
     # first do some cleanup
@@ -727,10 +760,15 @@ def test_silent_memberof_failure(topology_st):
     for i in range(10):
         cn = 'user%d' % i
         dn = 'cn=%s,%s' % (cn, peoplebase)
-        topology_st.standalone.delete_s(dn)
-    topology_st.standalone.delete_s('cn=group_in0,%s' % peoplebase)
-    topology_st.standalone.delete_s('cn=group_in1,%s' % peoplebase)
-    topology_st.standalone.delete_s('cn=group_out2,%s' % SUFFIX)
+        try:
+            topology_st.standalone.delete_s(dn)
+        except ldap.NO_SUCH_OBJECT:
+            pass
+    for group_rdn in ['group_in0', 'group_in1', 'group_in2', 'group_out2']:
+        try:
+            topology_st.standalone.delete_s('cn=%s,%s' % (group_rdn, peoplebase))
+        except ldap.NO_SUCH_OBJECT:
+            pass
 
     # create 10 users
     for i in range(10):
@@ -750,6 +788,7 @@ def test_silent_memberof_failure(topology_st):
                                    ],
                              'description': 'mygroup'})))
 
+    time.sleep(delay)
     # Check the those entries have memberof with group0
     for i in range(2):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
@@ -772,6 +811,7 @@ def test_silent_memberof_failure(topology_st):
                                    ],
                              'description': 'mygroup'})))
 
+    time.sleep(delay)
     # Check the those entries have not memberof with group1
     for i in range(2):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
@@ -788,6 +828,7 @@ def test_silent_memberof_failure(topology_st):
     # move group1 into the scope and check user0 and user1 are memberof group1
     topology_st.standalone.rename_s(group1_dn, 'cn=group_in1', newsuperior=peoplebase, delold=0)
     new_group1_dn = 'cn=group_in1,%s' % peoplebase
+    time.sleep(delay)
     for i in range(2):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
         ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
@@ -809,6 +850,7 @@ def test_silent_memberof_failure(topology_st):
                                    ],
                              'description': 'mygroup'})))
 
+    time.sleep(delay)
     # Check the those entries have not memberof with group2
     for i in (2, 3):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
@@ -819,14 +861,23 @@ def test_silent_memberof_failure(topology_st):
     _disable_auto_oc_memberof(topology_st.standalone)
     topology_st.standalone.restart(timeout=10)
 
-    # move group2 into the scope and check it fails
-    try:
-        topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
-        topology_st.standalone.log.info("This is unexpected, modrdn should fail as the member entry have not the appropriate objectclass")
-        assert False
-    except ldap.OBJECT_CLASS_VIOLATION:
-        pass
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        # move group2 into the scope and check it fails
+        try:
+            topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
+            topology_st.standalone.log.info("This is expected, modrdn does not fail only updates of members will fail")
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
+    else:
+        # move group2 into the scope and check it fails
+        try:
+            topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
+            topology_st.standalone.log.info("This is unexpected, modrdn should fail as the member entry have not the appropriate objectclass")
+            assert False
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
 
+    time.sleep(delay)
     # Check the those entries have not memberof
     for i in (2, 3):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
@@ -834,22 +885,39 @@ def test_silent_memberof_failure(topology_st):
         topology_st.standalone.log.info("Should assert %s has memberof is %s" % (user_dn, ent.hasAttr('memberof')))
         assert not ent.hasAttr('memberof')
 
-    # Create a group3 in the scope
-    group3_dn = 'cn=group3_in,%s' % peoplebase
-    try:
-        topology_st.standalone.add_s(Entry((group3_dn, {'objectclass': ['top', 'groupofnames'],
-                             'member': [
-                                   'cn=user4,%s' % peoplebase,
-                                   'cn=user5,%s' % peoplebase,
-                                   ],
-                             'description': 'mygroup'})))
-        topology_st.standalone.log.info("This is unexpected, ADD should fail as the member entry have not the appropriate objectclass")
-        assert False
-    except ldap.OBJECT_CLASS_VIOLATION:
-        pass
-    except ldap.OPERATIONS_ERROR:
-        pass
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        # Create a group3 in the scope
+        group3_dn = 'cn=group3_in,%s' % peoplebase
+        try:
+            topology_st.standalone.add_s(Entry((group3_dn, {'objectclass': ['top', 'groupofnames'],
+                                 'member': [
+                                       'cn=user4,%s' % peoplebase,
+                                       'cn=user5,%s' % peoplebase,
+                                       ],
+                                 'description': 'mygroup'})))
+            topology_st.standalone.log.info("This is expected, add does not fail only updates of members will fail")
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
+        except ldap.OPERATIONS_ERROR:
+            pass
+    else:
+        # Create a group3 in the scope
+        group3_dn = 'cn=group3_in,%s' % peoplebase
+        try:
+            topology_st.standalone.add_s(Entry((group3_dn, {'objectclass': ['top', 'groupofnames'],
+                                 'member': [
+                                       'cn=user4,%s' % peoplebase,
+                                       'cn=user5,%s' % peoplebase,
+                                       ],
+                                 'description': 'mygroup'})))
+            topology_st.standalone.log.info("This is unexpected, ADD should fail as the member entry have not the appropriate objectclass")
+            assert False
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
+        except ldap.OPERATIONS_ERROR:
+            pass
 
+    time.sleep(delay)
     # Check the those entries do not have memberof
     for i in (4, 5):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)

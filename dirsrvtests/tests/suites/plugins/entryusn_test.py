@@ -115,6 +115,11 @@ def test_entryusn_no_duplicates(topology_st, setup):
     """
 
     inst = topology_st.standalone
+    plugin = MemberOfPlugin(inst)
+    if (plugin.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     config = Config(inst)
     config.replace('nsslapd-accesslog-level', '260')  # Internal op
     config.replace('nsslapd-errorlog-level', '65536')
@@ -125,6 +130,7 @@ def test_entryusn_no_duplicates(topology_st, setup):
     groups = setup["groups"]
 
     groups[0].replace('member', users[0].dn)
+    time.sleep(delay)
     entryusn_list.append(users[0].get_attr_val_int('entryusn'))
     log.info(f"{users[0].dn}_1: {entryusn_list[-1:]}")
     entryusn_list.append(groups[0].get_attr_val_int('entryusn'))
@@ -132,6 +138,7 @@ def test_entryusn_no_duplicates(topology_st, setup):
     check_entryusn_no_duplicates(entryusn_list)
 
     groups[1].replace('member', [users[0].dn, users[1].dn])
+    time.sleep(delay)
     entryusn_list.append(users[0].get_attr_val_int('entryusn'))
     log.info(f"{users[0].dn}_2: {entryusn_list[-1:]}")
     entryusn_list.append(users[1].get_attr_val_int('entryusn'))

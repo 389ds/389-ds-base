@@ -157,6 +157,10 @@ def test_betxn_memberof(topology_st):
     memberof = MemberOfPlugin(topology_st.standalone)
     memberof.enable()
     memberof.set_autoaddoc('referral')
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        singleTXN = False
+    else:
+        singleTXN = True
     topology_st.standalone.restart()
 
     groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
@@ -169,11 +173,17 @@ def test_betxn_memberof(topology_st):
         group2.remove('objectClass', 'nsMemberOf')
 
     # Add group2 to group1 - it should fail with objectclass violation
-    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+    if singleTXN:
+        with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+            group1.add_member(group2.dn)
+
+        # verify entry cache reflects the current/correct state of group1
+        assert not group1.is_member(group2.dn)
+    else:
         group1.add_member(group2.dn)
 
-    # verify entry cache reflects the current/correct state of group1
-    assert not group1.is_member(group2.dn)
+        # verify entry cache reflects the current/correct state of group1
+        assert group1.is_member(group2.dn)
 
     # Done
     log.info('test_betxn_memberof: PASSED')
@@ -206,6 +216,10 @@ def test_betxn_modrdn_memberof_cache_corruption(topology_st):
     memberof.set_autoaddoc('nsContainer')  # Bad OC
     memberof.set('memberOfEntryScope', peoplebase)
     memberof.set('memberOfAllBackends', 'on')
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        singleTXN = False
+    else:
+        singleTXN = True
     topology_st.standalone.restart()
 
     groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
@@ -221,12 +235,16 @@ def test_betxn_modrdn_memberof_cache_corruption(topology_st):
 
     group.add_member(user.dn)
 
-    # Attempt modrdn that should fail, but the original entry should stay in the cache
-    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
-        group.rename('cn=group_to_people', newsuperior=peoplebase)
+    if singleTXN:
+        # Attempt modrdn that should fail, but the original entry should stay in the cache
+        with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+            group.rename('cn=group_to_people', newsuperior=peoplebase)
 
-    # Should fail, but not with NO_SUCH_OBJECT as the original entry should still be in the cache
-    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+        # Should fail, but not with NO_SUCH_OBJECT as the original entry should still be in the cache
+        with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
+            group.rename('cn=group_to_people', newsuperior=peoplebase)
+    else:
+        group.rename('cn=group_to_people', newsuperior=peoplebase)
         group.rename('cn=group_to_people', newsuperior=peoplebase)
 
     # Done

@@ -40,6 +40,7 @@
 #define MEMBEROF_BACKEND_ATTR     "memberOfAllBackends"
 #define MEMBEROF_ENTRY_SCOPE_ATTR "memberOfEntryScope"
 #define MEMBEROF_SKIP_NESTED_ATTR "memberOfSkipNested"
+#define MEMBEROF_DEFERRED_UPDATE_ATTR "memberOfDeferredUpdate"
 #define MEMBEROF_AUTO_ADD_OC      "memberOfAutoAddOC"
 #define NSMEMBEROF                "nsMemberOf"
 #define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
@@ -50,6 +51,65 @@
 /*
  * structs
  */
+
+typedef struct memberof_deferred_mod_task
+{
+    Slapi_PBlock *pb;
+    LDAPMod **mods;
+    Slapi_DN *target_sdn;
+} MemberofDeferredModTask;
+typedef struct memberof_deferred_add_task
+{
+    Slapi_PBlock *pb;
+    int foo;
+} MemberofDeferredAddTask;
+typedef struct memberof_deferred_del_task
+{
+    Slapi_PBlock *pb;
+    int foo;
+} MemberofDeferredDelTask;
+typedef struct memberof_deferred_modrdn_task
+{
+    Slapi_PBlock *pb;
+    int foo;
+} MemberofDeferredModrdnTask;
+typedef struct memberof_deferred_task
+{
+    unsigned long deferred_choice;
+    union
+    {
+        /* modify */
+        struct memberof_deferred_mod_task *d_un_mod;
+
+        /* modify */
+        struct memberof_deferred_add_task *d_un_add;
+        
+        /* modify */
+        struct memberof_deferred_del_task *d_un_del;
+        
+        /* modify */
+        struct memberof_deferred_modrdn_task *d_un_modrdn;
+    } d_un;
+#define d_mod d_un.d_un_mod
+#define d_add d_un.d_un_add
+#define d_del d_un.d_un_del
+#define d_modrdn d_un.d_un_modrdn
+    struct memberof_deferred_task *next;
+    struct memberof_deferred_task *prev;
+} MemberofDeferredTask;
+
+typedef struct memberof_deferred_list
+{
+    pthread_mutex_t deferred_list_mutex;
+    pthread_cond_t deferred_list_cv;
+    int keeprunning;
+    PRThread *deferred_tid;
+    int current_task;
+    MemberofDeferredTask *tasks_head;
+    MemberofDeferredTask *tasks_queue;
+} MemberofDeferredList;
+
+
 typedef struct memberofconfig
 {
     char **groupattrs;
@@ -64,6 +124,8 @@ typedef struct memberofconfig
     int skip_nested;
     int fixup_task;
     char *auto_add_oc;
+    PRBool deferred_update;
+    MemberofDeferredList *deferred_list;
     PLHashTable *ancestors_cache;
     PLHashTable *fixup_cache;
     Slapi_Task *task;
