@@ -293,7 +293,7 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
     else:
         assert supplier_schema_csn != consumer_schema_csn
 
-    # Check the error log of the supplier does not contain an error
+    # Check the error log of the supplier does contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
@@ -468,7 +468,7 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
     else:
         assert supplier_schema_csn != consumer_schema_csn
 
-    # Check the error log of the supplier does not contain an error
+    # Check the error log of the supplier does contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
@@ -641,7 +641,7 @@ def test_schema_replication_eight(topology_m1c1, schema_replication_init):
     else:
         assert supplier_schema_csn != consumer_schema_csn
 
-    # Check the error log of the supplier does not contain an error
+    # Check the error log of the supplier does contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
