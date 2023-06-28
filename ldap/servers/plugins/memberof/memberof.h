@@ -42,10 +42,12 @@
 #define MEMBEROF_SKIP_NESTED_ATTR "memberOfSkipNested"
 #define MEMBEROF_DEFERRED_UPDATE_ATTR "memberOfDeferredUpdate"
 #define MEMBEROF_AUTO_ADD_OC      "memberOfAutoAddOC"
+#define MEMBEROF_NEED_FIXUP       "memberOfNeedFixup"
 #define NSMEMBEROF                "nsMemberOf"
 #define MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE "memberOfEntryScopeExcludeSubtree"
 #define DN_SYNTAX_OID             "1.3.6.1.4.1.1466.115.121.1.12"
 #define NAME_OPT_UID_SYNTAX_OID   "1.3.6.1.4.1.1466.115.121.1.34"
+#define SHUTDOWN_TIMEOUT          60   /* systemctl timeout is by default 90s */
 
 
 /*
@@ -83,10 +85,10 @@ typedef struct memberof_deferred_task
 
         /* modify */
         struct memberof_deferred_add_task *d_un_add;
-        
+
         /* modify */
         struct memberof_deferred_del_task *d_un_del;
-        
+
         /* modify */
         struct memberof_deferred_modrdn_task *d_un_modrdn;
     } d_un;
@@ -102,7 +104,6 @@ typedef struct memberof_deferred_list
 {
     pthread_mutex_t deferred_list_mutex;
     pthread_cond_t deferred_list_cv;
-    int keeprunning;
     PRThread *deferred_tid;
     int current_task;
     MemberofDeferredTask *tasks_head;
@@ -129,6 +130,7 @@ typedef struct memberofconfig
     PLHashTable *ancestors_cache;
     PLHashTable *fixup_cache;
     Slapi_Task *task;
+    int need_fixup;
 } MemberOfConfig;
 
 /* The key to access the hash table is the normalized DN

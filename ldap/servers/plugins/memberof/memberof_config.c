@@ -36,7 +36,7 @@
  */
 static void fixup_hashtable_empty( MemberOfConfig *config, char *msg);
 static void ancestor_hashtable_empty(MemberOfConfig *config, char *msg);
-static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
+static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
 										 int *returncode, char *returntext, void *arg);
 static int memberof_search (Slapi_PBlock *pb __attribute__((unused)),
                             Slapi_Entry* entryBefore __attribute__((unused)),
@@ -471,6 +471,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     const char *skip_nested = NULL;
     const char *deferred_update = NULL;
     char *auto_add_oc = NULL;
+    const char *needfixup = NULL;
     int num_vals = 0;
 
     *returncode = LDAP_SUCCESS;
@@ -506,6 +507,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     skip_nested = slapi_entry_attr_get_ref(e, MEMBEROF_SKIP_NESTED_ATTR);
     deferred_update = slapi_entry_attr_get_ref(e, MEMBEROF_DEFERRED_UPDATE_ATTR);
     auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
+    needfixup = slapi_entry_attr_get_ref(e, MEMBEROF_NEED_FIXUP);
 
     if (auto_add_oc == NULL) {
         auto_add_oc = slapi_ch_strdup(NSMEMBEROF);
@@ -516,6 +518,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
      * a memberOf operation, so we obtain an exclusive lock here
      */
     memberof_wlock_config();
+    theConfig.need_fixup = (needfixup != NULL);
 
     if (groupattrs) {
         int i = 0;
@@ -616,7 +619,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
             theConfig.skip_nested = 0;
         }
     }
-    
+
 
     if (deferred_update) {
         if (strcasecmp(deferred_update, "on") == 0) {
@@ -625,7 +628,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
             theConfig.deferred_update = PR_FALSE;
         }
     }
-    
+
     if (allBackends) {
         if (strcasecmp(allBackends, "on") == 0) {
             theConfig.allBackends = 1;
@@ -765,6 +768,14 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 
         slapi_ch_free_string(&dest->auto_add_oc);
         dest->auto_add_oc = slapi_ch_strdup(src->auto_add_oc);
+
+        dest->deferred_update = src->deferred_update;
+        dest->need_fixup = src->need_fixup;
+        /*
+         * deferred_list, ancestors_cache, fixup_cache are not config parameters
+         *  but simple global parameters and should not be copied as
+         *  and they are only meaningful in the original config (i.e: theConfig)
+         */
 
         if (src->entryScopes) {
             int num_vals = 0;

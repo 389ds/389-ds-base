@@ -11,6 +11,7 @@ import pytest
 import os
 import time
 import ldap
+from datetime import datetime
 from random import sample
 from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes, ensure_str
 from lib389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
@@ -22,6 +23,10 @@ from lib389.idm.group import Groups, Group
 from lib389.replica import ReplicationManager
 from lib389.tasks import *
 from lib389.idm.nscontainer import nsContainers
+from lib389.idm.domain import Domain
+from lib389.dirsrv_log import DirsrvErrorLog
+from lib389.dseldif import DSEldif
+from contextlib import suppress
 
 
 # Skip on older versions
@@ -924,6 +929,151 @@ def test_silent_memberof_failure(topology_st):
         ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
         topology_st.standalone.log.info("Should assert %s has memberof is %s" % (user_dn, ent.hasAttr('memberof')))
         assert not ent.hasAttr('memberof')
+
+
+def check_memberof_consistency(inst, group):
+    """This function checks that there is same number of:
+         - entries having 'memberOf' attribute
+         - members in the group
+    """
+    suffix = Domain (inst, SUFFIX)
+    group_members = len(group.get_attr_vals('member'))
+    users_memberof = len(suffix.search(filter='(memberof=*)'))
+    assert group_members == users_memberof
+
+
+def count_global_fixup_message(errlog):
+    """This function returns a tuple (nbstarted, nsfinished) telling how many messages
+       (about Memberof pluging global fixed task) are found in the error log.
+    """
+    nbstarted = 0
+    nbfinished = 0
+    for line in errlog.match('.*Memberof plugin [a-z]* the global fixup task.*'):
+        if 'started' in line:
+            nbstarted += 1
+        elif 'finished' in line:
+            nbfinished += 1
+    log.info(f'Global fixup start was started {nbstarted} times.')
+    log.info(f'Global fixup start was finished {nbfinished} times.')
+    return (nbstarted, nbfinished)
+
+
+def test_shutdown_on_deferred_memberof(topology_st):
+    """This test checks that shutdown is handled properly if memberof updayes are deferred.
+
+    :id: c5629cae-15a0-11ee-8807-482ae39447e5
+    :setup: Standalone Instance
+    :steps:
+        1. Enable memberof plugin to scope SUFFIX
+        2. create 1000 users
+        3. Create a large groups with 500 members
+        4. Restart the instance (using the default 2 minutes timeout)
+        5. Check that users memberof and group members are in sync.
+        6. Modify the group to have 10 members.
+        7. Restart the instance with short timeout
+        8. Check that fixup task is in progress
+        9. Wait until fixup task is completed
+        10. Check that users memberof and group members are in sync.
+    :expectedresults:
+        1. should succeed
+        2. should succeed
+        3. should succeed
+        4. should succeed
+        5. should succeed
+        6. should succeed
+        7. should succeed
+        8. should succeed
+        9. should succeed
+        10. should succeed
+    """
+
+    inst = topology_st.standalone
+    inst.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
+    errlog = DirsrvErrorLog(inst)
+    test_timeout = 900
+
+    # Step 1. Enable memberof plugin to scope SUFFIX
+    memberof = MemberOfPlugin(inst)
+    if (memberof.get_memberofdeferredupdate().lower() != "on"):
+        pytest.skip("Memberof deferred update not enabled or not supported.");
+    memberof.set_attr('memberOf')
+    memberof.replace_groupattr('member')
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.remove_autoaddoc()
+    memberof.enable()
+    inst.restart()
+
+    #Creates users and groups
+    users_dn = []
+
+    # Step 2. create 1000 users
+    for i in range(1000):
+        CN = '%s%d' % (USER_CN, i)
+        users = UserAccounts(inst, SUFFIX)
+        user_props = TEST_USER_PROPERTIES.copy()
+        user_props.update({'uid': CN, 'cn': CN, 'sn': '_%s' % CN})
+        testuser = users.create(properties=user_props)
+        users_dn.append(testuser.dn)
+
+    # Step 3. Create a large groups with 500 members
+    groups = Groups(inst, SUFFIX)
+    testgroup = groups.create(properties={'cn': 'group500', 'member': users_dn[0:499]})
+
+    # Step 4. Restart the instance (using the default 2 minutes timeout)
+    log.info(f'Stopping instance at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    inst.stop()
+    log.info(f'Instance stopped at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    inst.start()
+
+    # Step 5. Check that users memberof and group members are in sync.
+    check_memberof_consistency(inst, testgroup)
+
+    # Step 6. Modify the group to get another big group.
+    testgroup.replace('member', users_dn[500:999])
+
+    # Step 7. Restart the instance with short timeout
+    pattern = 'deferred_thread_func - thread has stopped'
+    original_nbcleanstop = len(errlog.match(pattern))
+    log.info(f'Stopping instance at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    inst.stop(timeout=5)
+    log.info(f'Instance stopped at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    # Double check that timeout occured during shutdown
+    #  (i.e: no new 'deferred_thread_func - thread has stopped' message)
+    nbcleanstop = len(errlog.match(pattern))
+    assert nbcleanstop == original_nbcleanstop
+    # Check that memberofneedfixup is present
+    dse = DSEldif(inst)
+    assert dse.get(memberof.dn, 'memberofneedfixup', single=True)
+    original_nbfixupmsg = count_global_fixup_message(errlog)
+    log.info(f'Instance restarted after timeout at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    inst.restart()
+    assert inst.status()
+    log.info(f'Restart completed at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+
+    # Step 8. Check that fixup task is in progress
+    # Note we have to wait as there may be some delay
+    elapsed_time = 0
+    nbfixupmsg = count_global_fixup_message(errlog)
+    while nbfixupmsg[0] == original_nbfixupmsg[0]:
+        assert elapsed_time <= test_timeout
+        assert inst.status()
+        time.sleep(5)
+        elapsed_time += 5
+        nbfixupmsg = count_global_fixup_message(errlog)
+
+    # Step 9. Wait until fixup task is completed
+    while nbfixupmsg[1] == original_nbfixupmsg[1]:
+        assert elapsed_time <= test_timeout
+        assert inst.status()
+        time.sleep(10)
+        elapsed_time += 10
+        nbfixupmsg = count_global_fixup_message(errlog)
+
+    # Step 10. Check that users memberof and group members are in sync.
+    check_memberof_consistency(inst, testgroup)
+
 
 if __name__ == '__main__':
     # Run isolated
