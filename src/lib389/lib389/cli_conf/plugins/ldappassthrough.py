@@ -88,6 +88,7 @@ def pta_add(inst, basedn, log, args):
     if new_url_l in urls:
         raise ldap.ALREADY_EXISTS("Entry %s already exists" % args.URL)
     plugin.add("nsslapd-pluginarg%s" % next_num, args.URL)
+    log.info("Successfully added URL")
 
 
 def pta_edit(inst, basedn, log, args):
