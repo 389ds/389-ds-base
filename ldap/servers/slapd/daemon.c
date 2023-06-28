@@ -1196,7 +1196,7 @@ slapd_daemon(daemon_ports_t *ports)
                 /* no data */
             }
         }
-        DS_(PR_INTERVAL_NO_WAIT);
+        DS_Sleep(PR_INTERVAL_NO_WAIT);
         if (threads != g_get_active_threadcnt()) {
             slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon",
                           "slapd shutting down - waiting for %" PRIu64 " threads to terminate\n",
@@ -1994,10 +1994,10 @@ init_shutdown_detect(void)
      * to get set correctly unless the primordial thread gets a chance
      * to run before we make the call to SIGNAL.  (At this point the
      * the primordial thread has spawned the daemon thread which called
-     * this function.)  The call to DS_ will give the primordial
+     * this function.)  The call to DS_Sleep will give the primordial
      * thread a chance to run.
      */
-    DS_(0);
+    DS_Sleep(0);
 #endif
     (void)SIGNAL(SIGPIPE, SIG_IGN);
     (void)SIGNAL(SIGCHLD, slapd_wait4child);
