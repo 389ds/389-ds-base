@@ -1117,7 +1117,7 @@ slapd_daemon(daemon_ports_t *ports)
     /* The meat of the operation is in a loop on a call to select */
     while (!g_get_shutdown()) {
 
-        usleep(1000);
+        usleep(500 * 1000);
     }
     /* We get here when the server is shutting down */
     /* Do what we have to do before death */
