@@ -161,13 +161,13 @@ acct_policy_entry2config(Slapi_Entry *e, acctPluginCfg *newcfg)
                 value = strtoul(hist_size_str, 0, 0);
                 if (value >= 0) {
                     newcfg->login_history_size = value;
-                    slapi_ch_free_string(&hist_size_str);
                 } else {
                     slapi_log_err(SLAPI_LOG_WARNING, PLUGIN_NAME,
                                   "acct_policy_entry2config - Invalid value for login-history-size: %d, "
                                   "Using default value of %d\n", value, DEFAULT_LASTLOGIN_HISTORY_SIZE);
                     newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
                 }
+                slapi_ch_free_string(&hist_size_str);
             }
         } else {
             newcfg->login_history_size = DEFAULT_LASTLOGIN_HISTORY_SIZE;
