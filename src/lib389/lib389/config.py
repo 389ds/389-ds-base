@@ -214,9 +214,20 @@ class Config(DSLdapObject):
         allowed_schemes = ['PBKDF2-SHA512', 'PBKDF2_SHA256', 'PBKDF2_SHA512', 'GOST_YESCRYPT']
         u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
         u_root_scheme = self.get_attr_val_utf8('nsslapd-rootpwstoragescheme')
-        if u_root_scheme not in allowed_schemes or u_password_scheme not in allowed_schemes:
+        if u_root_scheme not in allowed_schemes:
             report = copy.deepcopy(DSCLE0002)
+            report['detail'] = report['detail'].replace('SCHEME', u_root_scheme)
+            report['detail'] = report['detail'].replace('CONFIG', 'nsslapd-rootpwstoragescheme')
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['fix'] = report['fix'].replace('CONFIG', 'nsslapd-rootpwstoragescheme')
+            report['check'] = "config:passwordscheme"
+            yield report
+        if u_password_scheme not in allowed_schemes:
+            report = copy.deepcopy(DSCLE0002)
+            report['detail'] = report['detail'].replace('SCHEME', u_password_scheme)
+            report['detail'] = report['detail'].replace('CONFIG', 'passwordStorageScheme')
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['fix'] = report['fix'].replace('CONFIG', 'passwordStorageScheme')
             report['check'] = "config:passwordscheme"
             yield report
 
