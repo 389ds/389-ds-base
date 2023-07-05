@@ -97,20 +97,16 @@ verify, as this adds a cost of work to an attacker.
 In Directory Server, we offer one hash suitable for this (PBKDF2-SHA512) and one hash
 for "legacy" support (SSHA512).
 
-Your configuration does not use these for password storage or the root password storage
-scheme.
+Your configured scheme (SCHEME) for 'CONFIG' is not secure
 """,
     'fix': """Perform a configuration reset of the values:
 
-passwordStorageScheme
-nsslapd-rootpwstoragescheme
-
-IE, stop Directory Server, and in dse.ldif delete these two lines. When Directory Server
+IE, stop Directory Server, and in dse.ldif delete this line (CONFIG). When Directory Server
 is started, they will use the server provided defaults that are secure.
 
 You can also use 'dsconf' to replace these values.  Here is an example:
 
-    # dsconf slapd-YOUR_INSTANCE config replace passwordStorageScheme=PBKDF2-SHA512 nsslapd-rootpwstoragescheme=PBKDF2-SHA512"""
+    # dsconf slapd-YOUR_INSTANCE config replace CONFIG=PBKDF2-SHA512"""
 }
 
 # Security checks
