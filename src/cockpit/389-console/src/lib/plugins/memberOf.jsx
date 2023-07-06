@@ -373,6 +373,15 @@ class MemberOf extends React.Component {
         };
     }
 
+    handleToggleFixupModal() {
+        this.setState(prevState => ({
+            fixupModalShow: !prevState.fixupModalShow,
+            fixupDN: "",
+            fixupFilter: "",
+            savingModal: false,
+        }));
+    }
+
     validateConfig() {
         const errObj = {};
         let all_good = true;
