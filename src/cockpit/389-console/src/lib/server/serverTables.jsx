@@ -52,12 +52,12 @@ export class SASLTable extends React.Component {
             });
         };
 
-        this.onSort = this.onSort.bind(this);
+        this.handleSort = this.handleSort.bind(this);
         this.handleOnCollapse = this.handleOnCollapse.bind(this);
         this.handleOnSearchChange = this.handleOnSearchChange.bind(this);
     }
 
-    handleOnSort(_event, index, direction) {
+    handleSort(_event, index, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
@@ -241,7 +241,7 @@ export class SASLTable extends React.Component {
                     rows={tableRows}
                     variant={TableVariant.compact}
                     sortBy={sortBy}
-                    onSort={this.handleOnSort}
+                    onSort={this.handleSort}
                     onCollapse={this.handleOnCollapse}
                     actions={tableRows.length > 0 ? this.actions() : null}
                     dropdownPosition="right"
