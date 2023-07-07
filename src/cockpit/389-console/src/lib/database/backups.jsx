@@ -294,7 +294,7 @@ export class Backups extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeConfirmLDIFDelete();
                     this.props.addNotification(
                         "success",
@@ -303,7 +303,7 @@ export class Backups extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeConfirmLDIFDelete();
                     this.props.addNotification(
                         "error",
@@ -348,7 +348,7 @@ export class Backups extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeBackupModal();
                     const cmd = [
                         "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -380,7 +380,7 @@ export class Backups extends React.Component {
                 )
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeBackupModal();
                     this.props.addNotification(
                         "error",
@@ -436,7 +436,7 @@ export class Backups extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeConfirmBackupDelete();
                     this.props.addNotification(
                         "success",
@@ -445,7 +445,7 @@ export class Backups extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeConfirmBackupDelete();
                     this.props.addNotification(
                         "error",
@@ -530,7 +530,7 @@ export class Backups extends React.Component {
         cockpit
                 .spawn(export_cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeExportModal();
                     this.setState({
                         showExportModal: false,
@@ -564,7 +564,7 @@ export class Backups extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.reload();
+                    this.props.handleReload();
                     this.closeExportModal();
                     this.props.addNotification(
                         "error",
@@ -613,7 +613,7 @@ export class Backups extends React.Component {
                                 <Button
                                     variant="secondary"
                                     onClick={() => {
-                                        this.props.reload(1);
+                                        this.props.handleReload(1);
                                     }}
                                     className="ds-left-margin ds-margin-top"
                                     isLoading={this.props.refreshing}
@@ -667,6 +667,8 @@ export class Backups extends React.Component {
                     error={this.state.errObj}
                     suffixes={this.props.suffixes}
                     includeReplData={this.state.includeReplData}
+                    ldifSuffix={this.state.ldifSuffix}
+                    ldifName={this.state.ldifName}
                 />
                 <BackupModal
                     showModal={this.state.showBackupModal}
@@ -774,6 +776,8 @@ class ExportModal extends React.Component {
             suffixes,
             spinning,
             error,
+            ldifSuffix,
+            ldifName,
         } = this.props;
         let createBtnName = "Create LDIF";
         const extraPrimaryProps = {};
@@ -808,7 +812,7 @@ class ExportModal extends React.Component {
                         onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Creating ..." : undefined}
-                        isDisabled={spinning}
+                        isDisabled={spinning || ldifName === ""}
                         {...extraPrimaryProps}
                     >
                         {createBtnName}
@@ -824,7 +828,7 @@ class ExportModal extends React.Component {
                             Select Suffix
                         </GridItem>
                         <GridItem span={9}>
-                            <FormSelect id="ldifSuffix" onChange={(value, event) => { handleChange(event) }} aria-label="FormSelect Input">
+                            <FormSelect id="ldifSuffix" value={ldifSuffix} onChange={(value, event) => { handleChange(event) }} aria-label="FormSelect Input">
                                 {suffixList}
                             </FormSelect>
                         </GridItem>
@@ -841,6 +845,7 @@ class ExportModal extends React.Component {
                                 id="ldifName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="ldifName"
+                                value={ldifName}
                                 onChange={(value, event) => { handleChange(event) }}
                                 validated={error.ldifName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
