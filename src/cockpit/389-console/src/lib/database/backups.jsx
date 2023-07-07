@@ -667,6 +667,8 @@ export class Backups extends React.Component {
                     error={this.state.errObj}
                     suffixes={this.props.suffixes}
                     includeReplData={this.state.includeReplData}
+                    ldifSuffix={this.state.ldifSuffix}
+                    ldifName={this.state.ldifName}
                 />
                 <BackupModal
                     showModal={this.state.showBackupModal}
@@ -774,6 +776,8 @@ class ExportModal extends React.Component {
             suffixes,
             spinning,
             error,
+            ldifSuffix,
+            ldifName,
         } = this.props;
         let createBtnName = "Create LDIF";
         const extraPrimaryProps = {};
@@ -807,7 +811,7 @@ class ExportModal extends React.Component {
                         onClick={saveHandler}
                         isLoading={spinning}
                         spinnerAriaValueText={spinning ? "Creating ..." : undefined}
-                        isDisabled={spinning}
+                        isDisabled={spinning || ldifName === ""}
                         {...extraPrimaryProps}
                     >
                         {createBtnName}
@@ -823,7 +827,7 @@ class ExportModal extends React.Component {
                             Select Suffix
                         </GridItem>
                         <GridItem span={9}>
-                            <FormSelect id="ldifSuffix" onChange={(value, event) => { handleChange(event) }} aria-label="FormSelect Input">
+                            <FormSelect id="ldifSuffix" value={ldifSuffix} onChange={(value, event) => { handleChange(event) }} aria-label="FormSelect Input">
                                 {suffixList}
                             </FormSelect>
                         </GridItem>
@@ -840,6 +844,7 @@ class ExportModal extends React.Component {
                                 id="ldifName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="ldifName"
+                                value={ldifName}
                                 onChange={(value, event) => { handleChange(event) }}
                                 validated={error.ldifName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
