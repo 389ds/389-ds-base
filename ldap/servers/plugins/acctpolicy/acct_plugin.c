@@ -220,34 +220,38 @@ acct_update_login_history(const char *dn, char *timestr)
     config_rd_lock();
     cfg = get_config();
 
-    /* get login history */
-    login_hist = slapi_entry_attr_get_charray_ext(e, cfg->login_history_attr, &num_entries);
 
-    /* first time round */
-    if (!login_hist || !num_entries) {
-        login_hist = (char **)slapi_ch_calloc(2, sizeof(char *));
-    }
+    /* history size of zero disables login history */
+    if (cfg->login_history_size) {
+        /* get login history */
+        login_hist = slapi_entry_attr_get_charray_ext(e, cfg->login_history_attr, &num_entries);
 
-    /* Do we need to resize login_hist array */
-    if (num_entries >= cfg->login_history_size) {
-        int diff = (num_entries - cfg->login_history_size);
-        /* free times we dont need */
-        for (i = 0; i <= diff; i++) {
-            slapi_ch_free_string(&login_hist[i]);
+        /* first time round */
+        if (!login_hist || !num_entries) {
+            login_hist = (char **)slapi_ch_calloc(2, sizeof(char *));
         }
-        /* remap array*/
-        for (i = 0; i < (cfg->login_history_size - 1); i++) {
-            login_hist[i] = login_hist[(diff + 1) + i];
+
+        /* Do we need to resize login_hist array */
+        if (num_entries >= cfg->login_history_size) {
+            int diff = (num_entries - cfg->login_history_size);
+            /* free times we dont need */
+            for (i = 0; i <= diff; i++) {
+                slapi_ch_free_string(&login_hist[i]);
+            }
+            /* remap array*/
+            for (i = 0; i < (cfg->login_history_size - 1); i++) {
+                login_hist[i] = login_hist[(diff + 1) + i];
+            }
+            /* expand array and add current time string at the end */
+            login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (cfg->login_history_size + 1));
+            login_hist[i] = slapi_ch_smprintf("%s", timestr);
+            login_hist[i + 1] = NULL;
+        } else {
+            /* expand array and add current time string at the end */
+            login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
+            login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);
+            login_hist[num_entries + 1] = NULL;
         }
-        /* expand array and add current time string at the end */
-        login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (cfg->login_history_size + 1));
-        login_hist[i] = slapi_ch_smprintf("%s", timestr);
-        login_hist[i + 1] = NULL;
-    } else {
-        /* expand array and add current time string at the end */
-        login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
-        login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);
-        login_hist[num_entries + 1] = NULL;
     }
 
     /* modify the attribute */
