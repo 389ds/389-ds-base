@@ -46,6 +46,7 @@ class RetroChangelog extends React.Component {
             maxAgeUnit: "w",
             trimInterval: 300,
             excludeSuffix: [],
+            excludeSuffixOptions: [],
             excludeAttrs: [],
             // original values
             _isReplicated: false,
@@ -152,10 +153,10 @@ class RetroChangelog extends React.Component {
                 isExcludeSuffixOpen: false
             }, () => { this.validate() });
         };
-        this.onExcludeSuffixCreateOption = newValue => {
-            if (!this.state.excludeSuffix.includes(newValue)) {
+        this.handleOnExcludeSuffixCreateOption = newValue => {
+            if (!this.state.excludeSuffixOptions.includes(newValue)) {
                 this.setState({
-                    excludeSuffix: [...this.state.excludeSuffix, newValue],
+                    excludeSuffixOptions: [...this.state.excludeSuffixOptions, newValue],
                     isExcludeSuffixOpen: false
                 }, () => { this.validate() });
             }
@@ -388,7 +389,7 @@ class RetroChangelog extends React.Component {
                                     placeholderText="Type a suffix..."
                                     noResultsFoundText="There are no matching entries"
                                     isCreatable
-                                    onCreateOption={this.handleSubtreeScopeCreateOption}
+                                    onCreateOption={this.handleOnExcludeSuffixCreateOption}
                                     validated={error.excludeSuffix ? ValidatedOptions.error : ValidatedOptions.default}
                                 >
                                     {[""].map((attr, index) => (
