@@ -943,6 +943,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.maxdescriptors,
      CONFIG_INT, NULL, SLAPD_DEFAULT_MAXDESCRIPTORS_STR, NULL},
+    {CONFIG_CONNTABLESIZE_ATTRIBUTE, config_set_conntablesize,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.conntablesize,
+     CONFIG_INT, NULL, NULL, NULL /* deletion is not allowed */},
     {CONFIG_SSLCLIENTAUTH_ATTRIBUTE, config_set_SSLclientAuth,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.SSLclientAuth,
@@ -4816,6 +4820,16 @@ config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int
 }
 
 int
+config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "The value for %s is now auto calculated, user setting is disabled.",
+                          attrname);
+
+    return LDAP_OPERATIONS_ERROR;
+}
+
+int
 config_set_reservedescriptors(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
@@ -6236,6 +6250,19 @@ config_get_maxdescriptors(void)
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->maxdescriptors;
     CFG_UNLOCK_READ(slapdFrontendConfig);
+    return retVal;
+}
+
+int
+config_get_conntablesize(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->conntablesize;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
     return retVal;
 }
 

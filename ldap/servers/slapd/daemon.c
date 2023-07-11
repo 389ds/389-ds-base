@@ -2865,6 +2865,11 @@ get_connection_table_size(void)
         size = (FDS_PROCESS_MAX - resrvdesc);
     }
 
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->conntablesize = size;
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+
     return size;
 }
 

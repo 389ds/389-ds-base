@@ -349,7 +349,7 @@ int config_set_useroc(const char *attrname, char *value, char *errorbuf, int app
 int config_set_return_exact_case(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_result_tweak(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, int apply);
-int config_set_conntablesize(const char *attrname, char *url, char *errorbuf, int apply);
+int config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_maxbersize(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_maxsasliosize(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_versionstring(const char *attrname, char *versionstring, char *errorbuf, int apply);

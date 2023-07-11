@@ -218,6 +218,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2243 NAME 'nsslapd-securelistenhost' DES
 attributeTypes: ( 2.16.840.1.113730.3.1.2244 NAME 'nnslapd-threadnumber' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2245 NAME 'nsslapd-maxthreadsperconn' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2246 NAME 'nsslapd-maxdescriptors' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2247 NAME 'nsslapd-conntablesize' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2248 NAME 'nsslapd-reservedescriptors' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2249 NAME 'nsslapd-idletimeout' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2250 NAME 'nsslapd-ioblocktimeout' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
