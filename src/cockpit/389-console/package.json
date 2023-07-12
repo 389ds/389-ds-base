@@ -42,9 +42,9 @@
     "qunit": "^2.9.3",
     "sass": "^1.61.0",
     "sizzle": "^2.3.3",
-    "stylelint": "^14.9.1",
-    "stylelint-config-standard": "^25.0.0",
-    "stylelint-config-standard-scss": "^5.0.0",
+    "stylelint": "^15.10.1",
+    "stylelint-config-standard": "^33.0.0",
+    "stylelint-config-standard-scss": "^10.0.0",
     "stylelint-formatter-pretty": "^3.2.0"
   },
   "dependencies": {
