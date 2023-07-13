@@ -108,7 +108,6 @@ dbmdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     sprintf(buf, "%" PRId64, maxentries);
     MSET("maxEntryCacheCount");
 
-#if 0
     if (entryrdn_get_switch()) {
         /* fetch cache statistics */
         cache_get_stats(&(inst->inst_dncache), &hits, &tries,
@@ -127,6 +126,17 @@ dbmdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         MSET("currentDnCacheCount");
         sprintf(buf, "%" PRId64, maxentries);
         MSET("maxDnCacheCount");
+    }
+
+#ifdef DEBUG
+    {
+        /* debugging for hash statistics */
+        char *x = NULL;
+        cache_debug_hash(&(inst->inst_cache), &x);
+        val.bv_val = x;
+        val.bv_len = strlen(x);
+        attrlist_replace(&e->e_attrs, "entrycache-hashtables", vals);
+        slapi_ch_free((void **)&x);
     }
 #endif
 
