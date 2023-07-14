@@ -1581,7 +1581,7 @@ export class ServerSettings extends React.Component {
                                         title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs"
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Trusted HAProxy server IPs
+                                            Trusted HAProxy Server IPs
                                         </GridItem>
                                         <GridItem span={9}>
                                             <Select
