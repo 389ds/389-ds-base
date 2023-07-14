@@ -223,7 +223,8 @@ export class Schema extends React.Component {
         this.handleAliasNameCreateOption = newValue => {
             if (!this.state.atAliasOptions.includes(newValue)) {
                 this.setState({
-                    atAliasOptions: [...this.state.atAliasOptions, { value: newValue }]
+                    atAliasOptions: [...this.state.atAliasOptions, { value: newValue }],
+                    isAliasNameOpen: false
                 });
             }
         };
@@ -291,7 +292,8 @@ export class Schema extends React.Component {
         this.handleRequiredAttrsCreateOption = newValue => {
             if (!this.state.ocMustOptions.includes(newValue)) {
                 this.setState({
-                    ocMustOptions: [...this.state.ocParentocMustOptionsOptions, { value: newValue }]
+                    ocMustOptions: [...this.state.ocMustOptions, { value: newValue }],
+                    isRequiredAttrsOpen: false
                 });
             }
         };
@@ -329,7 +331,8 @@ export class Schema extends React.Component {
         this.handleAllowedAttrsCreateOption = newValue => {
             if (!this.state.ocMayOptions.includes(newValue)) {
                 this.setState({
-                    ocMayOptions: [...this.state.ocMayOptions, { value: newValue }]
+                    ocMayOptions: [...this.state.ocMayOptions, { value: newValue }],
+                    isAllowedAttrsOpen: false
                 });
             }
         };
