@@ -14,6 +14,7 @@ import pytest
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.pwpolicy import PwPolicyManager
 from lib389.topologies import topology_st
 from .. import setup_page, check_frame_assignment, setup_login
 
@@ -292,6 +293,49 @@ def test_suffixes_policy_availability(topology_st, page, browser_name):
     frame.get_by_role('tab', name='Encrypted Attributes').click()
     frame.get_by_role('columnheader', name='Encrypted Attribute').wait_for()
     assert frame.get_by_role('columnheader', name='Encrypted Attribute').is_visible()
+
+
+def test_dictionary_check_checkbox(topology_st, page, browser_name):
+    """ Test that Dictionary Check checkbox in WebUI is changed after cli command
+
+        :id: e1dcac6d-df45-4a89-a1f2-b18c65dfecba
+        :setup: Standalone instance
+        :steps:
+             1. Enable PasswordDictCheck through cli.
+             2. Open Database tab, Global Password Policies and click on Syntax Checking tab.
+             3. Check that Dictionary Check checkbox is checked.
+             4. Disable PasswordDictCheck through cli.
+             5. Reload Syntax Checking tab.
+             6. Check that Dictionary Check checkbox is unchecked.
+        :expectedresults:
+             1. Success
+             2. Success
+             3. Dictionary Check checkbox is checked
+             4. Success
+             5. Success
+             6. Dictionary Check checkbox is unchecked
+        """
+    log.info('Enable password syntax checking and enable dictionary check.')
+    ppm = PwPolicyManager(topology_st.standalone)
+    ppm.set_global_policy({"passworddictcheck": "on"})
+
+    setup_login(page)
+    time.sleep(1)
+    frame = check_frame_assignment(page, browser_name)
+
+    log.info('Click on Database tab, click on Global Policy, '
+             'click on Syntax Checking and check that Dictionary Check checkbox is checked.')
+    frame.get_by_role('tab', name='Database', exact=True).click()
+    frame.locator('#pwpolicy').click()
+    frame.get_by_role('tab', name='Syntax Checking').click()
+    frame.get_by_text('Enable Password Syntax Checking').click()
+    assert frame.get_by_text('Dictionary Check').is_checked()
+
+    log.info('Disable dictionary check, reload tab and check that Dictionary Check checkbox is unchecked.')
+    ppm.set_global_policy({"passworddictcheck": "off"})
+    ppm.set_global_policy({"passwordchecksyntax": "on"})
+    frame.get_by_role('img', name="Refresh global password policy settings").click()
+    assert not frame.get_by_text('Dictionary Check').is_checked()
 
 
 if __name__ == '__main__':
