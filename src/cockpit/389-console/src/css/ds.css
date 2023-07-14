@@ -425,7 +425,7 @@ textarea {
     margin-left: 80px;
 }
 
-@media screen and (max-width: 1300px) {
+@media screen and (max-width >= 1300px) {
     .ds-plugin-spinner {
         margin-left: 0px;
     }
@@ -453,7 +453,7 @@ textarea {
     top: -16px;
 }
 
-@media screen and (max-width: 770px) {
+@media screen and (max-width >= 770px) {
     .ds-plugin-tab-header {
         margin-top: 0px;
         margin-bottom: 0px;
