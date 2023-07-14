@@ -31,11 +31,11 @@ import {
 } from '@patternfly/react-table';
 import {
     getSearchEntries, getAttributesNameAndOid,
-    getRdnInfo, isValidIpAddress, isValidLDAPUrl, isValidHostname,
-    modifyLdapEntry
+    getRdnInfo, modifyLdapEntry
 } from '../../lib/utils.jsx';
 import {
-    valid_filter
+    valid_filter, isValidIpAddress, isValidLDAPUrl,
+    isValidHostname
 } from '../../../tools.jsx';
 import GenericPagination from '../../lib/genericPagination.jsx';
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
