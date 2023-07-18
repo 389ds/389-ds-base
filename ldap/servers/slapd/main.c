@@ -1007,6 +1007,7 @@ main(int argc, char **argv)
         eq_init_rel(); /* must be done before plugins started */
 
         ps_init_psearch_system(); /* must come before plugin_startall() */
+        pageresult_lock_init();
 
 
         /* initialize UniqueID generator - must be done once backends are started
@@ -2262,6 +2263,7 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
             eq_init_rel(); /* must be done before plugins started */
 
             ps_init_psearch_system(); /* must come before plugin_startall() */
+            pageresult_lock_init();
             plugin_startall(argc, argv, plugin_list);
             eq_start(); /* must be done after plugins started - DEPRECATED*/
             eq_start_rel(); /* must be done after plugins started */
