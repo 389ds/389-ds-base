@@ -82,7 +82,7 @@ PRFileDesc *signalpipe[2];
 static int writesignalpipe = SLAPD_INVALID_SOCKET;
 static int readsignalpipe = SLAPD_INVALID_SOCKET;
 #define FDS_SIGNAL_PIPE 0
-#define FDS_PROCESS_MAX 64000
+#define MAX_LDAP_CONNS 64000
 
 static PRThread *accept_thread_p = NULL;
 static PRThread *disk_thread_p = NULL;
@@ -1065,6 +1065,10 @@ slapd_daemon(daemon_ports_t *ports)
     uint64_t threads;
     int in_referral_mode = config_check_referral_mode();
     int connection_table_size = get_connection_table_size();
+    if (!connection_table_size) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "Not enough available file descriuptors");
+        exit(1);
+    }
     the_connection_table = connection_table_new(connection_table_size);
 
     /*
@@ -2858,11 +2862,13 @@ get_connection_table_size(void)
     resrvdesc = config_get_reservedescriptors();
     if (maxdesc > resrvdesc) {
          size = (maxdesc - resrvdesc);
+    } else {
+        return 0;
     }
 
-    /* Verify size does not exceed process max fds */
-    if (size > FDS_PROCESS_MAX) {
-        size = (FDS_PROCESS_MAX - resrvdesc);
+    /* Verify size does not exceed max num of conns */
+    if (size > MAX_LDAP_CONNS) {
+        size = (MAX_LDAP_CONNS - resrvdesc);
     }
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();

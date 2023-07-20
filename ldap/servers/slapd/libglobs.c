@@ -4822,9 +4822,11 @@ config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int
 int
 config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int apply)
 {
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
     slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                          "The value for %s is now auto calculated, user setting is disabled.",
-                          attrname);
+                          "User setting of %s attribute is disabled, server has auto calculated its value to %d.",
+                          attrname, slapdFrontendConfig->conntablesize);
 
     return LDAP_OPERATIONS_ERROR;
 }
