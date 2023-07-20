@@ -76,6 +76,7 @@ short slapd_housekeeping_timer = 10;
 #endif /* notdef GGOODREPL */
 
 #define FDS_SIGNAL_PIPE 0
+#define MAX_LDAP_CONNS 64000
 
 static signal_pipe signalpipes[SLAPD_DEFAULT_NUM_LISTENERS]; /* One signal pipe per CT list */
 static PRInt32 ct_shutdown = 0;
@@ -105,7 +106,7 @@ static PRFileDesc *tls_listener = NULL; /* Stashed tls listener for get_ssl_list
 
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
 
-static int get_configured_connection_table_size(void);
+static int get_connection_table_size(void);
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
 static void get_loopback_by_addr(void);
 #endif
@@ -926,7 +927,11 @@ slapd_daemon(daemon_ports_t *ports)
     PRFileDesc **fdesp = NULL;
     uint64_t threads;
     int in_referral_mode = config_check_referral_mode();
-    int connection_table_size = get_configured_connection_table_size();
+    int connection_table_size = get_connection_table_size();
+    if (!connection_table_size) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "Not enough available file descriuptors");
+        exit(1);
+    }
     the_connection_table = connection_table_new(connection_table_size);
 
     /*
@@ -2513,17 +2518,32 @@ catch_signals()
 #endif /* HPUX */
 
 static int
-get_configured_connection_table_size(void)
+get_connection_table_size(void)
 {
-    int size = config_get_conntablesize();
+    int size = 0;
+    int resrvdesc = 0;
     int maxdesc = config_get_maxdescriptors();
 
-    /*
-     * Cap the table size at nsslapd-maxdescriptors.
-     */
-    if (maxdesc >= 0 && size > maxdesc) {
-        size = maxdesc;
+    /* Validate configured reserve descriptors */
+    validate_num_config_reservedescriptors();
+
+    resrvdesc = config_get_reservedescriptors();
+    if (maxdesc > resrvdesc) {
+         size = (maxdesc - resrvdesc);
+    } else {
+        return 0;
     }
+
+    /* Verify size does not exceed max num of conns */
+    if (size > MAX_LDAP_CONNS) {
+        size = MAX_LDAP_CONNS;
+    }
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->conntablesize = size;
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
+
     return size;
 }
 

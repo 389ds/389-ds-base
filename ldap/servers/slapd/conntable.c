@@ -143,6 +143,8 @@ connection_table_new(int table_size)
     ct->conn_next_offset = 1;
     ct->conn_free_offset = 1;
 
+    slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "conntablesize:%d\n", ct->size);
+
     pthread_mutexattr_t monitor_attr = {0};
     pthread_mutexattr_init(&monitor_attr);
     pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);

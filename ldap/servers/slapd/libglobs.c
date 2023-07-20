@@ -1781,13 +1781,6 @@ FrontendConfig_init(void)
     cfg->groupevalnestlevel = SLAPD_DEFAULT_GROUPEVALNESTLEVEL;
     cfg->snmp_index = SLAPD_DEFAULT_SNMP_INDEX;
     cfg->SSLclientAuth = SLAPD_DEFAULT_SSLCLIENTAUTH;
-
-#ifdef USE_SYSCONF
-    cfg->conntablesize = sysconf(_SC_OPEN_MAX);
-#else  /* USE_SYSCONF */
-    cfg->conntablesize = getdtablesize();
-#endif /* USE_SYSCONF */
-
     init_accesscontrol = cfg->accesscontrol = LDAP_ON;
 
     /* nagle triggers set/unset TCP_CORK setsockopt per operation
@@ -1800,7 +1793,6 @@ FrontendConfig_init(void)
     init_return_exact_case = cfg->return_exact_case = LDAP_ON;
     init_result_tweak = cfg->result_tweak = LDAP_OFF;
     init_attrname_exceptions = cfg->attrname_exceptions = LDAP_OFF;
-    cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
     cfg->useroc = slapi_ch_strdup("");
     cfg->userat = slapi_ch_strdup("");
     /* kexcoff: should not be initialized by default here
@@ -4997,43 +4989,13 @@ config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int
 int
 config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int apply)
 {
-    int retVal = LDAP_SUCCESS;
-    long nValue = 0;
-    int maxVal = 65535;
-    char *endp = NULL;
-    struct rlimit rlp;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    if (config_value_is_null(attrname, value, errorbuf, 0)) {
-        return LDAP_OPERATIONS_ERROR;
-    }
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "User setting of %s attribute is disabled, server has auto calculated its value to %d.",
+                          attrname, slapdFrontendConfig->conntablesize);
 
-    if (0 == getrlimit(RLIMIT_NOFILE, &rlp)) {
-        maxVal = (int)rlp.rlim_max;
-    }
-
-    errno = 0;
-    nValue = strtol(value, &endp, 0);
-
-    if (*endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal) {
-        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                              "%s: invalid value \"%s\", connection table size must range from 1 to %d (the current process maxdescriptors limit). "
-                              "Server will use a setting of %d.",
-                              attrname, value, maxVal, maxVal);
-        if (nValue > maxVal) {
-            nValue = maxVal;
-            retVal = LDAP_UNWILLING_TO_PERFORM;
-        } else {
-            retVal = LDAP_OPERATIONS_ERROR;
-        }
-    }
-
-    if (apply) {
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapdFrontendConfig->conntablesize = nValue;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
-    }
-    return retVal;
+    return LDAP_OPERATIONS_ERROR;
 }
 
 int
@@ -6553,6 +6515,19 @@ config_get_maxdescriptors(void)
 }
 
 int
+config_get_conntablesize(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->conntablesize;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
 config_get_reservedescriptors()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -6892,19 +6867,6 @@ config_get_referral_mode(void)
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return ret;
-}
-
-int
-config_get_conntablesize(void)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
-
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapdFrontendConfig->conntablesize;
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
 }
 
 /* return yes/no without actually copying the referral url
@@ -9561,4 +9523,189 @@ invalid_sasl_mech(char *str)
 
     /* Mechanism value is valid */
     return 0;
+}
+
+/*
+ * Check if the number of reserve descriptors satisfy the servers needs.
+ *
+ * 1) Calculate the number of reserve descriptors the server requires
+ * 2) Get the configured value for nsslapd-reservedescriptors
+ * 3) If the configured value is less than the calculated value, increase it
+ *
+ * The formula used here is taken from the RH DS 11 docs:
+ * nsslapd-reservedescriptor = 20 + (NldbmBackends * 4) + NglobalIndex +
+ * 8 ReplicationDescriptors + Nreplicas +
+ * NchainingBackends * nsOperationCOnnectionsLImit +
+ * 3 PTADescriptors + 5 SSLDescriptors
+ */
+int
+validate_num_config_reservedescriptors(void)
+{
+    #define RESRV_DESC_CONST 20
+    #define BE_DESC_CONST 4
+    #define REPL_DESC_CONST 8
+    #define PTA_DESC_CONST 3
+    #define SSL_DESC_CONST 5
+    Slapi_Attr *attr = NULL;
+    Slapi_Backend *be = NULL;
+    Slapi_DN sdn;
+    Slapi_Entry *entry = NULL;
+    Slapi_Entry **entries = NULL;
+    Slapi_PBlock *search_pb = NULL;
+    char *cookie = NULL;
+    char const *mt_str = NULL;
+    char *entry_str = NULL;
+    int rc = -1;
+    int num_backends = 0;
+    int num_repl_agmts = 0;
+    int num_chaining_backends = 0;
+    int chain_conn_limit = 0;
+    int calc_reservedesc = RESRV_DESC_CONST;
+    int config_reservedesc = config_get_reservedescriptors();
+
+    /* Get number of backends, multiplied by the backend descriptor constant */
+    for (be = slapi_get_first_backend(&cookie); be != NULL; be = slapi_get_next_backend(cookie)) {
+        entry_str = slapi_create_dn_string("cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
+        if (NULL == entry_str) {
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create backend dn string");
+            return -1;
+        }
+        slapi_sdn_init_dn_byref(&sdn, entry_str);
+        slapi_search_internal_get_entry(&sdn, NULL, &entry, plugin_get_default_component_id());
+        if (entry) {
+            if (slapi_entry_attr_hasvalue(entry, "objectclass", "nsBackendInstance")) {
+                num_backends += 1;
+            }
+        }
+        slapi_entry_free(entry);
+        slapi_ch_free_string(&entry_str);
+        slapi_sdn_done(&sdn);
+    }
+    slapi_ch_free((void **)&cookie);
+    if (num_backends) {
+        calc_reservedesc += (num_backends * BE_DESC_CONST);
+    }
+
+    /* Get number of indexes for each backend and add to total */
+    for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
+        entry_str = slapi_create_dn_string("cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
+        if (NULL == entry_str) {
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create index dn string");
+            return -1;
+        }
+        slapi_sdn_init_dn_byref(&sdn, entry_str);
+        slapi_search_internal_get_entry(&sdn, NULL, &entry, plugin_get_default_component_id());
+        if (entry) {
+            rc = slapi_entry_attr_find(entry, "numsubordinates", &attr);
+            if (LDAP_SUCCESS == rc) {
+                Slapi_Value *sval;
+                slapi_attr_first_value(attr, &sval);
+                if (sval != NULL) {
+                    const struct berval *bval = slapi_value_get_berval(sval);
+                    if (NULL != bval)
+                        calc_reservedesc += atol(bval->bv_val);
+                }
+            }
+        }
+        slapi_entry_free(entry);
+        slapi_ch_free_string(&entry_str);
+        slapi_sdn_done(&sdn);
+    }
+    slapi_ch_free((void **)&cookie);
+
+    /* If replication is enabled add replication descriptor constant, plus the number of enabled repl agmts */
+    mt_str = slapi_get_mapping_tree_config_root();
+    if (NULL == mt_str) {
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to get mapping tree config string");
+        return -1;
+    }
+    search_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(search_pb, mt_str, LDAP_SCOPE_SUBTREE, "(objectClass=nsds5replicationagreement) nsds5ReplicaEnabled", NULL, 0, NULL, NULL, plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (LDAP_SUCCESS == rc) {
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        for (; *entries; ++entries) {
+            num_repl_agmts += 1;
+        }
+        if (num_repl_agmts) {
+            calc_reservedesc += REPL_DESC_CONST;
+        }
+    }
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
+    calc_reservedesc += num_repl_agmts;
+
+    /* Get the operation connection limit from the default instance config */
+    entry_str = slapi_create_dn_string("cn=default instance config,cn=chaining database,cn=plugins,cn=config");
+    if (NULL == entry_str) {
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create default chaining config dn string");
+        return -1;
+    }
+    slapi_sdn_init_dn_byref(&sdn, entry_str);
+    slapi_search_internal_get_entry(&sdn, NULL, &entry, plugin_get_default_component_id());
+    if (entry) {
+        chain_conn_limit = slapi_entry_attr_get_int(entry, "nsoperationconnectionslimit");
+    }
+    slapi_entry_free(entry);
+    slapi_ch_free_string(&entry_str);
+    slapi_sdn_done(&sdn);
+
+    /* Get the number of chaining backends, multiplied by the chaining operation connection limit */
+    for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
+        entry_str = slapi_create_dn_string("cn=%s,cn=chaining database,cn=plugins,cn=config", be->be_name);
+        if (NULL == entry_str) {
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create chaining be dn string");
+            return -1;
+        }
+        slapi_sdn_init_dn_byref(&sdn, entry_str);
+        slapi_search_internal_get_entry(&sdn, NULL, &entry, plugin_get_default_component_id());
+        if (entry) {
+            if (slapi_entry_attr_hasvalue(entry, "objectclass", "nsBackendInstance")) {
+                num_chaining_backends += 1;
+            }
+        }
+        slapi_entry_free(entry);
+        slapi_ch_free_string(&entry_str);
+        slapi_sdn_done(&sdn);
+    }
+    slapi_ch_free((void **)&cookie);
+    if (num_chaining_backends) {
+        calc_reservedesc += (num_chaining_backends * chain_conn_limit);
+    }
+
+    /* If PTA is enabled add the pass through auth descriptor constant */
+    entry_str = slapi_create_dn_string("cn=Pass Through Authentication,cn=plugins,cn=config");
+    if (NULL == entry_str) {
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create PTA dn string");
+        return -1;
+    }
+    slapi_sdn_init_dn_byref(&sdn, entry_str);
+    slapi_search_internal_get_entry(&sdn, NULL, &entry, plugin_get_default_component_id());
+    if (entry) {
+        if (slapi_entry_attr_hasvalue(entry, "nsslapd-PluginEnabled", "on")) {
+            calc_reservedesc += PTA_DESC_CONST;
+        }
+    }
+    slapi_entry_free(entry);
+    slapi_ch_free_string(&entry_str);
+    slapi_sdn_done(&sdn);
+
+    /* If SSL is enabled add the SSL descriptor constant */;;
+    if (config_get_security()) {
+        calc_reservedesc += SSL_DESC_CONST;
+    }
+
+    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+    char resrvdesc_str[SLAPI_DSE_RETURNTEXT_SIZE];
+    /* Are the configured reserve descriptors enough to satisfy the servers needs */
+    if (config_reservedesc < calc_reservedesc) {
+        PR_snprintf(resrvdesc_str, sizeof(resrvdesc_str), "%d", calc_reservedesc);
+        if (LDAP_SUCCESS == config_set_reservedescriptors(CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE, resrvdesc_str, errorbuf, 1)) {
+            slapi_log_err(SLAPI_LOG_INFO, "validate_num_config_reservedescriptors",
+                  "reserve descriptors changed from %d to %d\n", config_reservedesc, calc_reservedesc);
+        }
+    }
+
+    return (0);
 }
