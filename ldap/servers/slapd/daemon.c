@@ -2868,7 +2868,7 @@ get_connection_table_size(void)
 
     /* Verify size does not exceed max num of conns */
     if (size > MAX_LDAP_CONNS) {
-        size = (MAX_LDAP_CONNS - resrvdesc);
+        size = MAX_LDAP_CONNS;
     }
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
