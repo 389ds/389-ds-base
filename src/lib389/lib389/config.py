@@ -21,7 +21,7 @@ import ldap
 from lib389._constants import *
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
-from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
+from lib389.utils import ensure_bytes, selinux_label_port, selinux_present, is_fips
 from lib389.lint import (
     DSCLE0001, DSCLE0002, DSCLE0003, DSCLE0004, DSELE0001
 )
@@ -212,6 +212,10 @@ class Config(DSLdapObject):
 
     def _lint_passwordscheme(self):
         allowed_schemes = ['PBKDF2-SHA512', 'PBKDF2_SHA256', 'PBKDF2_SHA512', 'GOST_YESCRYPT']
+        if is_fips():
+            # Not all RHEL 8 servers support the Rust password hashers so we
+            # need to allow SSHA512 in fips mode
+            allowed_schemes.append('SSHA512')
         u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
         u_root_scheme = self.get_attr_val_utf8('nsslapd-rootpwstoragescheme')
         if u_root_scheme not in allowed_schemes:
