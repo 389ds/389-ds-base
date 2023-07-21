@@ -1116,6 +1116,9 @@ connection_wait_for_new_work(Slapi_PBlock *pb, pc_tinfo_t *tinfo)
             ll_link_after(&g_pc.waiting_threads.h, &tinfo->q);
             pthread_mutex_unlock(&g_pc.mutex);
             pthread_mutex_lock(&tinfo->mutex);
+            if (tinfo->conn) {
+                continue;
+            }
             pthread_cond_wait(&tinfo->cv, &tinfo->mutex);
             continue;
         }
