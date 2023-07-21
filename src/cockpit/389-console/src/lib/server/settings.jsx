@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn } from "../tools.jsx";
+import { log_cmd, valid_dn, isValidIpAddress } from "../tools.jsx";
 import {
     Button,
     Checkbox,
@@ -10,6 +10,11 @@ import {
     FormSelectOption,
     Grid,
     GridItem,
+    HelperText,
+    HelperTextItem,
+    Select,
+    SelectOption,
+    SelectVariant,
     Spinner,
     Tab,
     Tabs,
@@ -72,6 +77,7 @@ const adv_attrs = [
     'nsslapd-plugin-binddn-tracking',
     'nsslapd-attribute-name-exceptions',
     'nsslapd-dn-validate-strict',
+    'nsslapd-haproxy-trusted-ip',
 ];
 
 export class ServerSettings extends React.Component {
@@ -94,6 +100,56 @@ export class ServerSettings extends React.Component {
             advSaveDisabled: true,
             advReloading: false,
             errObjAdv: {},
+            haproxyIPs: [],
+            _haproxyIPs: [],
+            haproxyIPsOptions: [],
+            isHaproxyIPsOpen: false,
+            invalidIP: false,
+        };
+
+        this.handleOnHaproxyIPsToggle = isHaproxyIPsOpen => {
+            this.setState({
+                isHaproxyIPsOpen,
+                invalidIP: false,
+            });
+        };
+        this.handleOnHaproxyIPsSelect = (event, selection, nav_tab) => {
+            const id = 'nsslapd-haproxy-trusted-ip';
+            const { haproxyIPs } = this.state;
+            // The first if-block is when removing an item from the list
+            if (haproxyIPs.includes(selection)) {
+                this.setState(
+                    prevState => ({
+                        haproxyIPs: prevState.haproxyIPs.filter(item => item !== selection),
+                        isHaproxyIPsOpen: false
+                    }), () => { this.validateSaveBtn(nav_tab, id, haproxyIPs.filter(item => item !== selection)) });
+            // The second if-block is when adding an item to the list
+            } else {
+                this.setState(
+                    prevState => ({
+                        haproxyIPs: [...prevState.haproxyIPs, selection],
+                        isHaproxyIPsOpen: false,
+                    }), () => { this.validateSaveBtn(nav_tab, id, [...haproxyIPs, selection]) });
+            }
+        };
+
+        this.handleOnHaproxyIPsClear = (event, nav_tab) => {
+            const id = 'nsslapd-haproxy-trusted-ip';
+            const selection = [];
+            this.setState({
+                haproxyIPs: [],
+                isHaproxyIPsOpen: false,
+                invalidIP: false,
+            }, () => { this.validateSaveBtn(nav_tab, id, selection) });
+        };
+
+        this.handleOnCreateHaproxyIP = newValue => {
+            if (!this.state.haproxyIPsOptions.includes(newValue)) {
+                this.setState({
+                    haproxyIPsOptions: [...this.state.haproxyIPsOptions, newValue],
+                    isHaproxyIPsOpen: false
+                });
+            }
         };
 
         // Toggle currently active tab
@@ -128,7 +184,7 @@ export class ServerSettings extends React.Component {
         this.reloadRootDN = this.reloadRootDN.bind(this);
         this.saveDiskMonitoring = this.saveDiskMonitoring.bind(this);
         this.reloadDiskMonitoring = this.reloadDiskMonitoring.bind(this);
-        this.saveAdvanced = this.saveAdvanced.bind(this);
+        this.handleSaveAdvanced = this.handleSaveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
@@ -198,8 +254,9 @@ export class ServerSettings extends React.Component {
         let disableBtnName = "";
         let config_attrs = [];
         let valueErr = false;
-        let errObj;
-        if (nav_tab == "config") {
+        let invalidIP = false;
+        let errObj = {};
+        if (nav_tab === "config") {
             config_attrs = general_attrs;
             disableBtnName = "configSaveDisabled";
             errObj = this.state.errObjConfig;
@@ -288,11 +345,21 @@ export class ServerSettings extends React.Component {
                 valueErr = true;
                 disableSaveBtn = true;
             }
+            if (attr === 'nsslapd-haproxy-trusted-ip') {
+                for (const ip of value) {
+                    if (value && !isValidIpAddress(ip)) {
+                        invalidIP = true;
+                        disableSaveBtn = true;
+                        break;
+                    }
+                }
+            }
         }
 
         errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
+            invalidIP,
             errObjConfig: errObj,
             [disableBtnName]: disableSaveBtn
         }, () => { this.validatePaths(disableSaveBtn) });
@@ -385,6 +452,8 @@ export class ServerSettings extends React.Component {
             confirmRootpw: attrs['nsslapd-rootpw'][0],
             'nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             'nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
+            haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
+            'nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
             'nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
             'nsslapd-disk-monitoring-grace-period': attrs['nsslapd-disk-monitoring-grace-period'][0],
             'nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
@@ -414,6 +483,8 @@ export class ServerSettings extends React.Component {
             _confirmRootpw: attrs['nsslapd-rootpw'][0],
             '_nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             '_nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
+            _haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
+            '_nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
             '_nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
             '_nsslapd-disk-monitoring-grace-period': attrs['nsslapd-disk-monitoring-grace-period'][0],
             '_nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
@@ -597,37 +668,109 @@ export class ServerSettings extends React.Component {
                 });
     }
 
-    saveAdvanced() {
+    /* We use this function for multi-valued config attributes because they require a special treatment */
+    handleMultivaluedAttributeReplace(attrs) {
+        const cmd = [
+            'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+            'config', 'delete', 'nsslapd-haproxy-trusted-ip'
+        ];
+        log_cmd("handleMultivaluedAttributeReplace", "Removing cn=config attribute", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    if (attrs.length > 0) {
+                        const cmd = [
+                            'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+                            'config', 'add', ...attrs
+                        ];
+                        log_cmd("handleMultivaluedAttributeReplace", "Adding multivalued cn=config attribute", cmd);
+                        cockpit
+                                .spawn(cmd, { superuser: true, err: "message" })
+                                .done(content => {
+                                    this.reloadAdvanced();
+                                    this.props.addNotification(
+                                        "success",
+                                        "Successfully updated Advanced configuration"
+                                    );
+                                })
+                                .fail(err => {
+                                    const errMsg = JSON.parse(err);
+                                    this.reloadAdvanced();
+                                    this.props.addNotification(
+                                        "error",
+                                        `Error updating Advanced configuration - ${errMsg.desc}`
+                                    );
+                                });
+                    } else {
+                        this.reloadAdvanced();
+                        this.props.addNotification(
+                            "success",
+                            "Successfully updated Advanced configuration"
+                        );
+                    }
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.reloadAdvanced();
+                    this.props.addNotification(
+                        "error",
+                        `Error updating Advanced configuration - ${errMsg.desc}`
+                    );
+                });
+    }
+
+    handleSaveAdvanced() {
         this.setState({
             advReloading: true,
         });
+        let doHaproxy = false;
+        const addHAproxy = [];
         const cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'config', 'replace'
         ];
+
         for (const attr of adv_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
-                let val = this.state[attr];
-                if (typeof val === "boolean") {
-                    if (val) {
-                        val = "on";
-                    } else {
-                        val = "off";
+            if (this.state['_' + attr] !== this.state[attr]) {
+                if (attr === 'nsslapd-haproxy-trusted-ip') {
+                    if (this.state.haproxyIPs.sort().toString() !== this.state._haproxyIPs.sort().toString()) {
+                        doHaproxy = true;
+                        for (const val of this.state.haproxyIPs) {
+                            addHAproxy.push(attr + "=" + val);
+                        }
                     }
+                } else {
+                    let val = this.state[attr];
+                    if (typeof val === "boolean") {
+                        if (val) {
+                            val = "on";
+                        } else {
+                            val = "off";
+                        }
+                    }
+                    cmd.push(attr + "=" + val);
                 }
-                cmd.push(attr + "=" + val);
             }
         }
 
-        log_cmd("saveAdvanced", "Saving Advanced configuration", cmd);
+        // If HAProxy IPs is the only thing that changed, we don't need to run the main replace
+        if (cmd.length === 5 && doHaproxy) {
+            this.handleMultivaluedAttributeReplace(addHAproxy);
+            return;
+        }
+        log_cmd("handleSaveAdvanced", "Saving Advanced configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.reloadAdvanced();
-                    this.props.addNotification(
-                        "success",
-                        "Successfully updated Advanced configuration"
-                    );
+                    if (doHaproxy) {
+                        this.handleMultivaluedAttributeReplace(addHAproxy);
+                    } else {
+                        this.reloadAdvanced();
+                        this.props.addNotification(
+                            "success",
+                            "Successfully updated Advanced configuration"
+                        );
+                    }
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -696,6 +839,8 @@ export class ServerSettings extends React.Component {
                     this.setState(() => (
                         {
                             'nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
+                            haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
+                            'nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
                             'nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
                             'nsslapd-schemacheck': schemaCheck,
                             'nsslapd-syntaxcheck': syntaxCheck,
@@ -709,6 +854,8 @@ export class ServerSettings extends React.Component {
                             'nsslapd-readonly': readOnly,
                             // Record original values
                             '_nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
+                            _haproxyIPs: attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
+                            '_nsslapd-haproxy-trusted-ip': attrs['nsslapd-haproxy-trusted-ip'] ? attrs['nsslapd-haproxy-trusted-ip'] : [],
                             '_nsslapd-allow-anonymous-access': attrs['nsslapd-allow-anonymous-access'][0],
                             '_nsslapd-schemacheck': schemaCheck,
                             '_nsslapd-syntaxcheck': syntaxCheck,
@@ -722,6 +869,7 @@ export class ServerSettings extends React.Component {
                             '_nsslapd-readonly': readOnly,
                             advReloading: false,
                             advSaveDisabled: true,
+                            isHaproxyIPsOpen: false
                         })
                     );
                 })
@@ -1426,12 +1574,51 @@ export class ServerSettings extends React.Component {
                                             />
                                         </GridItem>
                                     </Grid>
+                                    <Grid
+                                        title="HAProxy header is only checked if this setting (nsslapd-haproxy-trusted-ip) is configured. It should have a list of trusted HAProxy server IPs"
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            Trusted HAProxy Server IPs
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <Select
+                                                variant={SelectVariant.typeaheadMulti}
+                                                id="nsslpad-haproxy-trusted-ip"
+                                                typeAheadAriaLabel="Type trusted HAProxy server IP address"
+                                                onToggle={this.handleOnHaproxyIPsToggle}
+                                                onSelect={(e, selection) => {
+                                                    this.handleOnHaproxyIPsSelect(e, selection, "adv");
+                                                }}
+                                                onClear={(e) => {
+                                                    this.handleOnHaproxyIPsClear(e, "adv");
+                                                }}
+                                                selections={this.state.haproxyIPs}
+                                                isOpen={this.state.isHaproxyIPsOpen}
+                                                aria-labelledby="typeAhead-haproxy-ips"
+                                                placeholderText="Type trusted HAProxy server IP address"
+                                                isCreatable
+                                                onCreateOption={this.handleOnCreateHaproxyIP}
+                                                validated={this.state.invalidIP ? ValidatedOptions.error : ValidatedOptions.default}
+                                            >
+                                                {[].map((attr, index) => (
+                                                    <SelectOption
+                                                        key={index}
+                                                        value={attr}
+                                                    />
+                                                ))}
+                                            </Select>
+                                            {(this.state.invalidIP) &&
+                                                <HelperText className="ds-left-margin">
+                                                    <HelperTextItem variant="error">Invalid format for IP address</HelperTextItem>
+                                                </HelperText>}
+                                        </GridItem>
+                                    </Grid>
                                 </Form>
                                 <Button
                                     isDisabled={this.state.advSaveDisabled || this.state.advReloading}
                                     variant="primary"
                                     className="ds-margin-top-xlg"
-                                    onClick={this.saveAdvanced}
+                                    onClick={this.handleSaveAdvanced}
                                     isLoading={this.state.advReloading}
                                     spinnerAriaValueText={this.state.advReloading ? "Saving" : undefined}
                                     {...extraPrimaryProps}

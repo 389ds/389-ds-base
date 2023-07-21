@@ -1250,13 +1250,6 @@ export function foldLine (line) {
   return lineArray;
 }
 
-export function isValidLDAPUrl (url) {
-    if (url.startsWith("ldap:///")) {
-        return true;
-    }
-    return false;
-}
-
 export function getBaseDNFromTree (entrydn, treeViewRootSuffixes) {
     for (const suffixObj of treeViewRootSuffixes) {
         if (entrydn.toLowerCase().indexOf(suffixObj.name.toLowerCase()) !== -1) {
