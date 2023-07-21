@@ -1184,28 +1184,6 @@ export function retrieveAllAcis (params, aciCallback) {
     });
 }
 
-export function isValidIpAddress (ipAddress) {
-    const regexIPv4 = /^(?=(?:[^.]*\.){2,3}[^.]*$)(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){1,3}(?:\.\*)?$/;
-    const regexIPv6 = /(?:^|(?<=\s))(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))(?=\s|$)/;
-
-    let result = false;
-
-    if (ipAddress.includes(":")) {
-        // IPv6
-        result = ipAddress.match(regexIPv6);
-    } else {
-        // IPv4
-        result = ipAddress.match(regexIPv4);
-    }
-    return result !== null;
-}
-
-export function isValidHostname (hostname) {
-    const regex = /^((\*)|((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|((\*\.)?([a-zA-Z0-9-]+\.){0,5}[a-zA-Z0-9-]+\.[a-zA-Z]{2,63}?))$/;
-    const result = hostname.match(regex);
-    return result !== null;
-}
-
 /*
 // Encode binary attributes.
 export function base64encode (fileName, encodingCallback) {
@@ -1247,13 +1225,6 @@ export function foldLine (line) {
     }
 
     return lineArray;
-}
-
-export function isValidLDAPUrl (url) {
-    if (url.startsWith("ldap:///")) {
-        return true;
-    }
-    return false;
 }
 
 export function getBaseDNFromTree (entrydn, treeViewRootSuffixes) {
