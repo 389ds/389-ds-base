@@ -22,7 +22,7 @@ from lib389._constants import CONSUMER_REPLICAID, REPLICA_RDWR_TYPE, REPLICA_FLA
                               REPLICA_FLAGS_RDONLY, REPLICA_ID, REPLICA_TYPE, REPLICA_SUFFIX, REPLICA_BINDDN, \
                               RDN_REPLICA, REPLICA_FLAGS, REPLICA_RUV_UUID, REPLICA_OC_TOMBSTONE, DN_MAPPING_TREE, \
                               DN_CONFIG, DN_PLUGIN, REPLICATION_BIND_DN, REPLICATION_BIND_PW, ReplicaRole, \
-                              defaultProperties
+                              args_instance, defaultProperties
 from lib389.properties import REPLICA_OBJECTCLASS_VALUE, REPLICA_OBJECTCLASS_VALUE, REPLICA_SUFFIX, \
                               REPLICA_PROPNAME_TO_ATTRNAME, REPL_BINDDN, REPL_TYPE, REPL_ID, REPL_FLAGS, \
                               REPL_BIND_GROUP, SER_HOST, SER_PORT, SER_SECURE_PORT, SER_ROOT_DN, SER_ROOT_PW, \
