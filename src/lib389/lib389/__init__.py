@@ -3040,7 +3040,7 @@ class DirSrv(SimpleLDAPObject, object):
             # (we should also accept a version number for .db suffix)
             for f in glob.glob(f'{indexfile}*'):
                 indexfile = f
-            cmd.extends(['-f', indexfile])
+            cmd.extend(['-f', indexfile])
             if 'id2entry' in index:
                 if key and key.isdigit():
                     cmd.extend(['-K', key])
