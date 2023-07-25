@@ -539,6 +539,13 @@ popd
 
 %endif
 
+# Register CLI tools for bash completion
+for clitool in dsconf dsctl dsidm dscreate ds-replcheck
+do
+    register-python-argcomplete "${clitool}" > "${clitool}"
+    install -p -m 0644 -D -t '%{buildroot}%{bash_completions_dir}' "${clitool}"
+done
+
 mkdir -p $RPM_BUILD_ROOT/var/log/%{pkgname}
 mkdir -p $RPM_BUILD_ROOT/var/lib/%{pkgname}
 mkdir -p $RPM_BUILD_ROOT/var/lock/%{pkgname} \
@@ -583,12 +590,6 @@ else
     output=/dev/null
     output2=/dev/null
 fi
-
-# Register CLI tools for bash completion
-for clitool in dsconf dsctl dsidm dscreate ds-replcheck
-do
-  register-python-argcomplete "${clitool}" > "/usr/share/bash-completion/completions/${clitool}"
-done
 
 # reload to pick up any changes to systemd files
 /bin/systemctl daemon-reload >$output 2>&1 || :
@@ -694,6 +695,7 @@ fi
 %{_mandir}/man1/dbscan.1.gz
 %{_bindir}/ds-replcheck
 %{_mandir}/man1/ds-replcheck.1.gz
+%{bash_completions_dir}/ds-replcheck
 %{_bindir}/ds-logpipe.py
 %{_mandir}/man1/ds-logpipe.py.1.gz
 %{_bindir}/ldclt
@@ -781,6 +783,10 @@ fi
 %{_sbindir}/dsidm
 %{_mandir}/man8/dsidm.8.gz
 %{_libexecdir}/%{pkgname}/dscontainer
+%{bash_completions_dir}/dsctl
+%{bash_completions_dir}/dsconf
+%{bash_completions_dir}/dscreate
+%{bash_completions_dir}/dsidm
 
 %if %{use_cockpit}
 %files -n cockpit-389-ds -f cockpit.list
