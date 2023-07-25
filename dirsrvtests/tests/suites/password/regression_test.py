@@ -13,7 +13,7 @@ from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_C
 from lib389 import Entry
 from lib389.topologies import topology_m1 as topo_supplier
 from lib389.idm.user import UserAccounts
-from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
+from lib389.utils import ldap, os, logging, ds_is_newer, ds_supports_new_changelog
 from lib389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 
@@ -52,12 +52,12 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
             log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
             dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
 
-    for entry in dbscanOut.split(b'dbid: '):
-        if ensure_bytes('operation: modify') in entry and ensure_bytes(user_dn) in entry and ensure_bytes('userPassword') in entry:
+    for entry in dbscanOut.split('dbid: '):
+        if 'operation: modify' in entry and user_dn in entry and 'userPassword' in entry:
             if is_present:
-                assert ensure_bytes(unhashed_pwd_attribute) in entry
+                assert unhashed_pwd_attribute in entry
             else:
-                assert ensure_bytes(unhashed_pwd_attribute) not in entry
+                assert unhashed_pwd_attribute not in entry
 
 @pytest.fixture(scope="module")
 def passw_policy(topo, request):
@@ -217,8 +217,6 @@ def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     # reset password
     create_user.set('userPassword', PASSWORD)
 
-#unstable or unstatus tests, skipped for now
-@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.ds49789
 def test_unhashed_pw_switch(topo_supplier):
     """Check that nsslapd-unhashed-pw-switch works corrently
@@ -290,6 +288,7 @@ def test_unhashed_pw_switch(topo_supplier):
         _check_unhashed_userpw(inst, user, is_present=False)
     else:
         _check_unhashed_userpw(inst, user, is_present=True)
+    inst.start()
 
     #  Check with nolog that unhashed#user#password is not logged
     inst.modify_s(DN_CONFIG,
@@ -303,6 +302,7 @@ def test_unhashed_pw_switch(topo_supplier):
                                           PASSWORD.encode())])
     inst.stop()
     _check_unhashed_userpw(inst, user, is_present=False)
+    inst.start()
 
     #  Check with value 'on' that unhashed#user#password is logged
     inst.modify_s(DN_CONFIG,
