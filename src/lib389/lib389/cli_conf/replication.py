@@ -1677,7 +1677,7 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--sync-interval', help="Sets the interval that DS checks AD for changes in entries")
     winsync_agmt_add_parser.add_argument('--one-way-sync',
                                          help="Sets which direction to perform synchronization: \"toWindows\", or "
-                                              "\"fromWindows\,.  By default sync occurs in both directions.")
+                                              "\"fromWindows\".  By default sync occurs in both directions.")
     winsync_agmt_add_parser.add_argument('--move-action',
                                          help="Sets instructions on how to handle moved or deleted entries: "
                                               "\"none\", \"unsync\", or \"delete\"")
