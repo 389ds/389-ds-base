@@ -2222,7 +2222,9 @@ add_work_q(work_q_item *wqitem)
                           "Warning: server may be unresponsive because the threads "
                           "are exhausted and too many operations have been queued.\n");
         }
+        pthread_mutex_unlock(&g_pc.mutex);
         usleep(1000*FLOW_CONTROL_DELAY);
+        pthread_mutex_lock(&g_pc.mutex);
     }
 }
 
