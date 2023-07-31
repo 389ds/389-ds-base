@@ -102,6 +102,9 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
 
     standalone = topology_st.standalone
 
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+
     log.info('Configure an insecure passwordStorageScheme (SHA)')
     standalone.config.set('passwordStorageScheme', 'SHA')
 
@@ -153,6 +156,9 @@ def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
     RHEL = 'Red Hat Enterprise Linux'
 
     standalone = topology_st.standalone
+
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
 
     standalone.enable_tls()
 
@@ -210,6 +216,9 @@ def test_healthcheck_resolvconf_bad_file_perm(topology_st):
 
     standalone = topology_st.standalone
 
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+
     log.info('Change the /etc/resolv.conf file permissions to 444')
     os.chmod('/etc/resolv.conf', 0o444)
 
@@ -254,6 +263,9 @@ def test_healthcheck_pwdfile_bad_file_perm(topology_st):
     standalone = topology_st.standalone
     cert_dir = standalone.ds_paths.cert_dir
 
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+
     log.info('Change the /etc/dirsrv/slapd-{}/pwdfile.txt permissions to 000'.format(standalone.serverid))
     os.chmod('{}/pwdfile.txt'.format(cert_dir), 0o000)
 
@@ -291,10 +303,13 @@ def test_healthcheck_certif_expiring_within_30d(topology_st):
 
     standalone = topology_st.standalone
 
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+
     standalone.enable_tls()
 
     # Cert is valid two years from today, so we count the date that is within 30 days before certificate expiration
-    date_future = datetime.now() + timedelta(days=701)
+    date_future = datetime.now() + timedelta(days=702)
 
     with libfaketime.fake_time(date_future):
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
@@ -329,10 +344,13 @@ def test_healthcheck_certif_expired(topology_st):
 
     standalone = topology_st.standalone
 
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+
     standalone.enable_tls()
 
     # Cert is valid two years from today, so we count the date that is after expiration
-    date_future = datetime.now() + timedelta(days=731)
+    date_future = datetime.now() + timedelta(days=732)
 
     with libfaketime.fake_time(date_future):
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
