@@ -107,6 +107,10 @@ def test_healthcheck_replication_replica_not_reachable(topology_m2):
     M1 = topology_m2.ms['supplier1']
     M2 = topology_m2.ms['supplier2']
 
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    M1.config.set('nsslapd-accesslog-logbuffering', 'on')
+    M2.config.set('nsslapd-accesslog-logbuffering', 'on')
+
     set_changelog_trimming(M1)
 
     log.info('Set nsds5replicaport for the replication agreement to an unreachable port')
@@ -155,6 +159,9 @@ def test_healthcheck_changelog_trimming_not_configured(topology_m2):
     """
 
     M1 = topology_m2.ms['supplier1']
+
+    log.info('Set nsslapd-accesslog-logbuffering so it does not raise a warning')
+    M1.config.set('nsslapd-accesslog-logbuffering', 'on')
 
     RET_CODE = 'DSCLLE0001'
 
