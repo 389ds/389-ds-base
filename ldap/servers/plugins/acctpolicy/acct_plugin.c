@@ -219,6 +219,11 @@ acct_update_login_history(const char *dn, char *timestr)
     slapi_search_get_entry(&entry_pb, sdn, NULL, &e, plugin_id);
     slapi_sdn_free(&sdn);
 
+    /* if the entry doesn't exist, just return */
+    if (e == NULL) {
+        return (rc);
+    }
+
     config_rd_lock();
     cfg = get_config();
 
@@ -248,8 +253,7 @@ acct_update_login_history(const char *dn, char *timestr)
                 login_hist[i] = login_hist[diff + (i + 1)];
             }
             if (cfg->login_history_size != 0) {
-                /* realloc and append latest value */
-                login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (cfg->login_history_size + 2));
+                /* append latest value */
                 login_hist[i - 1] = slapi_ch_smprintf("%s", timestr);
                 login_hist[i] = NULL;
                 mod_required = 1;
