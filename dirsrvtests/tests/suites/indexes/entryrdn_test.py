@@ -17,7 +17,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.agreement import Agreements
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, ensure_bytes
 from lib389.tasks import Tasks,ExportTask, ImportTask
 from lib389.topologies import topology_st as topo
 
@@ -50,7 +50,7 @@ log = logging.getLogger(__name__)
 def checkdbscancount(inst, pattern, expected_count):
     inst.restart()
     dbscanOut = inst.dbscan(args=['-f', f'{inst.dbdir}/{DEFAULT_BENAME}/entryrdn.db', '-A'], stopping=False)
-    count = dbscanOut.count(pattern)
+    count = dbscanOut.count(ensure_bytes(pattern))
     if count != expected_count:
         log.info(f"dbscan output is: {dbscanOut}")
     assert count == expected_count
