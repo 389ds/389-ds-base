@@ -2,6 +2,7 @@
 name = "librslapd"
 version = "0.1.0"
 authors = ["William Brown <william@blackhats.net.au>"]
+rust-version = "1.70"
 edition = "2018"
 build = "build.rs"
 
