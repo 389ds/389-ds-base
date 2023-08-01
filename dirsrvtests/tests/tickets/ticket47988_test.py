@@ -82,6 +82,7 @@ def _install_schema(server, tarFile):
 
     os.chdir(tmpSchema)
     tar = tarfile.open(tarFile, 'r:gz')
+    tar.extraction_filter = (lambda member, path: member)
     for member in tar.getmembers():
         tar.extract(member.name)
 
