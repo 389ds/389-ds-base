@@ -3006,7 +3006,7 @@ class DirSrv(SimpleLDAPObject, object):
                 return True
             return False
 
-    def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False, args=None, stopping=True):
+    def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False, args=None, stopping=True) -> bytes:
         """Wrapper around dbscan tool that analyzes and extracts information
         from an import Directory Server database file
 
@@ -3018,7 +3018,7 @@ class DirSrv(SimpleLDAPObject, object):
         :param isRaw: Dump as a raw data
         :param args: use args as parameters instead of using bename, index, key
         :param stopping: stop then restart the instance (if started)
-        :returns: dbscan output as a string
+        :returns: dbscan output as bytes
         """
 
         DirSrvTools.lib389User(user=DEFAULT_USER)
@@ -3057,7 +3057,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.stop()
         self.log.info('Running script: %s', cmd)
         try:
-            result = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             result.check_returncode();
         except subprocess.CalledProcessError:
             self.log.error('Failed to run dbscan: "%s"' % result)
