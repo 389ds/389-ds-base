@@ -1372,6 +1372,7 @@ class DirSrv(SimpleLDAPObject, object):
         name = "backup_%s_%s.tar.gz" % (self.serverid, time.strftime("%m%d%Y_%H%M%S"))
         backup_file = os.path.join(backup_dir, name)
         tar = tarfile.open(backup_file, "w:gz")
+        tar.extraction_filter = (lambda member, path: member)
 
         for name in listFilesToBackup:
             tar.add(name)
@@ -1441,6 +1442,7 @@ class DirSrv(SimpleLDAPObject, object):
             os.chdir(prefix_pattern)
 
         tar = tarfile.open(backup_file)
+        tar.extraction_filter = (lambda member, path: member)
         for member in tar.getmembers():
             if os.path.isfile(member.name):
                 #
