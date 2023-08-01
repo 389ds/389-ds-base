@@ -13,7 +13,7 @@ from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_C
 from lib389 import Entry
 from lib389.topologies import topology_m1 as topo_supplier
 from lib389.idm.user import UserAccounts
-from lib389.utils import ldap, os, logging, ds_is_newer, ds_supports_new_changelog
+from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
 from lib389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 
@@ -52,12 +52,12 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
             log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
             dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
 
-    for entry in dbscanOut.split('dbid: '):
-        if 'operation: modify' in entry and user_dn in entry and 'userPassword' in entry:
+    for entry in dbscanOut.split(b'dbid: '):
+        if ensure_bytes('operation: modify') in entry and ensure_bytes(user_dn) in entry and ensure_bytes('userPassword') in entry:
             if is_present:
-                assert unhashed_pwd_attribute in entry
+                assert ensure_bytes(unhashed_pwd_attribute) in entry
             else:
-                assert unhashed_pwd_attribute not in entry
+                assert ensure_bytes(unhashed_pwd_attribute) not in entry
 
 @pytest.fixture(scope="module")
 def passw_policy(topo, request):
