@@ -27,6 +27,7 @@ from lib389._mapped_object import DSLdapObjects
 from lib389.replica import Replicas, Changelog
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
+import os
 
 
 pytestmark = pytest.mark.tier0
@@ -116,6 +117,29 @@ def change_conf_attr(topology_st, suffix, attr_name, attr_value):
     else:
         entry.replace(attr_name, attr_value)
     return attr_value_bck
+
+
+@pytest.fixture(scope="function")
+def ldapagent_config(topology_st, request):
+    """Creates agent.conf for snmp agent
+    """
+
+    var_dir = topology_st.standalone.get_local_state_dir()
+    config_file = os.path.join(topology_st.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
+    config = f"""agentx-supplier {var_dir}/agentx/supplier
+agent-logdir {var_dir}/log/dirsrv
+server slapd-{topology_st.standalone.serverid}
+"""
+
+    with open(config_file, 'w') as agent_config_file:
+        agent_config_file.write(config)
+
+    def fin():
+        os.remove(config_file)
+
+    request.addfinalizer(fin)
+
+    return config_file
 
 
 def test_basic_ops(topology_st, import_example_ldif):
@@ -960,7 +984,7 @@ def test_basic_systemctl(topology_st, import_example_ldif):
     log.info('test_basic_systemctl: PASSED')
 
 
-def test_basic_ldapagent(topology_st, import_example_ldif):
+def test_basic_ldapagent(topology_st, import_example_ldif, ldapagent_config):
     """Tests that the ldap agent starts
 
     :id: da1d1846-8fc4-4b8c-8e53-4c9c16eff1ba
@@ -978,18 +1002,11 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
 
     log.info('Running test_basic_ldapagent...')
 
-    var_dir = topology_st.standalone.get_local_state_dir()
-
-    config_file = os.path.join(topology_st.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
-
-    agent_config_file = open(config_file, 'w')
-    agent_config_file.write('agentx-supplier ' + var_dir + '/agentx/supplier\n')
-    agent_config_file.write('agent-logdir ' + var_dir + '/log/dirsrv\n')
-    agent_config_file.write('server slapd-' + topology_st.standalone.serverid + '\n')
-    agent_config_file.close()
+    if not os.path.exists(os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent')):
+        pytest.skip("ldap-agent is not present")
 
     # Remember, this is *forking*
-    check_output([os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent'), config_file])
+    check_output([os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent'), ldapagent_config])
     # First kill any previous agents ....
     run_dir = topology_st.standalone.get_run_dir()
     pidpath = os.path.join(run_dir, 'ldap-agent.pid')
