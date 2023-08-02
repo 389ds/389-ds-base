@@ -1063,7 +1063,7 @@ done:
 
     slapi_ch_free((void **)&req->req_orig_base);
     slapi_filter_free(req->req_filter, 1);
-    sync_cookie_free(&req->req_cookie);
+
     for (qnode = req->ps_eq_head; qnode; qnode = qnodenext) {
         qnodenext = qnode->sync_next;
         sync_node_free(&qnode);
