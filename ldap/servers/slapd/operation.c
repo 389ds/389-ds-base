@@ -626,6 +626,12 @@ slapi_connection_remove_operation(Slapi_PBlock *pb __attribute__((unused)), Slap
             rc = 0;
         }
     }
+
+    /* Call the plugin extension destructor */
+    if (op) {
+        factory_destroy_extension(get_operation_object_type(), op, conn, &((op)->o_extension));
+    }
+
     pthread_mutex_unlock(&(conn->c_mutex));
     return (rc);
 }
