@@ -222,7 +222,8 @@ slapi_exist_referral(Slapi_Backend *be)
         suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be, 0));
 
         /* ignore special backends */
-        if ((strcmp(suffix, "cn=schema") == 0) ||
+        if ((suffix == NULL) ||
+            (strcmp(suffix, "cn=schema") == 0) ||
             (strcmp(suffix, "cn=config") == 0)) {
             return 0; /* it does not mean anything having a referral in those backends */
         }
