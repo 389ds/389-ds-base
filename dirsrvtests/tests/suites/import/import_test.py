@@ -132,11 +132,16 @@ def _import_online(topo, no_no):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
 
     # Wait a bit till the task is created and available for searching
-    time.sleep(0.5)
+    if ds_is_newer('1.4.1.2'):
+        for x in range(60):
+            if import_task.present('nstaskcreated'):
+                break
+            time.sleep(0.5)
+        assert import_task.present('nstaskcreated')
+    else:
+        time.sleep(0.5)
 
     # Good as place as any to quick test the task has some expected attributes
-    if ds_is_newer('1.4.1.2'):
-        assert import_task.present('nstaskcreated')
     assert import_task.present('nstasklog')
     assert import_task.present('nstaskcurrentitem')
     assert import_task.present('nstasktotalitems')
