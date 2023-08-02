@@ -11,6 +11,8 @@ import os
 import time
 import logging
 import pytest
+import shutil
+from lib389.rootdse import RootDSE
 import subprocess
 from lib389.backend import Backend
 from lib389.mappingTree import MappingTrees
@@ -1674,6 +1676,33 @@ def test_referral_subsuffix(topology_st, request):
             referral.delete()
         except:
             pass
+
+    request.addfinalizer(fin)
+
+def test_missing_backend_suffix(topology_st, request):
+    """Test that the server does not crash if a backend has no suffix
+
+    :id: 427c9780-4875-4a94-a3e4-afa11be7d1a9
+    :setup: Standalone instance
+    :steps:
+        1. Stop the instance
+        2. remove 'nsslapd-suffix' from the backend (userRoot)
+        3. start the instance
+        4. Check it started successfully with SRCH on rootDSE
+    :expectedresults:
+        all steps succeeds
+    """
+    topology_st.standalone.stop()
+    dse_ldif = topology_st.standalone.confdir + '/dse.ldif'
+    shutil.copy(dse_ldif, dse_ldif + '.correct')
+    os.system('sed -e "/nsslapd-suffix/d" %s > %s' % (dse_ldif + '.correct', dse_ldif))
+    topology_st.standalone.start()
+    rdse = RootDSE(topology_st.standalone)
+
+    def fin():
+        log.info('Restore dse.ldif')
+        topology_st.standalone.stop()
+        shutil.copy(dse_ldif + '.correct', dse_ldif)
 
     request.addfinalizer(fin)
 
