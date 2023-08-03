@@ -15,6 +15,8 @@ import pytest
 import time
 import glob
 import logging
+import subprocess
+from datetime import datetime
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
@@ -23,6 +25,7 @@ from lib389.index import Indexes
 from lib389.monitor import Monitor
 from lib389.backend import Backends
 from lib389.config import LDBMConfig
+from lib389.config import LMDB_LDBMConfig
 from lib389.utils import ds_is_newer, get_default_db_lib
 from lib389.idm.user import UserAccount
 from lib389.idm.account import Accounts
@@ -81,22 +84,26 @@ def _search_for_user(topo, no_n0):
     assert len(accounts.filter('(uid=*)')) == no_n0
 
 
+def _import_clean_topo(topo):
+    """
+    Cleanup after import
+    """
+    accounts = Accounts(topo.standalone, DEFAULT_SUFFIX)
+    for i in accounts.filter('(uid=*)'):
+        UserAccount(topo.standalone, i.dn).delete()
+
+    ldif_dir = topo.standalone.get_ldif_dir()
+    import_ldif = ldif_dir + '/basic_import.ldif'
+    if os.path.exists(import_ldif):
+        os.remove(import_ldif)
+    syntax_err_ldif = ldif_dir + '/syntax_err.dif'
+    if os.path.exists(syntax_err_ldif):
+        os.remove(syntax_err_ldif)
+
+
 @pytest.fixture(scope="function")
 def _import_clean(request, topo):
-    def finofaci():
-        accounts = Accounts(topo.standalone, DEFAULT_SUFFIX)
-        for i in accounts.filter('(uid=*)'):
-            UserAccount(topo.standalone, i.dn).delete()
-
-        ldif_dir = topo.standalone.get_ldif_dir()
-        import_ldif = ldif_dir + '/basic_import.ldif'
-        if os.path.exists(import_ldif):
-            os.remove(import_ldif)
-        syntax_err_ldif = ldif_dir + '/syntax_err.dif'
-        if os.path.exists(syntax_err_ldif):
-            os.remove(syntax_err_ldif)
-
-    request.addfinalizer(finofaci)
+    request.addfinalizer(lambda: _import_clean_topo(topo))
 
 
 def _import_offline(topo, no_no):
@@ -112,6 +119,7 @@ def _import_offline(topo, no_no):
     topo.standalone.stop()
     t1 = time.time()
     if not topo.standalone.ldif2db('userRoot', None, None, None, import_ldif):
+        topo.standalone.start()
         assert False
     total_time = time.time() - t1
     topo.standalone.start()
@@ -206,6 +214,26 @@ givenName:
     out.close()
     import_ldif1 = ldif_dir + '/syntax_err.ldif'
     return import_ldif1
+
+
+def _now():
+    """
+    Get current time with the format that _check_for_core requires
+    """
+    now = datetime.now()
+    return now.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def __check_for_core(now):
+    """
+    Check if ns-slapd generated a core since the provided date by looking in the system logs.
+    """
+    cmd = [ 'journalctl' ,'-S', now, '-t', 'audit', '-g', 'ANOM_ABEND.*ns-slapd' ]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if result.returncode != 1:
+        # journalctl returns 1 if there is no matching records, and 0 if there are records
+        log.error('journalctl output is:\n%s' % result.stdout)
+        raise AssertionError(f'journalctl reported that ns-slapd crashes after {now}')
 
 
 def test_import_with_index(topo, _import_clean):
@@ -554,6 +582,49 @@ def test_import_wrong_file_path(topo):
     with pytest.raises(ValueError) as e:
         dbtasks_ldif2db(topo.standalone, log, args)
     assert "The LDIF file does not exist" in str(e.value)
+
+
+@pytest.mark.skipif(get_default_db_lib() != "mdb", reason="lmdb specific test")
+def test_crash_on_ldif2db_with_lmdb(topo, _import_clean):
+    """Make an import fail by specifying a too small db size then check that 
+    there is no crash.
+
+    :id: d42585b6-31d0-11ee-8724-482ae39447e5
+    :setup: Standalone Instance
+    :steps:
+        1. Configure a small database size
+        2. Import an ldif with 1K users
+        3. Check that ns-slapd has not aborted
+        4. Import an ldif with 500 users
+        5. Check that ns-slapd has not aborted
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success (ns-slapd should not have aborted)
+        4. Import should fail 
+        5. Success (ns-slapd should not have aborted)
+     
+    """
+    TINY_MAP_SIZE =  16 * 1024 * 1024
+    inst = topo.standalone
+    handler = LMDB_LDBMConfig(inst)
+    mapsize = TINY_MAP_SIZE
+    log.info(f'Set lmdb map size to {mapsize}.')
+    handler.replace('nsslapd-mdb-max-size', str(mapsize))
+    inst.stop()
+    for dbfile in ['data.mdb', 'INFO.mdb', 'lock.mdb']:
+        try:
+            os.remove(f'{inst.dbdir}/{dbfile}')
+        except FileNotFoundError:
+            pass
+    inst.start()
+    now = _now()
+    _import_offline(topo, 1000)
+    __check_for_core(now)
+    _import_clean_topo(topo)
+    with pytest.raises(AssertionError):
+        _import_offline(topo, 500_000)
+    __check_for_core(now)
 
 
 if __name__ == '__main__':
