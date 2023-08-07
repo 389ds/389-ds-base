@@ -186,6 +186,13 @@ def enable_replication(inst, basedn, log, args):
         # rid is good add it to the props
         repl_properties['nsDS5ReplicaId'] = args.replica_id
 
+    # Validate consumer and hub settings
+    elif role == "consumer" or role == "hub":
+        # Check Replica ID
+        if args.replica_id is not None or args.replica_id != 65535:
+            # Error, Replica ID cannot be specified for consumer and hub roles
+            raise ValueError('Replica ID cannot be specified for consumer and hub roles')
+
     # Bind DN or Bind DN Group?
     if args.bind_group_dn:
         repl_properties['nsDS5ReplicaBindDNGroup'] = args.bind_group_dn
