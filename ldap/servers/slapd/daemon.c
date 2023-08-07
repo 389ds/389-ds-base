@@ -1591,7 +1591,13 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
                 continue;
             }
 
-            pthread_mutex_lock(&(c->c_mutex));
+            /* Try to get connection mutex, if not available just skip the connection and 
+             * process other connections events. May generates cpu load for listening thread
+             * if connection mutex is held for a long time
+             */
+            if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+                continue;
+            }
             if (connection_is_active_nolock(c) && c->c_gettingber == 0) {
                 PRInt16 out_flags;
                 short readready;
