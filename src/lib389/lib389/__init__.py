@@ -2992,7 +2992,7 @@ class DirSrv(SimpleLDAPObject, object):
     def is_dbi(self, dbipattern):
         if self.is_dbi_supported():
             # Use dbscan to determine whether the database instance exists.
-            output = self.dbscan(args=['-L', self.ds_paths.db_dir], stopping=False)
+            output = self.dbscan(args=['-L', self.ds_paths.db_dir], stopping=False).decode()
             self.log.debug("is_dbi output is: " + output)
             return dbipattern.lower() in output.lower()
         else:
