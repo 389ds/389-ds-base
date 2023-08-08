@@ -1582,8 +1582,8 @@ int slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt, int s
 /*
  * pagedresults.c
  */
-void pageresult_lock_init();
-void pageresult_lock_cleanup();
+void pageresult_lock_init(void);
+void pageresult_lock_cleanup(void);
 pthread_mutex_t *pageresult_lock_get_addr(Connection *conn);
 int pagedresults_parse_control_value(Slapi_PBlock *pb, struct berval *psbvp, ber_int_t *pagesize, int *index, Slapi_Backend *be);
 void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, ber_int_t estimate, int curr_search_count, int index);
