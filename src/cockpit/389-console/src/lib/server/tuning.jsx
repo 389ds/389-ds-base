@@ -559,16 +559,14 @@ export class ServerTuning extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode)."
+                                    title="Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. This attribute is currently disabled and will be removed in the future. (nsslapd-enable-turbo-mode)."
                                 >
                                     <GridItem className="ds-label" span={4}>
                                         <Checkbox
                                             id="nsslapd-enable-turbo-mode"
                                             isChecked={this.state['nsslapd-enable-turbo-mode']}
-                                            onChange={(checked, e) => {
-                                                this.handleChange(e);
-                                            }}
                                             label="Enable Connection Turbo Mode"
+                                            isDisabled
                                         />
                                     </GridItem>
                                 </Grid>

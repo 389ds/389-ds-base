@@ -790,12 +790,9 @@ connection_is_active_nolock(Connection *conn)
            !(conn->c_flags & CONN_FLAG_CLOSING);
 }
 
-/* The connection private structure for UNIX turbo mode */
+/* The connection private structure */
 struct Conn_private
 {
-    int previous_op_count;            /* the operation counter value last time we sampled it, used to compute operation rate */
-    int operation_rate;               /* rate (ops/sample period) at which this connection has been processing operations */
-    time_t previous_count_check_time; /* The wall clock time we last sampled the operation count */
     size_t c_buffer_size;             /* size of the socket read buffer */
     char *c_buffer;                   /* pointer to the socket read buffer */
     size_t c_buffer_bytes;            /* number of bytes currently stored in the buffer */
@@ -907,46 +904,6 @@ connection_free_private_buffer(Connection *conn)
     }
 }
 
-/*
- * Turbo Mode:
- * Turbo Connection Mode is designed to more efficiently
- * serve a small number of highly active connections performing
- * mainly search operations. It is only used on UNIX---completion
- * ports on NT make it unnecessary.
- * A connection can be in turbo mode, or not in turbo mode.
- * For non-turbo mode, the code path is the same as was before:
- * worker threads wait on a condition variable for work.
- * When they awake they consult the operation queue for
- * something to do, read the operation from the connection's socket,
- * perform the operation and go back to waiting on the condition variable.
- * In Turbo Mode, a worker thread becomes associated with a connection.
- * It then waits not on the condition variable, but directly on read ready
- * state on the connection's socket. When new data arrives, it decodes
- * the operation and executes it, and then goes back to read another
- * operation from the same socket, or block waiting on new data.
- * The read is done non-blocking, wait in poll with a timeout.
- *
- * There is a mechanism to ensure that only the most active
- * connections are in turbo mode at any time. If this were not
- * the case we could starve out some client operation requests
- * due to waiting on I/O in many turbo threads at the same time.
- *
- * Each worker thread periodically  (every 10 seconds) examines
- * the activity level for the connection it is processing.
- * This applies regardless of whether the connection is
- * currently in turbo mode or not. Activity is measured as
- * the number of operations initiated since the last check was done.
- * The N connections with the highest activity level are allowed
- * to enter turbo mode. If the current connection is in the top N,
- * then we decide to enter turbo mode. If the current connection
- * is no longer in the top N, then we leave turbo mode.
- * The decision to enter or leave turbo mode is taken under
- * the connection mutex, preventing race conditions where
- * more than one thread can change the turbo state of a connection
- * concurrently.
- */
-
-
 /* Connection status values returned by
     connection_wait_for_new_work(), connection_read_operation(), etc. */
 
@@ -955,12 +912,6 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_NOWORK 2
 #define CONN_DONE 3
 #define CONN_TIMEDOUT 4
-
-#define CONN_TURBO_TIMEOUT_INTERVAL 100 /* milliseconds */
-#define CONN_TURBO_TIMEOUT_MAXIMUM 5 /* attempts * interval IE 2000ms with 400 * 5 */
-#define CONN_TURBO_CHECK_INTERVAL 5      /* seconds */
-#define CONN_TURBO_PERCENTILE 50         /* proportion of threads allowed to be in turbo mode */
-#define CONN_TURBO_HYSTERESIS 0          /* avoid flip flopping in and out of turbo mode */
 
 void
 connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
@@ -1217,7 +1168,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 
     /* If we still haven't seen a complete PDU, read from the network */
     while (*tag == LBER_DEFAULT) {
-        int32_t ioblocktimeout_waits = conn->c_ioblocktimeout / CONN_TURBO_TIMEOUT_INTERVAL;
+        int32_t ioblocktimeout_waits = conn->c_ioblocktimeout;
         /* We should never get here with data remaining in the buffer */
         PR_ASSERT(!new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
         /* We make a non-blocking read call */
@@ -1311,7 +1262,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
             if (SLAPD_PR_WOULD_BLOCK_ERROR(err) ||
                 SLAPD_SYSTEM_WOULD_BLOCK_ERROR(syserr)) {
                 struct PRPollDesc pr_pd;
-                PRIntervalTime timeout = PR_MillisecondsToInterval(CONN_TURBO_TIMEOUT_INTERVAL);
+                PRIntervalTime timeout = PR_MillisecondsToInterval(100);
                 pr_pd.fd = (PRFileDesc *)conn->c_prfd;
                 pr_pd.in_flags = PR_POLL_READ;
                 pr_pd.out_flags = 0;
@@ -1331,7 +1282,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         /* If so, we return */
                         ret = CONN_TIMEDOUT;
                         goto done;
-                    } else {
+                     } else {
                         /* Otherwise we loop, unless we exceeded the ioblock timeout */
                         if (waits_done > ioblocktimeout_waits) {
                             slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation",
@@ -1340,14 +1291,6 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                                                       SLAPD_DISCONNECT_IO_TIMEOUT, 0);
                             ret = CONN_DONE;
                             goto done;
-                        } else {
-
-                            /* The turbo mode may cause threads starvation.
-                                  Do a yield here to reduce the starving.
-                            */
-                            PR_Sleep(PR_INTERVAL_NO_WAIT);
-
-                            continue;
                         }
                     }
                 }
@@ -1468,129 +1411,6 @@ connection_make_readable_nolock(Connection *conn)
                   conn->c_connid, conn->c_sd);
 }
 
-/*
- * Figure out the operation completion rate for this connection
- */
-void
-connection_check_activity_level(Connection *conn)
-{
-    int current_count = 0;
-    int delta_count = 0;
-    pthread_mutex_lock(&(conn->c_mutex));
-    /* get the current op count */
-    current_count = conn->c_opscompleted;
-    /* compare to the previous op count */
-    delta_count = current_count - conn->c_private->previous_op_count;
-    /* delta is the rate, store that */
-    conn->c_private->operation_rate = delta_count;
-    /* store current count in the previous count slot */
-    conn->c_private->previous_op_count = current_count;
-    /* update the last checked time */
-    conn->c_private->previous_count_check_time = slapi_current_rel_time_t();
-    pthread_mutex_unlock(&(conn->c_mutex));
-    slapi_log_err(SLAPI_LOG_CONNS, "connection_check_activity_level", "conn %" PRIu64 " activity level = %d\n", conn->c_connid, delta_count);
-}
-
-typedef struct table_iterate_info_struct
-{
-    int connection_count;
-    int rank_count;
-    int our_rate;
-} table_iterate_info;
-
-int
-table_iterate_function(Connection *conn, void *arg)
-{
-    int ret = 0;
-    table_iterate_info *pinfo = (table_iterate_info *)arg;
-    pinfo->connection_count++;
-    if (conn->c_private->operation_rate > pinfo->our_rate) {
-        pinfo->rank_count++;
-    }
-    return ret;
-}
-
-/*
- * Scan the list of active connections, evaluate our relative rank
- * for connection activity.
- */
-void
-connection_find_our_rank(Connection *conn, int *connection_count, int *our_rank)
-{
-    table_iterate_info info = {0};
-    info.our_rate = conn->c_private->operation_rate;
-    connection_table_iterate_active_connections(the_connection_table, &info, &table_iterate_function);
-    *connection_count = info.connection_count;
-    *our_rank = info.rank_count;
-}
-
-/*
- * Evaluate the turbo policy for this connection
- */
-void
-connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_turbo_flag)
-{
-    int current_mode = 0;
-    int new_mode = 0;
-    int connection_count = 0;
-    int our_rank = 0;
-    int threshold_rank = 0;
-    pthread_mutex_lock(&(conn->c_mutex));
-    /* We can already be in turbo mode, or not */
-    current_mode = current_turbo_flag;
-    if (pagedresults_in_use_nolock(conn)) {
-        /* PAGED_RESULTS does not need turbo mode */
-        new_mode = 0;
-    } else if (conn->c_private->operation_rate == 0) {
-        /* The connection is ranked by the passed activities. If some other
-         * connection have more activity, increase rank by one. The highest
-         * rank is least activity, good candidates to move out of turbo mode.
-         * However, if no activity on all the connections, then every
-         * connection gets 0 rank, so none move out.
-         * No bother to do so much calcuation, short-cut to non-turbo mode
-         * if no activities in passed interval */
-        new_mode = 0;
-    } else {
-        double activet = 0.0;
-        connection_find_our_rank(conn, &connection_count, &our_rank);
-        slapi_log_err(SLAPI_LOG_CONNS, "connection_enter_leave_turbo",
-                      "conn %" PRIu64 " turbo rank = %d out of %d conns\n", conn->c_connid, our_rank, connection_count);
-        activet = (double)g_get_active_threadcnt();
-        threshold_rank = (int)(activet * ((double)CONN_TURBO_PERCENTILE / 100.0));
-
-        /* adjust threshold_rank according number of connections,
-         less turbo threads as more connections,
-         one measure to reduce thread startvation.
-       */
-        if (connection_count > threshold_rank) {
-            threshold_rank -= (connection_count - threshold_rank) / 5;
-        }
-
-        if (current_mode && (our_rank - CONN_TURBO_HYSTERESIS) < threshold_rank) {
-            /* We're currently in turbo mode */
-            /* Policy says that we stay in turbo mode provided
-               connection activity is still high.
-             */
-            new_mode = 1;
-        } else if (!current_mode && (our_rank + CONN_TURBO_HYSTERESIS) < threshold_rank) {
-            /* We're currently not in turbo mode */
-            /* Policy says that we go into turbo mode if
-               recent connection activity is high.
-             */
-            new_mode = 1;
-        }
-    }
-    pthread_mutex_unlock(&(conn->c_mutex));
-    if (current_mode != new_mode) {
-        if (current_mode) {
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_enter_leave_turbo", "conn %" PRIu64 " leaving turbo mode\n", conn->c_connid);
-        } else {
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_enter_leave_turbo", "conn %" PRIu64 " entering turbo mode\n", conn->c_connid);
-        }
-    }
-    *new_turbo_flag = new_mode;
-}
-
 static void
 connection_threadmain(void *arg)
 {
@@ -1601,7 +1421,6 @@ connection_threadmain(void *arg)
     Connection *conn = NULL;
     Operation *op;
     ber_tag_t tag = 0;
-    int thread_turbo_flag = 0;
     int ret = 0;
     int more_data = 0;
     int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
@@ -1617,7 +1436,6 @@ connection_threadmain(void *arg)
 
     while (1) {
         int is_timedout = 0;
-        time_t curtime = 0;
 
         if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
@@ -1627,7 +1445,7 @@ connection_threadmain(void *arg)
             return;
         }
 
-        if (!thread_turbo_flag && !more_data) {
+        if (!more_data) {
 	        Connection *pb_conn = NULL;
 
             /* If more data is left from the previous connection_read_operation,
@@ -1699,26 +1517,8 @@ connection_threadmain(void *arg)
             default:
                 break;
             }
-        } else {
-
-            /* The turbo mode may cause threads starvation.
-               Do a yield here to reduce the starving
-            */
-            PR_Sleep(PR_INTERVAL_NO_WAIT);
-
-            pthread_mutex_lock(&(conn->c_mutex));
-            /* Make our own pb in turbo mode */
-            connection_make_new_pb(pb, conn);
-            if (connection_call_io_layer_callbacks(conn)) {
-                slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
-                              "Could not add/remove IO layers from connection\n");
-            }
-            pthread_mutex_unlock(&(conn->c_mutex));
-            if (!config_check_referral_mode()) {
-                slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
-                slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsInOps);
-            }
         }
+
         /* Once we're here we have a pb */
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
@@ -1731,52 +1531,11 @@ connection_threadmain(void *arg)
         maxthreads = conn->c_max_threads_per_conn;
         more_data = 0;
         ret = connection_read_operation(conn, op, &tag, &more_data);
-        if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-                          "conn %" PRIu64 " read not ready due to %d - thread_turbo_flag %d more_data %d "
-                          "ops_initiated %d refcnt %d flags %d\n",
-                          conn->c_connid, ret, thread_turbo_flag, more_data,
-                          conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
-        } else if (ret == CONN_FOUND_WORK_TO_DO) {
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-                          "conn %" PRIu64 " read operation successfully - thread_turbo_flag %d more_data %d "
-                          "ops_initiated %d refcnt %d flags %d\n",
-                          conn->c_connid, thread_turbo_flag, more_data,
-                          conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
-        }
-
-        curtime = slapi_current_rel_time_t();
-#define DB_PERF_TURBO 1
-#if defined(DB_PERF_TURBO)
-        /* If it's been a while since we last did it ... */
-        if (curtime - conn->c_private->previous_count_check_time > CONN_TURBO_CHECK_INTERVAL) {
-            if (config_get_enable_turbo_mode()) {
-                int new_turbo_flag = 0;
-                /* Check the connection's activity level */
-                connection_check_activity_level(conn);
-                /* And if appropriate, change into or out of turbo mode */
-                connection_enter_leave_turbo(conn, thread_turbo_flag, &new_turbo_flag);
-                thread_turbo_flag = new_turbo_flag;
-            } else {
-                thread_turbo_flag = 0;
-            }
-        }
-
-        /* turn off turbo mode immediately if any pb waiting in global queue */
-        if (thread_turbo_flag && !WORK_Q_EMPTY) {
-            thread_turbo_flag = 0;
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-                          "conn %" PRIu64 " leaving turbo mode - pb_q is not empty %d\n",
-                          conn->c_connid, work_q_size);
-        }
-#endif
-
         switch (ret) {
         case CONN_DONE:
-        /* This means that the connection was closed, so clear turbo mode */
+        /* This means that the connection was closed */
         /*FALLTHROUGH*/
         case CONN_TIMEDOUT:
-            thread_turbo_flag = 0;
             is_timedout = 1;
             /* In the case of CONN_DONE, more_data could have been set to 1
                  * in connection_read_operation before an error was encountered.
@@ -1792,9 +1551,6 @@ connection_threadmain(void *arg)
                  * should call connection_make_readable after the op is removed
                  * connection_make_readable(conn);
                  */
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
-                          "conn %" PRIu64 " leaving turbo mode due to %d\n",
-                          conn->c_connid, ret);
             goto done;
         case CONN_SHUTDOWN:
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
@@ -1806,26 +1562,16 @@ connection_threadmain(void *arg)
             break;
         }
 
-        /* if we got here, then we had some read activity */
-        if (thread_turbo_flag) {
-            /* turbo mode avoids handle_pr_read_ready which avoids setting c_idlesince
-               update c_idlesince here since, if we got some read activity, we are
-               not idle */
-            conn->c_idlesince = curtime;
-        }
-
         /*
          * Do not put the connection back to the read ready poll list
          * if the operation is unbind.  Unbind will close the socket.
-         * Similarly, if we are in turbo mode, don't send the socket
          * back to the poll set.
-         * more_data: [blackflag 624234]
          * If the connection is from a replication supplier, don't make it readable here.
          * We want to ensure that replication operations are processed strictly in the order
          * they are received off the wire.
          */
         replication_connection = conn->c_isreplication_session;
-        if ((tag != LDAP_REQ_UNBIND) && !thread_turbo_flag && !replication_connection) {
+        if ((tag != LDAP_REQ_UNBIND) && !replication_connection) {
             if (!more_data) {
                 conn->c_flags &= ~CONN_FLAG_MAX_THREADS;
                 pthread_mutex_lock(&(conn->c_mutex));
@@ -1839,12 +1585,6 @@ connection_threadmain(void *arg)
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
                 if (conn->c_threadnumber < maxthreads) {
-                    /* for turbo, c_idlesince is set above - for !turbo and
-                     * !more_data, we put the conn back in the poll loop and
-                     * c_idlesince is set in handle_pr_read_ready - since we
-                     * are bypassing both of those, we set idlesince here
-                     */
-                    conn->c_idlesince = curtime;
                     connection_activity(conn, maxthreads);
                     slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
                                   conn->c_connid);
@@ -1930,11 +1670,8 @@ connection_threadmain(void *arg)
         if (op->o_flags & OP_FLAG_PS) {
             /* Release the connection (i.e. decrease refcnt) at the condition
              * this thread will not loop on it.
-             * If we are in turbo mode (dedicated to that connection) or
-             * more_data (continue reading buffered req) this thread
-             * continues to hold the connection
              */
-            if (!thread_turbo_flag && !more_data) {
+            if (!more_data) {
                 pthread_mutex_lock(&(conn->c_mutex));
                 connection_release_nolock(conn); /* psearch acquires ref to conn - release this one now */
                 pthread_mutex_unlock(&(conn->c_mutex));
@@ -1953,12 +1690,10 @@ connection_threadmain(void *arg)
             pthread_mutex_lock(&(conn->c_mutex));
             connection_remove_operation_ext(pb, conn, op);
 
-            /* If we're in turbo mode, we keep our reference to the connection alive */
             /* can't use the more_data var because connection could have changed in another thread */
-            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " check more_data %d thread_turbo_flag %d"
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " check more_data %d"
                           "repl_conn_bef %d, repl_conn_now %d\n",
-                          conn->c_connid, more_data, thread_turbo_flag,
-                          replication_connection, conn->c_isreplication_session);
+                          conn->c_connid, more_data, replication_connection, conn->c_isreplication_session);
             if (!replication_connection &&  conn->c_isreplication_session) {
                 /* it a connection that was just flagged as replication connection */
                 more_data = 0;
@@ -1967,7 +1702,6 @@ connection_threadmain(void *arg)
                 more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
             }
             if (!more_data) {
-                if (!thread_turbo_flag) {
                     int32_t need_wakeup = 0;
 
                     /*
@@ -2001,7 +1735,6 @@ connection_threadmain(void *arg)
                         signal_listner(conn->c_ct_list);
                         need_wakeup = 0;
                     }
-                }
             }
             pthread_mutex_unlock(&(conn->c_mutex));
         }

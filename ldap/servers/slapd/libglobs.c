@@ -1963,7 +1963,7 @@ FrontendConfig_init(void)
     cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
     cfg->unhashed_pw_switch = SLAPD_DEFAULT_UNHASHED_PW_SWITCH;
     init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
-    init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
+    init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_OFF;
     init_connection_buffer = cfg->connection_buffer = CONNECTION_BUFFER_ON;
     init_connection_nocanon = cfg->connection_nocanon = LDAP_ON;
     init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
@@ -8394,13 +8394,11 @@ config_get_global_backend_lock()
 int32_t
 config_set_enable_turbo_mode(const char *attrname, char *value, char *errorbuf, int apply)
 {
-    int32_t retVal = LDAP_SUCCESS;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                          "Setting of %s attribute is currently disabled, it will be removed in the future",
+                          attrname);
 
-    retVal = config_set_onoff(attrname, value,
-                              &(slapdFrontendConfig->enable_turbo_mode),
-                              errorbuf, apply);
-    return retVal;
+    return LDAP_OPERATIONS_ERROR;
 }
 
 int32_t
