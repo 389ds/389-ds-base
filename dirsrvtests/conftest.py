@@ -17,8 +17,10 @@ import os
 from .report import getReport
 from lib389.paths import Paths
 from enum import Enum
-from slugify import slugify
-from pathlib import Path
+
+if "WEBUI" in os.environ:
+    from slugify import slugify
+    from pathlib import Path
 
 
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
@@ -132,7 +134,7 @@ def pytest_runtest_makereport(item, call):
             report.extra = extra
 
     # Make a screenshot if WebUI test fails
-    if call.when == "call":
+    if call.when == "call" and "WEBUI" in os.environ:
         if call.excinfo is not None and "page" in item.funcargs:
             page = item.funcargs["page"]
             screenshot_dir = Path(".playwright-screenshots")
