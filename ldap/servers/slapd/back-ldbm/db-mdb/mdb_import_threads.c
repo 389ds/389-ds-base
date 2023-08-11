@@ -4053,13 +4053,7 @@ void dbmdb_dup_writer_slot(struct importqueue *q, void *from_slot, void *to_slot
 void
 free_writer_queue_item(WriterQueueData_t **q)
 {
-    WriterQueueData_t *n = *q, *f = NULL;
-    *q = NULL;
-    while (n) {
-        f = n;
-        n = n->next;
-        slapi_ch_free((void**)&f);
-   }
+    slapi_ch_free((void**)q);
 }
 
 WriterQueueData_t *
