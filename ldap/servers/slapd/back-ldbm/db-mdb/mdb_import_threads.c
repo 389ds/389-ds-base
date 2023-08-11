@@ -1187,7 +1187,7 @@ dbmdb_import_producer(void *param)
         wait_for_starting(info);
         wqelmt.winfo.job = job;
         wqelmt.wait_id = id;
-        wqelmt.lineno = curr_lineno;
+        wqelmt.lineno = curr_lineno + 1;  /* Human tends to start counting from 1 rather than 0 */
         wqelmt.data = dbmdb_import_get_entry(&c, fd, &curr_lineno);
         wqelmt.nblines = curr_lineno - wqelmt.lineno;
         wqelmt.datalen = 0;
@@ -2735,11 +2735,12 @@ int dbmdb_import_add_id2entry_add(ImportJob *job, backend *be, struct backentry 
 {
     int encrypt = job->encrypt;
     WriterQueueData_t wqd = {0};
-    int len, rc;
+    int len = 0;
+    int rc = 0;
     char temp_id[sizeof(ID)];
     struct backentry *encrypted_entry = NULL;
     ImportCtx_t *ctx = job->writer_ctx;
-    uint32_t esize;
+    uint32_t esize = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_import_add_id2entry_add", "=> ( %lu, \"%s\" )\n",
                   (u_long)e->ep_id, backentry_get_ndn(e));
