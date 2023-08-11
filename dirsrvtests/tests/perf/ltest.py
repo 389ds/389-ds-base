@@ -45,7 +45,7 @@ for i in range(args.nbconn):
         raise ex
 print (f'{args.nbconn} connections are open. Starting the latency test using {args} as parameters')
 
-now = time.time()
+now = int(time.time())
 end_time = None
 if args.test_duration:
     print(f'{now}')
@@ -55,12 +55,12 @@ ltime = now
 sum = 0
 nbops = 0
 while True:
-    now = time.time()
+    now = int(time.time())
     if now != ltime and nbops > 0:
         print(f"Performed {nbops} operations. Average operation time is: {sum/nbops/1000000} ms.")
         sum = 0
         nbops = 0
-    if end_time and time.time() >= end_time:
+    if end_time and int(time.time()) >= end_time:
         break
     ltime = now
     time.sleep(args.wait_time/1000.0)
