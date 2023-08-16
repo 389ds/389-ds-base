@@ -385,45 +385,50 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
     [root@cette ~]#
   */
 
-  log_cmd("getBaseLevelEntryAttributes", "", cmd);
-  let entryArray = [];
-  cockpit
-    .spawn(cmd, { superuser: true, err: 'message' })
-    .done(data => {
-      // TODO: Make this configurable ( option to keep X number of characters )
-      const lines = data.split('\n');
-      lines.map(currentLine => {
-        if (currentLine !== '') {
-          if (currentLine.length < 1000 || currentLine.substring(0, 9).toLowerCase().startsWith("jpegphoto")) {
-            entryArray.push(splitAttributeValue(currentLine));
-          } else {
-            const myTruncatedValue = (<div name="truncated" attr={splitAttributeValue(currentLine).attribute}>
-                                          <Label icon={<InfoCircleIcon />} color="blue" >
-                                              Value is too large to display
-                                          </Label>
-                                      </div>);
-            entryArray.push(myTruncatedValue);
-          }
-        }
-      });
-      entryAttributesCallback(entryArray);
-    })
-    .catch(err => {
-      // console.log('getBaseLevelEntryAttributes in catch()');
-      if (err.message === undefined) { // No error. Send the result array.
-        // entryAttributesCallback(entryArray);
-      } else { /* if (msg.includes("Can't contact LDAP server")) {
-        // TODO: Handle the LDAP down status with a specific message? */
-        entryAttributesCallback([{
-          attribute: '???: ',
-          value: '???',
-          // errMsg: err.message
-          errorCode: err.exit_status
-        }]);
-        console.log('getBaseLevelEntryAttributes failed with exit_status = ' + err.exit_status);
-        console.log('getBaseLevelEntryAttributes error message = ' + err.message);
-      }
-    });
+    log_cmd("getBaseLevelEntryAttributes", "", cmd);
+    const entryArray = [];
+    cockpit
+            .spawn(cmd, { superuser: true, err: 'message' })
+            .done(data => {
+                // TODO: Make this configurable ( option to keep X number of characters )
+                const lines = data.split('\n');
+                lines.map(currentLine => {
+                    if (currentLine !== '') {
+                        // Never truncate values for certificate
+                        if (currentLine.length < 1000 || currentLine.substring(0, 9).toLowerCase()
+                                .startsWith("jpegphoto") || currentLine.match(/.*certificate.*/i)) {
+                            entryArray.push(splitAttributeValue(currentLine));
+                        } else {
+                            const myTruncatedValue = (
+                                <div name="truncated">
+                                    <Label icon={<InfoCircleIcon />} color="blue">
+                                        Value is too large to display
+                                    </Label>
+                                </div>
+                            );
+                            entryArray.push(myTruncatedValue);
+                        }
+                    }
+                    return [];
+                });
+                entryAttributesCallback(entryArray);
+            })
+            .catch(err => {
+                // console.log('getBaseLevelEntryAttributes in catch()');
+                if (err.message === undefined) { // No error. Send the result array.
+                    // entryAttributesCallback(entryArray);
+                } else { /* if (msg.includes("Can't contact LDAP server")) {
+                    // TODO: Handle the LDAP down status with a specific message? */
+                    entryAttributesCallback([{
+                        attribute: '???: ',
+                        value: '???',
+                        // errMsg: err.message
+                        errorCode: err.exit_status
+                    }]);
+                    console.log('getBaseLevelEntryAttributes failed with exit_status = ' + err.exit_status);
+                    console.log('getBaseLevelEntryAttributes error message = ' + err.message);
+                }
+            });
 }
 
 // Called to get an LDAP backup of the entry during a deletion.
