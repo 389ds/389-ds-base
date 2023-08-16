@@ -396,8 +396,9 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
                 const lines = data.split('\n');
                 lines.map(currentLine => {
                     if (currentLine !== '') {
+                        // Never truncate values for certificate
                         if (currentLine.length < 1000 || currentLine.substring(0, 9).toLowerCase()
-                                .startsWith("jpegphoto")) {
+                                .startsWith("jpegphoto") || currentLine.match(/.*certificate.*/i)) {
                             entryArray.push(splitAttributeValue(currentLine));
                         } else {
                             const myTruncatedValue = (
