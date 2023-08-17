@@ -584,8 +584,13 @@ def test_managed_and_filtered_role_rewrite(topo, request):
     # online import
     import_task = ImportTask(topo.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    import_task.wait(values['wait30'])  # If things go wrong import takes a lot longer than this
-    assert import_task.is_complete()
+    # Check for up to 120sec that the completion
+    for i in range(1, 12):
+        if len(topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9000.*')) > 0:
+            break
+        time.sleep(10)
+    import_complete = topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9000.*')
+    assert (len(import_complete) == 1)
 
     # Restart server
     topo.standalone.restart()
@@ -709,13 +714,18 @@ def test_not_such_entry_role_rewrite(topo, request):
 
     RDN="userNew"
     PARENT="ou=people,%s" % DEFAULT_SUFFIX
-    dbgen_users(topo.standalone, 90000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
+    dbgen_users(topo.standalone, 91000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
 
     # online import
     import_task = ImportTask(topo.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    import_task.wait(values['wait60'])  # If things go wrong import takes a lot longer than this
-    assert import_task.is_complete()
+    # Check for up to 120sec that the completion
+    for i in range(1, 12):
+        if len(topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9100.*')) > 0:
+            break
+        time.sleep(10)
+    import_complete = topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9100.*')
+    assert (len(import_complete) == 1)
 
     # Restart server
     topo.standalone.restart()
