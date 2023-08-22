@@ -30,6 +30,7 @@ ldbm_back_bind(Slapi_PBlock *pb)
     back_txn txn = {NULL};
     int rc = SLAPI_BIND_SUCCESS;
     int result_sent = 0;
+    int entrylocked = 0;
 
     /* get parameters */
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
@@ -63,13 +64,33 @@ ldbm_back_bind(Slapi_PBlock *pb)
      * find the target entry.  find_entry() takes care of referrals
      *   and sending errors if the entry does not exist.
      */
-    if ((e = find_entry(pb, be, addr, &txn, &result_sent)) == NULL) {
-        rc = SLAPI_BIND_FAIL;
-        /* In the failure case, the result is supposed to be sent in the backend. */
-        if (!result_sent) {
-            slapi_send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL, NULL, 0, NULL);
+    {
+        Slapi_DN *sdn = NULL;
+        const char *dn = NULL;
+        passwdPolicy *pwpolicy = NULL;
+
+        /* in case of lockout password policy we may need to update
+         * the target entry (when sending the result via update_pw_retry).
+         * In such case we need lock it in the cache
+         */
+        slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+        dn = slapi_sdn_get_dn(sdn);
+        pwpolicy = new_passwdPolicy(pb, dn);
+        if (pwpolicy && (pwpolicy->pw_lockout == 1)) {
+            e = find_entry2modify(pb, be, addr, &txn, &result_sent);
+            entrylocked = 1;
+        } else {
+            e = find_entry(pb, be, addr, &txn, &result_sent);
+            entrylocked = 0;
         }
-        goto bail;
+        if (e  == NULL) {
+            rc = SLAPI_BIND_FAIL;
+            /* In the failure case, the result is supposed to be sent in the backend. */
+            if (!result_sent) {
+                slapi_send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL, NULL, 0, NULL);
+            }
+            goto bail;
+        }
     }
 
     switch (method) {
@@ -78,6 +99,9 @@ ldbm_back_bind(Slapi_PBlock *pb)
         if (slapi_entry_attr_find(e->ep_entry, "userpassword", &attr) != 0) {
             slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Entry does not have userpassword set");
             slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
+            if (entrylocked) {
+                cache_unlock_entry(&inst->inst_cache, e);
+            }
             CACHE_RETURN(&inst->inst_cache, &e);
             rc = SLAPI_BIND_FAIL;
             goto bail;
@@ -87,6 +111,9 @@ ldbm_back_bind(Slapi_PBlock *pb)
         if (slapi_pw_find_sv(bvals, &cv) != 0) {
             slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Invalid credentials");
             slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
+            if (entrylocked) {
+                cache_unlock_entry(&inst->inst_cache, e);
+            }
             CACHE_RETURN(&inst->inst_cache, &e);
             value_done(&cv);
             rc = SLAPI_BIND_FAIL;
@@ -98,11 +125,16 @@ ldbm_back_bind(Slapi_PBlock *pb)
     default:
         slapi_send_ldap_result(pb, LDAP_STRONG_AUTH_NOT_SUPPORTED, NULL,
                                "auth method not supported", 0, NULL);
+        if (entrylocked) {
+        cache_unlock_entry(&inst->inst_cache, e);
+        }
         CACHE_RETURN(&inst->inst_cache, &e);
         rc = SLAPI_BIND_FAIL;
         goto bail;
     }
-
+    if (entrylocked) {
+        cache_unlock_entry(&inst->inst_cache, e);
+    }
     CACHE_RETURN(&inst->inst_cache, &e);
 bail:
     if (inst->inst_ref_count) {
