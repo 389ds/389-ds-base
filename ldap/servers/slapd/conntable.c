@@ -154,7 +154,7 @@ connection_table_new(int table_size)
         /* We rely on the fact that we called calloc, which zeros the block, so we don't
         * init any structure element unless a zero value is troublesome later
         */
-        for (i = 0; i < ct->list_size; i++) {
+        for (i = 1; i < ct->list_size; i++) {
             /*
             * Technically this is a no-op due to calloc, but we should always be
             * careful with things like this ....
