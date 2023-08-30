@@ -69,7 +69,7 @@ export class SuffixIndexes extends React.Component {
         };
 
         // Select Attribute
-        this.onAttributeSelect = (event, selection) => {
+        this.handleAttributeSelect = (event, selection) => {
             if (this.state.indexName.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -125,7 +125,7 @@ export class SuffixIndexes extends React.Component {
         this.loadIndexes = this.loadIndexes.bind(this);
         this.handleShowIndexModal = this.handleShowIndexModal.bind(this);
         this.closeIndexModal = this.closeIndexModal.bind(this);
-        this.handleChange = this.handleChange.bind(this);
+        this.onChange = this.onChange.bind(this);
         this.onSelectToggle = this.onSelectToggle.bind(this);
         this.onSelectClear = this.onSelectClear.bind(this);
         this.saveIndex = this.saveIndex.bind(this);
@@ -288,7 +288,7 @@ export class SuffixIndexes extends React.Component {
         });
     }
 
-    handleChange(e) {
+    onChange(e) {
         // Handle the modal changes
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         this.setState({
