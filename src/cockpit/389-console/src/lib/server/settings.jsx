@@ -276,7 +276,7 @@ export class ServerSettings extends React.Component {
 
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of config_attrs) {
-            if (attr === config_attr && this.state['_' + config_attr] !== value) {
+            if (attr === config_attr && String(this.state['_' + config_attr]) !== String(value)) {
                 disableSaveBtn = false;
                 break;
             }
@@ -284,7 +284,7 @@ export class ServerSettings extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const config_attr of config_attrs) {
-            if (attr !== config_attr && this.state['_' + config_attr] !== this.state[config_attr]) {
+            if (attr !== config_attr && String(this.state['_' + config_attr]) !== String(this.state[config_attr])) {
                 disableSaveBtn = false;
                 break;
             }
@@ -1214,6 +1214,10 @@ export class ServerSettings extends React.Component {
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-bakdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
+                                            {this.state.errObjConfig['nsslapd-bakdir'] &&
+                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-bakdir']}>
+                                                    Invalid path
+                                                </FormHelperText>}
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1234,6 +1238,10 @@ export class ServerSettings extends React.Component {
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-ldifdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
+                                            {this.state.errObjConfig['nsslapd-ldifdir'] &&
+                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-ldifdir']}>
+                                                    Invalid path
+                                                </FormHelperText>}
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1254,6 +1262,10 @@ export class ServerSettings extends React.Component {
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-schemadir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
+                                            {this.state.errObjConfig['nsslapd-schemadir'] &&
+                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-schemadir']}>
+                                                    Invalid path
+                                                </FormHelperText>}
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1274,6 +1286,10 @@ export class ServerSettings extends React.Component {
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-certdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
+                                            {this.state.errObjConfig['nsslapd-certdir'] &&
+                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-certdir']}>
+                                                    Invalid path
+                                                </FormHelperText>}
                                         </GridItem>
                                     </Grid>
                                 </Form>
