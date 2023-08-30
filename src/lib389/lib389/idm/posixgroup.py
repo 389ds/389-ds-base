@@ -38,7 +38,7 @@ class PosixGroup(DSLdapObject):
             'groupOfNames',
             'posixGroup',
         ]
-        if not ds_is_older('1.3.7'):
+        if not ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 

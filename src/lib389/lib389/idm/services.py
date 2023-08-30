@@ -38,7 +38,7 @@ class ServiceAccount(Account):
             'top',
             'applicationProcess',
         ]
-        if ds_is_older('1.4.0'):
+        if ds_is_older('1.4.0', instance=instance):
             # This is a HORRIBLE HACK for older versions that DON'T have
             # correct updated schema!
             #

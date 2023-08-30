@@ -36,7 +36,7 @@ class Group(DSLdapObject):
             'top',
             'groupOfNames',
         ]
-        if not ds_is_older('1.3.7'):
+        if not ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 
@@ -122,7 +122,7 @@ class UniqueGroup(DSLdapObject):
             'top',
             'groupOfUniqueNames',
         ]
-        if not ds_is_older('1.3.7'):
+        if not ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 
@@ -175,11 +175,11 @@ class nsAdminGroup(DSLdapObject):
             'top',
             'nsAdminGroup'
         ]
-        if ds_is_older('1.3.7'):
+        if ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('inetUser')
         else:
             self._create_objectclasses.append('nsMemberOf')
-        if not ds_is_older('1.4.0'):
+        if not ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses.append('nsAccount')
         user_compare_exclude = [
             'nsUniqueId',

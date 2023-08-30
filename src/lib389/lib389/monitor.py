@@ -298,7 +298,7 @@ class MonitorBackend(DSLdapObject):
                 'currentdncachecount',
                 'maxdncachecount',
             ]
-            if ds_is_older("1.4.0"):
+            if ds_is_older("1.4.0", instance=self._instance):
                 self._backend_keys.extend([
                     'normalizeddncachetries',
                     'normalizeddncachehits',

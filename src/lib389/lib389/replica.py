@@ -1140,7 +1140,7 @@ class Changelog5(DSLdapObject):
             'top',
             'nsChangelogConfig',
         ]
-        if ds_is_older('1.4.0'):
+        if ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses = [
                 'top',
                 'extensibleobject',
@@ -1217,7 +1217,7 @@ class Replica(DSLdapObject):
             'top',
             'nsds5Replica'
         ]
-        if ds_is_older('1.4.0'):
+        if ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses.append('extensibleobject')
         self._protected = False
         self._suffix = None
@@ -1906,7 +1906,7 @@ class BootstrapReplicationManager(DSLdapObject):
             'netscapeServer',  # for cn
             'nsAccount',  # for authentication attributes
             ]
-        if ds_is_older('1.4.0'):
+        if ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses.remove('nsAccount')
         self._protected = False
         self.common_name = 'replication manager'
