@@ -446,7 +446,7 @@ export class ReplSuffix extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showDisableReplModal}
                     closeHandler={this.closeDisableReplModal}
-                    onChange={this.handleChange}
+                    handleChange={this.onChange}
                     actionHandler={this.disableReplication}
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
