@@ -480,11 +480,13 @@ op_thread_tinfo_init(int thread_idx)
 void
 op_thread_set_threads_number(int threadsnumber)
 {
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     int oldnbthreads = 0;
     pc_tinfo_t **oldthreads = NULL;
     int len = 0;
     int rc = 0;
 
+    pthread_mutex_lock(&mutex);
     /* Adjust snmp variables */
     pthread_mutex_lock(&g_pc.snmp.mutex);
     oldnbthreads = g_pc.snmp.nbthreads;
@@ -547,6 +549,7 @@ op_thread_set_threads_number(int threadsnumber)
     g_pc.waiting_jobs.hwm = 0;
     g_pc.jobs_free_list.hwm = 0;
     pthread_mutex_unlock(&g_pc.snmp.mutex);
+    pthread_mutex_unlock(&mutex);
     slapi_ch_free((void**)&oldthreads);
 }
 
