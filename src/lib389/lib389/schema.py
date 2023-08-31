@@ -567,7 +567,7 @@ class SchemaLegacy(object):
         """return a list of the schema files in the instance schemadir"""
         file_list = []
         file_list += glob.glob(self.conn.schemadir + "/*.ldif")
-        if ds_is_newer('1.3.6.0', instance=self._instance):
+        if ds_is_newer('1.3.6.0', instance=self.conn):
             file_list += glob.glob(self.conn.ds_paths.system_schema_dir + "/*.ldif")
         return file_list
 
