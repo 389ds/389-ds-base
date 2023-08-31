@@ -157,6 +157,17 @@ def enable_replication(inst, basedn, log, args):
         # error - unknown type
         raise ValueError(f"Unknown replication role ({role}), you must use \"supplier\", \"hub\", or \"consumer\"")
 
+    if args.replica_id is not None:
+        # is it a number?
+        try:
+            rid_num = int(rid)
+        except ValueError:
+            raise ValueError("--replica-id expects a number between 1 and 65535")
+
+        # Is it in range?
+        if rid_num < 1 or rid_num > 65535:
+            raise ValueError("--replica-id expects a number between 1 and 65535")
+
     # Start the propeties and update them as needed
     repl_properties = {
         'cn': 'replica',
@@ -173,15 +184,9 @@ def enable_replication(inst, basedn, log, args):
             # Error, supplier needs a rid TODO
             raise ValueError('You must specify the replica ID (--replica-id) when enabling a \"supplier\" replica')
 
-        # is it a number?
-        try:
-            rid_num = int(rid)
-        except ValueError:
-            raise ValueError("--replica-id expects a number between 1 and 65534")
-
         # Is it in range?
         if rid_num < 1 or rid_num > 65534:
-            raise ValueError("--replica-id expects a number between 1 and 65534")
+            raise ValueError("--replica-id expects a number between 1 and 65534 for supplier role")
 
         # rid is good add it to the props
         repl_properties['nsDS5ReplicaId'] = args.replica_id
@@ -189,9 +194,9 @@ def enable_replication(inst, basedn, log, args):
     # Validate consumer and hub settings
     elif role == "consumer" or role == "hub":
         # Check Replica ID
-        if args.replica_id is not None or args.replica_id != 65535:
+        if args.replica_id is not None and rid_num != 65535:
             # Error, Replica ID cannot be specified for consumer and hub roles
-            raise ValueError('Replica ID cannot be specified for consumer and hub roles')
+            raise ValueError('Replica ID other than 65535 cannot be specified for consumer and hub roles')
 
     # Bind DN or Bind DN Group?
     if args.bind_group_dn:
