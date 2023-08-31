@@ -99,7 +99,7 @@ def test_dsconf_with_ldaps(topology_st, enable_config, config_type):
 
 
 @pytest.mark.parametrize('instance_role', ('consumer', 'hub'))
-def test_check_replica_id_rejected (instance_role):
+def test_check_replica_id_rejected_hub_consumer(instance_role):
     """Test dsconf CLI does not accept replica-id parameter for comsumer and hubs
 
     :id: 274b47f8-111a-11ee-8321-98fa9ba19b65
@@ -129,3 +129,35 @@ def test_check_replica_id_rejected (instance_role):
     log.info(f'output message : {msg}')
     assert "Replication successfully enabled for" not in msg, f"Test Failed: --replica-id option is accepted....It shouldn't for {instance_role}"
     log.info(f"Test PASSED: --replica-id option is NOT accepted for {instance_role}.")
+
+
+@pytest.mark.parametrize('instance_role, replica_id',
+                         [('consumer', None), ('hub', None), ('consumer', "65535"), ('hub', "65535")])
+def test_check_replica_id_accepted_hub_consumer(topology_st, instance_role, replica_id):
+    """Test dsconf CLI accepts 65535 replica-id parameter for comsumer and hubs
+
+    :id: e0a1a1e6-11c1-40e6-92fe-cb550fb2170d
+    :parametrized: yes
+    :customerscenario: True
+    :setup: Create DS instance
+    :steps:
+        1. Create ldap instance
+        2. Use dsconf cli to create replica and don't specify replica id for a consumer or hub
+        3. Use dsconf cli to create replica and specify replica id for a consumer or hub
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    print("DN_DM {}".format(DN_DM))
+    cmdline = ['/usr/sbin/dsconf', 'standalone1', '-D', DN_DM, '-w', 'password', 'replication', 'enable', '--suffix', DEFAULT_SUFFIX, '--role', instance_role]
+    if replica_id is not None:
+        cmdline.append(f'--replica-id={replica_id}')
+    log.info(f'Command used : {cmdline}')
+    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
+
+    msg = proc.communicate()
+    msg = msg[0].decode('utf-8')
+    log.info(f'output message : {msg}')
+    assert "Replication successfully enabled for" in msg
+    log.info(f"Test PASSED: --replica-id option is accepted for {instance_role}.")
