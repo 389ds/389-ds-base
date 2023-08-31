@@ -12,7 +12,7 @@ import pytest
 from lib389.topologies import topology_m2
 from lib389.idm.user import UserAccounts
 from lib389._constants import DEFAULT_SUFFIX
-from lib389.replica import Replicas
+from lib389.replica import Replicas, ReplicationManager
 from lib389.tombstone import Tombstones
 
 # Constants for user names
@@ -52,12 +52,13 @@ def test_replication_with_mod_delete_and_modrdn_operations(topology_m2):
     
     S1 = topology_m2.ms["supplier1"]
     S2 = topology_m2.ms["supplier2"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
 
     # Add entries for the test
     users_s1 = UserAccounts(S1, DEFAULT_SUFFIX)
     user1 = users_s1.create_test_user(uid=USER1_UID)
     test1 = users_s1.create_test_user(uid=USER2_UID)
-    time.sleep(5)
+    repl.wait_for_replication(S2, S1)
 
     topology_m2.pause_all_replicas()
 
@@ -84,7 +85,7 @@ def test_replication_with_mod_delete_and_modrdn_operations(topology_m2):
     topology_m2.resume_all_replicas()
 
     # Check if replication is working
-    time.sleep(5)
+    repl.wait_for_replication(S2, S1)
 
     assert not users_s1.exists(f"test_user_{USER1_UID}")
     assert not users_s2.exists(f"test_user_{USER1_UID}")
