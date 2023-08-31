@@ -8394,11 +8394,7 @@ config_get_global_backend_lock()
 int32_t
 config_set_enable_turbo_mode(const char *attrname, char *value, char *errorbuf, int apply)
 {
-    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                          "Setting of %s attribute is currently disabled, it will be removed in the future",
-                          attrname);
-
-    return LDAP_OPERATIONS_ERROR;
+    return LDAP_SUCCESS;
 }
 
 int32_t

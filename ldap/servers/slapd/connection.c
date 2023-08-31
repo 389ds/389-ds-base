@@ -41,6 +41,8 @@ static void log_ber_too_big_error(const Connection *conn,
 static PRStack *op_stack;     /* stack of Slapi_Operation * objects so we don't have to malloc/free every time */
 static PRInt32 op_stack_size; /* size of op_stack */
 
+#define CONN_TIMEOUT_INTERVAL 100
+
 struct Slapi_op_stack
 {
     PRStackElem stackelem; /* must be first in struct for PRStack to work */
@@ -1168,7 +1170,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 
     /* If we still haven't seen a complete PDU, read from the network */
     while (*tag == LBER_DEFAULT) {
-        int32_t ioblocktimeout_waits = conn->c_ioblocktimeout;
+        int32_t ioblocktimeout_waits = conn->c_ioblocktimeout/CONN_TIMEOUT_INTERVAL;
         /* We should never get here with data remaining in the buffer */
         PR_ASSERT(!new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
         /* We make a non-blocking read call */
@@ -1262,7 +1264,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
             if (SLAPD_PR_WOULD_BLOCK_ERROR(err) ||
                 SLAPD_SYSTEM_WOULD_BLOCK_ERROR(syserr)) {
                 struct PRPollDesc pr_pd;
-                PRIntervalTime timeout = PR_MillisecondsToInterval(100);
+                PRIntervalTime timeout = PR_MillisecondsToInterval(CONN_TIMEOUT_INTERVAL);
                 pr_pd.fd = (PRFileDesc *)conn->c_prfd;
                 pr_pd.in_flags = PR_POLL_READ;
                 pr_pd.out_flags = 0;
@@ -1418,6 +1420,7 @@ connection_threadmain(void *arg)
     int32_t *snmp_vars_idx = (int32_t *) arg;
     /* wait forever for new pb until one is available or shutdown */
     int32_t interval = 0; /* used be  10 seconds */
+    time_t curtime = slapi_current_rel_time_t();
     Connection *conn = NULL;
     Operation *op;
     ber_tag_t tag = 0;
@@ -1531,6 +1534,19 @@ connection_threadmain(void *arg)
         maxthreads = conn->c_max_threads_per_conn;
         more_data = 0;
         ret = connection_read_operation(conn, op, &tag, &more_data);
+        if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
+                          "conn %" PRIu64 " read not ready due to %d - more_data %d "
+                          "ops_initiated %d refcnt %d flags %d\n",
+                          conn->c_connid, ret, more_data,
+                          conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
+        } else if (ret == CONN_FOUND_WORK_TO_DO) {
+            slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
+                          "conn %" PRIu64 " read operation successfully - more_data %d "
+                          "ops_initiated %d refcnt %d flags %d\n",
+                          conn->c_connid, more_data,
+                          conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
+        }
         switch (ret) {
         case CONN_DONE:
         /* This means that the connection was closed */
@@ -1585,6 +1601,8 @@ connection_threadmain(void *arg)
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
                 if (conn->c_threadnumber < maxthreads) {
+                    /* There is more_data so we put the conn back in the poll loop and set idlesince here */
+                    conn->c_idlesince = curtime;
                     connection_activity(conn, maxthreads);
                     slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
                                   conn->c_connid);
