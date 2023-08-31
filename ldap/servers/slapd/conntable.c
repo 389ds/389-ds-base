@@ -154,7 +154,7 @@ connection_table_new(int table_size)
         /* We rely on the fact that we called calloc, which zeros the block, so we don't
         * init any structure element unless a zero value is troublesome later
         */
-        for (i = 1; i < ct->list_size; i++) {
+        for (i = 0; i < ct->list_size; i++) {
             /*
             * Technically this is a no-op due to calloc, but we should always be
             * careful with things like this ....
@@ -172,9 +172,9 @@ connection_table_new(int table_size)
             /* all connections start out invalid */
             ct->fd[ct_list][i].fd = SLAPD_INVALID_SOCKET;
 
-            /* The connection table has a double linked list running through it.
+            /* The connection sub-tables have a double linked list running through them.
             * This is used to find out which connections should be looked at
-            * in the poll loop.  Slot 0 in the table is always the head of
+            * in the poll loop.  Slot 0 in each sub-table is always the head of
             * the linked list.  Each slot has a c_next and c_prev which are
             * pointers back into the array of connection slots. */
             ct->c[ct_list][i].c_next = NULL;
@@ -196,8 +196,10 @@ connection_table_new(int table_size)
             /* Ready to rock, mark as such. */
             ct->c[ct_list][i].c_state = CONN_STATE_INIT;
 
-            /* Map multiple ct lists to a single freelist. */
-            ct->c_freelist[free_idx++] = &(ct->c[ct_list][i]);
+            /* Map multiple ct lists to a single freelist, but skip slot 0 of each list. */
+            if (i != 0) {
+                ct->c_freelist[free_idx++] = &(ct->c[ct_list][i]);
+            }
         }
     }
 
