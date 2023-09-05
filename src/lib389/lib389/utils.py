@@ -244,8 +244,11 @@ def selinux_restorecon(path):
         log.debug("Failed to run restorecon on: " + path)
 
 
-def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", reject={}):
-    '''Parse semanage fcontext -L output'''
+def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", reject=None):
+    """Parse semanage fcontext -L output
+    """
+    if reject is None:
+        reject = {}
     info = {}
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     args = ' '.join(ensure_list_str(result.args))
@@ -253,11 +256,11 @@ def _parse_semanage_fcontexts(cmd, regex=r"^(/[^ ]*)[^:=]+:[^:]*:([^:]*):.*$", r
     stderr = ensure_str(result.stderr)
     if result.returncode:
         log.debug("CMD: {args} returned {result.returncode} STDOUT: {stdout} STDERR: {stderr}")
-        return info;
+        return info
     for m in re.finditer(regex, stdout, flags=re.MULTILINE):
-         if not m.group(1) in reject:
-             info[m.group(1)] = m.group(2)
-    return info;
+        if not m.group(1) in reject:
+            info[m.group(1)] = m.group(2)
+    return info
 
 
 def _get_selinux_fcontext_info():
@@ -271,8 +274,9 @@ def _get_selinux_fcontext_info():
         }
     return selinux_fcontext_info
 
+
 def resolve_selinux_path(path):
-    '''Return the path as expected by semanage fcontext'''
+    """Return the path as expected by semanage fcontext"""
     path = str(Path(path).resolve())
     if selinux_present():
         _get_selinux_fcontext_info()
@@ -281,6 +285,7 @@ def resolve_selinux_path(path):
             if path.startswith(r):
                 path = path.replace(r, equiv[r])
     return path
+
 
 def selinux_label_file(path, label):
     """
@@ -302,30 +307,44 @@ def selinux_label_file(path, label):
     if path in local:
         if local[path] == label:
             return
-        log.info(f"Removing seLinux file context {path} with label {local[path]}.")
+        log.debug(f"Removing SELinux file context {path} with label {local[path]}.")
         subprocess.run(["semanage", "fcontext", "-d", path])
         del local[path]
     if path in policy:
         if policy[path] == label:
             return
-        raise ValueError(f'Cannot change file context for {path} because it is defined in seLinux policy. Please choose another path.')
+        raise ValueError(f'Cannot change file context for {path} because it is defined in SELinux policy. Please choose another path.')
     if label:
-        try:
-            log.info(f"Setting label {label} in seLinux file context {path}.")
-            result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-            args = ' '.join(ensure_list_str(result.args))
-            stdout = ensure_str(result.stdout)
-            stderr = ensure_str(result.stderr)
-            if result.returncode != 0:
-                log.error(f"ERROR CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
+        rc = 0
+        for i in range(5):
+            try:
+                log.debug(f"Setting label {label} in SELinux file context {path}.  Attempt {i}")
+                result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+                args = ' '.join(ensure_list_str(result.args))
+                stdout = ensure_str(result.stdout)
+                stderr = ensure_str(result.stderr)
+                rc = result.returncode
+                if rc == 0:
+                    local[path] = label
+                    break
+                else:
+                    log.debug(f"Failure setting label {label} for context {path}: Result code {rc}, retrying...")
+                    time.sleep(2)
+            except (OSError, subprocess.CalledProcessError) as e:
+                log.debug(f"Failure setting label {label} for context {path}: Exception {str(e)}, retrying...")
+                time.sleep(2)
+
+        if rc != 0:
+            log.error(f"ERROR CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
+            try:
                 result.check_returncode()
-            local[path] = label
-        except (OSError, subprocess.CalledProcessError) as e:
-            raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
+            except (OSError, subprocess.CalledProcessError) as e:
+                raise ValueError(f"Failed to set SElinux label {label} on {path}: {str(e)}")
+
     if os.path.exists(path):
-        #pytest fails if I use selinux_restorecon(path)
+        # pytest fails if I use selinux_restorecon(path)
         subprocess.run(["restorecon", "-R", path])
 
 
@@ -339,7 +358,7 @@ def selinux_clean_files_label(all=False):
         if label in ( 'dirsrv_config_t', 'dirsrv_tmpfs_t', 'dirsrv_var_lib_t', 'dirsrv_var_lock_t', 'dirsrv_var_log_t', 'dirsrv_var_run_t', ):
             if all or not os.path.exists(path):
                 selinux_label_file(path, None)
-                
+
 
 def selinux_clean_ports_label():
     """Remove labels from all port having ldap_port_t labels."""
@@ -372,7 +391,7 @@ def _get_selinux_port_policies(port):
                 p = [int(p)]
             ports_list.extend(p)
         if data[1] == 'tcp' and port in ports_list and \
-           data[0] not in ['unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']:
+           data[0] not in ['hi_reserved_port_t', 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']:
             policies.append({'protocol': data[1], 'type': data[0], 'ports': ports_list})
     return policies
 
@@ -508,10 +527,11 @@ def normalizeDN(dn, usespace=False):
 
 
 def escapeDNValue(dn):
-    '''convert special characters in a DN into LDAPv3 escapes.
+    """convert special characters in a DN into LDAPv3 escapes.
 
      e.g.
-    "dc=example,dc=com" -> \"dc\=example\,\ dc\=com\"'''
+    "dc=example,dc=com" -> \\"dc\\=example\\,\\ dc\\=com\\"
+    """
     for cc in (' ', '"', '+', ',', ';', '<', '>', '='):
         dn = dn.replace(cc, '\\' + cc)
     return dn
@@ -750,7 +770,7 @@ def valgrind_get_results_file(dirsrv_inst):
     We need to extract the "--log-file" value
     """
     cmd = ("ps -ef | grep valgrind | grep 'slapd-" + dirsrv_inst.serverid +
-           " ' | awk '{ print $14 }' | sed -e 's/\-\-log\-file=//'")
+           " ' | awk '{ print $14 }' | sed -e 's/\\-\\-log\\-file=//'")
 
     # Run the command and grab the output
     p = os.popen(cmd)
@@ -1586,8 +1606,9 @@ def is_valid_hostname(hostname):
         return False
     if hostname[-1] == ".":
         hostname = hostname[:-1] # strip exactly one dot from the right, if present
-    allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
+    allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
+
 
 def get_default_db_lib():
     return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
