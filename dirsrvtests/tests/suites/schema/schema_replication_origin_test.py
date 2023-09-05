@@ -58,22 +58,19 @@ def trigger_update(topology, user_rdn, num):
     user = users_s.get(user_rdn)
     user.replace('telephonenumber', str(num))
 
-    # wait 10 seconds that the update is replicated
-    loop = 0
-    while loop <= 10:
+    #  wait until the update is replicated (until up to x seconds)
+    users_c = UserAccounts(topology.cs["consumer1"], DEFAULT_SUFFIX)
+    for _ in range(30):
         try:
-            users_c = UserAccounts(topology.cs["consumer1"], DEFAULT_SUFFIX)
             user = users_c.get(user_rdn)
             val = user.get_attr_val_int('telephonenumber')
             if val == num:
                 return
             # the expected value is not yet replicated. try again
             time.sleep(1)
-            loop += 1
             log.debug(f"trigger_update: receive {val} (expected {num})")
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
-            loop += 1
 
 
 def trigger_schema_push(topology, user_rdn, num):
