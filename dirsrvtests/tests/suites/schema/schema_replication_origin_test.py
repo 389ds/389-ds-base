@@ -14,7 +14,7 @@ import ldap
 import pytest
 from lib389._constants import SUFFIX, ReplicaRole, DEFAULT_SUFFIX
 from lib389.topologies import create_topology
-from lib389.replica import Agreements
+from lib389.replica import Agreements, ReplicationManager
 from lib389.schema import Schema
 from lib389.idm.user import UserAccounts
 from lib389.cli_base import LogCapture
@@ -177,6 +177,7 @@ def test_schema_xorigin_repl(topology, schema_replication_init, xorigin):
         7. The startup and final state of the schema replication process should be as expected
     """
 
+    repl = ReplicationManager(DEFAULT_SUFFIX)
     user = schema_replication_init
     hub = None
     supplier = topology['topology'].ms["supplier1"]
@@ -193,7 +194,7 @@ def test_schema_xorigin_repl(topology, schema_replication_init, xorigin):
     assert attr_result['at']['x_origin'][0] == "user defined"
 
     trigger_schema_push(topology, user.rdn, 1)
-    time.sleep(5)
+    repl.wait_for_replication(supplier, consumer)
     supplier_schema_csn = supplier.schema.get_schema_csn()
     consumer_schema_csn = consumer.schema.get_schema_csn()
     assert supplier_schema_csn == consumer_schema_csn
@@ -211,7 +212,7 @@ def test_schema_xorigin_repl(topology, schema_replication_init, xorigin):
 
     # now push the scheam
     trigger_schema_push(topology, user.rdn, 2)
-    time.sleep(5)
+    repl.wait_for_replication(supplier, consumer)
     supplier_schema_csn = supplier.schema.get_schema_csn()
     consumer_schema_csn = consumer.schema.get_schema_csn()
     assert supplier_schema_csn == consumer_schema_csn
