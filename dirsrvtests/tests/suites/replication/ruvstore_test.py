@@ -11,11 +11,14 @@ import logging
 import ldap
 import pytest
 from ldif import LDIFParser
-from lib389.replica import Replicas
+from lib389.cli_base import LogCapture
+from lib389.dbgen import dbgen_users
+from lib389.replica import Replicas, ReplicationManager
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts
-from lib389.topologies import topology_m2 as topo
+from lib389.tasks import ImportTask
+from lib389.topologies import create_topology
 from lib389._constants import *
 
 pytestmark = pytest.mark.tier1
@@ -40,6 +43,16 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="function")
+def topo(request):
+    """Create Replication Deployment with two suppliers"""
+
+    topology = create_topology({ReplicaRole.SUPPLIER: 2}, request=request)
+
+    topology.logcap = LogCapture()
+    return topology
 
 
 class MyLDIF(LDIFParser):
@@ -189,6 +202,66 @@ def test_ruv_after_reindex(topo):
     # to be written and quickly exposes the error
     inst.stop()
     assert not inst.searchErrorsLog("entryrdn_insert_key")
+
+
+@pytest.mark.ds1317
+@pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/1317')
+def test_ruv_after_import(topo):
+    """Test the RUV behavior after an LDIF import operation.
+
+    :id: 6843ab56-0291-425c-954b-3002b8352025
+    :setup: 2 suppliers
+    :steps:
+        1. Export LDIF from supplier 1.
+        2. Create 1000 test users in supplier 1.
+        3. Wait for replication to complete from supplier 1 to supplier 2.
+        4. Pause all replicas.
+        5. Import LDIF back to supplier 1.
+        6. Resume all replicas.
+        7. Perform attribute updates.
+    :expectedresults:
+        1. LDIF export should complete successfully.
+        2. Test users should be created successfully.
+        3. Replication should complete successfully.
+        4. All replicas should be paused.
+        5. LDIF import should complete successfully.
+        6. All replicas should be resumed.
+        7. Attribute updates should complete successfully.
+    """
+
+    log.info('Getting supplier instances')
+    s1 = topo.ms['supplier1']
+    s2 = topo.ms['supplier2']
+
+    log.info('Performing LDIF export on supplier 1')
+    ldif_dir = s1.get_ldif_dir()
+    export_ldif = ldif_dir + '/export.ldif'
+    export_task = Backends(s1).export_ldif(be_names=DEFAULT_BENAME, ldif=export_ldif, replication=True)
+    export_task.wait()
+
+    log.info('Creating 1000 test users on supplier 1')
+    users = UserAccounts(s1, DEFAULT_SUFFIX)
+    for idx in range(0, 1000):
+        users.create_test_user(uid=idx)
+
+    log.info('Waiting for replication to complete')
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(s2, s1)
+
+    log.info('Performing LDIF import on supplier 1')
+    r = Backends(s1).get(DEFAULT_BENAME).import_ldif([export_ldif])
+    s2.stop()
+    r.wait()
+
+    s2.start()
+
+    log.info('Performing attribute updates')
+    suffix = Domain(s1, "ou=people," + DEFAULT_SUFFIX)
+    for idx in range(0, 5):
+        suffix.replace('description', str(idx))
+
+    repl.wait_for_replication(s1, s2)
+    repl.wait_for_replication(s2, s1)
 
 
 if __name__ == '__main__':
