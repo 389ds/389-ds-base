@@ -28,7 +28,10 @@ from lib389.replica import Replicas, Changelog
 from lib389.backend import Backends, BackendSuffixView
 from lib389.idm.domain import Domain
 from lib389.nss_ssl import NssSsl
+from lib389._constants import PW_DM, DEFAULT_SUFFIX
 import os
+import random
+import ldap
 
 
 pytestmark = pytest.mark.tier0
@@ -36,6 +39,7 @@ pytestmark = pytest.mark.tier0
 default_paths = Paths()
 
 log = logging.getLogger(__name__)
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 
 # Globals
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
@@ -50,6 +54,10 @@ ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
                          'supportedSASLMechanisms',
                          'vendorName',
                          'vendorVersion')
+
+# This MAX_FDS value left about 22 connections available with bdb
+# (should be more with lmdb)
+MAX_FDS = 150
 
 
 @pytest.fixture(scope="function")
@@ -2185,6 +2193,194 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
         else:
             assert True
 
+
+@pytest.fixture(scope="module")
+def dscreate_instance(request):
+    template_file = "/tmp/dssetup.inf"
+    serverid = "test-instance"
+    template_text = f"""[general]
+config_version = 2
+# This invalid hostname ...
+full_machine_name = localhost.localdomain
+# Means we absolutely require this.
+strict_host_checking = False
+# In tests, we can be run in containers, NEVER trust
+# that systemd is there, or functional in any capacity
+systemd = False
+
+[slapd]
+instance_name = {serverid}
+root_dn = cn=directory manager
+root_password = {PW_DM}
+# We do not have access to high ports in containers,
+# so default to something higher.
+port = 38999
+secure_port = 63699
+
+
+[backend-userroot]
+suffix = {DEFAULT_SUFFIX}
+sample_entries = yes
+"""
+
+    with open(template_file, "w") as template_fd:
+        template_fd.write(template_text)
+
+    def fin():
+        if DEBUGGING:
+            return
+        os.remove(template_file)
+        try:
+            subprocess.check_call(['dsctl', serverid, 'remove', '--do-it'], stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
+            raise e from None
+
+    request.addfinalizer(fin)
+
+    # Lets remove the instance if it exists.
+    try:
+        subprocess.check_call(['dsctl', serverid, 'remove', '--do-it'], stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        pass
+
+    # Then creates the instance
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+    try:
+        subprocess.check_call([
+            'dscreate',
+            'from-file',
+            template_file
+        ], env=tmp_env, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
+        raise e from None
+
+    inst = DirSrv(verbose=True, external_log=log)
+    dse_ldif = DSEldif(inst, serverid=serverid)
+
+    socket_path = dse_ldif.get("cn=config", "nsslapd-ldapifilepath")
+    inst.local_simple_allocate(
+       serverid=serverid,
+       ldapuri=f"ldapi://{socket_path[0].replace('/', '%2f')}",
+       password=PW_DM
+    )
+    inst.ldapi_enabled = 'on'
+    inst.ldapi_socket = socket_path
+    inst.ldapi_autobind = 'off'
+    try:
+        inst.open()
+    except Exception as e:
+        log.fatal("Failed to connect via ldapi to %s instance" % serverid)
+        raise e from None
+
+    return inst
+
+
+@pytest.fixture(scope="module", params=set(range(1,5)))
+def dscreate_with_numlistener(request, dscreate_instance):
+    numlisteners = request.param
+    maxfds = MAX_FDS # This left about 22 connections available
+    inst = dscreate_instance
+    inst_name = inst.serverid
+
+    wrapper_file = "/tmp/dswrapper.sh"
+    wrapper_text = f"""#!/usr/bin/bash
+ulimit -n {maxfds}
+ulimit -H -n {maxfds}
+exec dsctl {inst_name} restart
+"""
+
+    log.info('Setting nsslapd-numlisteners to %s and max file descriptors to %d' % ( numlisteners, maxfds ) )
+    # Change numlisteners
+    dm = DirectoryManager(inst)
+    dm_conn = dm.bind()
+    dm_conn.config.replace('nsslapd-numlisteners', str(numlisteners))
+    assert dm_conn.config.get_attr_val_utf8('nsslapd-numlisteners') == str(numlisteners)
+
+    # Create wrapper to restart the server with correct files limits
+    with open(wrapper_file, "w") as wrapper_fd:
+        wrapper_fd.write(wrapper_text)
+
+    # Restart the server using the wrapper
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+    try:
+        subprocess.check_call([
+            'bash',
+            wrapper_file
+        ], env=tmp_env, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
+        raise e from None
+
+    return inst
+
+
+@pytest.mark.skipif(ds_is_older('2.2.0.0'),
+                    reason="This test is only required with multiple listener support.")
+def test_conn_limits(dscreate_with_numlistener):
+    """Check the connections limits for various number of listeners.
+
+    :id: 7be2eb5c-4d8f-11ee-ae3d-482ae39447e5
+    :parametrized: yes
+    :setup: None
+    :steps:
+        1. Setup an instance then set nsslapd-numlisteners and maximum file descriptors
+        2. Loops on:
+             Open new connection and perform search until timeout expires
+        3. Close one of the previously open connections
+        4. Loops MAX_FDS times on:
+              - opening a new connection
+              - perform a search
+              - close the connection
+        5. Close all open connections
+        6. Remove the instance
+    :expectedresults:
+        1. Should succeeds
+        2. Should get a timeout (because the server has no more any connections)
+        3. Should success
+        4. Should success (otherwise issue #5924 has probably been hit)
+        5. Should success
+        6. Should success
+    """
+    inst = dscreate_with_numlistener
+
+    conns = []
+    timeout_occured = False
+    for i in range(MAX_FDS):
+        try:
+            ldc = ldap.initialize(f'ldap://localhost:{inst.port}')
+            ldc.set_option(ldap.OPT_TIMEOUT, 5)
+            ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=demo)")
+            conns.append(ldc)
+        except ldap.TIMEOUT:
+            timeout_occured = True
+            break
+    # Should not be able to open MAX_FDS connections (some file descriptor are
+    #  reserved (for example for the listening socket )
+    assert timeout_occured
+
+    conn = random.choice(conns)
+    conn.unbind()
+    conns.remove(conn)
+
+    # Should loop enough time so trigger issue #5924 if it is not fixed.
+    for i in range(MAX_FDS):
+        ldc = ldap.initialize(f'ldap://localhost:{inst.port}')
+        ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=demo)")
+        ldc.unbind()
+
+    # Close all open connections
+    for c in conns:
+        c.unbind()
+
+    # Step 6 is done in teardown phase by dscreate_instance finalizer
 
 if __name__ == '__main__':
     # Run isolated
