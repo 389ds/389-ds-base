@@ -2208,24 +2208,40 @@ def run_dsctl(serverid, command, *args):
 
 
 @pytest.fixture(scope="module")
-def dscreate_instance(request, topology_st):
+def dscreate_instance(request):
+    context = []
+    # This fixture generate a standalone instance without systemd
 
-    inst = topology_st.standalone
-    # Disable systemd by turning off with_system in .inf file
-    old_path = Paths()._get_defaults_loc(DEFAULTS_PATH)
-    new_path = f'{old_path}.orig'
-    run_dsctl(inst.serverid, 'stop')
-    os.rename(old_path, new_path)
-
+    # Set finalizer
     def fin():
+        alarm(0)
         try:
-            run_dsctl(inst.serverid, 'stop')
+        if DEBUGGING is None and 'topo' in context and inst.exists():
+            # Topology has been created ==> remove it.
+            context['inst'].stop()
+            context['inst'].delete()
+            if not _remove_ssca_db(context['topo']):
+                log.warning("Failed to remove the CA certificate database during the tescase cleanup phase.")
         finally:
-            os.rename(new_path, old_path)
-            inst.start()
+            # Restore default.inf file
+            os.delete(context['old_path'])
+            os.rename(context['new_path'], context['old_path'])
 
     request.addfinalizer(fin)
 
+    # Try removing leftover instance if possible
+    try:
+        run_dsctl("standalone1", "remove", "--do-it")
+    except subprocess.CalledProcessError as e:
+        pass
+    # Then to restore any leftover default.inf file 
+    if os.path.exists(new_path):
+        os.delete(context['old_path'])
+        os.rename(context['new_path'], context['old_path'])
+
+    # Disable systemd by turning off with_system in default.inf file
+    old_path = Paths()._get_defaults_loc(DEFAULTS_PATH)
+    new_path = f'{old_path}.orig'
     with open(new_path, 'rt') as fin:
        with open(old_path, 'wt') as fout:
             for line in fin:
@@ -2233,9 +2249,20 @@ def dscreate_instance(request, topology_st):
                     fout.write('with_systemd = 0\n')
                 else:
                     fout.write(line)
-    run_dsctl(inst.serverid, 'start')
+    os.rename(old_path, new_path)
+    # Tells the finalizer to restore the default.inf file
+    context['new_path'] = new_path
+    context['old_path'] = old_path
 
-    return topology_st.standalone
+    # Now we can create the standalone topology but without 
+    #  setting the request (because we already take care of it
+    # in the current finalizer and want to avoid finalizer 
+    # ordering issue
+    topology = create_topology({ReplicaRole.STANDALONE: 1})
+    context['topo'] = topology
+    context['inst'] = topology.standalone
+
+    return topology.standalone
 
 
 @pytest.fixture(scope="module", params=set(range(1,5)))
@@ -2331,6 +2358,8 @@ def test_conn_limits(dscreate_with_numlistener):
     # Should loop enough time so trigger issue #5924 if it is not fixed.
     for i in range(MAX_FDS):
         ldc = ldap.initialize(f'ldap://localhost:{inst.port}')
+        # Set a timeout long enough so that the test fails if server is unresponsive
+        ldc.set_option(ldap.OPT_TIMEOUT, 60)
         ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=demo)")
         ldc.unbind()
 
