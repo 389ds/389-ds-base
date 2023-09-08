@@ -2194,90 +2194,48 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
             assert True
 
 
-@pytest.fixture(scope="module")
-def dscreate_instance(request):
-    template_file = "/tmp/dssetup.inf"
-    serverid = "test-instance"
-    template_text = f"""[general]
-config_version = 2
-# This invalid hostname ...
-full_machine_name = localhost.localdomain
-# Means we absolutely require this.
-strict_host_checking = False
-# In tests, we can be run in containers, NEVER trust
-# that systemd is there, or functional in any capacity
-systemd = False
-
-[slapd]
-instance_name = {serverid}
-root_dn = cn=directory manager
-root_password = {PW_DM}
-# We do not have access to high ports in containers,
-# so default to something higher.
-port = 38999
-secure_port = 63699
-
-
-[backend-userroot]
-suffix = {DEFAULT_SUFFIX}
-sample_entries = yes
-"""
-
-    with open(template_file, "w") as template_fd:
-        template_fd.write(template_text)
-
-    def fin():
-        if DEBUGGING:
-            return
-        os.remove(template_file)
-        try:
-            subprocess.check_call(['dsctl', serverid, 'remove', '--do-it'], stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
-            raise e from None
-
-    request.addfinalizer(fin)
-
-    # Lets remove the instance if it exists.
-    try:
-        subprocess.check_call(['dsctl', serverid, 'remove', '--do-it'], stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        pass
-
-    # Then creates the instance
-    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
-    tmp_env = os.environ
-    if "PYTHONPATH" in tmp_env:
-        del tmp_env["PYTHONPATH"]
+def run_dsctl(serverid, command, *args):
     try:
         subprocess.check_call([
-            'dscreate',
-            'from-file',
-            template_file
-        ], env=tmp_env, stderr=subprocess.STDOUT)
+            'dsctl',
+            serverid,
+            command,
+            *args
+        ], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
         raise e from None
 
-    inst = DirSrv(verbose=True, external_log=log)
-    dse_ldif = DSEldif(inst, serverid=serverid)
 
-    socket_path = dse_ldif.get("cn=config", "nsslapd-ldapifilepath")
-    inst.local_simple_allocate(
-       serverid=serverid,
-       ldapuri=f"ldapi://{socket_path[0].replace('/', '%2f')}",
-       password=PW_DM
-    )
-    inst.ldapi_enabled = 'on'
-    inst.ldapi_socket = socket_path
-    inst.ldapi_autobind = 'off'
-    try:
-        inst.open()
-    except Exception as e:
-        log.fatal("Failed to connect via ldapi to %s instance" % serverid)
-        raise e from None
+@pytest.fixture(scope="module")
+def dscreate_instance(request, topology_st):
 
-    return inst
+    inst = topology_st.standalone
+    # Disable systemd by turning off with_system in .inf file
+    old_path = Paths()._get_defaults_loc(DEFAULTS_PATH)
+    new_path = f'{old_path}.orig'
+    run_dsctl(inst.serverid, 'stop')
+    os.rename(old_path, new_path)
+
+    def fin():
+        try:
+            run_dsctl(inst.serverid, 'stop')
+        finally:
+            os.rename(new_path, old_path)
+            inst.start()
+
+    request.addfinalizer(fin)
+
+    with open(new_path, 'rt') as fin:
+       with open(old_path, 'wt') as fout:
+            for line in fin:
+                if line.startswith('with_systemd'):
+                    fout.write('with_systemd = 0\n')
+                else:
+                    fout.write(line)
+    run_dsctl(inst.serverid, 'start')
+
+    return topology_st.standalone
 
 
 @pytest.fixture(scope="module", params=set(range(1,5)))
@@ -2287,7 +2245,7 @@ def dscreate_with_numlistener(request, dscreate_instance):
     inst = dscreate_instance
     inst_name = inst.serverid
 
-    wrapper_file = f"{os.getenv("HOME")}/dswrapper.sh"
+    wrapper_file = "/tmp/dswrapper.sh"
     wrapper_text = f"""#!/usr/bin/bash
 ulimit -n {maxfds}
 ulimit -H -n {maxfds}
