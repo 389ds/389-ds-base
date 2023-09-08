@@ -2287,7 +2287,7 @@ def dscreate_with_numlistener(request, dscreate_instance):
     inst = dscreate_instance
     inst_name = inst.serverid
 
-    wrapper_file = "/tmp/dswrapper.sh"
+    wrapper_file = f"{os.getenv("HOME")}/dswrapper.sh"
     wrapper_text = f"""#!/usr/bin/bash
 ulimit -n {maxfds}
 ulimit -H -n {maxfds}
