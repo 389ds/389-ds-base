@@ -13,6 +13,7 @@ from lib389.utils import *
 from lib389.schema import Schema
 from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.organizationalrole import OrganizationalRole, OrganizationalRoles
 from lib389.topologies import topology_m2
 from lib389._constants import SUFFIX, DN_DM, DEFAULT_SUFFIX, PASSWORD
@@ -52,6 +53,8 @@ DST_ENTRY_CN = SRC_ENTRY_CN + EXT_RDN
 
 SRC_ENTRY_DN = "cn=%s,%s" % (SRC_ENTRY_CN, SUFFIX)
 DST_ENTRY_DN = "cn=%s,%s" % (DST_ENTRY_CN, SUFFIX)
+
+TARGET_ATTR_SEARCH = 'description'
 
 
 def add_attr(topology_m2, attr_name):
@@ -96,6 +99,129 @@ def aci_with_attr_subtype(request, topology_m2):
     request.addfinalizer(fin)
 
     return ACI_BODY
+
+
+@pytest.fixture(scope="function")
+def user_for_test(request, topology_m2):
+    """Create test users"""
+
+    # Get the first supplier
+    s1 = topology_m2.ms["supplier1"]
+
+    # Create a user for testing
+    log.info("Creating test user...")
+    users = UserAccounts(s1, DEFAULT_SUFFIX)
+    user1000 = users.create_test_user()
+    user1000.set("userPassword", PW_DM)
+
+    # Create an organizational unit 'Accounting'
+    log.info("Creating 'Accounting' organizational unit...")
+    ous = OrganizationalUnits(s1, DEFAULT_SUFFIX)
+    accounting = ous.create(properties={'ou': 'Accounting'})
+
+    # Create another user within the 'Accounting' unit
+    users = UserAccounts(s1, DEFAULT_SUFFIX, rdn='ou=Accounting')
+    user1 = users.create_test_user(uid=1, gid=1)
+
+    def fin():
+        """Deletes entries after the test."""
+        log.info("Deleting test entries post test execution...")
+        user1.delete()
+        user1000.delete()
+        accounting.delete()
+
+    request.addfinalizer(fin)
+
+    return user1
+
+
+@pytest.mark.parametrize('subtype', (';lang-ja', None))
+def test_aci_subtype_search(topology_m2, user_for_test, subtype):
+    """Test to verify the ACI subtype search functionality
+
+    :id: 83ac5e20-91e8-408e-a253-05787569a580
+    :parametrized: yes
+    :setup: MMR with two suppliers
+    :steps:
+        1. Set password for the test user.
+        2. Add an ACI with attribute subtype.
+        3. Set attributes for the test user.
+        4. Search for the added attribute.
+    :expectedresults:
+        1. Password for the test user is successfully set.
+        2. The ACI with the specified subtype (if any) is successfully added.
+        3. The attributes are successfully set for the test user.
+        4. If a subtype is defined:
+            - The search retrieves the attribute with the subtype.
+            - Attributes 'description' and 'description;binary' are not retrieved.
+           If no subtype is defined:
+            - The search retrieves the attributes 'description' and 'description;binary'.
+            - The attribute with the subtype is also retrieved.
+    """
+
+    TEST_VALUE = "test"
+    USER_SEARCH_DN = user_for_test.dn
+    aci_attr = TARGET_ATTR_SEARCH
+
+    if subtype is not None:
+        aci_attr += subtype
+
+    s1 = topology_m2.ms["supplier1"]
+
+    log.info("Setting password for the test user...")
+    users = UserAccounts(s1, DEFAULT_SUFFIX)
+    user1000 = users.get("test_user_1000")
+    user1000.set("userPassword", PW_DM)
+
+    ous = OrganizationalUnits(s1, DEFAULT_SUFFIX)
+    accounting = ous.get("Accounting")
+
+    # Construct the ACI body
+    ACI_TARGET = '(targetattr = "%s || objectclass")' % aci_attr
+    ACI_ALLOW = '(target = "ldap:///%s") (version 3.0; acl "Read Entries"; allow (read,compare,search) ' % user_for_test.dn
+    ACI_SUBJECT = 'userdn = "ldap:///%s";)' % user1000.dn
+    ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+
+    log.info("Adding an ACI with attribute subtype...")
+    accounting.add('aci', ACI_BODY)
+
+    # Add attributes that we'll search to the test entry
+    log.info("Setting attributes for the test user...")
+    user_for_test.add('description', TEST_VALUE)
+    user_for_test.add('description;binary', TEST_VALUE)
+    if subtype is not None:
+        user_for_test.add(aci_attr, TEST_VALUE)
+
+    conn = user1000.bind(PW_DM)
+
+    log.info("Searching for the added attribute...")
+    try:
+        entries = conn.search_s(USER_SEARCH_DN, ldap.SCOPE_BASE, '(objectclass=*)')
+        entry = str(entries[0])
+        assert f'{aci_attr}: {TEST_VALUE}' in entry
+
+        if subtype is not None:
+            assert f'description: {TEST_VALUE}' not in entry
+            assert f'description;binary: {TEST_VALUE}' not in entry
+        else:
+            assert f'description: {TEST_VALUE}' in entry
+            assert f'description;binary: {TEST_VALUE}' in entry
+
+        # Search specifically for the aci attribute
+        entries = conn.search_s(USER_SEARCH_DN, ldap.SCOPE_BASE, '(objectclass=*)', [aci_attr])
+        entry = str(entries[0])
+        assert f'{aci_attr}: {TEST_VALUE}' in entry
+
+        if subtype is not None:
+            assert f'description: {TEST_VALUE}' not in entry
+            assert f'description;binary: {TEST_VALUE}' not in entry
+        else:
+            assert f'description: {TEST_VALUE}' in entry
+            assert f'description;binary: {TEST_VALUE}' in entry
+
+    except ldap.LDAPError as e:
+        log.fatal('Search failed, error: ' + e.message['desc'])
+        assert False
 
 
 def test_aci_attr_subtype_targetattr(topology_m2, aci_with_attr_subtype):
