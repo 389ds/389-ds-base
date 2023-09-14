@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2023 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -26,6 +26,96 @@ log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.tier1
 USER_PASSWORD = 'password'
+
+
+def _create_ou(inst, name):
+    OrganizationalUnits(inst, DEFAULT_SUFFIX).create(properties={'ou': name})
+
+
+def _create_template(inst, name):
+    templates = MEPTemplates(inst, DEFAULT_SUFFIX)
+    temp = templates.create(properties={
+        'cn': f"{name}_template",
+        'mepRDNAttr': 'cn',
+        'mepStaticAttr': ['objectclass: posixGroup', 'objectclass: top', f'description: {name}'],
+        'mepMappedAttr': ['cn: $uid', 'memberUid: $uid', 'gidNumber: $uidNumber']
+    })
+    return temp.dn
+
+
+def _config_plugin(inst, name, template):
+    configs = MEPConfigs(inst)
+    configs.create(properties={
+        'cn': f"{name}_config",
+        'originScope': f"ou=People,{DEFAULT_SUFFIX}",
+        'originFilter': 'objectClass=posixAccount',
+        'managedBase': f"ou={name},{DEFAULT_SUFFIX}",
+        'managedTemplate': template})
+
+
+def _create_user(inst, name):
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    users.create(properties={
+        'uid': name,
+        'cn': name,
+        'sn': name,
+        'uidNumber': '100',
+        'gidNumber': '100',
+        'homeDirectory': f"/home/{name}",
+    })
+
+
+@pytest.mark.ds1870
+@pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/1870')
+def test_overlapping_scope(topo):
+    """Test overlapping scopes in Managed Entries
+
+    :id: 7038ab53-89c8-4fce-897a-76d42ec85063
+    :setup: Standalone Instance
+    :steps:
+        1. Make the two subtrees for targets (Create organizational units `oua`, and `oub`).
+        2. Add the template A (`oua`).
+        3. Enable the plugin A (`oua`).
+        4. Add the template B (`oub`).
+        5. Enable the plugin B (`oub`).
+        6. Add a user (`user1`).
+        7. Search for the user to ensure it's present in both A and B.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+    """
+
+    inst = topo.standalone
+
+    log.info("Creating organizational units")
+    _create_ou(inst, 'oua')
+    _create_ou(inst, 'oub')
+
+    log.info("Creating template for 'oua'")
+    dn = _create_template(inst, 'oua')
+
+    log.info("Configuring plugin for 'oua'")
+    _config_plugin(inst, 'oua', dn)
+
+    log.info("Creating template for 'oub'")
+    dn = _create_template(inst, 'oub')
+
+    log.info("Configuring plugin for 'oub'")
+    _config_plugin(inst, 'oub', dn)
+
+    log.info("Creating user 'user1'")
+    _create_user(inst, 'user1')
+
+    log.info("Searching for user in both A and B")
+    results = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(&(cn=user1)(objectClass=posixGroup))', ['cn'])
+
+    log.info(f"Found {len(results)} results for user search")
+    assert(len(results) == 2)
 
 
 @pytest.fixture(scope="module")
