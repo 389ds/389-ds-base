@@ -9,6 +9,8 @@
 
 import logging
 import pytest
+import os
+from lib389 import pid_from_file
 from lib389.tasks import *
 from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
@@ -16,15 +18,16 @@ from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups
 from lib389.backend import *
-from lib389.config import LDBMConfig, BDB_LDBMConfig
+from lib389.config import LDBMConfig, BDB_LDBMConfig, Config
 from lib389.cos import CosPointerDefinitions, CosTemplates
 from lib389.backend import Backends
-from lib389.monitor import MonitorLDBM
+from lib389.monitor import MonitorLDBM, Monitor
 from lib389.plugins import ReferentialIntegrityPlugin
 
 pytestmark = pytest.mark.tier0
 
 USER_DN = 'uid=test_user,%s' % DEFAULT_SUFFIX
+PSTACK_CMD = '/usr/bin/pstack'
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
@@ -589,6 +592,78 @@ def test_require_internal_index(topo):
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         user.delete()
 
+
+def get_pstack(pid):
+    """Get a pstack of the pid."""
+    res = subprocess.run((PSTACK_CMD, str(pid)), stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, encoding='utf-8')
+    return str(res.stdout)
+
+def check_number_of_threads(cfgnbthreads, monitor, pid):
+    monresults = monitor.get_threads()
+    # Add waitingthreads and busythreads
+    waiting = int(monresults[3][0])
+    busy = int(monresults[4][0])
+    log.info('Number of threads: configured={cfgnbthreads} waiting={waiting} busy={busy}')
+
+    monnbthreads = int(monresults[3][0]) + int(monresults[4][0]);
+    assert monnbthreads == cfgnbthreads
+    if os.path.isfile(PSTACK_CMD):
+        pstackresult = get_pstack(pid)
+        assert pstackresult.count('connection_threadmain') == cfgnbthreads
+    else:
+        log.info('pstack is not installed ==> skipping pstack test.')
+
+def test_changing_threadnumber(topo):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+
+    :id: 11bcf426-061c-11ee-8c22-482ae39447e5
+    :setup: Standalone instance
+    :steps:
+        1. Check that feature is supported
+        2  Get nsslapd-threadnumber original value
+        3. Change nsslapd-threadnumber to 40
+        4. Check that monitoring and pstack shows the same number than configured number of threads
+        5. Create a user and add it a group
+        6. Change nsslapd-threadnumber to 10
+        7. Check that monitoring and pstack shows the same number than configured number of threads
+        8. Set back the number of threads to the original value
+        9. Check that monitoring and pstack shows the same number than configured number of threads
+    :expectedresults:
+        1. Skip the test if monitoring result does not have the new attributes.
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+    """
+    inst = topo.standalone
+    pid = pid_from_file(inst.pid_file())
+    assert pid != 0 and pid != None
+
+    config = Config(inst)
+    cfgattr = 'nsslapd-threadnumber'
+    cfgnbthreads = config.get_attr_vals_utf8(cfgattr)[0]
+
+    monitor = Monitor(inst)
+    monresults = monitor.get_threads()
+    if len(monresults) < 5:
+        pytest.skip("This version does not support dynamic change of nsslapd-threadnumber without restart.")
+
+    config.replace(cfgattr, '40');
+    time.sleep(3)
+    check_number_of_threads(40, monitor, pid)
+
+    config.replace(cfgattr, '10');
+    # No need to wait here (threads are closed before config change result is returned)
+    check_number_of_threads(10, monitor, pid)
+
+    config.replace(cfgattr, cfgnbthreads);
+    time.sleep(3)
+    check_number_of_threads(int(cfgnbthreads), monitor, pid)
 
 if __name__ == '__main__':
     # Run isolated
