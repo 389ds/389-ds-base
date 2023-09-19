@@ -889,6 +889,14 @@ slapi_valueset_add_value(Slapi_ValueSet *vs, const Slapi_Value *addval)
 void
 slapi_valueset_add_value_ext(Slapi_ValueSet *vs, const Slapi_Value *addval, unsigned long flags)
 {
+    // Check if both SLAPI_VALUE_FLAG_DUPCHECK and SLAPI_VALUE_FLAG_PASSIN flags are used together
+    if ((flags & SLAPI_VALUE_FLAG_DUPCHECK) && (flags & SLAPI_VALUE_FLAG_PASSIN)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "slapi_valueset_add_value_ext",
+            "The combination of SLAPI_VALUE_FLAG_DUPCHECK and SLAPI_VALUE_FLAG_PASSIN flags is not recommended. "
+            "Using this combination could result in undefined behavior related to memory management. "
+            "If you need both of the flags, please, use slapi_valueset_add_attr_value_ext function instead "
+            "and ensure proper cleanup if there's an error.\n");
+    }
     Slapi_Value *oneval[2];
     oneval[0] = (Slapi_Value *)addval;
     oneval[1] = NULL;
