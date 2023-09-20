@@ -633,6 +633,8 @@ def create_repl_manager(inst, basedn, log, args):
     if args.passwd is not None:
         repl_manager_password = args.passwd
     elif args.passwd_file is not None:
+        repl_manager_password = get_passwd_from_file(args.passwd_file)
+    elif args.bind_passwd_file is not None:
         repl_manager_password = get_passwd_from_file(args.bind_passwd_file)
     elif repl_manager_password == "":
         repl_manager_password = _get_arg(None, msg=f"Enter replication manager password for \"{manager_dn}\"",
@@ -1348,7 +1350,8 @@ def create_parser(subparsers):
                                                         "entry's DN would be \"cn=replication manager,cn=config\".")
     repl_add_manager_parser.add_argument('--passwd', help="Sets the password for replication manager. If not provided, "
                                                           "you will be prompted for the password")
-    repl_add_manager_parser.add_argument('--passwd-file', help="File containing the password")
+    repl_add_manager_parser.add_argument('--passwd-file', help="File containing the password for back compatibility")
+    repl_add_manager_parser.add_argument('--bind-passwd-file', help="File containing the password")
     repl_add_manager_parser.add_argument('--suffix', help='The DN of the replication suffix whose replication ' +
                                                           'configuration you want to add this new manager to (OPTIONAL)')
 
