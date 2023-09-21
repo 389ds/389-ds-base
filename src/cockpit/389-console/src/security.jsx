@@ -31,6 +31,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 
+const _ = cockpit.gettext;
+
 const configAttrs = [
     'sslVersionMin',
     'sslVersionMax',
@@ -292,7 +294,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading security configuration - ${msg}`
+                        cockpit.format(_("Error loading security configuration - $0"), msg)
                     );
                 });
     }
@@ -319,7 +321,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading security configuration - ${msg}`
+                        cockpit.format(_("Error loading security configuration - $0"), msg)
                     );
                 });
     }
@@ -348,7 +350,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading CA certificates - ${msg}`
+                        cockpit.format(_("Error loading CA certificates - $0"), msg)
                     );
                 });
     }
@@ -383,7 +385,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading server certificates - ${msg}`
+                        cockpit.format(_("Error loading server certificates - $0"), msg)
                     );
                 });
     }
@@ -412,7 +414,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading CSRs - ${msg}`
+                        cockpit.format(_("Error loading CSRs - $0"), msg)
                     );
                 });
     }
@@ -439,7 +441,7 @@ export class Security extends React.Component {
                     if (!errMsg.desc.includes('certutil: no keys found')) {
                         this.props.addNotification(
                             "error",
-                            `Error loading Orphan Keys - ${errMsg.desc}`
+                            cockpit.format(_("Error loading Orphan Keys - $0"), errMsg.desc)
                         );
                     }
                     this.setState({
@@ -475,7 +477,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading security RSA configuration - ${msg}`
+                        cockpit.format(_("Error loading security RSA configuration - $0"), msg)
                     );
                 });
     }
@@ -580,7 +582,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error loading security configuration - ${msg}`
+                        cockpit.format(_("Error loading security configuration - $0"), msg)
                     );
                 });
     }
@@ -600,7 +602,7 @@ export class Security extends React.Component {
             } else {
                 this.props.addNotification(
                     "error",
-                    `There must be at least one server certificate present in the security database to enable security`
+                    _("There must be at least one server certificate present in the security database to enable security")
                 );
             }
         }
@@ -653,11 +655,11 @@ export class Security extends React.Component {
                                     this.loadSecurityConfig();
                                     this.props.addNotification(
                                         "success",
-                                        `Successfully enabled security.`
+                                        _("Successfully enabled security.")
                                     );
                                     this.props.addNotification(
                                         "warning",
-                                        `You must restart the Directory Server for these changes to take effect.`
+                                        _("You must restart the Directory Server for these changes to take effect.")
                                     );
                                     this.setState({
                                         securityEnabled: true,
@@ -673,7 +675,7 @@ export class Security extends React.Component {
                                     }
                                     this.props.addNotification(
                                         "error",
-                                        `Error enabling security - ${msg}`
+                                        cockpit.format(_("Error enabling security - $0"), msg)
                                     );
                                     this.setState({
                                         secEnableSpinner: false,
@@ -689,7 +691,7 @@ export class Security extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error enabling security (RSA cert name)- ${msg}`
+                            cockpit.format(_("Error enabling security (RSA cert name)- $0"), msg)
                         );
                         this.setState({
                             secEnableSpinner: false,
@@ -703,11 +705,11 @@ export class Security extends React.Component {
                     .done(() => {
                         this.props.addNotification(
                             "success",
-                            `Successfully enabled security.`
+                            _("Successfully enabled security.")
                         );
                         this.props.addNotification(
                             "warning",
-                            `You must restart the Directory Server for these changes to take effect.`
+                            _("You must restart the Directory Server for these changes to take effect.")
                         );
                         this.setState({
                             securityEnabled: true,
@@ -723,7 +725,7 @@ export class Security extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error enabling security - ${msg}`
+                            cockpit.format(_("Error enabling security - $0"), msg)
                         );
                         this.setState({
                             secEnableSpinner: false,
@@ -747,11 +749,11 @@ export class Security extends React.Component {
                 .done(() => {
                     this.props.addNotification(
                         "success",
-                        `Successfully disabled security.`
+                        _("Successfully disabled security.")
                     );
                     this.props.addNotification(
                         "warning",
-                        `You must restart the Directory Server for these changes to take effect.`
+                        _("You must restart the Directory Server for these changes to take effect.")
                     );
                     this.setState({
                         securityEnabled: false,
@@ -767,7 +769,7 @@ export class Security extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error disabling security - ${msg}`
+                        cockpit.format(_("Error disabling security - $0"), msg)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -790,7 +792,7 @@ export class Security extends React.Component {
         if (sslMin > sslMax) {
             this.props.addNotification(
                 "error",
-                `The TLS minimum version must be less than or equal to the TLS maximum version`
+                _("The TLS minimum version must be less than or equal to the TLS maximum version")
             );
             // Reset page
             this.loadSecurityConfig();
@@ -856,7 +858,7 @@ export class Security extends React.Component {
         }
         if (rsa_cmd.length > 6) {
             log_cmd("saveSecurityConfig", "Applying security RSA config change", rsa_cmd);
-            const msg = "Successfully updated security RSA configuration.";
+            const msg = _("Successfully updated security RSA configuration.");
 
             this.setState({
                 // Start the spinner
@@ -874,7 +876,7 @@ export class Security extends React.Component {
                             );
                             this.props.addNotification(
                                 "warning",
-                                `You must restart the Directory Server for these changes to take effect.`
+                                _("You must restart the Directory Server for these changes to take effect.")
                             );
                             this.setState({
                                 saving: false
@@ -893,14 +895,14 @@ export class Security extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error updating security RSA configuration - ${msg}`
+                            cockpit.format(_("Error updating security RSA configuration - $0"), msg)
                         );
                     });
         }
 
         if (cmd.length > 5) {
             log_cmd("saveSecurityConfig", "Applying security config change", cmd);
-            const msg = "Successfully updated security configuration.";
+            const msg = _("Successfully updated security configuration.");
 
             this.setState({
                 // Start the spinner
@@ -917,7 +919,7 @@ export class Security extends React.Component {
                         );
                         this.props.addNotification(
                             "warning",
-                            `You must restart the Directory Server for these changes to take effect.`
+                            _("You must restart the Directory Server for these changes to take effect.")
                         );
                         this.setState({
                             saving: false
@@ -935,7 +937,7 @@ export class Security extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error updating security configuration - ${msg}`
+                            cockpit.format(_("Error updating security configuration - $0"), msg)
                         );
                     });
         }
@@ -990,11 +992,11 @@ export class Security extends React.Component {
     render() {
         let securityPage = "";
         const serverCert = [this.state.nssslpersonalityssl];
-        let saveBtnName = "Save Settings";
+        let saveBtnName = _("Save Settings");
         const extraPrimaryProps = {};
         if (this.state.saving) {
-            saveBtnName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
         if (this.state.loaded && !this.state.saving) {
@@ -1004,10 +1006,10 @@ export class Security extends React.Component {
                     <div className="ds-margin-bottom-md">
                         <Form isHorizontal autoComplete="off">
                             <Grid
-                                title="The name, or nickname, of the server certificate inthe NSS database the server should use (nsSSLPersonalitySSL)."
+                                title={_("The name, or nickname, of the server certificate inthe NSS database the server should use (nsSSLPersonalitySSL).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Server Certificate Name
+                                    {_("Server Certificate Name")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <Select
@@ -1019,8 +1021,8 @@ export class Security extends React.Component {
                                         selections={serverCert}
                                         isOpen={this.state.isServerCertOpen}
                                         aria-labelledby="typeAhead-server-cert"
-                                        placeholderText="Type a sever certificate nickname..."
-                                        noResultsFoundText="There are no matching entries"
+                                        placeholderText={_("Type a sever certificate nickname...")}
+                                        noResultsFoundText={_("There are no matching entries")}
                                     >
                                         {this.state.serverCertNames.map((cert, index) => (
                                             <SelectOption
@@ -1032,10 +1034,10 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The minimum SSL/TLS version the server will accept (sslversionmin)."
+                                title={_("The minimum SSL/TLS version the server will accept (sslversionmin).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Minimum TLS Version
+                                    {_("Minimum TLS Version")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <Select
@@ -1056,10 +1058,10 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The maximum SSL/TLS version the server will accept (sslversionmax)."
+                                title={_("The maximum SSL/TLS version the server will accept (sslversionmax).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Maximum TLS Version
+                                    {_("Maximum TLS Version")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <Select
@@ -1080,10 +1082,10 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Sets how the Directory Server enforces TLS client authentication (nsSSLClientAuth)."
+                                title={_("Sets how the Directory Server enforces TLS client authentication (nsSSLClientAuth).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Client Authentication
+                                    {_("Client Authentication")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <Select
@@ -1102,10 +1104,10 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Validate server's certificate expiration date (nsslapd-validate-cert)."
+                                title={_("Validate server's certificate expiration date (nsslapd-validate-cert).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Validate Certificate
+                                    {_("Validate Certificate")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <Select
@@ -1124,10 +1126,10 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost)."
+                                title={_("This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Secure Listen Host
+                                    {_("Secure Listen Host")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <TextInput
@@ -1143,7 +1145,7 @@ export class Security extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Require all connections use TLS (nsslapd-require-secure-binds)."
+                                title={_("Require all connections use TLS (nsslapd-require-secure-binds).")}
                             >
                                 <GridItem className="ds-label" span={4}>
                                     <Checkbox
@@ -1152,12 +1154,12 @@ export class Security extends React.Component {
                                         onChange={(checked, e) => {
                                             this.handleChange(e);
                                         }}
-                                        label="Require Secure Connections"
+                                        label={_("Require Secure Connections")}
                                     />
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Verify authenticity of a request by matching the host name against the value assigned to the common name (cn) attribute of the subject name (subjectDN field) in the certificate being presented. (nsslapd-ssl-check-hostname)."
+                                title={_("Verify authenticity of a request by matching the host name against the value assigned to the common name (cn) attribute of the subject name (subjectDN field) in the certificate being presented. (nsslapd-ssl-check-hostname).")}
                             >
                                 <GridItem className="ds-label" span={4}>
                                     <Checkbox
@@ -1166,12 +1168,12 @@ export class Security extends React.Component {
                                         onChange={(checked, e) => {
                                             this.handleChange(e);
                                         }}
-                                        label="Verify Certificate Subject Hostname"
+                                        label={_("Verify Certificate Subject Hostname")}
                                     />
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Allow weak ciphers (allowWeakCipher)."
+                                title={_("Allow weak ciphers (allowWeakCipher).")}
                             >
                                 <GridItem className="ds-label" span={4}>
                                     <Checkbox
@@ -1180,13 +1182,13 @@ export class Security extends React.Component {
                                         onChange={(checked, e) => {
                                             this.handleChange(e);
                                         }}
-                                        title="Allow weak ciphers (allowWeakCipher)."
-                                        label="Allow Weak Ciphers"
+                                        title={_("Allow weak ciphers (allowWeakCipher).")}
+                                        label={_("Allow Weak Ciphers")}
                                     />
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation)."
+                                title={_("Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation).")}
                             >
                                 <GridItem className="ds-label" span={4}>
                                     <Checkbox
@@ -1195,8 +1197,8 @@ export class Security extends React.Component {
                                         onChange={(checked, e) => {
                                             this.handleChange(e);
                                         }}
-                                        title="Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation)."
-                                        label="Allow Client Renegotiation"
+                                        title={_("Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation).")}
+                                        label={_("Allow Client Renegotiation")}
                                     />
                                 </GridItem>
                             </Grid>
@@ -1209,7 +1211,7 @@ export class Security extends React.Component {
                             }}
                             isDisabled={this.state.disableSaveBtn || this.state.saving}
                             isLoading={this.state.saving}
-                            spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnName}
@@ -1224,12 +1226,12 @@ export class Security extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Security Settings
+                                    {_("Security Settings")}
                                     <FontAwesomeIcon
                                         size="lg"
                                         className="ds-left-margin ds-refresh"
                                         icon={faSyncAlt}
-                                        title="Refresh settings"
+                                        title={_("Refresh settings")}
                                         onClick={this.handleReloadConfig}
                                     />
                                 </Text>
@@ -1238,12 +1240,12 @@ export class Security extends React.Component {
                     </Grid>
                     <div className="ds-tab-table">
                         <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={0} title={<TabTitleText>Security Configuration</TabTitleText>}>
+                            <Tab eventKey={0} title={<TabTitleText>{_("Security Configuration")}</TabTitleText>}>
                                 <Grid className="ds-margin-top-xlg ds-left-indent-md">
                                     <GridItem className="ds-label" span={4}>
                                         <Switch
                                             id="simple-switch"
-                                            label="Security Enabled"
+                                            label={_("Security Enabled")}
                                             labelOff="Security Disabled"
                                             isChecked={this.state.securityEnabled}
                                             onChange={this.handleSwitchChange}
@@ -1253,7 +1255,7 @@ export class Security extends React.Component {
                                     {configPage}
                                 </Grid>
                             </Tab>
-                            <Tab eventKey={1} title={<TabTitleText>Certificate Management</TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText>{_("Certificate Management")}</TabTitleText>}>
                                 <CertificateManagement
                                     serverId={this.props.serverId}
                                     CACerts={this.state.CACerts}
@@ -1264,7 +1266,7 @@ export class Security extends React.Component {
                                     certDir={this.props.certDir}
                                 />
                             </Tab>
-                            <Tab eventKey={2} title={<TabTitleText>Cipher Preferences</TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText>{_("Cipher Preferences")}</TabTitleText>}>
                                 <div className="ds-indent ds-tab-table">
                                     <Ciphers
                                         key={this.state.cipherPref}
@@ -1286,7 +1288,7 @@ export class Security extends React.Component {
                 <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading Security Information ...
+                            {_("Loading Security Information ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="lg" />
@@ -1304,10 +1306,10 @@ export class Security extends React.Component {
                     spinning={this.state.modalSpinning}
                     item="Requires server restart to take effect."
                     checked={this.state.modalChecked}
-                    mTitle="Disable Security"
-                    mMsg="Are you sure you want to disable security?"
-                    mSpinningMsg="Disabling ..."
-                    mBtnName="Disable"
+                    mTitle={_("Disable Security")}
+                    mMsg={_("Are you sure you want to disable security?")}
+                    mSpinningMsg={_("Disabling ...")}
+                    mBtnName={_("Disable")}
                 />
 
                 <SecurityEnableModal

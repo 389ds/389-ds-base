@@ -32,6 +32,8 @@ import {
     faSyncAlt
 } from '@fortawesome/free-solid-svg-icons';
 
+const _ = cockpit.gettext;
+
 export class ServerMonitor extends React.Component {
     constructor (props) {
         super(props);
@@ -222,19 +224,19 @@ export class ServerMonitor extends React.Component {
 
                                                         const cpuChart = this.state.cpuChart;
                                                         cpuChart.shift();
-                                                        cpuChart.push({ name: "CPU", x: count.toString(), y: parseInt(cpu) });
+                                                        cpuChart.push({ name: _("CPU"), x: count.toString(), y: parseInt(cpu) });
 
                                                         const memVirtChart = this.state.memVirtChart;
                                                         memVirtChart.shift();
-                                                        memVirtChart.push({ name: "Virtual Memory", x: count.toString(), y: parseInt(Math.round((virt_mem / max_mem) * 100)) });
+                                                        memVirtChart.push({ name: _("Virtual Memory"), x: count.toString(), y: parseInt(Math.round((virt_mem / max_mem) * 100)) });
 
                                                         const memResChart = this.state.memResChart;
                                                         memResChart.shift();
-                                                        memResChart.push({ name: "Resident Memory", x: count.toString(), y: parseInt(Math.round((res_mem / max_mem) * 100)) });
+                                                        memResChart.push({ name: _("Resident Memory"), x: count.toString(), y: parseInt(Math.round((res_mem / max_mem) * 100)) });
 
                                                         const connChart = this.state.connChart;
                                                         connChart.shift();
-                                                        connChart.push({ name: "Connections", x: count.toString(), y: parseInt(current_conns) });
+                                                        connChart.push({ name: _("Connections"), x: count.toString(), y: parseInt(current_conns) });
 
                                                         this.setState({
                                                             count,
@@ -324,12 +326,12 @@ export class ServerMonitor extends React.Component {
                     <GridItem span={9}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Server Statistics
+                                {_("Server Statistics")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh suffix monitor"
+                                    title={_("Refresh suffix monitor")}
                                     onClick={this.props.handleReload}
                                 />
                             </Text>
@@ -337,14 +339,14 @@ export class ServerMonitor extends React.Component {
                     </GridItem>
                 </Grid>
                 <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Resource Charts</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Resource Charts")}</TabTitleText>}>
                         <Card className="ds-margin-top-lg" isSelectable>
                             <CardBody>
                                 <Grid>
-                                    <GridItem span="2" className="ds-center" title="Established client connections to the server">
+                                    <GridItem span="2" className="ds-center" title={_("Established client connections to the server")}>
                                         <TextContent>
                                             <Text component={TextVariants.h5}>
-                                                Connections
+                                                {_("Connections")}
                                             </Text>
                                         </TextContent>
                                         <TextContent>
@@ -356,7 +358,7 @@ export class ServerMonitor extends React.Component {
                                     <GridItem span="10" style={{ height: '175px', width: '600px' }}>
                                         <Chart
                                             ariaDesc="connection stats"
-                                            ariaTitle="Live Connection Statistics"
+                                            ariaTitle={_("Live Connection Statistics")}
                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                             height={175}
                                             minDomain={{ y: 0 }}
@@ -388,7 +390,7 @@ export class ServerMonitor extends React.Component {
                                             <GridItem className="ds-center" span="4">
                                                 <TextContent>
                                                     <Text component={TextVariants.h5}>
-                                                        Memory Usage
+                                                        {_("Memory Usage")}
                                                     </Text>
                                                 </TextContent>
                                                 <TextContent>
@@ -398,7 +400,7 @@ export class ServerMonitor extends React.Component {
                                                 </TextContent>
                                                 <TextContent>
                                                     <Text className="ds-margin-top-lg" component={TextVariants.h5}>
-                                                        Virtual Size
+                                                        {_("Virtual Size")}
                                                     </Text>
                                                 </TextContent>
                                                 <TextContent>
@@ -408,7 +410,7 @@ export class ServerMonitor extends React.Component {
                                                 </TextContent>
                                                 <TextContent>
                                                     <Text className="ds-margin-top-lg" component={TextVariants.h5}>
-                                                        Resident Size
+                                                        {_("Resident Size")}
                                                     </Text>
                                                 </TextContent>
                                                 <TextContent>
@@ -420,7 +422,7 @@ export class ServerMonitor extends React.Component {
                                             <GridItem span="8" style={{ height: '225px' }}>
                                                 <Chart
                                                     ariaDesc="Server Memory Utilization"
-                                                    ariaTitle="Live Server Memory Statistics"
+                                                    ariaTitle={_("Live Server Memory Statistics")}
                                                     containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                     height={225}
                                                     minDomain={{ y: 0 }}
@@ -457,7 +459,7 @@ export class ServerMonitor extends React.Component {
                                             <GridItem span="4" className="ds-center">
                                                 <TextContent>
                                                     <Text className="ds-margin-top-xlg" component={TextVariants.h5}>
-                                                        CPU Usage
+                                                        {_("CPU Usage")}
                                                     </Text>
                                                 </TextContent>
                                                 <TextContent>
@@ -469,7 +471,7 @@ export class ServerMonitor extends React.Component {
                                             <GridItem span="8" style={{ height: '225px' }}>
                                                 <Chart
                                                     ariaDesc="cpu"
-                                                    ariaTitle="Server CPU Usage"
+                                                    ariaTitle={_("Server CPU Usage")}
                                                     containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                     height={225}
                                                     minDomain={{ y: 0 }}
@@ -497,99 +499,99 @@ export class ServerMonitor extends React.Component {
                             </GridItem>
                         </Grid>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Server Stats</TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Server Stats")}</TabTitleText>}>
                         <Grid hasGutter className="ds-margin-top-xlg">
                             <GridItem span={3}>
-                                Server Instance
+                                {_("Server Instance")}
                             </GridItem>
                             <GridItem span={9}>
                                 <b>{"slapd-" + this.props.serverId}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Version
+                                {_("Version")}
                             </GridItem>
                             <GridItem span={9}>
                                 <b>{this.props.data.version}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Server Started
+                                {_("Server Started")}
                             </GridItem>
                             <GridItem span={9}>
                                 <b>{startDate}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Server Uptime
+                                {_("Server Uptime")}
                             </GridItem>
                             <GridItem span={9}>
                                 <b>{uptime}</b>
                             </GridItem>
                             <hr />
                             <GridItem span={3}>
-                                Worker Threads
+                                {_("Worker Threads")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.threads}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Threads Waiting To Read
+                                {_("Threads Waiting To Read")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.readwaiters}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Conns At Max Threads
+                                {_("Conns At Max Threads")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.currentconnectionsatmaxthreads}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Conns Exceeded Max Threads
+                                {_("Conns Exceeded Max Threads")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.maxthreadsperconnhits}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Total Connections
+                                {_("Total Connections")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.totalconnections}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Current Connections
+                                {_("Current Connections")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.currentconnections}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Operations Started
+                                {_("Operations Started")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.opsinitiated}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Operations Completed
+                                {_("Operations Completed")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.opscompleted}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Entries Returned To Clients
+                                {_("Entries Returned To Clients")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.entriessent}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Bytes Sent to Clients
+                                {_("Bytes Sent to Clients")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.bytessent}</b>
                             </GridItem>
                         </Grid>
                     </Tab>
-                    <Tab eventKey={2} title={<TabTitleText>Connection Table</TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Connection Table")}</TabTitleText>}>
                         <ConnectionTable conns={this.props.data.connection} />
                     </Tab>
-                    <Tab eventKey={3} title={<TabTitleText>Disk Space</TabTitleText>}>
+                    <Tab eventKey={3} title={<TabTitleText>{_("Disk Space")}</TabTitleText>}>
                         <DiskTable
                             rows={this.props.disks}
                         />
@@ -597,157 +599,157 @@ export class ServerMonitor extends React.Component {
                             className="ds-margin-top"
                             onClick={this.props.handleReloadDisks}
                         >
-                            Refresh
+                            {_("Refresh")}
                         </Button>
                     </Tab>
-                    <Tab eventKey={4} title={<TabTitleText>SNMP Counters</TabTitleText>}>
+                    <Tab eventKey={4} title={<TabTitleText>{_("SNMP Counters")}</TabTitleText>}>
                         <Grid className="ds-margin-top-xlg" hasGutter>
                             <GridItem span={4}>
-                                Anonymous Binds
+                                {_("Anonymous Binds")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.anonymousbinds}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Referrals
+                                {_("Referrals")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.referrals}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Unauthenticated Binds
+                                {_("Unauthenticated Binds")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.unauthbinds}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Returned Referrals
+                                {_("Returned Referrals")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.referralsreturned}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Simple Auth Binds
+                                {_("Simple Auth Binds")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.simpleauthbinds}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Bind Security Errors
+                                {_("Bind Security Errors")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.bindsecurityerrors}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Strong Auth Binds
+                                {_("Strong Auth Binds")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.strongauthbinds}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Security Errors
+                                {_("Security Errors")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.securityerrors}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Initiated Operations
+                                {_("Initiated Operations")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.inops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Errors
+                                {_("Errors")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.errors}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Compare Operations
+                                {_("Compare Operations")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.compareops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Current Connections
+                                {_("Current Connections")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.connections}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Add Operations
+                                {_("Add Operations")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.addentryops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Total Connections
+                                {_("Total Connections")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.connectionseq}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Delete Operations
+                                {_("Delete Operations")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.removeentryops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Conns in Max Threads
+                                {_("Conns in Max Threads")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.connectionsinmaxthreads}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Modify Operations
+                                {_("Modify Operations")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.modifyentryops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Conns Exceeded Max Threads
+                                {_("Conns Exceeded Max Threads")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.connectionsmaxthreadscount}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                ModRDN Operations
+                                {_("ModRDN Operations")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.modifyrdnops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Bytes Received
+                                {_("Bytes Received")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.bytesrecv}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Search Operations
+                                {_("Search Operations")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.searchops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Bytes Sent
+                                {_("Bytes Sent")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.bytessent}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                One Level Searches
+                                {_("One Level Searches")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.onelevelsearchops}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Entries Returned
+                                {_("Entries Returned")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.entriesreturned}</b>
                             </GridItem>
                             <GridItem span={4}>
-                                Whole Tree Searches
+                                {_("Whole Tree Searches")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.snmpData.wholesubtreesearchops}</b>

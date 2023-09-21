@@ -20,6 +20,8 @@ import {
     TopologyIcon
 } from '@patternfly/react-icons';
 
+const _ = cockpit.gettext;
+
 export class Replication extends React.Component {
     constructor(props) {
         super(props);
@@ -200,7 +202,7 @@ export class Replication extends React.Component {
                     }
                     const basicData = [
                         {
-                            name: "Suffixes",
+                            name: _("Suffixes"),
                             icon: <TopologyIcon />,
                             id: "repl-suffixes",
                             children: [],
@@ -591,7 +593,7 @@ export class Replication extends React.Component {
                     if (errMsg.desc !== "No such object") {
                         this.props.addNotification(
                             "error",
-                            `Error loading suffix RUV - ${errMsg.desc}`
+                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg.desc)
                         );
                     }
                     this.setState({
@@ -884,7 +886,7 @@ export class Replication extends React.Component {
                                                                         !errMsg.desc.includes('There is no RUV for suffix')) {
                                                                         this.props.addNotification(
                                                                             "error",
-                                                                            `Error loading suffix RUV - ${errMsg.desc}`
+                                                                            cockpit.format(_("Error loading suffix RUV - $0"), errMsg.desc)
                                                                         );
                                                                     }
                                                                     this.setState({
@@ -897,7 +899,7 @@ export class Replication extends React.Component {
                                                         const errMsg = JSON.parse(err);
                                                         this.props.addNotification(
                                                             "error",
-                                                            `Error loading winsync agreements - ${errMsg.desc}`
+                                                            cockpit.format(_("Error loading winsync agreements - $0"), errMsg.desc)
                                                         );
                                                         this.setState({
                                                             suffixLoading: false,
@@ -909,7 +911,7 @@ export class Replication extends React.Component {
                                             const errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
-                                                `Error loading replication agreements configuration - ${errMsg.desc}`
+                                                cockpit.format(_("Error loading replication agreements configuration - $0"), errMsg.desc)
                                             );
                                             this.setState({
                                                 suffixLoading: false,
@@ -922,7 +924,7 @@ export class Replication extends React.Component {
                                 const errMsg = JSON.parse(err);
                                 this.props.addNotification(
                                     "error",
-                                    `Error loading replication changelog configuration - ${errMsg.desc}`
+                                    cockpit.format(_("Error loading replication changelog configuration - $0"), errMsg.desc)
                                 );
                                 this.setState({
                                     suffixLoading: false,
@@ -984,7 +986,7 @@ export class Replication extends React.Component {
             repl_page = (
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
-                        <Text component={TextVariants.h3}>Loading Replication Information ...</Text>
+                        <Text component={TextVariants.h3}>{_("Loading Replication Information ...")}</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>
@@ -994,7 +996,7 @@ export class Replication extends React.Component {
                 repl_element = (
                     <div className="ds-margin-top-xlg ds-center">
                         <TextContent>
-                            <Text component={TextVariants.h3}>Loading Replication Configuration For <b>{this.state.node_name} ...</b></Text>
+                            <Text component={TextVariants.h3}>{_("Loading Replication Configuration For ")}<b>{this.state.node_name} ...</b></Text>
                         </TextContent>
                         <Spinner className="ds-margin-top-lg" size="xl" />
                     </div>

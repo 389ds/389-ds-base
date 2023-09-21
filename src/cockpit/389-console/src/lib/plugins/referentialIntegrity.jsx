@@ -20,6 +20,8 @@ import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { listsEqual, log_cmd, valid_dn, file_is_path } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class ReferentialIntegrity extends React.Component {
     componentDidMount(prevProps) {
         if (this.props.wasActiveList.includes(5)) {
@@ -390,7 +392,7 @@ class ReferentialIntegrity extends React.Component {
                     console.info("referintOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Successfully updated Referential Integrity Plugin`
+                        _("Successfully updated Referential Integrity Plugin")
                     );
                     this.setState({
                         saving: false
@@ -405,7 +407,7 @@ class ReferentialIntegrity extends React.Component {
                         errMsg = errMsg.desc;
                     }
                     this.props.addNotification(
-                        "error", `Error during update - ${errMsg}`
+                        "error", cockpit.format(_("Error during update - $0"), errMsg)
                     );
                     this.setState({
                         saving: false
@@ -618,7 +620,7 @@ class ReferentialIntegrity extends React.Component {
                     console.info("referintOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${configDN} was successfully ${action}ed`
+                        cockpit.format(_("Config entry $0 was successfully $1ed"), configDN, action)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -627,7 +629,7 @@ class ReferentialIntegrity extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -658,7 +660,7 @@ class ReferentialIntegrity extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${this.state.configDN} was successfully deleted`
+                        cockpit.format(_("Config entry $0 was successfully deleted"), this.state.configDN)
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
@@ -668,7 +670,7 @@ class ReferentialIntegrity extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
@@ -788,13 +790,13 @@ class ReferentialIntegrity extends React.Component {
             errorModal,
         } = this.state;
 
-        let saveBtnText = "Save Config";
-        let addBtnText = "Add Config";
+        let saveBtnText = _("Save Config");
+        let addBtnText = _("Add Config");
         const extraPrimaryProps = {};
         if (savingModal) {
-            saveBtnText = "Saving ...";
-            addBtnText = "Adding ...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            saveBtnText = _("Saving ...");
+            addBtnText = _("Adding ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
         let modalButtons = [];
@@ -805,7 +807,7 @@ class ReferentialIntegrity extends React.Component {
                     variant="primary"
                     onClick={this.handleShowConfirmDelete}
                 >
-                    Delete Config
+                    {_("Delete Config")}
                 </Button>,
                 <Button
                     key="save"
@@ -813,13 +815,13 @@ class ReferentialIntegrity extends React.Component {
                     onClick={this.handleEditConfig}
                     isDisabled={saveBtnDisabledModal || savingModal}
                     isLoading={savingModal}
-                    spinnerAriaValueText={savingModal ? "Saving" : undefined}
+                    spinnerAriaValueText={savingModal ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                 >
                     {saveBtnText}
                 </Button>,
                 <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    Cancel
+                    {_("Cancel")}
                 </Button>
             ];
         } else {
@@ -830,13 +832,13 @@ class ReferentialIntegrity extends React.Component {
                     onClick={this.handleAddConfig}
                     isDisabled={saveBtnDisabledModal || addSpinning}
                     isLoading={addSpinning}
-                    spinnerAriaValueText={addSpinning ? "Saving" : undefined}
+                    spinnerAriaValueText={addSpinning ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                 >
                     {addBtnText}
                 </Button>,
                 <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    Cancel
+                    {_("Cancel")}
                 </Button>
             ];
         }
@@ -845,16 +847,16 @@ class ReferentialIntegrity extends React.Component {
             <div className={saving || savingModal || addSpinning || modalSpinning ? "ds-disabled" : ""}>
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Manage Referential Integrity Plugin Shared Config Entry"
+                    title={_("Manage Referential Integrity Plugin Shared Config Entry")}
                     isOpen={configEntryModalShow}
                     aria-labelledby="ds-modal"
                     onClose={this.handleCloseModal}
                     actions={modalButtons}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid className="ds-margin-top" title="The config entry full DN">
+                        <Grid className="ds-margin-top" title={_("The config entry full DN")}>
                             <GridItem span={3} className="ds-label">
-                                Config DN
+                                {_("Config DN")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -868,13 +870,13 @@ class ReferentialIntegrity extends React.Component {
                                     isDisabled={!newEntry}
                                 />
                                 <FormHelperText isError isHidden={!errorModal.configDN}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies attributes to check for and update (referint-membership-attr)">
+                        <Grid title={_("Specifies attributes to check for and update (referint-membership-attr)")}>
                             <GridItem className="ds-label" span={3}>
-                                Membership Attribute
+                                {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -886,8 +888,8 @@ class ReferentialIntegrity extends React.Component {
                                     selections={configMembershipAttr}
                                     isOpen={this.state.isConfigMembershipAttrOpen}
                                     aria-labelledby="typeAhead-config-membership-attr"
-                                    placeholderText="Type an attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     validated={errorModal.configMembershipAttr ? 'error' : 'default'}
                                 >
                                     {this.props.attributes.map((attr, index) => (
@@ -898,13 +900,13 @@ class ReferentialIntegrity extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!errorModal.configMembershipAttr}>
-                                    At least one attribute must be specified
+                                    {_("At least one attribute must be specified")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Defines the subtree in which the plug-in looks for the delete or rename operations of a user entry (nsslapd-pluginEntryScope)">
+                        <Grid title={_("Defines the subtree in which the plug-in looks for the delete or rename operations of a user entry (nsslapd-pluginEntryScope)")}>
                             <GridItem className="ds-label" span={3}>
-                                Entry Scope
+                                {_("Entry Scope")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -918,12 +920,12 @@ class ReferentialIntegrity extends React.Component {
                                 />
                             </GridItem>
                             <FormHelperText isError isHidden={!errorModal.configEntryScope}>
-                                Value must be a valid DN
+                                {_("Value must be a valid DN")}
                             </FormHelperText>
                         </Grid>
-                        <Grid title="Defines the subtree in which the plug-in ignores any operations for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)">
+                        <Grid title={_("Defines the subtree in which the plug-in ignores any operations for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)")}>
                             <GridItem className="ds-label" span={3}>
-                                Exclude Entry Scope
+                                {_("Exclude Entry Scope")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -936,13 +938,13 @@ class ReferentialIntegrity extends React.Component {
                                     validated={errorModal.configExcludeEntryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errorModal.configExcludeEntryScope}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies which branch the plug-in searches for the groups to which the user belongs. It only updates groups that are under the specified container branch, and leaves all other groups not updated (nsslapd-pluginContainerScope).">
+                        <Grid title={_("Specifies which branch the plug-in searches for the groups to which the user belongs. It only updates groups that are under the specified container branch, and leaves all other groups not updated (nsslapd-pluginContainerScope).")}>
                             <GridItem className="ds-label" span={3}>
-                                Container Scope
+                                {_("Container Scope")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -955,7 +957,7 @@ class ReferentialIntegrity extends React.Component {
                                     validated={errorModal.configContainerScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errorModal.configContainerScope}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
@@ -965,7 +967,7 @@ class ReferentialIntegrity extends React.Component {
                             }/referint`}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Logfile
+                                {_("Logfile")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -978,13 +980,13 @@ class ReferentialIntegrity extends React.Component {
                                     validated={errorModal.configLogFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errorModal.configLogFile}>
-                                    Invalid log file name
+                                    {_("Invalid log file name")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the update interval in seconds. Special values: 0 - The check is performed immediately, -1 - No check is performed. (referint-update-delay)">
+                        <Grid title={_("Sets the update interval in seconds. Special values: 0 - The check is performed immediately, -1 - No check is performed. (referint-update-delay)")}>
                             <GridItem span={3} className="ds-label">
-                                Update Delay
+                                {_("Update Delay")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -1019,9 +1021,9 @@ class ReferentialIntegrity extends React.Component {
                 >
 
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Specifies attributes to check for and update (referint-membership-attr).">
+                        <Grid title={_("Specifies attributes to check for and update (referint-membership-attr).")}>
                             <GridItem className="ds-label" span={3}>
-                                Membership Attribute
+                                {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={7}>
                                 <Select
@@ -1033,8 +1035,8 @@ class ReferentialIntegrity extends React.Component {
                                     selections={membershipAttr}
                                     isOpen={this.state.isMembershipAttrOpen}
                                     aria-labelledby="typeAhead-membership-attr"
-                                    placeholderText="Type an attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     validated={error.membershipAttr ? 'error' : 'default'}
                                 >
                                     {this.props.attributes.map((attr, index) => (
@@ -1045,13 +1047,13 @@ class ReferentialIntegrity extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!error.membershipAttr}>
-                                    At least one attribute needs to be specified
+                                    {_("At least one attribute needs to be specified")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Defines the subtree in which the plug-in looks for the delete or rename operations of a user entry (nsslapd-pluginEntryScope)">
+                        <Grid title={_("Defines the subtree in which the plug-in looks for the delete or rename operations of a user entry (nsslapd-pluginEntryScope)")}>
                             <GridItem className="ds-label" span={3}>
-                                Entry Scope
+                                {_("Entry Scope")}
                             </GridItem>
                             <GridItem span={7}>
                                 <TextInput
@@ -1064,13 +1066,13 @@ class ReferentialIntegrity extends React.Component {
                                     validated={error.entryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.entryScope}>
-                                    The value must be a valid DN
+                                    {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Defines the subtree in which the plug-in ignores any operations for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)">
+                        <Grid title={_("Defines the subtree in which the plug-in ignores any operations for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)")}>
                             <GridItem className="ds-label" span={3}>
-                                Exclude Entry Scope
+                                {_("Exclude Entry Scope")}
                             </GridItem>
                             <GridItem span={7}>
                                 <TextInput
@@ -1083,13 +1085,13 @@ class ReferentialIntegrity extends React.Component {
                                     validated={error.excludeEntryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.excludeEntryScope}>
-                                    The value must be a valid DN
+                                    {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies which branch the plug-in searches for the groups to which the user belongs. It only updates groups that are under the specified container branch, and leaves all other groups not updated (nsslapd-pluginContainerScope).">
+                        <Grid title={_("Specifies which branch the plug-in searches for the groups to which the user belongs. It only updates groups that are under the specified container branch, and leaves all other groups not updated (nsslapd-pluginContainerScope).")}>
                             <GridItem className="ds-label" span={3}>
-                                Container Scope
+                                {_("Container Scope")}
                             </GridItem>
                             <GridItem span={7}>
                                 <TextInput
@@ -1102,16 +1104,16 @@ class ReferentialIntegrity extends React.Component {
                                     validated={error.containerScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.containerScope}>
-                                    The value must be a valid DN
+                                    {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title={`Specifies a path to the Referential integrity logfile. For example: /var/log/dirsrv/slapd-${
+                        <Grid title={_("Specifies a path to the Referential integrity logfile. For example: /var/log/dirsrv/slapd-") + `${
                             this.props.serverId
                         }/referint`}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Logfile
+                                {_("Logfile")}
                             </GridItem>
                             <GridItem span={7}>
                                 <TextInput
@@ -1124,13 +1126,13 @@ class ReferentialIntegrity extends React.Component {
                                     validated={error.logFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.logFile}>
-                                    Invalid log nameN
+                                    {_("Invalid log nameN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the update interval. Special values: 0 - The check is performed immediately, -1 - No check is performed (referint-update-delay)">
+                        <Grid title={_("Sets the update interval. Special values: 0 - The check is performed immediately, -1 - No check is performed (referint-update-delay)")}>
                             <GridItem className="ds-label" span={3}>
-                                Update Delay
+                                {_("Update Delay")}
                             </GridItem>
                             <GridItem span={7}>
                                 <NumberInput
@@ -1149,9 +1151,9 @@ class ReferentialIntegrity extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="The value to set as nsslapd-pluginConfigArea">
+                        <Grid title={_("The value to set as nsslapd-pluginConfigArea")}>
                             <GridItem className="ds-label" span={3}>
-                                Shared Config Entry
+                                {_("Shared Config Entry")}
                             </GridItem>
                             <GridItem span={7}>
                                 <TextInput
@@ -1164,7 +1166,7 @@ class ReferentialIntegrity extends React.Component {
                                     validated={error.referintConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.referintConfigEntry}>
-                                    The value must be a valid DN
+                                    {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem span={1}>
@@ -1173,7 +1175,7 @@ class ReferentialIntegrity extends React.Component {
                                     variant="primary"
                                     onClick={this.handleOpenModal}
                                 >
-                                    Manage
+                                    {_("Manage")}
                                 </Button>
                             </GridItem>
                         </Grid>
@@ -1182,7 +1184,7 @@ class ReferentialIntegrity extends React.Component {
                         className="ds-margin-top-lg"
                         key="at"
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Loading" : undefined}
+                        spinnerAriaValueText={saving ? _("Loading") : undefined}
                         variant="primary"
                         onClick={this.handleSaveConfig}
                         {...extraPrimaryProps}
@@ -1199,10 +1201,10 @@ class ReferentialIntegrity extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.configDN}
                     checked={this.state.modalChecked}
-                    mTitle="Delete RI Plugin Config Entry"
-                    mMsg="Are you sure you want to delete this config entry?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Delete RI Plugin Config Entry")}
+                    mMsg={_("Are you sure you want to delete this config entry?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
             </div>
         );

@@ -58,6 +58,8 @@
     "@patternfly/react-styles": "^4.92.6",
     "@patternfly/react-table": "^4.50.1",
     "audit-ci": "^6.6.1",
+    "eslint-plugin-react-hooks": "^4.2.0",
+    "gettext-parser": "^2.0.0",
     "prop-types": "^15.7.2",
     "react": "17.0.2",
     "react-dom": "17.0.2"

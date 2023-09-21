@@ -20,6 +20,8 @@ import {
     WrenchIcon,
 } from '@patternfly/react-icons';
 
+const _ = cockpit.gettext;
+
 class USNPlugin extends React.Component {
     componentDidMount() {
         if (this.props.wasActiveList.includes(5)) {
@@ -117,7 +119,7 @@ class USNPlugin extends React.Component {
                     this.updateSwitch();
                     addNotification(
                         "success",
-                        `Global USN mode was successfully set to ${new_status}.`
+                        cockpit.format(_("Global USN mode was successfully set to $0."), new_status)
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });
@@ -126,7 +128,7 @@ class USNPlugin extends React.Component {
                     const errMsg = JSON.parse(err);
                     addNotification(
                         "error",
-                        `Error during global USN mode modification - ${errMsg.desc}`
+                        cockpit.format(_("Error during global USN mode modification - $0"), errMsg.desc)
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });
@@ -188,7 +190,7 @@ class USNPlugin extends React.Component {
 
     handleRunCleanup() {
         if (!this.state.cleanupSuffix) {
-            this.props.addNotification("warning", "Suffix is required.");
+            this.props.addNotification("warning", _("Suffix is required."));
         } else {
             let cmd = [
                 "dsconf",
@@ -216,7 +218,7 @@ class USNPlugin extends React.Component {
                     .done(content => {
                         this.props.addNotification(
                             "success",
-                            `Cleanup USN Tombstones task was successfull`
+                            _("Cleanup USN Tombstones task was successfull")
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -227,7 +229,7 @@ class USNPlugin extends React.Component {
                         const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Cleanup USN Tombstones task has failed ${errMsg.desc}`
+                            cockpit.format(_("Cleanup USN Tombstones task has failed $0"), errMsg.desc)
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -251,23 +253,23 @@ class USNPlugin extends React.Component {
             <div>
                 <Modal
                     variant={ModalVariant.small}
-                    title="USN Tombstone Cleanup Task"
+                    title={_("USN Tombstone Cleanup Task")}
                     aria-labelledby="ds-modal"
                     isOpen={cleanupModalShow}
                     onClose={this.handleToggleCleanupModal}
                     actions={[
                         <Button key="confirm" variant="primary" onClick={this.handleRunCleanup}>
-                            Run
+                            {_("Run")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleToggleCleanupModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Gives the suffix in the Directory Server to run the cleanup operation against">
+                        <Grid title={_("Gives the suffix in the Directory Server to run the cleanup operation against")}>
                             <GridItem span={4}>
-                                Cleanup Suffix
+                                {_("Cleanup Suffix")}
                             </GridItem>
                             <GridItem span={8}>
                                 <FormSelect
@@ -284,9 +286,9 @@ class USNPlugin extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted">
+                        <Grid title={_("Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted")}>
                             <GridItem span={4}>
-                                Cleanup Max USN
+                                {_("Cleanup Max USN")}
                             </GridItem>
                             <GridItem span={8}>
                                 <NumberInput
@@ -321,24 +323,18 @@ class USNPlugin extends React.Component {
                         maxWidth={500}
                         content={
                             <div>
-                                The USN Plug-in enables LDAP clients and servers to identify if entries have been changed. When
-                                the USN Plug-in is enabled, update sequence numbers (USNs) are sequential numbers that are assigned
-                                to an entry whenever a write operation is performed against the entry. (Write operations include add,
-                                modify, modrdn, and delete operations. Internal database operations, like export operations, are
-                                not counted in the update sequence.) A USN counter keeps track of the most recently assigned USN.
+                                {_("The USN Plug-in enables LDAP clients and servers to identify if entries have been changed. When the USN Plug-in is enabled, update sequence numbers (USNs) are sequential numbers that are assigned to an entry whenever a write operation is performed against the entry. (Write operations include add, modify, modrdn, and delete operations. Internal database operations, like export operations, are not counted in the update sequence.) A USN counter keeps track of the most recently assigned USN.")}
                                 <br /><br />
-                                The USN plug-in also moves entries to tombstone entries when the entry is deleted. If replication is
-                                enabled, then separate tombstone entries are kept by both the USN and Replication plug-in. Note that
-                                both tombstone entries are deleted by the replication process.
+                                {_("The USN plug-in also moves entries to tombstone entries when the entry is deleted. If replication is enabled, then separate tombstone entries are kept by both the USN and Replication plug-in. Note that both tombstone entries are deleted by the replication process.")}
                             </div>
                         }
                     >
-                        <a className="ds-font-size-sm">What is the USN Plugin?</a>
+                        <a className="ds-font-size-sm">{_("What is the USN Plugin?")}</a>
                     </Tooltip>
                     <Form>
-                        <Grid className="ds-margin-top-xlg" title="Enable entryUSN assignment across all backends, instead of per backend.">
+                        <Grid className="ds-margin-top-xlg" title={_("Enable entryUSN assignment across all backends, instead of per backend.")}>
                             <GridItem span={3} className="ds-label">
-                                USN Global
+                                {_("USN Global")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Switch
@@ -349,13 +345,13 @@ class USNPlugin extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="This task deletes the tombstone entries maintained by the USN plugin.  This task should not run against a suffix that is being replicated">
+                        <Grid title={_("This task deletes the tombstone entries maintained by the USN plugin.  This task should not run against a suffix that is being replicated")}>
                             <GridItem className="ds-label ds-margin-top" span={3}>
-                                Tombstone Cleanup Task<WrenchIcon className="ds-left-margin" />
+                                {_("Tombstone Cleanup Task")}<WrenchIcon className="ds-left-margin" />
                             </GridItem>
                             <GridItem span={9}>
                                 <Button className="ds-margin-top" variant="primary" isDisabled={!this.state.pluginEnabled} onClick={this.handleToggleCleanupModal}>
-                                    Run Task
+                                    {_("Run Task")}
                                 </Button>
                             </GridItem>
                         </Grid>

@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -15,6 +16,8 @@ import {
     SortByDirection,
 } from '@patternfly/react-table';
 
+const _ = cockpit.gettext;
+
 class GroupTable extends React.Component {
     constructor(props) {
         super(props);
@@ -26,7 +29,7 @@ class GroupTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Member DN', transforms: [sortable] },
+                { title: _("Member DN"), transforms: [sortable] },
             ],
         };
         this.selectedCount = 0;
@@ -62,7 +65,7 @@ class GroupTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Members'], disableSelection: true }];
+            rows = [{ cells: [_("No Members")], disableSelection: true }];
         }
         this.setState({
             rows,
@@ -83,7 +86,7 @@ class GroupTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Members'], disableSelection: true }];
+            rows = [{ cells: [_("No Members")], disableSelection: true }];
         }
 
         this.setState({
@@ -119,12 +122,12 @@ class GroupTable extends React.Component {
     actions() {
         return [
             {
-                title: 'View Entry',
+                title: _("View Entry"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.viewEntry(rowData.cells[0])
             },
             {
-                title: 'Edit Entry',
+                title: _("Edit Entry"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editEntry(rowData.cells[0])
             },
@@ -132,7 +135,7 @@ class GroupTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Remove Entry',
+                title: _("Remove Entry"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.removeMember(rowData.cells[0])
             }
@@ -143,17 +146,17 @@ class GroupTable extends React.Component {
         const { columns, rows, perPage, page, sortBy } = this.state;
         const extraPrimaryProps = {};
         const canSelectAll = false;
-        let deleteBtnName = "Remove Selected Members";
+        let deleteBtnName = _("Remove Selected Members");
         if (this.props.saving) {
-            deleteBtnName = "Updating group ...";
-            extraPrimaryProps.spinnerAriaValueText = "Updating";
+            deleteBtnName = _("Updating group ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Updating");
         }
 
         return (
             <div className="ds-margin-top-xlg ds-indent">
                 <SearchInput
                     className="ds-margin-top"
-                    placeholder='Search Members'
+                    placeholder={_("Search Members")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -191,7 +194,7 @@ class GroupTable extends React.Component {
                     variant="primary"
                     onClick={this.props.handleShowConfirmBulkDelete}
                     isLoading={this.props.saving}
-                    spinnerAriaValueText={this.state.saving ? "Updating group ..." : undefined}
+                    spinnerAriaValueText={this.state.saving ? _("Updating group ...") : undefined}
                     {...extraPrimaryProps}
                 >
                     {deleteBtnName}

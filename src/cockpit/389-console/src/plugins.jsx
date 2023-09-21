@@ -37,6 +37,8 @@ import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
 import USNPlugin from "./lib/plugins/usn.jsx";
 import WinSync from "./lib/plugins/winsync.jsx";
 
+const _ = cockpit.gettext;
+
 export class Plugins extends React.Component {
     componentDidUpdate(prevProps) {
         if (this.props.wasActiveList.includes(5)) {
@@ -150,7 +152,7 @@ export class Plugins extends React.Component {
                             })
                             .fail(err => {
                                 const errMsg = JSON.parse(err);
-                                this.props.addNotification("error", `Failed to get objectClasses - ${errMsg.desc}`);
+                                this.props.addNotification("error", cockpit.format(_("Failed to get objectClasses - $0"), errMsg.desc));
                             });
                 });
     }
@@ -208,7 +210,7 @@ export class Plugins extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `${errMsg.desc} error during plugin loading`
+                        cockpit.format(_("$0 error during plugin loading"), errMsg.desc)
                     );
                 });
     }
@@ -259,7 +261,7 @@ export class Plugins extends React.Component {
                     basicPluginSuccess = true;
                     this.props.addNotification(
                         "success",
-                        `Plugin ${data.name} was successfully modified`
+                        cockpit.format(_("Plugin $0 was successfully modified"), data.name)
                     );
                     this.pluginList();
                     this.closePluginModal();
@@ -272,7 +274,7 @@ export class Plugins extends React.Component {
                     } else {
                         this.props.addNotification(
                             "error",
-                            `${errMsg.desc} error during ${data.name} modification`
+                            cockpit.format(_("$0 error during $1 modification"), errMsg.desc, data.name)
                         );
                     }
                     this.closePluginModal();
@@ -296,7 +298,7 @@ export class Plugins extends React.Component {
                                     if (!basicPluginSuccess) {
                                         this.props.addNotification(
                                             "success",
-                                            `Plugin ${data.name} was successfully modified`
+                                            cockpit.format(_("Plugin $0 was successfully modified"), data.name)
                                         );
                                     }
                                     this.pluginList();
@@ -312,13 +314,13 @@ export class Plugins extends React.Component {
                                         if (basicPluginSuccess) {
                                             this.props.addNotification(
                                                 "success",
-                                                `Plugin ${data.name} was successfully modified`
+                                                cockpit.format(_("Plugin $0 was successfully modified"), data.name)
                                             );
                                             this.pluginList();
                                         }
                                         this.props.addNotification(
                                             "error",
-                                            `${errMsg.desc} error during ${data.name} modification`
+                                            cockpit.format(_("$0 error during $1 modification"), errMsg.desc, data.name)
                                         );
                                     }
                                     this.toggleLoading();
@@ -368,8 +370,7 @@ export class Plugins extends React.Component {
                     this.pluginList();
                     this.props.addNotification(
                         "warning",
-                        `${this.state.togglePluginName} plugin was successfully set to "${new_status}".
-                        Please, restart the instance.`
+                        cockpit.format(_("$0 plugin was successfully set to $1. Please, restart the instance."), this.state.togglePluginName, new_status)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -380,7 +381,7 @@ export class Plugins extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during ${this.state.togglePluginName} plugin modification - ${errMsg.desc}`
+                        cockpit.format(_("Error during $0 plugin modification - $1"), this.state.togglePluginName, errMsg.desc)
                     );
                     // toggleLoadingHandler();
                     this.setState({
@@ -394,9 +395,9 @@ export class Plugins extends React.Component {
         const pluginRow = this.state.rows.find(row => row.cn[0] === plugin_name);
         if (pluginRow) {
             if (pluginRow['nsslapd-pluginEnabled'][0] === "on") {
-                return <div className="ds-ok-icon"><CheckCircleIcon title="Plugin is enabled" className="ds-icon-sm" />{name}</div>;
+                return <div className="ds-ok-icon"><CheckCircleIcon title={_("Plugin is enabled")} className="ds-icon-sm" />{name}</div>;
             } else {
-                return <div className="ds-disabled-icon"><BanIcon title="Plugin is disabled" className="ds-icon-sm" />{name}</div>;
+                return <div className="ds-disabled-icon"><BanIcon title={_("Plugin is disabled")} className="ds-icon-sm" />{name}</div>;
             }
         } else {
             // Might be attribute uniqueness that just has individual entries
@@ -404,12 +405,12 @@ export class Plugins extends React.Component {
             if (otherRows.length > 0) {
                 for (const plugin of otherRows) {
                     if (plugin['nsslapd-pluginEnabled'][0] === "on") {
-                        return <div className="ds-ok-icon"><CheckCircleIcon title="Plugin is enabled" className="ds-icon-sm" />{name}</div>;
+                        return <div className="ds-ok-icon"><CheckCircleIcon title={_("Plugin is enabled")} className="ds-icon-sm" />{name}</div>;
                     }
                 }
-                return <div className="ds-disabled-icon"><BanIcon title="Plugin is disabled" className="ds-icon-sm" />{name}</div>;
+                return <div className="ds-disabled-icon"><BanIcon title={_("Plugin is disabled")} className="ds-icon-sm" />{name}</div>;
             } else {
-                return <div className="ds-disabled-icon"><ResourcesEmptyIcon title="Plugin is not configured" className="ds-icon-sm" />{name}</div>;
+                return <div className="ds-disabled-icon"><ResourcesEmptyIcon title={_("Plugin is not configured")} className="ds-icon-sm" />{name}</div>;
             }
         }
     }
@@ -418,7 +419,7 @@ export class Plugins extends React.Component {
         const selectPlugins = {
             allPlugins: {
                 name: "All Plugins",
-                icon: <div><ListIcon className="ds-icon-sm" />All Plugins</div>,
+                icon: <div><ListIcon className="ds-icon-sm" />{_("All Plugins")}</div>,
                 component: (
                     <PluginTable
                         key={this.state.pluginTableKey}
@@ -668,7 +669,7 @@ export class Plugins extends React.Component {
                 <div className="ds-margin-top-xlg ds-center" hidden={!this.state.firstLoad}>
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading Plugins ...
+                            {_("Loading Plugins ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />
@@ -703,16 +704,16 @@ export class Plugins extends React.Component {
                         spinning={this.state.modalSpinning}
                         item={this.state.togglePluginName}
                         checked={this.state.modalChecked}
-                        mTitle={this.state.togglePluginEnabled ? "Disable Plugin" : "Enable Plugin"}
+                        mTitle={this.state.togglePluginEnabled ? _("Disable Plugin") : _("Enable Plugin")}
                         mMsg={this.state.togglePluginEnabled
-                            ? "Are you really sure you want to disable this plugin?  Disabling some plugins can cause the server to not start, please use caution."
-                            : "Are you sure you want to enable this plugin?"}
+                            ? _("Are you really sure you want to disable this plugin?  Disabling some plugins can cause the server to not start, please use caution.")
+                            : _("Are you sure you want to enable this plugin?")}
                         mSpinningMsg={this.state.togglePluginEnabled
-                            ? "Disabling plugin ..."
-                            : "Enabling plugin ..."}
+                            ? _("Disabling plugin ...")
+                            : _("Enabling plugin ...")}
                         mBtnName={this.state.togglePluginEnabled
-                            ? "Disable Plugin"
-                            : "Enable Plugin"}
+                            ? _("Disable Plugin")
+                            : _("Enable Plugin")}
                     />
                 </div>
             </div>

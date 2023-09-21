@@ -24,6 +24,8 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class VLVIndexes extends React.Component {
     constructor (props) {
         super(props);
@@ -184,7 +186,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        "Successfully added VLV sort index"
+                        _("Successfully added VLV sort index")
                     );
                     this.setState({
                         updating: false,
@@ -196,7 +198,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to add VLV index entry - ${errMsg.desc}`
+                        cockpit.format(_("Failed to add VLV index entry - $0"), errMsg.desc)
                     );
                     this.setState({
                         updating: false,
@@ -238,7 +240,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        "Successfully removed VLV sort index"
+                        _("Successfully removed VLV sort index")
                     );
                     this.setState({
                         updating: false,
@@ -251,7 +253,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete VLV sort index - ${errMsg.desc}`
+                        cockpit.format(_("Failed to delete VLV sort index - $0"), errMsg.desc)
                     );
                     this.setState({
                         updating: false,
@@ -282,7 +284,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        "Successfully added VLV search: " + this.state.vlvName
+                        _("Successfully added VLV search: ") + this.state.vlvName
                     );
                     this.setState({
                         saving: false
@@ -293,7 +295,7 @@ export class VLVIndexes extends React.Component {
                     this.closeVLVModal();
                     this.props.addNotification(
                         "error",
-                        `Failed create VLV search entry - ${errMsg.desc}`
+                        cockpit.format(_("Failed create VLV search entry - $0"), errMsg.desc)
                     );
                     this.setState({
                         saving: false
@@ -329,7 +331,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        `Successfully deleted VLV index`
+                        _("Successfully deleted VLV index")
                     );
                     this.setState({
                         modalSpinning: false
@@ -340,7 +342,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to deletre VLV index - ${errMsg.desc}`
+                        cockpit.format(_("Failed to deletre VLV index - $0"), errMsg.desc)
                     );
                     this.setState({
                         modalSpinning: false
@@ -376,7 +378,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        `Successfully completed VLV indexing`
+                        _("Successfully completed VLV indexing")
                     );
                     this.setState({
                         modalSpinning: false
@@ -387,7 +389,7 @@ export class VLVIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to index VLV index - ${errMsg.desc}`
+                        cockpit.format(_("Failed to index VLV index - $0"), errMsg.desc)
                     );
                     this.setState({
                         modalSpinning: false
@@ -424,7 +426,7 @@ export class VLVIndexes extends React.Component {
                     variant="primary"
                     onClick={this.handleShowVLVModal}
                 >
-                    Create VLV Index
+                    {_("Create VLV Index")}
                 </Button>
                 <AddVLVIndexModal
                     showModal={this.state.showCreateSortIndex}
@@ -461,10 +463,10 @@ export class VLVIndexes extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteVLVName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete VLV Index"
-                    mMsg="Are you sure you want to delete this VLV index??"
-                    mSpinningMsg="Deleting Index ..."
-                    mBtnName="Delete Index"
+                    mTitle={_("Delete VLV Index")}
+                    mMsg={_("Are you sure you want to delete this VLV index??")}
+                    mSpinningMsg={_("Deleting Index ...")}
+                    mBtnName={_("Delete Index")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
@@ -474,10 +476,10 @@ export class VLVIndexes extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.reindexVLVName}
                     checked={this.state.modalChecked}
-                    mTitle="Reindex VLV Index"
-                    mMsg="Are you sure you want to reindex this VLV index??"
-                    mSpinningMsg="Reindex ..."
-                    mBtnName="Reindex"
+                    mTitle={_("Reindex VLV Index")}
+                    mMsg={_("Are you sure you want to reindex this VLV index??")}
+                    mSpinningMsg={_("Reindex ...")}
+                    mBtnName={_("Reindex")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteSortIndexConfirm}
@@ -487,10 +489,10 @@ export class VLVIndexes extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteIndexName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete VLV Sort Index"
-                    mMsg="Are you really sure you want to delete this sorting index?"
-                    mSpinningMsg="Deleting Index ..."
-                    mBtnName="Delete Index"
+                    mTitle={_("Delete VLV Sort Index")}
+                    mMsg={_("Are you really sure you want to delete this sorting index?")}
+                    mSpinningMsg={_("Deleting Index ...")}
+                    mBtnName={_("Delete Index")}
                 />
             </div>
         );
@@ -548,18 +550,18 @@ class AddVLVIndexModal extends React.Component {
             attrs,
             saving,
         } = this.props;
-        let saveBtnName = "Create Sort Index";
+        let saveBtnName = _("Create Sort Index");
         const extraPrimaryProps = {};
         if (this.props.saving) {
-            saveBtnName = "Creating Index ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Creating Index ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
                 aria-labelledby="ds-modal"
-                title="Create VLV Sort Index"
+                title={_("Create VLV Sort Index")}
                 isOpen={showModal}
                 onClose={this.props.handleClose}
                 className={this.state.isVLVSortOpen ? "ds-modal-select-tall" : "ds-modal-select"}
@@ -571,25 +573,25 @@ class AddVLVIndexModal extends React.Component {
                             this.props.handleSave(this.state.sortValue);
                         }}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        spinnerAriaValueText={saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.state.sortValue.length === 0 || saving}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={this.props.handleClose}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={12}>
-                            Build a list of attributes to form the "Sort" index
+                            {_("Build a list of attributes to form the \"Sort\" index")}
                         </GridItem>
                         <Select
                             variant={SelectVariant.typeaheadMulti}
-                            typeAheadAriaLabel="Type an attribute names to create a sort index"
+                            typeAheadAriaLabel={_("Type an attribute names to create a sort index")}
                             className="ds-margin-top-lg"
                             onToggle={this.handleVLVSortToggle}
                             onClear={this.handleVLVSortClear}
@@ -598,8 +600,8 @@ class AddVLVIndexModal extends React.Component {
                             selections={this.state.sortValue}
                             isOpen={this.state.isVLVSortOpen}
                             aria-labelledby="typeAhead-vlv-sort-index"
-                            placeholderText="Type an attribute name ..."
-                            noResultsFoundText="There are no matching entries"
+                            placeholderText={_("Type an attribute name ...")}
+                            noResultsFoundText={_("There are no matching entries")}
                         >
                             {attrs.map((attr, index) => (
                                 <SelectOption
@@ -615,7 +617,7 @@ class AddVLVIndexModal extends React.Component {
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label="Reindex After Saving"
+                                label={_("Reindex After Saving")}
                             />
                         </GridItem>
                     </Grid>
@@ -636,18 +638,18 @@ class AddVLVModal extends React.Component {
             error,
             saving
         } = this.props;
-        let saveBtnName = "Save VLV Index";
+        let saveBtnName = _("Save VLV Index");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Saving Index ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving Index ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
                 aria-labelledby="ds-modal"
-                title="Create VLV Search Index"
+                title={_("Create VLV Search Index")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -656,21 +658,21 @@ class AddVLVModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        spinnerAriaValueText={saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.props.saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={2}>
-                            VLV Index Name
+                            {_("VLV Index Name")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -688,7 +690,7 @@ class AddVLVModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={2}>
-                            Search Base
+                            {_("Search Base")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -706,7 +708,7 @@ class AddVLVModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={2}>
-                            Search Filter
+                            {_("Search Filter")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -724,7 +726,7 @@ class AddVLVModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={2}>
-                            Search Scope
+                            {_("Search Scope")}
                         </GridItem>
                         <GridItem span={10}>
                             <FormSelect
@@ -745,11 +747,7 @@ class AddVLVModal extends React.Component {
                         <GridItem offset={1} className="ds-margin-top-lg ds-margin-bottom" span={10}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    After creating this VLV Search entry you can go to
-                                    the table and add VLV Sort Indexes to this VLV
-                                    Search.  After adding the Sort Indexes you will
-                                    need to <i>reindex</i> the VLV Index to make it
-                                    active.
+                                    {_("After creating this VLV Search entry you can go to the table and add VLV Sort Indexes to this VLV Search.  After adding the Sort Indexes you will need to <i>reindex</i> the VLV Index to make it active.")}
                                 </Text>
                             </TextContent>
                         </GridItem>

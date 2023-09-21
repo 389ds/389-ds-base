@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -29,6 +30,8 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icon
 import PropTypes from "prop-types";
 import { bad_file_name, validHostname } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 export class ExportCertModal extends React.Component {
     render() {
         const {
@@ -43,15 +46,15 @@ export class ExportCertModal extends React.Component {
             spinning,
         } = this.props;
 
-        let exportBtnName = "Export Certificate";
+        let exportBtnName = _("Export Certificate");
         const extraPrimaryProps = {};
         if (spinning) {
-            exportBtnName = "Exporting Certificate ...";
-            extraPrimaryProps.spinnerAriaValueText = "Exporting";
+            exportBtnName = _("Exporting Certificate ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Exporting");
         }
 
-        const title = <>Export Certificate: &nbsp;&nbsp;<i>{nickName}</i></>;
-        const desc = <>Enter the full path and file name, if the path portion is omitted the cetificate is written to the server's certificate directory <i>{certDir}</i></>;
+        const title = <>{_("Export Certificate:")} &nbsp;&nbsp;<i>{nickName}</i></>;
+        const desc = <>{_("Enter the full path and file name, if the path portion is omitted the cetificate is written to the server's certificate directory ")}<i>{certDir}</i></>;
 
         return (
             <Modal
@@ -66,14 +69,14 @@ export class ExportCertModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Exporting" : undefined}
+                        spinnerAriaValueText={spinning ? _("Exporting") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={fileName === "" || spinning}
                     >
                         {exportBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -85,12 +88,12 @@ export class ExportCertModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Certificate File Name
+                            {_("Certificate File Name")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
                                 type="text"
-                                title="Enter full path to and and including certificate file name"
+                                title={_("Enter full path to and and including certificate file name")}
                                 id="exportFileName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="exportFileName"
@@ -101,11 +104,11 @@ export class ExportCertModal extends React.Component {
                             />
                         </GridItem>
                         <GridItem
-                            title="Export certificate in its binary format.  Otherwise a PEM file is created."
+                            title={_("Export certificate in its binary format.  Otherwise a PEM file is created.")}
                             className="ds-margin-top-lg" span={12}
                         >
                             <Checkbox
-                                label="Export Certificate In Binary/DER Format"
+                                label={_("Export Certificate In Binary/DER Format")}
                                 isChecked={binaryFormat}
                                 onChange={(checked, e) => {
                                     handleChange(e);
@@ -154,11 +157,11 @@ export class SecurityAddCertModal extends React.Component {
             isCACert,
         } = this.props;
 
-        let saveBtnName = "Add Certificate";
+        let saveBtnName = _("Add Certificate");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Adding Certificate ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Adding Certificate ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         const certTextLabel = (
@@ -166,24 +169,20 @@ export class SecurityAddCertModal extends React.Component {
                 <Tooltip
                     content={
                         <div>
-                            Paste the base64 encoded certificate that
-                            starts with "-----BEGIN CERTIFICATE-----"
-                            and ends with "-----END CERTIFICATE-----".
-                            Make sure there are no special carriage return
-                            characters after each line.
+                            {_("Paste the base64 encoded certificate that starts with \"-----BEGIN CERTIFICATE-----\" and ends with \"-----END CERTIFICATE-----\".  Make sure there are no special carriage return characters after each line.")}
                         </div>
                     }
                 >
-                    <div>Upload PEM File, or Certificate Text <OutlinedQuestionCircleIcon /></div>
+                    <div>{_("Upload PEM File, or Certificate Text")} <OutlinedQuestionCircleIcon /></div>
                 </Tooltip>
             </div>
         );
 
-        let title = "Add Server Certificate";
-        let desc = "Add a Server Certificate to the security database.";
+        let title = _("Add Server Certificate");
+        let desc = _("Add a Server Certificate to the security database.");
         if (isCACert) {
-            title = "Add Certificate Authority";
-            desc = "Add a CA Certificate to the security database.";
+            title = _("Add Certificate Authority");
+            desc = _("Add a CA Certificate to the security database.");
         }
 
         let selectValidated = ValidatedOptions.default;
@@ -206,7 +205,7 @@ export class SecurityAddCertModal extends React.Component {
                             saveHandler(isCACert);
                         }}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={
                             certName === "" || (certRadioFile && certFile === "") ||
@@ -217,7 +216,7 @@ export class SecurityAddCertModal extends React.Component {
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -229,10 +228,10 @@ export class SecurityAddCertModal extends React.Component {
                     </TextContent>
                     <Grid
                         className="ds-margin-top-lg"
-                        title="Enter name/nickname of the certificate"
+                        title={_("Enter name/nickname of the certificate")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            Certificate Nickname
+                            {_("Certificate Nickname")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -249,7 +248,7 @@ export class SecurityAddCertModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem span={12}>
-                            <div title="Upload the contents of a PEM file from the client's system.">
+                            <div title={_("Upload the contents of a PEM file from the client's system.")}>
                                 <Radio
                                     id="certRadioUpload"
                                     label={certTextLabel}
@@ -264,7 +263,7 @@ export class SecurityAddCertModal extends React.Component {
                                     type="text"
                                     value={uploadValue}
                                     filename={uploadFileName}
-                                    filenamePlaceholder="Drag and drop a file, or upload one"
+                                    filenamePlaceholder={_("Drag and drop a file, or upload one")}
                                     onFileInputChange={handleFileInputChange}
                                     onDataChange={handleTextOrDataChange}
                                     onTextChange={handleTextOrDataChange}
@@ -283,14 +282,14 @@ export class SecurityAddCertModal extends React.Component {
                                             ? 'error'
                                             : 'default'
                                     }
-                                    browseButtonText="Upload PEM File"
+                                    browseButtonText={_("Upload PEM File")}
                                 />
                             </div>
-                            <div title="Choose a cerificate from the server's certificate directory">
+                            <div title={_("Choose a cerificate from the server's certificate directory")}>
                                 <Radio
                                     id="certRadioSelect"
                                     className="ds-margin-top-lg"
-                                    label="Choose Cerificate From Server"
+                                    label={_("Choose Cerificate From Server")}
                                     name="certChoice"
                                     isChecked={certRadioSelect}
                                     onChange={handleRadioChange}
@@ -309,7 +308,7 @@ export class SecurityAddCertModal extends React.Component {
                                         <FormSelectOption
                                             key="none"
                                             value=""
-                                            label="No certificates present"
+                                            label={_("No certificates present")}
                                             isDisabled
                                             isPlaceholder
                                         />}
@@ -322,11 +321,11 @@ export class SecurityAddCertModal extends React.Component {
                                     ))}
                                 </FormSelect>
                             </div>
-                            <div title="Enter the full path on the server to and including the certificate file name">
+                            <div title={_("Enter the full path on the server to and including the certificate file name")}>
                                 <Radio
                                     id="certRadioFile"
                                     className="ds-margin-top-lg"
-                                    label="Certificate File Location"
+                                    label={_("Certificate File Location")}
                                     name="certChoice"
                                     isChecked={certRadioFile}
                                     onChange={handleRadioChange}
@@ -370,11 +369,11 @@ export class SecurityAddCSRModal extends React.Component {
             error
         } = this.props;
 
-        let saveBtnName = "Create Certificate Signing Request";
+        let saveBtnName = _("Create Certificate Signing Request");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Creating Certificate Signing Request ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Creating Certificate Signing Request ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         let validAltNames = true;
@@ -394,7 +393,7 @@ export class SecurityAddCSRModal extends React.Component {
             <Modal
                 variant={ModalVariant.medium}
                 aria-labelledby="ds-modal"
-                title="Create Certificate Signing Request"
+                title={_("Create Certificate Signing Request")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -403,25 +402,25 @@ export class SecurityAddCSRModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={error.csrName || bad_file_name(csrName) || error.csrSubjectCommonName || spinning || !validAltNames}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form className="ds-margin-top" isHorizontal autoComplete="off">
-                    <Grid title="CSR Name">
+                    <Grid title={_("CSR Name")}>
                         <GridItem className="ds-label" span={3}>
-                            Name
+                            {_("Name")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="Name used to identify a CSR"
+                                title={_("Name used to identify a CSR")}
                                 type="text"
                                 id="csrName"
                                 aria-describedby="horizontal-form-name-helper"
@@ -433,9 +432,9 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="CSR Subject alternative host names">
+                    <Grid title={_("CSR Subject alternative host names")}>
                         <GridItem className="ds-label" span={3}>
-                            Subject Alternative Names
+                            {_("Subject Alternative Names")}
                         </GridItem>
                         <GridItem span={9}>
                             <Select
@@ -445,7 +444,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 onSelect={handleOnSelect}
                                 selections={csrAltNames}
                                 aria-labelledby="typeAhead-alt-names"
-                                placeholderText="Type an alternative host name"
+                                placeholderText={_("Type an alternative host name")}
                                 isOpen={csrIsSelectOpen}
                                 isCreatable
                                 isCreateOptionOnTop
@@ -461,19 +460,19 @@ export class SecurityAddCSRModal extends React.Component {
                             </Select>
                             <div className={validAltNames ? "ds-hidden" : ""}>
                                 <HelperText>
-                                    <HelperTextItem variant="error">Invalid host names: {invalidNames}</HelperTextItem>
+                                    <HelperTextItem variant="error">{_("Invalid host names: ")}{invalidNames}</HelperTextItem>
                                 </HelperText>
                             </div>
                         </GridItem>
                     </Grid>
                     <Divider />
-                    <Grid title="CSR Subject: Common Name">
+                    <Grid title={_("CSR Subject: Common Name")}>
                         <GridItem className="ds-label" span={3}>
-                            Common Name (CN)
+                            {_("Common Name (CN)")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="The fully qualified domain name (FQDN) of your server"
+                                title={_("The fully qualified domain name (FQDN) of your server")}
                                 type="text"
                                 id="csrSubjectCommonName"
                                 aria-describedby="horizontal-form-name-helper"
@@ -485,13 +484,13 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="CSR Subject: Organisation">
+                    <Grid title={_("CSR Subject: Organisation")}>
                         <GridItem className="ds-label" span={3}>
-                            Organization (O)
+                            {_("Organization (O)")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="The legal name of your organization"
+                                title={_("The legal name of your organization")}
                                 type="text"
                                 id="csrSubjectOrg"
                                 aria-describedby="horizontal-form-name-helper"
@@ -502,13 +501,13 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="CSR Subject: Organisational Unit">
+                    <Grid title={_("CSR Subject: Organisational Unit")}>
                         <GridItem className="ds-label" span={3}>
-                            Organizational Unit (OU)
+                            {_("Organizational Unit (OU)")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="The division of your organization handling the certificate"
+                                title={_("The division of your organization handling the certificate")}
                                 type="text"
                                 id="csrSubjectOrgUnit"
                                 aria-describedby="horizontal-form-name-helper"
@@ -519,13 +518,13 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="CSR Subject: City/Locality">
+                    <Grid title={_("CSR Subject: City/Locality")}>
                         <GridItem className="ds-label" span={3}>
-                            City/Locality (L)
+                            {_("City/Locality (L)")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="The city where your organization is located"
+                                title={_("The city where your organization is located")}
                                 type="text"
                                 id="csrSubjectLocality"
                                 aria-describedby="horizontal-form-name-helper"
@@ -536,13 +535,13 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="CSR Subject: State/Region">
+                    <Grid title={_("CSR Subject: State/Region")}>
                         <GridItem className="ds-label" span={3}>
-                            State/County/Region (ST)
+                            {_("State/County/Region (ST)")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="The state/region where your organization is located"
+                                title={_("The state/region where your organization is located")}
                                 type="text"
                                 id="csrSubjectState"
                                 aria-describedby="horizontal-form-name-helper"
@@ -553,13 +552,13 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="CSR Subject: Country Code">
+                    <Grid title={_("CSR Subject: Country Code")}>
                         <GridItem className="ds-label" span={3}>
-                            Country Code (C)
+                            {_("Country Code (C)")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="Two-letter country code where organization is located"
+                                title={_("Two-letter country code where organization is located")}
                                 type="text"
                                 id="csrSubjectCountry"
                                 aria-describedby="horizontal-form-name-helper"
@@ -570,13 +569,13 @@ export class SecurityAddCSRModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="CSR Subject: Email Address">
+                    <Grid title={_("CSR Subject: Email Address")}>
                         <GridItem className="ds-label" span={3}>
-                            Email Address
+                            {_("Email Address")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="Email address used to contact your organization"
+                                title={_("Email address used to contact your organization")}
                                 type="text"
                                 id="csrSubjectEmail"
                                 aria-describedby="horizontal-form-name-helper"
@@ -590,7 +589,7 @@ export class SecurityAddCSRModal extends React.Component {
                     <Divider />
                     <Grid>
                         <GridItem span={3}>
-                            Computed Subject
+                            {_("Computed Subject")}
                         </GridItem>
                         <GridItem span={9}>
                             <b>{previewValue}</b>
@@ -620,15 +619,15 @@ export class SecurityViewCSRModal extends React.Component {
                 onClose={closeHandler}
                 actions={[
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
-                <TextContent title="CSR content">
+                <TextContent title={_("CSR content")}>
                     <Text component={TextVariants.pre}>
                         <Text component={TextVariants.small}>
-                            <ClipboardCopy hoverTip="Copy to clipboard" clickTip="Copied" variant={ClipboardCopyVariant.expansion} isBlock>
-                                {item || "Nothing to display"}
+                            <ClipboardCopy hoverTip={_("Copy to clipboard")} clickTip="Copied" variant={ClipboardCopyVariant.expansion} isBlock>
+                                {item || _("Nothing to display")}
                             </ClipboardCopy>
                         </Text>
                     </Text>
@@ -656,18 +655,18 @@ export class SecurityEnableModal extends React.Component {
             certNames.push(cert.attrs.nickname);
         }
 
-        let saveBtnName = "Enable Security";
+        let saveBtnName = _("Enable Security");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Enabling Security ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Enabling Security ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
             <Modal
                 variant={ModalVariant.small}
                 aria-labelledby="ds-modal"
-                title="Enable Security"
+                title={_("Enable Security")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -676,29 +675,27 @@ export class SecurityEnableModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={spinning}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h4}>
-                            You are choosing to enable security for the Directory Server which
-                            allows the server to accept incoming client TLS connections.  Please
-                            select which certificate the server should use.
+                            {_("You are choosing to enable security for the Directory Server which allows the server to accept incoming client TLS connections.  Please select which certificate the server should use.")}
                         </Text>
                     </TextContent>
                     <hr />
-                    <Grid className="ds-margin-top" title="The server certificates the Directory Server can use">
+                    <Grid className="ds-margin-top" title={_("The server certificates the Directory Server can use")}>
                         <GridItem className="ds-label" span={4}>
-                            Available Certificates
+                            {_("Available Certificates")}
                         </GridItem>
                         <GridItem sm={8}>
                             <FormSelect
@@ -732,11 +729,11 @@ export class EditCertModal extends React.Component {
             spinning
         } = this.props;
 
-        let saveBtnName = "Save Flags";
+        let saveBtnName = _("Save Flags");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Saving flags ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving flags ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         // Process the cert flags
@@ -820,7 +817,7 @@ export class EditCertModal extends React.Component {
             }
         }
 
-        const title = "Edit Certificate Trust Flags (" + this.props.flags + ")";
+        const title = _("Edit Certificate Trust Flags (") + this.props.flags + ")";
 
         return (
             <Modal
@@ -835,33 +832,33 @@ export class EditCertModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.props.disableSaveBtn || spinning}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Grid className="ds-margin-top">
                     <GridItem span={6}>
-                        Flags
+                        {_("Flags")}
                     </GridItem>
                     <GridItem span={2}>
-                        SSL
+                        {_("SSL")}
                     </GridItem>
                     <GridItem span={2}>
-                        Email
+                        {_("Email")}
                     </GridItem>
                     <GridItem span={2}>
-                        Object Signing
+                        {_("Object Signing")}
                     </GridItem>
                     <hr />
-                    <GridItem span={6} title="Trusted CA (flag 'C', also implies 'c' flag)">
-                        (C) - Trusted CA
+                    <GridItem span={6} title={_("Trusted CA (flag 'C', also implies 'c' flag)")}>
+                        {_("(C) - Trusted CA")}
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
@@ -891,8 +888,8 @@ export class EditCertModal extends React.Component {
                         />
                     </GridItem>
 
-                    <GridItem span={6} title="Trusted CA for client authentication (flag 'T')">
-                        (T) - Trusted CA Client Auth
+                    <GridItem span={6} title={_("Trusted CA for client authentication (flag 'T')")}>
+                        {_("(T) - Trusted CA Client Auth")}
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
@@ -922,8 +919,8 @@ export class EditCertModal extends React.Component {
                         />
                     </GridItem>
 
-                    <GridItem span={6} title="Valid CA (flag 'c')">
-                        (c) - Valid CA
+                    <GridItem span={6} title={_("Valid CA (flag 'c')")}>
+                        {_("(c) - Valid CA")}
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
@@ -953,8 +950,8 @@ export class EditCertModal extends React.Component {
                         />
                     </GridItem>
 
-                    <GridItem span={6} title="Trusted Peer (flag 'P', implies flag 'p')">
-                        (P) - Trusted Peer
+                    <GridItem span={6} title={_("Trusted Peer (flag 'P', implies flag 'p')")}>
+                        {_("(P) - Trusted Peer")}
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
@@ -984,8 +981,8 @@ export class EditCertModal extends React.Component {
                         />
                     </GridItem>
 
-                    <GridItem span={6} title="Valid Peer (flag 'p')">
-                        (p) - Valid Peer
+                    <GridItem span={6} title={_("Valid Peer (flag 'p')")}>
+                        {_("(p) - Valid Peer")}
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox
@@ -1015,8 +1012,8 @@ export class EditCertModal extends React.Component {
                         />
                     </GridItem>
                     <hr />
-                    <GridItem span={6} title="A private key is associated with the certificate. This is a dynamic flag and you cannot adjust it.">
-                        (u) - Private Key
+                    <GridItem span={6} title={_("A private key is associated with the certificate. This is a dynamic flag and you cannot adjust it.")}>
+                        {_("(u) - Private Key")}
                     </GridItem>
                     <GridItem span={2}>
                         <Checkbox

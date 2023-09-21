@@ -37,43 +37,41 @@ import {
 } from "@patternfly/react-core";
 import { CaretDownIcon } from '@patternfly/react-icons/dist/esm/icons/caret-down-icon';
 
+const _ = cockpit.gettext;
+
 const staticStates = {
     noPackage: (
         <TextContent>
             <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
-                There is no <b>389-ds-base</b> package installed on this system. Sorry there is nothing
-                to manage...
+                {_("There is no <b>389-ds-base</b> package installed on this system. Sorry there is nothing to manage...")}
             </Text>
         </TextContent>
     ),
     noInsts: (
         <TextContent>
             <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
-                There are no Directory Server instances to manage
+                {_("There are no Directory Server instances to manage")}
             </Text>
         </TextContent>
     ),
     notRunning: (
         <TextContent>
             <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
-                This server instance is not running, either start it from the <b>Actions</b> dropdown
-                menu, or choose a different instance
+                {_("This server instance is not running, either start it from the <b>Actions</b> dropdown menu, or choose a different instance")}
             </Text>
         </TextContent>
     ),
     notConnecting: (
         <TextContent>
             <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
-                This server instance is running, but we can not connect to it. Check LDAPI is properly
-                configured on this instance.
+                {_("This server instance is running, but we can not connect to it. Check LDAPI is properly configured on this instance.")}
             </Text>
         </TextContent>
     ),
     ldapiIssue: (
         <TextContent>
             <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
-                Problem accessing required server configuration. Check LDAPI is properly
-                configured on this instance.
+                {_("Problem accessing required server configuration. Check LDAPI is properly configured on this instance.")}
             </Text>
         </TextContent>
     )
@@ -258,7 +256,7 @@ export class DSInstance extends React.Component {
                                     log_cmd("setServerId", "Test if instance is alive ", cmd);
                                     cockpit
                                             .spawn(cmd, { superuser: true, err: "message" })
-                                            .done(_ => {
+                                            .done(() => {
                                                 this.updateProgress(25);
                                                 this.setState(
                                                     {
@@ -504,16 +502,16 @@ export class DSInstance extends React.Component {
         log_cmd("removeInstance", `Remove the instance`, cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
-                .done(_ => {
+                .done(() => {
                     this.loadInstanceList();
-                    this.addNotification("success", "Instance was successfully removed");
+                    this.addNotification("success", _("Instance was successfully removed"));
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.loadInstanceList();
                     this.addNotification(
                         "error",
-                        `Error during instance remove operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during instance remove operation - $0"), errMsg.desc)
                     );
                 });
         this.closeDeleteConfirm();
@@ -531,12 +529,12 @@ export class DSInstance extends React.Component {
                 .done(status_data => {
                     const status_json = JSON.parse(status_data);
                     if (status_json.running && action === "start") {
-                        this.addNotification("success", `Instance is already running`);
+                        this.addNotification("success", _("Instance is already running"));
                         this.setState({
                             loadingOperate: false
                         });
                     } else if (!status_json.running && action === "stop") {
-                        this.addNotification("success", `Instance is already stopped`);
+                        this.addNotification("success", _("Instance is already stopped"));
                         this.setState({
                             loadingOperate: false,
                             pageLoadingState: {
@@ -549,18 +547,18 @@ export class DSInstance extends React.Component {
                         log_cmd("operateInstance", `Do ${action} the instance`, cmd);
                         cockpit
                                 .spawn(cmd, { superuser: true, err: "message" })
-                                .done(_ => {
+                                .done(() => {
                                     this.loadInstanceList(this.state.serverId, action);
                                     if (action === "stop") {
                                         action = "stopp"; // Fixes typo in notification
                                     }
-                                    this.addNotification("success", `Instance was successfully ${action}ed`);
+                                    this.addNotification("success", cockpit.format(_("Instance was successfully $0"), action));
                                 })
                                 .fail(err => {
                                     const errMsg = JSON.parse(err);
                                     this.addNotification(
                                         "error",
-                                        `Error during instance ${action} operation - ${errMsg.desc}`
+                                        cockpit.format(_("Error during instance $0 operation - $1"), action, errMsg.desc)
                                     );
                                     this.loadInstanceList(this.state.serverId, action);
                                 });
@@ -570,7 +568,7 @@ export class DSInstance extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Error during instance check status operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during instance check status operation - $0"), errMsg.desc)
                     );
                     this.loadInstanceList(this.state.serverId, action);
                 });
@@ -644,26 +642,26 @@ export class DSInstance extends React.Component {
 
         const dropdownItems = [
             <DropdownItem id="start-ds" key="start" component="button" onClick={() => (this.operateInstance("start"))}>
-                Start Instance
+                {_("Start Instance")}
             </DropdownItem>,
             <DropdownItem id="stop-ds" key="stop" component="button" onClick={() => (this.operateInstance("stop"))}>
-                Stop Instance
+                {_("Stop Instance")}
             </DropdownItem>,
             <DropdownItem id="restart-ds" key="restart" component="button" onClick={() => (this.operateInstance("restart"))}>
-                Restart Instance
+                {_("Restart Instance")}
             </DropdownItem>,
             <DropdownItem id="manage-backup-ds" key="backups" component="button" onClick={() => (this.openManageBackupsModal())}>
-                Manage Backups
+                {_("Manage Backups")}
             </DropdownItem>,
             <DropdownItem id="reload-schema-ds" key="reload" component="button" onClick={() => (this.openSchemaReloadModal())}>
-                Reload Schema Files
+                {_("Reload Schema Files")}
             </DropdownItem>,
             <DropdownSeparator key="separator" />,
             <DropdownItem id="remove-ds" key="remove" component="button" onClick={() => (this.showDeleteConfirm())}>
-                Remove This Instance
+                {_("Remove This Instance")}
             </DropdownItem>,
             <DropdownItem id="create-ds" key="create" component="button" onClick={() => (this.openCreateInstanceModal())}>
-                Create New Instance
+                {_("Create New Instance")}
             </DropdownItem>
         ];
 
@@ -674,7 +672,7 @@ export class DSInstance extends React.Component {
                     <div id="loading-page" className="ds-center ds-loading">
                         <TextContent>
                             <Text id="loading-msg" component={TextVariants.h3}>
-                                Loading Directory Server Configuration ...
+                                {_("Loading Directory Server Configuration ...")}
                             </Text>
                         </TextContent>
                         <p className="ds-margin-top-lg">
@@ -696,7 +694,7 @@ export class DSInstance extends React.Component {
                             variant="primary"
                             onClick={() => (this.openCreateInstanceModal())}
                         >
-                            Create New Instance
+                            {_("Create New Instance")}
                         </Button>
                     </p>
                 </div>
@@ -726,7 +724,7 @@ export class DSInstance extends React.Component {
                             <Text id="main-banner" component={TextVariants.h1}>
                                 <div className="ds-server-action">
                                     <FormSelect
-                                        title="Directory Server instance list"
+                                        title={_("Directory Server instance list")}
                                         value={serverId}
                                         id="serverId"
                                         onChange={this.handleServerIdChange}
@@ -755,7 +753,7 @@ export class DSInstance extends React.Component {
                             onSelect={this.handleDropdown}
                             toggle={
                                 <DropdownToggle onToggle={this.handleToggle} toggleIndicator={CaretDownIcon} isPrimary id="ds-dropdown">
-                                    Actions
+                                    {_("Actions")}
                                 </DropdownToggle>
                             }
                             isOpen={dropdownIsOpen}
@@ -772,7 +770,7 @@ export class DSInstance extends React.Component {
                 <div className="ds-margin-top">
                     <div hidden={pageLoadingState.state === "loading" || pageLoadingState.state === "notRunning"}>
                         <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={1} title={<TabTitleText><b>Server</b></TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText><b>{_("Server")}</b></TabTitleText>}>
                                 <Server
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
@@ -781,7 +779,7 @@ export class DSInstance extends React.Component {
                                     key={this.state.serverId}
                                 />
                             </Tab>
-                            <Tab eventKey={2} title={<TabTitleText><b>Database</b></TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText><b>{_("Database")}</b></TabTitleText>}>
                                 <Database
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
@@ -789,7 +787,7 @@ export class DSInstance extends React.Component {
                                     key={this.state.serverId}
                                 />
                             </Tab>
-                            <Tab eventKey={3} title={<TabTitleText><b>Replication</b></TabTitleText>}>
+                            <Tab eventKey={3} title={<TabTitleText><b>{_("Replication")}</b></TabTitleText>}>
                                 <Replication
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
@@ -797,7 +795,7 @@ export class DSInstance extends React.Component {
                                     key={this.state.serverId}
                                 />
                             </Tab>
-                            <Tab eventKey={4} title={<TabTitleText><b>Schema</b></TabTitleText>}>
+                            <Tab eventKey={4} title={<TabTitleText><b>{_("Schema")}</b></TabTitleText>}>
                                 <Schema
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
@@ -805,7 +803,7 @@ export class DSInstance extends React.Component {
                                     key={this.state.serverId}
                                 />
                             </Tab>
-                            <Tab eventKey={5} title={<TabTitleText><b>Plugins</b></TabTitleText>}>
+                            <Tab eventKey={5} title={<TabTitleText><b>{_("Plugins")}</b></TabTitleText>}>
                                 <Plugins
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
@@ -813,7 +811,7 @@ export class DSInstance extends React.Component {
                                     key={this.state.serverId}
                                 />
                             </Tab>
-                            <Tab eventKey={6} title={<TabTitleText><b>Monitoring</b></TabTitleText>}>
+                            <Tab eventKey={6} title={<TabTitleText><b>{_("Monitoring")}</b></TabTitleText>}>
                                 <Monitor
                                     addNotification={this.addNotification}
                                     serverId={this.state.serverId}
@@ -821,7 +819,7 @@ export class DSInstance extends React.Component {
                                     key={this.state.serverId}
                                 />
                             </Tab>
-                            <Tab eventKey={7} title={<TabTitleText><b>LDAP Browser</b></TabTitleText>}>
+                            <Tab eventKey={7} title={<TabTitleText><b>{_("LDAP Browser")}</b></TabTitleText>}>
                                 <LDAPEditor
                                     key="ldap-editor"
                                     addNotification={this.addNotification}
@@ -890,10 +888,10 @@ export class DSInstance extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.serverId}
                     checked={this.state.modalChecked}
-                    mTitle="Remove Instance"
-                    mMsg="Are you really sure you want to delete this instance?"
-                    mSpinningMsg="Removing Instance..."
-                    mBtnName="Remove Instance"
+                    mTitle={_("Remove Instance")}
+                    mMsg={_("Are you really sure you want to delete this instance?")}
+                    mSpinningMsg={_("Removing Instance...")}
+                    mBtnName={_("Remove Instance")}
                 />
             </div>
         );

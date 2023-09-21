@@ -80,6 +80,8 @@ const adv_attrs = [
     'nsslapd-haproxy-trusted-ip',
 ];
 
+const _ = cockpit.gettext;
+
 export class ServerSettings extends React.Component {
     constructor(props) {
         super(props);
@@ -525,7 +527,7 @@ export class ServerSettings extends React.Component {
                     this.reloadRootDN();
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Directory Manager configuration"
+                        _("Successfully updated Directory Manager configuration")
                     );
                 })
                 .fail(err => {
@@ -533,7 +535,7 @@ export class ServerSettings extends React.Component {
                     this.reloadRootDN();
                     this.props.addNotification(
                         "error",
-                        `Error updating Directory Manager configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating Directory Manager configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -572,7 +574,7 @@ export class ServerSettings extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error reloading Directory Manager configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error reloading Directory Manager configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -606,7 +608,7 @@ export class ServerSettings extends React.Component {
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Disk Monitoring configuration"
+                        _("Successfully updated Disk Monitoring configuration")
                     );
                 })
                 .fail(err => {
@@ -614,7 +616,7 @@ export class ServerSettings extends React.Component {
                     this.reloadDiskMonitoring();
                     this.props.addNotification(
                         "error",
-                        `Error updating Disk Monitoring configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating Disk Monitoring configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -663,7 +665,7 @@ export class ServerSettings extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error reloading Disk Monitoring configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error reloading Disk Monitoring configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -768,7 +770,7 @@ export class ServerSettings extends React.Component {
                         this.reloadAdvanced();
                         this.props.addNotification(
                             "success",
-                            "Successfully updated Advanced configuration"
+                            _("Successfully updated Advanced configuration")
                         );
                     }
                 })
@@ -777,7 +779,7 @@ export class ServerSettings extends React.Component {
                     this.reloadAdvanced();
                     this.props.addNotification(
                         "error",
-                        `Error updating Advanced configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating Advanced configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -877,7 +879,7 @@ export class ServerSettings extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading Advanced configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading Advanced configuration - $0"), errMsg.desc)
                     );
                     this.setState({
                         advReloading: false,
@@ -909,8 +911,7 @@ export class ServerSettings extends React.Component {
                     this.handleReloadConfig();
                     this.props.addNotification(
                         "warning",
-                        "Successfully updated server configuration.  These " +
-                            "changes require the server to be restarted to take effect."
+                        _("Successfully updated server configuration.  These changes require the server to be restarted to take effect.")
                     );
                 })
                 .fail(err => {
@@ -918,7 +919,7 @@ export class ServerSettings extends React.Component {
                     this.handleReloadConfig();
                     this.props.addNotification(
                         "error",
-                        `Error updating server configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating server configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -971,7 +972,7 @@ export class ServerSettings extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error reloading server configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error reloading server configuration - $0"), errMsg.desc)
                     );
                     this.setState({
                         configReloading: false,
@@ -983,22 +984,22 @@ export class ServerSettings extends React.Component {
         let body = "";
         let diskMonitor = "";
 
-        let saveBtnName = "Save Settings";
+        let saveBtnName = _("Save Settings");
         const extraPrimaryProps = {};
         if (this.state.configReloading || this.state.rootDNReloading ||
             this.state.diskMonReloading || this.state.advReloading) {
-            saveBtnName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         if (this.state['nsslapd-disk-monitoring']) {
             diskMonitor = (
                 <Form isHorizontal autoComplete="off" className="ds-margin-top-lg ds-left-indent-lg ds-margin-bottom">
                     <Grid
-                        title="The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. Value range: 4096 - 9223372036854775807. (nsslapd-disk-monitoring-threshold)"
+                        title={_("The available disk space, in bytes, that will trigger the shutdown process. Default is 2mb. Once below half of the threshold then we enter the shutdown mode. Value range: 4096 - 9223372036854775807. (nsslapd-disk-monitoring-threshold)")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            Disk Monitoring Threshold
+                            {_("Disk Monitoring Threshold")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -1015,15 +1016,15 @@ export class ServerSettings extends React.Component {
                                 widthChars={8}
                             />
                             <FormHelperText isError isHidden={!this.state.errObjDiskMon['nsslapd-disk-monitoring-threshold']}>
-                                Value must be greater than or equal to 4096
+                                _("Value must be greater than or equal to 4096")
                             </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)"
+                        title={_("How many minutes to wait to allow an admin to clean up disk space before shutting slapd down. The default is 60 minutes. (nsslapd-disk-monitoring-grace-period)")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            Disk Monitoring Grace Period
+                            {_("Disk Monitoring Grace Period")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -1043,7 +1044,7 @@ export class ServerSettings extends React.Component {
                     </Grid>
                     <Grid
                         className="ds-margin-top"
-                        title="When disk space gets critically low do not remove logs to free up disk space. (nsslapd-disk-monitoring-logging-critical)"
+                        title={_("When disk space gets critically low do not remove logs to free up disk space. (nsslapd-disk-monitoring-logging-critical)")}
                     >
                         <GridItem span={9}>
                             <Checkbox
@@ -1052,7 +1053,7 @@ export class ServerSettings extends React.Component {
                                 onChange={(str, e) => {
                                     this.handleChange(e, "diskmon");
                                 }}
-                                label="Preserve Logs Even If Disk Space Gets Low"
+                                label={_("Preserve Logs Even If Disk Space Gets Low")}
                             />
                         </GridItem>
                     </Grid>
@@ -1064,7 +1065,7 @@ export class ServerSettings extends React.Component {
             body = (
                 <div className="ds-loading-spinner ds-margin-top ds-center">
                     <TextContent>
-                        <Text component={TextVariants.h3}>Loading Server Settings ...</Text>
+                        <Text component={TextVariants.h3}>_("Loading Server Settings ...")</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="md" />
                 </div>
@@ -1076,12 +1077,12 @@ export class ServerSettings extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Server Settings
+                                    {_("Server Settings")}
                                     <FontAwesomeIcon
                                         size="lg"
                                         className="ds-left-margin ds-refresh"
                                         icon={faSyncAlt}
-                                        title="Refresh configuration settings"
+                                        title={_("Refresh configuration settings")}
                                         onClick={this.handleReloadConfig}
                                     />
                                 </Text>
@@ -1091,13 +1092,13 @@ export class ServerSettings extends React.Component {
 
                     <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein ds-left-margin'}>
                         <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
+                            <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
                                 <Form autoComplete="off" className="ds-margin-top-xlg">
                                     <Grid
-                                        title="The version of the Directory Server package"
+                                        title={_("The version of the Directory Server package")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            Server Version
+                                            {_("Server Version")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <TextInput
@@ -1111,10 +1112,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The server's local hostname (nsslapd-localhost)."
+                                        title={_("The server's local hostname (nsslapd-localhost).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            Server Hostname
+                                            {_("Server Hostname")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <TextInput
@@ -1131,10 +1132,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The server's port number (nsslapd-port)."
+                                        title={_("The server's port number (nsslapd-port).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            LDAP Port
+                                            {_("LDAP Port")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <NumberInput
@@ -1154,10 +1155,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The server's secure port number (nsslapd-secureport)."
+                                        title={_("The server's secure port number (nsslapd-secureport).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            LDAPS Port
+                                            {_("LDAPS Port")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <NumberInput
@@ -1177,10 +1178,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  Requires restart. (nsslapd-listenhost)."
+                                        title={_("This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  Requires restart. (nsslapd-listenhost).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            Listen Host Address
+                                            {_("Listen Host Address")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <TextInput
@@ -1197,10 +1198,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title={this.state.errObjConfig['nsslapd-bakdir'] ? "Invalid backup directory path!" : "The location where database backups are stored (nsslapd-bakdir)."}
+                                        title={this.state.errObjConfig['nsslapd-bakdir'] ? _("Invalid backup directory path!") : _("The location where database backups are stored (nsslapd-bakdir).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            Backup Directory
+                                            {_("Backup Directory")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <TextInput
@@ -1221,10 +1222,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title={this.state.errObjConfig['nsslapd-ldifdir'] ? "Invalid LDIF directory path!" : "The location where the server's LDIF files are located (nsslapd-ldifdir)."}
+                                        title={this.state.errObjConfig['nsslapd-ldifdir'] ? _("Invalid LDIF directory path!") : _("The location where the server's LDIF files are located (nsslapd-ldifdir).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            LDIF File Directory
+                                            {_("LDIF File Directory")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <TextInput
@@ -1245,10 +1246,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title={this.state.errObjConfig['nsslapd-schemadir'] ? "Invalid schema directory path!" : "The location for the servers custom schema files. (nsslapd-schemadir)."}
+                                        title={this.state.errObjConfig['nsslapd-schemadir'] ? _("Invalid schema directory path!") : _("The location for the servers custom schema files. (nsslapd-schemadir).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            Schema Directory
+                                            {_("Schema Directory")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <TextInput
@@ -1269,10 +1270,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title={this.state.errObjConfig['nsslapd-certdir'] ? "Invalid certificate directory path!" : "The location of the server's certificates (nsslapd-certdir)."}
+                                        title={this.state.errObjConfig['nsslapd-certdir'] ? _("Invalid certificate directory path!") : _("The location of the server's certificates (nsslapd-certdir).")}
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            Certificate Directory
+                                            {_("Certificate Directory")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <TextInput
@@ -1299,20 +1300,20 @@ export class ServerSettings extends React.Component {
                                     className="ds-margin-top-xlg"
                                     onClick={this.handleSaveConfig}
                                     isLoading={this.state.configReloading}
-                                    spinnerAriaValueText={this.state.configReloading ? "Saving" : undefined}
+                                    spinnerAriaValueText={this.state.configReloading ? _("Saving") : undefined}
                                     {...extraPrimaryProps}
                                 >
                                     {saveBtnName}
                                 </Button>
                             </Tab>
 
-                            <Tab eventKey={1} title={<TabTitleText>Directory Manager</TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText>{_("Directory Manager")}</TabTitleText>}>
                                 <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                                     <Grid
-                                        title="The DN of the unrestricted directory manager (nsslapd-rootdn)."
+                                        title={_("The DN of the unrestricted directory manager (nsslapd-rootdn).")}
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Directory Manager DN
+                                            {_("Directory Manager DN")}
                                         </GridItem>
                                         <GridItem span={9}>
                                             <TextInput
@@ -1326,10 +1327,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The password for the Root DN/Directory Manager (nsslapd-rootpw)."
+                                        title={_("The password for the Root DN/Directory Manager (nsslapd-rootpw).")}
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Directory Manager Password
+                                            {_("Directory Manager Password")}
                                         </GridItem>
                                         <GridItem span={9}>
                                             <TextInput
@@ -1346,10 +1347,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="Confirm the Directory Manager password"
+                                        title={_("Confirm the Directory Manager password")}
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Confirm Password
+                                            {_("Confirm Password")}
                                         </GridItem>
                                         <GridItem span={9}>
                                             <TextInput
@@ -1366,10 +1367,10 @@ export class ServerSettings extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme)."
+                                        title={_("Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme).")}
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Password Storage Scheme
+                                            {_("Password Storage Scheme")}
                                         </GridItem>
                                         <GridItem span={9}>
                                             <FormSelect
@@ -1393,13 +1394,13 @@ export class ServerSettings extends React.Component {
                                     isDisabled={this.state.rootDNSaveDisabled || this.state.rootDNReloading}
                                     onClick={this.handleSaveRootDN}
                                     isLoading={this.state.rootDNReloading}
-                                    spinnerAriaValueText={this.state.rootDNReloading ? "Saving" : undefined}
+                                    spinnerAriaValueText={this.state.rootDNReloading ? _("Saving") : undefined}
                                     {...extraPrimaryProps}
                                 >
                                     {saveBtnName}
                                 </Button>
                             </Tab>
-                            <Tab eventKey={2} title={<TabTitleText>Disk Monitoring</TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText>{_("Disk Monitoring")}</TabTitleText>}>
                                 <Form className="ds-margin-left ds-margin-top-xlg" autoComplete="off">
                                     <Checkbox
                                         id="nsslapd-disk-monitoring"
@@ -1407,7 +1408,7 @@ export class ServerSettings extends React.Component {
                                         onChange={(str, e) => {
                                             this.handleChange(e, "diskmon");
                                         }}
-                                        label="Enable Disk Space Monitoring"
+                                        label={_("Enable Disk Space Monitoring")}
                                     />
                                 </Form>
                                 {diskMonitor}
@@ -1417,13 +1418,13 @@ export class ServerSettings extends React.Component {
                                     className="ds-margin-top-xlg"
                                     onClick={this.handleSaveDiskMonitoring}
                                     isLoading={this.state.diskMonReloading}
-                                    spinnerAriaValueText={this.state.diskMonReloading ? "Saving" : undefined}
+                                    spinnerAriaValueText={this.state.diskMonReloading ? _("Saving") : undefined}
                                     {...extraPrimaryProps}
                                 >
                                     {saveBtnName}
                                 </Button>
                             </Tab>
-                            <Tab eventKey={3} title={<TabTitleText>Advanced Settings</TabTitleText>}>
+                            <Tab eventKey={3} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
                                 <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
                                     <Grid>
                                         <GridItem span={5}>
@@ -1433,9 +1434,9 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="Enable schema checking (nsslapd-schemacheck)."
+                                                title={_("Enable schema checking (nsslapd-schemacheck).")}
                                                 aria-label="uncontrolled checkbox example"
-                                                label="Enable Schema Checking"
+                                                label={_("Enable Schema Checking")}
                                             />
                                         </GridItem>
                                         <GridItem span={5}>
@@ -1445,8 +1446,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="Enable attribute syntax checking (nsslapd-syntaxcheck)."
-                                                label="Enable Attribute Syntax Checking"
+                                                title={_("Enable attribute syntax checking (nsslapd-syntaxcheck).")}
+                                                label={_("Enable Attribute Syntax Checking")}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1458,8 +1459,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="Enable plugins to log access and audit events.  (nsslapd-plugin-logging)."
-                                                label="Enable Plugin Logging"
+                                                title={_("Enable plugins to log access and audit events.  (nsslapd-plugin-logging).")}
+                                                label={_("Enable Plugin Logging")}
                                             />
                                         </GridItem>
                                         <GridItem span={5}>
@@ -1469,8 +1470,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="Enable syntax logging (nsslapd-syntaxlogging)."
-                                                label="Enable Attribute Syntax Logging"
+                                                title={_("Enable syntax logging (nsslapd-syntaxlogging).")}
+                                                label={_("Enable Attribute Syntax Logging")}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1482,8 +1483,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                label="Enable Plugin Bind DN Tracking"
-                                                title="Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking)."
+                                                label={_("Enable Plugin Bind DN Tracking")}
+                                                title={_("Enabling this feature will write new operational attributes to the modified entry: internalModifiersname & internalCreatorsname. These new attributes contain the plugin DN, while modifiersname will be the original binding entry that triggered the update. (nsslapd-plugin-binddn-tracking).")}
                                             />
                                         </GridItem>
                                         <GridItem span={5}>
@@ -1493,8 +1494,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions)."
-                                                label="Allow Attribute Naming Exceptions"
+                                                title={_("Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions).")}
+                                                label={_("Allow Attribute Naming Exceptions")}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1506,8 +1507,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                label="Strict DN Syntax Validation"
-                                                title="Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict)."
+                                                label={_("Strict DN Syntax Validation")}
+                                                title={_("Enables strict syntax validation for DNs, according to section 3 in RFC 4514 (nsslapd-dn-validate-strict).")}
                                             />
                                         </GridItem>
                                         <GridItem span={5}>
@@ -1517,8 +1518,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global)."
-                                                label="Maintain Unique USNs Across All Backends"
+                                                title={_("For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global).")}
+                                                label={_("Maintain Unique USNs Across All Backends")}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1530,8 +1531,8 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew)."
-                                                label="Ignore CSN Time Skew"
+                                                title={_("Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew).")}
+                                                label={_("Ignore CSN Time Skew")}
                                             />
                                         </GridItem>
                                         <GridItem span={5}>
@@ -1541,17 +1542,17 @@ export class ServerSettings extends React.Component {
                                                 onChange={(str, e) => {
                                                     this.handleChange(e, "adv");
                                                 }}
-                                                title="Make entire server read-only (nsslapd-readonly)"
-                                                label="Server Read-Only"
+                                                title={_("Make entire server read-only (nsslapd-readonly)")}
+                                                label={_("Server Read-Only")}
                                             />
                                         </GridItem>
                                     </Grid>
                                     <Grid
                                         className="ds-margin-top"
-                                        title="Allow anonymous binds to the server (nsslapd-allow-anonymous-access)."
+                                        title={_("Allow anonymous binds to the server (nsslapd-allow-anonymous-access).")}
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Allow Anonymous Access
+                                            {_("Allow Anonymous Access")}
                                         </GridItem>
                                         <GridItem span={9}>
                                             <FormSelect
@@ -1568,16 +1569,16 @@ export class ServerSettings extends React.Component {
                                                     key="2"
                                                     value="rootdse"
                                                     label="rootdse"
-                                                    title="Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. "
+                                                    title={_("Allows anonymous search and read access to search the root DSE itself, but restricts access to all other directory entries. ")}
                                                 />
                                             </FormSelect>
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn)."
+                                        title={_("The DN of a template entry containing the resource limits to apply to anonymous connections (nsslapd-anonlimitsdn).")}
                                     >
                                         <GridItem className="ds-label" span={3}>
-                                            Anonymous Resource Limits DN
+                                            {_("Anonymous Resource Limits DN")}
                                         </GridItem>
                                         <GridItem span={9}>
                                             <TextInput
@@ -1639,7 +1640,7 @@ export class ServerSettings extends React.Component {
                                     className="ds-margin-top-xlg"
                                     onClick={this.handleSaveAdvanced}
                                     isLoading={this.state.advReloading}
-                                    spinnerAriaValueText={this.state.advReloading ? "Saving" : undefined}
+                                    spinnerAriaValueText={this.state.advReloading ? _("Saving") : undefined}
                                     {...extraPrimaryProps}
                                 >
                                     {saveBtnName}

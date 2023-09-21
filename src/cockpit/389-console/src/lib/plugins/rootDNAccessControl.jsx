@@ -16,6 +16,8 @@ import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, listsEqual } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 class RootDNAccessControl extends React.Component {
     componentDidMount(prevProps) {
         this.updateFields();
@@ -449,7 +451,7 @@ class RootDNAccessControl extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Successfully updated the RootDN Access Control`
+                        _("Successfully updated the RootDN Access Control")
                     );
                     this.props.pluginListHandler();
                     this.setState({
@@ -460,7 +462,7 @@ class RootDNAccessControl extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update RootDN Access Control Plugin - ${errMsg.desc}`
+                        cockpit.format(_("Failed to update RootDN Access Control Plugin - $0"), errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.setState({
@@ -489,11 +491,11 @@ class RootDNAccessControl extends React.Component {
             saving,
         } = this.state;
 
-        let saveBtnName = "Save";
+        let saveBtnName = _("Save");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Saving ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
@@ -510,9 +512,9 @@ class RootDNAccessControl extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Sets what hosts, by fully-qualified domain name, the root user is allowed to use to access the Directory Server. Wildcards are accepted. Any hosts not listed are implicitly denied (rootdn-allow-host)">
+                        <Grid title={_("Sets what hosts, by fully-qualified domain name, the root user is allowed to use to access the Directory Server. Wildcards are accepted. Any hosts not listed are implicitly denied (rootdn-allow-host)")}>
                             <GridItem className="ds-label" span={2}>
-                                Allow Host
+                                {_("Allow Host")}
                             </GridItem>
                             <GridItem span={10}>
                                 <Select
@@ -524,8 +526,8 @@ class RootDNAccessControl extends React.Component {
                                     selections={allowHost}
                                     isOpen={this.state.isAllowHostOpen}
                                     aria-labelledby="typeAhead-allow-host"
-                                    placeholderText="Type a hostname ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a hostname ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleAllowHostCreateOption}
                                 >
@@ -538,9 +540,9 @@ class RootDNAccessControl extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets what hosts, by fully-qualified domain name, the root user is not allowed to use to access the Directory Server.  Wildcards are accepted.  Any hosts not listed are implicitly allowed (rootdn-deny-host). If a host address is listed in both the rootdn-allow-host and rootdn-deny-host attributes, it is denied access.">
+                        <Grid title={_("Sets what hosts, by fully-qualified domain name, the root user is not allowed to use to access the Directory Server.  Wildcards are accepted.  Any hosts not listed are implicitly allowed (rootdn-deny-host). If a host address is listed in both the rootdn-allow-host and rootdn-deny-host attributes, it is denied access.")}>
                             <GridItem className="ds-label" span={2}>
-                                Deny Host
+                                {_("Deny Host")}
                             </GridItem>
                             <GridItem span={10}>
                                 <Select
@@ -552,8 +554,8 @@ class RootDNAccessControl extends React.Component {
                                     selections={denyHost}
                                     isOpen={this.state.isDenyHostOpen}
                                     aria-labelledby="typeAhead-deny-host"
-                                    placeholderText="Type a hostname ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a hostname ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleDenyHostCreateOption}
                                 >
@@ -566,9 +568,9 @@ class RootDNAccessControl extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets what IP addresses, either IPv4 or IPv6, for machines the root user is allowed to use to access the Directory Server. Wildcards are accepted.  Any IP addresses not listed are implicitly denied (rootdn-allow-ip)">
+                        <Grid title={_("Sets what IP addresses, either IPv4 or IPv6, for machines the root user is allowed to use to access the Directory Server. Wildcards are accepted.  Any IP addresses not listed are implicitly denied (rootdn-allow-ip)")}>
                             <GridItem className="ds-label" span={2}>
-                                Allow IP address
+                                {_("Allow IP address")}
                             </GridItem>
                             <GridItem span={10}>
                                 <Select
@@ -580,8 +582,8 @@ class RootDNAccessControl extends React.Component {
                                     selections={allowIP}
                                     isOpen={this.state.isAllowIPOpen}
                                     aria-labelledby="typeAhead-allow-ip"
-                                    placeholderText="Type an IP address ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an IP address ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleAllowIPCreateOption}
                                 >
@@ -594,9 +596,9 @@ class RootDNAccessControl extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets what IP addresses, either IPv4 or IPv6, for machines the root user is not allowed to use to access the Directory Server. Wildcards are accepted. Any IP addresses not listed are implicitly allowed (rootdn-deny-ip) If an IP address is listed in both the rootdn-allow-ip and rootdn-deny-ip attributes, it is denied access.">
+                        <Grid title={_("Sets what IP addresses, either IPv4 or IPv6, for machines the root user is not allowed to use to access the Directory Server. Wildcards are accepted. Any IP addresses not listed are implicitly allowed (rootdn-deny-ip) If an IP address is listed in both the rootdn-allow-ip and rootdn-deny-ip attributes, it is denied access.")}>
                             <GridItem className="ds-label" span={2}>
-                                Deny IP address
+                                {_("Deny IP address")}
                             </GridItem>
                             <GridItem span={10}>
                                 <Select
@@ -608,8 +610,8 @@ class RootDNAccessControl extends React.Component {
                                     selections={denyIP}
                                     isOpen={this.state.isDenyIPOpen}
                                     aria-labelledby="typeAhead-deny-ip"
-                                    placeholderText="Type an IP address ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an IP address ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleDenyIPCreateOption}
                                 >
@@ -622,9 +624,9 @@ class RootDNAccessControl extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets part of a time period or range when the root user is allowed to access the Directory Server. This sets when the time-based access begins (rootdn-open-time)">
+                        <Grid title={_("Sets part of a time period or range when the root user is allowed to access the Directory Server. This sets when the time-based access begins (rootdn-open-time)")}>
                             <GridItem className="ds-label" span={2}>
-                                Open Time
+                                {_("Open Time")}
                             </GridItem>
                             <GridItem span={10}>
                                 <TimePicker
@@ -634,9 +636,9 @@ class RootDNAccessControl extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets part of a time period or range when the root user is allowed to access the Directory Server. This sets when the time-based access ends (rootdn-close-time)">
+                        <Grid title={_("Sets part of a time period or range when the root user is allowed to access the Directory Server. This sets when the time-based access ends (rootdn-close-time)")}>
                             <GridItem className="ds-label" span={2}>
-                                Close Time
+                                {_("Close Time")}
                             </GridItem>
                             <GridItem span={10}>
                                 <TimePicker
@@ -647,9 +649,9 @@ class RootDNAccessControl extends React.Component {
                             </GridItem>
                         </Grid>
 
-                        <Grid title="Gives a comma-separated list of what days the root user is allowed to use to access the Directory Server. Any days listed are implicitly denied (rootdn-days-allowed)">
+                        <Grid title={_("Gives a comma-separated list of what days the root user is allowed to use to access the Directory Server. Any days listed are implicitly denied (rootdn-days-allowed)")}>
                             <GridItem span={12} className="ds-label">
-                                Days To Allow Access
+                                {_("Days To Allow Access")}
                             </GridItem>
                             <GridItem className="ds-margin-left" span={9}>
                                 <Grid className="ds-margin-top-lg">
@@ -661,7 +663,7 @@ class RootDNAccessControl extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={allowMon}
-                                            label="Monday"
+                                            label={_("Monday")}
                                         />
                                     </GridItem>
                                     <GridItem span={3}>
@@ -672,7 +674,7 @@ class RootDNAccessControl extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={allowFri}
-                                            label="Friday"
+                                            label={_("Friday")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -685,7 +687,7 @@ class RootDNAccessControl extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={allowTue}
-                                            label="Tuesday"
+                                            label={_("Tuesday")}
                                         />
                                     </GridItem>
                                     <GridItem span={3}>
@@ -696,7 +698,7 @@ class RootDNAccessControl extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={allowSat}
-                                            label="Saturday"
+                                            label={_("Saturday")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -709,7 +711,7 @@ class RootDNAccessControl extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={allowWed}
-                                            label="Wednesday"
+                                            label={_("Wednesday")}
                                         />
                                     </GridItem>
                                     <GridItem span={3}>
@@ -720,7 +722,7 @@ class RootDNAccessControl extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={allowSun}
-                                            label="Sunday"
+                                            label={_("Sunday")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -733,12 +735,12 @@ class RootDNAccessControl extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={allowThu}
-                                            label="Thursday"
+                                            label={_("Thursday")}
                                         />
                                     </GridItem>
                                 </Grid>
                                 <FormHelperText isError isHidden={!error.daysAllowed}>
-                                    You must set at least one day
+                                    {_("You must set at least one day")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
@@ -749,7 +751,7 @@ class RootDNAccessControl extends React.Component {
                         onClick={this.handleSavePlugin}
                         isDisabled={saveBtnDisabled || saving}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        spinnerAriaValueText={saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}

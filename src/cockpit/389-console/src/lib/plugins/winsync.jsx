@@ -16,6 +16,8 @@ import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, valid_dn } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 class WinSync extends React.Component {
     componentDidMount(prevProps) {
         this.updateFields();
@@ -99,7 +101,7 @@ class WinSync extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Fixup task for ${this.state.fixupDN} was successfully started`
+                        cockpit.format(_("Fixup task for $0 was successfully started"), this.state.fixupDN)
                     );
                     this.setState({
                         fixupModalShow: false,
@@ -110,7 +112,7 @@ class WinSync extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
+                        cockpit.format(_("Fixup task for $0 has failed $1"), this.state.fixupDN, errMsg.desc)
                     );
                     this.setState({
                         fixupModalShow: false,
@@ -251,7 +253,7 @@ class WinSync extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Successfully updated Posix winsync plugin`
+                        _("Successfully updated Posix winsync plugin")
                     );
                     this.props.pluginListHandler();
                     this.setState({
@@ -262,7 +264,7 @@ class WinSync extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update Posix winsync plugin - ${errMsg.desc}`
+                        cockpit.format(_("Failed to update Posix winsync plugin - $0"), errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.setState({
@@ -288,23 +290,23 @@ class WinSync extends React.Component {
             error
         } = this.state;
 
-        let saveBtnName = "Save";
+        let saveBtnName = _("Save");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Saving ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
-        const saveBtnNameModal = "Run Task";
+        const saveBtnNameModal = _("Run Task");
         if (savingModal) {
-            saveBtnName = "Task running ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Task running ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
             <div className={saving || savingModal ? "ds-disabled" : ""}>
                 <Modal
                     variant={ModalVariant.small}
-                    title="MemberOf Task"
+                    title={_("MemberOf Task")}
                     isOpen={fixupModalShow}
                     aria-labelledby="ds-modal"
                     onClose={this.handleToggleFixupModal}
@@ -315,20 +317,20 @@ class WinSync extends React.Component {
                             onClick={this.handleRunFixup}
                             isDisabled={saveBtnDisabledModal || savingModal}
                             isLoading={savingModal}
-                            spinnerAriaValueText={savingModal ? "Saving" : undefined}
+                            spinnerAriaValueText={savingModal ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnNameModal}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleToggleFixupModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Base DN that contains entries to fix up">
+                        <Grid title={_("Base DN that contains entries to fix up")}>
                             <GridItem className="ds-label" span={3}>
-                                Base DN
+                                {_("Base DN")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -343,13 +345,13 @@ class WinSync extends React.Component {
                                     validated={error.fixupDN ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.fixupDN}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
+                        <Grid className="ds-margin-top" title={_("Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.")}>
                             <GridItem className="ds-label" span={3}>
-                                Filter DN
+                                {_("Filter DN")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -364,7 +366,7 @@ class WinSync extends React.Component {
                                     validated={error.fixupFilter ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.fixupDN}>
-                                    Enter an LDAP search filter
+                                    {_("Enter an LDAP search filter")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
@@ -382,53 +384,53 @@ class WinSync extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Sets whether to run the memberOf fix-up task immediately after a sync run in order to update group memberships for synced users">
+                        <Grid title={_("Sets whether to run the memberOf fix-up task immediately after a sync run in order to update group memberships for synced users")}>
                             <GridItem span={12}>
                                 <Checkbox
                                     id="posixWinsyncCreateMemberOfTask"
                                     isChecked={posixWinsyncCreateMemberOfTask}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    label="Create MemberOf Task"
+                                    label={_("Create MemberOf Task")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets whether to store (and, if necessary, convert) the UID value in the memberUID attribute in lower case">
+                        <Grid title={_("Sets whether to store (and, if necessary, convert) the UID value in the memberUID attribute in lower case")}>
                             <GridItem span={12}>
                                 <Checkbox
                                     id="posixWinsyncLowerCaseUID"
                                     isChecked={posixWinsyncLowerCaseUID}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    label="Lower Case UID"
+                                    label={_("Lower Case UID")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets whether to map the memberUID attribute in an Active Directory group to the uniqueMember attribute in a Directory Server group">
+                        <Grid title={_("Sets whether to map the memberUID attribute in an Active Directory group to the uniqueMember attribute in a Directory Server group")}>
                             <GridItem span={12}>
                                 <Checkbox
                                     id="posixWinsyncMapMemberUID"
                                     isChecked={posixWinsyncMapMemberUID}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    label="Map Member UID"
+                                    label={_("Map Member UID")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Manages if nested groups are updated when memberUID attributes in an Active Directory POSIX group change">
+                        <Grid title={_("Manages if nested groups are updated when memberUID attributes in an Active Directory POSIX group change")}>
                             <GridItem span={12}>
                                 <Checkbox
                                     id="posixWinsyncMapNestedGrouping"
                                     isChecked={posixWinsyncMapNestedGrouping}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    label="Map Nested Grouping"
+                                    label={_("Map Nested Grouping")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets whether to the older Microsoft System Services  for Unix 3.0 (msSFU30) schema when syncing Posix attributes from Active Directory">
+                        <Grid title={_("Sets whether to the older Microsoft System Services  for Unix 3.0 (msSFU30) schema when syncing Posix attributes from Active Directory")}>
                             <GridItem span={12}>
                                 <Checkbox
                                     id="posixWinsyncMsSFUSchema"
                                     isChecked={posixWinsyncMsSFUSchema}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    label="Microsoft System Services for Unix 3.0 (msSFU30) schema"
+                                    label={_("Microsoft System Services for Unix 3.0 (msSFU30) schema")}
                                 />
                             </GridItem>
                         </Grid>
@@ -437,9 +439,9 @@ class WinSync extends React.Component {
                         className="ds-margin-top-lg"
                         variant="primary"
                         onClick={this.handleToggleFixupModal}
-                        title="Corrects mismatched member and uniquemember values"
+                        title={_("Corrects mismatched member and uniquemember values")}
                     >
-                        Run MemberOf Task
+                        {_("Run MemberOf Task")}
                     </Button>
                 </PluginBasicConfig>
                 <Button
@@ -448,7 +450,7 @@ class WinSync extends React.Component {
                     onClick={this.handleSavePlugin}
                     isDisabled={saveBtnDisabled || saving}
                     isLoading={saving}
-                    spinnerAriaValueText={saving ? "Saving" : undefined}
+                    spinnerAriaValueText={saving ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                 >
                     {saveBtnName}

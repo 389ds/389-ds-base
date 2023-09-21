@@ -13,6 +13,8 @@ import {
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 export class AttrEncryption extends React.Component {
     constructor (props) {
         super(props);
@@ -100,7 +102,7 @@ export class AttrEncryption extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        `Successfully added encrypted attribute`
+                        _("Successfully added encrypted attribute")
                     );
                     this.setState({
                         saving: false,
@@ -112,7 +114,7 @@ export class AttrEncryption extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to add encrypted attribute - ${errMsg.desc}`
+                        cockpit.format(_("Failed to add encrypted attribute - $0"), errMsg.desc)
                     );
                     this.setState({
                         saving: false,
@@ -136,7 +138,7 @@ export class AttrEncryption extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        `Encrypted attribute successfully deleted`
+                        _("Encrypted attribute successfully deleted")
                     );
                     this.closeConfirmAttrDelete();
                 })
@@ -145,7 +147,7 @@ export class AttrEncryption extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failure deleting encrypted attribute - ${errMsg.desc}`
+                        cockpit.format(_("Failure deleting encrypted attribute - $0"), errMsg.desc)
                     );
                     this.closeConfirmAttrDelete();
                 });
@@ -171,11 +173,11 @@ export class AttrEncryption extends React.Component {
             }
         }
 
-        let saveBtnName = "Add Attribute";
+        let saveBtnName = _("Add Attribute");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Adding Attribute ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Adding Attribute ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
@@ -195,8 +197,8 @@ export class AttrEncryption extends React.Component {
                             selections={addAttr}
                             isOpen={isSelectOpen}
                             aria-labelledby="typeAhead-AttrEnc"
-                            placeholderText="Type attribute name to be encrypted"
-                            noResultsFoundText="There are no matching entries"
+                            placeholderText={_("Type attribute name to be encrypted")}
+                            noResultsFoundText={_("There are no matching entries")}
                         >
                             {attrs.map((attr, index) => (
                                 <SelectOption
@@ -213,7 +215,7 @@ export class AttrEncryption extends React.Component {
                             onClick={this.handleAddEncryptedAttr}
                             isLoading={saving}
                             isDisabled={addAttr === "" || saving}
-                            spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnName}
@@ -228,10 +230,10 @@ export class AttrEncryption extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.delAttr}
                     checked={this.state.modalChecked}
-                    mTitle="Remove Attribute Encryption"
-                    mMsg="Are you sure you want to remove this encrypted attribute?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Remove Attribute Encryption")}
+                    mMsg={_("Are you sure you want to remove this encrypted attribute?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
             </div>
         );

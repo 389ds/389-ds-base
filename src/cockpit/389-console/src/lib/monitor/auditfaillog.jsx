@@ -19,6 +19,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 
+const _ = cockpit.gettext;
+
 export class AuditFailLogMonitor extends React.Component {
     constructor (props) {
         super(props);
@@ -95,7 +97,7 @@ export class AuditFailLogMonitor extends React.Component {
             spinner = (
                 <div>
                     <Spinner size="sm" />
-                    Reloading audit failure log...
+                    {_("Reloading audit failure log...")}
                 </div>
             );
         }
@@ -106,12 +108,12 @@ export class AuditFailLogMonitor extends React.Component {
                     <GridItem span={3}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Audit Failure Log
+                                {_("Audit Failure Log")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh audit failure log"
+                                    title={_("Refresh audit failure log")}
                                     onClick={this.handleRefreshAuditFailLog}
                                 />
                             </Text>
@@ -151,7 +153,7 @@ export class AuditFailLogMonitor extends React.Component {
                                 id="auditfailRefreshing"
                                 isChecked={this.state.auditfailRefreshing}
                                 onChange={(checked, e) => { this.auditFailRefreshCont(e) }}
-                                label="Continuously Refresh"
+                                label={_("Continuously Refresh")}
                             />
                         </div>
                     </GridItem>

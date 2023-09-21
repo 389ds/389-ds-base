@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -31,6 +32,8 @@ import {
 import {
     BINARY_ATTRIBUTES
 } from '../../lib/constants.jsx';
+
+const _ = cockpit.gettext;
 
 class AddUser extends React.Component {
     constructor (props) {
@@ -115,9 +118,9 @@ class AddUser extends React.Component {
 
         this.attributeValidationRules = [
             {
-                name: 'required',
+                name: _("required"),
                 validator: value => value.trim() !== '',
-                errorText: 'This field is required'
+                errorText: _("This field is required")
             }
         ];
 
@@ -138,7 +141,7 @@ class AddUser extends React.Component {
             pageAddUser: 1,
             perPageAddUser: 10,
             columnsUser: [
-                { title: 'Attribute Name', cellTransforms: [headerCol()] },
+                { title: _("Attribute Name"), cellTransforms: [headerCol()] },
             ],
             rowsUser: [],
             rowsOrig: [],
@@ -148,12 +151,12 @@ class AddUser extends React.Component {
             // Values
             noEmptyValue: false,
             columnsValues: [
-                'Attribute',
-                'Value'
+                _("Attribute"),
+                _("Value")
             ],
             // Review step
             reviewValue: '',
-            reviewInvalidText: 'Invalid LDIF',
+            reviewInvalidText: _("Invalid LDIF"),
             reviewIsValid: true,
             reviewValidated: 'default',
             editableTableData: [],
@@ -181,7 +184,7 @@ class AddUser extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? 'Successfully added user!' : 'Failed to add user, error: ' + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ? _("Successfully added user!") : _("Failed to add user, error: ") + result.errorCode,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -491,7 +494,7 @@ class AddUser extends React.Component {
                 position={DropdownPosition.left}
                 toggle={
                     <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
-                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isAttrDropDownOpen}
@@ -543,7 +546,7 @@ class AddUser extends React.Component {
                     <div>
                         {"jpegphoto:: "}
                         <Label icon={<InfoCircleIcon />} color="blue">
-                            Value is too large to display
+                            {_("Value is too large to display")}
                         </Label>
                     </div>
                 );
@@ -566,15 +569,15 @@ class AddUser extends React.Component {
 
         const rdnValue = namingVal;
         const myTitle = (namingAttrVal === '' || rdnValue === '')
-            ? 'Invalid Naming Attribute - Empty Value!'
-            : 'DN ( Distinguished Name )';
+            ? _("Invalid Naming Attribute - Empty Value!")
+            : _("DN ( Distinguished Name )");
 
         const userSelectStep = (
             <>
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select Entry Type
+                            {_("Select Entry Type")}
                         </Text>
                     </TextContent>
                 </div>
@@ -594,21 +597,14 @@ class AddUser extends React.Component {
                     </Select>
                     <TextContent className="ds-margin-top-xlg">
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
-                            <b>Basic Account</b> - This type of user entry uses a
-                            common set of objectclasses (nsPerson, nsAccount, and nsOrgPerson).
+                            <b>{_("Basic Account")}</b>{_(" - This type of user entry uses a common set of objectclasses (nsPerson, nsAccount, and nsOrgPerson).")}
                         </Text>
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
-                            <b>Posix Account</b> - This type of user entry uses a
-                            similar set of objectclasses as the <i>Basic Account</i> (nsPerson,
-                            nsAccount, nsOrgPerson, and posixAccount), but it includes
-                            POSIX attributes like:
-                            <i>uidNumber, gidNumber, homeDirectory, loginShell, and gecos</i>.
+                            <b>{_("Posix Account")}</b>{_(" - This type of user entry uses a similar set of objectclasses as the ")}<i>{_("Basic Account")}</i> {_("(nsPerson, nsAccount, nsOrgPerson, and posixAccount), but it includes POSIX attributes like:")}
+                            <i>{_("uidNumber, gidNumber, homeDirectory, loginShell, and gecos")}</i>.
                         </Text>
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
-                            <b>Service Account</b> - This type of entry uses a
-                            bare minimum of objectclasses (nsAccount, and applicationProcess) and
-                            attributes to create a simple object used to represent a service
-                            (not a user identity).
+                            <b>{_("Service Account")}</b>{_(" - This type of entry uses a bare minimum of objectclasses (nsAccount, and applicationProcess) and attributes to create a simple object used to represent a service (not a user identity).")}
                         </Text>
                     </TextContent>
                 </div>
@@ -620,7 +616,7 @@ class AddUser extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select Entry Attributes
+                            {_("Select Entry Attributes")}
                         </Text>
                     </TextContent>
                     {this.buildAttrDropdown()}
@@ -629,7 +625,7 @@ class AddUser extends React.Component {
                     <GridItem span={5}>
                         <SearchInput
                             className="ds-font-size-md"
-                            placeholder='Search Attributes'
+                            placeholder={_("Search Attributes")}
                             value={this.state.searchValue}
                             onChange={(evt, val) => this.handleAttrSearchChange(val)}
                             onClear={() => this.handleAttrSearchChange('')}
@@ -668,18 +664,18 @@ class AddUser extends React.Component {
                         <GridItem className="ds-margin-top" span={12}>
                             <Alert
                                 variant={namingAttr === '' || namingVal === ''
-                                    ? 'warning'
-                                    : 'success'}
+                                    ? "warning"
+                                    : "success"}
                                 isInline
                                 title={myTitle}
                             >
-                                <b>Entry DN:&nbsp;&nbsp;&nbsp;</b>{(namingAttr || "??????")}={namingVal || "??????"},{this.props.wizardEntryDn}
+                                <b>{_("Entry DN:")}&nbsp;&nbsp;&nbsp;</b>{(namingAttr || "??????")}={namingVal || "??????"},{this.props.wizardEntryDn}
                             </Alert>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Set Attribute Values
+                                    {_("Set Attribute Values")}
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -712,7 +708,7 @@ class AddUser extends React.Component {
                 <Alert
                     variant="info"
                     isInline
-                    title="LDIF Content for User Creation"
+                    title={_("LDIF Content for User Creation")}
                 />
                 <Card isSelectable>
                     <CardBody>
@@ -735,19 +731,19 @@ class AddUser extends React.Component {
                 <Alert
                     variant={resultVariant}
                     isInline
-                    title="Result for User Creation"
+                    title={_("Result for User Creation")}
                 >
                     {commandOutput}
                     {this.state.adding &&
                         <div>
                             <Spinner className="ds-left-margin" size="md" />
-                            &nbsp;&nbsp;Adding user ...
+                            &nbsp;&nbsp;{_("Adding user ...")}
                         </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
                         <CardTitle>
-                            LDIF Data
+                            {_("LDIF Data")}
                         </CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -768,35 +764,35 @@ class AddUser extends React.Component {
             },
             {
                 id: 2,
-                name: 'Choose User Type',
+                name: _("Choose User Type"),
                 component: userSelectStep,
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 6
             },
             {
                 id: 3,
-                name: 'Select Attributes',
+                name: _("Select Attributes"),
                 component: userAttributesStep,
                 canJumpTo: stepIdReached >= 3 && stepIdReached < 6
             },
             {
                 id: 4,
-                name: 'Set Values',
+                name: _("Set Values"),
                 component: userValuesStep,
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
                 enableNext: noEmptyValue
             },
             {
                 id: 5,
-                name: 'Create User',
+                name: _("Create User"),
                 component: userCreationStep,
-                nextButtonText: 'Create User',
+                nextButtonText: _("Create User"),
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 6
             },
             {
                 id: 6,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: userReviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
                 hideBackButton: true,
                 enableNext: !this.state.adding
@@ -805,7 +801,7 @@ class AddUser extends React.Component {
 
         const title = (
             <>
-                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
             </>
         );
 
@@ -815,7 +811,7 @@ class AddUser extends React.Component {
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
                 onBack={this.handleBack}
-                title="Add A User"
+                title={_("Add A User")}
                 description={title}
                 steps={addUserSteps}
             />

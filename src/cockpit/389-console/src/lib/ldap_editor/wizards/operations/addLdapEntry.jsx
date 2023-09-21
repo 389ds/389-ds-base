@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -26,6 +27,8 @@ import {
 } from '../../lib/utils.jsx';
 import EditableTable from '../../lib/editableTable.jsx';
 
+const _ = cockpit.gettext;
+
 class AddLdapEntry extends React.Component {
     constructor (props) {
         super(props);
@@ -34,9 +37,9 @@ class AddLdapEntry extends React.Component {
         this.singleValuedAttributes = [];
         this.requiredAttributes = ['dn'];
         this.operationColumns = [
-            { title: 'Statement' },
-            { title: 'Attribute' },
-            { title: 'Value', cellTransforms: [breakWord] }
+            { title: _("Statement") },
+            { title: _("Attribute") },
+            { title: _("Value"), cellTransforms: [breakWord] }
         ];
 
         this.state = {
@@ -62,13 +65,13 @@ class AddLdapEntry extends React.Component {
             pageAttr: 1,
             perPageAttr: 10,
             columnsAttr: [
-                { title: 'Attribute Name', cellTransforms: [headerCol()] },
-                { title: 'From ObjectClass' }
+                { title: _("Attribute Name"), cellTransforms: [headerCol()] },
+                { title: _("From ObjectClass") }
             ],
             columnsOc: [
-                { title: 'ObjectClass Name', cellTransforms: [headerCol()] },
-                { title: 'Required Attributes', cellTransforms: [breakWord] },
-                { title: 'Optional Attributes', cellTransforms: [breakWord] }
+                { title: _("ObjectClass Name"), cellTransforms: [headerCol()] },
+                { title: _("Required Attributes"), cellTransforms: [breakWord] },
+                { title: _("Optional Attributes"), cellTransforms: [breakWord] }
             ],
             rowsOc: [],
             rowsAttr: [],
@@ -107,7 +110,7 @@ class AddLdapEntry extends React.Component {
                                 this.state.ldifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? 'Successfully added entry!' : 'Failed to add entry, error: ' + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ? _("Successfully added entry!") : _("Failed to add entry, error: ") + result.errorCode,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => { this.props.onReload() });
@@ -623,7 +626,7 @@ class AddLdapEntry extends React.Component {
                 position={DropdownPosition.left}
                 toggle={
                     <BadgeToggle id="toggle-oc-select" onToggle={this.handleOCDropDownToggle}>
-                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isOCDropDownOpen}
@@ -658,7 +661,7 @@ class AddLdapEntry extends React.Component {
                 position={DropdownPosition.left}
                 toggle={
                     <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
-                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isAttrDropDownOpen}
@@ -704,7 +707,7 @@ class AddLdapEntry extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select ObjectClasses
+                            {_("Select ObjectClasses")}
                         </Text>
                     </TextContent>
                     {this.buildOCDropdown()}
@@ -713,7 +716,7 @@ class AddLdapEntry extends React.Component {
                     <div>
                         <Bullseye className="ds-margin-top-xlg" key="add-entry-bulleye">
                             <Title headingLevel="h3" size="lg" key="loading-title">
-                                Loading ObjectClasses ...
+                                {_("Loading ObjectClasses ...")}
                             </Title>
                         </Bullseye>
                         <Spinner className="ds-center" size="lg" key="loading-spinner" />
@@ -723,7 +726,7 @@ class AddLdapEntry extends React.Component {
                         <GridItem span={5}>
                             <SearchInput
                                 className="ds-font-size-md"
-                                placeholder='Search Objectclasses'
+                                placeholder={_("Search Objectclasses")}
                                 value={this.state.searchOCValue}
                                 onChange={this.handleOCSearchChange}
                                 onClear={(evt, val) => this.handleOCSearchChange(evt, '')}
@@ -763,7 +766,7 @@ class AddLdapEntry extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select Attributes
+                            {_("Select Attributes")}
                         </Text>
                     </TextContent>
                     {this.buildAttrDropdown()}
@@ -772,7 +775,7 @@ class AddLdapEntry extends React.Component {
                     <GridItem span={5}>
                         <SearchInput
                             className="ds-font-size-md"
-                            placeholder='Search Attributes'
+                            placeholder={_("Search Attributes")}
                             value={this.state.searchAttrValue}
                             onChange={this.handleAttrSearchChange}
                             onClear={(evt, val) => this.handleAttrSearchChange(evt, '')}
@@ -805,21 +808,21 @@ class AddLdapEntry extends React.Component {
             </>
         );
 
-        const myTitle = 'DN ( Distinguished Name )';
+        const myTitle = _("DN ( Distinguished Name )");
         const entryValuesStep = (
             <>
                 <Alert
                     variant={namingAttr === '' || namingVal === ''
-                        ? 'warning'
-                        : 'success'}
+                        ? "warning"
+                        : "success"}
                     isInline
                     title={myTitle}
                 >
-                    <b>Entry DN:&nbsp;&nbsp;&nbsp;</b>{(namingAttr || "??????")}={namingVal || "??????"},{this.props.wizardEntryDn}
+                    <b>{_("Entry DN:")}&nbsp;&nbsp;&nbsp;</b>{(namingAttr || "??????")}={namingVal || "??????"},{this.props.wizardEntryDn}
                 </Alert>
                 <TextContent className="ds-margin-top">
                     <Text component={TextVariants.h3}>
-                        Set Attribute Values
+                        {_("Set Attribute Values")}
                     </Text>
                 </TextContent>
                 <EditableTable
@@ -850,7 +853,7 @@ class AddLdapEntry extends React.Component {
                     <Alert
                         variant="info"
                         isInline
-                        title="LDIF Statements"
+                        title={_("LDIF Statements")}
                     />
                 </div>
                 <Card isSelectable>
@@ -876,19 +879,19 @@ class AddLdapEntry extends React.Component {
                     <Alert
                         variant={resultVariant}
                         isInline
-                        title="Result for Entry Modification"
+                        title={_("Result for Entry Modification")}
                     >
                         {commandOutput}
                         {this.state.adding &&
                             <div>
                                 <Spinner className="ds-left-margin" size="md" />
-                                &nbsp;&nbsp;Adding entry ...
+                                &nbsp;&nbsp;{_("Adding entry ...")}
                             </div>}
                     </Alert>
                 </div>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
-                        <CardTitle>LDIF Data</CardTitle>
+                        <CardTitle>{_("LDIF Data")}</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
                                 <h6 key={line.id}>{line.data}</h6>
@@ -908,37 +911,37 @@ class AddLdapEntry extends React.Component {
             },
             {
                 id: 2,
-                name: 'Select ObjectClasses',
+                name: _("Select ObjectClasses"),
                 component: objectClassStep,
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 6,
                 enableNext: selectedObjectClasses.length > 0,
             },
             {
                 id: 3,
-                name: 'Select Attributes',
+                name: _("Select Attributes"),
                 component: attributeStep,
                 canJumpTo: stepIdReached >= 3 && stepIdReached < 6,
                 enableNext: selectedAttributes.length > 0,
             },
             {
                 id: 4,
-                name: 'Edit Values',
+                name: _("Edit Values"),
                 component: entryValuesStep,
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 6,
                 enableNext: validMods
             },
             {
                 id: 5,
-                name: 'LDIF Statements',
+                name: _("LDIF Statements"),
                 component: ldifStatementsStep,
-                nextButtonText: 'Create Entry',
+                nextButtonText: _("Create Entry"),
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 6
             },
             {
                 id: 6,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: entryReviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
                 hideBackButton: true,
                 enableNext: !this.state.adding,
@@ -947,7 +950,7 @@ class AddLdapEntry extends React.Component {
 
         const title = (
             <>
-                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
             </>
         );
 
@@ -956,7 +959,7 @@ class AddLdapEntry extends React.Component {
                 isOpen={this.props.isWizardOpen}
                 onClose={this.props.handleToggleWizard}
                 steps={addEntrySteps}
-                title="Add An LDAP Entry"
+                title={_("Add An LDAP Entry")}
                 description={title}
                 onNext={this.handleNext}
             />

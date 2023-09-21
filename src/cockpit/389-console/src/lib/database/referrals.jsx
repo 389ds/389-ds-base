@@ -17,6 +17,8 @@ import {
 import { log_cmd, valid_port, valid_dn } from "../tools.jsx";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class SuffixReferrals extends React.Component {
     constructor (props) {
         super(props);
@@ -113,7 +115,7 @@ export class SuffixReferrals extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "success",
-                        `Referral successfully deleted`
+                        _("Referral successfully deleted")
                     );
                     this.setState({
                         modalSpinning: false,
@@ -125,7 +127,7 @@ export class SuffixReferrals extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failure deleting referral - ${errMsg.desc}`
+                        cockpit.format(_("Failure deleting referral - $0"), errMsg.desc)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -153,7 +155,7 @@ export class SuffixReferrals extends React.Component {
                     this.closeRefModal();
                     this.props.addNotification(
                         "success",
-                        `Referral successfully created`
+                        _("Referral successfully created")
                     );
                     this.setState({
                         saving: false
@@ -165,7 +167,7 @@ export class SuffixReferrals extends React.Component {
                     this.closeRefModal();
                     this.props.addNotification(
                         "error",
-                        `Failure creating referral - ${errMsg.desc}`
+                        cockpit.format(_("Failure creating referral - $0"), errMsg.desc)
                     );
                     this.setState({
                         saving: false
@@ -262,7 +264,7 @@ export class SuffixReferrals extends React.Component {
                     deleteRef={this.showConfirmRefDelete}
                 />
                 <Button variant="primary" onClick={this.handleShowRefModal}>
-                    Create Referral
+                    {_("Create Referral")}
                 </Button>
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRefDelete}
@@ -272,10 +274,10 @@ export class SuffixReferrals extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.removeRef}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Referral"
-                    mMsg="Are you sure you want to delete this referral?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Delete Referral")}
+                    mMsg={_("Are you sure you want to delete this referral?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
                 <AddReferralModal
                     showModal={this.state.showRefModal}
@@ -316,16 +318,16 @@ class AddReferralModal extends React.Component {
         if (previewValue === "") {
             previewValue = "ldap://";
         }
-        let saveBtnName = "Create Referral";
+        let saveBtnName = _("Create Referral");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Creating ...";
-            extraPrimaryProps.spinnerAriaValueText = "Creating";
+            saveBtnName = _("Creating ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Add Database Referral"
+                title={_("Add Database Referral")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -335,20 +337,20 @@ class AddReferralModal extends React.Component {
                         onClick={saveHandler}
                         isDisabled={saveBtnDisabled || saving}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        spinnerAriaValueText={saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form className="ds-margin-top" isHorizontal autoComplete="off">
                     <Grid>
                         <GridItem className="ds-label" span={3}>
-                            Protocol
+                            {_("Protocol")}
                         </GridItem>
                         <GridItem span={9}>
                             <FormSelect id="refProtocol" value={refProtocol} onChange={handleLdapChange} aria-label="FormSelect Input">
@@ -359,7 +361,7 @@ class AddReferralModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={3}>
-                            Host Name
+                            {_("Host Name")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -376,7 +378,7 @@ class AddReferralModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={3}>
-                            Port Number
+                            {_("Port Number")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -393,7 +395,7 @@ class AddReferralModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={3}>
-                            Suffix
+                            {_("Suffix")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -408,9 +410,9 @@ class AddReferralModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Comma separated list of attributes to return">
+                    <Grid title={_("Comma separated list of attributes to return")}>
                         <GridItem className="ds-label" span={3}>
-                            Attributes
+                            {_("Attributes")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -426,7 +428,7 @@ class AddReferralModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={3}>
-                            Filter
+                            {_("Filter")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -442,7 +444,7 @@ class AddReferralModal extends React.Component {
                     </Grid>
                     <Grid>
                         <GridItem className="ds-label" span={3}>
-                            Scope
+                            {_("Scope")}
                         </GridItem>
                         <GridItem span={9}>
                             <FormSelect id="refScope" value={refScope} onChange={handleScopeChange} aria-label="FormSelect Input">
@@ -455,7 +457,7 @@ class AddReferralModal extends React.Component {
                     <hr />
                     <Grid>
                         <GridItem span={3}>
-                            Computed Referral
+                            {_("Computed Referral")}
                         </GridItem>
                         <GridItem span={9}>
                             <b>{previewValue}</b>
