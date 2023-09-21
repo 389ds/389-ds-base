@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -25,6 +26,8 @@ import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/e
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 class AbortCleanALLRUVTable extends React.Component {
     constructor(props) {
         super(props);
@@ -36,10 +39,10 @@ class AbortCleanALLRUVTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Task', transforms: [sortable], cellFormatters: [expandable] },
-                { title: 'Created', transforms: [sortable] },
-                { title: 'Replica ID', transforms: [sortable] },
-                { title: 'Status', transforms: [sortable] },
+                { title: _("Task"), transforms: [sortable], cellFormatters: [expandable] },
+                { title: _("Created"), transforms: [sortable] },
+                { title: _("Replica ID"), transforms: [sortable] },
+                { title: _("Status"), transforms: [sortable] },
                 { title: '' },
             ],
         };
@@ -94,8 +97,8 @@ class AbortCleanALLRUVTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Tasks'] }];
-            columns = [{ title: 'Abort CleanAllRUV Tasks' }];
+            rows = [{ cells: [_("No Tasks")] }];
+            columns = [{ title: _("Abort CleanAllRUV Tasks") }];
         }
         this.setState({
             rows,
@@ -211,10 +214,10 @@ class CleanALLRUVTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Task', transforms: [sortable], cellFormatters: [expandable] },
-                { title: 'Created', transforms: [sortable] },
-                { title: 'Replica ID', transforms: [sortable] },
-                { title: 'Status', transforms: [sortable] },
+                { title: _("Task"), transforms: [sortable], cellFormatters: [expandable] },
+                { title: _("Created"), transforms: [sortable] },
+                { title: _("Replica ID"), transforms: [sortable] },
+                { title: _("Status"), transforms: [sortable] },
                 { title: '' },
             ],
         };
@@ -269,8 +272,8 @@ class CleanALLRUVTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Tasks'] }];
-            columns = [{ title: 'CleanAllRUV Tasks' }];
+            rows = [{ cells: [_("No Tasks")] }];
+            columns = [{ title: _("CleanAllRUV Tasks") }];
         }
         this.setState({
             rows,
@@ -386,9 +389,9 @@ class WinsyncAgmtTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Agreement', transforms: [sortable], cellFormatters: [expandable] },
-                { title: 'Replica', transforms: [sortable] },
-                { title: 'Enabled', transforms: [sortable] },
+                { title: _("Agreement"), transforms: [sortable], cellFormatters: [expandable] },
+                { title: _("Replica"), transforms: [sortable] },
+                { title: _("Enabled"), transforms: [sortable] },
                 { title: '' },
             ],
         };
@@ -414,23 +417,23 @@ class WinsyncAgmtTable extends React.Component {
     getExpandedRow(agmt) {
         return (
             <Grid className="ds-indent">
-                <GridItem span={3}>Session In Progress:</GridItem>
+                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
-                <GridItem span={3}>Changes Sent:</GridItem>
+                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Init Started:</GridItem>
+                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Ended:</GridItem>
+                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Status:</GridItem>
+                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Updated Started:</GridItem>
+                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Ended:</GridItem>
+                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Status:</GridItem>
+                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
             </Grid>
         );
@@ -442,10 +445,10 @@ class WinsyncAgmtTable extends React.Component {
                 id={name}
                 variant="primary"
                 onClick={this.props.handlePokeAgmt}
-                title="Awaken the winsync replication agreement"
+                title={_("Awaken the winsync replication agreement")}
                 isSmall
             >
-                Poke
+                {_("Poke")}
             </Button>
         );
     }
@@ -472,8 +475,8 @@ class WinsyncAgmtTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Agreements'] }];
-            columns = [{ title: 'Winsync Agreements' }];
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Winsync Agreements") }];
         }
         this.setState({
             rows,
@@ -594,9 +597,9 @@ class AgmtTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Agreement', transforms: [sortable], cellFormatters: [expandable] },
-                { title: 'Replica', transforms: [sortable] },
-                { title: 'Enabled', transforms: [sortable] },
+                { title: _("Agreement"), transforms: [sortable], cellFormatters: [expandable] },
+                { title: _("Replica"), transforms: [sortable] },
+                { title: _("Enabled"), transforms: [sortable] },
                 { title: '' },
             ],
         };
@@ -622,27 +625,27 @@ class AgmtTable extends React.Component {
     getExpandedRow(agmt) {
         return (
             <Grid className="ds-indent">
-                <GridItem span={3}>Session In Progress:</GridItem>
+                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
-                <GridItem span={3}>Changes Sent:</GridItem>
+                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
-                <GridItem span={3}>Changes Skipped:</GridItem>
+                <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
-                <GridItem span={3}>Reap Active:</GridItem>
+                <GridItem span={3}>{_("Reap Active:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Init Started:</GridItem>
+                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Ended:</GridItem>
+                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Status:</GridItem>
+                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Updated Started:</GridItem>
+                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Ended:</GridItem>
+                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Status:</GridItem>
+                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
             </Grid>
         );
@@ -654,10 +657,10 @@ class AgmtTable extends React.Component {
                 id={name}
                 variant="primary"
                 onClick={this.props.handlePokeAgmt}
-                title="Awaken the replication agreement"
+                title={_("Awaken the replication agreement")}
                 isSmall
             >
-                Poke
+                {_("Poke")}
             </Button>
         );
     }
@@ -684,8 +687,8 @@ class AgmtTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Agreements'] }];
-            columns = [{ title: 'Replication Agreements' }];
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Replication Agreements") }];
         }
         this.setState({
             rows,
@@ -802,18 +805,18 @@ class ConnectionTable extends React.Component {
             rows: [],
             columns: [
                 {
-                    title: 'Connection Opened',
+                    title: _("Connection Opened"),
                     cellFormatters: [expandable],
                     transforms: [sortable]
                 },
-                { title: 'IP Address', transforms: [sortable] },
-                { title: 'Conn ID', transforms: [sortable] },
-                { title: 'Bind DN', transforms: [sortable] },
+                { title: _("IP Address"), transforms: [sortable] },
+                { title: _("Conn ID"), transforms: [sortable] },
+                { title: _("Bind DN"), transforms: [sortable] },
                 {
-                    title: 'Max Threads',
+                    title: _("Max Threads"),
                     transforms: [
                         info({
-                            tooltip: 'If connection is currently at "Max Threads" then it will block new operations'
+                            tooltip: _("If connection is currently at \"Max Threads\" then it will block new operations")
                         }),
                         sortable
                     ]
@@ -843,28 +846,28 @@ class ConnectionTable extends React.Component {
     getExpandedRow(ip, conn_date, parts) {
         return (
             <Grid className="ds-indent">
-                <GridItem span={3}>IP Address:</GridItem>
+                <GridItem span={3}>{_("IP Address:")}</GridItem>
                 <GridItem span={4}><b>{ip}</b></GridItem>
-                <GridItem span={3}>File Descriptor:</GridItem>
+                <GridItem span={3}>{_("File Descriptor:")}</GridItem>
                 <GridItem span={2}><b>{parts[0]}</b></GridItem>
-                <GridItem span={3}>Connection Opened:</GridItem>
+                <GridItem span={3}>{_("Connection Opened:")}</GridItem>
                 <GridItem span={4}><b>{conn_date}</b></GridItem>
-                <GridItem span={3}>Operations Started:</GridItem>
+                <GridItem span={3}>{_("Operations Started:")}</GridItem>
                 <GridItem span={2}><b>{parts[2]}</b></GridItem>
-                <GridItem span={3}>Connection ID:</GridItem>
+                <GridItem span={3}>{_("Connection ID:")}</GridItem>
                 <GridItem span={4}><b>{parts[9]}</b></GridItem>
-                <GridItem span={3}>Operations Finished:</GridItem>
+                <GridItem span={3}>{_("Operations Finished:")}</GridItem>
                 <GridItem span={2}><b>{parts[3]}</b></GridItem>
-                <GridItem span={3}>Bind DN:</GridItem>
+                <GridItem span={3}>{_("Bind DN:")}</GridItem>
                 <GridItem span={4}><b>{parts[5]}</b></GridItem>
-                <GridItem span={3}>Read/write Blocked:</GridItem>
+                <GridItem span={3}>{_("Read/write Blocked:")}</GridItem>
                 <GridItem span={2}><b>{parts[4]}</b></GridItem>
                 <hr />
-                <GridItem span={6}>Connection Currently At Max Threads:</GridItem>
-                <GridItem span={6}><b>{parts[6] === "1" ? "Yes" : "No"}</b></GridItem>
-                <GridItem span={6}>Number Of Times Connection Hit Max Threads:</GridItem>
+                <GridItem span={6}>{_("Connection Currently At Max Threads:")}</GridItem>
+                <GridItem span={6}><b>{parts[6] === "1" ? _("Yes") : _("No")}</b></GridItem>
+                <GridItem span={6}>{_("Number Of Times Connection Hit Max Threads:")}</GridItem>
                 <GridItem span={6}><b>{parts[7]}</b></GridItem>
-                <GridItem span={6}>Number Of Operations Blocked By Max Threads:</GridItem>
+                <GridItem span={6}>{_("Number Of Operations Blocked By Max Threads:")}</GridItem>
                 <GridItem span={6}><b>{parts[8]}</b></GridItem>
             </Grid>
         );
@@ -1045,12 +1048,12 @@ class ConnectionTable extends React.Component {
             <div className="ds-margin-top-xlg">
                 <TextContent>
                     <Text component={TextVariants.h4}>
-                        Client Connections:<b className="ds-left-margin">{this.props.conns.length}</b>
+                        {_("Client Connections:")}<b className="ds-left-margin">{this.props.conns.length}</b>
                     </Text>
                 </TextContent>
                 <SearchInput
                     className="ds-margin-top-xlg"
-                    placeholder='Search connections'
+                    placeholder={_("Search connections")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -1094,9 +1097,9 @@ class GlueTable extends React.Component {
             rows: [],
             dropdownIsOpen: false,
             columns: [
-                { title: 'Glue Entry', transforms: [sortable, cellWidth(12)] },
-                { title: 'Description', transforms: [sortable] },
-                { title: 'Created', transforms: [sortable] },
+                { title: _("Glue Entry"), transforms: [sortable, cellWidth(12)] },
+                { title: _("Description"), transforms: [sortable] },
+                { title: _("Created"), transforms: [sortable] },
             ],
         };
 
@@ -1181,12 +1184,12 @@ class GlueTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Convert Glue Entry',
+                title: _("Convert Glue Entry"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.convertGlue(rowData.cells[0])
             },
             {
-                title: 'Delete Glue Entry',
+                title: _("Delete Glue Entry"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteGlue(rowData.cells[0])
             }
@@ -1200,8 +1203,8 @@ class GlueTable extends React.Component {
         let has_rows = true;
         if (rows.length === 0) {
             has_rows = false;
-            rows = [{ cells: ['No Glue Entries'] }];
-            columns = [{ title: 'Replication Conflict Glue Entries' }];
+            rows = [{ cells: [_("No Glue Entries")] }];
+            columns = [{ title: _("Replication Conflict Glue Entries") }];
         }
 
         return (
@@ -1246,9 +1249,9 @@ class ConflictTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Conflict DN', transforms: [sortable] },
-                { title: 'Description', transforms: [sortable] },
-                { title: 'Created', transforms: [sortable] },
+                { title: _("Conflict DN"), transforms: [sortable] },
+                { title: _("Description"), transforms: [sortable] },
+                { title: _("Created"), transforms: [sortable] },
                 { title: '' }
             ],
         };
@@ -1279,7 +1282,7 @@ class ConflictTable extends React.Component {
                     this.props.resolveConflict(name);
                 }}
             >
-                Resolve
+                {_("Resolve")}
             </Button>
         );
     }
@@ -1297,8 +1300,8 @@ class ConflictTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Conflict Entries'] }];
-            columns = [{ title: 'Replication Conflict Entries' }];
+            rows = [{ cells: [_("No Conflict Entries")] }];
+            columns = [{ title: _("Replication Conflict Entries") }];
         }
         this.setState({
             rows,
@@ -1382,10 +1385,10 @@ class DiskTable extends React.Component {
         this.state = {
             sortBy: {},
             columns: [
-                { title: 'Disk Partition', transforms: [sortable] },
-                { title: 'Disk Size', transforms: [sortable] },
-                { title: 'Used Space', transforms: [sortable] },
-                { title: 'Available Space', transforms: [sortable] },
+                { title: _("Disk Partition"), transforms: [sortable] },
+                { title: _("Disk Size"), transforms: [sortable] },
+                { title: _("Used Space"), transforms: [sortable] },
+                { title: _("Available Space"), transforms: [sortable] },
             ],
         };
         this.handleSort = this.handleSort.bind(this);
@@ -1423,8 +1426,8 @@ class ReportAliasesTable extends React.Component {
             sortBy: {},
             dropdownIsOpen: false,
             columns: [
-                { title: 'Alias', transforms: [sortable] },
-                { title: 'Connection Data', transforms: [sortable] },
+                { title: _("Alias"), transforms: [sortable] },
+                { title: _("Connection Data"), transforms: [sortable] },
             ],
         };
     }
@@ -1432,12 +1435,12 @@ class ReportAliasesTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Alias',
+                title: _("Edit Alias"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData[0], rowData[1])
             },
             {
-                title: 'Delete Alias',
+                title: _("Delete Alias"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData[0])
             }
@@ -1450,15 +1453,15 @@ class ReportAliasesTable extends React.Component {
         let has_rows = true;
         if (rows.length === 0) {
             has_rows = false;
-            rows = [{ cells: ['No Aliases'] }];
-            columns = [{ title: 'Instance Aliases' }];
+            rows = [{ cells: [_("No Aliases")] }];
+            columns = [{ title: _("Instance Aliases") }];
         }
 
         return (
             <div className="ds-margin-top-xlg">
                 <TextContent>
                     <Text className="ds-center ds-margin-bottom" component={TextVariants.h4}>
-                        Replica Naming Aliases
+                        {_("Replica Naming Aliases")}
                     </Text>
                 </TextContent>
                 <Table
@@ -1484,9 +1487,9 @@ class ReportCredentialsTable extends React.Component {
         this.state = {
             dropdownIsOpen: false,
             columns: [
-                { title: 'Connection Data', transforms: [sortable] }, // connData
-                { title: 'Bind DN', transforms: [sortable] }, // credsBinddn
-                { title: 'Password', transforms: [sortable] }, // credsBindpw
+                { title: _("Connection Data"), transforms: [sortable] }, // connData
+                { title: _("Bind DN"), transforms: [sortable] }, // credsBinddn
+                { title: _("Password"), transforms: [sortable] }, // credsBindpw
             ],
         };
     }
@@ -1494,12 +1497,12 @@ class ReportCredentialsTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Connection',
+                title: _("Edit Connection"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData.cells[0], rowData.cells[1], rowData.credsBindpw, rowData.pwInteractive)
             },
             {
-                title: 'Delete Connection',
+                title: _("Delete Connection"),
                 onClick: (event, rowId, rowData, extra) => this.props.deleteConfig(rowData.cells[0])
             }
         ];
@@ -1511,16 +1514,16 @@ class ReportCredentialsTable extends React.Component {
         let has_rows = true;
         if (this.props.rows.length === 0) {
             has_rows = false;
-            rows = [{ cells: ['No Credentials'] }];
-            columns = [{ title: 'Credentials Table' }];
+            rows = [{ cells: [_("No Credentials")] }];
+            columns = [{ title: _("Credentials Table") }];
         } else {
             for (let row of this.props.rows) {
                 row = JSON.parse(JSON.stringify(row)); // Deep copy
                 const pwInteractive = row.pwInputInterractive;
-                let pwField = <i>Interactive Input is set</i>;
+                let pwField = <i>{_("Interactive Input is set")}</i>;
                 if (!pwInteractive) {
                     if (row.credsBindpw === "") {
-                        pwField = <i>Both Password or Interactive Input flag are not set</i>;
+                        pwField = <i>{_("Both Password or Interactive Input flag are not set")}</i>;
                     } else {
                         pwField = "********";
                     }
@@ -1543,7 +1546,7 @@ class ReportCredentialsTable extends React.Component {
             <div className="ds-margin-top">
                 <TextContent>
                     <Text className="ds-center ds-margin-bottom" component={TextVariants.h4}>
-                        Replication Report Credentials
+                        {_("Replication Report Credentials")}
                     </Text>
                 </TextContent>
                 <Table
@@ -1571,10 +1574,10 @@ class ReportSingleTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Supplier', transforms: [sortable], cellFormatters: [expandable] },
-                { title: 'Agreement', transforms: [sortable] },
-                { title: 'Status', transforms: [sortable] },
-                { title: 'Lag', transforms: [sortable] },
+                { title: _("Supplier"), transforms: [sortable], cellFormatters: [expandable] },
+                { title: _("Agreement"), transforms: [sortable] },
+                { title: _("Status"), transforms: [sortable] },
+                { title: _("Lag"), transforms: [sortable] },
             ],
         };
 
@@ -1588,7 +1591,7 @@ class ReportSingleTable extends React.Component {
             return (
                 <TextContent>
                     <Text component={TextVariants.h4}>
-                        No agreement information
+                        {_("No agreement information")}
                     </Text>
                 </TextContent>
             );
@@ -1605,35 +1608,35 @@ class ReportSingleTable extends React.Component {
         }
         return (
             <Grid className="ds-indent">
-                <GridItem span={3}>Suffix & Replica ID:</GridItem>
+                <GridItem span={3}>{_("Suffix & Replica ID:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replicaName[0] }</b></GridItem>
-                <GridItem span={3}>Replica Server Status:</GridItem>
+                <GridItem span={3}>{_("Replica Server Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replicaStatus[0] }</b></GridItem>
-                <GridItem span={3}>Replication Enabled:</GridItem>
+                <GridItem span={3}>{_("Replication Enabled:")}</GridItem>
                 <GridItem span={9}><b>{ replEnabled }</b></GridItem>
-                <GridItem span={3}>Session In Progress:</GridItem>
+                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
-                <GridItem span={3}>Consumer:</GridItem>
+                <GridItem span={3}>{_("Consumer:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
-                <GridItem span={3}>Changes Sent:</GridItem>
+                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
-                <GridItem span={3}>Changes Skipped:</GridItem>
+                <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
-                <GridItem span={3}>Reap Active:</GridItem>
+                <GridItem span={3}>{_("Reap Active:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Init Started:</GridItem>
+                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Ended:</GridItem>
+                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Status:</GridItem>
+                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Updated Started:</GridItem>
+                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Ended:</GridItem>
+                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Status:</GridItem>
+                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
             </Grid>
         );
@@ -1662,7 +1665,7 @@ class ReportSingleTable extends React.Component {
             }
             if (replica['replica-enabled'][0] === "off") {
                 agmtName = (
-                    <div className="ds-warning-icon" title="Agreement is disabled">
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
                         {replica['agmt-name'][0]} <ExclamationTriangleIcon />
                     </div>
                 );
@@ -1688,8 +1691,8 @@ class ReportSingleTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Agreements'] }];
-            columns = [{ title: 'Replication Agreements' }];
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Replication Agreements") }];
         }
 
         this.setState({
@@ -1733,7 +1736,7 @@ class ReportSingleTable extends React.Component {
             let agmtName;
             if (agmt['replica-enabled'] === "off") {
                 agmtName = (
-                    <div className="ds-warning-icon" title="Agreement is disabled">
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
                         {agmt['agmt-name'][0]} <ExclamationTriangleIcon />
                     </div>
                 );
@@ -1797,10 +1800,10 @@ class ReportConsumersTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Agreement Name', transforms: [sortable], cellFormatters: [expandable] },
-                { title: 'Enabled', transforms: [sortable] },
-                { title: 'Status', transforms: [sortable] },
-                { title: 'Lag', transforms: [sortable] },
+                { title: _("Agreement Name"), transforms: [sortable], cellFormatters: [expandable] },
+                { title: _("Enabled"), transforms: [sortable] },
+                { title: _("Status"), transforms: [sortable] },
+                { title: _("Lag"), transforms: [sortable] },
             ],
         };
 
@@ -1815,7 +1818,7 @@ class ReportConsumersTable extends React.Component {
             return (
                 <TextContent>
                     <Text component={TextVariants.h4}>
-                        No agreement information
+                        {_("No agreement information")}
                     </Text>
                 </TextContent>
             );
@@ -1831,35 +1834,35 @@ class ReportConsumersTable extends React.Component {
         }
         return (
             <Grid className="ds-margin-left">
-                <GridItem span={3}>Suffix & Replica ID:</GridItem>
+                <GridItem span={3}>{_("Suffix & Replica ID:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replicaName[0] }</b></GridItem>
-                <GridItem span={3}>Replica Server Status:</GridItem>
+                <GridItem span={3}>{_("Replica Server Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replicaStatus[0] }</b></GridItem>
-                <GridItem span={3}>Replication Enabled:</GridItem>
+                <GridItem span={3}>{_("Replication Enabled:")}</GridItem>
                 <GridItem span={9}><b>{ replEnabled }</b></GridItem>
-                <GridItem span={3}>Session In Progress:</GridItem>
+                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
-                <GridItem span={3}>Consumer:</GridItem>
+                <GridItem span={3}>{_("Consumer:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
-                <GridItem span={3}>Changes Sent:</GridItem>
+                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
-                <GridItem span={3}>Changes Skipped:</GridItem>
+                <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
-                <GridItem span={3}>Reap Active:</GridItem>
+                <GridItem span={3}>{_("Reap Active:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Init Started:</GridItem>
+                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Ended:</GridItem>
+                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Init Status:</GridItem>
+                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
                 <hr />
-                <GridItem span={3}>Last Updated Started:</GridItem>
+                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Ended:</GridItem>
+                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
-                <GridItem span={3}>Last Update Status:</GridItem>
+                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
             </Grid>
         );
@@ -1886,7 +1889,7 @@ class ReportConsumersTable extends React.Component {
             }
             if (replica['replica-enabled'] === "off") {
                 replEnabled = (
-                    <div className="ds-warning-icon" title="Agreement is disabled">
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
                         {replica['replica-enabled'][0]} <ExclamationTriangleIcon />
                     </div>
                 );
@@ -1912,8 +1915,8 @@ class ReportConsumersTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Agreements'] }];
-            columns = [{ title: 'Replication Agreements' }];
+            rows = [{ cells: [_("No Agreements")] }];
+            columns = [{ title: _("Replication Agreements") }];
         }
         this.setState({
             rows,
@@ -1956,7 +1959,7 @@ class ReportConsumersTable extends React.Component {
             agmt = agmt.agmt;
             if (agmt['replica-enabled'] === "off") {
                 replEnabled = (
-                    <div className="ds-warning-icon" title="Agreement is disabled">
+                    <div className="ds-warning-icon" title={_("Agreement is disabled")}>
                         {agmt['replica-enabled'][0]} <ExclamationTriangleIcon />
                     </div>
                 );
@@ -2019,10 +2022,10 @@ class ReplDSRCTable extends React.Component {
         this.state = {
             sortBy: {},
             columns: [
-                { title: 'Name', transforms: [sortable] },
-                { title: 'Connection Data', transforms: [sortable] },
-                { title: 'Bind DN', transforms: [sortable] },
-                { title: 'Password', transforms: [sortable] },
+                { title: _("Name"), transforms: [sortable] },
+                { title: _("Connection Data"), transforms: [sortable] },
+                { title: _("Bind DN"), transforms: [sortable] },
+                { title: _("Password"), transforms: [sortable] },
                 { title: '' },
             ],
             rows: [],
@@ -2049,8 +2052,8 @@ class ReplDSRCTable extends React.Component {
             });
         }
         if (this.props.rows.length === 0) {
-            rows = [{ cells: ['There is no saved replication monitor connections'] }];
-            columns = [{ title: 'Replication Connections' }];
+            rows = [{ cells: [_("There is no saved replication monitor connections")] }];
+            columns = [{ title: _("Replication Connections") }];
         }
         this.setState({
             rows,
@@ -2098,8 +2101,8 @@ class ReplDSRCAliasTable extends React.Component {
         this.state = {
             sortBy: {},
             columns: [
-                { title: 'Alias', transforms: [sortable] },
-                { title: 'Connection Data', transforms: [sortable] },
+                { title: _("Alias"), transforms: [sortable] },
+                { title: _("Connection Data"), transforms: [sortable] },
                 { title: '' }
             ],
             rows: [],
@@ -2119,8 +2122,8 @@ class ReplDSRCAliasTable extends React.Component {
             });
         }
         if (this.props.rows.length === 0) {
-            rows = [{ cells: ['There are no saved replication monitor aliases'] }];
-            columns = [{ title: 'Replication Monitoring Aliases' }];
+            rows = [{ cells: [_("There are no saved replication monitor aliases")] }];
+            columns = [{ title: _("Replication Monitoring Aliases") }];
         }
         this.setState({
             rows,

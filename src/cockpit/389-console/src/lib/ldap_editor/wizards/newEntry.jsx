@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -14,6 +15,8 @@ import AddGroup from './operations/addGroup.jsx';
 import AddRole from './operations/addRole.jsx';
 import AddLdapEntry from './operations/addLdapEntry.jsx';
 import GenericUpdate from './operations/genericUpdate.jsx';
+
+const _ = cockpit.gettext;
 
 class NewEntryWizard extends React.Component {
     constructor (props) {
@@ -37,27 +40,25 @@ class NewEntryWizard extends React.Component {
             return ([
                 {
                     id: 1,
-                    name: 'Get Started',
+                    name: _("Get Started"),
                     component: (
                         <Card isSelectable>
-                            <CardTitle>Requirement for a root entry creation</CardTitle>
+                            <CardTitle>{_("Requirement for a root entry creation")}</CardTitle>
                             <CardBody>
                                 <Alert
 variant="info" isInline
-                                    title="The object class must contain the attribute used to name the suffix."
+                                    title={_("The object class must contain the attribute used to name the suffix.")}
                                 />
                             </CardBody>
                             <CardBody>
-                                For example, if the entry corresponds to the suffix <code>ou=people,dc=example,dc=com</code>,
-                                then choose the <code>organizationalUnit</code> object class or
-                                another object class that allows the <code>ou</code> attribute.
+                                {_("For example, if the entry corresponds to the suffix <code>ou=people,dc=example,dc=com</code>, then choose the<code>organizationalUnit</code>object class or another object class that allows the <code>ou</code> attribute.")}
                             </CardBody>
                             <CardBody>
                                 <Alert
 variant="default" isInline
-                                    title={`The root entry to create is "${this.props.entryParentDn}"`}
+                                    title={cockpit.format(_("The root entry to create is $0"), this.props.entryParentDn)}
                                 >
-                                    Make sure to select an <strong>ObjectClass</strong> that allows or requires the attribute
+                                    {_("Make sure to select an <strong>ObjectClass</strong>that allows or requires the attribute")}
                                     <strong> {this.props.entryParentDn.split('=')[0]}</strong>
                                 </Alert>
                             </CardBody>
@@ -71,15 +72,15 @@ variant="default" isInline
         return ([
             {
                 id: 1,
-                name: 'Get Started',
+                name: _("Get Started"),
                 component: (
                     <div>
                         <Radio
                             value="User"
                             isChecked={this.state.getStartedStepRadio === 'User'}
                             onChange={this.handleOnChange}
-                            label="Create a new User"
-                            description="Add a new User (inetOrgPerson objectClass)"
+                            label={_("Create a new User")}
+                            description={_("Add a new User (inetOrgPerson objectClass)")}
                             name="radio-new-step-start"
                             id="radio-new-step-start-1"
                         />
@@ -88,8 +89,8 @@ variant="default" isInline
                             value="Group"
                             isChecked={this.state.getStartedStepRadio === 'Group'}
                             onChange={this.handleOnChange}
-                            label="Create a new Group"
-                            description="Add a new Group (GroupOfNames/GroupOfUniqueNames objectClass)"
+                            label={_("Create a new Group")}
+                            description={_("Add a new Group (GroupOfNames/GroupOfUniqueNames objectClass)")}
                             name="group"
                             id="radio-new-step-start-2"
                         />
@@ -98,8 +99,8 @@ variant="default" isInline
                             value="OrganizationalUnit"
                             isChecked={this.state.getStartedStepRadio === 'OrganizationalUnit'}
                             onChange={this.handleOnChange}
-                            label="Create a new Organizational Unit"
-                            description="Add a new Organizational Unit"
+                            label={_("Create a new Organizational Unit")}
+                            description={_("Add a new Organizational Unit")}
                             name="radio-new-step-start"
                             id="radio-new-step-start-3"
                         />
@@ -108,8 +109,8 @@ variant="default" isInline
                           value="Role"
                           isChecked={this.state.getStartedStepRadio === 'Role'}
                           onChange={this.handleOnChange}
-                          label="Create a new Role"
-                          description="Add a new Role (Filtered / Managed / Nested)"
+                          label={_("Create a new Role")}
+                          description={_("Add a new Role (Filtered / Managed / Nested)")}
                           name="radio-new-step-start"
                           id="radio-new-step-start-4"
                         />
@@ -118,8 +119,8 @@ variant="default" isInline
                             value="Other"
                             isChecked={this.state.getStartedStepRadio === 'Other'}
                             onChange={this.handleOnChange}
-                            label="Create a new custom Entry"
-                            description="Add a new entry by selecting ObjectClasses and Attributes"
+                            label={_("Create a new custom Entry")}
+                            description={_("Add a new entry by selecting ObjectClasses and Attributes")}
                             name="radio-new-step-start"
                             id="radio-new-step-start-7"
                         />

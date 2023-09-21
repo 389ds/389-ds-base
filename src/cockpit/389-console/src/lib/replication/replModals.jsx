@@ -1,4 +1,5 @@
 import React from "react";
+import cockpit from "cockpit";
 import {
     Button,
     Checkbox,
@@ -29,6 +30,8 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
+
+const _ = cockpit.gettext;
 
 export class WinsyncAgmtModal extends React.Component {
     constructor(props) {
@@ -124,7 +127,7 @@ export class WinsyncAgmtModal extends React.Component {
             isExcludeAttrOpen,
         } = this.props;
         const saveDisabled = !this.props.saveOK;
-        let title = "Create";
+        let title = _("Create");
         let initRow = "";
         let name = "agmt-modal";
         const startHour = agmtStartTime.substring(0, 2);
@@ -133,11 +136,11 @@ export class WinsyncAgmtModal extends React.Component {
         const endHour = agmtEndTime.substring(0, 2);
         const endMin = agmtEndTime.substring(2, 4);
         const endTime = endHour + ":" + endMin;
-        let saveBtnName = "Save Agreement";
+        let saveBtnName = _("Save Agreement");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Saving Agreement ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving Agreement ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
         let mainSettingsError = "";
         let scheduleError = "";
@@ -153,13 +156,13 @@ export class WinsyncAgmtModal extends React.Component {
         }
 
         if (this.props.edit) {
-            title = "Edit";
+            title = _("Edit");
             name = "agmt-modal-edit";
         } else {
             initRow = (
                 <Grid className="ds-margin-top">
                     <GridItem className="ds-label" span={3}>
-                        Consumer Initialization
+                        {_("Consumer Initialization")}
                     </GridItem>
                     <GridItem span={9}>
                         <FormSelect
@@ -170,8 +173,8 @@ export class WinsyncAgmtModal extends React.Component {
                             }}
                             aria-label="FormSelect Input"
                         >
-                            <FormSelectOption key={0} value="noinit" label="Do Not Initialize" />
-                            <FormSelectOption key={1} value="online-init" label="Do Online Initialization" />
+                            <FormSelectOption key={0} value="noinit" label={_("Do Not Initialize")} />
+                            <FormSelectOption key={1} value="online-init" label={_("Do Online Initialization")} />
                         </FormSelect>
                     </GridItem>
                 </Grid>
@@ -182,7 +185,7 @@ export class WinsyncAgmtModal extends React.Component {
             <div className="ds-left-indent-md">
                 <Grid className="ds-margin-top-lg">
                     <GridItem className="ds-label" span={12}>
-                        Days To Send Synchronization Updates
+                        {_("Days To Send Synchronization Updates")}
                     </GridItem>
                 </Grid>
                 <div className="ds-indent ds-margin-top">
@@ -195,7 +198,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 }}
                                 name={name}
                                 isChecked={agmtSyncMon}
-                                label="Monday"
+                                label={_("Monday")}
                                 isValid={!error.agmtSyncMon}
                             />
                         </GridItem>
@@ -207,7 +210,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 }}
                                 name={name}
                                 isChecked={agmtSyncFri}
-                                label="Friday"
+                                label={_("Friday")}
                                 isValid={!error.agmtSyncFri}
                             />
                         </GridItem>
@@ -222,7 +225,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncTue}
                                 isValid={!error.agmtSyncTue}
-                                label="Tuesday"
+                                label={_("Tuesday")}
                             />
                         </GridItem>
                         <GridItem span={3}>
@@ -234,7 +237,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncSat}
                                 isValid={!error.agmtSyncSat}
-                                label="Saturday"
+                                label={_("Saturday")}
                             />
                         </GridItem>
                     </Grid>
@@ -247,7 +250,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 }}
                                 name={name}
                                 isChecked={agmtSyncWed}
-                                label="Wednesday"
+                                label={_("Wednesday")}
                                 isValid={!error.agmtSyncWed}
                             />
                         </GridItem>
@@ -260,7 +263,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncSun}
                                 isValid={!error.agmtSyncSun}
-                                label="Sunday"
+                                label={_("Sunday")}
                             />
                         </GridItem>
                     </Grid>
@@ -274,14 +277,14 @@ export class WinsyncAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncThu}
                                 isValid={!error.agmtSyncThu}
-                                label="Thursday"
+                                label={_("Thursday")}
                             />
                         </GridItem>
                     </Grid>
                 </div>
-                <Grid className="ds-margin-top-lg" title="Time to start initiating replication sessions">
+                <Grid className="ds-margin-top-lg" title={_("Time to start initiating replication sessions")}>
                     <GridItem className="ds-label" span={3}>
-                        Replication Start Time
+                        {_("Replication Start Time")}
                     </GridItem>
                     <GridItem span={9}>
                         <TimePicker
@@ -295,13 +298,13 @@ export class WinsyncAgmtModal extends React.Component {
                             is24Hour
                         />
                         <FormHelperText isError isHidden={!error.agmtStartTime}>
-                            Start time must be before the End time
+                            {_("Start time must be before the End time")}
                         </FormHelperText>
                     </GridItem>
                 </Grid>
-                <Grid title="Time to initiating replication sessions">
+                <Grid title={_("Time to initiating replication sessions")}>
                     <GridItem className="ds-label" span={3}>
-                        Replication End Time
+                        {_("Replication End Time")}
                     </GridItem>
                     <GridItem span={9}>
                         <TimePicker
@@ -315,7 +318,7 @@ export class WinsyncAgmtModal extends React.Component {
                             is24Hour
                         />
                         <FormHelperText isError isHidden={!error.agmtEndTime}>
-                            End time must be after the Start time
+                            {_("End time must be after the Start time")}
                         </FormHelperText>
                     </GridItem>
                 </Grid>
@@ -326,7 +329,7 @@ export class WinsyncAgmtModal extends React.Component {
             scheduleRow = "";
         }
 
-        title = title + " Winsync Agreement";
+        title = cockpit.format(_("$0 Winsync Agreement"), title);
 
         return (
             <Modal
@@ -343,23 +346,23 @@ export class WinsyncAgmtModal extends React.Component {
                         isDisabled={saveDisabled || spinning}
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <div className={spinning ? "ds-disabled" : ""}>
                     <Form isHorizontal autoComplete="off">
                         <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
+                            <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>{_("Main Settings")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Agreement Name
+                                        {_("Agreement Name")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -378,7 +381,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 </Grid>
                                 <Grid className="ds-margin-top-lg">
                                     <GridItem className="ds-label" span={3}>
-                                        Windows AD Host
+                                        {_("Windows AD Host")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -396,7 +399,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 </Grid>
                                 <Grid className="ds-margin-top-lg">
                                     <GridItem className="ds-label" span={3}>
-                                        Windows AD Port
+                                        {_("Windows AD Port")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -414,7 +417,7 @@ export class WinsyncAgmtModal extends React.Component {
                                 </Grid>
                                 <Grid className="ds-margin-top-lg">
                                     <GridItem className="ds-label" span={3}>
-                                        Bind DN
+                                        {_("Bind DN")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -429,13 +432,13 @@ export class WinsyncAgmtModal extends React.Component {
                                             validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtBindDN || agmtBindDN === ""}>
-                                            Value must be a valid DN
+                                            {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Bind Password
+                                        {_("Bind Password")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -450,13 +453,13 @@ export class WinsyncAgmtModal extends React.Component {
                                             validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtBindPW || agmtBindPW === "" || agmtBindPWConfirm === ""}>
-                                            Passwords must match
+                                            {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Confirm Password
+                                        {_("Confirm Password")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -471,16 +474,16 @@ export class WinsyncAgmtModal extends React.Component {
                                             validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm === ""}>
-                                            Passwords must match
+                                            {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 {initRow}
                             </Tab>
-                            <Tab eventKey={1} title={<>{domainError}<TabTitleText>Domain & Content</TabTitleText></>}>
+                            <Tab eventKey={1} title={<>{domainError}<TabTitleText>{_("Domain & Content")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Windows Domain Name
+                                        {_("Windows Domain Name")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -496,9 +499,9 @@ export class WinsyncAgmtModal extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top-lg" title="The Active Directory subtree to synchronize">
+                                <Grid className="ds-margin-top-lg" title={_("The Active Directory subtree to synchronize")}>
                                     <GridItem className="ds-label" span={3}>
-                                        Windows Subtree
+                                        {_("Windows Subtree")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -510,7 +513,7 @@ export class WinsyncAgmtModal extends React.Component {
                                             onChange={(str, e) => {
                                                 handleChange(e);
                                             }}
-                                            placeholder="e.g. cn=Users,dc=domain,dc=com"
+                                            placeholder={_("e.g. cn=Users,dc=domain,dc=com")}
                                             validated={error.agmtWinSubtree ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtWinSubtree || agmtWinSubtree === ""}>
@@ -518,9 +521,9 @@ export class WinsyncAgmtModal extends React.Component {
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title="Directory Server subtree to synchronize">
+                                <Grid className="ds-margin-top" title={_("Directory Server subtree to synchronize")}>
                                     <GridItem className="ds-label" span={3}>
-                                        DS Subtree
+                                        {_("DS Subtree")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -532,19 +535,19 @@ export class WinsyncAgmtModal extends React.Component {
                                             onChange={(str, e) => {
                                                 handleChange(e);
                                             }}
-                                            placeholder="e.g. ou=People,dc=domain,dc=com"
+                                            placeholder={_("e.g. ou=People,dc=domain,dc=com")}
                                             validated={error.agmtDSSubtree ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtDSSubtree || agmtDSSubtree === ""}>
-                                            Value must be a valid DN
+                                            {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                             </Tab>
-                            <Tab eventKey={2} title={<TabTitleText>Advanced Settings</TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Connection Protocol
+                                        {_("Connection Protocol")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <FormSelect
@@ -555,14 +558,14 @@ export class WinsyncAgmtModal extends React.Component {
                                             }}
                                             aria-label="FormSelect Input"
                                         >
-                                            <FormSelectOption key={0} value="LDAPS" label="LDAPS" />
-                                            <FormSelectOption key={1} value="StartTLS" label="StartTLS" />
+                                            <FormSelectOption key={0} value="LDAPS" label={_("LDAPS")} />
+                                            <FormSelectOption key={1} value="StartTLS" label={_("StartTLS")} />
                                         </FormSelect>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Synchronization Direction
+                                        {_("Synchronization Direction")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <FormSelect
@@ -573,15 +576,15 @@ export class WinsyncAgmtModal extends React.Component {
                                             }}
                                             aria-label="FormSelect Input"
                                         >
-                                            <FormSelectOption title="Synchronization in both directions (default behavior)." key={0} value="both" label="both" />
-                                            <FormSelectOption title="Only synchronize Directory Server updates to Windows." key={1} value="toWindows" label="toWindows" />
-                                            <FormSelectOption title="Only synchronize Windows updates to Directory Server." key={2} value="fromWindows" label="fromWindows" />
+                                            <FormSelectOption title={_("Synchronization in both directions (default behavior).")} key={0} value="both" label={_("both")} />
+                                            <FormSelectOption title={_("Only synchronize Directory Server updates to Windows.")} key={1} value="toWindows" label={_("toWindows")} />
+                                            <FormSelectOption title={_("Only synchronize Windows updates to Directory Server.")} key={2} value="fromWindows" label={_("fromWindows")} />
                                         </FormSelect>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title="The interval to check for updates on Windows.  Default is 300 seconds">
+                                <Grid className="ds-margin-top" title={_("The interval to check for updates on Windows.  Default is 300 seconds")}>
                                     <GridItem className="ds-label" span={3}>
-                                        Synchronization Interval
+                                        {_("Synchronization Interval")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -597,9 +600,9 @@ export class WinsyncAgmtModal extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title="Attribute to exclude from replication">
+                                <Grid className="ds-margin-top" title={_("Attribute to exclude from replication")}>
                                     <GridItem className="ds-label" span={3}>
-                                        Exclude Attributes
+                                        {_("Exclude Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <Select
@@ -611,8 +614,8 @@ export class WinsyncAgmtModal extends React.Component {
                                             selections={agmtFracAttrs}
                                             isOpen={isExcludeAttrOpen}
                                             aria-labelledby="typeAhead-exclude-attrs"
-                                            placeholderText="Start typing an attribute..."
-                                            noResultsFoundText="There are no matching entries"
+                                            placeholderText={_("Start typing an attribute...")}
+                                            noResultsFoundText={_("There are no matching entries")}
                                         >
                                             {availAttrs.map((attr, index) => (
                                                 <SelectOption
@@ -632,7 +635,7 @@ export class WinsyncAgmtModal extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={agmtSyncGroups}
-                                            label="Synchronize New Windows Groups"
+                                            label={_("Synchronize New Windows Groups")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -645,20 +648,18 @@ export class WinsyncAgmtModal extends React.Component {
                                             }}
                                             name={name}
                                             isChecked={agmtSyncUsers}
-                                            label="Synchronize New Windows Users"
+                                            label={_("Synchronize New Windows Users")}
                                         />
                                     </GridItem>
                                 </Grid>
 
                             </Tab>
-                            <Tab eventKey={3} title={<>{scheduleError}<TabTitleText>Scheduling</TabTitleText></>}>
+                            <Tab eventKey={3} title={<>{scheduleError}<TabTitleText>{_("Scheduling")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top">
                                     <GridItem span={12}>
                                         <TextContent>
                                             <Text component={TextVariants.h5}>
-                                                By default replication updates are sent to the replica as soon as possible, but
-                                                if there is a need for replication updates to only be sent on certains days and
-                                                within certain windows of time then you can setup a custom replication schedule.
+                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certains days and within certain windows of time then you can setup a custom replication schedule.")}
                                             </Text>
                                         </TextContent>
                                     </GridItem>
@@ -670,7 +671,7 @@ export class WinsyncAgmtModal extends React.Component {
                                                 handleChange(e);
                                             }}
                                             name={name}
-                                            label="Use A Custom Schedule"
+                                            label={_("Use A Custom Schedule")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -790,24 +791,21 @@ export class ReplAgmtModal extends React.Component {
             error,
         } = this.props;
         const saveDisabled = !this.props.saveOK;
-        let title = "Create";
+        let title = _("Create");
         let initRow = "";
         let name = "agmt-modal";
-        const bootstrapTitle = "If you are using Bind Group's on the consumer " +
-            "replica you can configure bootstrap credentials that can be used " +
-            "to do online initializations, or bootstrap a session if the bind " +
-            "groups get out of synchronization";
+        const bootstrapTitle = _("If you are using Bind Group's on the consumer replica you can configure bootstrap credentials that can be used to do online initializations, or bootstrap a session if the bind groups get out of synchronization");
         const startHour = agmtStartTime.substring(0, 2);
         const startMin = agmtStartTime.substring(2, 4);
         const startTime = startHour + ":" + startMin;
         const endHour = agmtEndTime.substring(0, 2);
         const endMin = agmtEndTime.substring(2, 4);
         const endTime = endHour + ":" + endMin;
-        let saveBtnName = "Save Agreement";
+        let saveBtnName = _("Save Agreement");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Saving Agreement ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving Agreement ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         let mainSettingsError = "";
@@ -824,13 +822,13 @@ export class ReplAgmtModal extends React.Component {
         }
 
         if (this.props.edit) {
-            title = "Edit";
+            title = _("Edit");
             name = "agmt-modal-edit";
         } else {
             initRow = (
                 <Grid className="ds-margin-top-lg">
                     <GridItem className="ds-label" span={3}>
-                        Consumer Initialization
+                        {_("Consumer Initialization")}
                     </GridItem>
                     <GridItem span={9}>
                         <FormSelect
@@ -841,8 +839,8 @@ export class ReplAgmtModal extends React.Component {
                             }}
                             aria-label="FormSelect Input"
                         >
-                            <FormSelectOption key={0} value="noinit" label="Do Not Initialize" />
-                            <FormSelectOption key={1} value="online-init" label="Do Online Initialization" />
+                            <FormSelectOption key={0} value="noinit" label={_("Do Not Initialize")} />
+                            <FormSelectOption key={1} value="online-init" label={_("Do Online Initialization")} />
                         </FormSelect>
                     </GridItem>
                 </Grid>
@@ -851,9 +849,9 @@ export class ReplAgmtModal extends React.Component {
 
         let bootstrapRow = (
             <div className="ds-left-indent-md">
-                <Grid className="ds-margin-top-lg" title="The Bind DN the agreement can use to bootstrap initialization">
+                <Grid className="ds-margin-top-lg" title={_("The Bind DN the agreement can use to bootstrap initialization")}>
                     <GridItem className="ds-label" span={3}>
-                        Bind DN
+                        {_("Bind DN")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -868,13 +866,13 @@ export class ReplAgmtModal extends React.Component {
                             validated={error.agmtBootstrapBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                         />
                         <FormHelperText isError isHidden={!error.agmtBootstrapBindDN || agmtBootstrapBindDN === ""}>
-                            Value must be a valid DN
+                            {_("Value must be a valid DN")}
                         </FormHelperText>
                     </GridItem>
                 </Grid>
                 <Grid className="ds-margin-top">
-                    <GridItem className="ds-label" span={3} title="The Bind DN password for bootstrap initialization">
-                        Password
+                    <GridItem className="ds-label" span={3} title={_("The Bind DN password for bootstrap initialization")}>
+                        {_("Password")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -889,13 +887,13 @@ export class ReplAgmtModal extends React.Component {
                             validated={error.agmtBootstrapBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                         />
                         <FormHelperText isError isHidden={!error.agmtBootstrapBindPW || agmtBootstrapBindPW === "" || error.agmtBootstrapBindPWConfirm === ""}>
-                            Password must match
+                            {_("Password must match")}
                         </FormHelperText>
                     </GridItem>
                 </Grid>
                 <Grid className="ds-margin-top">
-                    <GridItem className="ds-label" span={3} title="Confirm the Bind DN password for bootstrap initialization">
-                        Confirm Password
+                    <GridItem className="ds-label" span={3} title={_("Confirm the Bind DN password for bootstrap initialization")}>
+                        {_("Confirm Password")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -910,13 +908,13 @@ export class ReplAgmtModal extends React.Component {
                             validated={error.agmtBootstrapBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                         />
                         <FormHelperText isError isHidden={!error.agmtBootstrapBindPWConfirm || agmtBootstrapBindPWConfirm === ""}>
-                            Passwords must match
+                            {_("Passwords must match")}
                         </FormHelperText>
                     </GridItem>
                 </Grid>
                 <Grid className="ds-margin-top">
-                    <GridItem className="ds-label" span={3} title="The connection protocol for bootstrap initialization">
-                        Connection Protocol
+                    <GridItem className="ds-label" span={3} title={_("The connection protocol for bootstrap initialization")}>
+                        {_("Connection Protocol")}
                     </GridItem>
                     <GridItem span={9}>
                         <FormSelect
@@ -928,15 +926,15 @@ export class ReplAgmtModal extends React.Component {
                             aria-label="FormSelect Input"
                             validated={error.agmtBootstrapProtocol ? ValidatedOptions.error : ValidatedOptions.default}
                         >
-                            <FormSelectOption key={0} value="LDAP" label="LDAP" />
-                            <FormSelectOption key={1} value="LDAPS" label="LDAPS" />
-                            <FormSelectOption key={2} value="STARTTLS" label="STARTTLS" />
+                            <FormSelectOption key={0} value="LDAP" label={_("LDAP")} />
+                            <FormSelectOption key={1} value="LDAPS" label={_("LDAPS")} />
+                            <FormSelectOption key={2} value="STARTTLS" label={_("STARTTLS")} />
                         </FormSelect>
                     </GridItem>
                 </Grid>
                 <Grid className="ds-margin-top-lg">
-                    <GridItem className="ds-label" span={3} title="The authentication method for bootstrap initialization">
-                        Authentication Method
+                    <GridItem className="ds-label" span={3} title={_("The authentication method for bootstrap initialization")}>
+                        {_("Authentication Method")}
                     </GridItem>
                     <GridItem span={9}>
                         <FormSelect
@@ -961,7 +959,7 @@ export class ReplAgmtModal extends React.Component {
             <div className="ds-left-indent-md">
                 <Grid className="ds-margin-top-lg">
                     <GridItem className="ds-label" span={12}>
-                        Days To Send Replication Updates
+                        {_("Days To Send Replication Updates")}
                     </GridItem>
                 </Grid>
                 <div className="ds-indent ds-margin-top">
@@ -974,7 +972,7 @@ export class ReplAgmtModal extends React.Component {
                                 }}
                                 name={name}
                                 isChecked={agmtSyncMon}
-                                label="Monday"
+                                label={_("Monday")}
                                 isValid={!error.agmtSyncMon}
                             />
                         </GridItem>
@@ -986,7 +984,7 @@ export class ReplAgmtModal extends React.Component {
                                 }}
                                 name={name}
                                 isChecked={agmtSyncFri}
-                                label="Friday"
+                                label={_("Friday")}
                                 isValid={!error.agmtSyncFri}
                             />
                         </GridItem>
@@ -1001,7 +999,7 @@ export class ReplAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncTue}
                                 isValid={!error.agmtSyncTue}
-                                label="Tuesday"
+                                label={_("Tuesday")}
                             />
                         </GridItem>
                         <GridItem span={3}>
@@ -1013,7 +1011,7 @@ export class ReplAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncSat}
                                 isValid={!error.agmtSyncSat}
-                                label="Saturday"
+                                label={_("Saturday")}
                             />
                         </GridItem>
                     </Grid>
@@ -1026,7 +1024,7 @@ export class ReplAgmtModal extends React.Component {
                                 }}
                                 name={name}
                                 isChecked={agmtSyncWed}
-                                label="Wednesday"
+                                label={_("Wednesday")}
                                 isValid={!error.agmtSyncWed}
                             />
                         </GridItem>
@@ -1039,7 +1037,7 @@ export class ReplAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncSun}
                                 isValid={!error.agmtSyncSun}
-                                label="Sunday"
+                                label={_("Sunday")}
                             />
                         </GridItem>
                     </Grid>
@@ -1053,14 +1051,14 @@ export class ReplAgmtModal extends React.Component {
                                 name={name}
                                 isChecked={agmtSyncThu}
                                 isValid={!error.agmtSyncThu}
-                                label="Thursday"
+                                label={_("Thursday")}
                             />
                         </GridItem>
                     </Grid>
                 </div>
-                <Grid className="ds-margin-top-lg" title="Time to start initiating replication sessions">
+                <Grid className="ds-margin-top-lg" title={_("Time to start initiating replication sessions")}>
                     <GridItem className="ds-label" span={3}>
-                        Replication Start Time
+                        {_("Replication Start Time")}
                     </GridItem>
                     <GridItem span={9}>
                         <TimePicker
@@ -1073,13 +1071,13 @@ export class ReplAgmtModal extends React.Component {
                             is24Hour
                         />
                         <FormHelperText isError isHidden={!error.agmtStartTime}>
-                            Start time must be before the End time
+                            {_("Start time must be before the End time")}
                         </FormHelperText>
                     </GridItem>
                 </Grid>
-                <Grid title="Time to initiating replication sessions">
+                <Grid title={_("Time to initiating replication sessions")}>
                     <GridItem className="ds-label" span={3}>
-                        Replication End Time
+                        {_("Replication End Time")}
                     </GridItem>
                     <GridItem span={9}>
                         <TimePicker
@@ -1092,7 +1090,7 @@ export class ReplAgmtModal extends React.Component {
                             is24Hour
                         />
                         <FormHelperText isError isHidden={!error.agmtEndTime}>
-                            End time must be after the Start time
+                            {_("End time must be after the Start time")}
                         </FormHelperText>
                     </GridItem>
                 </Grid>
@@ -1106,7 +1104,7 @@ export class ReplAgmtModal extends React.Component {
             bootstrapRow = "";
         }
 
-        title = title + " Replication Agreement";
+        title = cockpit.format(_("$0 Replication Agreement"), title);
         return (
             <Modal
                 variant={ModalVariant.medium}
@@ -1122,23 +1120,23 @@ export class ReplAgmtModal extends React.Component {
                         isDisabled={saveDisabled || spinning}
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <div className={spinning ? "ds-disabled" : ""}>
                     <Form isHorizontal autoComplete="off">
                         <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>Main Settings</TabTitleText></>}>
+                            <Tab eventKey={0} title={<>{mainSettingsError}<TabTitleText>{_("Main Settings")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Agreement Name
+                                        {_("Agreement Name")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1154,13 +1152,13 @@ export class ReplAgmtModal extends React.Component {
                                             validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtName || agmtName === ""}>
-                                            Required field
+                                            {_("Required field")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Consumer Host
+                                        {_("Consumer Host")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1175,13 +1173,13 @@ export class ReplAgmtModal extends React.Component {
                                             validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtHost || agmtHost === ""}>
-                                            Required field
+                                            {_("Required field")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Consumer Port
+                                        {_("Consumer Port")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1196,13 +1194,13 @@ export class ReplAgmtModal extends React.Component {
                                             validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtPort}>
-                                            Port must be between 1 and 65535
+                                            {_("Port must be between 1 and 65535")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Bind DN
+                                        {_("Bind DN")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1217,13 +1215,13 @@ export class ReplAgmtModal extends React.Component {
                                             validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtBindDN}>
-                                            Value must be a valid DN
+                                            {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Bind Password
+                                        {_("Bind Password")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1238,13 +1236,13 @@ export class ReplAgmtModal extends React.Component {
                                             validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtBindPW || error.agmtBindPW === "" || error.agmtBindPWConfirm === ""}>
-                                            Passwords must match
+                                            {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Confirm Password
+                                        {_("Confirm Password")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1259,13 +1257,13 @@ export class ReplAgmtModal extends React.Component {
                                             validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm === ""}>
-                                            Passwords must match
+                                            {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top">
                                     <GridItem className="ds-label" span={3}>
-                                        Connection Protocol
+                                        {_("Connection Protocol")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <FormSelect
@@ -1277,15 +1275,15 @@ export class ReplAgmtModal extends React.Component {
                                             aria-label="FormSelect Input"
                                             validated={error.agmtProtocol ? ValidatedOptions.error : ValidatedOptions.default}
                                         >
-                                            <FormSelectOption key={0} value="LDAP" label="LDAP" />
-                                            <FormSelectOption key={1} value="LDAPS" label="LDAPS" />
-                                            <FormSelectOption key={2} value="STARTTLS" label="STARTTLS" />
+                                            <FormSelectOption key={0} value="LDAP" label={_("LDAP")} />
+                                            <FormSelectOption key={1} value="LDAPS" label={_("LDAPS")} />
+                                            <FormSelectOption key={2} value="STARTTLS" label={_("STARTTLS")} />
                                         </FormSelect>
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top-lg">
                                     <GridItem className="ds-label" span={3}>
-                                        Authentication Method
+                                        {_("Authentication Method")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <FormSelect
@@ -1305,10 +1303,10 @@ export class ReplAgmtModal extends React.Component {
                                 </Grid>
                                 {initRow}
                             </Tab>
-                            <Tab eventKey={1} title={<TabTitleText>Fractional Settings</TabTitleText>}>
-                                <Grid className="ds-margin-top-lg" title="Attribute to exclude from replication">
+                            <Tab eventKey={1} title={<TabTitleText>{_("Fractional Settings")}</TabTitleText>}>
+                                <Grid className="ds-margin-top-lg" title={_("Attribute to exclude from replication")}>
                                     <GridItem className="ds-label" span={3}>
-                                        Exclude Attributes
+                                        {_("Exclude Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <Select
@@ -1320,7 +1318,7 @@ export class ReplAgmtModal extends React.Component {
                                             selections={agmtFracAttrs}
                                             isOpen={isExcludeAttrsOpen}
                                             aria-labelledby="typeAhead-exclude-attrs"
-                                            placeholderText="Start typing an attribute..."
+                                            placeholderText={_("Start typing an attribute...")}
                                         >
                                             {availAttrs.map((attr, index) => (
                                                 <SelectOption
@@ -1331,9 +1329,9 @@ export class ReplAgmtModal extends React.Component {
                                         </Select>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title="Attribute to exclude from replica Initializations">
+                                <Grid className="ds-margin-top" title={_("Attribute to exclude from replica Initializations")}>
                                     <GridItem className="ds-label" span={3}>
-                                        Exclude Init Attributes
+                                        {_("Exclude Init Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <Select
@@ -1345,8 +1343,8 @@ export class ReplAgmtModal extends React.Component {
                                             selections={agmtFracInitAttrs}
                                             isOpen={isExcludeInitAttrsOpen}
                                             aria-labelledby="typeAhead-exclude-init-attrs"
-                                            placeholderText="Start typing an attribute..."
-                                            noResultsFoundText="There are no matching entries"
+                                            placeholderText={_("Start typing an attribute...")}
+                                            noResultsFoundText={_("There are no matching entries")}
                                         >
                                             {availAttrs.map((attr, index) => (
                                                 <SelectOption
@@ -1357,9 +1355,9 @@ export class ReplAgmtModal extends React.Component {
                                         </Select>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title="Attributes to strip from a replicatio<Selectn update">
+                                <Grid className="ds-margin-top" title={_("Attributes to strip from a replicatio<Selectn update")}>
                                     <GridItem className="ds-label" span={3}>
-                                        Strip Attributes
+                                        {_("Strip Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <Select
@@ -1371,8 +1369,8 @@ export class ReplAgmtModal extends React.Component {
                                             selections={agmtStripAttrs}
                                             isOpen={isStripAttrsOpen}
                                             aria-labelledby="typeAhead-strip-attrs"
-                                            placeholderText="Start typing an attribute..."
-                                            noResultsFoundText="There are no matching entries"
+                                            placeholderText={_("Start typing an attribute...")}
+                                            noResultsFoundText={_("There are no matching entries")}
                                         >
                                             {availAttrs.map((attr, index) => (
                                                 <SelectOption
@@ -1384,7 +1382,7 @@ export class ReplAgmtModal extends React.Component {
                                     </GridItem>
                                 </Grid>
                             </Tab>
-                            <Tab eventKey={2} title={<>{bootSettingsError}<TabTitleText>Bootstrap Settings</TabTitleText></>}>
+                            <Tab eventKey={2} title={<>{bootSettingsError}<TabTitleText>{_("Bootstrap Settings")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top-med">
                                     <GridItem span={9}>
                                         <Checkbox
@@ -1395,20 +1393,18 @@ export class ReplAgmtModal extends React.Component {
                                             }}
                                             name={name}
                                             title={bootstrapTitle}
-                                            label="Enable Bootstrap Settings"
+                                            label={_("Enable Bootstrap Settings")}
                                         />
                                     </GridItem>
                                 </Grid>
                                 {bootstrapRow}
                             </Tab>
-                            <Tab eventKey={3} title={<>{scheduleSettingsError}<TabTitleText>Scheduling</TabTitleText></>}>
+                            <Tab eventKey={3} title={<>{scheduleSettingsError}<TabTitleText>{_("Scheduling")}</TabTitleText></>}>
                                 <Grid className="ds-margin-top-med">
                                     <GridItem span={12}>
                                         <TextContent>
                                             <Text component={TextVariants.h5}>
-                                                By default replication updates are sent to the replica as soon as possible, but
-                                                if there is a need for replication updates to only be sent on certains days and within certain
-                                                windows of time then you can setup a custom replication schedule.
+                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certains days and within certain windows of time then you can setup a custom replication schedule.")}
                                             </Text>
                                         </TextContent>
                                     </GridItem>
@@ -1420,7 +1416,7 @@ export class ReplAgmtModal extends React.Component {
                                                 handleChange(e);
                                             }}
                                             name={name}
-                                            label="Use A Custom Schedule"
+                                            label={_("Use A Custom Schedule")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -1482,9 +1478,9 @@ export class ChangeReplRoleModal extends React.Component {
         }
         if (newRole === "Supplier") {
             ridRow = (
-                <Grid className="ds-margin-top-lg" title="Supplier Replica Identifier.  This must be unique across all the Supplier replicas in your environment">
+                <Grid className="ds-margin-top-lg" title={_("Supplier Replica Identifier.  This must be unique across all the Supplier replicas in your environment")}>
                     <GridItem className="ds-label" span={3}>
-                        Replica ID
+                        {_("Replica ID")}
                     </GridItem>
                     <GridItem span={2}>
                         <NumberInput
@@ -1519,7 +1515,7 @@ export class ChangeReplRoleModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.small}
-                title="Change Replica Role"
+                title={_("Change Replica Role")}
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
@@ -1532,22 +1528,22 @@ export class ChangeReplRoleModal extends React.Component {
                         }}
                         isDisabled={saveDisabled}
                     >
-                        Change Role
+                        {_("Change Role")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Please choose the new replication role you would like for this suffix
+                            {_("Please choose the new replication role you would like for this suffix")}
                         </Text>
                     </TextContent>
                     <Grid className="ds-margin-top-lg">
                         <GridItem className="ds-label" span={3}>
-                            New Role
+                            {_("New Role")}
                         </GridItem>
                         <GridItem span={3}>
                             <FormSelect
@@ -1573,7 +1569,7 @@ export class ChangeReplRoleModal extends React.Component {
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label={<><b>Yes</b>, I am sure.</>}
+                                label={<><b>{_("Yes")}</b>{_(", I am sure.")}</>}
                             />
                         </GridItem>
                     </Grid>
@@ -1597,16 +1593,16 @@ export class AddManagerModal extends React.Component {
             manager_passwd_confirm,
             error
         } = this.props;
-        let saveBtnName = "Add Replication Manager";
+        let saveBtnName = _("Add Replication Manager");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Adding Replication Manager ...";
+            saveBtnName = _("Adding Replication Manager ...");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Add Replication Manager"
+                title={_("Add Replication Manager")}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -1616,28 +1612,26 @@ export class AddManagerModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={error.manager || error.manager_passwd || error.manager_passwd_confirm || spinning}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Create a Replication Manager entry, and add it to the replication configuration
-                            for this suffix.  If the entry already exists it will be overwritten with
-                            the new credentials.
+                            {_("Create a Replication Manager entry, and add it to the replication configuration for this suffix.  If the entry already exists it will be overwritten with the new credentials.")}
                         </Text>
                     </TextContent>
-                    <Grid className="ds-margin-top-lg" title="The DN of the replication manager">
+                    <Grid className="ds-margin-top-lg" title={_("The DN of the replication manager")}>
                         <GridItem className="ds-label" span={3}>
-                            Replication Manager DN
+                            {_("Replication Manager DN")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1653,9 +1647,9 @@ export class AddManagerModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Replication Manager password">
+                    <Grid className="ds-margin-top" title={_("Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            Password
+                            {_("Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1671,9 +1665,9 @@ export class AddManagerModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Replication Manager password">
+                    <Grid className="ds-margin-top" title={_("Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            Confirm Password
+                            {_("Confirm Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1714,18 +1708,18 @@ export class EnableReplModal extends React.Component {
             onPlus,
             onNumberChange
         } = this.props;
-        let saveBtnName = "Enable Replication";
+        let saveBtnName = _("Enable Replication");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Enabling Replication ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Enabling Replication ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
         let replicaIDRow = "";
         if (enableRole === "Supplier") {
             replicaIDRow = (
                 <Grid>
                     <GridItem span={3} className="ds-label">
-                        Replica ID
+                        {_("Replica ID")}
                     </GridItem>
                     <GridItem span={2}>
                         <NumberInput
@@ -1749,7 +1743,7 @@ export class EnableReplModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Enable Replication"
+                title={_("Enable Replication")}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -1760,29 +1754,25 @@ export class EnableReplModal extends React.Component {
                         onClick={saveHandler}
                         isDisabled={this.props.disabled || spinning}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h6}>
-                            Choose the replication role for this suffix.  If it
-                            is a Supplier replica then you must pick a unique ID
-                            to identify it among the other Supplier replicas in your
-                            environment.  The replication changelog will also
-                            automatically be created for you.
+                            {_("Choose the replication role for this suffix.  If it is a Supplier replica then you must pick a unique ID to identify it among the other Supplier replicas in your environment.  The replication changelog will also automatically be created for you.")}
                         </Text>
                     </TextContent>
                     <Grid>
                         <GridItem span={3} className="ds-label">
-                            Replication Role
+                            {_("Replication Role")}
                         </GridItem>
                         <GridItem span={2}>
                             <FormSelect
@@ -1793,9 +1783,9 @@ export class EnableReplModal extends React.Component {
                                 }}
                                 aria-label="FormSelect Input"
                             >
-                                <FormSelectOption key={0} value="Supplier" label="Supplier" />
-                                <FormSelectOption key={1} value="Hub" label="Hub" />
-                                <FormSelectOption key={2} value="Consumer" label="Consumer" />
+                                <FormSelectOption key={0} value="Supplier" label={_("Supplier")} />
+                                <FormSelectOption key={1} value="Hub" label={_("Hub")} />
+                                <FormSelectOption key={2} value="Consumer" label={_("Consumer")} />
                             </FormSelect>
                         </GridItem>
                     </Grid>
@@ -1803,19 +1793,12 @@ export class EnableReplModal extends React.Component {
                     <hr />
                     <TextContent>
                         <Text component={TextVariants.h6}>
-                            You can optionally define the authentication information
-                            for this replicated suffix.  Either a Manager DN and Password,
-                            a Bind Group DN, or both, can be provided.  The Manager DN should
-                            be an entry under "cn=config" and if it does not exist it will
-                            be created, while the Bind Group DN is usually an existing
-                            group located in the database suffix.  Typically, just the
-                            Manager DN and Password are used when enabling replication
-                            for a suffix.
+                            {_("You can optionally define the authentication information for this replicated suffix.  Either a Manager DN and Password, a Bind Group DN, or both, can be provided.  The Manager DN should be an entry under \"cn=config\" and if it does not exist it will be created, while the Bind Group DN is usually an existing group located in the database suffix.  Typically, just the Manager DN and Password are used when enabling replication for a suffix.")}
                         </Text>
                     </TextContent>
-                    <Grid title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
+                    <Grid title={_("The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).")}>
                         <GridItem className="ds-label" span={3}>
-                            Replication Manager DN
+                            {_("Replication Manager DN")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1831,9 +1814,9 @@ export class EnableReplModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Replication Manager password">
+                    <Grid title={_("Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            Password
+                            {_("Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1849,9 +1832,9 @@ export class EnableReplModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Confirm the Replication Manager password">
+                    <Grid title={_("Confirm the Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            Confirm Password
+                            {_("Confirm Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1867,9 +1850,9 @@ export class EnableReplModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="The DN of a group that contains users that can perform replication updates">
+                    <Grid title={_("The DN of a group that contains users that can perform replication updates")}>
                         <GridItem className="ds-label" span={3}>
-                            Bind Group DN
+                            {_("Bind Group DN")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1917,20 +1900,18 @@ export class ExportCLModal extends React.Component {
             saveOK
         } = this.props;
         let page = "";
-        let saveBtnName = "Export Changelog";
+        let saveBtnName = _("Export Changelog");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Exporting ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Exporting ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         if (defaultCL) {
             page = (
                 <TextContent>
                     <Text component={TextVariants.h4}>
-                        This will export the changelog to the server's LDIF directory.  This
-                        is the only LDIF file that can be imported into the server for enabling
-                        changelog encryption.  Do not edit or rename the file.
+                        {_("This will export the changelog to the server's LDIF directory.  This is the only LDIF file that can be imported into the server for enabling changelog encryption.  Do not edit or rename the file.")}
                     </Text>
                 </TextContent>
             );
@@ -1941,16 +1922,14 @@ export class ExportCLModal extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    The LDIF file that is generated should <b>not</b> be used
-                                    to initialize the Replication Changelog.  It is only
-                                    meant for debugging/investigative purposes.
+                                    {_("The LDIF file that is generated should <b>not</b> be used to initialize the Replication Changelog.  It is only meant for debugging/investigative purposes.")}
                                 </Text>
                             </TextContent>
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top-xlg">
                         <GridItem className="ds-label" span={2}>
-                            LDIF File
+                            {_("LDIF File")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -1973,7 +1952,7 @@ export class ExportCLModal extends React.Component {
                             onChange={(checked, e) => {
                                 handleChange(e);
                             }}
-                            label="Decode base64 changes"
+                            label={_("Decode base64 changes")}
                         />
                     </Grid>
                     <Grid className="ds-margin-top ds-margin-left">
@@ -1984,7 +1963,7 @@ export class ExportCLModal extends React.Component {
                             onChange={(checked, e) => {
                                 handleChange(e);
                             }}
-                            label="Only Export CSN's"
+                            label={_("Only Export CSN's")}
                         />
                     </Grid>
                 </div>
@@ -1995,7 +1974,7 @@ export class ExportCLModal extends React.Component {
             <Modal
                 variant={ModalVariant.medium}
                 className="ds-modal-changelog-export"
-                title="Create Replication Change Log LDIF File"
+                title={_("Create Replication Change Log LDIF File")}
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
@@ -2006,13 +1985,13 @@ export class ExportCLModal extends React.Component {
                         onClick={saveHandler}
                         isDisabled={!saveOK || spinning}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Saving" : undefined}
+                        spinnerAriaValueText={spinning ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -2022,7 +2001,7 @@ export class ExportCLModal extends React.Component {
                             isChecked={defaultCL}
                             name="radioGroup"
                             onChange={handleRadioChange}
-                            label="Export to LDIF For Reinitializing The Changelog"
+                            label={_("Export to LDIF For Reinitializing The Changelog")}
                             id="defaultCL"
                         />
                     </Grid>
@@ -2031,7 +2010,7 @@ export class ExportCLModal extends React.Component {
                             isChecked={debugCL}
                             name="radioGroup"
                             onChange={handleRadioChange}
-                            label="Export to LDIF For Debugging"
+                            label={_("Export to LDIF For Debugging")}
                             id="debugCL"
                         />
                     </Grid>

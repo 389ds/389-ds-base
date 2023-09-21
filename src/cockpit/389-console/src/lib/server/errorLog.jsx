@@ -42,6 +42,8 @@ const settings_attrs = [
     'nsslapd-errorlog-logging-enabled',
 ];
 
+const _ = cockpit.gettext;
+
 const rotation_attrs = [
     'nsslapd-errorlog-logrotationsync-enabled',
     'nsslapd-errorlog-logrotationsynchour',
@@ -73,22 +75,22 @@ export class ServerErrorLog extends React.Component {
     constructor(props) {
         super(props);
 
-        this.traceLevel = <>Trace Function Calls <font size="1" className="ds-info-color">(level 1)</font></>;
-        this.packetLevel = <>Packet Handling <font size="1" className="ds-info-color">(level 2)</font></>;
-        this.heavyLevel = <>Heavy Trace Output <font size="1" className="ds-info-color">(level 4)</font></>;
-        this.connLevel = <>Connection Management <font size="1" className="ds-info-color">(level 8)</font></>;
-        this.packetSentLevel = <>Packets Sent & Received <font size="1" className="ds-info-color">(level 16)</font></>;
-        this.filterLevel = <>Search Filter Processing <font size="1" className="ds-info-color">(level 32)</font></>;
-        this.configLevel = <>Config File Processing <font size="1" className="ds-info-color">(level 64)</font></>;
-        this.aclLevel = <>Access Control List Processing <font size="1" className="ds-info-color">(level 128)</font></>;
-        this.entryLevel = <>Log Entry Parsing <font size="1" className="ds-info-color">(level 2048)</font></>;
-        this.houseLevel = <>Housekeeping <font size="1" className="ds-info-color">(level 4096)</font></>;
-        this.replLevel = <>Replication <font size="1" className="ds-info-color">(level 8192)</font></>;
-        this.cacheLevel = <>Entry Cache <font size="1" className="ds-info-color">(level 32768)</font></>;
-        this.pluginLevel = <>Plugin <font size="1" className="ds-info-color">(level 65536)</font></>;
-        this.aclSummaryevel = <>Access Control Summary <font size="1" className="ds-info-color">(level 262144)</font></>;
-        this.dbLevel = <>Backend Database <font size="1" className="ds-info-color">(level 524288)</font></>;
-        this.pwdpolicyLevel = <>Password Policy <font size="1" className="ds-info-color">(level 1048576)</font></>;
+        this.traceLevel = <>{_("Trace Function Calls")} <font size="1" className="ds-info-color">{_("(level 1)")}</font></>;
+        this.packetLevel = <>{_("Packet Handling")} <font size="1" className="ds-info-color">{_("(level 2)")}</font></>;
+        this.heavyLevel = <>{_("Heavy Trace Output")} <font size="1" className="ds-info-color">{_("(level 4)")}</font></>;
+        this.connLevel = <>{_("Connection Management")} <font size="1" className="ds-info-color">{_("(level 8)")}</font></>;
+        this.packetSentLevel = <>{_("Packets Sent & Received")} <font size="1" className="ds-info-color">{_("(level 16)")}</font></>;
+        this.filterLevel = <>{_("Search Filter Processing")} <font size="1" className="ds-info-color">{_("(level 32)")}</font></>;
+        this.configLevel = <>{_("Config File Processing")} <font size="1" className="ds-info-color">{_("(level 64)")}</font></>;
+        this.aclLevel = <>{_("Access Control List Processing")} <font size="1" className="ds-info-color">{_("(level 128)")}</font></>;
+        this.entryLevel = <>{_("Log Entry Parsing")} <font size="1" className="ds-info-color">{_("(level 2048)")}</font></>;
+        this.houseLevel = <>{_("Housekeeping")} <font size="1" className="ds-info-color">{_("(level 4096)")}</font></>;
+        this.replLevel = <>{_("Replication")} <font size="1" className="ds-info-color">{_("(level 8192)")}</font></>;
+        this.cacheLevel = <>{_("Entry Cache")} <font size="1" className="ds-info-color">{_("(level 32768)")}</font></>;
+        this.pluginLevel = <>{_("Plugin")} <font size="1" className="ds-info-color">{_("(level 65536)")}</font></>;
+        this.aclSummaryevel = <>{_("Access Control Summary")} <font size="1" className="ds-info-color">{_("(level 262144)")}</font></>;
+        this.dbLevel = <>{_("Backend Database")} <font size="1" className="ds-info-color">{_("(level 524288)")}</font></>;
+        this.pwdpolicyLevel = <>{_("Password Policy")} <font size="1" className="ds-info-color">{_("(level 1048576)")}</font></>;
 
         this.state = {
             loading: true,
@@ -119,7 +121,7 @@ export class ServerErrorLog extends React.Component {
                 { cells: [{ title: this.pwdpolicyLevel }], level: 1048576, selected: false },
             ],
             columns: [
-                { title: 'Logging Level' },
+                { title: _("Logging Level") },
             ],
         };
 
@@ -330,7 +332,7 @@ export class ServerErrorLog extends React.Component {
                     this.handleRefreshConfig();
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Error Log settings"
+                        _("Successfully updated Error Log settings")
                     );
                 })
                 .fail(err => {
@@ -338,7 +340,7 @@ export class ServerErrorLog extends React.Component {
                     this.handleRefreshConfig();
                     this.props.addNotification(
                         "error",
-                        `Error saving Error Log settings - ${errMsg.desc}`
+                        cockpit.format(_("Error saving Error Log settings - $0"), errMsg.desc)
                     );
                 });
     }
@@ -426,7 +428,7 @@ export class ServerErrorLog extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading Error Log configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading Error Log configuration - $0"), errMsg.desc)
                     );
                     this.setState({
                         loading: false,
@@ -532,19 +534,19 @@ export class ServerErrorLog extends React.Component {
     }
 
     render() {
-        let saveSettingsName = "Save Log Settings";
-        let saveRotationName = "Save Rotation Settings";
-        let saveDeletionName = "Save Deletion Settings";
+        let saveSettingsName = _("Save Log Settings");
+        let saveRotationName = _("Save Rotation Settings");
+        let saveDeletionName = _("Save Deletion Settings");
         const extraPrimaryProps = {};
         let rotationTime = "";
         let hour = this.state['nsslapd-errorlog-logrotationsynchour'] ? this.state['nsslapd-errorlog-logrotationsynchour'] : "00";
         let min = this.state['nsslapd-errorlog-logrotationsyncmin'] ? this.state['nsslapd-errorlog-logrotationsyncmin'] : "00";
 
         if (this.state.loading) {
-            saveSettingsName = "Saving settings ...";
-            saveRotationName = "Saving settings ...";
-            saveDeletionName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            saveSettingsName = _("Saving settings ...");
+            saveRotationName = _("Saving settings ...");
+            saveDeletionName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
         // Adjust time string for TimePicket
@@ -559,7 +561,7 @@ export class ServerErrorLog extends React.Component {
         let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                         <Checkbox
                             className="ds-margin-top-xlg"
                             id="nsslapd-errorlog-logging-enabled"
@@ -567,14 +569,14 @@ export class ServerErrorLog extends React.Component {
                             onChange={(checked, e) => {
                                 this.handleChange(e, "settings");
                             }}
-                            title="Enable Error logging (nsslapd-errorlog-logging-enabled)."
-                            label="Enable Error Logging"
+                            title={_("Enable Error logging (nsslapd-errorlog-logging-enabled).")}
+                            label={_("Enable Error Logging")}
                         />
                         <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
-                                label="Error Log Location"
+                                label={_("Error Log Location")}
                                 fieldId="nsslapd-errorlog"
-                                title="Enable Error logging (nsslapd-errorlog)."
+                                title={_("Enable Error logging (nsslapd-errorlog).")}
                             >
                                 <TextInput
                                     value={this.state['nsslapd-errorlog']}
@@ -591,7 +593,7 @@ export class ServerErrorLog extends React.Component {
 
                         <ExpandableSection
                             className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
-                            toggleText={this.state.isExpanded ? 'Hide Verbose Logging Levels' : 'Show Verbose Logging Levels'}
+                            toggleText={this.state.isExpanded ? _("Hide Verbose Logging Levels") : _("Show Verbose Logging Levels")}
                             onToggle={this.handleOnToggle}
                             isExpanded={this.state.isExpanded}
                         >
@@ -618,20 +620,20 @@ export class ServerErrorLog extends React.Component {
                                 this.saveConfig("settings");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveSettingsName}
                         </Button>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Rotation Policy</TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
-                                title="The maximum number of logs that are archived (nsslapd-errorlog-maxlogsperdir)."
+                                title={_("The maximum number of logs that are archived (nsslapd-errorlog-maxlogsperdir).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Maximum Number Of Logs
+                                    {_("Maximum Number Of Logs")}
                                 </GridItem>
                                 <GridItem span={3}>
                                     <NumberInput
@@ -649,9 +651,9 @@ export class ServerErrorLog extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="The maximum size of each log file in megabytes (nsslapd-errorlog-maxlogsize).">
+                            <Grid title={_("The maximum size of each log file in megabytes (nsslapd-errorlog-maxlogsize).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Maximum Log Size (in MB)
+                                    {_("Maximum Log Size (in MB)")}
                                 </GridItem>
                                 <GridItem span={3}>
                                     <NumberInput
@@ -670,9 +672,9 @@ export class ServerErrorLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <hr />
-                            <Grid title="Rotate the log based this number of time units (nsslapd-errorlog-logrotationtime).">
+                            <Grid title={_("Rotate the log based this number of time units (nsslapd-errorlog-logrotationtime).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Create New Log Every ...
+                                    {_("Create New Log Every ...")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <div className="ds-container">
@@ -698,19 +700,19 @@ export class ServerErrorLog extends React.Component {
                                                 }}
                                                 aria-label="FormSelect Input"
                                             >
-                                                <FormSelectOption key="0" value="minute" label="minute" />
-                                                <FormSelectOption key="1" value="hour" label="hour" />
-                                                <FormSelectOption key="2" value="day" label="day" />
-                                                <FormSelectOption key="3" value="week" label="week" />
-                                                <FormSelectOption key="4" value="month" label="month" />
+                                                <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                                <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                                <FormSelectOption key="2" value="day" label={_("day")} />
+                                                <FormSelectOption key="3" value="week" label={_("week")} />
+                                                <FormSelectOption key="4" value="month" label={_("month")} />
                                             </FormSelect>
                                         </GridItem>
                                     </div>
                                 </GridItem>
                             </Grid>
-                            <Grid title="The time when the log should be rotated (nsslapd-errorlog-logrotationsynchour, nsslapd-errorlog-logrotationsyncmin).">
+                            <Grid title={_("The time when the log should be rotated (nsslapd-errorlog-logrotationsynchour, nsslapd-errorlog-logrotationsyncmin).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Time Of Day
+                                    {_("Time Of Day")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <TimePicker
@@ -720,9 +722,9 @@ export class ServerErrorLog extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="Compress (gzip) the log after it's rotated.">
+                            <Grid title={_("Compress (gzip) the log after it's rotated.")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Compress Rotated Logs
+                                    {_("Compress Rotated Logs")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <Switch
@@ -743,21 +745,21 @@ export class ServerErrorLog extends React.Component {
                                 this.saveConfig("rotation");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveRotationName}
                         </Button>
                     </Tab>
 
-                    <Tab eventKey={2} title={<TabTitleText>Deletion Policy</TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
-                                title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-errorlog-logmaxdiskspace)."
+                                title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-errorlog-logmaxdiskspace).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Log Archive Exceeds (in MB)
+                                    {_("Log Archive Exceeds (in MB)")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <NumberInput
@@ -776,10 +778,10 @@ export class ServerErrorLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-errorlog-logminfreediskspace)."
+                                title={_("The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-errorlog-logminfreediskspace).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Free Disk Space (in MB)
+                                    {_("Free Disk Space (in MB)")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <NumberInput
@@ -798,10 +800,10 @@ export class ServerErrorLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime)."
+                                title={_("Server deletes an old archived log file when it is older than the specified age. (nsslapd-errorlog-logexpirationtime).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Log File is Older Than ...
+                                    {_("Log File is Older Than ...")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <div className="ds-container">
@@ -827,9 +829,9 @@ export class ServerErrorLog extends React.Component {
                                                 }}
                                                 aria-label="FormSelect Input"
                                             >
-                                                <FormSelectOption key="2" value="day" label="day" />
-                                                <FormSelectOption key="3" value="week" label="week" />
-                                                <FormSelectOption key="4" value="month" label="month" />
+                                                <FormSelectOption key="2" value="day" label={_("day")} />
+                                                <FormSelectOption key="3" value="week" label={_("week")} />
+                                                <FormSelectOption key="4" value="month" label={_("month")} />
                                             </FormSelect>
                                         </GridItem>
                                     </div>
@@ -845,7 +847,7 @@ export class ServerErrorLog extends React.Component {
                                 this.saveConfig("exp");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveDeletionName}
@@ -859,7 +861,7 @@ export class ServerErrorLog extends React.Component {
             body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
-                        <Text component={TextVariants.h3}>Loading Error Log Settings ...</Text>
+                        <Text component={TextVariants.h3}>{_("Loading Error Log Settings ...")}</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
                 </div>
@@ -872,12 +874,12 @@ export class ServerErrorLog extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Error Log Settings
+                                {_("Error Log Settings")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh log settings"
+                                    title={_("Refresh log settings")}
                                     onClick={() => {
                                         this.handleRefreshConfig();
                                     }}

@@ -50,6 +50,8 @@ const BACKUP_CONFIG = "backups";
 const PWP_CONFIG = "pwpolicy";
 const LOCAL_PWP_CONFIG = "localpwpolicy";
 
+const _ = cockpit.gettext;
+
 export class Database extends React.Component {
     constructor(props) {
         super(props);
@@ -62,7 +64,7 @@ export class Database extends React.Component {
             dbtype: "",
             activeItems: [
                 {
-                    name: "Global Database Configuration",
+                    name: _("Global Database Configuration"),
                     icon: <CogIcon />,
                     id: "dbconfig",
                 }
@@ -216,7 +218,7 @@ export class Database extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading server configuration for database- ${errMsg.desc}`
+                        cockpit.format(_("Error loading server configuration for database- $0"), errMsg.desc)
                     );
                     this.setState({
                         loaded: true,
@@ -291,7 +293,7 @@ export class Database extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading database configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading database configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -378,7 +380,7 @@ export class Database extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading default chaining configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading default chaining configuration - $0"), errMsg.desc)
                     );
                     this.setState({
                         loading: false
@@ -458,32 +460,32 @@ export class Database extends React.Component {
                     }
                     const treeData = [
                         {
-                            name: "Global Database Configuration",
+                            name: _("Global Database Configuration"),
                             icon: <CogIcon />,
                             id: "dbconfig",
                         },
                         {
-                            name: "Chaining Configuration",
+                            name: _("Chaining Configuration"),
                             icon: <ExternalLinkAltIcon />,
                             id: "chaining-config",
                         },
                         {
-                            name: "Backups & LDIFs",
+                            name: _("Backups & LDIFs"),
                             icon: <CopyIcon />,
                             id: "backups",
                         },
                         {
-                            name: "Password Policies",
+                            name: _("Password Policies"),
                             id: "pwp",
                             icon: <KeyIcon />,
                             children: [
                                 {
-                                    name: "Global Policy",
+                                    name: _("Global Policy"),
                                     icon: <HomeIcon />,
                                     id: "pwpolicy",
                                 },
                                 {
-                                    name: "Local Policies",
+                                    name: _("Local Policies"),
                                     icon: <UsersIcon />,
                                     id: "localpwpolicy",
                                 },
@@ -491,7 +493,7 @@ export class Database extends React.Component {
                             defaultExpanded: true
                         },
                         {
-                            name: "Suffixes",
+                            name: _("Suffixes"),
                             icon: <CatalogIcon />,
                             id: "suffixes-tree",
                             children: suffixData,
@@ -501,7 +503,7 @@ export class Database extends React.Component {
                                     onClick={this.handleShowSuffixModal}
                                     variant="plain"
                                     aria-label="Create new suffix"
-                                    title="Create new suffix"
+                                    title={_("Create new suffix")}
                                 >
                                     <PlusIcon />
                                 </Button>
@@ -588,7 +590,7 @@ export class Database extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error getting chaining link configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error getting chaining link configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -755,7 +757,7 @@ export class Database extends React.Component {
         if (this.state.createSuffix === "") {
             this.props.addNotification(
                 "warning",
-                `Missing the suffix DN`
+                _("Missing the suffix DN")
             );
             missingArgs.createSuffix = true;
             errors = true;
@@ -763,7 +765,7 @@ export class Database extends React.Component {
         if (this.state.createBeName === "") {
             this.props.addNotification(
                 "warning",
-                `Missing the suffix backend name`
+                _("Missing the suffix backend name")
             );
             missingArgs.createBeName = true;
             errors = true;
@@ -798,7 +800,7 @@ export class Database extends React.Component {
                     this.closeSuffixModal();
                     this.props.addNotification(
                         "success",
-                        `Successfully create new suffix`
+                        _("Successfully create new suffix")
                     );
                     // Refresh tree
                     this.loadSuffixTree(false);
@@ -811,7 +813,7 @@ export class Database extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error creating suffix - ${errMsg.desc}`
+                        cockpit.format(_("Error creating suffix - $0"), errMsg.desc)
                     );
                     this.closeSuffixModal();
                     this.setState({
@@ -936,7 +938,7 @@ export class Database extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading indexes for ${suffix} - ${errMsg.desc}`
+                        cockpit.format(_("Error loading indexes for $0 - $1"), suffix, errMsg.desc)
                     );
                 });
     }
@@ -1092,7 +1094,7 @@ export class Database extends React.Component {
                                                         const errMsg = JSON.parse(err);
                                                         this.props.addNotification(
                                                             "error",
-                                                            `Error loading indexes for ${suffix} - ${errMsg.desc}`
+                                                            cockpit.format(_("Error loading indexes for $0 - $1"), suffix, errMsg.desc)
                                                         );
                                                         this.setState({
                                                             suffixLoading: false
@@ -1103,7 +1105,7 @@ export class Database extends React.Component {
                                             const errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
-                                                `Error attribute encryption for ${suffix} - ${errMsg.desc}`
+                                                cockpit.format(_("Error attribute encryption for $0 - $1"), suffix, errMsg.desc)
                                             );
                                             this.setState({
                                                 suffixLoading: false
@@ -1114,7 +1116,7 @@ export class Database extends React.Component {
                                 const errMsg = JSON.parse(err);
                                 this.props.addNotification(
                                     "error",
-                                    `Error loading VLV indexes for ${suffix} - ${errMsg.desc}`
+                                    cockpit.format(_("Error loading VLV indexes for $0 - $1"), suffix, errMsg.desc)
                                 );
                                 this.setState({
                                     suffixLoading: false
@@ -1125,7 +1127,7 @@ export class Database extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading config for ${suffix} - ${errMsg.desc}`
+                        cockpit.format(_("Error loading config for $0 - $1"), suffix, errMsg.desc)
                     );
                     this.setState({
                         suffixLoading: false
@@ -1278,7 +1280,7 @@ export class Database extends React.Component {
                             <div className="ds-margin-top-xlg ds-loading-spinner ds-center">
                                 <TextContent>
                                     <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
-                                        Loading suffix configuration for <b>{this.state.node_text} ...</b>
+                                        {_("Loading suffix configuration for ")}<b>{this.state.node_text} ...</b>
                                     </Text>
                                 </TextContent>
                                 <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1315,7 +1317,7 @@ export class Database extends React.Component {
                             <div className="ds-margin-top ds-loading-spinner ds-center">
                                 <TextContent>
                                     <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
-                                        Loading Chaining configuration for <b>{this.state.node_text} ...</b>
+                                        {_("Loading Chaining configuration for ")}<b>{this.state.node_text} ...</b>
                                     </Text>
                                 </TextContent>
                                 <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1361,7 +1363,7 @@ export class Database extends React.Component {
                 <div className="ds-center">
                     <TextContent>
                         <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
-                            Loading Database Configuration ...
+                            {_("Loading Database Configuration ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="xl" />
@@ -1402,17 +1404,17 @@ class CreateSuffixModal extends React.Component {
             error
         } = this.props;
 
-        let saveBtnName = "Create Suffix";
+        let saveBtnName = _("Create Suffix");
         const extraPrimaryProps = {};
         if (modalSpinning) {
-            saveBtnName = "Creating ...";
-            extraPrimaryProps.spinnerAriaValueText = "Creating";
+            saveBtnName = _("Creating ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Create New Suffix"
+                title={_("Create New Suffix")}
                 isOpen={showModal}
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
@@ -1423,22 +1425,22 @@ class CreateSuffixModal extends React.Component {
                         onClick={saveHandler}
                         isDisabled={createNotOK || modalSpinning}
                         isLoading={modalSpinning}
-                        spinnerAriaValueText={modalSpinning ? "Creating Suffix" : undefined}
+                        spinnerAriaValueText={modalSpinning ? _("Creating Suffix") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <FormGroup
-                        label="Suffix DN"
+                        label={_("Suffix DN")}
                         fieldId="createSuffix"
-                        title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)."
-                        helperTextInvalid="The DN of the suffix is invalid"
+                        title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN).")}
+                        helperTextInvalid={_("The DN of the suffix is invalid")}
                         helperTextInvalidIcon={<ExclamationCircleIcon />}
                         validated={error.createSuffix ? "error" : "noval"}
                     >
@@ -1452,14 +1454,14 @@ class CreateSuffixModal extends React.Component {
                             validated={error.createSuffix ? "error" : "noval"}
                         />
                         <FormHelperText isError isHidden={!error.createSuffix}>
-                            Required field
+                            {_("Required field")}
                         </FormHelperText>
                     </FormGroup>
                     <FormGroup
-                        label="Database Name"
+                        label={_("Database Name")}
                         fieldId="suffixName"
-                        title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends."
-                        helperTextInvalid="You must enter a name for the database"
+                        title={_("The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.")}
+                        helperTextInvalid={_("You must enter a name for the database")}
                         helperTextInvalidIcon={<ExclamationCircleIcon />}
                         validated={error.createBeName ? "error" : "noval"}
                     >
@@ -1473,17 +1475,17 @@ class CreateSuffixModal extends React.Component {
                             validated={error.createBeName ? "error" : "noval"}
                         />
                         <FormHelperText isError isHidden={!error.createBeName}>
-                            Required field
+                            {_("Required field")}
                         </FormHelperText>
                     </FormGroup>
                     <FormGroup
-                        label="Initialization Option"
+                        label={_("Initialization Option")}
                         fieldId="initOptions"
                     >
                         <FormSelect value={initOption} onChange={handleSelectChange} aria-label="FormSelect Input">
-                            <FormSelectOption key={1} value="noInit" label="Do Not Initialize Database" />
-                            <FormSelectOption key={2} value="addSuffix" label="Create The Top Suffix Entry" />
-                            <FormSelectOption key={3} value="addSample" label="Add Sample Entries" />
+                            <FormSelectOption key={1} value="noInit" label={_("Do Not Initialize Database")} />
+                            <FormSelectOption key={2} value="addSuffix" label={_("Create The Top Suffix Entry")} />
+                            <FormSelectOption key={3} value="addSample" label={_("Add Sample Entries")} />
                         </FormSelect>
                     </FormGroup>
                 </Form>

@@ -19,6 +19,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 
+const _ = cockpit.gettext;
+
 export class ErrorLogMonitor extends React.Component {
     constructor (props) {
         super(props);
@@ -155,7 +157,7 @@ export class ErrorLogMonitor extends React.Component {
             spinner = (
                 <div>
                     <Spinner size="sm" />
-                    Reloading errors log...
+                    {_("Reloading errors log...")}
                 </div>
             );
         }
@@ -166,12 +168,12 @@ export class ErrorLogMonitor extends React.Component {
                     <GridItem span={3}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Errors Log
+                                {_("Errors Log")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh error log"
+                                    title={_("Refresh error log")}
                                     onClick={this.handleRefreshErrorLog}
                                 />
                             </Text>
@@ -207,7 +209,7 @@ export class ErrorLogMonitor extends React.Component {
                     <GridItem offset={4} span={4}>
                         <div className="ds-container">
                             <div className="ds-label">
-                                Filter
+                                {_("Filter")}
                             </div>
                             <FormSelect
                                 className="ds-left-margin"
@@ -217,9 +219,9 @@ export class ErrorLogMonitor extends React.Component {
                                 }}
                                 aria-label="FormSelect Input"
                             >
-                                <FormSelectOption key="Everything" value="Everything" label="Everything" />
-                                <FormSelectOption key="Error Messages" value="Error Messages" label="Error Messages" />
-                                <FormSelectOption key="Info Messages" value="Info Messages" label="Info Messages" />
+                                <FormSelectOption key="Everything" value="Everything" label={_("Everything")} />
+                                <FormSelectOption key="Error Messages" value="Error Messages" label={_("Error Messages")} />
+                                <FormSelectOption key="Info Messages" value="Info Messages" label={_("Info Messages")} />
                                 <FormSelectOption isDisabled key="disabled" value="disabled" label="---------------" />
                                 <FormSelectOption key="Emergency" value="Emergency" label="Emergency" />
                                 <FormSelectOption key="Alert" value="Alert" label="Alert" />
@@ -237,7 +239,7 @@ export class ErrorLogMonitor extends React.Component {
                                 id="errorRefreshing"
                                 isChecked={this.state.errorRefreshing}
                                 onChange={(checked, e) => { this.errorRefreshCont(e) }}
-                                label="Continuously Refresh"
+                                label={_("Continuously Refresh")}
                             />
                         </div>
                     </GridItem>

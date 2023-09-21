@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -27,6 +28,8 @@ import {
     getRdnInfo,
     modifyLdapEntry
 } from '../../lib/utils.jsx';
+
+const _ = cockpit.gettext;
 
 class RenameEntry extends React.Component {
     constructor (props) {
@@ -72,10 +75,10 @@ class RenameEntry extends React.Component {
                     this.props.setWizardOperationInfo(opInfo);
                     this.props.onModrdnReload();
                     if (result.errorCode === 0) {
-                        result.output = "Successfully renamed entry";
+                        result.output = _("Successfully renamed entry");
                     }
                     this.setState({
-                        commandOutput: result.errorCode === 0 ? 'Successfully renamed entry!' : 'Failed to rename entry, error: ' + result.errorCode,
+                        commandOutput: result.errorCode === 0 ? _("Successfully renamed entry!") : _("Failed to rename entry, error: ") + result.errorCode,
                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                         renaming: false
                     });
@@ -86,7 +89,7 @@ class RenameEntry extends React.Component {
         this.onBaseDnSelection = (treeViewItem) => {
             if (treeViewItem.dn.toLowerCase().includes(this.props.wizardEntryDn.toLowerCase())) {
                 this.props.addNotification("warning",
-                                           "Can not select a subtree that is the current entry, or a child of the current entry.");
+                                           _("Can not select a subtree that is the current entry, or a child of the current entry."));
                 return;
             }
             this.setState({
@@ -206,12 +209,12 @@ class RenameEntry extends React.Component {
             <>
                 <TextContent>
                     <Text component={TextVariants.h2}>
-                        Select The Naming Attribute And Value
+                        {_("Select The Naming Attribute And Value")}
                     </Text>
                 </TextContent>
                 <Grid className="ds-margin-top-lg">
                     <GridItem span={3} className="ds-label">
-                        Naming Attribute
+                        {_("Naming Attribute")}
                     </GridItem>
                     <GridItem span={9}>
                         <FormSelect
@@ -230,7 +233,7 @@ class RenameEntry extends React.Component {
                 </Grid>
                 <Grid className="ds-margin-top">
                     <GridItem span={3} className="ds-label">
-                        New Name
+                        {_("New Name")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -245,13 +248,13 @@ class RenameEntry extends React.Component {
                             validated={newRdnVal === "" ? ValidatedOptions.error : ValidatedOptions.default}
                         />
                     </GridItem>
-                    <div title="Removes the old RDN attribute from the entry, otherwise this attribute remains in the entry and references the old RDN.">
+                    <div title={_("Removes the old RDN attribute from the entry, otherwise this attribute remains in the entry and references the old RDN.")}>
                         <Checkbox
                             className="ds-margin-top-lg"
                             id="deleteoldrdn"
                             isChecked={this.state.deleteOldRdn}
                             onChange={this.handleDelRdnChange}
-                            label="Delete the old RDN attribute from the entry"
+                            label={_("Delete the old RDN attribute from the entry")}
                         />
                     </div>
                 </Grid>
@@ -262,10 +265,10 @@ class RenameEntry extends React.Component {
             <>
                 <TextContent>
                     <Text component={TextVariants.h2}>
-                        Select The Entry Location
+                        {_("Select The Entry Location")}
                     </Text>
-                    <Text component={TextVariants.h5} className="ds-indent ds-margin-top-lg" title="The superior DN where the entry will be located under.">
-                        Parent Subtree &nbsp;&nbsp;
+                    <Text component={TextVariants.h5} className="ds-indent ds-margin-top-lg" title={_("The superior DN where the entry will be located under.")}>
+                        {_("Parent Subtree")}&nbsp;&nbsp;
                         <Label color="blue">
                             {newRdnSuffix}
                         </Label>
@@ -322,12 +325,12 @@ class RenameEntry extends React.Component {
             <>
                 <TextContent>
                     <Text component={TextVariants.h2}>
-                        Review Changes
+                        {_("Review Changes")}
                     </Text>
                 </TextContent>
                 <Grid className="ds-margin-top-lg">
                     <GridItem span={2} className="ds-label">
-                        Original DN
+                        {_("Original DN")}
                     </GridItem>
                     <GridItem span={10}>
                         <LabelGroup>
@@ -338,7 +341,7 @@ class RenameEntry extends React.Component {
                 </Grid>
                 <Grid className="ds-margin-top">
                     <GridItem span={2} className="ds-label">
-                        New DN
+                        {_("New DN")}
                     </GridItem>
                     <GridItem span={10}>
                         <LabelGroup>
@@ -348,9 +351,9 @@ class RenameEntry extends React.Component {
                     </GridItem>
                 </Grid>
                 <div className={!this.state.deleteOldRdn ? "ds-hidden" : "ds-margin-top-lg"}>
-                    <Grid title="This attribute will be removed from the entry so that there is no trace of the old RDN in the entry.">
+                    <Grid title={_("This attribute will be removed from the entry so that there is no trace of the old RDN in the entry.")}>
                         <GridItem span={2} className="ds-label">
-                            Remove Old Rdn
+                            {_("Remove Old Rdn")}
                         </GridItem>
                         <GridItem span={10}>
                             <Label color="orange">
@@ -374,7 +377,7 @@ class RenameEntry extends React.Component {
                     <Alert
                         variant="info"
                         isInline
-                        title="LDIF Statements"
+                        title={_("LDIF Statements")}
                     />
                 </div>
                 <Card isSelectable>
@@ -400,19 +403,19 @@ class RenameEntry extends React.Component {
                     <Alert
                         variant={resultVariant}
                         isInline
-                        title="Result for Entry Modification"
+                        title={_("Result for Entry Modification")}
                     >
                         {commandOutput}
                         {this.state.renaming &&
                             <div>
                                 <Spinner className="ds-left-margin" size="md" />
-                                &nbsp;&nbsp;Renaming entry ...
+                                &nbsp;&nbsp;{_("Renaming entry ...")}
                             </div>}
                     </Alert>
                 </div>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
-                        <CardTitle>LDIF Data</CardTitle>
+                        <CardTitle>{_("LDIF Data")}</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
                                 <h6 key={line.id}>{line.data}</h6>
@@ -425,7 +428,7 @@ class RenameEntry extends React.Component {
         const renameSteps = [
             {
                 id: 1,
-                name: 'Set Naming Attribute',
+                name: _("Set Naming Attribute"),
                 component: attrValStep,
                 canJumpTo: stepIdReached < 5,
                 hideBackButton: true,
@@ -433,29 +436,29 @@ class RenameEntry extends React.Component {
             },
             {
                 id: 2,
-                name: 'Set Entry Location',
+                name: _("Set Entry Location"),
                 component: locationStep,
                 canJumpTo: stepIdReached < 5 && newRdnVal !== "",
                 enableNext: newRdnVal !== "" && ((newRdnVal !== currRdnVal || newRdnAttr !== currRdnAttr) || (newRdnSuffix !== currRdnSuffix)),
             },
             {
                 id: 3,
-                name: 'Review Changes',
+                name: _("Review Changes"),
                 component: reviewChangesStep,
                 canJumpTo: stepIdReached >= 3 && stepIdReached < 5,
             },
             {
                 id: 4,
-                name: 'LDIF Statements',
+                name: _("LDIF Statements"),
                 component: ldifStatementsStep,
-                nextButtonText: 'Change Entry Name',
+                nextButtonText: _("Change Entry Name"),
                 canJumpTo: stepIdReached > +4 && stepIdReached < 5,
             },
             {
                 id: 5,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: reviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached > 5,
                 hideBackButton: true,
                 enableNext: !this.state.renaming
@@ -464,9 +467,9 @@ class RenameEntry extends React.Component {
 
         const desc = (
             <>
-                Old DN: &nbsp;&nbsp;&nbsp;<b>{currRdnAttr}={currRdnVal},{currRdnSuffix}</b>
+                {_("Old DN")}: &nbsp;&nbsp;&nbsp;<b>{currRdnAttr}={currRdnVal},{currRdnSuffix}</b>
                 <br /><br />
-                New DN: &nbsp;&nbsp;<b>{newRdnAttr}={newRdnVal},{newRdnSuffix}</b>
+                {_("New DN: ")}&nbsp;&nbsp;<b>{newRdnAttr}={newRdnVal},{newRdnSuffix}</b>
             </>
         );
 
@@ -475,7 +478,7 @@ class RenameEntry extends React.Component {
                 isOpen={this.props.isWizardOpen}
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
-                title="Rename LDAP Entry"
+                title={_("Rename LDAP Entry")}
                 description={desc}
                 steps={renameSteps}
             />

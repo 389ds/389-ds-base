@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -16,6 +17,8 @@ import {
 import { LDIFTable } from "./databaseTables.jsx";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class CreateLinkModal extends React.Component {
     render() {
         const {
@@ -31,17 +34,17 @@ class CreateLinkModal extends React.Component {
             bindMech,
         } = this.props;
 
-        let saveBtnName = "Create Database Link";
+        let saveBtnName = _("Create Database Link");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Creating Link ...";
-            extraPrimaryProps.spinnerAriaValueText = "Creating";
+            saveBtnName = _("Creating Link ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Create Database Link"
+                title={_("Create Database Link")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -50,21 +53,21 @@ class CreateLinkModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Creating Link" : undefined}
+                        spinnerAriaValueText={saving ? _("Creating Link") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.props.saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <Grid className="ds-margin-top" title="The RDN of the link suffix.">
+                    <Grid className="ds-margin-top" title={_("The RDN of the link suffix.")}>
                         <GridItem className="ds-label" span={3}>
-                            Link Sub-Suffix
+                            {_("Link Sub-Suffix")}
                         </GridItem>
                         <GridItem span={9}>
                             <div className="ds-container">
@@ -86,13 +89,13 @@ class CreateLinkModal extends React.Component {
                                 </div>
                             </div>
                             <FormHelperText isError isHidden={!error.createLinkSuffix}>
-                                Required field
+                                {_("Required field")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-                    <Grid title="A name for the backend chaining database link.">
+                    <Grid title={_("A name for the backend chaining database link.")}>
                         <GridItem className="ds-label" span={3}>
-                            Link Database Name
+                            {_("Link Database Name")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -106,13 +109,13 @@ class CreateLinkModal extends React.Component {
                                 validated={error.createLinkName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!error.createLinkName}>
-                                Required field
+                                {_("Required field")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-                    <Grid title="The LDAP URL for the remote server.  Add additional failover LDAP URLs separated by a space. (nsfarmserverurl).">
+                    <Grid title={_("The LDAP URL for the remote server.  Add additional failover LDAP URLs separated by a space. (nsfarmserverurl).")}>
                         <GridItem className="ds-label" span={3}>
-                            Remote Server URL(s)
+                            {_("Remote Server URL(s)")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -126,13 +129,13 @@ class CreateLinkModal extends React.Component {
                                 validated={error.createNsfarmserverurl ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!error.createNsfarmserverurl}>
-                                Required field
+                                {_("Required field")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-                    <Grid title="The DN of the entry to authenticate with on the remote server.">
+                    <Grid title={_("The DN of the entry to authenticate with on the remote server.")}>
                         <GridItem className="ds-label" span={3}>
-                            Remote Server Bind DN
+                            {_("Remote Server Bind DN")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -146,13 +149,13 @@ class CreateLinkModal extends React.Component {
                                 validated={error.createNsmultiplexorbinddn ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!error.createNsmultiplexorbinddn}>
-                                Required field
+                                {_("Required field")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-                    <Grid title="The credentials for the bind DN (nsmultiplexorcredentials).">
+                    <Grid title={_("The credentials for the bind DN (nsmultiplexorcredentials).")}>
                         <GridItem className="ds-label" span={3}>
-                            Bind DN Credentials
+                            {_("Bind DN Credentials")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -166,13 +169,13 @@ class CreateLinkModal extends React.Component {
                                 validated={error.createNsmultiplexorcredentials ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!error.createNsmultiplexorcredentials}>
-                                Password does not match
+                                {_("Password does not match")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-                    <Grid title="Confirm credentials for the bind DN (nsmultiplexorcredentials).">
+                    <Grid title={_("Confirm credentials for the bind DN (nsmultiplexorcredentials).")}>
                         <GridItem className="ds-label" span={3}>
-                            Confirm Password
+                            {_("Confirm Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -186,15 +189,15 @@ class CreateLinkModal extends React.Component {
                                 validated={error.createNsmultiplexorcredentialsConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!error.createNsmultiplexorcredentialsConfirm}>
-                                Password does not match
+                                {_("Password does not match")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="The bind method for contacting the remote server  (nsbindmechanism)."
+                        title={_("The bind method for contacting the remote server  (nsbindmechanism).")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            Bind Method
+                            {_("Bind Method")}
                         </GridItem>
                         <GridItem span={9}>
                             <FormSelect value={bindMech} onChange={handleSelectChange} aria-label="FormSelect Input">
@@ -204,7 +207,7 @@ class CreateLinkModal extends React.Component {
                             </FormSelect>
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Use StartTLS for the remote server LDAP URL.">
+                    <Grid className="ds-margin-top" title={_("Use StartTLS for the remote server LDAP URL.")}>
                         <GridItem span={12}>
                             <Checkbox
                                 id="createUseStartTLS"
@@ -212,7 +215,7 @@ class CreateLinkModal extends React.Component {
                                     handleChange(e);
                                 }}
                                 isChecked={starttls_checked}
-                                label="Use StartTLS"
+                                label={_("Use StartTLS")}
                             />
                         </GridItem>
                     </Grid>
@@ -249,17 +252,17 @@ class CreateSubSuffixModal extends React.Component {
             initOption,
         } = this.props;
 
-        let saveBtnName = "Create Sub-Suffix";
+        let saveBtnName = _("Create Sub-Suffix");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Creating suffix ...";
-            extraPrimaryProps.spinnerAriaValueText = "Creating";
+            saveBtnName = _("Creating suffix ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Create Sub Suffix"
+                title={_("Create Sub Suffix")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -268,21 +271,21 @@ class CreateSubSuffixModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Creating Suffix" : undefined}
+                        spinnerAriaValueText={saving ? _("Creating Suffix") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.props.saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <Grid className="ds-margin-top" title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">
+                    <Grid className="ds-margin-top" title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)")}>
                         <GridItem className="ds-label" span={3}>
-                            Sub-Suffix DN
+                            {_("Sub-Suffix DN")}
                         </GridItem>
                         <GridItem span={9}>
                             <div className="ds-container">
@@ -304,13 +307,13 @@ class CreateSubSuffixModal extends React.Component {
                                 </div>
                             </div>
                             <FormHelperText isError isHidden={!error.subSuffixValue}>
-                                Required field
+                                {_("Required field")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
-                    <Grid title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
+                    <Grid title={_("The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.")}>
                         <GridItem className="ds-label" span={3}>
-                            Database Name
+                            {_("Database Name")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -324,21 +327,21 @@ class CreateSubSuffixModal extends React.Component {
                                 validated={error.subSuffixBeName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!error.subSuffixBeName}>
-                                Required field
+                                {_("Required field")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="Database initialization options"
+                        title={_("Database initialization options")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            Initialization Option
+                            {_("Initialization Option")}
                         </GridItem>
                         <GridItem span={9}>
                             <FormSelect value={initOption} onChange={handleSelectChange} aria-label="FormSelect Input">
-                                <FormSelectOption key={1} value="noInit" label="Do Not Initialize Database" />
-                                <FormSelectOption key={2} value="addSuffix" label="Create The Top Sub-Suffix Entry" />
-                                <FormSelectOption key={3} value="addSample" label="Add Sample Entries" />
+                                <FormSelectOption key={1} value="noInit" label={_("Do Not Initialize Database")} />
+                                <FormSelectOption key={2} value="addSuffix" label={_("Create The Top Sub-Suffix Entry")} />
+                                <FormSelectOption key={3} value="addSample" label={_("Add Sample Entries")} />
                             </FormSelect>
                         </GridItem>
                     </Grid>
@@ -359,17 +362,17 @@ class ExportModal extends React.Component {
             spinning,
             error
         } = this.props;
-        let saveBtnName = "Export Database";
+        let saveBtnName = _("Export Database");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = "Exporting ...";
-            extraPrimaryProps.spinnerAriaValueText = "Creating";
+            saveBtnName = _("Exporting ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Export Database To LDIF File"
+                title={_("Export Database To LDIF File")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
@@ -378,21 +381,21 @@ class ExportModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Creating Suffix" : undefined}
+                        spinnerAriaValueText={spinning ? _("Creating Suffix") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.props.saveBtnDisabled || spinning}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <Grid title="Name of exported LDIF file.">
+                    <Grid title={_("Name of exported LDIF file.")}>
                         <GridItem className="ds-label" span={3}>
-                            LDIF File Name
+                            {_("LDIF File Name")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -407,7 +410,7 @@ class ExportModal extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Include the replication metadata needed to restore or initialize another replica.">
+                    <Grid title={_("Include the replication metadata needed to restore or initialize another replica.")}>
                         <GridItem span={12}>
                             <Checkbox
                                 id="includeReplData"
@@ -415,7 +418,7 @@ class ExportModal extends React.Component {
                                     handleChange(e);
                                 }}
                                 isChecked={includeReplData}
-                                label="Include Replication Data"
+                                label={_("Include Replication Data")}
                             />
                         </GridItem>
                     </Grid>
@@ -446,12 +449,12 @@ class ImportModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Initialize Database via LDIF File"
+                title={_("Initialize Database via LDIF File")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -461,9 +464,9 @@ class ImportModal extends React.Component {
                 />
                 <hr />
                 <Form isHorizontal autoComplete="off">
-                    <Grid title="The full path to the LDIF file.  The server must have permissions to read it.">
+                    <Grid title={_("The full path to the LDIF file.  The server must have permissions to read it.")}>
                         <GridItem className="ds-label" span={4}>
-                            Or, enter LDIF location
+                            {_("Or, enter LDIF location")}
                         </GridItem>
                         <GridItem span={6}>
                             <TextInput
@@ -484,7 +487,7 @@ class ImportModal extends React.Component {
                                 onClick={saveHandler}
                                 isDisabled={this.props.saveBtnDisabled}
                             >
-                                Import
+                                {_("Import")}
                             </Button>
                         </GridItem>
                     </Grid>

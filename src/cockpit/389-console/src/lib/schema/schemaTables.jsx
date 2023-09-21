@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Grid,
@@ -22,6 +23,8 @@ import {
 } from '@patternfly/react-table';
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class ObjectClassesTable extends React.Component {
     constructor(props) {
         super(props);
@@ -35,11 +38,11 @@ class ObjectClassesTable extends React.Component {
             noRows: true,
             columns: [
                 {
-                    title: 'Objectclass Name',
+                    title: _("Objectclass Name"),
                     transforms: [sortable],
                     cellFormatters: [expandable]
                 },
-                { title: 'OID', transforms: [sortable] },
+                { title: _("OID"), transforms: [sortable] },
             ],
         };
 
@@ -106,7 +109,7 @@ class ObjectClassesTable extends React.Component {
 
     getExpandedRow(row) {
         const kinds = ['STRUCTURAL', 'ABSTRACT', 'AUXILIARY'];
-        const desc = row.desc ? row.desc[0] : <i>No description</i>;
+        const desc = row.desc ? row.desc[0] : <i>{_("No description")}</i>;
         const x_org = row.x_origin.join(" ");
 
         return (
@@ -155,8 +158,8 @@ class ObjectClassesTable extends React.Component {
         }
         if (rows.length === 0) {
             noRows = true;
-            rows = [{ cells: ['No Objectclasses'] }];
-            columns = [{ title: 'Objectclasses' }];
+            rows = [{ cells: [_("No Objectclasses")] }];
+            columns = [{ title: _("Objectclasses") }];
         }
         this.setState({
             rows,
@@ -218,12 +221,12 @@ class ObjectClassesTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Objectclass',
+                title: _("Edit Objectclass"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editModalHandler(rowData.cells[0])
             },
             {
-                title: 'Delete Objectclass',
+                title: _("Delete Objectclass"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteHandler(rowData.cells[0])
             }
@@ -245,7 +248,7 @@ class ObjectClassesTable extends React.Component {
             <div className="ds-center ds-margin-top-xlg">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Loading Objectclasses ...
+                        {_("Loading Objectclasses ...")}
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
@@ -258,7 +261,7 @@ class ObjectClassesTable extends React.Component {
                     <Grid>
                         <GridItem span={3}>
                             <SearchInput
-                                placeholder='Search Objectclasses'
+                                placeholder={_("Search Objectclasses")}
                                 value={this.state.value}
                                 onChange={this.handleSearchChange}
                                 onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -325,12 +328,12 @@ class AttributesTable extends React.Component {
             noRows: true,
             columns: [
                 {
-                    title: 'Attribute Name',
+                    title: _("Attribute Name"),
                     transforms: [sortable],
                     cellFormatters: [expandable]
                 },
-                { title: 'OID', transforms: [sortable] },
-                { title: 'Syntax', transforms: [sortable] },
+                { title: _("OID"), transforms: [sortable] },
+                { title: _("Syntax"), transforms: [sortable] },
             ],
         };
 
@@ -397,30 +400,30 @@ class AttributesTable extends React.Component {
     }
 
     getExpandedRow(row) {
-        const desc = row.desc ? row.desc[0] : <i>No description</i>;
+        const desc = row.desc ? row.desc[0] : <i>{_("No description")}</i>;
         const x_org = row.x_origin.join(", ");
         const usage = ["userApplications", "directoryOperation", "distributedOperation", "dSAOperation"];
         return (
             <Grid className="ds-left-indent-lg">
-                <GridItem span={3}>Description:</GridItem>
+                <GridItem span={3}>{_("Description:")}</GridItem>
                 <GridItem span={9}><b>{desc}</b></GridItem>
-                <GridItem span={3}>X-Origin:</GridItem>
+                <GridItem span={3}>{_("X-Origin:")}</GridItem>
                 <GridItem span={9}><b>{x_org}</b></GridItem>
-                <GridItem span={3}>Aliases:</GridItem>
+                <GridItem span={3}>{_("Aliases:")}</GridItem>
                 <GridItem span={9}><b>{row.aliases ? row.aliases.join(", ") : ""}</b></GridItem>
-                <GridItem span={3}>Parent Attribute:</GridItem>
+                <GridItem span={3}>{_("Parent Attribute:")}</GridItem>
                 <GridItem span={9}><b>{row.sup.join(", ")}</b></GridItem>
-                <GridItem span={3}>Read Only:</GridItem>
+                <GridItem span={3}>{_("Read Only:")}</GridItem>
                 <GridItem span={9}><b>{row.no_user_mod ? "Yes" : "No"}</b></GridItem>
-                <GridItem span={3}>Multivalued:</GridItem>
+                <GridItem span={3}>{_("Multivalued:")}</GridItem>
                 <GridItem span={9}><b>{row.single_value ? "No" : "Yes"}</b></GridItem>
-                <GridItem span={3}>Usage:</GridItem>
+                <GridItem span={3}>{_("Usage:")}</GridItem>
                 <GridItem span={9}><b>{usage[row.usage]}</b></GridItem>
-                <GridItem span={3}>Equality Matching Rules:</GridItem>
+                <GridItem span={3}>{_("Equality Matching Rules:")}</GridItem>
                 <GridItem span={9}><b>{row.equality ? row.equality.join(", ") : ""}</b></GridItem>
-                <GridItem span={3}>Substring Matching Rules:</GridItem>
+                <GridItem span={3}>{_("Substring Matching Rules:")}</GridItem>
                 <GridItem span={9}><b>{row.substr ? row.substr.join(", ") : ""}</b></GridItem>
-                <GridItem span={3}>Ordering Matching Rules:</GridItem>
+                <GridItem span={3}>{_("Ordering Matching Rules:")}</GridItem>
                 <GridItem span={9}><b>{row.ordering ? row.ordering.join(", ") : ""}</b></GridItem>
             </Grid>
         );
@@ -454,8 +457,8 @@ class AttributesTable extends React.Component {
         }
         if (rows.length === 0) {
             noRows = true;
-            rows = [{ cells: ['No Attributes'] }];
-            columns = [{ title: 'Attributes' }];
+            rows = [{ cells: [_("No Attributes")] }];
+            columns = [{ title: _("Attributes") }];
         }
         this.setState({
             rows,
@@ -518,12 +521,12 @@ class AttributesTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Attribute',
+                title: _("Edit Attribute"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editModalHandler(rowData.cells[0])
             },
             {
-                title: 'Delete Attribute',
+                title: _("Delete Attribute"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteHandler(rowData.cells[0])
             }
@@ -545,7 +548,7 @@ class AttributesTable extends React.Component {
             <div className="ds-center ds-margin-top-xlg">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Loading Attributes ...
+                        {_("Loading Attributes ...")}
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
@@ -558,7 +561,7 @@ class AttributesTable extends React.Component {
                     <Grid>
                         <GridItem span={3}>
                             <SearchInput
-                                placeholder='Search Attributes'
+                                placeholder={_("Search Attributes")}
                                 value={this.state.value}
                                 onChange={this.handleSearchChange}
                                 onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -627,12 +630,12 @@ class MatchingRulesTable extends React.Component {
             rows: [],
             columns: [
                 {
-                    title: 'Matching Rule',
+                    title: _("Matching Rule"),
                     transforms: [sortable],
                     cellFormatters: [expandable]
                 },
-                { title: 'OID', transforms: [sortable] },
-                { title: 'Syntax', transforms: [sortable] },
+                { title: _("OID"), transforms: [sortable] },
+                { title: _("Syntax"), transforms: [sortable] },
             ],
         };
 
@@ -697,7 +700,7 @@ class MatchingRulesTable extends React.Component {
     }
 
     getExpandedRow(row) {
-        let desc = "No description";
+        let desc = _("No description");
         if (row.desc) {
             desc = row.desc[0];
         }
@@ -768,7 +771,7 @@ class MatchingRulesTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [{ title: name === "" ? <i>&lt;No Name&gt;</i> : name }, row.oid[0], row.syntax[0]],
+                    cells: [{ title: name === "" ? <i>&lt;{_("No Name")}&gt;</i> : name }, row.oid[0], row.syntax[0]],
                 },
                 {
                     parent: count,
@@ -802,7 +805,7 @@ class MatchingRulesTable extends React.Component {
                 <Grid>
                     <GridItem span={3}>
                         <SearchInput
-                            placeholder='Search Matching Rules'
+                            placeholder={_("Search Matching Rules")}
                             value={this.state.value}
                             onChange={this.handleSearchChange}
                             onClear={(evt) => this.handleSearchChange(evt, '')}

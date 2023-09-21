@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Grid,
@@ -18,6 +19,8 @@ import {
 } from '@patternfly/react-table';
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class KeyTable extends React.Component {
     constructor(props) {
         super(props);
@@ -30,9 +33,9 @@ class KeyTable extends React.Component {
             rows: [],
             hasRows: false,
             columns: [
-                { title: 'Cipher', transforms: [sortable] },
-                { title: 'Key Identifier', transforms: [sortable] },
-                { title: 'State', transforms: [sortable] },
+                { title: _("Cipher"), transforms: [sortable] },
+                { title: _("Key Identifier"), transforms: [sortable] },
+                { title: _("State"), transforms: [sortable] },
             ],
         };
 
@@ -64,8 +67,8 @@ class KeyTable extends React.Component {
         }
 
         if (rows.length === 0) {
-            rows = [{ cells: ['No Orphan keys'] }];
-            columns = [{ title: 'Orphan keys' }];
+            rows = [{ cells: [_("No Orphan keys")] }];
+            columns = [{ title: _("Orphan keys") }];
             hasRows = false;
         }
 
@@ -79,7 +82,7 @@ class KeyTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Delete Key',
+                title: _("Delete Key"),
                 onClick: (event, rowId, rowData, extra) => {
                     if (rowData.cells[1]) {
                         this.props.delKey(rowData.cells[1]);
@@ -98,17 +101,14 @@ class KeyTable extends React.Component {
                         content={
                             <div>
                                 <p>
-                                    An orphan key is a private key in the NSS DB for which there is NO cert
-                                    with the corresponding public key. An orphan key is created during CSR creation,
-                                    when the certificate associated with a CSR has been imported into the NSS DB its
-                                    orphan state will be removed.
+                                    {_("An orphan key is a private key in the NSS DB for which there is NO cert with the corresponding public key. An orphan key is created during CSR creation, when the certificate associated with a CSR has been imported into the NSS DB its orphan state will be removed.")}
                                     <br /><br />
-                                    Make sure an orphan key is not associated with a submitted CSR before you delete it.
+                                    {_("Make sure an orphan key is not associated with a submitted CSR before you delete it.")}
                                 </p>
                             </div>
                         }
                 >
-                    <a className="ds-font-size-sm">What is an orphan key?</a>
+                    <a className="ds-font-size-sm">{_("What is an orphan key?")}</a>
                 </Tooltip>
                 <Table
                     className="ds-margin-top"
@@ -152,10 +152,10 @@ class CSRTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Name', transforms: [sortable] },
-                { title: 'Subject DN', transforms: [sortable] },
-                { title: 'Subject Alternative Names', transforms: [sortable] },
-                { title: 'Modification Date', transforms: [sortable] },
+                { title: _("Name"), transforms: [sortable] },
+                { title: _("Subject DN"), transforms: [sortable] },
+                { title: _("Subject Alternative Names"), transforms: [sortable] },
+                { title: _("Modification Date"), transforms: [sortable] },
             ],
         };
 
@@ -204,8 +204,8 @@ class CSRTable extends React.Component {
             );
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Certificate Signing Requests'] }];
-            columns = [{ title: 'Certificate Signing Requests' }];
+            rows = [{ cells: [_("No Certificate Signing Requests")] }];
+            columns = [{ title: _("Certificate Signing Requests") }];
             hasRows = false;
         }
         this.setState({
@@ -254,7 +254,7 @@ class CSRTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Delete CSR',
+                title: _("Delete CSR"),
                 onClick: (event, rowId, rowData, extra) => {
                     if (rowData.cells.length > 1) {
                         this.props.delCSR(rowData.cells[0]);
@@ -262,7 +262,7 @@ class CSRTable extends React.Component {
                 }
             },
             {
-                title: 'View CSR',
+                title: _("View CSR"),
                 onClick: (event, rowId, rowData, extra) => {
                     if (rowData.cells.length > 1) {
                         this.props.viewCSR(rowData.cells[0]);
@@ -279,7 +279,7 @@ class CSRTable extends React.Component {
             <div className="ds-margin-top-lg">
                 {hasRows &&
                     <SearchInput
-                        placeholder='Search CSRs'
+                        placeholder={_("Search CSRs")}
                         value={this.state.value}
                         onChange={this.handleSearchChange}
                         onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -329,12 +329,12 @@ class CertTable extends React.Component {
             hasRows: false,
             columns: [
                 {
-                    title: 'Nickname',
+                    title: _("Nickname"),
                     transforms: [sortable],
                     cellFormatters: [expandable]
                 },
-                { title: 'Subject DN', transforms: [sortable] },
-                { title: 'Expiration Date', transforms: [sortable] },
+                { title: _("Subject DN"), transforms: [sortable] },
+                { title: _("Expiration Date"), transforms: [sortable] },
             ],
         };
 
@@ -405,9 +405,9 @@ class CertTable extends React.Component {
     getExpandedRow(issuer, flags) {
         return (
             <Grid className="ds-left-indent-lg">
-                <GridItem span={3}>Issuer DN:</GridItem>
+                <GridItem span={3}>{_("Issuer DN:")}</GridItem>
                 <GridItem span={9}><b>{issuer}</b></GridItem>
-                <GridItem span={3}>Trust Flags:</GridItem>
+                <GridItem span={3}>{_("Trust Flags:")}</GridItem>
                 <GridItem span={9}><b>{flags}</b></GridItem>
 
             </Grid>
@@ -438,8 +438,8 @@ class CertTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Certificates'] }];
-            columns = [{ title: 'Certificates' }];
+            rows = [{ cells: [_("No Certificates")] }];
+            columns = [{ title: _("Certificates") }];
             hasRows = false;
         }
         this.setState({
@@ -501,12 +501,12 @@ class CertTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Trust Flags',
+                title: _("Edit Trust Flags"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editCert(rowData.cells[0], rowData.flags)
             },
             {
-                title: 'Export Certificate',
+                title: _("Export Certificate"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.exportCert(rowData.cells[0])
             },
@@ -514,7 +514,7 @@ class CertTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Certificate',
+                title: _("Delete Certificate"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.delCert(rowData.cells[0])
             }
@@ -536,7 +536,7 @@ class CertTable extends React.Component {
             <div className="ds-margin-top-lg">
                 {hasRows &&
                     <SearchInput
-                        placeholder='Search Certificates'
+                        placeholder={_("Search Certificates")}
                         value={this.state.value}
                         onChange={this.handleSearchChange}
                         onClear={(evt) => this.handleSearchChange(evt, '')}
@@ -587,10 +587,10 @@ class CRLTable extends React.Component {
             dropdownIsOpen: false,
             hasRows: false,
             columns: [
-                { title: 'Issued By', transforms: [sortable] },
-                { title: 'Effective Date', transforms: [sortable] },
-                { title: 'Next Update', transforms: [sortable] },
-                { title: 'Type', transforms: [sortable] },
+                { title: _("Issued By"), transforms: [sortable] },
+                { title: _("Effective Date"), transforms: [sortable] },
+                { title: _("Next Update"), transforms: [sortable] },
+                { title: _("Type"), transforms: [sortable] },
             ],
         };
 
@@ -699,12 +699,12 @@ class CRLTable extends React.Component {
     actions() {
         return [
             {
-                title: 'View CRL',
+                title: _("View CRL"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editConfig(rowData.cells[0], rowData.cells[1], rowData.credsBindpw, rowData.pwInteractive)
             },
             {
-                title: 'Delete CRL',
+                title: _("Delete CRL"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteConfig(rowData.cells[0])
             }
@@ -715,7 +715,7 @@ class CRLTable extends React.Component {
         return (
             <div className="ds-margin-top">
                 <SearchInput
-                    placeholder="Search CRL's"
+                    placeholder={_("Search CRL's")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}

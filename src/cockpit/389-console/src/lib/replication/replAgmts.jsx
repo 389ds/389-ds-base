@@ -16,6 +16,7 @@ const ldapOptions = ['SIMPLE', 'SASL/DIGEST-MD5', 'SASL/GSSAPI'];
 const ldapsOptions = ['SIMPLE', 'SSLCLIENTAUTH'];
 const ldapBootstrapOptions = ['SIMPLE'];
 const ldapsBootstrapOptions = ['SIMPLE', 'SSLCLIENTAUTH'];
+const _ = cockpit.gettext;
 
 export class ReplAgmts extends React.Component {
     _mounted = false;
@@ -1108,7 +1109,7 @@ export class ReplAgmts extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to get agreement information for: "${agmtName}" - ${errMsg.desc}`
+                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg.desc)
                     );
                 });
     }
@@ -1221,13 +1222,13 @@ export class ReplAgmts extends React.Component {
                     }
                     this.props.addNotification(
                         'success',
-                        'Successfully updated replication agreement'
+                        _("Successfully updated replication agreement")
                     );
                 })
                 .fail(_ => {
                     this.props.addNotification(
                         "error",
-                        `Failed to update replication agreement - ${buffer}`
+                        cockpit.format(_("Failed to update replication agreement - $0"), buffer)
                     );
                     this.setState({
                         savingAgmt: false
@@ -1255,14 +1256,14 @@ export class ReplAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully poked replication agreement'
+                        _("Successfully poked replication agreement")
                     );
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         'error',
-                        `Failed to poke replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to poke replication agreement - $0"), errMsg.desc)
                     );
                 });
     }
@@ -1293,7 +1294,7 @@ export class ReplAgmts extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         'error',
-                        `Failed to initialize replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to initialize replication agreement - $0"), errMsg.desc)
                     );
                     this.setState({
                         showConfirmInitAgmt: false
@@ -1345,13 +1346,13 @@ export class ReplAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully enabled replication agreement');
+                        _("Successfully enabled replication agreement"));
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to enabled replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to enabled replication agreement - $0"), errMsg.desc)
                     );
                 });
     }
@@ -1370,13 +1371,13 @@ export class ReplAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully disabled replication agreement');
+                        _("Successfully disabled replication agreement"));
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to disable replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to disable replication agreement - $0"), errMsg.desc)
                     );
                 });
     }
@@ -1394,7 +1395,7 @@ export class ReplAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully deleted replication agreement');
+                        _("Successfully deleted replication agreement"));
                     this.setState({
                         showConfirmDeleteAgmt: false,
                     });
@@ -1403,7 +1404,7 @@ export class ReplAgmts extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete replication agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to delete replication agreement - $0"), errMsg.desc)
                     );
                     this.setState({
                         showConfirmDeleteAgmt: false,
@@ -1509,7 +1510,7 @@ export class ReplAgmts extends React.Component {
                     }
                     this.props.addNotification(
                         'success',
-                        'Successfully created replication agreement'
+                        _("Successfully created replication agreement")
                     );
                     if (this.state.agmtInit === 'online-init') {
                         this.initAgmt(this.state.agmtName);
@@ -1518,7 +1519,7 @@ export class ReplAgmts extends React.Component {
                 .fail(_ => {
                     this.props.addNotification(
                         "error",
-                        `Failed to create replication agreement - ${buffer}`
+                        cockpit.format(_("Failed to create replication agreement - $0"), buffer)
                     );
                     this.setState({
                         savingAgmt: false
@@ -1611,7 +1612,7 @@ export class ReplAgmts extends React.Component {
                         variant="primary"
                         onClick={this.handleShowCreateAgmtModal}
                     >
-                        Create Agreement
+                        {_("Create Agreement")}
                     </Button>
                     <Button
                         className="ds-left-margin"
@@ -1620,7 +1621,7 @@ export class ReplAgmts extends React.Component {
                             this.props.reload(this.props.suffix);
                         }}
                     >
-                        Refresh Agreements
+                        {_("Refresh Agreements")}
                     </Button>
                 </div>
                 <ReplAgmtModal
@@ -1740,10 +1741,10 @@ export class ReplAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Replication Agreement"
-                    mMsg="Are you sure you want to delete this replication agreement?"
-                    mSpinningMsg="Deleting Replication Agreement ..."
-                    mBtnName="Delete Agreement"
+                    mTitle={_("Delete Replication Agreement")}
+                    mMsg={_("Are you sure you want to delete this replication agreement?")}
+                    mSpinningMsg={_("Deleting Replication Agreement ...")}
+                    mBtnName={_("Delete Agreement")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmInitAgmt}
@@ -1753,10 +1754,10 @@ export class ReplAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Initialize Replication Agreement"
-                    mMsg="Are you sure you want to initialize this replication agreement?"
-                    mSpinningMsg="Initializing Replication Agreement ..."
-                    mBtnName="Initialize Agreement"
+                    mTitle={_("Initialize Replication Agreement")}
+                    mMsg={_("Are you sure you want to initialize this replication agreement?")}
+                    mSpinningMsg={_("Initializing Replication Agreement ...")}
+                    mBtnName={_("Initialize Agreement")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmEnableAgmt}
@@ -1766,10 +1767,10 @@ export class ReplAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Enable Replication Agreement"
-                    mMsg="Are you sure you want to enable this replication agreement?"
-                    mSpinningMsg="Enabling ..."
-                    mBtnName="Enable Agreement"
+                    mTitle={_("Enable Replication Agreement")}
+                    mMsg={_("Are you sure you want to enable this replication agreement?")}
+                    mSpinningMsg={_("Enabling ...")}
+                    mBtnName={_("Enable Agreement")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDisableAgmt}
@@ -1779,10 +1780,10 @@ export class ReplAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Disable Replication Agreement"
-                    mMsg="Are you sure you want to disable this replication agreement?"
-                    mSpinningMsg="Disabling ..."
-                    mBtnName="Disable Agreement"
+                    mTitle={_("Disable Replication Agreement")}
+                    mMsg={_("Are you sure you want to disable this replication agreement?")}
+                    mSpinningMsg={_("Disabling ...")}
+                    mBtnName={_("Disable Agreement")}
                 />
             </div>
         );

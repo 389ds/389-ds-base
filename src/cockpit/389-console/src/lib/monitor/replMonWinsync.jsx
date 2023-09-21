@@ -13,6 +13,8 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 
+const _ = cockpit.gettext;
+
 export class ReplAgmtWinsync extends React.Component {
     constructor (props) {
         super(props);
@@ -36,14 +38,14 @@ export class ReplAgmtWinsync extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Replication Winysnc agreement has been poked`
+                        _("Replication Winysnc agreement has been poked")
                     );
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to poke replication winsync agreement ${agmt_name} - ${errMsg.desc}`
+                        cockpit.format(_("Failed to poke replication winsync agreement $0 - $1"), agmt_name, errMsg.desc)
                     );
                 });
     }
@@ -56,12 +58,12 @@ export class ReplAgmtWinsync extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Monitor Winsync Agreements
+                            {_("Monitor Winsync Agreements")}
                             <FontAwesomeIcon
                                 size="lg"
                                 className="ds-left-margin ds-refresh"
                                 icon={faSyncAlt}
-                                title="Refresh replication monitor"
+                                title={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
                             />
                         </Text>

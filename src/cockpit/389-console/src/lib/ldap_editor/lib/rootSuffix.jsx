@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -13,6 +14,8 @@ import {
     generateRootEntryLdif, createLdapEntry, getRootSuffixEntryDetails
 } from './utils.jsx';
 
+const _ = cockpit.gettext;
+
 class CreateRootSuffix extends React.Component {
     constructor (props) {
         super(props);
@@ -24,7 +27,7 @@ class CreateRootSuffix extends React.Component {
         this.handleCreateRootEntry = () => {
             console.log(`Creating the root entry ${this.props.suffixDn}`);
             const resultParams = {
-                message: `The suffix ${this.props.suffixDn} was successfully created.`,
+                message: cockpit.format(_("The suffix $0 was successfully created."), this.props.suffixDn),
                 variant: 'success'
             };
             createLdapEntry(this.props.editorLdapServer, this.state.ldifArray,
@@ -86,7 +89,7 @@ class CreateRootSuffix extends React.Component {
             <Modal
                 position="top"
                 variant={ModalVariant.medium}
-                title="Create Root Entry"
+                title={_("Create Root Entry")}
                 isOpen={showEmptySuffixModal}
                 onClose={handleEmptySuffixToggle}
                 actions={[
@@ -96,14 +99,14 @@ class CreateRootSuffix extends React.Component {
                         isDisabled={!ldifOk}
                         onClick={this.handleCreateRootEntry} // Calls this.props.handleEmptySuffixToggle()
                     >
-                        Create
+                        {_("Create")}
                     </Button>,
                     <Button
                         key="cancel"
                         variant="link"
                         onClick={handleEmptySuffixToggle}
                     >
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -111,8 +114,8 @@ class CreateRootSuffix extends React.Component {
                     variant={ ldifOk ? 'info' : 'danger'}
                     isInline
                     title={ ldifOk
-                        ? 'LDIF data to create the suffix'
-                        : 'Failed to generate the LDIF data'}
+                        ? _("LDIF data to create the suffix")
+                        : _("Failed to generate the LDIF data")}
                 />
                 <div className="ds-addons-bottom-margin" />
                 {

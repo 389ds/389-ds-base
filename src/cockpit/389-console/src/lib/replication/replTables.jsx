@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -17,6 +18,8 @@ import {
 import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class ReplAgmtTable extends React.Component {
     constructor(props) {
         super(props);
@@ -27,11 +30,11 @@ class ReplAgmtTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Name', transforms: [sortable] },
-                { title: 'Host', transforms: [sortable] },
-                { title: 'Port', transforms: [sortable] },
-                { title: 'State', transforms: [sortable] },
-                { title: 'Last Init Status', transforms: [sortable] },
+                { title: _("Name"), transforms: [sortable] },
+                { title: _("Host"), transforms: [sortable] },
+                { title: _("Port"), transforms: [sortable] },
+                { title: _("State"), transforms: [sortable] },
+                { title: _("Last Init Status"), transforms: [sortable] },
             ],
         };
 
@@ -56,22 +59,22 @@ class ReplAgmtTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Agreement',
+                title: _("Edit Agreement"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.edit(rowData.cells[0])
             },
             {
-                title: 'Initialize Agreement',
+                title: _("Initialize Agreement"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.init(rowData.cells[0])
             },
             {
-                title: 'Poke Agreement',
+                title: _("Poke Agreement"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.poke(rowData.cells[0])
             },
             {
-                title: 'Disable/Enable Agreement',
+                title: _("Disable/Enable Agreement"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.enable(rowData.cells[0], rowData.cells[3])
             },
@@ -79,7 +82,7 @@ class ReplAgmtTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Agreement',
+                title: _("Delete Agreement"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.delete(rowData.cells[0], rowData.cells[3])
             },
@@ -90,16 +93,16 @@ class ReplAgmtTable extends React.Component {
     convertStatus(msg) {
         if (msg === "Initialized") {
             return (
-                <i>Initialized</i>
+                <i>{_("Initialized")}</i>
             );
         } else if (msg === "Not Initialized") {
             return (
-                <i>Not Initialized</i>
+                <i>{_("Not Initialized")}</i>
             );
         } else if (msg === "Initializing") {
             return (
                 <div>
-                    <i>Initializing</i> <Spinner size="sm" />
+                    <i>{_("Initializing")}</i> <Spinner size="sm" />
                 </div>
             );
         } else {
@@ -124,8 +127,8 @@ class ReplAgmtTable extends React.Component {
 
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Replication Agreements' }];
-            tableRows = [{ cells: ['No Agreements'] }];
+            columns = [{ title: _("Replication Agreements") }];
+            tableRows = [{ cells: [_("No Agreements")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -134,7 +137,7 @@ class ReplAgmtTable extends React.Component {
             <div className="ds-margin-top-xlg">
                 <SearchInput
                     className="ds-margin-top-xlg"
-                    placeholder='Search agreements'
+                    placeholder={_("Search agreements")}
                     value={this.props.value}
                     onChange={this.props.handleSearch}
                     onClear={(evt) => this.props.search(evt, '')}
@@ -191,7 +194,7 @@ class ManagerTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Replication Managers'] }];
+            rows = [{ cells: [_("No Replication Managers")] }];
             columns = [{ title: '' }];
         }
         this.setState({
@@ -232,7 +235,7 @@ class ManagerTable extends React.Component {
                     onClick={() => {
                         this.props.confirmDelete(name);
                     }}
-                    title="Delete Replication Manager"
+                    title={_("Delete Replication Manager")}
                 />
             </a>
         );
@@ -263,9 +266,9 @@ class RUVTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Replica ID', transforms: [sortable] },
-                { title: 'Replica LDAP URL', transforms: [sortable] },
-                { title: 'Max CSN', transforms: [sortable] },
+                { title: _("Replica ID"), transforms: [sortable] },
+                { title: _("Replica LDAP URL"), transforms: [sortable] },
+                { title: _("Max CSN"), transforms: [sortable] },
                 { title: '' },
             ],
         };
@@ -283,8 +286,8 @@ class RUVTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ["No RUV's"] }];
-            columns = [{ title: "Remote RUV's" }];
+            rows = [{ cells: [_("No RUV's")] }];
+            columns = [{ title: _("Remote RUV's") }];
         }
         this.setState({
             rows,
@@ -310,9 +313,9 @@ class RUVTable extends React.Component {
                 onClick={() => {
                     this.props.confirmDelete(rid);
                 }}
-                title="Remove this RUV/Replica ID from all the Replicas."
+                title={_("Remove this RUV/Replica ID from all the Replicas.")}
             >
-                Clean RUV
+                {_("Clean RUV")}
             </Button>
         );
     }
@@ -346,9 +349,9 @@ class ReplicaLDIFTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'LDIF File', transforms: [sortable] },
-                { title: 'Creation Date', transforms: [sortable] },
-                { title: 'File Size', transforms: [sortable] },
+                { title: _("LDIF File"), transforms: [sortable] },
+                { title: _("Creation Date"), transforms: [sortable] },
+                { title: _("File Size"), transforms: [sortable] },
             ],
         };
 
@@ -378,8 +381,8 @@ class ReplicaLDIFTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No LDIF files'] }];
-            columns = [{ title: 'LDIF File' }];
+            rows = [{ cells: [_("No LDIF files")] }];
+            columns = [{ title: _("LDIF File") }];
         }
         this.setState({
             rows,

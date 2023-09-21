@@ -22,6 +22,8 @@ import { DoubleConfirmModal } from "../notifications.jsx";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 
+const _ = cockpit.gettext;
+
 export class ReplMonConflict extends React.Component {
     constructor (props) {
         super(props);
@@ -118,7 +120,7 @@ export class ReplMonConflict extends React.Component {
                     this.props.reloadConflicts();
                     this.props.addNotification(
                         "success",
-                        `Replication conflict entry was converted into a valid entry`
+                        _("Replication conflict entry was converted into a valid entry")
                     );
                     this.setState({
                         showCompareModal: false,
@@ -129,7 +131,7 @@ export class ReplMonConflict extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to convert conflict entry entry: ${this.state.conflictEntry} - ${errMsg.desc}`
+                        cockpit.format(_("Failed to convert conflict entry entry: $0 - $1"), this.state.conflictEntry, errMsg.desc)
                     );
                     this.closeConfirmConvertConflict();
                 });
@@ -146,7 +148,7 @@ export class ReplMonConflict extends React.Component {
                     this.props.reloadConflicts();
                     this.props.addNotification(
                         "success",
-                        `Replication Conflict Entry is now the Valid Entry`
+                        _("Replication Conflict Entry is now the Valid Entry")
                     );
                     this.setState({
                         showCompareModal: false,
@@ -157,7 +159,7 @@ export class ReplMonConflict extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to swap in conflict entry: ${this.state.conflictEntry} - ${errMsg.desc}`
+                        cockpit.format(_("Failed to swap in conflict entry: $0 - $1"), this.state.conflictEntry, errMsg.desc)
                     );
                     this.closeConfirmSwapConflict();
                 });
@@ -175,7 +177,7 @@ export class ReplMonConflict extends React.Component {
                     this.props.reloadConflicts();
                     this.props.addNotification(
                         "success",
-                        `Replication conflict entry was deleted`
+                        _("Replication conflict entry was deleted")
                     );
                     this.setState({
                         showCompareModal: false,
@@ -186,7 +188,7 @@ export class ReplMonConflict extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete conflict entry: ${this.state.conflictEntry} - ${errMsg.desc}`
+                        cockpit.format(_("Failed to delete conflict entry: $0 - $1"), this.state.conflictEntry, errMsg.desc)
                     );
                     this.closeConfirmDeleteConflict();
                 });
@@ -214,7 +216,7 @@ export class ReplMonConflict extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to get conflict entries: ${dn} - ${errMsg.desc}`
+                        cockpit.format(_("Failed to get conflict entries: $0 - $1"), dn, errMsg.desc)
                     );
                 });
     }
@@ -247,7 +249,7 @@ export class ReplMonConflict extends React.Component {
                     this.props.reloadConflicts();
                     this.props.addNotification(
                         "success",
-                        `Replication glue entry was converted`
+                        _("Replication glue entry was converted")
                     );
                     this.closeConfirmConvertGlue();
                 })
@@ -255,7 +257,7 @@ export class ReplMonConflict extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to convert glue entry: ${this.state.glueEntry} - ${errMsg.desc}`
+                        cockpit.format(_("Failed to convert glue entry: $0 - $1"), this.state.glueEntry, errMsg.desc)
                     );
                     this.closeConfirmConvertGlue();
                 });
@@ -280,7 +282,7 @@ export class ReplMonConflict extends React.Component {
                     this.props.reloadConflicts();
                     this.props.addNotification(
                         "success",
-                        `Replication glue entry was deleted`
+                        _("Replication glue entry was deleted")
                     );
                     this.closeConfirmDeleteGlue();
                 })
@@ -288,7 +290,7 @@ export class ReplMonConflict extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete glue entry: ${this.state.glueEntry} - ${errMsg.desc}`
+                        cockpit.format(_("Failed to delete glue entry: $0 - $1"), this.state.glueEntry, errMsg.desc)
                     );
                     this.closeConfirmDeleteGlue();
                 });
@@ -318,7 +320,7 @@ export class ReplMonConflict extends React.Component {
         if (this.state.convertRDN === "") {
             this.props.addNotification(
                 "error",
-                `You must provide a RDN if you want to convert the Conflict Entry`
+                _("You must provide a RDN if you want to convert the Conflict Entry")
             );
             return;
         }
@@ -393,33 +395,28 @@ export class ReplMonConflict extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Monitor Conflict and Glue Entries
+                            {_("Monitor Conflict and Glue Entries")}
                             <FontAwesomeIcon
                                 size="lg"
                                 className="ds-left-margin ds-refresh"
                                 icon={faSyncAlt}
-                                title="Refresh replication monitor"
+                                title={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
                             />
                         </Text>
                     </TextContent>
                 </div>
                 <Tabs isBox className="ds-margin-top-lg" activeKey={this.state.activeTabConflictKey} onSelect={this.handleNavConflictSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Conflict Entries <font size="2">({conflictEntries.length})</font></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Conflict Entries ")}<font size="2">({conflictEntries.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <Tooltip
                                 content={
                                     <div>
-                                        Replication conflict entries occur when two entries are created with the
-                                        same DN (or name) on different servers at about the same time.  The automatic conflict
-                                        resolution procedure renames the entry created last.  Its RDN is changed
-                                        into a multi-valued RDN that includes the entry's original RDN and it's unique
-                                        identifier (nsUniqueId).  There are several ways to resolve a conflict,
-                                        but choosing which option to use is up to you.
+                                        {_("Replication conflict entries occur when two entries are created with the same DN (or name) on different servers at about the same time.  The automatic conflict resolution procedure renames the entry created last.  Its RDN is changed into a multi-valued RDN that includes the entry's original RDN and it's unique identifier (nsUniqueId).  There are several ways to resolve a conflict, but choosing which option to use is up to you.")}
                                     </div>
                                 }
                             >
-                                <a className="ds-indent ds-font-size-sm">What Is A Replication Conflict Entry?</a>
+                                <a className="ds-indent ds-font-size-sm">{_("What Is A Replication Conflict Entry?")}</a>
                             </Tooltip>
                             <ConflictTable
                                 conflicts={conflictEntries}
@@ -428,22 +425,16 @@ export class ReplMonConflict extends React.Component {
                             />
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Glue Entries <font size="2">({glueEntries.length})</font></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Glue Entries ")}<font size="2">({glueEntries.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <Tooltip
                                 content={
                                     <div>
-                                        When a <b>Delete</b> operation is replicated and the consumer server finds that the entry to be
-                                        deleted has child entries, the conflict resolution procedure creates a "<i>glue entry</i>" to
-                                        avoid having orphaned entries in the database.  In the same way, when an <b>Add</b> operation is
-                                        replicated and the consumer server cannot find the parent entry, the conflict resolution
-                                        procedure creates a "<i>glue entry</i>", representing the "parent entry", so that the new entry is
-                                        not an orphaned entry.  You can choose to convert the glue entry, or remove the glue entry and
-                                        all its child entries.
+                                        {_("When a <b>Delete</b> operation is replicated and the consumer server finds that the entry to be deleted has child entries, the conflict resolution procedure creates a \"<i>glue entry</i>\" to avoid having orphaned entries in the database.  In the same way, when an <b>Add</b> operation is replicated and the consumer server cannot find the parent entry, the conflict resolution procedure creates a \"<i>glue entry</i>\", representing the \"parent entry\", so that the new entry is not an orphaned entry.  You can choose to convert the glue entry, or remove the glue entry and all its child entries.")}
                                     </div>
                                 }
                             >
-                                <a className="ds-indent ds-font-size-sm">What Is A Replication Glue Entry?</a>
+                                <a className="ds-indent ds-font-size-sm">{_("What Is A Replication Glue Entry?")}</a>
                             </Tooltip>
                             <GlueTable
                                 glues={glueEntries}
@@ -475,10 +466,10 @@ export class ReplMonConflict extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.glueEntry}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Glue Entry"
-                    mMsg="Are you really sure you want to delete this glue entry and its child entries?"
-                    mSpinningMsg="Deleting Glue Entry ..."
-                    mBtnName="Delete Glue"
+                    mTitle={_("Delete Glue Entry")}
+                    mMsg={_("Are you really sure you want to delete this glue entry and its child entries?")}
+                    mSpinningMsg={_("Deleting Glue Entry ...")}
+                    mBtnName={_("Delete Glue")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmConvertGlue}
@@ -488,10 +479,10 @@ export class ReplMonConflict extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.glueEntry}
                     checked={this.state.modalChecked}
-                    mTitle="Convert Glue Entry"
-                    mMsg="Are you really sure you want to convert this glue entry to a regular entry?"
-                    mSpinningMsg="Converting Glue Entry ..."
-                    mBtnName="Convert Glue"
+                    mTitle={_("Convert Glue Entry")}
+                    mMsg={_("Are you really sure you want to convert this glue entry to a regular entry?")}
+                    mSpinningMsg={_("Converting Glue Entry ...")}
+                    mBtnName={_("Convert Glue")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmConvertConflict}
@@ -501,10 +492,10 @@ export class ReplMonConflict extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.conflictEntry}
                     checked={this.state.modalChecked}
-                    mTitle="Convert Conflict Entry Into New Entry"
-                    mMsg="Are you really sure you want to convert this conflict entry?"
-                    mSpinningMsg="Converting Conflict Entry ..."
-                    mBtnName="Convert Conflict"
+                    mTitle={_("Convert Conflict Entry Into New Entry")}
+                    mMsg={_("Are you really sure you want to convert this conflict entry?")}
+                    mSpinningMsg={_("Converting Conflict Entry ...")}
+                    mBtnName={_("Convert Conflict")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmSwapConflict}
@@ -514,10 +505,10 @@ export class ReplMonConflict extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.conflictEntry}
                     checked={this.state.modalChecked}
-                    mTitle="Swap Conflict Entry"
-                    mMsg="Are you really sure you want to swap this conflict entry with the valid entry?"
-                    mSpinningMsg="Swapping Conflict Entry ..."
-                    mBtnName="Swap Conflict"
+                    mTitle={_("Swap Conflict Entry")}
+                    mMsg={_("Are you really sure you want to swap this conflict entry with the valid entry?")}
+                    mSpinningMsg={_("Swapping Conflict Entry ...")}
+                    mBtnName={_("Swap Conflict")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteConflict}
@@ -527,10 +518,10 @@ export class ReplMonConflict extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.conflictEntry}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Replication Conflict Entry"
-                    mMsg="Are you really sure you want to delete this conflict entry?"
-                    mSpinningMsg="Deleting Conflict Entry ..."
-                    mBtnName="Delete Conflict"
+                    mTitle={_("Delete Replication Conflict Entry")}
+                    mMsg={_("Are you really sure you want to delete this conflict entry?")}
+                    mSpinningMsg={_("Deleting Conflict Entry ...")}
+                    mBtnName={_("Delete Conflict")}
                 />
             </div>
         );

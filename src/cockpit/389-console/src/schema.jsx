@@ -21,6 +21,8 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class Schema extends React.Component {
     componentDidUpdate(prevProps) {
         if (this.props.wasActiveList.includes(4)) {
@@ -687,7 +689,7 @@ export class Schema extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteObjectclass", "Result", content);
-                    this.props.addNotification("success", `ObjectClass ${this.state.deleteName} was successfully deleted`);
+                    this.props.addNotification("success", cockpit.format(_("ObjectClass $0 was successfully deleted"), this.state.deleteName));
                     this.loadSchemaData();
                     this.closeConfirmOCDelete();
                 })
@@ -695,7 +697,7 @@ export class Schema extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during ObjectClass removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during ObjectClass removal operation - $0"), errMsg.desc)
                     );
                     this.loadSchemaData();
                     this.closeConfirmOCDelete();
@@ -713,7 +715,7 @@ export class Schema extends React.Component {
     cmdOperationObjectclass(action) {
         const { ocName, ocDesc, ocOID, ocParent, ocKind, ocMust, ocMay } = this.state;
         if (ocName === "") {
-            this.props.addNotification("warning", "ObjectClass Name is required.");
+            this.props.addNotification("warning", _("ObjectClass Name is required."));
         } else {
             let cmd = [
                 "dsconf",
@@ -762,7 +764,7 @@ export class Schema extends React.Component {
                         console.info("cmdOperationObjectclass", "Result", content);
                         this.props.addNotification(
                             "success",
-                            `ObjectClass ${ocName} - ${action} operation was successfull`
+                            cockpit.format(_("ObjectClass $0 - $1 operation was successfull"), ocName, action)
                         );
                         this.loadSchemaData();
                         this.closeObjectclassModal();
@@ -777,7 +779,7 @@ export class Schema extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error during the ObjectClass ${action} operation - ${errMsg}`
+                            cockpit.format(_("Error during the ObjectClass $0 operation - $1"), action, errMsg)
                         );
                         this.loadSchemaData();
                         this.closeObjectclassModal();
@@ -981,7 +983,7 @@ export class Schema extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteAttribute", "Result", content);
-                    this.props.addNotification("success", `Attribute ${this.state.deleteName} was successfully deleted`);
+                    this.props.addNotification("success", cockpit.format(_("Attribute $0 was successfully deleted"), this.state.deleteName));
                     this.loadSchemaData();
                     this.closeConfirmAttrDelete();
                 })
@@ -989,7 +991,7 @@ export class Schema extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during Attribute removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during Attribute removal operation - $0"), errMsg.desc)
                     );
                     this.loadSchemaData();
                     this.closeConfirmAttrDelete();
@@ -1079,7 +1081,7 @@ export class Schema extends React.Component {
                     console.info("cmdOperationAttribute", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Attribute ${atName} - add operation was successfull`
+                        cockpit.format(_("Attribute $0 - add operation was successfull"), atName)
                     );
                     this.loadSchemaData();
                     this.closeAttributeModal();
@@ -1094,7 +1096,7 @@ export class Schema extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error during the Attribute add operation - ${errMsg}`
+                        cockpit.format(_("Error during the Attribute add operation - $0"), errMsg)
                     );
                     this.loadSchemaData();
                     this.closeAttributeModal();
@@ -1190,7 +1192,7 @@ export class Schema extends React.Component {
                     console.info("cmdOperationAttribute", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Attribute ${atName} - replace operation was successfull`
+                        cockpit.format(_("Attribute $0 - replace operation was successfull"), atName)
                     );
                     this.loadSchemaData();
                     this.closeAttributeModal();
@@ -1205,7 +1207,7 @@ export class Schema extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error during the Attribute replace operation - ${errMsg}`
+                        cockpit.format(_("Error during the Attribute replace operation - $0"), errMsg)
                     );
                     this.loadSchemaData();
                     this.closeAttributeModal();
@@ -1385,7 +1387,7 @@ export class Schema extends React.Component {
             schemaPage = (
                 <div className="ds-center ds-margin-top-xlg">
                     <TextContent>
-                        <Text component={TextVariants.h3}>Loading Schema Information ...</Text>
+                        <Text component={TextVariants.h3}>{_("Loading Schema Information ...")}</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>
@@ -1394,16 +1396,16 @@ export class Schema extends React.Component {
             schemaPage = (
                 <div className="ds-indent ds-margin-top-xlg ds-margin-bottom-md">
                     <Tabs isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<TabTitleText>Objectclasses</TabTitleText>}>
+                        <Tab eventKey={0} title={<TabTitleText>{_("Objectclasses")}</TabTitleText>}>
                             <div className="ds-margin-top-xlg ds-indent">
                                 <Checkbox
                                     id="ocUserDefined"
                                     isChecked={this.state.ocUserDefined}
-                                    title="Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'"
+                                    title={_("Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'")}
                                     onChange={(checked, e) => {
                                         this.onFieldChange(e);
                                     }}
-                                    label="Only Show Non-standard/Custom Schema"
+                                    label={_("Only Show Non-standard/Custom Schema")}
                                 />
                                 <ObjectClassesTable
                                     className="ds-margin-top-lg"
@@ -1417,7 +1419,7 @@ export class Schema extends React.Component {
                                     variant="primary"
                                     onClick={this.handleShowAddObjectclassModal}
                                 >
-                                    Add ObjectClass
+                                    {_("Add ObjectClass")}
                                 </Button>
                                 <ObjectClassModal
                                     addHandler={this.addObjectclass}
@@ -1455,16 +1457,16 @@ export class Schema extends React.Component {
                                 />
                             </div>
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText>Attributes</TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>{_("Attributes")}</TabTitleText>}>
                             <div className="ds-margin-top-xlg ds-indent">
                                 <Checkbox
                                     id="atUserDefined"
                                     isChecked={this.state.atUserDefined}
-                                    title="Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'"
+                                    title={_("Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'")}
                                     onChange={(checked, e) => {
                                         this.onFieldChange(e);
                                     }}
-                                    label="Only Show Non-standard/Custom Schema"
+                                    label={_("Only Show Non-standard/Custom Schema")}
                                 />
                                 <AttributesTable
                                     className="ds-margin-top-lg"
@@ -1479,7 +1481,7 @@ export class Schema extends React.Component {
                                     variant="primary"
                                     onClick={this.handleShowAddAttributeModal}
                                 >
-                                    Add Attribute
+                                    {_("Add Attribute")}
                                 </Button>
                                 <AttributeTypeModal
                                     addHandler={this.addAttribute}
@@ -1532,7 +1534,7 @@ export class Schema extends React.Component {
                                 />
                             </div>
                         </Tab>
-                        <Tab eventKey={2} title={<TabTitleText>Matching Rules</TabTitleText>}>
+                        <Tab eventKey={2} title={<TabTitleText>{_("Matching Rules")}</TabTitleText>}>
                             <div className="ds-margin-top-xlg ds-indent">
                                 <MatchingRulesTable
                                     rows={this.state.matchingrulesRows}
@@ -1548,10 +1550,10 @@ export class Schema extends React.Component {
                         spinning={this.state.modalSpinning}
                         item={this.state.deleteName}
                         checked={this.state.modalChecked}
-                        mTitle="Delete An Objectclass"
-                        mMsg="Are you sure you want to delete this Objectclass?"
-                        mSpinningMsg="Deleting objectclass ..."
-                        mBtnName="Delete Objectclass"
+                        mTitle={_("Delete An Objectclass")}
+                        mMsg={_("Are you sure you want to delete this Objectclass?")}
+                        mSpinningMsg={_("Deleting objectclass ...")}
+                        mBtnName={_("Delete Objectclass")}
                     />
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmAttrDelete}
@@ -1561,10 +1563,10 @@ export class Schema extends React.Component {
                         spinning={this.state.modalSpinning}
                         item={this.state.deleteName}
                         checked={this.state.modalChecked}
-                        mTitle="Delete An Attribute"
-                        mMsg="Are you sure you want to delete this Attribute?"
-                        mSpinningMsg="Deleting attribute ..."
-                        mBtnName="Delete Attribute"
+                        mTitle={_("Delete An Attribute")}
+                        mMsg={_("Are you sure you want to delete this Attribute?")}
+                        mSpinningMsg={_("Deleting attribute ...")}
+                        mBtnName={_("Delete Attribute")}
                     />
                 </div>
             );

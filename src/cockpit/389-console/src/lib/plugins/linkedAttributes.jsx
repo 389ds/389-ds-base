@@ -19,6 +19,8 @@ import PropTypes from "prop-types";
 import { log_cmd, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class LinkedAttributes extends React.Component {
     componentDidMount() {
         if (this.props.wasActiveList.includes(5)) {
@@ -341,7 +343,7 @@ class LinkedAttributes extends React.Component {
                     console.info("linkedAttributesOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${configName}" entry`
+                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, configName)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -351,7 +353,7 @@ class LinkedAttributes extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -385,7 +387,7 @@ class LinkedAttributes extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${this.state.deleteName} was successfully deleted`
+                        cockpit.format(_("Config entry $0 was successfully deleted"), this.state.deleteName)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -395,7 +397,7 @@ class LinkedAttributes extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -425,16 +427,16 @@ class LinkedAttributes extends React.Component {
             firstLoad
         } = this.state;
 
-        const title = (newEntry ? "Add" : "Edit") + " Linked Attributes Plugin Config Entry";
-        let saveBtnName = (newEntry ? "Add" : "Save") + " Config";
+        const title = cockpit.format(_("Linked Attributes Plugin Config Entry"), (newEntry ? _("Add") : _("Edit")));
+        let saveBtnName = (newEntry ? _("Add") : _("Save")) + _(" Config");
         const extraPrimaryProps = {};
         if (saving) {
             if (newEntry) {
-                saveBtnName = "Adding Config ...";
+                saveBtnName = _("Adding Config ...");
             } else {
-                saveBtnName = "Saving Config ...";
+                saveBtnName = _("Saving Config ...");
             }
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
         return (
             <div className={saving || firstLoad ? "ds-disabled" : ""}>
@@ -451,20 +453,20 @@ class LinkedAttributes extends React.Component {
                             onClick={newEntry ? this.addConfig : this.editConfig}
                             isDisabled={saveBtnDisabled || saving}
                             isLoading={saving}
-                            spinnerAriaValueText={saving ? "Saving" : undefined}
+                            spinnerAriaValueText={saving ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="The Linked Attributes configuration name">
+                        <Grid title={_("The Linked Attributes configuration name")}>
                             <GridItem className="ds-label" span={3}>
-                                Config Name
+                                {_("Config Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -481,9 +483,9 @@ class LinkedAttributes extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the attribute that is managed manually by administrators (linkType)">
+                        <Grid title={_("Sets the attribute that is managed manually by administrators (linkType)")}>
                             <GridItem className="ds-label" span={3}>
-                                Link Type
+                                {_("Link Type")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -495,8 +497,8 @@ class LinkedAttributes extends React.Component {
                                     selections={linkType}
                                     isOpen={this.state.isLinkTypeOpen}
                                     aria-labelledby="typeAhead-link-type"
-                                    placeholderText="Type an attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
@@ -507,9 +509,9 @@ class LinkedAttributes extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the attribute that is created dynamically by the plugin (managedType)">
+                        <Grid title={_("Sets the attribute that is created dynamically by the plugin (managedType)")}>
                             <GridItem className="ds-label" span={3}>
-                                Managed Type
+                                {_("Managed Type")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -520,9 +522,9 @@ class LinkedAttributes extends React.Component {
                                     onClear={this.handleManagedTypeClear}
                                     selections={managedType}
                                     isOpen={this.state.isManagedTypeOpen}
-                                    placeholderText="Type an attribute..."
+                                    placeholderText={_("Type an attribute...")}
                                     aria-labelledby="typeAhead-managed-type"
-                                    noResultsFoundText="There are no matching entries"
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
@@ -533,9 +535,9 @@ class LinkedAttributes extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
+                        <Grid title={_("Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)")}>
                             <GridItem className="ds-label" span={3}>
-                                Link Scope
+                                {_("Link Scope")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -579,7 +581,7 @@ class LinkedAttributes extends React.Component {
                                 variant="primary"
                                 onClick={this.handleShowAddConfigModal}
                             >
-                                Add Config
+                                {_("Add Config")}
                             </Button>
                         </GridItem>
                     </Grid>
@@ -592,10 +594,10 @@ class LinkedAttributes extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Linked Attribute Configuration"
-                    mMsg="Are you sure you want to delete this configuration?"
-                    mSpinningMsg="Deleting Configuration..."
-                    mBtnName="Delete Configuration"
+                    mTitle={_("Delete Linked Attribute Configuration")}
+                    mMsg={_("Are you sure you want to delete this configuration?")}
+                    mSpinningMsg={_("Deleting Configuration...")}
+                    mBtnName={_("Delete Configuration")}
                 />
             </div>
         );

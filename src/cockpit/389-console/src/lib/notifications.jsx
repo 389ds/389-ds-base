@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
@@ -13,6 +14,7 @@ import {
     TextVariants,
 } from "@patternfly/react-core";
 
+const _ = cockpit.gettext;
 export class DoubleConfirmModal extends React.Component {
     render() {
         const {
@@ -38,7 +40,7 @@ export class DoubleConfirmModal extends React.Component {
 
         if (spinning) {
             btnName = mSpinningMsg;
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
         return (
@@ -53,7 +55,7 @@ export class DoubleConfirmModal extends React.Component {
                     <Button
                         key="confirm"
                         isLoading={spinning}
-                        spinnerAriaValueText={spinning ? "Loading" : undefined}
+                        spinnerAriaValueText={spinning ? _("Loading") : undefined}
                         variant="primary"
                         onClick={actionHandler}
                         isDisabled={saveDisabled || spinning}
@@ -62,7 +64,7 @@ export class DoubleConfirmModal extends React.Component {
                         {btnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
@@ -85,7 +87,7 @@ export class DoubleConfirmModal extends React.Component {
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label={<><b>Yes</b>, I am sure.</>}
+                                label={<><b>{_("Yes")}</b>{_(", I am sure.")}</>}
                             />
                         </GridItem>
                     </Grid>

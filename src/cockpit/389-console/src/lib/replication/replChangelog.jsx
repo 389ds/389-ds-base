@@ -19,6 +19,8 @@ import {
 } from '@patternfly/react-core';
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
+const _ = cockpit.gettext;
+
 export class Changelog extends React.Component {
     constructor (props) {
         super(props);
@@ -87,7 +89,7 @@ export class Changelog extends React.Component {
         if (this.state.clEncrypt !== this.state._clEncrypt) {
             if (this.state.clEncrypt) {
                 cmd.push("--encrypt");
-                msg += "  This requires a server restart to take effect";
+                msg += _("  This requires a server restart to take effect");
                 requires_restart = true;
             } else {
                 cmd.push("--disable-encrypt");
@@ -124,7 +126,7 @@ export class Changelog extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error updating changelog configuration - ${msg}`
+                            cockpit.format(_("Error updating changelog configuration - $0"), msg)
                         );
                     });
         }
@@ -205,7 +207,7 @@ export class Changelog extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to reload changelog for "${this.props.suffix}" - ${errMsg.desc}`
+                        cockpit.format(_("Failed to reload changelog for \"$0\" - $1"), this.props.suffix, errMsg.desc)
                     );
                     this.setState({
                         loading: false,
@@ -216,18 +218,18 @@ export class Changelog extends React.Component {
 
     render() {
         let clPage;
-        let saveBtnName = "Save Settings";
+        let saveBtnName = _("Save Settings");
         const extraPrimaryProps = {};
 
         if (this.state.saving) {
-            saveBtnName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         } else if (this.loading) {
             clPage = (
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading Changelog Configuration ...
+                            {_("Loading Changelog Configuration ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="md" />
@@ -238,10 +240,10 @@ export class Changelog extends React.Component {
                 <div className="ds-margin-top-lg">
                     <Form isHorizontal>
                         <Grid
-                            title="Changelog trimming parameter.  Set the maximum number of changelog entries allowed in the database (nsslapd-changelogmaxentries)."
+                            title={_("Changelog trimming parameter.  Set the maximum number of changelog entries allowed in the database (nsslapd-changelogmaxentries).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Changelog Maximum Entries
+                                {_("Changelog Maximum Entries")}
                             </GridItem>
                             <GridItem span={2}>
                                 <NumberInput
@@ -260,10 +262,10 @@ export class Changelog extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="Changelog trimming parameter.  This set the maximum age of a changelog entry (nsslapd-changelogmaxage)."
+                            title={_("Changelog trimming parameter.  This set the maximum age of a changelog entry (nsslapd-changelogmaxage).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Changelog Maximum Age
+                                {_("Changelog Maximum Age")}
                             </GridItem>
                             <GridItem span={2}>
                                 <NumberInput
@@ -289,19 +291,19 @@ export class Changelog extends React.Component {
                                     aria-label="FormSelect Input"
                                     isDisabled={this.state.clMaxAge < 1}
                                 >
-                                    <FormSelectOption key="s" value="s" label="Seconds" />
-                                    <FormSelectOption key="m" value="m" label="Minutes" />
-                                    <FormSelectOption key="h" value="h" label="Hours" />
-                                    <FormSelectOption key="d" value="d" label="Days" />
-                                    <FormSelectOption key="w" value="w" label="Weeks" />
+                                    <FormSelectOption key="s" value="s" label={_("Seconds")} />
+                                    <FormSelectOption key="m" value="m" label={_("Minutes")} />
+                                    <FormSelectOption key="h" value="h" label={_("Hours")} />
+                                    <FormSelectOption key="d" value="d" label={_("Days")} />
+                                    <FormSelectOption key="w" value="w" label={_("Weeks")} />
                                 </FormSelect>
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval)."
+                            title={_("The changelog trimming interval.  Set how often the changelog checks if there are entries that can be purged from the changelog based on the trimming parameters (nsslapd-changelogtrim-interval).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Changelog Trimming Interval
+                                {_("Changelog Trimming Interval")}
                             </GridItem>
                             <GridItem span={2}>
                                 <NumberInput
@@ -321,19 +323,13 @@ export class Changelog extends React.Component {
                         </Grid>
                         <Grid>
                             <GridItem className="ds-label" span={3}>
-                                Changelog Encryption
+                                {_("Changelog Encryption")}
                                 <Tooltip
                                     id='CLtooltip'
                                     position="bottom"
                                     content={
                                         <div>
-                                            Changelog encryption requires that the server must already be
-                                            configured for security/TLS.  This setting also requires
-                                            that you export and import the changelog which must be done
-                                            while the database is in read-only mode.  So first put the
-                                            database into read-only mode, then export the changelog, enable
-                                            changelog encryption, restart the server, import the changelog,
-                                            and finally unset the database read-only mode.
+                                            {_("Changelog encryption requires that the server must already be configured for security/TLS.  This setting also requires that you export and import the changelog which must be done while the database is in read-only mode.  So first put the database into read-only mode, then export the changelog, enable changelog encryption, restart the server, import the changelog, and finally unset the database read-only mode.")}
                                         </div>
                                     }
                                 >
@@ -357,7 +353,7 @@ export class Changelog extends React.Component {
                         onClick={this.handleSaveSettings}
                         isDisabled={this.state.saveBtnDisabled || this.state.saving}
                         isLoading={this.state.saving}
-                        spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                        spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}

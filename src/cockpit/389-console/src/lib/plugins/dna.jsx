@@ -30,6 +30,8 @@ import PropTypes from "prop-types";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class DNAPlugin extends React.Component {
     constructor(props) {
         super(props);
@@ -557,7 +559,7 @@ class DNAPlugin extends React.Component {
                     console.info("DNAOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${configName}" entry`
+                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, configName)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -570,7 +572,7 @@ class DNAPlugin extends React.Component {
                     if (muteError !== true) {
                         this.props.addNotification(
                             "error",
-                            `Error during the config entry ${action} operation - ${errMsg.desc}`
+                            cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
                         );
                     }
                     this.loadConfigs();
@@ -607,7 +609,7 @@ class DNAPlugin extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${this.state.deleteItem} was successfully deleted`
+                        cockpit.format(_("Config entry $0 was successfully deleted"), this.state.deleteItem)
                     );
                     this.closeDeleteConfirm();
                     this.loadConfigs();
@@ -617,7 +619,7 @@ class DNAPlugin extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
                     );
                     this.closeDeleteConfirm();
                     this.loadConfigs();
@@ -764,7 +766,7 @@ class DNAPlugin extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `The set operation was successfully done on "${sharedHostname}:${sharedPort}" entry`
+                        cockpit.format(_("The set operation was successfully done on \"$0:$1\" entry"), sharedHostname, sharedPort)
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                     this.handleCloseSharedModal();
@@ -776,7 +778,7 @@ class DNAPlugin extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry set operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry set operation - $0"), errMsg.desc)
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                     this.handleCloseSharedModal();
@@ -814,7 +816,7 @@ class DNAPlugin extends React.Component {
                     console.info("deleteSharedConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Shared config entry ${this.state.deleteItem} was successfully deleted`
+                        cockpit.format(_("Shared config entry $0 was successfully deleted"), this.state.deleteItem)
                     );
                     this.closeSharedDeleteConfirm();
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
@@ -823,7 +825,7 @@ class DNAPlugin extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the shared config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the shared config entry removal operation - $0"), errMsg.desc)
                     );
                     this.closeSharedDeleteConfirm();
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
@@ -838,26 +840,26 @@ class DNAPlugin extends React.Component {
 
         // Handle the shared config remote bind settings validation
         if (this.state.sharedRemoteBindMethod === "SSL" && this.state.sharedRemoteConnProtocol !== "TLS") {
-            validatedBindMethodText = "You can not use 'SSL' if the connection protocol is not 'TLS'";
+            validatedBindMethodText = _("You can not use 'SSL' if the connection protocol is not 'TLS'");
             validatedBindMethod = ValidatedOptions.error;
         } else if (this.state.sharedRemoteBindMethod.startsWith("SASL") && this.state.sharedRemoteConnProtocol === "TLS") {
-            validatedBindMethodText = "You can not use a 'SASL' method if the connection protocol is 'TLS'";
+            validatedBindMethodText = _("You can not use a 'SASL' method if the connection protocol is 'TLS'");
             validatedBindMethod = ValidatedOptions.error;
         } else if ((this.state.sharedRemoteBindMethod === "" && this.state.sharedRemoteConnProtocol !== "") ||
             (this.state.sharedRemoteBindMethod !== "" && this.state.sharedRemoteConnProtocol === "")) {
-            validatedBindMethodText = "You must either set, or unset, both preferences";
+            validatedBindMethodText = _("You must either set, or unset, both preferences");
             validatedBindMethod = ValidatedOptions.error;
         }
 
         if (this.state.sharedRemoteConnProtocol === "TLS" && this.state.sharedRemoteBindMethod.startsWith("SASL/")) {
-            validatedConnText = "You can not use the 'TLS' protocol if the BindMethod is a 'SASL' method";
+            validatedConnText = _("You can not use the 'TLS' protocol if the BindMethod is a 'SASL' method");
             validatedConnProtocol = ValidatedOptions.error;
         } else if (this.state.sharedRemoteConnProtocol === "LDAP" && this.state.sharedRemoteBindMethod === "SSL") {
-            validatedConnText = "You can not use the 'LDAP' protocol if the BindMethod is a 'TLS'";
+            validatedConnText = _("You can not use the 'LDAP' protocol if the BindMethod is a 'TLS'");
             validatedConnProtocol = ValidatedOptions.error;
         } else if ((this.state.sharedRemoteConnProtocol === "" && this.state.sharedRemoteBindMethod !== "") ||
                    (this.state.sharedRemoteConnProtocol !== "" && this.state.sharedRemoteBindMethod === "")) {
-            validatedConnText = "You must either set, or unset, both preferences";
+            validatedConnText = _("You must either set, or unset, both preferences");
             validatedConnProtocol = ValidatedOptions.error;
         }
 
@@ -984,62 +986,62 @@ class DNAPlugin extends React.Component {
         // Optional config settings
         const modalConfigFields = {
             prefix: {
-                name: "Prefix",
+                name: _("Prefix"),
                 value: this.state.prefix,
                 id: 'prefix',
                 type: 'text',
                 help:
-                    "Defines a prefix that can be prepended to the generated number values for the attribute (dnaPrefix)"
+                    _("Defines a prefix that can be prepended to the generated number values for the attribute (dnaPrefix)")
             },
             remoteBindDN: {
-                name: "Remote Bind DN",
+                name: _("Remote Bind DN"),
                 value: this.state.remoteBindDN,
                 id: 'remoteBindDN',
                 type: 'text',
-                help: "Specifies the Replication Manager DN (dnaRemoteBindDN)"
+                help: _("Specifies the Replication Manager DN (dnaRemoteBindDN)")
             },
             remoteBindCred: {
-                name: "Remote Bind Credentials",
+                name: _("Remote Bind Credentials"),
                 value: this.state.remoteBindCred,
                 id: 'remoteBindCred',
                 type: 'text',
-                help: "Specifies the Replication Manager's password (dnaRemoteBindCred)"
+                help: _("Specifies the Replication Manager's password (dnaRemoteBindCred)")
             },
             nextRange: {
-                name: "Next Range",
+                name: _("Next Range"),
                 value: this.state.nextRange,
                 id: 'nextRange',
                 type: 'text',
                 help:
-                    "Defines the next range to use when the current range is exhausted.  Format is '####-####', or '1000-5000' (dnaNextRange)."
+                    _("Defines the next range to use when the current range is exhausted.  Format is '####-####', or '1000-5000' (dnaNextRange).")
             },
         };
 
         sharedResult = this.validateSharedConfig(newEntry);
 
         let saveBtnName;
-        let saveSharedBtnName = "Save Shared Config";
+        let saveSharedBtnName = _("Save Shared Config");
         if (newEntry) {
-            saveBtnName = "Add Config";
+            saveBtnName = _("Add Config");
         } else {
-            saveBtnName = "Save Config";
+            saveBtnName = _("Save Config");
         }
         const extraPrimaryProps = {};
         if (saving) {
             if (newEntry) {
-                saveBtnName = "Adding Config ...";
+                saveBtnName = _("Adding Config ...");
             } else {
-                saveBtnName = "Saving Config ...";
+                saveBtnName = _("Saving Config ...");
             }
-            saveSharedBtnName = "Saving Config ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveSharedBtnName = _("Saving Config ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
             <div className={saving || savingShared ? "ds-disabled" : ""}>
                 <Modal
                     variant={ModalVariant.medium}
-                    title={newEntry ? "Create DNA Config Entry" : "Edit DNA Config Entry"}
+                    title={newEntry ? _("Create DNA Config Entry") : _("Edit DNA Config Entry")}
                     isOpen={configEntryModalShow}
                     aria-labelledby="ds-modal"
                     onClose={this.handleCloseModal}
@@ -1050,22 +1052,22 @@ class DNAPlugin extends React.Component {
                             variant="primary"
                             onClick={newEntry ? this.addConfig : this.editConfig}
                             isLoading={saving}
-                            spinnerAriaValueText={saving ? "Saving" : undefined}
+                            spinnerAriaValueText={saving ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={1} title={<TabTitleText><b>DNA Configuration</b></TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText><b>{_("DNA Configuration")}</b></TabTitleText>}>
                             <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                                 <Grid>
                                     <GridItem span={3} className="ds-label">
-                                        Config Name
+                                        {_("Config Name")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1080,9 +1082,9 @@ class DNAPlugin extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Sets which attributes that will have unique numbers generated for them (dnaType).">
+                                <Grid title={_("Sets which attributes that will have unique numbers generated for them (dnaType).")}>
                                     <GridItem span={3} className="ds-label">
-                                        DNA Managed Attributes
+                                        {_("DNA Managed Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <Select
@@ -1094,7 +1096,7 @@ class DNAPlugin extends React.Component {
                                             selections={selected}
                                             isOpen={this.state.isOpen}
                                             aria-labelledby="typeAhead-1"
-                                            placeholderText="Type an attribute..."
+                                            placeholderText={_("Type an attribute...")}
                                             validated={selected.length === 0 ? 'error' : 'default'}
                                         >
                                             {this.props.attributes.map((attr) => (
@@ -1106,9 +1108,9 @@ class DNAPlugin extends React.Component {
                                         </Select>
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Sets an LDAP filter to use to search for and identify the entries to which to apply the distributed numeric assignment range (dnaFilter)">
+                                <Grid title={_("Sets an LDAP filter to use to search for and identify the entries to which to apply the distributed numeric assignment range (dnaFilter)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Filter
+                                        {_("Filter")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1122,9 +1124,9 @@ class DNAPlugin extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Sets the base DN to search for entries to which to apply the distributed numeric assignment (dnaScope)">
+                                <Grid title={_("Sets the base DN to search for entries to which to apply the distributed numeric assignment (dnaScope)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Subtree Scope
+                                        {_("Subtree Scope")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1138,9 +1140,9 @@ class DNAPlugin extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Gives the next available number which can be assigned (dnaNextValue)">
+                                <Grid title={_("Gives the next available number which can be assigned (dnaNextValue)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Next Value
+                                        {_("Next Value")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -1158,9 +1160,9 @@ class DNAPlugin extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Sets the maximum value that can be assigned for the range, default is -1 (dnaMaxValue)">
+                                <Grid title={_("Sets the maximum value that can be assigned for the range, default is -1 (dnaMaxValue)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Max Value
+                                        {_("Max Value")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -1178,9 +1180,9 @@ class DNAPlugin extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Sets a user-defined value that instructs the plug-in to assign a new value for the entry (dnaMagicRegen)">
+                                <Grid title={_("Sets a user-defined value that instructs the plug-in to assign a new value for the entry (dnaMagicRegen)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Magic Regeneration Value
+                                        {_("Magic Regeneration Value")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1213,9 +1215,9 @@ class DNAPlugin extends React.Component {
                                         </GridItem>
                                     </Grid>
                                 ))}
-                                <Grid title="Sets a threshold of remaining available numbers in the range. When the server hits the threshold, it sends a request for a new range (dnaThreshold)">
+                                <Grid title={_("Sets a threshold of remaining available numbers in the range. When the server hits the threshold, it sends a request for a new range (dnaThreshold)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Threshold
+                                        {_("Threshold")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -1233,9 +1235,9 @@ class DNAPlugin extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Sets a timeout period, in seconds, for range requests so that the server does not stall waiting on a new range from one server and can request a range from a new server (dnaRangeRequestTimeout)">
+                                <Grid title={_("Sets a timeout period, in seconds, for range requests so that the server does not stall waiting on a new range from one server and can request a range from a new server (dnaRangeRequestTimeout)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Range Request Timeout
+                                        {_("Range Request Timeout")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -1253,9 +1255,9 @@ class DNAPlugin extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Sets an interval, or increment, to add to the next DNA assigned number. If the next DNA number is '10', and the 'interval' is '1000', then the assigned value in the entry will be '1010' (dnaInterval)">
+                                <Grid title={_("Sets an interval, or increment, to add to the next DNA assigned number. If the next DNA number is '10', and the 'interval' is '1000', then the assigned value in the entry will be '1010' (dnaInterval)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Number Interval
+                                        {_("Number Interval")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -1278,30 +1280,23 @@ class DNAPlugin extends React.Component {
                         </Tab>
                         <Tab
                             eventKey={2}
-                            title={<TabTitleText>Shared Config Settings</TabTitleText>}
+                            title={<TabTitleText>{_("Shared Config Settings")}</TabTitleText>}
                         >
                             <div className="ds-margin-top-lg">
                                 <Tooltip
                                     content={
                                         <div>
-                                            The DNA Shared Config Entry is an entry in the database that
-                                            DNA configurations about remote replicas are stored under.
-                                            Think of the Shared Config Entry as a container of DNA
-                                            remote configurations.  These remote configurations are only
-                                            used if the database is being replicated, otherwise these
-                                            settings can be ignored. This entry must already be created
-                                            prior to setting the
-                                            <b> Shared Config Entry</b> field.
+                                            {_("The DNA Shared Config Entry is an entry in the database that DNA configurations about remote replicas are stored under.  Think of the Shared Config Entry as a container of DNA remote configurations.  These remote configurations are only used if the database is being replicated, otherwise these settings can be ignored. This entry must already be created prior to setting the <b> Shared Config Entry</b> field.")}
                                         </div>
                                     }
                                 >
-                                    <a className="ds-font-size-sm">What is a Shared Config Entry?</a>
+                                    <a className="ds-font-size-sm">{_("What is a Shared Config Entry?")}</a>
                                 </Tooltip>
                             </div>
                             <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
-                                <Grid title="Defines a container entry DN for DNA remote server configuration that the servers can use to transfer ranges between one another (dnaSharedCfgDN)">
+                                <Grid title={_("Defines a container entry DN for DNA remote server configuration that the servers can use to transfer ranges between one another (dnaSharedCfgDN)")}>
                                     <GridItem span={3} className="ds-label">
-                                        Shared Config Entry DN
+                                        {_("Shared Config Entry DN")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1331,7 +1326,7 @@ class DNAPlugin extends React.Component {
 
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Manage DNA Plugin Shared Config Entry"
+                    title={_("Manage DNA Plugin Shared Config Entry")}
                     isOpen={sharedConfigEntryModalShow}
                     aria-labelledby="ds-modal"
                     onClose={this.handleCloseSharedModal}
@@ -1342,13 +1337,13 @@ class DNAPlugin extends React.Component {
                             variant="primary"
                             onClick={this.handleEditSharedConfig}
                             isLoading={savingShared}
-                            spinnerAriaValueText={savingShared ? "Saving" : undefined}
+                            spinnerAriaValueText={savingShared ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveSharedBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseSharedModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
@@ -1380,12 +1375,12 @@ class DNAPlugin extends React.Component {
                             </GridItem>
                             <hr />
                             <TextContent>
-                                <Text className="ds-center" title="Used with Replication to share ranges between replicas" component={TextVariants.h3}>
-                                    Remote Authentication Preferences
+                                <Text className="ds-center" title={_("Used with Replication to share ranges between replicas")} component={TextVariants.h3}>
+                                    {_("Remote Authentication Preferences")}
                                 </Text>
                             </TextContent>
                             <GridItem span={3} className="ds-label">
-                                Remote Bind Method
+                                {_("Remote Bind Method")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -1423,7 +1418,7 @@ class DNAPlugin extends React.Component {
                 <div className="ds-margin-top-xlg ds-center" hidden={!this.state.loading}>
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading DNA configuration
+                            {_("Loading DNA configuration")}
                         </Text>
                     </TextContent>
                     <Spinner size="lg" />
@@ -1434,7 +1429,7 @@ class DNAPlugin extends React.Component {
                         key={this.state.configRows}
                         serverId={this.props.serverId}
                         cn="Distributed Numeric Assignment Plugin"
-                        pluginName="Distributed Numeric Assignment"
+                        pluginName={_("Distributed Numeric Assignment")}
                         cmdName="dna"
                         savePluginHandler={this.props.savePluginHandler}
                         pluginListHandler={this.props.pluginListHandler}
@@ -1453,7 +1448,7 @@ class DNAPlugin extends React.Component {
                                 variant="primary"
                                 onClick={this.handleShowAddConfigModal}
                             >
-                                Add Config
+                                {_("Add Config")}
                             </Button>
                         </div>
                     </PluginBasicConfig>
@@ -1466,10 +1461,10 @@ class DNAPlugin extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.configName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete DNA Configuration"
-                    mMsg="Are you really sure you want to delete this DNA configuration?"
-                    mSpinningMsg="Deleting config ..."
-                    mBtnName="Delete config"
+                    mTitle={_("Delete DNA Configuration")}
+                    mMsg={_("Are you really sure you want to delete this DNA configuration?")}
+                    mSpinningMsg={_("Deleting config ...")}
+                    mBtnName={_("Delete config")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showSharedDeleteConfirm}
@@ -1479,10 +1474,10 @@ class DNAPlugin extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.sharedConfigEntry}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Shared Config Entry"
-                    mMsg="Are you really sure you want to delete this Shared Config Entry?"
-                    mSpinningMsg="Deleting Shared Config ..."
-                    mBtnName="Delete Shared Config"
+                    mTitle={_("Delete Shared Config Entry")}
+                    mMsg={_("Are you really sure you want to delete this Shared Config Entry?")}
+                    mSpinningMsg={_("Deleting Shared Config ...")}
+                    mBtnName={_("Delete Shared Config")}
                 />
             </div>
         );

@@ -38,6 +38,8 @@ import {
     MonitoringIcon,
 } from '@patternfly/react-icons';
 
+const _ = cockpit.gettext;
+
 export class Monitor extends React.Component {
     constructor(props) {
         super(props);
@@ -154,7 +156,7 @@ export class Monitor extends React.Component {
                 defaultExpanded: false,
                 children: [
                     {
-                        name: "Agreements",
+                        name: _("Agreements"),
                         icon: <MonitoringIcon />,
                         id: suffix + "-agmts",
                         item: "agmt-mon",
@@ -162,7 +164,7 @@ export class Monitor extends React.Component {
                         suffix
                     },
                     {
-                        name: "Winsync Agreements",
+                        name: _("Winsync Agreements"),
                         icon: <MonitoringIcon />,
                         id: suffix + "-winsync",
                         item: "winsync-mon",
@@ -170,7 +172,7 @@ export class Monitor extends React.Component {
                         suffix
                     },
                     {
-                        name: "Tasks",
+                        name: _("Tasks"),
                         icon: <MonitoringIcon />,
                         id: suffix + "-tasks",
                         item: "task-mon",
@@ -178,7 +180,7 @@ export class Monitor extends React.Component {
                         suffix
                     },
                     {
-                        name: "Conflict Entries",
+                        name: _("Conflict Entries"),
                         icon: <MonitoringIcon />,
                         id: suffix + "-conflict",
                         item: "conflict-mon",
@@ -203,20 +205,20 @@ export class Monitor extends React.Component {
                     this.processTree(treeData);
                     const basicData = [
                         {
-                            name: "Server Statistics",
+                            name: _("Server Statistics"),
                             icon: <ClusterIcon />,
                             id: "server-monitor",
                             type: "server",
                         },
                         {
-                            name: "Replication",
+                            name: _("Replication"),
                             icon: <TopologyIcon />,
                             id: "replication-monitor",
                             type: "replication",
                             defaultExpanded: true,
                             children: [
                                 {
-                                    name: "Synchronization Report",
+                                    name: _("Synchronization Report"),
                                     icon: <MonitoringIcon />,
                                     id: "sync-report",
                                     item: "sync-report",
@@ -225,7 +227,7 @@ export class Monitor extends React.Component {
                             ],
                         },
                         {
-                            name: "Database",
+                            name: _("Database"),
                             icon: <DatabaseIcon />,
                             id: "database-monitor",
                             type: "database",
@@ -233,37 +235,37 @@ export class Monitor extends React.Component {
                             defaultExpanded: true,
                         },
                         {
-                            name: "Logging",
+                            name: _("Logging"),
                             icon: <CatalogIcon />,
                             id: "log-monitor",
                             defaultExpanded: true,
                             children: [
                                 {
-                                    name: "Access Log",
+                                    name: _("Access Log"),
                                     icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "access-log-monitor",
                                     type: "log",
                                 },
                                 {
-                                    name: "Audit Log",
+                                    name: _("Audit Log"),
                                     icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "audit-log-monitor",
                                     type: "log",
                                 },
                                 {
-                                    name: "Audit Failure Log",
+                                    name: _("Audit Failure Log"),
                                     icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "auditfail-log-monitor",
                                     type: "log",
                                 },
                                 {
-                                    name: "Errors Log",
+                                    name: _("Errors Log"),
                                     icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "error-log-monitor",
                                     type: "log",
                                 },
                                 {
-                                    name: "Security Log",
+                                    name: _("Security Log"),
                                     icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                                     id: "security-log-monitor",
                                     type: "log",
@@ -945,7 +947,7 @@ export class Monitor extends React.Component {
                         <div className="ds-margin-top-xlg ds-center">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Loading Database Monitor Information ...
+                                    {_("Loading Database Monitor Information ...")}
                                 </Text>
                             </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
@@ -966,7 +968,7 @@ export class Monitor extends React.Component {
                         <div className="ds-margin-top-xlg ds-center">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Loading Server Monitor Information ...
+                                    {_("Loading Server Monitor Information ...")}
                                 </Text>
                             </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1027,7 +1029,7 @@ export class Monitor extends React.Component {
                         <div className="ds-margin-top-xlg ds-center">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Loading Replication Monitor Information ...
+                                    {_("Loading Replication Monitor Information ...")}
                                 </Text>
                             </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1117,7 +1119,7 @@ export class Monitor extends React.Component {
                         <div className="ds-margin-top-xlg ds-center">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Loading Chaining Monitor Information For <b>{this.state.node_text} ...</b>
+                                    cockpit.format(_("Loading Chaining Monitor Information For <b>$0 ...</b>"), this.state.node_text)
                                 </Text>
                             </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
@@ -1176,7 +1178,7 @@ export class Monitor extends React.Component {
                 <div className="ds-margin-top-xlg ds-center">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading Monitor Information ...
+                            {_("Loading Monitor Information ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top-lg" size="xl" />

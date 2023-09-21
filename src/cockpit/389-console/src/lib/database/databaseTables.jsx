@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -20,6 +21,8 @@ import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-ic
 import { ArrowRightIcon } from '@patternfly/react-icons/dist/js/icons/arrow-right-icon';
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class ReferralTable extends React.Component {
     constructor(props) {
         super(props);
@@ -31,8 +34,8 @@ class ReferralTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Referral', transforms: [sortable] },
-                { props: { textCenter: true }, title: 'Delete Referral' },
+                { title: _("Referral"), transforms: [sortable] },
+                { props: { textCenter: true }, title: _("Delete Referral") },
             ],
         };
 
@@ -60,7 +63,7 @@ class ReferralTable extends React.Component {
                     onClick={() => {
                         this.props.deleteRef(name);
                     }}
-                    title="Delete this referral"
+                    title={_("Delete this referral")}
                 />
             </a>
         );
@@ -75,8 +78,8 @@ class ReferralTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Referrals'] }];
-            columns = [{ title: 'Referrals' }];
+            rows = [{ cells: [_("No Referrals")] }];
+            columns = [{ title: _("Referrals") }];
         }
         this.setState({
             rows,
@@ -149,9 +152,9 @@ class IndexTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Attribute', transforms: [sortable] }, // name
-                { title: 'Indexing Types', transforms: [sortable] }, // types
-                { title: 'Matching Rules', transforms: [sortable] }, // matchingrules
+                { title: _("Attribute"), transforms: [sortable] }, // name
+                { title: _("Indexing Types"), transforms: [sortable] }, // types
+                { title: _("Matching Rules"), transforms: [sortable] }, // matchingrules
             ],
         };
 
@@ -179,12 +182,12 @@ class IndexTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Index',
+                title: _("Edit Index"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editIndex(rowData)
             },
             {
-                title: 'Reindex',
+                title: _("Reindex"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.reindexIndex(rowData[0])
             },
@@ -192,7 +195,7 @@ class IndexTable extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete Index',
+                title: _("Delete Index"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deleteIndex(rowData[0], rowData)
             }
@@ -241,8 +244,8 @@ class IndexTable extends React.Component {
         let tableRows;
         if (rows.length === 0) {
             has_rows = false;
-            columns = [{ title: 'Indexes' }];
-            tableRows = [{ cells: ['No Indexes'] }];
+            columns = [{ title: _("Indexes") }];
+            tableRows = [{ cells: [_("No Indexes")] }];
         } else {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
@@ -251,7 +254,7 @@ class IndexTable extends React.Component {
             <div className="ds-margin-top-xlg">
                 <SearchInput
                     className="ds-margin-top-xlg"
-                    placeholder='Search indexes'
+                    placeholder={_("Search indexes")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
                     onClear={(evt, val) => this.handleSearchChange(evt, '')}
@@ -296,8 +299,8 @@ class EncryptedAttrTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Encrypted Attribute', transforms: [sortable] },
-                { props: { textCenter: true }, title: 'Delete Attribute' },
+                { title: _("Encrypted Attribute"), transforms: [sortable] },
+                { props: { textCenter: true }, title: _("Delete Attribute") },
             ],
         };
 
@@ -325,7 +328,7 @@ class EncryptedAttrTable extends React.Component {
                     onClick={() => {
                         this.props.deleteAttr(name);
                     }}
-                    title="Delete this attribute"
+                    title={_("Delete this attribute")}
                 />
             </a>
         );
@@ -340,8 +343,8 @@ class EncryptedAttrTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Attributes'] }];
-            columns = [{ title: 'Encrypted Attribute' }];
+            rows = [{ cells: [_("No Attributes")] }];
+            columns = [{ title: _("Encrypted Attribute") }];
         }
         this.setState({
             rows,
@@ -414,9 +417,9 @@ class LDIFTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'LDIF File', transforms: [sortable] },
-                { title: 'Creation Date', transforms: [sortable] },
-                { title: 'File Size', transforms: [sortable] },
+                { title: _("LDIF File"), transforms: [sortable] },
+                { title: _("Creation Date"), transforms: [sortable] },
+                { title: _("File Size"), transforms: [sortable] },
                 { title: '' }
             ],
         };
@@ -444,9 +447,9 @@ class LDIFTable extends React.Component {
                 onClick={() => {
                     this.props.confirmImport(name);
                 }}
-                title="Initialize the database with this LDIF file"
+                title={_("Initialize the database with this LDIF file")}
             >
-                Import
+                {_("Import")}
             </Button>
         );
     }
@@ -462,8 +465,8 @@ class LDIFTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No LDIF files'] }];
-            columns = [{ title: 'LDIF File' }];
+            rows = [{ cells: [_("No LDIF files")] }];
+            columns = [{ title: _("LDIF File") }];
         }
         this.setState({
             rows,
@@ -502,7 +505,7 @@ class LDIFTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Import LDIF File',
+                title: _("Import LDIF File"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.confirmImport(rowData.cells[0])
             },
@@ -554,10 +557,10 @@ class LDIFManageTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'LDIF File', transforms: [sortable] },
-                { title: 'Suffix', transforms: [sortable] },
-                { title: 'Creation Date', transforms: [sortable] },
-                { title: 'File Size', transforms: [sortable] },
+                { title: _("LDIF File"), transforms: [sortable] },
+                { title: _("Suffix"), transforms: [sortable] },
+                { title: _("Creation Date"), transforms: [sortable] },
+                { title: _("File Size"), transforms: [sortable] },
             ],
         };
 
@@ -585,8 +588,8 @@ class LDIFManageTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No LDIF files'] }];
-            columns = [{ title: 'LDIF File' }];
+            rows = [{ cells: [_("No LDIF files")] }];
+            columns = [{ title: _("LDIF File") }];
         }
         this.setState({
             rows,
@@ -622,12 +625,12 @@ class LDIFManageTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Import LDIF',
+                title: _("Import LDIF"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.confirmImport(rowData.cells[0], rowData.cells[1])
             },
             {
-                title: 'Delete LDIF',
+                title: _("Delete LDIF"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.confirmDelete(rowData.cells[0])
             },
@@ -682,9 +685,9 @@ class BackupTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Backup', transforms: [sortable] },
-                { title: 'Creation Date', transforms: [sortable] },
-                { title: 'Size', transforms: [sortable] },
+                { title: _("Backup"), transforms: [sortable] },
+                { title: _("Creation Date"), transforms: [sortable] },
+                { title: _("Size"), transforms: [sortable] },
             ],
         };
 
@@ -712,8 +715,8 @@ class BackupTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Backups'] }];
-            columns = [{ title: 'Backups' }];
+            rows = [{ cells: [_("No Backups")] }];
+            columns = [{ title: _("Backups") }];
         }
         this.setState({
             rows,
@@ -749,12 +752,12 @@ class BackupTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Restore Backup',
+                title: _("Restore Backup"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.confirmRestore(rowData.cells[0])
             },
             {
-                title: 'Delete Backup',
+                title: _("Delete Backup"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.confirmDelete(rowData.cells[0])
             },
@@ -809,9 +812,9 @@ class PwpTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: 'Target DN', transforms: [sortable] },
-                { title: 'Policy Type', transforms: [sortable] },
-                { title: 'Database Suffix', transforms: [sortable] },
+                { title: _("Target DN"), transforms: [sortable] },
+                { title: _("Policy Type"), transforms: [sortable] },
+                { title: _("Database Suffix"), transforms: [sortable] },
             ],
         };
 
@@ -839,8 +842,8 @@ class PwpTable extends React.Component {
             });
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Local Policies'] }];
-            columns = [{ title: 'Local Password Policies' }];
+            rows = [{ cells: [_("No Local Policies")] }];
+            columns = [{ title: _("Local Password Policies") }];
         }
         this.setState({
             rows,
@@ -876,12 +879,12 @@ class PwpTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Edit Policy',
+                title: _("Edit Policy"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.editPolicy(rowData.cells[0])
             },
             {
-                title: 'Delete policy',
+                title: _("Delete policy"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.deletePolicy(rowData.cells[0])
             },
@@ -938,12 +941,12 @@ class VLVTable extends React.Component {
             noRows: true,
             columns: [
                 {
-                    title: 'Name',
+                    title: _("Name"),
                     transforms: [sortable],
                     cellFormatters: [expandable]
                 },
                 {
-                    title: 'Search Base',
+                    title: _("Search Base"),
                     transforms: [sortable],
                 },
             ],
@@ -1021,9 +1024,9 @@ class VLVTable extends React.Component {
             let indexState;
             if (sort.attrs.vlvenabled[0] === "0") {
                 // html 5 deprecated font ...
-                indexState = <font size="2" color="#d01c8b"><b>Disabled</b></font>;
+                indexState = <font size="2" color="#d01c8b"><b>{_("Disabled")}</b></font>;
             } else {
-                indexState = <font size="2" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
+                indexState = <font size="2" color="#4dac26"><b>{_("Uses: ")}</b>{sort.attrs.vlvuses[0]}</font>;
             }
             return (
                 <GridItem key={sort.attrs.vlvsort[0]} className="ds-container">
@@ -1040,7 +1043,7 @@ class VLVTable extends React.Component {
                             icon={<TrashAltIcon />}
                             variant="link"
                         >
-                            Delete
+                            {_("Delete")}
                         </Button>
                     </div>
                 </GridItem>
@@ -1050,25 +1053,25 @@ class VLVTable extends React.Component {
         return (
             <Grid>
                 <GridItem className="ds-label" span={2}>
-                    Search Base:
+                    {_("Search Base:")}
                 </GridItem>
                 <GridItem span={10}>
                     {row.attrs.vlvbase[0]}
                 </GridItem>
                 <GridItem className="ds-label" span={2}>
-                    Search Filter:
+                    {_("Search Filter:")}
                 </GridItem>
                 <GridItem span={10}>
                     {row.attrs.vlvfilter[0]}
                 </GridItem>
                 <GridItem className="ds-label" span={2}>
-                    Scope:
+                    {_("Scope:")}
                 </GridItem>
                 <GridItem span={10}>
                     {this.getScopeKey(row.attrs.vlvscope[0])}
                 </GridItem>
                 <GridItem className="ds-label" span={12}>
-                    Sort Indexes:
+                    {_("Sort Indexes:")}
                 </GridItem>
                 <div className="ds-margin-top ds-indent">
                     {sort_indexes}
@@ -1081,7 +1084,7 @@ class VLVTable extends React.Component {
                         }}
                         variant="primary"
                     >
-                        Create Sort Index
+                        {_("Create Sort Index")}
                     </Button>
                 </GridItem>
             </Grid>
@@ -1109,8 +1112,8 @@ class VLVTable extends React.Component {
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No VLV Indexes'] }];
-            columns = [{ title: 'VLV Indexes' }];
+            rows = [{ cells: [_("No VLV Indexes")] }];
+            columns = [{ title: _("VLV Indexes") }];
         } else {
             noRows = false;
         }
@@ -1133,12 +1136,12 @@ class VLVTable extends React.Component {
     actions() {
         return [
             {
-                title: 'Reindex VLV',
+                title: _("Reindex VLV"),
                 onClick: (event, rowId, rowData, extra) =>
                     this.props.reindexFunc(rowData.cells[0])
             },
             {
-                title: 'Delete VLV',
+                title: _("Delete VLV"),
                 onClick: (event, rowId, rowData, extra) => {
                     this.props.deleteFunc(rowData.cells[0]);
                 }

@@ -21,6 +21,8 @@ import {
 import PropTypes from "prop-types";
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
+const _ = cockpit.gettext;
+
 export class GlobalDatabaseConfig extends React.Component {
     constructor(props) {
         super(props);
@@ -181,7 +183,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         if (requireRestart) {
                             this.props.addNotification(
                                 "warning",
-                                msg + ". You must restart the Directory Server for these changes to take effect."
+                                cockpit.format(_("$0. You must restart the Directory Server for these changes to take effect."), msg)
                             );
                         } else {
                             this.props.addNotification(
@@ -198,7 +200,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         });
                         this.props.addNotification(
                             "error",
-                            `Error updating configuration - ${errMsg.desc}`
+                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
                         );
                     });
         } else {
@@ -209,7 +211,7 @@ export class GlobalDatabaseConfig extends React.Component {
             if (requireRestart) {
                 this.props.addNotification(
                     "warning",
-                    msg + ". You must restart the Directory Server for these changes to take effect."
+                    cockpit.format(_("$0. You must restart the Directory Server for these changes to take effect."), msg)
                 );
             } else {
                 this.props.addNotification(
@@ -355,7 +357,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         });
                         this.props.addNotification(
                             "error",
-                            `Error updating configuration - ${errMsg.desc}`
+                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
                         );
                     });
         } else {
@@ -378,11 +380,11 @@ export class GlobalDatabaseConfig extends React.Component {
             dblocksMonitor = (
                 <div className="ds-margin-left ds-margin-top">
                     <Grid
-                        title="Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold)."
+                        title={_("Sets the DB lock exhaustion value in percentage (valid range is 70-95). If too many locks are acquired, the server will abort the searches while the number of locks are not decreased. It helps to avoid DB corruption and long recovery. (nsslapd-db-locks-monitoring-threshold).")}
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            DB Locks Threshold Percentage
+                            {_("DB Locks Threshold Percentage")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -402,11 +404,11 @@ export class GlobalDatabaseConfig extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="Sets the amount of time (milliseconds) that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause)."
+                        title={_("Sets the amount of time (milliseconds) that the monitoring thread spends waiting between checks. (nsslapd-db-locks-monitoring-pause).")}
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            DB Locks Pause Milliseconds
+                            {_("DB Locks Pause Milliseconds")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -432,11 +434,11 @@ export class GlobalDatabaseConfig extends React.Component {
             db_cache_form = (
                 <div className="ds-margin-left">
                     <Grid
-                        title="Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead."
+                        title={_("Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead.")}
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            Memory Percentage
+                            {_("Memory Percentage")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -456,11 +458,11 @@ export class GlobalDatabaseConfig extends React.Component {
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="Sets the percentage of memory that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split). If 0 is set, the default value is used instead."
+                        title={_("Sets the percentage of memory that is used for the database cache. The remaining percentage is used for the entry cache (nsslapd-cache-autosize-split). If 0 is set, the default value is used instead.")}
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            DB Cache Percentage
+                            {_("DB Cache Percentage")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -486,11 +488,11 @@ export class GlobalDatabaseConfig extends React.Component {
             db_cache_form = (
                 <div className="ds-margin-left">
                     <Grid
-                    title="Specifies the database index cache size in bytes (nsslapd-dbcachesize)."
+                    title={_("Specifies the database index cache size in bytes (nsslapd-dbcachesize).")}
                     className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            Database Cache Size
+                            {_("Database Cache Size")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -517,11 +519,11 @@ export class GlobalDatabaseConfig extends React.Component {
             import_cache_form = (
                 <div id="auto-import-cache-form" className="ds-margin-left">
                     <Grid
-                        title="Enter '-1' to use 50% of available memory, '0' to disable autotuning, or enter the percentage of available memory to use.  Value range -1 through 100, default is '-1' (nsslapd-import-cache-autosize)."
+                        title={_("Enter '-1' to use 50% of available memory, '0' to disable autotuning, or enter the percentage of available memory to use.  Value range -1 through 100, default is '-1' (nsslapd-import-cache-autosize).")}
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            Import Cache Autosize
+                            {_("Import Cache Autosize")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -547,11 +549,11 @@ export class GlobalDatabaseConfig extends React.Component {
             import_cache_form = (
                 <div className="ds-margin-left">
                     <Grid
-                        title="The size of the database cache in bytes used in the bulk import process. (nsslapd-import-cachesize)."
+                        title={_("The size of the database cache in bytes used in the bulk import process. (nsslapd-import-cachesize).")}
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            Import Cache Size
+                            {_("Import Cache Size")}
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
@@ -588,11 +590,11 @@ export class GlobalDatabaseConfig extends React.Component {
             );
         }
 
-        let saveBtnName = "Save Config";
+        let saveBtnName = _("Save Config");
         const extraPrimaryProps = {};
         if (this.props.refreshing) {
-            saveBtnName = "Saving config ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving config ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
@@ -601,20 +603,20 @@ export class GlobalDatabaseConfig extends React.Component {
                 <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <TextContent>
                         <Text className="ds-config-header" component={TextVariants.h2}>
-                            Global Database Configuration
+                            {_("Global Database Configuration")}
                         </Text>
                     </TextContent>
 
                     <div className="ds-margin-top-lg">
                         <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                            <Tab eventKey={0} title={<TabTitleText>Limits</TabTitleText>}>
+                            <Tab eventKey={0} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
-                                        title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit)."
+                                        title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Database Look Through Limit
+                                            {_("Database Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -633,11 +635,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit)."
+                                        title={_("The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit).")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            ID List Scan Limit
+                                            {_("ID List Scan Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -656,11 +658,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit)."
+                                        title={_("The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit).")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Paged Search Look Through Limit
+                                            {_("Paged Search Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -679,11 +681,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit)."
+                                        title={_("The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit).")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Paged Search ID List Scan Limit
+                                            {_("Paged Search ID List Scan Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -702,11 +704,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit)."
+                                        title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit).")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Range Search Look Through Limit
+                                            {_("Range Search Look Through Limit")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -727,12 +729,12 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={1} title={<TabTitleText>Database Cache</TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText>{_("Database Cache")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid className="ds-margin-top-xlg">
                                         <GridItem span={12}>
                                             <Checkbox
-                                                label="Automatic Cache Tuning"
+                                                label={_("Automatic Cache Tuning")}
                                                 onChange={this.handleChange}
                                                 isChecked={db_auto_checked}
                                                 aria-label="uncontrolled checkbox example"
@@ -746,13 +748,13 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={2} title={<TabTitleText>Import Cache</TabTitleText>}>
+                            <Tab eventKey={2} title={<TabTitleText>{_("Import Cache")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid className="ds-margin-top-xlg">
                                         <GridItem span={12}>
                                             <Checkbox
-                                                label="Automatic Import Cache Tuning"
-                                                title="Set import cache to be set automatically"
+                                                label={_("Automatic Import Cache Tuning")}
+                                                title={_("Set import cache to be set automatically")}
                                                 onChange={this.handleChange}
                                                 isChecked={import_auto_checked}
                                                 aria-label="uncontrolled checkbox example"
@@ -766,14 +768,14 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={3} title={<TabTitleText>NDN Cache</TabTitleText>}>
+                            <Tab eventKey={3} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
-                                        title="Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size)."
+                                        title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Normalized DN Cache Max Size
+                                            {_("Normalized DN Cache Max Size")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -794,14 +796,14 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={4} title={<TabTitleText>Database Locks</TabTitleText>}>
+                            <Tab eventKey={4} title={<TabTitleText>{_("Database Locks")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
-                                        title="The number of database locks (nsslapd-db-locks)."
+                                        title={_("The number of database locks (nsslapd-db-locks).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={2}>
-                                            Database Locks
+                                            {_("Database Locks")}
                                         </GridItem>
                                         <GridItem span={10}>
                                             <NumberInput
@@ -823,7 +825,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                         <GridItem span={12}>
                                             <div className="ds-inline">
                                                 <Checkbox
-                                                    label="Enable DB Lock Monitoring"
+                                                    label={_("Enable DB Lock Monitoring")}
                                                     id="dblocksMonitoring"
                                                     isChecked={this.state.dblocksMonitoring}
                                                     onChange={this.handleSelectDBLocksMonitoring}
@@ -836,9 +838,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                     position="bottom"
                                                     content={
                                                         <div>
-                                                            Database lock monitoring checks if the database locks are about
-                                                            to be exhausted, and if they are the server will abort all the
-                                                            current searches in order to prevent database corruption.
+                                                            {_("Database lock monitoring checks if the database locks are about to be exhausted, and if they are the server will abort all the current searches in order to prevent database corruption.")}
                                                         </div>
                                                     }
                                                 >
@@ -855,14 +855,14 @@ export class GlobalDatabaseConfig extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={5} title={<TabTitleText>Advanced Settings</TabTitleText>}>
+                            <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
-                                        title="Database Transaction Log Location (nsslapd-db-logdirectory)."
+                                        title={_("Database Transaction Log Location (nsslapd-db-logdirectory).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Transaction Logs Directory
+                                            {_("Transaction Logs Directory")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <TextInput
@@ -876,11 +876,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory)."
+                                        title={_("Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory).")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Database Home Directory
+                                            {_("Database Home Directory")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <TextInput
@@ -894,11 +894,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)"
+                                        title={_("The Time Of Day to perform the database compaction after the compact interval has been met.  Uses the format: 'HH:MM' and defaults to '23:59'. (nsslapd-db-compactdb-time)")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Database Compaction Time
+                                            {_("Database Compaction Time")}
                                         </GridItem>
                                         <GridItem span={2}>
                                             <TimePicker
@@ -909,11 +909,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval). The default is 30 days at midnight. 0 is no compaction."
+                                        title={_("The interval in seconds when the database is compacted (nsslapd-db-compactdb-interval). The default is 30 days at midnight. 0 is no compaction.")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Database Compaction Interval
+                                            {_("Database Compaction Interval")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -932,11 +932,11 @@ export class GlobalDatabaseConfig extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title="Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval)."
+                                        title={_("Amount of time in seconds after which the Directory Server sends a checkpoint entry to the database transaction log (nsslapd-db-checkpoint-interval).")}
                                         className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            Database Checkpoint Interval
+                                            {_("Database Checkpoint Interval")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -964,7 +964,7 @@ export class GlobalDatabaseConfig extends React.Component {
                         onClick={this.handleSaveDBConfig}
                         variant="primary"
                         isLoading={this.state.saving}
-                        spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                        spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.state.saveBtnDisabled || this.state.saving}
                     >

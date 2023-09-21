@@ -23,6 +23,8 @@ import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 class AttributeUniqueness extends React.Component {
     componentDidMount() {
         if (this.props.wasActiveList.includes(5)) {
@@ -426,7 +428,7 @@ class AttributeUniqueness extends React.Component {
             // There mustr a subtree or entry OC sets
             this.props.addNotification(
                 "error",
-                `There must be at least one Subtree or Subtree Entries OC set`
+                _("There must be at least one Subtree or Subtree Entries OC set")
             );
             return;
         }
@@ -494,7 +496,7 @@ class AttributeUniqueness extends React.Component {
                     console.info("attrUniqOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${configName}" entry`
+                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, configName)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -506,7 +508,7 @@ class AttributeUniqueness extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -559,7 +561,7 @@ class AttributeUniqueness extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${this.state.deleteName} was successfully deleted`
+                        cockpit.format(_("Config entry $0 was successfully deleted"), this.state.deleteName)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();
@@ -569,7 +571,7 @@ class AttributeUniqueness extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
                     );
                     this.loadConfigs();
                     this.closeConfirmDelete();
@@ -598,16 +600,16 @@ class AttributeUniqueness extends React.Component {
             newEntry,
         } = this.state;
 
-        const title = (newEntry ? "Add" : "Edit") + " Attribute Uniqueness Plugin Config Entry";
-        let saveBtnName = (newEntry ? "Add" : "Save") + " Config";
+        const title = cockpit.format(_("$0 Attribute Uniqueness Plugin Config Entry"), (newEntry ? _("Add") : _("Edit")));
+        let saveBtnName = (newEntry ? _("Add") : _("Save")) + _(" Config");
         const extraPrimaryProps = {};
         if (this.state.saving) {
             if (newEntry) {
-                saveBtnName = "Adding Config ...";
+                saveBtnName = _("Adding Config ...");
             } else {
-                saveBtnName = "Saving Config ...";
+                saveBtnName = _("Saving Config ...");
             }
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
         return (
             <div className={this.state.saving || this.state.modalSpinning ? "ds-disabled" : ""}>
@@ -625,23 +627,23 @@ class AttributeUniqueness extends React.Component {
                             onClick={newEntry ? this.addConfig : this.editConfig}
                             isDisabled={this.state.saveBtnDisabled || this.state.saving}
                             isLoading={this.state.saving}
-                            spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form isHorizontal autoComplete="off">
                         <Grid
                             className="ds-margin-top"
-                            title='Sets the name of the plug-in configuration record. (cn) You can use any string, but "attribute_name Attribute Uniqueness" is recommended.'
+                            title={_("Sets the name of the plug-in configuration record. (cn) You can use any string, but \"attribute_name Attribute Uniqueness\" is recommended.")}
                         >
                             <GridItem span={3} className="ds-label">
-                                Config Name
+                                {_("Config Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -658,9 +660,9 @@ class AttributeUniqueness extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the name of the attribute whose values must be unique. This attribute is multi-valued. (uniqueness-attribute-name)">
+                        <Grid title={_("Sets the name of the attribute whose values must be unique. This attribute is multi-valued. (uniqueness-attribute-name)")}>
                             <GridItem span={3} className="ds-label">
-                                Attribute Names
+                                {_("Attribute Names")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -672,8 +674,8 @@ class AttributeUniqueness extends React.Component {
                                     selections={attrNames}
                                     isOpen={this.state.isAttributeNameOpen}
                                     aria-labelledby="typeAhead-attr-name"
-                                    placeholderText="Type an attribute name..."
-                                    noResultsFoundText="There are no matching attributes"
+                                    placeholderText={_("Type an attribute name...")}
+                                    noResultsFoundText={_("There are no matching attributes")}
                                     validated={this.state.error.attrNames ? "error" : "default"}
                                 >
                                     {this.props.attributes.map((attr, index) => (
@@ -685,9 +687,9 @@ class AttributeUniqueness extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)">
+                        <Grid title={_("Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)")}>
                             <GridItem span={3} className="ds-label">
-                                Subtrees
+                                {_("Subtrees")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -699,8 +701,8 @@ class AttributeUniqueness extends React.Component {
                                     selections={subtrees}
                                     isOpen={this.state.isSubtreesOpen}
                                     aria-labelledby="typeAhead-subtrees"
-                                    placeholderText="Type a subtree DN..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a subtree DN...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleSubtreesCreateOption}
                                     validated={this.state.error.subtrees ? "error" : "default"}
@@ -714,9 +716,9 @@ class AttributeUniqueness extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)">
+                        <Grid title={_("Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)")}>
                             <GridItem span={3} className="ds-label">
-                                Top Entry OC
+                                {_("Top Entry OC")}
                             </GridItem>
                             <GridItem span={6}>
                                 <FormSelect
@@ -738,15 +740,15 @@ class AttributeUniqueness extends React.Component {
                                     id="acrossAllSubtrees"
                                     className="ds-left-margin"
                                     isChecked={acrossAllSubtrees}
-                                    title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
+                                    title={_("If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)")}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    label="Across All Subtrees"
+                                    label={_("Across All Subtrees")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Verifies if an attribute is unique, if the entry contains the objectclass set in this parameter (uniqueness-subtree-entries-oc)">
+                        <Grid title={_("Verifies if an attribute is unique, if the entry contains the objectclass set in this parameter (uniqueness-subtree-entries-oc)")}>
                             <GridItem span={3} className="ds-label">
-                                Subtree Entry's OC
+                                {_("Subtree Entry's OC")}
                             </GridItem>
                             <GridItem span={6}>
                                 <FormSelect
@@ -764,15 +766,15 @@ class AttributeUniqueness extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-bottom" title="Identifies whether or not the config is enabled.">
+                        <Grid className="ds-margin-bottom" title={_("Identifies whether or not the config is enabled.")}>
                             <GridItem span={3} className="ds-label">
-                                Enable config
+                                {_("Enable config")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Switch
                                     id="configEnabled"
-                                    label="Configuration is enabled"
-                                    labelOff="Configuration is disabled"
+                                    label={_("Configuration is enabled")}
+                                    labelOff={_("Configuration is disabled")}
                                     isChecked={configEnabled}
                                     onChange={this.handleSwitchChange}
                                 />
@@ -807,7 +809,7 @@ class AttributeUniqueness extends React.Component {
                                 variant="primary"
                                 onClick={this.handleShowAddConfigModal}
                             >
-                                Add Config
+                                {_("Add Config")}
                             </Button>
                         </GridItem>
                     </Grid>
@@ -820,10 +822,10 @@ class AttributeUniqueness extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Attribute Uniqueness Configuration"
-                    mMsg="Are you sure you want to delete this configuration?"
-                    mSpinningMsg="Deleting attribute uniqueness configuration..."
-                    mBtnName="Delete Configuration"
+                    mTitle={_("Delete Attribute Uniqueness Configuration")}
+                    mMsg={_("Are you sure you want to delete this configuration?")}
+                    mSpinningMsg={_("Deleting attribute uniqueness configuration...")}
+                    mBtnName={_("Delete Configuration")}
                 />
             </div>
         );

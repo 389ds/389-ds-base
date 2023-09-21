@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Table,
@@ -6,15 +7,17 @@ import {
     TableVariant,
 } from '@patternfly/react-table';
 
+const _ = cockpit.gettext;
+
 class AciBindRuleTable extends React.Component {
     constructor(props) {
         super(props);
 
         this.state = {
-            columns: ['Bind Rule', 'Comparator', 'LDAP URLs'],
+            columns: [_("Bind Rule"), _("Comparator"), _("LDAP URLs")],
             actions: [
                 {
-                    title: 'Remove Bind Rule',
+                    title: _("Remove Bind Rule"),
                     onClick: (event, rowId, rowData, extra) => this.props.removeRow(rowId)
                 }
             ],
@@ -23,11 +26,11 @@ class AciBindRuleTable extends React.Component {
     }
 
     componentDidMount () {
-        let columns = ['Bind Rule', 'Comparator', 'LDAP URLs'];
+        let columns = [_("Bind Rule"), _("Comparator"), _("LDAP URLs")];
         let rows = [...this.props.rows];
         if (this.props.rows.length === 0) {
-            columns = ['Bind Rules'];
-            rows = [{ cells: ['No bind rules'] }];
+            columns = [_("Bind Rules")];
+            rows = [{ cells: [_("No bind rules")] }];
         }
         this.setState({
             rows,

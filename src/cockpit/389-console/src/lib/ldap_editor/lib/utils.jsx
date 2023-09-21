@@ -21,6 +21,8 @@ export function generateUniqueId () {
             .substring(2, 15);
 }
 
+const _ = cockpit.gettext;
+
 // Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
 function getDateString (timestamp) {
     if (!!timestamp === false) {
@@ -271,7 +273,7 @@ export function getSearchEntries (params, resultCallback) {
                     searchResult = data;
                     params.addNotification(
                         "info",
-                        `Size limit of ${params.sizeLimit} was exceeded.  The child entries of "${params.searchBase}" have been truncated.`
+                        cockpit.format(_("Size limit of $0 was exceeded. The child entries of $1 have been truncated."), params.sizeLimit, params.searchBase)
                     );
                 } else {
                     searchResult = null;
@@ -404,7 +406,7 @@ export function getBaseLevelEntryAttributes (serverId, baseDn, entryAttributesCa
                             const myTruncatedValue = (
                                 <div name="truncated">
                                     <Label icon={<InfoCircleIcon />} color="blue">
-                                        Value is too large to display
+                                        {_("Value is too large to display")}
                                     </Label>
                                 </div>
                             );
@@ -543,8 +545,7 @@ export function getOneLevelEntries (params, oneLevelCallback) {
                     const size_limit = getSizeLimit();
                     params.addNotification(
                         "info",
-                        `Size limit of ${size_limit} was exceeded.  The child entries of "${params.baseDn}" have been truncated.  ` +
-                        `Use the "Search" feature if you want to adjust the size limit and retrieve more entries`
+                        cockpit.format(_("Size limit of $0 was exceeded.  The child entries of $1 have been truncated. Use the 'Search' feature if you want to adjust the size limit and retrieve more entries"), size_limit, params.baseDn)
                     );
                 } else {
                     searchResult = null;

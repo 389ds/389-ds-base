@@ -24,6 +24,8 @@ import {
 } from '@patternfly/react-charts';
 import { numToCommas, displayBytes } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 export class DatabaseMonitor extends React.Component {
     constructor (props) {
         super(props);
@@ -132,13 +134,13 @@ export class DatabaseMonitor extends React.Component {
                     const dbratio = config.attrs.dbcachehitratio[0];
                     const chart_data = this.state.dbCacheList;
                     chart_data.shift();
-                    chart_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(dbratio) });
+                    chart_data.push({ name: _("Cache Hit Ratio"), x: count.toString(), y: parseInt(dbratio) });
 
                     // Build up the NDN Cache chart data
                     const ndnratio = config.attrs.normalizeddncachehitratio[0];
                     const ndn_chart_data = this.state.ndnCacheList;
                     ndn_chart_data.shift();
-                    ndn_chart_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(ndnratio) });
+                    ndn_chart_data.push({ name: _("Cache Hit Ratio"), x: count.toString(), y: parseInt(ndnratio) });
 
                     // Build up the DB Cache Util chart data
                     const ndn_util_chart_data = this.state.ndnCacheUtilList;
@@ -146,7 +148,7 @@ export class DatabaseMonitor extends React.Component {
                     const maxNDNSize = parseInt(config.attrs.maxnormalizeddncachesize[0]);
                     const ndn_utilization = (currNDNSize / maxNDNSize) * 100;
                     ndn_util_chart_data.shift();
-                    ndn_util_chart_data.push({ name: "Cache Utilization", x: ndnCount.toString(), y: parseInt(ndn_utilization) });
+                    ndn_util_chart_data.push({ name: _("Cache Utilization"), x: ndnCount.toString(), y: parseInt(ndn_utilization) });
 
                     this.setState({
                         data: config.attrs,
@@ -186,7 +188,7 @@ export class DatabaseMonitor extends React.Component {
             <div className="ds-margin-top-xlg ds-center">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Loading database monitor information ...
+                        {_("Loading database monitor information ...")}
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
@@ -231,15 +233,15 @@ export class DatabaseMonitor extends React.Component {
 
             content = (
                 <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Database Cache</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Database Cache")}</TabTitleText>}>
                         <div className="ds-margin-top">
                             <Card isSelectable>
                                 <CardBody>
                                     <div className="ds-container">
                                         <div className="ds-center">
-                                            <TextContent className="ds-margin-top-xlg" title="The database cache hit ratio (dbcachehitratio).">
+                                            <TextContent className="ds-margin-top-xlg" title={_("The database cache hit ratio (dbcachehitratio).")}>
                                                 <Text component={TextVariants.h3}>
-                                                    Cache Hit Ratio
+                                                    {_("Cache Hit Ratio")}
                                                 </Text>
                                             </TextContent>
                                             <TextContent>
@@ -251,7 +253,7 @@ export class DatabaseMonitor extends React.Component {
                                         <div className="ds-margin-left" style={{ height: '200px', width: '500px' }}>
                                             <Chart
                                                 ariaDesc="Database Cache"
-                                                ariaTitle="Live Database Cache Statistics"
+                                                ariaTitle={_("Live Database Cache Statistics")}
                                                 containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                 height={200}
                                                 maxDomain={{ y: 100 }}
@@ -281,43 +283,43 @@ export class DatabaseMonitor extends React.Component {
 
                         <Grid hasGutter className="ds-margin-top-xlg">
                             <GridItem span={3}>
-                                Database Cache Hit Ratio:
+                                {_("Database Cache Hit Ratio:")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.state.data.dbcachehitratio}%</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Database Cache Tries:
+                                {_("Database Cache Tries:")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{numToCommas(this.state.data.dbcachetries)}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Database Cache Hits:
+                                {_("Database Cache Hits:")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{numToCommas(this.state.data.dbcachehits)}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Cache Pages Read:
+                                {_("Cache Pages Read:")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{numToCommas(this.state.data.dbcachepagein)}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Cache Pages Written:
+                                {_("Cache Pages Written:")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{numToCommas(this.state.data.dbcachepageout)}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Read-Only Page Evictions:
+                                {_("Read-Only Page Evictions:")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{numToCommas(this.state.data.dbcacheroevict)}</b>
                             </GridItem>
                             <GridItem span={3}>
-                                Read-Write Page Evictions:
+                                {_("Read-Write Page Evictions:")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{numToCommas(this.state.data.dbcacherwevict)}</b>
@@ -325,7 +327,7 @@ export class DatabaseMonitor extends React.Component {
                         </Grid>
                     </Tab>
 
-                    <Tab eventKey={1} title={<TabTitleText>Normalized DN Cache</TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Normalized DN Cache")}</TabTitleText>}>
                         <div className="ds-margin-top-lg">
                             <Grid hasGutter>
                                 <GridItem span={6}>
@@ -333,9 +335,9 @@ export class DatabaseMonitor extends React.Component {
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">
-                                                    <TextContent className="ds-margin-top-xlg" title="The normalized DN cache hit ratio (normalizeddncachehitratio).">
+                                                    <TextContent className="ds-margin-top-xlg" title={_("The normalized DN cache hit ratio (normalizeddncachehitratio).")}>
                                                         <Text component={TextVariants.h3}>
-                                                            Cache Hit Ratio
+                                                            {_("Cache Hit Ratio")}
                                                         </Text>
                                                     </TextContent>
                                                     <TextContent>
@@ -347,7 +349,7 @@ export class DatabaseMonitor extends React.Component {
                                                 <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                     <Chart
                                                         ariaDesc="NDN Cache"
-                                                        ariaTitle="Live Normalized DN Cache Statistics"
+                                                        ariaTitle={_("Live Normalized DN Cache Statistics")}
                                                         containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                         height={200}
                                                         maxDomain={{ y: 100 }}
@@ -379,9 +381,9 @@ export class DatabaseMonitor extends React.Component {
                                         <CardBody>
                                             <div className="ds-container">
                                                 <div className="ds-center">
-                                                    <TextContent className="ds-margin-top-lg" title="The amount of the cache that is being used: max size (maxnormalizeddncachesize) vs current size (currentnormalizeddncachesize)">
+                                                    <TextContent className="ds-margin-top-lg" title={_("The amount of the cache that is being used: max size (maxnormalizeddncachesize) vs current size (currentnormalizeddncachesize)")}>
                                                         <Text component={TextVariants.h2}>
-                                                            Cache Utilization
+                                                            {_("Cache Utilization")}
                                                         </Text>
                                                     </TextContent>
                                                     <TextContent>
@@ -391,7 +393,7 @@ export class DatabaseMonitor extends React.Component {
                                                     </TextContent>
                                                     <TextContent className="ds-margin-top-xlg">
                                                         <Text component={TextVariants.h5}>
-                                                            Cached DN's
+                                                            {_("Cached DN's")}
                                                         </Text>
                                                     </TextContent>
                                                     <b>{numToCommas(this.state.data.currentnormalizeddncachecount[0])}</b>
@@ -399,7 +401,7 @@ export class DatabaseMonitor extends React.Component {
                                                 <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                     <Chart
                                                         ariaDesc="NDN Cache Utilization"
-                                                        ariaTitle="Live Normalized DN Cache Utilization Statistics"
+                                                        ariaTitle={_("Live Normalized DN Cache Utilization Statistics")}
                                                         containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                         height={200}
                                                         maxDomain={{ y: 100 }}
@@ -430,55 +432,55 @@ export class DatabaseMonitor extends React.Component {
 
                             <Grid hasGutter className="ds-margin-top-xlg">
                                 <GridItem span={3}>
-                                    NDN Cache Hit Ratio:
+                                    {_("NDN Cache Hit Ratio:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{this.state.data.normalizeddncachehitratio}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Cache Max Size:
+                                    {_("NDN Cache Max Size:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{displayBytes(this.state.data.maxnormalizeddncachesize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Cache Tries:
+                                    {_("NDN Cache Tries:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.normalizeddncachetries)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Current Cache Size:
+                                    {_("NDN Current Cache Size:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{displayBytes(this.state.data.currentnormalizeddncachesize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Cache Hits:
+                                    {_("NDN Cache Hits:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.normalizeddncachehits)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Cache DN Count:
+                                    {_("NDN Cache DN Count:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.currentnormalizeddncachecount)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Cache Evictions:
+                                    {_("NDN Cache Evictions:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.normalizeddncacheevictions)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Cache Thread Size:
+                                    {_("NDN Cache Thread Size:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.normalizeddncachethreadsize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    NDN Cache Thread Slots:
+                                    {_("NDN Cache Thread Slots:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.normalizeddncachethreadslots)}</b>
@@ -494,7 +496,7 @@ export class DatabaseMonitor extends React.Component {
             <div id="db-content">
                 <TextContent>
                     <Text className="ds-sub-header" component={TextVariants.h2}>
-                        Database Performance Statistics
+                        {_("Database Performance Statistics")}
                     </Text>
                 </TextContent>
                 <div className="ds-margin-top-lg">

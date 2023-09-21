@@ -23,6 +23,8 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class SuffixIndexes extends React.Component {
     constructor (props) {
         super(props);
@@ -209,7 +211,7 @@ export class SuffixIndexes extends React.Component {
                                             const errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
-                                                `Failed to get attributes - ${errMsg.desc}`
+                                                cockpit.format(_("Failed to get attributes - $0"), errMsg.desc)
                                             );
                                         });
                             });
@@ -218,7 +220,7 @@ export class SuffixIndexes extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to get matching rules - ${errMsg.desc}`
+                        cockpit.format(_("Failed to get matching rules - $0"), errMsg.desc)
                     );
                 });
     }
@@ -357,7 +359,7 @@ export class SuffixIndexes extends React.Component {
                     }
                     this.props.addNotification(
                         "success",
-                        `Successfully created new index`
+                        _("Successfully created new index")
                     );
                     this.setState({
                         saving: false,
@@ -370,7 +372,7 @@ export class SuffixIndexes extends React.Component {
                     this.closeIndexModal();
                     this.props.addNotification(
                         "error",
-                        `Error creating index - ${errMsg.desc}`
+                        cockpit.format(_("Error creating index - $0"), errMsg.desc)
                     );
                     this.setState({
                         saving: false,
@@ -450,7 +452,7 @@ export class SuffixIndexes extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error indexing attribute ${attr} - ${errMsg.desc}`
+                        cockpit.format(_("Error indexing attribute $0 - $1"), attr, errMsg.desc)
                     );
                     this.setState({
                         saving: false,
@@ -531,7 +533,7 @@ export class SuffixIndexes extends React.Component {
                         this.closeEditIndexModal();
                         this.props.addNotification(
                             "success",
-                            `Successfully edited index`
+                            _("Successfully edited index")
                         );
                         if (this.state.reindexOnAdd) {
                             this.reindexAttr(this.state.indexName);
@@ -547,7 +549,7 @@ export class SuffixIndexes extends React.Component {
                         this.closeEditIndexModal();
                         this.props.addNotification(
                             "error",
-                            `Error editing index - ${errMsg.desc}`
+                            cockpit.format(_("Error editing index - $0"), errMsg.desc)
                         );
                         this.setState({
                             saving: false,
@@ -620,7 +622,7 @@ export class SuffixIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Error deleting index - ${errMsg.desc}`
+                        cockpit.format(_("Error deleting index - $0"), errMsg.desc)
                     );
                     this.closeConfirmDeleteIndex();
                 });
@@ -661,7 +663,7 @@ export class SuffixIndexes extends React.Component {
         return (
             <div className="ds-margin-top-xlg ds-left-indent">
                 <Tabs isSecondary isBox activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Database Indexes <font size="2">({this.props.indexRows.length})</font></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Database Indexes ")}<font size="2">({this.props.indexRows.length})</font></TabTitleText>}>
                         <div className="ds-left-indent ds-margin-bottom-md">
                             <IndexTable
                                 editable
@@ -676,11 +678,11 @@ export class SuffixIndexes extends React.Component {
                                 type="button"
                                 onClick={this.handleShowIndexModal}
                             >
-                                Add Index
+                                {_("Add Index")}
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>System Indexes <font size="2">({this.props.systemIndexRows.length})</font></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("System Indexes ")}<font size="2">({this.props.systemIndexRows.length})</font></TabTitleText>}>
                         <div className="ds-left-indent">
                             <IndexTable
                                 rows={this.props.systemIndexRows}
@@ -743,10 +745,10 @@ export class SuffixIndexes extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.reindexAttrName}
                     checked={this.state.modalChecked}
-                    mTitle="Reindex Attribute"
-                    mMsg="Are you sure you want to reindex this attribute?"
-                    mSpinningMsg="Reindexing ..."
-                    mBtnName="Reindex"
+                    mTitle={_("Reindex Attribute")}
+                    mMsg={_("Are you sure you want to reindex this attribute?")}
+                    mSpinningMsg={_("Reindexing ...")}
+                    mBtnName={_("Reindex")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDeleteIndex}
@@ -756,10 +758,10 @@ export class SuffixIndexes extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteAttrName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Index"
-                    mMsg="Are you sure you want to delete this index?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Delete Index")}
+                    mMsg={_("Are you sure you want to delete this index?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
             </div>
         );
@@ -797,17 +799,17 @@ class AddIndexModal extends React.Component {
         for (const attr of attributes) {
             availAttrs.push(attr);
         }
-        let saveBtnName = "Create Index";
+        let saveBtnName = _("Create Index");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Creating ...";
-            extraPrimaryProps.spinnerAriaValueText = "Creating";
+            saveBtnName = _("Creating ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Creating");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Add Database Index"
+                title={_("Add Database Index")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 aria-labelledby="ds-modal"
@@ -817,34 +819,34 @@ class AddIndexModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Creating" : undefined}
+                        spinnerAriaValueText={saving ? _("Creating") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <TextContent title="Select an attribute to index">
+                    <TextContent title={_("Select an attribute to index")}>
                         <Text component={TextVariants.h4}>
-                            Select An Attribute
+                            {_("Select An Attribute")}
                         </Text>
                     </TextContent>
                     <Select
                         variant={SelectVariant.typeahead}
-                        typeAheadAriaLabel="Type a attribute name to index"
+                        typeAheadAriaLabel={_("Type a attribute name to index")}
                         onToggle={onAttributeToggle}
                         onClear={onAttributeClear}
                         onSelect={onAttributeSelect}
                         selections={attributeName}
                         isOpen={isAttributeOpen}
                         aria-labelledby="typeAhead-attr-add"
-                        placeholderText="Type a attribute name to index.."
-                        noResultsFoundText="There are no matching entries"
+                        placeholderText={_("Type a attribute name to index..")}
+                        noResultsFoundText={_("There are no matching entries")}
                         validated={attributeName.length === 0 || attributeName[0] === "" ? "error" : "default"}
                     >
                         {availAttrs.map((attr, index) => (
@@ -856,7 +858,7 @@ class AddIndexModal extends React.Component {
                     </Select>
                     <TextContent className="ds-margin-top">
                         <Text component={TextVariants.h4}>
-                            Index Types
+                            {_("Index Types")}
                         </Text>
                     </TextContent>
                     <div className="ds-indent">
@@ -868,7 +870,7 @@ class AddIndexModal extends React.Component {
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
-                                    label="Equailty Indexing"
+                                    label={_("Equailty Indexing")}
                                 />
                             </GridItem>
                         </Grid>
@@ -880,7 +882,7 @@ class AddIndexModal extends React.Component {
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
-                                    label="Presence Indexing"
+                                    label={_("Presence Indexing")}
                                 />
                             </GridItem>
                         </Grid>
@@ -892,7 +894,7 @@ class AddIndexModal extends React.Component {
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
-                                    label="Substring Indexing"
+                                    label={_("Substring Indexing")}
                                 />
                             </GridItem>
                         </Grid>
@@ -904,16 +906,16 @@ class AddIndexModal extends React.Component {
                                     onChange={(checked, e) => {
                                         handleChange(e);
                                     }}
-                                    label="Approximate Indexing"
+                                    label={_("Approximate Indexing")}
                                 />
                             </GridItem>
                         </Grid>
                     </div>
                     <Grid className="ds-margin-top-lg">
-                        <GridItem span={12} title="List of matching rules separated by a 'space'">
+                        <GridItem span={12} title={_("List of matching rules separated by a 'space'")}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    Matching Rules
+                                    {_("Matching Rules")}
                                 </Text>
                             </TextContent>
                             <div className="ds-indent ds-margin-top">
@@ -927,8 +929,8 @@ class AddIndexModal extends React.Component {
                                     selections={mrs}
                                     isOpen={isMatchingruleOpen}
                                     aria-labelledby="typeAhead-mr-add"
-                                    placeholderText="Type a matching rule name..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a matching rule name...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {availMR.map((mrs, index) => (
                                         <SelectOption
@@ -948,7 +950,7 @@ class AddIndexModal extends React.Component {
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label="Index attribute after creation"
+                                label={_("Index attribute after creation")}
                             />
                         </GridItem>
                     </Grid>
@@ -985,11 +987,11 @@ class EditIndexModal extends React.Component {
             saveBtnDisabled
         } = this.props;
 
-        let saveBtnName = "Save Index";
+        let saveBtnName = _("Save Index");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Saving index ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving index ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         let attrTypes = "";
@@ -1009,7 +1011,7 @@ class EditIndexModal extends React.Component {
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
-                label="Equailty Indexing"
+                label={_("Equailty Indexing")}
                 />
             </div>
         );
@@ -1021,7 +1023,7 @@ class EditIndexModal extends React.Component {
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
-                label="Presence Indexing"
+                label={_("Presence Indexing")}
                 />
             </div>
         );
@@ -1033,7 +1035,7 @@ class EditIndexModal extends React.Component {
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
-                label="Substring Indexing"
+                label={_("Substring Indexing")}
                 />
             </div>
         );
@@ -1045,7 +1047,7 @@ class EditIndexModal extends React.Component {
                 onChange={(checked, e) => {
                     handleChange(e);
                 }}
-                label="Approximate Indexing"
+                label={_("Approximate Indexing")}
                 />
             </div>
         );
@@ -1059,7 +1061,7 @@ class EditIndexModal extends React.Component {
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
-                    label="Equality Indexing"
+                    label={_("Equality Indexing")}
                     />
                 </div>
             );
@@ -1073,7 +1075,7 @@ class EditIndexModal extends React.Component {
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
-                    label="Presence Indexing"
+                    label={_("Presence Indexing")}
                     />
                 </div>
             );
@@ -1087,7 +1089,7 @@ class EditIndexModal extends React.Component {
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
-                    label="Substring Indexing"
+                    label={_("Substring Indexing")}
                     />
                 </div>
             );
@@ -1101,13 +1103,13 @@ class EditIndexModal extends React.Component {
                     onChange={(checked, e) => {
                         handleChange(e);
                     }}
-                    label="Approximate Indexing"
+                    label={_("Approximate Indexing")}
                     />
                 </div>
             );
         }
 
-        const title = <div>Edit Database Index (<b>{indexName[0]}</b>)</div>;
+        const title = <div>{_("Edit Database Index (")}<b>{indexName[0]}</b>)</div>;
 
         return (
             <Modal
@@ -1122,21 +1124,21 @@ class EditIndexModal extends React.Component {
                         variant="primary"
                         onClick={saveHandler}
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Saving" : undefined}
+                        spinnerAriaValueText={saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={saveBtnDisabled || saving}
                     >
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text className="ds-margin-top" component={TextVariants.h4}>
-                            Index Types
+                            {_("Index Types")}
                         </Text>
                     </TextContent>
                     <div className="ds-indent">
@@ -1165,7 +1167,7 @@ class EditIndexModal extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h4}>
-                                    Matching Rules
+                                    {_("Matching Rules")}
                                 </Text>
                             </TextContent>
                             <div className="ds-indent ds-margin-top">
@@ -1178,8 +1180,8 @@ class EditIndexModal extends React.Component {
                                     selections={currentMrs}
                                     isOpen={isMatchingruleOpen}
                                     aria-labelledby="typeAhead-mr-edit"
-                                    placeholderText="Type a matching rule name..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a matching rule name...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {availMR.map((mr, index) => (
                                         <SelectOption
@@ -1199,7 +1201,7 @@ class EditIndexModal extends React.Component {
                                 onChange={(checked, e) => {
                                     handleChange(e);
                                 }}
-                                label="Reindex Attribute After Saving"
+                                label={_("Reindex Attribute After Saving")}
                             />
                         </GridItem>
                     </Grid>

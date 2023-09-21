@@ -19,6 +19,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 
+const _ = cockpit.gettext;
+
 export class SecurityLogMonitor extends React.Component {
     constructor (props) {
         super(props);
@@ -101,7 +103,7 @@ export class SecurityLogMonitor extends React.Component {
             spinner = (
                 <div>
                     <Spinner isSVG size="sm" />
-                    Reloading security log...
+                    {_("Reloading security log...")}
                 </div>
             );
         }
@@ -112,12 +114,12 @@ export class SecurityLogMonitor extends React.Component {
                     <GridItem span={3}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Security Log
+                                {_("Security Log")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh security log"
+                                    title={_("Refresh security log")}
                                     onClick={this.handleRefreshSecurityLog}
                                 />
                             </Text>
@@ -156,7 +158,7 @@ export class SecurityLogMonitor extends React.Component {
                                 id="securityRefreshing"
                                 isChecked={this.state.securityRefreshing}
                                 onChange={(checked, e) => { this.securityRefreshCont(e) }}
-                                label="Continuously Refresh"
+                                label={_("Continuously Refresh")}
                             />
                         </div>
                     </GridItem>

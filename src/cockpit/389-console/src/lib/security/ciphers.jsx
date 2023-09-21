@@ -21,6 +21,8 @@ import {
 import { log_cmd } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class Ciphers extends React.Component {
     constructor(props) {
         super(props);
@@ -167,11 +169,11 @@ export class Ciphers extends React.Component {
                 .done(() => {
                     this.props.addNotification(
                         "success",
-                        `Successfully set cipher preferences.`
+                        _("Successfully set cipher preferences.")
                     );
                     this.props.addNotification(
                         "warning",
-                        `You must restart the Directory Server for these changes to take effect.`
+                        _("You must restart the Directory Server for these changes to take effect.")
                     );
                     this.setState({
                         saving: false,
@@ -187,7 +189,7 @@ export class Ciphers extends React.Component {
                     }
                     this.props.addNotification(
                         "error",
-                        `Error setting cipher preferences - ${msg}`
+                        cockpit.format(_("Error setting cipher preferences - $0"), msg)
                     );
                     this.setState({
                         saving: false,
@@ -324,11 +326,11 @@ export class Ciphers extends React.Component {
         const supportedCiphers = [];
         const enabledCiphers = [];
         let cipherPage;
-        let saveBtnName = "Save Settings";
+        let saveBtnName = _("Save Settings");
         const extraPrimaryProps = {};
         if (this.state.saving) {
-            saveBtnName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         for (const cipher of this.props.supportedCiphers) {
@@ -358,7 +360,7 @@ export class Ciphers extends React.Component {
                 <div className="ds-center ds-margin-top-lg">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Saving Cipher Preferences ...
+                            {_("Saving Cipher Preferences ...")}
                         </Text>
                     </TextContent>
                     <Spinner size="lg" />
@@ -369,24 +371,24 @@ export class Ciphers extends React.Component {
                 <div className="ds-indent">
                     <Form className="ds-margin-top-lg" isHorizontal>
                         <Grid>
-                            <GridItem span={5} title="The current ciphers the server is accepting.  This list is only updated after a server restart.">
+                            <GridItem span={5} title={_("The current ciphers the server is accepting.  This list is only updated after a server restart.")}>
                                 <TextContent>
                                     <Text component={TextVariants.h3}>
-                                        Enabled Ciphers <font size="2">({enabledList.length})</font>
+                                        {_("Enabled Ciphers")} <font size="2">({enabledList.length})</font>
                                     </Text>
                                 </TextContent>
                                 <hr />
                                 <div className="ds-box">
-                                    <SimpleList aria-label="enabled cipher list">
+                                    <SimpleList aria-label={_("enabled cipher list")}>
                                         {enabledList}
                                     </SimpleList>
                                 </div>
                             </GridItem>
                             <GridItem span={2} />
-                            <GridItem span={5} title="The current ciphers the server supports">
+                            <GridItem span={5} title={_("The current ciphers the server supports")}>
                                 <TextContent>
                                     <Text component={TextVariants.h3}>
-                                        Supported Ciphers <font size="2">({supportedList.length})</font>
+                                        {_("Supported Ciphers")} <font size="2">({supportedList.length})</font>
                                     </Text>
                                 </TextContent>
                                 <hr />
@@ -400,7 +402,7 @@ export class Ciphers extends React.Component {
                         <hr />
                         <Grid>
                             <GridItem className="ds-label" span={2}>
-                                Cipher Suite
+                                {_("Cipher Suite")}
                             </GridItem>
                             <GridItem span={10}>
                                 <FormSelect
@@ -409,23 +411,23 @@ export class Ciphers extends React.Component {
                                     onChange={this.handlePrefChange}
                                     aria-label="pref select"
                                 >
-                                    <FormSelectOption key="1" value="default" label="Default Ciphers" />
-                                    <FormSelectOption key="2" value="+all" label="All Ciphers" />
-                                    <FormSelectOption key="3" value="-all" label="No Ciphers" />
+                                    <FormSelectOption key="1" value="default" label={_("Default Ciphers")} />
+                                    <FormSelectOption key="2" value="+all" label={_("All Ciphers")} />
+                                    <FormSelectOption key="3" value="-all" label={_("No Ciphers")} />
                                 </FormSelect>
                                 <FormHelperText isHidden={this.state.cipherPref !== "default"}>
-                                    Default cipher suite is chosen. It enables the default ciphers advertised by NSS except weak ciphers.{(this.state.allowCiphers.length !== 0 || this.state.denyCiphers.length !== 0) ? " Any data in the 'Allow Specific Ciphers' and 'Deny Specific Ciphers' fields will be cleaned after the restart." : ""}
+                                    {_("Default cipher suite is chosen. It enables the default ciphers advertised by NSS except weak ciphers.")}{(this.state.allowCiphers.length !== 0 || this.state.denyCiphers.length !== 0) ? _(" Any data in the 'Allow Specific Ciphers' and 'Deny Specific Ciphers' fields will be cleaned after the restart.") : ""}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
                         <Grid>
                             <GridItem className="ds-label" span={2}>
-                                Allow Specific Ciphers
+                                {_("Allow Specific Ciphers")}
                             </GridItem>
                             <GridItem span={10}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a cipher"
+                                    typeAheadAriaLabel={_("Type a cipher")}
                                     isDisabled={this.state.cipherPref === "default"}
                                     onToggle={this.handleAllowCipherToggle}
                                     onSelect={this.handleAllowCipherChange}
@@ -433,8 +435,8 @@ export class Ciphers extends React.Component {
                                     selections={this.state.allowCiphers}
                                     isOpen={this.state.isAllowCipherOpen}
                                     aria-labelledby="typeAhead-allow-cipher"
-                                    placeholderText="Type a cipher..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a cipher...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     maxHeight="200px"
                                 >
                                     {this.state.availableCiphers.map((cipher, index) => (
@@ -448,12 +450,12 @@ export class Ciphers extends React.Component {
                         </Grid>
                         <Grid>
                             <GridItem className="ds-label" span={2}>
-                                Deny Specific Ciphers
+                                {_("Deny Specific Ciphers")}
                             </GridItem>
                             <GridItem span={10}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a cipher"
+                                    typeAheadAriaLabel={_("Type a cipher")}
                                     isDisabled={this.state.cipherPref === "default"}
                                     onToggle={this.handleDenyCipherToggle}
                                     onSelect={this.handleDenyCipherChange}
@@ -461,8 +463,8 @@ export class Ciphers extends React.Component {
                                     selections={this.state.denyCiphers}
                                     isOpen={this.state.isDenyCipherOpen}
                                     aria-labelledby="typeAhead-allow-deny"
-                                    placeholderText="Type a cipher..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a cipher...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     maxHeight="200px"
                                 >
                                     {this.state.availableCiphers.map((cipher, index) => (
@@ -483,7 +485,7 @@ export class Ciphers extends React.Component {
                         }}
                         isDisabled={this.state.disableSaveBtn || this.state.saving}
                         isLoading={this.state.saving}
-                        spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                        spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}
