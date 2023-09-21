@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     Button,
@@ -12,18 +13,20 @@ import {
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class SASLMappingModal extends React.Component {
     render() {
         let title = this.props.type;
-        let btnText = "Create Mapping";
+        let btnText = _("Create Mapping");
         const extraPrimaryProps = {};
         if (title !== "Create") {
-            btnText = "Save Mapping";
+            btnText = _("Save Mapping");
         }
-        title = title + " SASL Mapping";
+        title = cockpit.format(_("$0 SASL Mapping"), title);
         if (this.props.spinning) {
-            btnText = "Saving...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            btnText = _("Saving...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
         return (
@@ -39,7 +42,7 @@ export class SASLMappingModal extends React.Component {
                         isDisabled={this.props.saveDisabled || this.props.spinning}
                         variant="primary"
                         isLoading={this.props.spinning}
-                        spinnerAriaValueText={this.props.spinning ? "Loading" : undefined}
+                        spinnerAriaValueText={this.props.spinning ? _("Loading") : undefined}
                         onClick={() => {
                             this.props.saveHandler(this.props.name);
                         }}
@@ -48,17 +51,17 @@ export class SASLMappingModal extends React.Component {
                         {btnText}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={this.props.handleClose}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
                     <Grid
-                        title="SASL Mapping entry name"
+                        title={_("SASL Mapping entry name")}
                         className="ds-margin-top"
                     >
                         <GridItem className="ds-label" span={3}>
-                            SASL Mapping Name
+                            {_("SASL Mapping Name")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -75,15 +78,15 @@ export class SASLMappingModal extends React.Component {
                                 isDisabled={this.props.type === "Edit"}
                             />
                             <FormHelperText isError isHidden={!this.props.error.saslMapName}>
-                                You must provide a name for this mapping
+                                {_("You must provide a name for this mapping")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="SASL Mapping Regular Expression"
+                        title={_("SASL Mapping Regular Expression")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            Regular Expression
+                            {_("Regular Expression")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -99,15 +102,15 @@ export class SASLMappingModal extends React.Component {
                                 validated={this.props.error.saslMapRegex ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!this.props.error.saslMapRegex}>
-                                You must provide a valid regular expression
+                                {_("You must provide a valid regular expression")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="Test Regular Expression"
+                        title={_("Test Regular Expression")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            <font size="2">* Test Regex</font>
+                            <font size="2">{_("* Test Regex")}</font>
                         </GridItem>
                         <GridItem span={5}>
                             <TextInput
@@ -119,7 +122,7 @@ export class SASLMappingModal extends React.Component {
                                 onChange={(str, e) => {
                                     this.props.handleChange(e);
                                 }}
-                                placeholder="Enter text to test regex"
+                                placeholder={_("Enter text to test regex")}
                             />
                         </GridItem>
                         <GridItem span={4}>
@@ -129,15 +132,15 @@ export class SASLMappingModal extends React.Component {
                                 variant="primary"
                                 onClick={this.props.handleTestRegex}
                             >
-                                Test It
+                                {_("Test It")}
                             </Button>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="The search base or a specific entry DN to match against the constructed DN"
+                        title={_("The search base or a specific entry DN to match against the constructed DN")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            SASL Mapping Base
+                            {_("SASL Mapping Base")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -153,15 +156,15 @@ export class SASLMappingModal extends React.Component {
                                 validated={this.props.error.saslBase ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!this.props.error.saslBase}>
-                                You must provide a search base
+                                {_("You must provide a search base")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="SASL mapping search filter"
+                        title={_("SASL mapping search filter")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            SASL Mapping Filter
+                            {_("SASL Mapping Filter")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -177,15 +180,15 @@ export class SASLMappingModal extends React.Component {
                                 validated={this.props.error.saslFilter ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!this.props.error.saslFilter}>
-                                You must provide an LDAP search filter
+                                {_("You must provide an LDAP search filter")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
                     <Grid
-                        title="Set the mapping priority for which mappings should be tried first"
+                        title={_("Set the mapping priority for which mappings should be tried first")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            SASL Mapping Priority
+                            {_("SASL Mapping Priority")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -200,7 +203,7 @@ export class SASLMappingModal extends React.Component {
                                 validated={this.props.error.saslPriority ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={!this.props.error.saslPriority}>
-                                Priority must be between 1 and 100
+                                {_("Priority must be between 1 and 100")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>

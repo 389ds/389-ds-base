@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -49,13 +50,15 @@ import {
 import AddCosTemplate from './addCosTemplate.jsx';
 import GenericPagination from '../../lib/genericPagination.jsx';
 
+const _ = cockpit.gettext;
+
 class AddCosDefinition extends React.Component {
     constructor(props) {
         super(props);
 
         this.cosAttrsColumns = [
-            { title: 'Name', transforms: [sortable] },
-            { title: 'OID', transforms: [sortable] }
+            { title: _("Name"), transforms: [sortable] },
+            { title: _("OID"), transforms: [sortable] }
         ];
         this.singleValuedAttributes = ['cosTemplateDn', 'cosspecifier', 'cosIndirectSpecifier'];
         this.requiredAttributes = ['cn', 'cosattribute', 'cosspecifier', 'cosIndirectSpecifier'];
@@ -64,7 +67,7 @@ class AddCosDefinition extends React.Component {
             {
                 name: 'required',
                 validator: value => value.trim() !== '',
-                errorText: 'This field is required'
+                errorText: _("This field is required")
             }
         ];
 
@@ -91,8 +94,8 @@ class AddCosDefinition extends React.Component {
             pageAddCoS: 1,
             perpageAddCoS: 10,
             columnsCoS: [
-                { title: 'Attribute Name', cellTransforms: [headerCol()] },
-                { title: 'From ObjectClass' }
+                { title: _("Attribute Name"), cellTransforms: [headerCol()] },
+                { title: _("From ObjectClass") }
             ],
             rowsCoS: [],
             pagedRowsCoS: [],
@@ -111,7 +114,7 @@ class AddCosDefinition extends React.Component {
             ],
             // Review step
             reviewValue: '',
-            reviewInvalidText: 'Invalid LDIF',
+            reviewInvalidText: _("Invalid LDIF"),
             reviewIsValid: true,
             reviewValidated: 'default',
             adding: true,
@@ -212,7 +215,7 @@ class AddCosDefinition extends React.Component {
                                 (result) => {
                                     const myDn = myLdifArray[0].substring(4);
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? 'CoS Definition successfully created!' : 'Failed to create cos: ' + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ? _("CoS Definition successfully created!") : _("Failed to create cos: ") + result.errorCode,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                         createdDefiniton: myDn,
@@ -345,7 +348,7 @@ class AddCosDefinition extends React.Component {
         });
         this.setState({
             parentDN: this.props.wizardEntryDn,
-            cosSearchBaseDn: this.props.wizardEntryDn
+            SearchBaseDn: this.props.wizardEntryDn
         });
     }
 
@@ -653,7 +656,7 @@ class AddCosDefinition extends React.Component {
                 position={DropdownPosition.left}
                 toggle={
                     <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
-                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isAttrDropDownOpen}
@@ -814,13 +817,13 @@ class AddCosDefinition extends React.Component {
             <div>
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Select Name And CoS Type
+                        {_("Select Name And CoS Type")}
                     </Text>
                 </TextContent>
                 <Form autoComplete="off">
                     <Grid className="ds-margin-top-xlg">
                         <GridItem span={2} className="ds-label">
-                            CoS Name
+                            {_("CoS Name")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -836,7 +839,7 @@ class AddCosDefinition extends React.Component {
                             />
                         </GridItem>
                         <GridItem span={2} className="ds-label ds-margin-top-xlg">
-                            Description
+                            {_("Description")}
                         </GridItem>
                         <GridItem span={10} className="ds-margin-top-xlg">
                             <TextInput
@@ -854,7 +857,7 @@ class AddCosDefinition extends React.Component {
 
                     <TextContent className="ds-margin-top-lg">
                         <Text component={TextVariants.h5}>
-                            Choose CoS Type
+                            {_("Choose CoS Type")}
                         </Text>
                     </TextContent>
                     <div className="ds-left-margin">
@@ -862,29 +865,29 @@ class AddCosDefinition extends React.Component {
                             name="cosType"
                             id="pointer"
                             value="pointer"
-                            label="Pointer"
+                            label={_("Pointer")}
                             isChecked={this.state.cosType === 'pointer'}
                             onChange={this.handleRadioChange}
-                            description="Identifies the template entry using the template DN only."
+                            description={_("Identifies the template entry using the template DN only.")}
                         />
                         <Radio
                             name="cosType"
                             id="indirect"
                             value="indirect"
-                            label="Indirect"
+                            label={_("Indirect")}
                             isChecked={this.state.cosType === 'indirect'}
                             onChange={this.handleRadioChange}
-                            description="Identifies the template entry using the value of one of the target entry's attributes."
+                            description={_("Identifies the template entry using the value of one of the target entry's attributes.")}
                             className="ds-margin-top"
                         />
                         <Radio
                             name="cosType"
                             id="classic"
                             value="classic"
-                            label="Classic"
+                            label={_("Classic")}
                             isChecked={this.state.cosType === 'classic'}
                             onChange={this.handleRadioChange}
-                            description="Identifies the template entry using a combination of the template entry's base DN and the value of one of the target entry's attributes."
+                            description={_("Identifies the template entry using a combination of the template entry's base DN and the value of one of the target entry's attributes.")}
                             className="ds-margin-top"
                         />
                     </div>
@@ -899,24 +902,21 @@ class AddCosDefinition extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Select CoS Template
+                                    {_("Select CoS Template")}
                                 </Text>
                             </TextContent>
                         </GridItem>
                         <GridItem span={12}>
                             <TextContent className="ds-margin-top">
                                 <Text>
-                                    The CoS template entry contains the value or values of the attributes generated
-                                    by the CoS logic. The CoS template entry contains a general object class of cosTemplate
-                                    The CoS template entries for a given CoS are stored in the directory tree along
-                                    with the CoS definition.
+                                    {_("The CoS template entry contains the value or values of the attributes generated by the CoS logic. The CoS template entry contains a general object class of cosTemplate The CoS template entries for a given CoS are stored in the directory tree along with the CoS definition.")}
                                 </Text>
                             </TextContent>
                         </GridItem>
                         <GridItem span={9} className="ds-margin-top-xlg">
                             <TextContent>
                                 <Text>
-                                    Search Base:
+                                    {_("Search Base:")}
                                     <Text
                                         className="ds-left-margin"
                                         component={TextVariants.a}
@@ -934,12 +934,12 @@ class AddCosDefinition extends React.Component {
                                 variant="primary"
                                 onClick={this.handleOpenTemplateCreateModal}
                             >
-                                Create Template
+                                {_("Create Template")}
                             </Button>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top">
                             <SearchInput
-                                placeholder="Find CoS Template..."
+                                placeholder={_("Find CoS Template...")}
                                 value={this.state.searchPattern}
                                 onChange={(evt, val) => this.handleSearchPattern(val)}
                                 onSearch={this.handleSearchClick}
@@ -947,7 +947,7 @@ class AddCosDefinition extends React.Component {
                             />
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top">
-                            CoS Template Selected: <strong>&nbsp;&nbsp;{cosTemplateDNSelected}</strong>
+                            {_("CoS Template Selected:")} <strong>&nbsp;&nbsp;{cosTemplateDNSelected}</strong>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
                             {(cosAvailableOptions.length !== 0)
@@ -961,7 +961,7 @@ class AddCosDefinition extends React.Component {
 
                         <Modal
                             variant={ModalVariant.medium}
-                            title="Choose The New CoS Template Parent DN"
+                            title={_("Choose The New CoS Template Parent DN")}
                             isOpen={showTemplateCreateModal}
                             onClose={this.handleCloseTemplateCreateModal}
                             actions={[
@@ -971,14 +971,14 @@ class AddCosDefinition extends React.Component {
                                     onClick={this.handleConfirmModalToggle}
                                     isDisabled={this.state.cosParentBaseDn === ""}
                                 >
-                                    Confirm
+                                    {_("Confirm")}
                                 </Button>,
                                 <Button
                                     key="cancelCreateTemplateModal"
                                     variant="primary"
                                     onClick={this.handleCloseTemplateCreateModal}
                                 >
-                                    Close
+                                    {_("Close")}
                                 </Button>
                             ]}
                         >
@@ -995,28 +995,23 @@ class AddCosDefinition extends React.Component {
                         </Modal>
                         <Modal
                             variant={ModalVariant.small}
-                            title="Leaving CoS Definiton Creation Wizard"
+                            title={_("Leaving CoS Definiton Creation Wizard")}
                             isOpen={this.state.isConfirmModalOpen}
                             onClose={this.handleConfirmModalToggle}
                             actions={[
                                 <Button key="confirm" variant="primary" onClick={this.handleCreateTemplate}>
-                                    Confirm
+                                    {_("Confirm")}
                                 </Button>,
                                 <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
-                                    Cancel
+                                    {_("Cancel")}
                                 </Button>
                             ]}
                         >
-                            You are about to leave CoS Definiton creation wizard. After you click 'Confirm',
-                            you'll appear in CoS Template creation wizard and you won't able to return from there
-                            until the process is finished.
-
-                            Then you'll be able to use the created entry in the CoS definiton creation. It'll be
-                            preselected for you automatically.
+                            {_("You are about to leave CoS Definiton creation wizard. After you click 'Confirm', you'll appear in CoS Template creation wizard and you won't able to return from there until the process is finished. Then you'll be able to use the created entry in the CoS definiton creation. It'll be preselected for you automatically.")}
                         </Modal>
                         <Modal
                             variant={ModalVariant.medium}
-                            title="Choose A Parent DN"
+                            title={_("Choose A Parent DN")}
                             isOpen={showLDAPNavModal}
                             onClose={this.handleCloseLDAPNavModal}
                             actions={[
@@ -1025,7 +1020,7 @@ class AddCosDefinition extends React.Component {
                                     variant="primary"
                                     onClick={this.handleCloseLDAPNavModal}
                                 >
-                                    Done
+                                    {_("Done")}
                                 </Button>,
                             ]}
                         >
@@ -1049,13 +1044,12 @@ class AddCosDefinition extends React.Component {
         const cosAttributesStep = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Choose CoS Attributes
+                    <Text component={TextVariants.h3}>{_("Choose CoS Attributes")}
                         <Tooltip
                             position="bottom"
                             content={
                                 <div>
-                                    The cosAttribute contains the name of the attribute for which to generate
-                                    a value for the CoS. There can be more than one cosAttribute value specified.
+                                    {_("The cosAttribute contains the name of the attribute for which to generate a value for the CoS. There can be more than one cosAttribute value specified.")}
                                 </div>
                             }
                         >
@@ -1089,22 +1083,19 @@ class AddCosDefinition extends React.Component {
                 <Grid>
                     <GridItem span={12}>
                         <TextContent>
-                            <Text component={TextVariants.h3}>Configure CoS Attributes</Text>
+                            <Text component={TextVariants.h3}>{_("Configure CoS Attributes")}</Text>
                         </TextContent>
                     </GridItem>
                     <GridItem span={12}>
                         <TextContent className="ds-margin-top">
                             <Text>
-                                The CoS attribute contains the name of another attribute
-                                which is governed by the class of service. This attribute allows an override
-                                qualifier after the attribute value which sets how the CoS handles existing
-                                attribute values on entries when it generates attribute values.
+                                {_("The CoS attribute contains the name of another attribute which is governed by the class of service. This attribute allows an override qualifier after the attribute value which sets how the CoS handles existing attribute values on entries when it generates attribute values.")}
                             </Text>
                             <Text>
-                                Please, consult official documentation for more information.
+                                {_("Please, consult official documentation for more information.")}
                             </Text>
                             <Text>
-                                If no qualifier is set, default is assumed.
+                                {_("If no qualifier is set, default is assumed.")}
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -1113,14 +1104,14 @@ class AddCosDefinition extends React.Component {
                     <GridItem span={3}>
                         <TextContent>
                             <Text component={TextVariants.h4}>
-                                Attribute Name
+                                {_("Attribute Name")}
                             </Text>
                         </TextContent>
                     </GridItem>
                     <GridItem span={9}>
                         <TextContent>
                             <Text component={TextVariants.h4}>
-                                Override Qualifiers
+                                {_("Override Qualifiers")}
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -1135,30 +1126,30 @@ class AddCosDefinition extends React.Component {
                                 </Text>
                             </TextContent>
                         </GridItem>
-                        <GridItem span={3} title="Only returns a generated value if there is no corresponding attribute value stored with the entry.">
+                        <GridItem span={3} title={_("Only returns a generated value if there is no corresponding attribute value stored with the entry.")}>
                             <Checkbox
                                 id="def"
-                                label="Default"
+                                label={_("Default")}
                                 isChecked={def}
                                 onChange={(checked, e) => {
                                     this.handleCheckboxChange(e, name, "def");
                                 }}
                             />
                         </GridItem>
-                        <GridItem span={3} title="Always returns the value generated by the CoS, even when there is a value stored with the entry.">
+                        <GridItem span={3} title={_("Always returns the value generated by the CoS, even when there is a value stored with the entry.")}>
                             <Checkbox
                                 id="override"
-                                label="Override"
+                                label={_("Override")}
                                 isChecked={override}
                                 onChange={(checked, e) => {
                                     this.handleCheckboxChange(e, name, "override");
                                 }}
                             />
                         </GridItem>
-                        <GridItem span={3} title="Returns a generated attribute only if it is explicitly requested in the search. Operational attributes do not need to pass a schema check in order to be returned. When operational is used, it also overrides any existing attribute values.">
+                        <GridItem span={3} title={_("Returns a generated attribute only if it is explicitly requested in the search. Operational attributes do not need to pass a schema check in order to be returned. When operational is used, it also overrides any existing attribute values.")}>
                             <Checkbox
                                 id="operational"
-                                label="Operational"
+                                label={_("Operational")}
                                 isChecked={operational}
                                 onChange={(checked, e) => {
                                     this.handleCheckboxChange(e, name, "operational");
@@ -1166,20 +1157,20 @@ class AddCosDefinition extends React.Component {
                             />
                         </GridItem>
                         <GridItem span={3} />
-                        <GridItem span={3} title="Only returns a generated value if there is no corresponding attribute value stored with the entry and if it is explicitly requested in the search.">
+                        <GridItem span={3} title={_("Only returns a generated value if there is no corresponding attribute value stored with the entry and if it is explicitly requested in the search.")}>
                             <Checkbox
                                 id="opdefault"
-                                label="Operational-Default"
+                                label={_("Operational-Default")}
                                 isChecked={opdefault}
                                 onChange={(checked, e) => {
                                     this.handleCheckboxChange(e, name, "opdefault");
                                 }}
                             />
                         </GridItem>
-                        <GridItem span={6} title="Using the merge-schemes qualifier tells the CoS that it will, or can, generate multiple values for the managed attribute.">
+                        <GridItem span={6} title={_("Using the merge-schemes qualifier tells the CoS that it will, or can, generate multiple values for the managed attribute.")}>
                             <Checkbox
                                 id="mergeschemes"
-                                label="Merge-Schemes"
+                                label={_("Merge-Schemes")}
                                 isChecked={mergeschemes}
                                 onChange={(checked, e) => {
                                     this.handleCheckboxChange(e, name, "mergeschemes");
@@ -1197,15 +1188,15 @@ class AddCosDefinition extends React.Component {
                 <Grid>
                     <GridItem span={12}>
                         <TextContent>
-                            <Text component={TextVariants.h3}>Select CoS Specifier</Text>
+                            <Text component={TextVariants.h3}>{_("Select CoS Specifier")}</Text>
                         </TextContent>
                     </GridItem>
                     <GridItem span={12}>
                         <TextContent className="ds-margin-top">
                             <Text>
                                 {this.state.cosType === 'indirect'
-                                    ? "Indirect type of CoS identifies the template entry based on the value of one of the target entry's attributes, as specified in the cosIndirectSpecifier attribute."
-                                    : "Classic type of CoS identifies the template entry using both the template entry's DN (which you will assign later) and the value of one of the target entry's attributes (set in the cosSpecifier attribute)."}
+                                    ? _("Indirect type of CoS identifies the template entry based on the value of one of the target entry's attributes, as specified in the cosIndirectSpecifier attribute.")
+                                    : _("Classic type of CoS identifies the template entry using both the template entry's DN (which you will assign later) and the value of one of the target entry's attributes (set in the cosSpecifier attribute).")}
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -1220,7 +1211,7 @@ class AddCosDefinition extends React.Component {
                     </GridItem>
                     <GridItem span={5} className="ds-left-margin">
                         <FormSelect id="cosspecAttr" value={this.state.cosspecAttr} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
-                            <FormSelectOption value="" label="Select an attribute" isPlaceholder />
+                            <FormSelectOption value="" label={_("Select an attribute")} isPlaceholder />
                             {this.state.attributeList.map((attr, index) => (
                                 <FormSelectOption key={attr} value={attr} label={attr} />
                             ))}
@@ -1241,7 +1232,7 @@ class AddCosDefinition extends React.Component {
                 <Alert
                     variant="info"
                     isInline
-                    title="LDIF Content for CoS Creation"
+                    title={_("LDIF Content for CoS Creation")}
                 />
                 <Card isHoverable>
                     <CardBody>
@@ -1264,19 +1255,19 @@ class AddCosDefinition extends React.Component {
                 <Alert
                     variant={resultVariant}
                     isInline
-                    title="Result for CoS Creation"
+                    title={_("Result for CoS Creation")}
                 >
                     {commandOutput}
                     {this.state.adding &&
                         <div>
                             <Spinner className="ds-left-margin" size="md" />
-                            &nbsp;&nbsp;Adding CoS definition ...
+                            &nbsp;&nbsp;{_("Adding CoS definition ...")}
                         </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
                     <Card isHoverable>
                         <CardTitle>
-                            LDIF Data
+                            {_("LDIF Data")}
                         </CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -1286,15 +1277,15 @@ class AddCosDefinition extends React.Component {
                     </Card>}
                 <Modal
                     variant={ModalVariant.small}
-                    title="Create CoS Template"
+                    title={_("Create CoS Template")}
                     isOpen={this.state.isConfirmModalOpen}
                     onClose={this.handleConfirmModalToggle}
                     actions={[
                         <Button key="confirm" variant="primary" onClick={this.handleCreateTemplateEnd}>
-                            Confirm
+                            {_("Confirm")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
@@ -1302,14 +1293,13 @@ class AddCosDefinition extends React.Component {
                         <GridItem span={12}>
                             <TextContent className="ds-margin-top">
                                 <Text>
-                                    You've chosen 'Classic' CoS type.
-                                    cosTemplateDN attribute is set to {this.state.createdDefiniton}.
+                                    {cockpit.format(_("You've chosen 'Classic' CoS type. cosTemplateDN attribute is set to $0."), this.state.createdDefiniton)}
                                 </Text>
                                 <Text>
-                                    Do you want to create a CoS template now?
+                                    {_("Do you want to create a CoS template now?")}
                                 </Text>
                                 <Text>
-                                    It will be added as a child to this entry: '{this.state.createdDefiniton}'
+                                    cockpit.format(_("It will be added as a child to this entry: $0"), this.state.createdDefiniton)
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -1328,7 +1318,7 @@ class AddCosDefinition extends React.Component {
             },
             {
                 id: 2,
-                name: 'Select Type',
+                name: _("Select Type"),
                 component: namingValAndTypeStep,
                 enableNext: namingVal !== '',
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 9,
@@ -1337,7 +1327,7 @@ class AddCosDefinition extends React.Component {
                 ? [
                     {
                         id: 3,
-                        name: 'Select CoS Template',
+                        name: _("Select CoS Template"),
                         component: selectCoSTemplate,
                         canJumpTo: stepIdReached >= 3 && stepIdReached < 9,
                         enableNext: this.state.cosTemplateDNSelected !== ''
@@ -1346,14 +1336,14 @@ class AddCosDefinition extends React.Component {
                 : []),
             {
                 id: 4,
-                name: 'Select CoS Attributes',
+                name: _("Select CoS Attributes"),
                 component: cosAttributesStep,
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 9,
                 enableNext: this.state.cosAttrs.length > 0
             },
             {
                 id: 5,
-                name: 'Configure CoS Attributes',
+                name: _("Configure CoS Attributes"),
                 component: cosConfigAttributesStep,
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 9,
                 enableNext: this.state.cosAttrs.length > 0
@@ -1362,7 +1352,7 @@ class AddCosDefinition extends React.Component {
                 ? [
                     {
                         id: 6,
-                        name: 'Select CoS Specifier',
+                        name: _("Select CoS Specifier"),
                         component: cosSpecifierStep,
                         canJumpTo: stepIdReached >= 6 && stepIdReached < 9,
                         enableNext: this.state.cosspecAttr !== ''
@@ -1371,16 +1361,16 @@ class AddCosDefinition extends React.Component {
                 : []),
             {
                 id: 7,
-                name: 'Create CoS',
+                name: _("Create CoS"),
                 component: cosCreationStep,
-                nextButtonText: 'Create',
+                nextButtonText: _("Create"),
                 canJumpTo: stepIdReached >= 7 && stepIdReached < 9,
             },
             {
                 id: 8,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: cosReviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 8 && stepIdReached < 9,
                 hideBackButton: true,
                 enableNext: !this.state.adding
@@ -1389,9 +1379,9 @@ class AddCosDefinition extends React.Component {
                 ? [
                     {
                         id: 9,
-                        name: 'Create Templates',
+                        name: _("Create Templates"),
                         component: cosReviewStep,
-                        nextButtonText: 'Finish',
+                        nextButtonText: _("Finish"),
                         canJumpTo: stepIdReached > 9,
                         hideBackButton: true,
                         enableNext: !this.state.adding
@@ -1402,7 +1392,7 @@ class AddCosDefinition extends React.Component {
 
         const title = (
             <>
-                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN:")} &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
             </>
         );
 
@@ -1412,7 +1402,7 @@ class AddCosDefinition extends React.Component {
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
                 onBack={this.handleBack}
-                title="Add A CoS Definition"
+                title={_("Add A CoS Definition")}
                 description={title}
                 steps={addCoSSteps}
             />

@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Pagination,
@@ -9,6 +10,8 @@ import {
 import {
     Table, TableHeader, TableBody, TableVariant
 } from '@patternfly/react-table';
+
+const _ = cockpit.gettext;
 
 class EditorTableView extends React.Component {
     constructor (props) {
@@ -35,7 +38,7 @@ class EditorTableView extends React.Component {
             <div className="ds-margin-top-xlg ds-center">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Loading ...
+                        {_("Loading ...")}
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="lg" />

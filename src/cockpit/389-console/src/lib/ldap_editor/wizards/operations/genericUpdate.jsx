@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -31,15 +32,17 @@ import {
     ENTRY_TYPE
 } from '../../lib/constants.jsx';
 
+const _ = cockpit.gettext;
+
 class GenericUpdate extends React.Component {
     constructor (props) {
         super(props);
 
         this.attributeValidationRules = [
             {
-                name: 'required',
+                name: _("required"),
                 validator: value => value.trim() !== '',
-                errorText: 'This field is required'
+                errorText: _("This field is required")
             }
         ];
 
@@ -57,8 +60,8 @@ class GenericUpdate extends React.Component {
             page: 1,
             perPage: 10,
             columnsAttrs: [
-                { title: 'Attribute Name', cellTransforms: [headerCol()] },
-                { title: 'From ObjectClass' }
+                { title: _("Attribute Name"), cellTransforms: [headerCol()] },
+                { title: _("From ObjectClass") }
             ],
             rowsAttrs: [],
             pagedRowsAttrs: [],
@@ -66,8 +69,8 @@ class GenericUpdate extends React.Component {
             // Values
             noEmptyValue: false,
             columnsValues: [
-                'Attribute',
-                'Value'
+                _("Attribute"),
+                _("Value")
             ],
             rowsValues: [],
             // Review step
@@ -97,7 +100,7 @@ class GenericUpdate extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? 'Successfully added entry!' : 'Failed to add entry, error: ' + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ? _("Successfully added entry!") : _("Failed to add entry, error: ") + result.errorCode,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -504,7 +507,7 @@ class GenericUpdate extends React.Component {
             <div>
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Select Entry Attributes
+                        {_("Select Entry Attributes")}
                     </Text>
                 </TextContent>
                 <Pagination
@@ -532,8 +535,8 @@ class GenericUpdate extends React.Component {
         // const myTitle = (namingAttrVal === '' || namingAttrVal.split('=')[1] === '')
         const rdnValue = namingAttrVal.split('=')[1];
         const myTitle = (namingAttrVal === '' || rdnValue === '')
-            ? 'Invalid RDN - Empty Value!'
-            : 'DN ( Distinguished Name )';
+            ? _("Invalid RDN - Empty Value!")
+            : _("DN ( Distinguished Name )");
         const missingRdn = (rdnValue === '' || rdnValue === undefined);
 
         const valuesStep = (
@@ -545,7 +548,7 @@ class GenericUpdate extends React.Component {
                 >
                     {!missingRdn &&
                         <>
-                            The full DN of the entry will be: <strong>{namingAttrVal},{this.props.wizardEntryDn}</strong>
+                            {_("The full DN of the entry will be: ")}<strong>{namingAttrVal},{this.props.wizardEntryDn}</strong>
                         </>}
                 </Alert>
 
@@ -573,7 +576,7 @@ class GenericUpdate extends React.Component {
                 <Alert
                     variant="info"
                     isInline
-                    title="LDIF Content for Entry Creation"
+                    title={_("LDIF Content for Entry Creation")}
                 />
                 <Card isSelectable>
                     <CardBody>
@@ -597,18 +600,18 @@ class GenericUpdate extends React.Component {
                 <Alert
                     variant={resultVariant}
                     isInline
-                    title="Result for Entry Creation"
+                    title={_("Result for Entry Creation")}
                 >
                     {commandOutput}
                     {this.state.adding &&
                         <div>
                             <Spinner className="ds-left-margin" size="md" />
-                            &nbsp;&nbsp;Adding entry ...
+                            &nbsp;&nbsp;{_("Adding entry ...")}
                         </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
-                        <CardTitle>LDIF Data</CardTitle>
+                        <CardTitle>{_("LDIF Data")}</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
                                 <h6 key={line.id}>{line.data}</h6>
@@ -619,10 +622,10 @@ class GenericUpdate extends React.Component {
         );
 
         const creationStepName = this.props.entryType === ENTRY_TYPE.user
-            ? 'Create User'
+            ? _("Create User")
             : this.props.entryType === ENTRY_TYPE.ou
-                ? 'Create Organizational Unit'
-                : 'Create LDAP Entry';
+                ? _("Create Organizational Unit")
+                : _("Create LDAP Entry");
 
         const addSteps = [
             {
@@ -634,13 +637,13 @@ class GenericUpdate extends React.Component {
             },
             {
                 id: 2,
-                name: 'Select Attributes',
+                name: _("Select Attributes"),
                 component: attributesStep,
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 5,
             },
             {
                 id: 3,
-                name: 'Set Values',
+                name: _("Set Values"),
                 component: valuesStep,
                 canJumpTo: stepIdReached >= 3 && stepIdReached < 5,
                 enableNext: noEmptyValue
@@ -649,14 +652,14 @@ class GenericUpdate extends React.Component {
                 id: 4,
                 name: creationStepName,
                 component: creationStep,
-                nextButtonText: 'Create',
+                nextButtonText: _("Create"),
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 5,
             },
             {
                 id: 5,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: reviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 5,
                 hideBackButton: true,
                 enableNext: !this.state.adding
@@ -665,14 +668,14 @@ class GenericUpdate extends React.Component {
 
         // TODO - Update this for groups, roles, cos, etc
         const wizardTitle = this.props.entryType === ENTRY_TYPE.user
-            ? 'Add A New User'
+            ? _("Add A New User")
             : this.props.entryType === ENTRY_TYPE.ou
-                ? 'Add An Organizational Unit'
-                : 'Add A New LDAP Entry';
+                ? _("Add An Organizational Unit")
+                : _("Add A New LDAP Entry");
 
         const desc = (
             <>
-                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
             </>
         );
 

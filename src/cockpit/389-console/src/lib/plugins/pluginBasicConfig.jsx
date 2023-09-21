@@ -13,6 +13,8 @@ import {
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 class PluginBasicConfig extends React.Component {
     constructor(props) {
         super(props);
@@ -112,8 +114,8 @@ class PluginBasicConfig extends React.Component {
                                 }
                                 addNotification(
                                     `${!dynamicPluginEnabled ? 'warning' : 'success'}`,
-                                    `${pluginName} plugin was successfully ${new_status}d.
-                                    ${!dynamicPluginEnabled ? 'Please, restart the instance.' : ''}`
+                                    cockpit.format(_("$0 plugin was successfully $1d."), pluginName, new_status) +
+                                    `${!dynamicPluginEnabled ? _("Please, restart the instance.") : ''}`
                                 );
                                 toggleLoadingHandler();
                             })
@@ -124,8 +126,7 @@ class PluginBasicConfig extends React.Component {
                                 );
                                 addNotification(
                                     "warning",
-                                    `${pluginName} plugin was successfully ${new_status}d.
-                                    Please, restart the instance.`
+                                    cockpit.format(_("$0 plugin was successfully $1d. Please, restart the instance."), pluginName, new_status)
                                 );
                                 toggleLoadingHandler();
                             });
@@ -134,7 +135,7 @@ class PluginBasicConfig extends React.Component {
                     const errMsg = JSON.parse(err);
                     addNotification(
                         "error",
-                        `Error during ${pluginName} plugin modification - ${errMsg.desc}`
+                        cockpit.format(_("Error during $0 plugin modification - $1"), pluginName, errMsg.desc)
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });
@@ -201,8 +202,8 @@ class PluginBasicConfig extends React.Component {
             disableSwitch
         } = this.state;
 
-        const enabled = <i>Plugin is enabled</i>;
-        const disabled = <i>Plugin is disabled</i>;
+        const enabled = <i>{_("Plugin is enabled")}</i>;
+        const disabled = <i>{_("Plugin is disabled")}</i>;
 
         return (
             <div>
@@ -211,7 +212,7 @@ class PluginBasicConfig extends React.Component {
                         <GridItem span={9} className="ds-margin-top">
                             <TextContent>
                                 <Text component={TextVariants.h2}>
-                                    {this.props.pluginName} Plugin
+                                    {this.props.pluginName} {_("Plugin")}
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -236,7 +237,7 @@ class PluginBasicConfig extends React.Component {
                 {this.state.currentPluginPath !== "" &&
                     <ExpandableSection
                         className="ds-margin-top-lg"
-                        toggleText={this.state.isExpanded ? 'Hide Plugin Details' : 'Show Plugin Details'}
+                        toggleText={this.state.isExpanded ? _("Hide Plugin Details") : _("Show Plugin Details")}
                         onToggle={this.handleToggle}
                         isExpanded={this.state.isExpanded}
                     >
@@ -245,7 +246,7 @@ class PluginBasicConfig extends React.Component {
                                 <Form isHorizontal>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Type</b>
+                                            <b>{_("Plugin Type")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginType}</i>
@@ -253,7 +254,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Path</b>
+                                            <b>{_("Plugin Path")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginPath}</i>
@@ -261,7 +262,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Initfunc</b>
+                                            <b>{_("Plugin Initfunc")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginInitfunc}</i>
@@ -269,7 +270,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Depends On Type</b>
+                                            <b>{_("Plugin Depends On Type")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginDependsOnType}</i>
@@ -277,7 +278,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Depends On Named</b>
+                                            <b>{_("Plugin Depends On Named")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginDependsOnNamed}</i>
@@ -285,7 +286,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Vendor</b>
+                                            <b>{_("Plugin Vendor")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginVendor}</i>
@@ -293,7 +294,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Version</b>
+                                            <b>{_("Plugin Version")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginVersion}</i>
@@ -301,7 +302,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Description</b>
+                                            <b>{_("Plugin Description")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginDescription}</i>
@@ -309,7 +310,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin ID</b>
+                                            <b>{_("Plugin ID")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginId}</i>
@@ -317,7 +318,7 @@ class PluginBasicConfig extends React.Component {
                                     </Grid>
                                     <Grid>
                                         <GridItem span={3}>
-                                            <b>Plugin Precedence</b>
+                                            <b>{_("Plugin Precedence")}</b>
                                         </GridItem>
                                         <GridItem span={6}>
                                             <i>{this.state.currentPluginPrecedence}</i>

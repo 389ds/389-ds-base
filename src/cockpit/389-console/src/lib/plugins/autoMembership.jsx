@@ -27,6 +27,8 @@ import PropTypes from "prop-types";
 import { log_cmd, listsEqual, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class AutoMembership extends React.Component {
     componentDidMount() {
         if (this.props.wasActiveList.includes(5)) {
@@ -596,7 +598,7 @@ class AutoMembership extends React.Component {
         ) {
             this.props.addNotification(
                 "warning",
-                "Name, Scope, Filter and Grouping Attribute are required."
+                _("Name, Scope, Filter and Grouping Attribute are required.")
             );
         } else {
             let cmd = [
@@ -644,7 +646,7 @@ class AutoMembership extends React.Component {
                         console.info("AutoMembershipOperation", "Result", content);
                         this.props.addNotification(
                             "success",
-                            `The ${action} operation was successfully done on "${definitionName}" entry`
+                            cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, definitionName)
                         );
                         this.loadDefinitions();
                         this.purgeRegexUpdate();
@@ -656,7 +658,7 @@ class AutoMembership extends React.Component {
                         if (errMsg.desc.indexOf("nothing to set") === 0) {
                             this.props.addNotification(
                                 "error",
-                                `Error during the definition entry ${action} operation - ${errMsg.desc}`
+                                cockpit.format(_("Error during the definition entry $0 operation - $1"), action, errMsg.desc)
                             );
                         } else {
                             this.purgeRegexUpdate();
@@ -706,9 +708,7 @@ class AutoMembership extends React.Component {
                         const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Error during the regex "${regexToDelete}" entry delete operation - ${
-                                errMsg.desc
-                            }`
+                            cockpit.format(_("Error during the regex \"$0\" entry delete operation - $1"), regexToDelete, errMsg.desc)
                         );
                     });
         }
@@ -800,9 +800,7 @@ class AutoMembership extends React.Component {
                         const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Error during the regex "${regexName}" entry ${action} operation - ${
-                                errMsg.desc
-                            }`
+                            cockpit.format(_("Error during the regex \"$0\" entry $1 operation - $2"), regexName, action, errMsg.desc)
                         );
                     });
         }
@@ -850,7 +848,7 @@ class AutoMembership extends React.Component {
                     console.info("deleteDefinition", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Definition entry ${this.state.deleteName} was successfully deleted`
+                        cockpit.format(_("Definition entry $0 was successfully deleted"), this.state.deleteName)
                     );
                     this.loadDefinitions();
                     this.closeConfirmDelete();
@@ -859,7 +857,7 @@ class AutoMembership extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the definition entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg.desc)
                     );
                     this.loadDefinitions();
                     this.closeConfirmDelete();
@@ -950,7 +948,7 @@ class AutoMembership extends React.Component {
         }
 
         if (regexName === "" || regexTargetGroup === "") {
-            this.props.addNotification("warning", "Name and Target Group are required.");
+            this.props.addNotification("warning", _("Name and Target Group are required."));
         } else {
             const regexTableKey = this.state.regexTableKey + 1;
             if (action === "add") {
@@ -975,7 +973,7 @@ class AutoMembership extends React.Component {
                         regexTableKey
                     }), () => { this.validateModal() });
                 } else {
-                    this.props.addNotification("error", `Regex "${regexName}" already exists`);
+                    this.props.addNotification("error", cockpit.format(_("Regex \"$0\" already exists"), regexName));
                 }
             } else if (action === "set") {
                 if (regexExists) {
@@ -1004,7 +1002,7 @@ class AutoMembership extends React.Component {
                 } else {
                     this.props.addNotification(
                         "error",
-                        `Regex "${regexName}" does not exist - "${action}" is impossible`
+                        cockpit.format(_("Regex \"$0\" does not exist - \"$1\" is impossible"), regexName, action)
                     );
                 }
             }
@@ -1026,7 +1024,7 @@ class AutoMembership extends React.Component {
         } else {
             this.props.addNotification(
                 "error",
-                `Regex "${regexName}" does not exist - impossible to delete`
+                cockpit.format(_("Regex \"$0\" does not exist - impossible to delete"), regexName)
             );
         }
     }
@@ -1062,12 +1060,12 @@ class AutoMembership extends React.Component {
             firstLoad,
         } = this.state;
 
-        const title = (newDefinitionEntry ? "Add" : "Edit") + " Auto Membership Plugin Definition Entry";
+        const title = cockpit.format(_("$0  Auto Membership Plugin Definition Entry"), (newDefinitionEntry ? _("Add") : _("Edit")));
         const extraPrimaryProps = {};
-        let saveBtnText = newDefinitionEntry ? "Add Definition" : "Save Definition";
+        let saveBtnText = newDefinitionEntry ? _("Add Definition") : _("Save Definition");
         if (saving) {
             // Main plugin config
-            saveBtnText = newDefinitionEntry ? "Adding ..." : "Saving ...";
+            saveBtnText = newDefinitionEntry ? _("Adding ...") : _("Saving ...");
         }
 
         return (
@@ -1085,20 +1083,20 @@ class AutoMembership extends React.Component {
                             onClick={newDefinitionEntry ? this.addDefinition : this.editDefinition}
                             isDisabled={saveBtnDisabled || saving}
                             isLoading={saving}
-                            spinnerAriaValueText={saving ? "Saving" : undefined}
+                            spinnerAriaValueText={saving ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnText}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form isHorizontal autoComplete="off">
                         <Grid className="ds-margin-top">
                             <GridItem className="ds-label" span={3}>
-                                Definition Name
+                                {_("Definition Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1115,9 +1113,9 @@ class AutoMembership extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets the subtree DN to search for entries (autoMemberScope).">
+                        <Grid title={_("Sets the subtree DN to search for entries (autoMemberScope).")}>
                             <GridItem className="ds-label" span={3}>
-                                Subtree Scope
+                                {_("Subtree Scope")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1133,9 +1131,9 @@ class AutoMembership extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets a standard LDAP search filter to use to search for matching entries (autoMemberFilter)">
+                        <Grid title={_("Sets a standard LDAP search filter to use to search for matching entries (autoMemberFilter)")}>
                             <GridItem className="ds-label" span={3}>
-                                Entry Filter
+                                {_("Entry Filter")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1151,9 +1149,9 @@ class AutoMembership extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)">
+                        <Grid title={_("Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)")}>
                             <GridItem className="ds-label" span={3}>
-                                Grouping Attribute
+                                {_("Grouping Attribute")}
                             </GridItem>
                             <GridItem span={4}>
                                 <FormSelect
@@ -1187,9 +1185,9 @@ class AutoMembership extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets an optional default or fallback group to add the entry to as a member (autoMemberDefaultGroup)">
+                        <Grid title={_("Sets an optional default or fallback group to add the entry to as a member (autoMemberDefaultGroup)")}>
                             <GridItem className="ds-label" span={3}>
-                                Default Group
+                                {_("Default Group")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1209,7 +1207,7 @@ class AutoMembership extends React.Component {
                     <hr />
                     <TextContent>
                         <Text className="ds-center" component={TextVariants.h3}>
-                            Membership Regular Expressions
+                            {_("Membership Regular Expressions")}
                         </Text>
                     </TextContent>
                     <Grid>
@@ -1228,7 +1226,7 @@ class AutoMembership extends React.Component {
                                 variant="secondary"
                                 onClick={this.handleShowAddRegexModal}
                             >
-                                Add Regex
+                                {_("Add Regex")}
                             </Button>
                         </GridItem>
                     </Grid>
@@ -1237,7 +1235,7 @@ class AutoMembership extends React.Component {
 
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Manage Auto Membership Plugin Regex Entry"
+                    title={_("Manage Auto Membership Plugin Regex Entry")}
                     isOpen={regexEntryModalShow}
                     aria-labelledby="ds-modal"
                     onClose={this.handleCloseRegexModal}
@@ -1248,17 +1246,17 @@ class AutoMembership extends React.Component {
                             isDisabled={saveRegexBtnDisabled}
                             onClick={newRegexEntry ? this.addRegex : this.editRegex}
                         >
-                            Save
+                            {_("Save")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseRegexModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form isHorizontal autoComplete="off">
                         <Grid>
                             <GridItem className="ds-label" span={3}>
-                                Regex Name
+                                {_("Regex Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1275,9 +1273,9 @@ class AutoMembership extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
+                        <Grid title={_("Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)")}>
                             <GridItem className="ds-label" span={3}>
-                                Exclusive Regex
+                                {_("Exclusive Regex")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -1289,7 +1287,7 @@ class AutoMembership extends React.Component {
                                     selections={regexExclusive}
                                     isOpen={this.state.isRegexExcludeOpen}
                                     aria-labelledby="typeAhead-excl-regex"
-                                    placeholderText="Type a regex..."
+                                    placeholderText={_("Type a regex...")}
                                     isCreatable
                                     onCreateOption={this.handleCreateRegexExcludeOption}
                                 >
@@ -1302,9 +1300,9 @@ class AutoMembership extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
+                        <Grid title={_("Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)")}>
                             <GridItem className="ds-label" span={3}>
-                                Inclusive Regex
+                                {_("Inclusive Regex")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -1316,7 +1314,7 @@ class AutoMembership extends React.Component {
                                     selections={regexInclusive}
                                     isOpen={this.state.isRegexIncludeOpen}
                                     aria-labelledby="typeAhead-incl-regex"
-                                    placeholderText="Type a regex..."
+                                    placeholderText={_("Type a regex...")}
                                     isCreatable
                                     onCreateOption={this.handleCreateRegexIncludeOption}
                                 >
@@ -1329,9 +1327,9 @@ class AutoMembership extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)">
+                        <Grid title={_("Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)")}>
                             <GridItem className="ds-label" span={3}>
-                                Target Group
+                                {_("Target Group")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1373,7 +1371,7 @@ class AutoMembership extends React.Component {
                                 variant="primary"
                                 onClick={this.handleShowAddDefinitionModal}
                             >
-                                Add Definition
+                                {_("Add Definition")}
                             </Button>
                         </GridItem>
                     </Grid>
@@ -1386,10 +1384,10 @@ class AutoMembership extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Autemebership Configuration"
-                    mMsg="Are you sure you want to delete this configuration?"
-                    mSpinningMsg="Deleting Configuration..."
-                    mBtnName="Delete Configuration"
+                    mTitle={_("Delete Autemebership Configuration")}
+                    mMsg={_("Are you sure you want to delete this configuration?")}
+                    mSpinningMsg={_("Deleting Configuration...")}
+                    mBtnName={_("Delete Configuration")}
                 />
             </div>
         );

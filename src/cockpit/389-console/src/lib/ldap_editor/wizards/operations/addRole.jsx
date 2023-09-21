@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -44,6 +45,8 @@ import {
     generateUniqueId
 } from '../../lib/utils.jsx';
 
+const _ = cockpit.gettext;
+
 class AddRole extends React.Component {
     constructor (props) {
         super(props);
@@ -57,9 +60,9 @@ class AddRole extends React.Component {
 
         this.attributeValidationRules = [
             {
-                name: 'required',
+                name: _("required"),
                 validator: value => value.trim() !== '',
-                errorText: 'This field is required'
+                errorText: _("This field is required")
             }
         ];
 
@@ -81,8 +84,8 @@ class AddRole extends React.Component {
             pageAddRole: 1,
             perpageAddRole: 10,
             columnsRole: [
-                { title: 'Attribute Name', cellTransforms: [headerCol()] },
-                { title: 'From ObjectClass' }
+                { title: _("Attribute Name"), cellTransforms: [headerCol()] },
+                { title: _("From ObjectClass") }
             ],
             rowsRole: [],
             pagedRowsRole: [],
@@ -91,12 +94,12 @@ class AddRole extends React.Component {
             // Values
             noEmptyValue: false,
             columnsValues: [
-                'Attribute',
-                'Value'
+                _("Attribute"),
+                _("Value")
             ],
             // Review step
             reviewValue: '',
-            reviewInvalidText: 'Invalid LDIF',
+            reviewInvalidText: _("Invalid LDIF"),
             reviewIsValid: true,
             reviewValidated: 'default',
             // reviewHelperText: 'LDIF data'
@@ -162,7 +165,7 @@ class AddRole extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? 'Role successfully created!' : 'Failed to create role, error: ' + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ? _("Role successfully created!") : _("Failed to create role, error: ") + result.errorCode,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -594,7 +597,7 @@ class AddRole extends React.Component {
                 position={DropdownPosition.left}
                 toggle={
                     <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
-                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isAttrDropDownOpen}
@@ -675,20 +678,20 @@ class AddRole extends React.Component {
 
         const rdnValue = namingVal;
         const myTitle = (namingAttrVal === '' || rdnValue === '')
-            ? 'Invalid Naming Attribute - Empty Value!'
-            : 'DN ( Distinguished Name )';
+            ? _("Invalid Naming Attribute - Empty Value!")
+            : _("DN ( Distinguished Name )");
 
         const namingValAndTypeStep = (
             <div>
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Select Name And Role Type
+                        {_("Select Name And Role Type")}
                     </Text>
                 </TextContent>
                 <Form autoComplete="off">
                     <Grid className="ds-margin-top-xlg">
                         <GridItem span={2} className="ds-label">
-                            Role Name
+                            {_("Role Name")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -707,7 +710,7 @@ class AddRole extends React.Component {
 
                     <TextContent className="ds-margin-top-lg">
                         <Text component={TextVariants.h5}>
-                            Choose Role Type
+                            {_("Choose Role Type")}
                         </Text>
                     </TextContent>
                     <div className="ds-left-margin">
@@ -715,29 +718,29 @@ class AddRole extends React.Component {
                             name="roleType"
                             id="managed"
                             value="managed"
-                            label="Managed"
+                            label={_("Managed")}
                             isChecked={this.state.roleType === 'managed'}
                             onChange={this.handleRadioChange}
-                            description="This attribute uses objectclass 'RoleOfNames'"
+                            description={_("This attribute uses objectclass 'RoleOfNames'")}
                         />
                         <Radio
                             name="roleType"
                             id="filtered"
                             value="filtered"
-                            label="Filtered"
+                            label={_("Filtered")}
                             isChecked={this.state.roleType === 'filtered'}
                             onChange={this.handleRadioChange}
-                            description="This attribute uses objectclass 'RoleOfUniqueNames'"
+                            description={_("This attribute uses objectclass 'RoleOfUniqueNames'")}
                             className="ds-margin-top"
                         />
                         <Radio
                             name="roleType"
                             id="nested"
                             value="nested"
-                            label="Nested"
+                            label={_("Nested")}
                             isChecked={this.state.roleType === 'nested'}
                             onChange={this.handleRadioChange}
-                            description="This attribute uses objectclass 'RoleOfUniqueNames'"
+                            description={_("This attribute uses objectclass 'RoleOfUniqueNames'")}
                             className="ds-margin-top"
                         />
                     </div>
@@ -752,14 +755,14 @@ class AddRole extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Add Roles to the Nested Role
+                                    {_("Add Roles to the Nested Role")}
                                 </Text>
                             </TextContent>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
                             <TextContent>
                                 <Text>
-                                    Search Base:
+                                    {_("Search Base")}:
                                     <Text
                                         className="ds-left-margin"
                                         component={TextVariants.a}
@@ -773,7 +776,7 @@ class AddRole extends React.Component {
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top">
                             <SearchInput
-                                placeholder="Find roles..."
+                                placeholder={_("Find roles...")}
                                 value={this.state.searchPattern}
                                 onChange={(evt, val) => this.handleSearchPattern(val)}
                                 onSearch={this.handleSearchClick}
@@ -784,8 +787,8 @@ class AddRole extends React.Component {
                             <DualListSelector
                                 availableOptions={rolesAvailableOptions}
                                 chosenOptions={rolesChosenOptions}
-                                availableOptionsTitle="Available Roles"
-                                chosenOptionsTitle="Chosen Roles"
+                                availableOptionsTitle={_("Available Roles")}
+                                chosenOptionsTitle={_("Chosen Roles")}
                                 onListChange={this.handleUsersListChange}
                                 id="usersSelector"
                             />
@@ -793,7 +796,7 @@ class AddRole extends React.Component {
 
                         <Modal
                             variant={ModalVariant.medium}
-                            title="Choose A Branch To Search"
+                            title={_("Choose A Branch To Search")}
                             isOpen={showLDAPNavModal}
                             onClose={this.handleCloseLDAPNavModal}
                             actions={[
@@ -828,7 +831,7 @@ class AddRole extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select Entry Attributes
+                            {_("Select Entry Attributes")}
                         </Text>
                     </TextContent>
                     {this.buildAttrDropdown()}
@@ -862,18 +865,18 @@ class AddRole extends React.Component {
                         <GridItem className="ds-margin-top" span={12}>
                             <Alert
                                 variant={namingAttr === '' || namingVal === ''
-                                    ? 'warning'
-                                    : 'success'}
+                                    ? "warning"
+                                    : "success"}
                                 isInline
                                 title={myTitle}
                             >
-                                <b>Entry DN:&nbsp;&nbsp;&nbsp;</b>{(namingAttr || "??????")}={namingVal || "??????"},{this.props.wizardEntryDn}
+                                <b>{_("Entry DN:")}&nbsp;&nbsp;&nbsp;</b>{(namingAttr || "??????")}={namingVal || "??????"},{this.props.wizardEntryDn}
                             </Alert>
                         </GridItem>
                         <GridItem span={12} className="ds-margin-top-xlg">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Set Attribute Values
+                                    {_("Set Attribute Values")}
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -905,7 +908,7 @@ class AddRole extends React.Component {
                 <Alert
                     variant="info"
                     isInline
-                    title="LDIF Content for Role Creation"
+                    title={_("LDIF Content for Role Creation")}
                 />
                 <Card isSelectable>
                     <CardBody>
@@ -928,19 +931,19 @@ class AddRole extends React.Component {
                 <Alert
                     variant={resultVariant}
                     isInline
-                    title="Result for Role Creation"
+                    title={_("Result for Role Creation")}
                 >
                     {commandOutput}
                     {this.state.adding &&
                         <div>
                             <Spinner className="ds-left-margin" size="md" />
-                            &nbsp;&nbsp;Adding Role ...
+                            &nbsp;&nbsp;{_("Adding Role ...")}
                         </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
                         <CardTitle>
-                            LDIF Data
+                            {_("LDIF Data")}
                         </CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
@@ -961,7 +964,7 @@ class AddRole extends React.Component {
             },
             {
                 id: 2,
-                name: 'Select Name & Type',
+                name: _("Select Name & Type"),
                 component: namingValAndTypeStep,
                 enableNext: namingVal !== '',
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 7,
@@ -970,7 +973,7 @@ class AddRole extends React.Component {
                 ? [
                     {
                         id: 3,
-                        name: 'Add Nested Roles',
+                        name: _("Add Nested Roles"),
                         component: addRolesStep,
                         canJumpTo: stepIdReached >= 3 && stepIdReached < 7
                     },
@@ -978,29 +981,29 @@ class AddRole extends React.Component {
                 : []),
             {
                 id: 4,
-                name: 'Select Attributes',
+                name: _("Select Attributes"),
                 component: roleAttributesStep,
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 7
             },
             {
                 id: 5,
-                name: 'Set Values',
+                name: _("Set Values"),
                 component: roleValuesStep,
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 7,
                 enableNext: noEmptyValue
             },
             {
                 id: 6,
-                name: 'Create Role',
+                name: _("Create Role"),
                 component: roleCreationStep,
-                nextButtonText: 'Create',
+                nextButtonText: _("Create"),
                 canJumpTo: stepIdReached >= 6 && stepIdReached < 7
             },
             {
                 id: 7,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: roleReviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 7,
                 hideBackButton: true,
                 enableNext: !this.state.adding
@@ -1009,7 +1012,7 @@ class AddRole extends React.Component {
 
         const title = (
             <>
-                Parent DN: &nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
             </>
         );
 
@@ -1019,7 +1022,7 @@ class AddRole extends React.Component {
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
                 onBack={this.handleBack}
-                title="Add A Role"
+                title={_("Add A Role")}
                 description={title}
                 steps={addRoleSteps}
             />

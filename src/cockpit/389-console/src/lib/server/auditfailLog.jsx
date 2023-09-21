@@ -57,6 +57,8 @@ const exp_attrs = [
     'nsslapd-auditfaillog-logminfreediskspace',
 ];
 
+const _ = cockpit.gettext;
+
 export class ServerAuditFailLog extends React.Component {
     constructor(props) {
         super(props);
@@ -140,6 +142,7 @@ export class ServerAuditFailLog extends React.Component {
 
         // Now check for differences in values that we did not touch
         for (const config_attr of config_attrs) {
+            console.log('testlog' + config_attr);
             if (attr !== config_attr && this.state['_' + config_attr].toString() !== this.state[config_attr].toString()) {
                 disableSaveBtn = false;
                 break;
@@ -237,7 +240,7 @@ export class ServerAuditFailLog extends React.Component {
                     this.refreshConfig();
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Audit Fail Log settings"
+                        _("Successfully updated Audit Fail Log settings")
                     );
                 })
                 .fail(err => {
@@ -245,7 +248,7 @@ export class ServerAuditFailLog extends React.Component {
                     this.refreshConfig();
                     this.props.addNotification(
                         "error",
-                        `Error saving Audit Fail Log settings - ${errMsg.desc}`
+                        cockpit.format(_("Error saving Audit Fail Log settings - $0"), errMsg.desc)
                     );
                 });
     }
@@ -313,7 +316,7 @@ export class ServerAuditFailLog extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading Audit Fail Log configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading Audit Fail Log configuration - $0"), errMsg.desc)
                     );
                     this.setState({
                         loading: false,
@@ -367,19 +370,19 @@ export class ServerAuditFailLog extends React.Component {
     }
 
     render() {
-        let saveSettingsName = "Save Log Settings";
-        let saveRotationName = "Save Rotation Settings";
-        let saveDeletionName = "Save Deletion Settings";
+        let saveSettingsName = _("Save Log Settings");
+        let saveRotationName = _("Save Rotation Settings");
+        let saveDeletionName = _("Save Deletion Settings");
         const extraPrimaryProps = {};
         let rotationTime = "";
         let hour = this.state['nsslapd-auditfaillog-logrotationsynchour'] ? this.state['nsslapd-auditfaillog-logrotationsynchour'] : "00";
         let min = this.state['nsslapd-auditfaillog-logrotationsyncmin'] ? this.state['nsslapd-auditfaillog-logrotationsyncmin'] : "00";
 
         if (this.state.loading) {
-            saveSettingsName = "Saving settings ...";
-            saveRotationName = "Saving settings ...";
-            saveDeletionName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            saveSettingsName = _("Saving settings ...");
+            saveRotationName = _("Saving settings ...");
+            saveDeletionName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
         // Adjust time string for TimePicket
@@ -394,7 +397,7 @@ export class ServerAuditFailLog extends React.Component {
         let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                         <Checkbox
                             className="ds-margin-top-xlg"
                             id="nsslapd-auditfaillog-logging-enabled"
@@ -402,12 +405,12 @@ export class ServerAuditFailLog extends React.Component {
                             onChange={(checked, e) => {
                                 this.handleChange(e, "settings");
                             }}
-                            title="Enable audit fail logging (nsslapd-auditfaillog-logging-enabled)."
-                            label="Enable Audit Fail Logging"
+                            title={_("Enable audit fail logging (nsslapd-auditfaillog-logging-enabled).")}
+                            label={_("Enable Audit Fail Logging")}
                         />
-                        <Grid className="ds-margin-top-xlg ds-margin-left" title="Enable audit fail logging (nsslapd-auditfaillog).">
+                        <Grid className="ds-margin-top-xlg ds-margin-left" title={_("Enable audit fail logging (nsslapd-auditfaillog).")}>
                             <GridItem className="ds-label" span={2}>
-                                Audit Fail Log Location
+                                {_("Audit Fail Log Location")}
                             </GridItem>
                             <GridItem span={10}>
                                 <TextInput
@@ -431,20 +434,20 @@ export class ServerAuditFailLog extends React.Component {
                                 this.saveConfig("settings");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveSettingsName}
                         </Button>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Rotation Policy</TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
-                                title="The maximum number of logs that are archived (nsslapd-auditfaillog-maxlogsperdir)."
+                                title={_("The maximum number of logs that are archived (nsslapd-auditfaillog-maxlogsperdir).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Maximum Number Of Logs
+                                    {_("Maximum Number Of Logs")}
                                 </GridItem>
                                 <GridItem span={3}>
                                     <NumberInput
@@ -462,9 +465,9 @@ export class ServerAuditFailLog extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="The maximum size of each log file in megabytes (nsslapd-auditfaillog-maxlogsize).">
+                            <Grid title={_("The maximum size of each log file in megabytes (nsslapd-auditfaillog-maxlogsize).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Maximum Log Size (in MB)
+                                    {_("Maximum Log Size (in MB)")}
                                 </GridItem>
                                 <GridItem span={3}>
                                     <NumberInput
@@ -483,9 +486,9 @@ export class ServerAuditFailLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <hr />
-                            <Grid title="Rotate the log based this number of time units (nsslapd-auditfaillog-logrotationtime).">
+                            <Grid title={_("Rotate the log based this number of time units (nsslapd-auditfaillog-logrotationtime).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Create New Log Every ...
+                                    {_("Create New Log Every ...")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <div className="ds-container">
@@ -511,19 +514,19 @@ export class ServerAuditFailLog extends React.Component {
                                                 }}
                                                 aria-label="FormSelect Input"
                                             >
-                                                <FormSelectOption key="0" value="minute" label="minute" />
-                                                <FormSelectOption key="1" value="hour" label="hour" />
-                                                <FormSelectOption key="2" value="day" label="day" />
-                                                <FormSelectOption key="3" value="week" label="week" />
-                                                <FormSelectOption key="4" value="month" label="month" />
+                                                <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                                <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                                <FormSelectOption key="2" value="day" label={_("day")} />
+                                                <FormSelectOption key="3" value="week" label={_("week")} />
+                                                <FormSelectOption key="4" value="month" label={_("month")} />
                                             </FormSelect>
                                         </GridItem>
                                     </div>
                                 </GridItem>
                             </Grid>
-                            <Grid title="The time when the log should be rotated (nsslapd-auditfaillog-logrotationsynchour, nsslapd-auditfaillog-logrotationsyncmin).">
+                            <Grid title={_("The time when the log should be rotated (nsslapd-auditfaillog-logrotationsynchour, nsslapd-auditfaillog-logrotationsyncmin).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Time Of Day
+                                    {_("Time Of Day")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <TimePicker
@@ -543,21 +546,21 @@ export class ServerAuditFailLog extends React.Component {
                                 this.saveConfig("rotation");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveRotationName}
                         </Button>
                     </Tab>
 
-                    <Tab eventKey={2} title={<TabTitleText>Deletion Policy</TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
-                                title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditfaillog-logmaxdiskspace)."
+                                title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditfaillog-logmaxdiskspace).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Log Archive Exceeds (in MB)
+                                    {_("Log Archive Exceeds (in MB)")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <NumberInput
@@ -576,10 +579,10 @@ export class ServerAuditFailLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditfaillog-logminfreediskspace)."
+                                title={_("The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditfaillog-logminfreediskspace).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Free Disk Space (in MB)
+                                    {_("Free Disk Space (in MB)")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <NumberInput
@@ -598,10 +601,10 @@ export class ServerAuditFailLog extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime)."
+                                title={_("Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditfaillog-logexpirationtime).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Log File is Older Than ...
+                                    {_("Log File is Older Than ...")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <div className="ds-container">
@@ -627,9 +630,9 @@ export class ServerAuditFailLog extends React.Component {
                                                 }}
                                                 aria-label="FormSelect Input"
                                             >
-                                                <FormSelectOption key="2" value="day" label="day" />
-                                                <FormSelectOption key="3" value="week" label="week" />
-                                                <FormSelectOption key="4" value="month" label="month" />
+                                                <FormSelectOption key="2" value="day" label={_("day")} />
+                                                <FormSelectOption key="3" value="week" label={_("week")} />
+                                                <FormSelectOption key="4" value="month" label={_("month")} />
                                             </FormSelect>
                                         </GridItem>
                                     </div>
@@ -645,7 +648,7 @@ export class ServerAuditFailLog extends React.Component {
                                 this.saveConfig("exp");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveDeletionName}
@@ -659,7 +662,7 @@ export class ServerAuditFailLog extends React.Component {
             body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
-                        <Text component={TextVariants.h3}>Loading Audit Fail Log Settings ...</Text>
+                        <Text component={TextVariants.h3}>{_("Loading Audit Fail Log Settings ...")}</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
                 </div>
@@ -672,12 +675,12 @@ export class ServerAuditFailLog extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Audit Fail Log Settings
+                                {_("Audit Fail Log Settings")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh log settings"
+                                    title={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}

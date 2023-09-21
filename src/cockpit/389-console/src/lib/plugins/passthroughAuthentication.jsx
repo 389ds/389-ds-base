@@ -20,6 +20,8 @@ import PropTypes from "prop-types";
 import { log_cmd, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class PassthroughAuthentication extends React.Component {
     constructor(props) {
         super(props);
@@ -305,7 +307,7 @@ class PassthroughAuthentication extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteURL", "Result", content);
-                    this.props.addNotification("success", `URL ${this.state.deleteName} was successfully deleted`);
+                    this.props.addNotification("success", cockpit.format(_("URL $0 was successfully deleted"), this.state.deleteName));
                     this.loadURLs();
                     this.closeConfirmDeleteURL();
                 })
@@ -313,7 +315,7 @@ class PassthroughAuthentication extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the URL removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the URL removal operation - $0"), errMsg.desc)
                     );
                     this.loadURLs();
                     this.closeConfirmDeleteURL();
@@ -377,7 +379,7 @@ class PassthroughAuthentication extends React.Component {
                     console.info("PassthroughAuthOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${constructedURL}" entry`
+                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, constructedURL)
                     );
                     this.loadURLs();
                     this.handleCloseURLModal();
@@ -386,7 +388,7 @@ class PassthroughAuthentication extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the URL ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the URL $0 operation - $1"), action, errMsg.desc)
                     );
                     this.loadURLs();
                     this.handleCloseURLModal();
@@ -413,53 +415,53 @@ class PassthroughAuthentication extends React.Component {
 
         const modalURLFields = {
             urlAuthDS: {
-                name: "Authentication Hostname",
+                name: _("Authentication Hostname"),
                 id: 'urlAuthDS',
                 value: urlAuthDS,
-                help: `The authenticating directory host name. The port number of the Directory Server can be given by adding a colon and then the port number. For example, dirserver.example.com:389. If the port number is not specified, the PTA server attempts to connect using either of the standard ports: Port 389 if ldap:// is specified in the URL. Port 636 if ldaps:// is specified in the URL.`
+                help: _("The authenticating directory host name. The port number of the Directory Server can be given by adding a colon and then the port number. For example, dirserver.example.com:389. If the port number is not specified, the PTA server attempts to connect using either of the standard ports: Port 389 if ldap:// is specified in the URL. Port 636 if ldaps:// is specified in the URL.")
             },
             urlSubtree: {
-                name: "Subtree",
+                name: _("Subtree"),
                 id: 'urlSubtree',
                 value: urlSubtree,
-                help: `The pass-through subtree. The PTA Directory Server passes through bind requests to the authenticating Directory Server from all clients whose DN is in this subtree.`
+                help: _("The pass-through subtree. The PTA Directory Server passes through bind requests to the authenticating Directory Server from all clients whose DN is in this subtree.")
             },
         };
         const modalURLNumberFields = {
             urlMaxConns: {
-                name: "Maximum Number of Connections",
+                name: _("Maximum Number of Connections"),
                 value: urlMaxConns,
                 id: 'urlMaxConns',
-                help: `The maximum number of connections the PTA directory can simultaneously open to the authenticating directory.`
+                help: _("The maximum number of connections the PTA directory can simultaneously open to the authenticating directory.")
             },
             urlMaxOps: {
-                name: "Maximum Number of Simultaneous Operations",
+                name: _("Maximum Number of Simultaneous Operations"),
                 value: urlMaxOps,
                 id: 'urlMaxOps',
-                help: `The maximum number of simultaneous operations (usually bind requests) the PTA directory can send to the authenticating directory within a single connection.`
+                help: _("The maximum number of simultaneous operations (usually bind requests) the PTA directory can send to the authenticating directory within a single connection.")
             },
             urlTimeout: {
-                name: "Timeout",
+                name: _("Timeout"),
                 value: urlTimeout,
                 id: 'urlTimeout',
-                help: `The time limit, in seconds, that the PTA directory waits for a response from the authenticating Directory Server. If this timeout is exceeded, the server returns an error to the client. The default is 300 seconds (five minutes). Specify zero (0) to indicate no time limit should be enforced.`
+                help: _("The time limit, in seconds, that the PTA directory waits for a response from the authenticating Directory Server. If this timeout is exceeded, the server returns an error to the client. The default is 300 seconds (five minutes). Specify zero (0) to indicate no time limit should be enforced.")
             },
             urlConnLifeTime: {
-                name: "Connection Life Time",
+                name: _("Connection Life Time"),
                 value: urlConnLifeTime,
                 id: 'urlConnLifeTime',
-                help: `The time limit, in seconds, within which a connection may be used.`
+                help: _("The time limit, in seconds, within which a connection may be used.")
             }
         };
 
-        let saveBtnName = "Save Config";
+        let saveBtnName = _("Save Config");
         const extraPrimaryProps = {};
         if (this.state.savingPassthru) {
-            saveBtnName = "Saving Config ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving Config ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
-        const title_url = (newURLEntry ? "Add " : "Edit ") + "Pass-Though Authentication URL";
+        const title_url = cockpit.format(_("$0 Pass-Though Authentication URL"), (newURLEntry ? _("Add") : _("Edit")));
 
         return (
             <div className={savingPassthru ? "ds-disabled" : ""}>
@@ -475,13 +477,13 @@ class PassthroughAuthentication extends React.Component {
                             onClick={newURLEntry ? this.addURL : this.editURL}
                             isDisabled={this.state.saveBtnDisabledPassthru || this.state.savingPassthru}
                             isLoading={this.state.savingPassthru}
-                            spinnerAriaValueText={this.state.savingPassthru ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.savingPassthru ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseURLModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
@@ -490,9 +492,9 @@ class PassthroughAuthentication extends React.Component {
                             <GridItem
                                 className="ds-label"
                                 span={5}
-                                title="Defines whether TLS is used for communication between the two Directory Servers."
+                                title={_("Defines whether TLS is used for communication between the two Directory Servers.")}
                             >
-                                Connection Type
+                                {_("Connection Type")}
                             </GridItem>
                             <GridItem span={7}>
                                 <FormSelect
@@ -554,9 +556,9 @@ class PassthroughAuthentication extends React.Component {
                             <GridItem
                                 className="ds-label"
                                 span={5}
-                                title="The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated."
+                                title={_("The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated.")}
                             >
-                                Version
+                                {_("Version")}
                             </GridItem>
                             <GridItem span={7}>
                                 <FormSelect
@@ -578,15 +580,15 @@ class PassthroughAuthentication extends React.Component {
                                     id="urlStartTLS"
                                     isChecked={urlStartTLS}
                                     onChange={(checked, e) => { this.handlePassthruChange(e) }}
-                                    title="A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:."
-                                    label="Enable StartTLS"
+                                    title={_("A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.")}
+                                    label={_("Enable StartTLS")}
                                 />
                             </GridItem>
                         </Grid>
                         <hr />
-                        <Grid title="The URL that will be added or modified after you click 'Save'">
+                        <Grid title={_("The URL that will be added or modified after you click 'Save'")}>
                             <GridItem className="ds-label" span={5}>
-                                Result URL
+                                {_("Result URL")}
                             </GridItem>
                             <GridItem span={7}>
                                 <b>
@@ -622,7 +624,7 @@ class PassthroughAuthentication extends React.Component {
                             variant="primary"
                             onClick={this.handleShowAddURLModal}
                         >
-                            Add URL
+                            {_("Add URL")}
                         </Button>
                     </div>
                 </PluginBasicConfig>
@@ -634,10 +636,10 @@ class PassthroughAuthentication extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Passthru Authentication URL"
-                    mMsg="Are you sure you want to delete this URL?"
-                    mSpinningMsg="Deleting URL..."
-                    mBtnName="Delete URL"
+                    mTitle={_("Delete Passthru Authentication URL")}
+                    mMsg={_("Are you sure you want to delete this URL?")}
+                    mSpinningMsg={_("Deleting URL...")}
+                    mBtnName={_("Delete URL")}
                 />
             </div>
         );

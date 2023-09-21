@@ -19,6 +19,8 @@ import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 
+const _ = cockpit.gettext;
+
 class RetroChangelog extends React.Component {
     componentDidMount(prevProps) {
         if (this.state.firstLoad) {
@@ -319,7 +321,7 @@ class RetroChangelog extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Successfully updated the Retro Changelog`
+                        _("Successfully updated the Retro Changelog")
                     );
                     this.props.pluginListHandler();
                     this.setState({
@@ -330,7 +332,7 @@ class RetroChangelog extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to update Retro Changelog Plugin - ${errMsg.desc}`
+                        cockpit.format(_("Failed to update Retro Changelog Plugin - $0"), errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.setState({
@@ -351,11 +353,11 @@ class RetroChangelog extends React.Component {
             error
         } = this.state;
 
-        let saveBtnName = "Save";
+        let saveBtnName = _("Save");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Saving ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
@@ -372,9 +374,9 @@ class RetroChangelog extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="This attribute specifies the suffix which will be excluded from the scope of the plugin (nsslapd-exclude-suffix)">
+                        <Grid title={_("This attribute specifies the suffix which will be excluded from the scope of the plugin (nsslapd-exclude-suffix)")}>
                             <GridItem className="ds-label" span={2}>
-                                Exclude Suffix
+                                {_("Exclude Suffix")}
                             </GridItem>
                             <GridItem span={5}>
                                 <Select
@@ -386,8 +388,8 @@ class RetroChangelog extends React.Component {
                                     selections={excludeSuffix}
                                     isOpen={this.state.isExcludeSuffixOpen}
                                     aria-labelledby="typeAhead-config-exclude-suffix"
-                                    placeholderText="Type a suffix..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a suffix...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleOnExcludeSuffixCreateOption}
                                     validated={error.excludeSuffix ? ValidatedOptions.error : ValidatedOptions.default}
@@ -400,7 +402,7 @@ class RetroChangelog extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!error.excludeSuffix}>
-                                    Values must be valid DN !
+                                    {_("Values must be valid DN !")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={2}>
@@ -408,14 +410,14 @@ class RetroChangelog extends React.Component {
                                     id="isReplicated"
                                     isChecked={isReplicated}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    title="Sets a flag to indicate on a change in the changelog whether the change is newly made on that server or whether it was replicated over from another server (isReplicated)"
-                                    label="Is Replicated"
+                                    title={_("Sets a flag to indicate on a change in the changelog whether the change is newly made on that server or whether it was replicated over from another server (isReplicated)")}
+                                    label={_("Is Replicated")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="This specifies attribute which will be excluded from the scope of the plugin (nsslapd-exclude-attrs)">
+                        <Grid title={_("This specifies attribute which will be excluded from the scope of the plugin (nsslapd-exclude-attrs)")}>
                             <GridItem className="ds-label" span={2}>
-                                Exclude attribute
+                                {_("Exclude attribute")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -427,8 +429,8 @@ class RetroChangelog extends React.Component {
                                     selections={excludeAttrs}
                                     isOpen={this.state.isExcludeAttrOpen}
                                     aria-labelledby="typeAhead-config-exclude-attr"
-                                    placeholderText="Type an attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     validated={error.excludeAttrs ? ValidatedOptions.error : ValidatedOptions.default}
                                 >
                                     {this.props.attributes.map((attr, index) => (
@@ -440,9 +442,9 @@ class RetroChangelog extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies the maximum age of any entry in the changelog before it is trimmed from the database (nsslapd-changelogmaxage)">
+                        <Grid title={_("Specifies the maximum age of any entry in the changelog before it is trimmed from the database (nsslapd-changelogmaxage)")}>
                             <GridItem className="ds-label" span={2}>
-                                Max Age
+                                {_("Max Age")}
                             </GridItem>
                             <GridItem span={2}>
                                 <NumberInput
@@ -470,16 +472,16 @@ class RetroChangelog extends React.Component {
                                     aria-label="FormSelect Input"
                                     isDisabled={maxAge === 0}
                                 >
-                                    <FormSelectOption key="1" value="w" label="Weeks" />
-                                    <FormSelectOption key="2" value="d" label="Days" />
-                                    <FormSelectOption key="3" value="h" label="Hours" />
-                                    <FormSelectOption key="4" value="m" label="Minutes" />
+                                    <FormSelectOption key="1" value="w" label={_("Weeks")} />
+                                    <FormSelectOption key="2" value="d" label={_("Days")} />
+                                    <FormSelectOption key="3" value="h" label={_("Hours")} />
+                                    <FormSelectOption key="4" value="m" label={_("Minutes")} />
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Sets in seconds how often the plugin checks if changes can be trimmed from the database based on the entry's max age (nsslapd-changelog-trim-interval)">
+                        <Grid className="ds-margin-top" title={_("Sets in seconds how often the plugin checks if changes can be trimmed from the database based on the entry's max age (nsslapd-changelog-trim-interval)")}>
                             <GridItem className="ds-label" span={2}>
-                                Trimming Interval
+                                {_("Trimming Interval")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -504,7 +506,7 @@ class RetroChangelog extends React.Component {
                         onClick={this.handleSavePlugin}
                         isDisabled={this.state.saveBtnDisabled || this.state.saving}
                         isLoading={this.state.saving}
-                        spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                        spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}

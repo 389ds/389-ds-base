@@ -22,6 +22,8 @@ import {
     Spinner,
 } from "@patternfly/react-core";
 
+const _ = cockpit.gettext;
+
 export class CreateInstanceModal extends React.Component {
     constructor(props) {
         super(props);
@@ -108,11 +110,11 @@ export class CreateInstanceModal extends React.Component {
             if (this.state.createServerId.length > 80) {
                 all_good = false;
                 errObj.createServerId = true;
-                createServerIdMsg = "Instance name must be less than 80 characters";
+                createServerIdMsg = _("Instance name must be less than 80 characters");
             } else if (!this.validInstName(this.state.createServerId)) {
                 all_good = false;
                 errObj.createServerId = true;
-                createServerIdMsg = "Instance name can only contain letters, numbers, and these 4 characters:  - @ : _";
+                createServerIdMsg = _("Instance name can only contain letters, numbers, and these 4 characters:  - @ : _");
             }
         }
 
@@ -230,7 +232,7 @@ export class CreateInstanceModal extends React.Component {
                     this.setState({
                         loadingCreate: false
                     });
-                    addNotification("error", `Failed to get hostname!", ${errMsg.desc}`);
+                    addNotification("error", cockpit.format(_("Failed to get hostname! $0"), errMsg.desc));
                 })
                 .done(data => {
                     /*
@@ -252,10 +254,10 @@ export class CreateInstanceModal extends React.Component {
                                 });
                                 addNotification(
                                     "error",
-                                    `Failed to create installation file!" ${err.message}`
+                                    cockpit.format(_("Failed to create installation file! $0"), err.message)
                                 );
                             })
-                            .done(_ => {
+                            .done(() => {
                                 /*
                                  * We have our new setup file, now set permissions on that setup file before we add sensitive data
                                  */
@@ -270,10 +272,10 @@ export class CreateInstanceModal extends React.Component {
                                             });
                                             addNotification(
                                                 "error",
-                                                `Failed to set permissions on setup file ${setup_file}: ${err.message}`
+                                                cockpit.format(_("Failed to set permissions on setup file $0: $1"), setup_file, err.message)
                                             );
                                         })
-                                        .done(_ => {
+                                        .done(() => {
                                             /*
                                              * Success we have our setup file and it has the correct permissions.
                                              * Now populate the setup file...
@@ -293,10 +295,10 @@ export class CreateInstanceModal extends React.Component {
                                                         });
                                                         addNotification(
                                                             "error",
-                                                            `Failed to populate installation file! ${err.message}`
+                                                            cockpit.format(_("Failed to populate installation file! $0"), err.message)
                                                         );
                                                     })
-                                                    .done(_ => {
+                                                    .done(() => {
                                                         /*
                                                          * Next, create the instance...
                                                          */
@@ -318,7 +320,7 @@ export class CreateInstanceModal extends React.Component {
                                                                         `${errMsg.desc}`
                                                                     );
                                                                 })
-                                                                .done(_ => {
+                                                                .done(() => {
                                                                     // Success!!!  Now set Root DN pw, and cleanup everything up...
                                                                     log_cmd("handleCreateInstance", "Instance creation compelete, remove INF file...", rm_cmd);
                                                                     cockpit.spawn(rm_cmd, { superuser: true });
@@ -330,15 +332,15 @@ export class CreateInstanceModal extends React.Component {
                                                                         promptArg: "",
                                                                         passwd: createDMPassword,
                                                                         addNotification,
-                                                                        success_msg: `Successfully created instance: slapd-${createServerId}`,
-                                                                        error_msg: "Failed to set Directory Manager password",
+                                                                        success_msg: cockpit.format(_("Successfully created instance: slapd-$0"), createServerId),
+                                                                        error_msg: _("Failed to set Directory Manager password"),
                                                                         state_callback: () => { this.setState({ loadingCreate: false }) },
                                                                         reload_func: loadInstanceList,
                                                                         reload_arg: createServerId,
                                                                         ext_func: closeHandler,
                                                                         ext_arg: "",
                                                                         funcName: "handleCreateInstance",
-                                                                        funcDesc: "Set Directory Manager password..."
+                                                                        funcDesc: _("Set Directory Manager password...")
                                                                     };
                                                                     callCmdStreamPassword(config);
                                                                 });
@@ -368,17 +370,17 @@ export class CreateInstanceModal extends React.Component {
             errObj,
         } = this.state;
 
-        let saveBtnName = "Create Instance";
+        let saveBtnName = _("Create Instance");
         const extraPrimaryProps = {};
         if (loadingCreate) {
-            saveBtnName = "Creating Instance ...";
+            saveBtnName = _("Creating Instance ...");
             extraPrimaryProps.spinnerAriaValueText = "Saving";
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Create New Server Instance"
+                title={_("Create New Server Instance")}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -395,15 +397,15 @@ export class CreateInstanceModal extends React.Component {
                         {saveBtnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <div className={loadingCreate ? "ds-disabled" : ""}>
                     <Form isHorizontal autoComplete="off">
-                        <Grid className="ds-margin-top" title="The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and: # @ : - _">
+                        <Grid className="ds-margin-top" title={_("The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and: # @ : - _")}>
                             <GridItem className="ds-label" span={4}>
-                                Instance Name
+                                {_("Instance Name")}
                             </GridItem>
                             <GridItem span={8}>
                                 <TextInput
@@ -422,9 +424,9 @@ export class CreateInstanceModal extends React.Component {
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="The server port number should be in the range of 0 to 65534.">
+                        <Grid title={_("The server port number should be in the range of 0 to 65534.")}>
                             <GridItem className="ds-label" span={4}>
-                                Port
+                                {_("Port")}
                             </GridItem>
                             <GridItem span={8}>
                                 <NumberInput
@@ -441,13 +443,13 @@ export class CreateInstanceModal extends React.Component {
                                     widthChars={8}
                                 />
                                 <FormHelperText className="ds-info-color" isHidden={createPort !== 0}>
-                                    Port 0 will disable non-TLS connections
+                                    {_("Port 0 will disable non-TLS connections")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="The secure port number for TLS connections. It should be in the range of 1 to 65534.">
+                        <Grid title={_("The secure port number for TLS connections. It should be in the range of 1 to 65534.")}>
                             <GridItem className="ds-label" span={4}>
-                                Secure Port
+                                {_("Secure Port")}
                             </GridItem>
                             <GridItem span={8}>
                                 <NumberInput
@@ -465,9 +467,9 @@ export class CreateInstanceModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Create a self-signed certificate database in /etc/dirsrc/ssca directory.">
+                        <Grid title={_("Create a self-signed certificate database in /etc/dirsrc/ssca directory.")}>
                             <GridItem className="ds-label-checkbox" span={4}>
-                                Create Self-Signed TLS Certificate
+                                {_("Create Self-Signed TLS Certificate")}
                             </GridItem>
                             <GridItem span={8}>
                                 <Checkbox
@@ -479,9 +481,9 @@ export class CreateInstanceModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="The DN for the unrestricted user">
+                        <Grid title={_("The DN for the unrestricted user")}>
                             <GridItem className="ds-label" span={4}>
-                                Directory Manager DN
+                                {_("Directory Manager DN")}
                             </GridItem>
                             <GridItem span={8}>
                                 <TextInput
@@ -496,13 +498,13 @@ export class CreateInstanceModal extends React.Component {
                                     validated={errObj.createDM ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errObj.createDM}>
-                                    Enter a valid DN
+                                    {_("Enter a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Directory Manager password must be at least 8 characters in length.">
+                        <Grid title={_("Directory Manager password must be at least 8 characters in length.")}>
                             <GridItem className="ds-label" span={4}>
-                                Directory Manager Password
+                                {_("Directory Manager Password")}
                             </GridItem>
                             <GridItem span={8}>
                                 <TextInput
@@ -517,13 +519,13 @@ export class CreateInstanceModal extends React.Component {
                                     validated={errObj.createDMPassword ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errObj.createDMPassword}>
-                                    Password must be set and it must match the confirmation password.
+                                    {_("Password must be set and it must match the confirmation password.")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Confirm the previously entered password.">
+                        <Grid title={_("Confirm the previously entered password.")}>
                             <GridItem className="ds-label" span={4}>
-                                Confirm Password
+                                {_("Confirm Password")}
                             </GridItem>
                             <GridItem span={8}>
                                 <TextInput
@@ -538,14 +540,14 @@ export class CreateInstanceModal extends React.Component {
                                     validated={errObj.createDMPasswordConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!errObj.createDMPasswordConfirm}>
-                                    Confirmation password must be set and it must match the first password.
+                                    {_("Confirmation password must be set and it must match the first password.")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Create a database during the installation.">
+                        <Grid className="ds-margin-top" title={_("Create a database during the installation.")}>
                             <Checkbox
                                 id="createDBCheckbox"
-                                label="Create Database"
+                                label={_("Create Database")}
                                 isChecked={createDBCheckbox}
                                 onChange={(checked, e) => {
                                     this.handleFieldChange(e);
@@ -553,9 +555,9 @@ export class CreateInstanceModal extends React.Component {
                             />
                         </Grid>
                         <div className={createDBCheckbox ? "" : "ds-hidden"}>
-                            <Grid title="Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)">
+                            <Grid title={_("Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)")}>
                                 <GridItem className="ds-label" offset={1} span={3}>
-                                    Database Suffix
+                                    {_("Database Suffix")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <TextInput
@@ -572,13 +574,13 @@ export class CreateInstanceModal extends React.Component {
                                         validated={errObj.createDBSuffix ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
                                     <FormHelperText isError isHidden={!errObj.createDBSuffix}>
-                                        Value must be a valid DN
+                                        {_("Value must be a valid DN")}
                                     </FormHelperText>
                                 </GridItem>
                             </Grid>
-                            <Grid title="The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
+                            <Grid title={_("The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.")}>
                                 <GridItem className="ds-label" offset={1} span={3}>
-                                    Database Name
+                                    {_("Database Name")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <TextInput
@@ -595,13 +597,13 @@ export class CreateInstanceModal extends React.Component {
                                         validated={errObj.createDBName ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
                                     <FormHelperText isError isHidden={!errObj.createDBName}>
-                                        Name is required
+                                        {_("Name is required")}
                                     </FormHelperText>
                                 </GridItem>
                             </Grid>
                             <Grid>
                                 <GridItem className="ds-label" offset={1} span={3}>
-                                    Database Initialization
+                                    {_("Database Initialization")}
                                 </GridItem>
                                 <GridItem span={8}>
                                     <FormSelect
@@ -613,9 +615,9 @@ export class CreateInstanceModal extends React.Component {
                                         aria-label="FormSelect Input"
                                         isDisabled={!createDBCheckbox}
                                     >
-                                        <FormSelectOption key="1" value="noInit" label="Do Not Initialize Database" />
-                                        <FormSelectOption key="2" value="createSuffix" label="Create Suffix Entry" />
-                                        <FormSelectOption key="3" value="createSample" label="Create Sample Entries" />
+                                        <FormSelectOption key="1" value="noInit" label={_("Do Not Initialize Database")} />
+                                        <FormSelectOption key="2" value="createSuffix" label={_("Create Suffix Entry")} />
+                                        <FormSelectOption key="3" value="createSample" label={_("Create Sample Entries")} />
                                     </FormSelect>
                                 </GridItem>
                             </Grid>
@@ -662,7 +664,7 @@ export class SchemaReloadModal extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(data => {
-                    addNotification("success", "Successfully reloaded schema");
+                    addNotification("success", _("Successfully reloaded schema"));
                     this.setState({
                         loadingSchemaTask: false
                     });
@@ -670,7 +672,7 @@ export class SchemaReloadModal extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    addNotification("error", `Failed to reload schema files - ${errMsg.desc}`);
+                    addNotification("error", cockpit.format(_("Failed to reload schema files - $0"), errMsg.desc));
                     closeHandler();
                 });
     }
@@ -694,21 +696,21 @@ export class SchemaReloadModal extends React.Component {
         return (
             <Modal
                 variant={ModalVariant.small}
-                title="Reload Schema Files"
+                title={_("Reload Schema Files")}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
                     <Button key="confirm" variant="primary" onClick={this.handleReloadSchema}>
-                        Reload Schema
+                        {_("Reload Schema")}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <Grid title="The name of the database link.">
+                    <Grid title={_("The name of the database link.")}>
                         <GridItem className="ds-label" span={3}>
                             Schema File Directory
                         </GridItem>
@@ -885,7 +887,7 @@ export class ManageBackupsModal extends React.Component {
                             if (bad_file_name(this.state.backupName)) {
                                 this.props.addNotification(
                                     "warning",
-                                    `Backup name should not be a path.  All backups are stored in the server's backup directory`
+                                    _("Backup name should not be a path.  All backups are stored in the server's backup directory")
                                 );
                                 return;
                             }
@@ -910,18 +912,18 @@ export class ManageBackupsModal extends React.Component {
                                                 const attrs = config.attrs;
                                                 this.props.addNotification(
                                                     "success",
-                                                    `Server has been backed up. You can find the backup in ${attrs['nsslapd-bakdir'][0]} directory on the server machine.`
+                                                    cockpit.format(_("Server has been backed up. You can find the backup in $0 directory on the server machine."), attrs['nsslapd-bakdir'][0])
                                                 );
                                             })
                                             .fail(err => {
                                                 const errMsg = JSON.parse(err);
                                                 this.props.addNotification(
                                                     "success",
-                                                    `Server has been backed up.`
+                                                    _("Server has been backed up.")
                                                 );
                                                 this.props.addNotification(
                                                     "error",
-                                                    `Error while trying to get the server's backup directory- ${errMsg.desc}`
+                                                    cockpit.format(_("Error while trying to get the server's backup directory- $0"), errMsg.desc)
                                                 );
                                             });
                                 })
@@ -931,7 +933,7 @@ export class ManageBackupsModal extends React.Component {
                                     this.closeBackupModal();
                                     this.props.addNotification(
                                         "error",
-                                        `Failure backing up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
                                     );
                                 });
                     } else {
@@ -940,7 +942,7 @@ export class ManageBackupsModal extends React.Component {
                             if (bad_file_name(this.state.backupName)) {
                                 this.props.addNotification(
                                     "warning",
-                                    `Backup name should not be a path.  All backups are stored in the server's backup directory`
+                                    _("Backup name should not be a path.  All backups are stored in the server's backup directory")
                                 );
                                 return;
                             }
@@ -952,7 +954,7 @@ export class ManageBackupsModal extends React.Component {
                                 .done(content => {
                                     this.props.reload();
                                     this.closeBackupModal();
-                                    this.props.addNotification("success", `Server has been backed up`);
+                                    this.props.addNotification("success", _("Server has been backed up"));
                                 })
                                 .fail(err => {
                                     const errMsg = JSON.parse(err);
@@ -960,7 +962,7 @@ export class ManageBackupsModal extends React.Component {
                                     this.closeBackupModal();
                                     this.props.addNotification(
                                         "error",
-                                        `Failure backing up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure backing up server - $0"), errMsg.desc)
                                     );
                                 });
                     }
@@ -994,14 +996,14 @@ export class ManageBackupsModal extends React.Component {
                                 .spawn(cmd, { superuser: true, err: "message" })
                                 .done(content => {
                                     this.closeConfirmRestore();
-                                    this.props.addNotification("success", `Server has been restored`);
+                                    this.props.addNotification("success", _("Server has been restored"));
                                 })
                                 .fail(err => {
                                     const errMsg = JSON.parse(err);
                                     this.closeConfirmRestore();
                                     this.props.addNotification(
                                         "error",
-                                        `Failure restoring up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
                                     );
                                 });
                     } else {
@@ -1017,14 +1019,14 @@ export class ManageBackupsModal extends React.Component {
                                 .spawn(cmd, { superuser: true, err: "message" })
                                 .done(content => {
                                     this.closeRestoreSpinningModal();
-                                    this.props.addNotification("success", `Server has been restored`);
+                                    this.props.addNotification("success", _("Server has been restored"));
                                 })
                                 .fail(err => {
                                     const errMsg = JSON.parse(err);
                                     this.closeRestoreSpinningModal();
                                     this.props.addNotification(
                                         "error",
-                                        `Failure restoring up server - ${errMsg.desc}`
+                                        cockpit.format(_("Failure restoring up server - $0"), errMsg.desc)
                                     );
                                 });
                     }
@@ -1055,7 +1057,7 @@ export class ManageBackupsModal extends React.Component {
                     this.setState({
                         modalSpinning: false,
                     });
-                    this.props.addNotification("success", `Backup was successfully deleted`);
+                    this.props.addNotification("success", _("Backup was successfully deleted"));
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -1063,7 +1065,7 @@ export class ManageBackupsModal extends React.Component {
                     this.setState({
                         modalSpinning: false,
                     });
-                    this.props.addNotification("error", `Failure deleting backup - ${errMsg.desc}`);
+                    this.props.addNotification("error", cockpit.format(_("Failure deleting backup - $0"), errMsg.desc));
                 });
     }
 
@@ -1092,13 +1094,13 @@ export class ManageBackupsModal extends React.Component {
             <div>
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Manage Backups"
+                    title={_("Manage Backups")}
                     aria-labelledby="ds-modal"
                     isOpen={showModal}
                     onClose={closeHandler}
                     actions={[
                         <Button key="confirm" variant="primary" onClick={this.handleShowBackupModal}>
-                            Create Backup
+                            {_("Create Backup")}
                         </Button>,
                     ]}
                 >
@@ -1126,10 +1128,10 @@ export class ManageBackupsModal extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.backupName}
                     checked={this.state.modalChecked}
-                    mTitle="Restore Backup"
-                    mMsg="Are you sure you want to restore this backup?"
-                    mSpinningMsg="Restoring ..."
-                    mBtnName="Restore Backup"
+                    mTitle={_("Restore Backup")}
+                    mMsg={_("Are you sure you want to restore this backup?")}
+                    mSpinningMsg={_("Restoring ...")}
+                    mBtnName={_("Restore Backup")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmBackupDelete}
@@ -1139,10 +1141,10 @@ export class ManageBackupsModal extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.backupName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Backup"
-                    mMsg="Are you sure you want to delete this backup?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete Backup"
+                    mTitle={_("Delete Backup")}
+                    mMsg={_("Are you sure you want to delete this backup?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete Backup")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmRestoreReplace}
@@ -1152,10 +1154,10 @@ export class ManageBackupsModal extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.doBackup}
                     checked={this.state.modalChecked}
-                    mTitle="Replace Existing Backup"
-                    mMsg=" backup already eixsts with the same name, do you want to replace it?"
-                    mSpinningMsg="Replacing ..."
-                    mBtnName="Replace Backup"
+                    mTitle={_("Replace Existing Backup")}
+                    mMsg={_(" backup already eixsts with the same name, do you want to replace it?")}
+                    mSpinningMsg={_("Replacing ...")}
+                    mBtnName={_("Replace Backup")}
                 />
             </div>
         );

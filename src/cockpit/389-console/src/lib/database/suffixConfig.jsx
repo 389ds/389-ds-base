@@ -1,4 +1,5 @@
 import React from "react";
+import cockpit from "cockpit";
 import PropTypes from "prop-types";
 import {
     Button,
@@ -11,6 +12,8 @@ import {
     TextInput,
 } from "@patternfly/react-core";
 
+const _ = cockpit.gettext;
+
 export class SuffixConfig extends React.Component {
     render() {
         let cacheInputs;
@@ -19,9 +22,9 @@ export class SuffixConfig extends React.Component {
             const cachememValue = this.props.cachememsize + "  (auto-sized)";
             cacheInputs = (
                 <Form isHorizontal autoComplete="off">
-                    <Grid title="The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration">
+                    <Grid title={_("The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration")}>
                         <GridItem className="ds-label" span={3}>
-                            Entry Cache Size
+                            {_("Entry Cache Size")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -34,9 +37,9 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration">
+                    <Grid title={_("The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration")}>
                         <GridItem className="ds-label" span={3}>
-                            Entry Cache Max Entries
+                            {_("Entry Cache Max Entries")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -49,9 +52,9 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="The available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
+                    <Grid title={_("The available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).")}>
                         <GridItem className="ds-label" span={3}>
-                            DN Cache Size
+                            {_("DN Cache Size")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -71,9 +74,9 @@ export class SuffixConfig extends React.Component {
         } else {
             cacheInputs = (
                 <Form isHorizontal autoComplete="off">
-                    <Grid title="The size for the available memory space in bytes for the entry cache (nsslapd-cachememsize).">
+                    <Grid title={_("The size for the available memory space in bytes for the entry cache (nsslapd-cachememsize).")}>
                         <GridItem className="ds-label" span={3}>
-                            Entry Cache Size
+                            {_("Entry Cache Size")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -88,9 +91,9 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize).">
+                    <Grid title={_("The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize).")}>
                         <GridItem className="ds-label" span={3}>
-                            Entry Cache Max Entries
+                            {_("Entry Cache Max Entries")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -105,9 +108,9 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="the available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
+                    <Grid title={_("the available memory space in bytes for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).")}>
                         <GridItem className="ds-label" span={3}>
-                            DN Cache Size
+                            {_("DN Cache Size")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -126,11 +129,11 @@ export class SuffixConfig extends React.Component {
             );
         }
 
-        let saveBtnName = "Save Configuration";
+        let saveBtnName = _("Save Configuration");
         const extraPrimaryProps = {};
         if (this.props.saving) {
-            saveBtnName = "Saving ...";
-            extraPrimaryProps.spinnerAriaValueText = "saving";
+            saveBtnName = _("Saving ...");
+            extraPrimaryProps.spinnerAriaValueText = _("saving");
         }
         return (
             <div className="ds-margin-top-lg">
@@ -138,10 +141,10 @@ export class SuffixConfig extends React.Component {
                 <Form isHorizontal autoComplete="off">
                     <Grid
                         className="ds-margin-top-lg"
-                        title="Set the backend type.  Warning, changing this setting could lead to unexpected database behavior."
+                        title={_("Set the backend type.  Warning, changing this setting could lead to unexpected database behavior.")}
                     >
                         <GridItem className="ds-label" span={3}>
-                            Backend State
+                            {_("Backend State")}
                         </GridItem>
                         <GridItem span={9}>
                             <FormSelect
@@ -152,17 +155,17 @@ export class SuffixConfig extends React.Component {
                                 }}
                                 aria-label="FormSelect Input"
                             >
-                                <FormSelectOption value="backend" label="Backend" />
-                                <FormSelectOption value="disabled" label="Disabled" />
-                                <FormSelectOption value="referral" label="Referral" />
-                                <FormSelectOption value="referral on update" label="Referral On Update" />
+                                <FormSelectOption value="backend" label={_("Backend")} />
+                                <FormSelectOption value="disabled" label={_("Disabled")} />
+                                <FormSelectOption value="referral" label={_("Referral")} />
+                                <FormSelectOption value="referral on update" label={_("Referral On Update")} />
                             </FormSelect>
                         </GridItem>
                     </Grid>
-                    <Grid title="Put database in Read-Only mode (nsslapd-readonly).">
+                    <Grid title={_("Put database in Read-Only mode (nsslapd-readonly).")}>
                         <GridItem span={12}>
                             <Checkbox
-                                label="Database Read-Only Mode"
+                                label={_("Database Read-Only Mode")}
                                 id="readOnly"
                                 isChecked={this.props.readOnly}
                                 onChange={(checked, e) => {
@@ -172,10 +175,10 @@ export class SuffixConfig extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid title="Block unindexed searches on this suffix (nsslapd-require-index).">
+                    <Grid title={_("Block unindexed searches on this suffix (nsslapd-require-index).")}>
                         <GridItem span={12}>
                             <Checkbox
-                                label="Block Unindexed Searches"
+                                label={_("Block Unindexed Searches")}
                                 id="requireIndex"
                                 isChecked={this.props.requireIndex}
                                 onChange={(checked, e) => {
@@ -192,7 +195,7 @@ export class SuffixConfig extends React.Component {
                         onClick={this.props.handleSave}
                         variant="primary"
                         isLoading={this.props.saving}
-                        spinnerAriaValueText={this.props.saving ? "Saving" : undefined}
+                        spinnerAriaValueText={this.props.saving ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                         isDisabled={this.props.saveBtnDisabled || this.props.saving}
                     >

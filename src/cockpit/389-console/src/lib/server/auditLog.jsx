@@ -62,6 +62,8 @@ const exp_attrs = [
     'nsslapd-auditlog-logminfreediskspace',
 ];
 
+const _ = cockpit.gettext;
+
 export class ServerAuditLog extends React.Component {
     constructor(props) {
         super(props);
@@ -297,7 +299,7 @@ l
                     this.refreshConfig();
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Audit Log settings"
+                        _("Successfully updated Audit Log settings")
                     );
                 })
                 .fail(err => {
@@ -305,7 +307,7 @@ l
                     this.refreshConfig();
                     this.props.addNotification(
                         "error",
-                        `Error saving Audit Log settings - ${errMsg.desc}`
+                        cockpit.format(_("Error saving Audit Log settings - $0"), errMsg.desc)
                     );
                 });
     }
@@ -390,7 +392,7 @@ l
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error loading Audit Log configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading Audit Log configuration - $0"), errMsg.desc)
                     );
                     this.setState({
                         loading: false,
@@ -464,19 +466,19 @@ l
     }
 
     render() {
-        let saveSettingsName = "Save Log Settings";
-        let saveRotationName = "Save Rotation Settings";
-        let saveDeletionName = "Save Deletion Settings";
+        let saveSettingsName = _("Save Log Settings");
+        let saveRotationName = _("Save Rotation Settings");
+        let saveDeletionName = _("Save Deletion Settings");
         const extraPrimaryProps = {};
         let rotationTime = "";
         let hour = this.state['nsslapd-auditlog-logrotationsynchour'] ? this.state['nsslapd-auditlog-logrotationsynchour'] : "00";
         let min = this.state['nsslapd-auditlog-logrotationsyncmin'] ? this.state['nsslapd-auditlog-logrotationsyncmin'] : "00";
 
         if (this.state.loading) {
-            saveSettingsName = "Saving settings ...";
-            saveRotationName = "Saving settings ...";
-            saveDeletionName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            saveSettingsName = _("Saving settings ...");
+            saveRotationName = _("Saving settings ...");
+            saveDeletionName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
 
         // Adjust time string for TimePicket
@@ -491,7 +493,7 @@ l
         let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                         <Checkbox
                             className="ds-margin-top-xlg"
                             id="nsslapd-auditlog-logging-enabled"
@@ -499,14 +501,14 @@ l
                             onChange={(checked, e) => {
                                 this.handleChange(e, "settings");
                             }}
-                            title="Enable audit logging (nsslapd-auditlog-logging-enabled)."
-                            label="Enable Audit Logging"
+                            title={_("Enable audit logging (nsslapd-auditlog-logging-enabled).")}
+                            label={_("Enable Audit Logging")}
                         />
                         <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
-                                label="Audit Log Location"
+                                label={_("Audit Log Location")}
                                 fieldId="nsslapd-auditlog"
-                                title="Enable audit logging (nsslapd-auditlog)."
+                                title={_("Enable audit logging (nsslapd-auditlog).")}
                             >
                                 <TextInput
                                     value={this.state['nsslapd-auditlog']}
@@ -532,9 +534,9 @@ l
                         />
                         <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
-                                label="Display Attributes"
+                                label={_("Display Attributes")}
                                 fieldId="nsslapd-auditlog-display-attrs"
-                                title="Display attributes from the entry in the audit log (nsslapd-auditlog-display-attrs)."
+                                title={_("Display attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
                             >
                                 <div className={this.state.displayAllAttrs ? "ds-hidden" : "ds-margin-bottom"}>
                                     <Select
@@ -546,8 +548,8 @@ l
                                         selections={this.state.displayAttrs}
                                         isOpen={this.state.isDisplayAttrOpen}
                                         aria-labelledby="typeAhead-audit-display-attr"
-                                        placeholderText="Type an attribute..."
-                                        noResultsFoundText="There are no matching attributes"
+                                        placeholderText={_("Type an attribute...")}
+                                        noResultsFoundText={_("There are no matching attributes")}
                                     >
                                         {this.state.attributes.map((attr, index) => (
                                             <SelectOption
@@ -564,8 +566,8 @@ l
                                     onChange={(checked, e) => {
                                         this.handleChange(e, "settings");
                                     }}
-                                    title="Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs)."
-                                    label="All Attributes"
+                                    title={_("Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
+                                    label={_("All Attributes")}
                                 />
                             </FormGroup>
                         </Form>
@@ -578,20 +580,20 @@ l
                                 this.saveConfig("settings");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveSettingsName}
                         </Button>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Rotation Policy</TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Rotation Policy")}</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
-                                title="The maximum number of logs that are archived (nsslapd-auditlog-maxlogsperdir)."
+                                title={_("The maximum number of logs that are archived (nsslapd-auditlog-maxlogsperdir).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Maximum Number Of Logs
+                                    {_("Maximum Number Of Logs")}
                                 </GridItem>
                                 <GridItem span={3}>
                                     <NumberInput
@@ -609,9 +611,9 @@ l
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title="The maximum size of each log file in megabytes (nsslapd-auditlog-maxlogsize).">
+                            <Grid title={_("The maximum size of each log file in megabytes (nsslapd-auditlog-maxlogsize).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Maximum Log Size (in MB)
+                                    {_("Maximum Log Size (in MB)")}
                                 </GridItem>
                                 <GridItem span={3}>
                                     <NumberInput
@@ -630,9 +632,9 @@ l
                                 </GridItem>
                             </Grid>
                             <hr />
-                            <Grid title="Rotate the log based this number of time units (nsslapd-auditlog-logrotationtime).">
+                            <Grid title={_("Rotate the log based this number of time units (nsslapd-auditlog-logrotationtime).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Create New Log Every ...
+                                    {_("Create New Log Every ...")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <div className="ds-container">
@@ -658,19 +660,19 @@ l
                                                 }}
                                                 aria-label="FormSelect Input"
                                             >
-                                                <FormSelectOption key="0" value="minute" label="minute" />
-                                                <FormSelectOption key="1" value="hour" label="hour" />
-                                                <FormSelectOption key="2" value="day" label="day" />
-                                                <FormSelectOption key="3" value="week" label="week" />
-                                                <FormSelectOption key="4" value="month" label="month" />
+                                                <FormSelectOption key="0" value="minute" label={_("minute")} />
+                                                <FormSelectOption key="1" value="hour" label={_("hour")} />
+                                                <FormSelectOption key="2" value="day" label={_("day")} />
+                                                <FormSelectOption key="3" value="week" label={_("week")} />
+                                                <FormSelectOption key="4" value="month" label={_("month")} />
                                             </FormSelect>
                                         </GridItem>
                                     </div>
                                 </GridItem>
                             </Grid>
-                            <Grid title="The time when the log should be rotated (nsslapd-auditlog-logrotationsynchour, nsslapd-auditlog-logrotationsyncmin).">
+                            <Grid title={_("The time when the log should be rotated (nsslapd-auditlog-logrotationsynchour, nsslapd-auditlog-logrotationsyncmin).")}>
                                 <GridItem className="ds-label" span={3}>
-                                    Time Of Day
+                                    {_("Time Of Day")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <TimePicker
@@ -690,21 +692,21 @@ l
                                 this.saveConfig("rotation");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveRotationName}
                         </Button>
                     </Tab>
 
-                    <Tab eventKey={2} title={<TabTitleText>Deletion Policy</TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Deletion Policy")}</TabTitleText>}>
                         <Form className="ds-margin-top-lg" isHorizontal autoComplete="off">
                             <Grid
                                 className="ds-margin-top"
-                                title="The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditlog-logmaxdiskspace)."
+                                title={_("The server deletes the oldest archived log when the total of all the logs reaches this amount (nsslapd-auditlog-logmaxdiskspace).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Log Archive Exceeds (in MB)
+                                    {_("Log Archive Exceeds (in MB)")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <NumberInput
@@ -723,10 +725,10 @@ l
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditlog-logminfreediskspace)."
+                                title={_("The server deletes the oldest archived log file when available disk space is less than this amount. (nsslapd-auditlog-logminfreediskspace).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Free Disk Space (in MB)
+                                    {_("Free Disk Space (in MB)")}
                                 </GridItem>
                                 <GridItem span={1}>
                                     <NumberInput
@@ -745,10 +747,10 @@ l
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditlog-logexpirationtime)."
+                                title={_("Server deletes an old archived log file when it is older than the specified age. (nsslapd-auditlog-logexpirationtime).")}
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Log File is Older Than ...
+                                    {_("Log File is Older Than ...")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <div className="ds-container">
@@ -774,9 +776,9 @@ l
                                                 }}
                                                 aria-label="FormSelect Input"
                                             >
-                                                <FormSelectOption key="2" value="day" label="day" />
-                                                <FormSelectOption key="3" value="week" label="week" />
-                                                <FormSelectOption key="4" value="month" label="month" />
+                                                <FormSelectOption key="2" value="day" label={_("day")} />
+                                                <FormSelectOption key="3" value="week" label={_("week")} />
+                                                <FormSelectOption key="4" value="month" label={_("month")} />
                                             </FormSelect>
                                         </GridItem>
                                     </div>
@@ -792,7 +794,7 @@ l
                                 this.saveConfig("exp");
                             }}
                             isLoading={this.state.loading}
-                            spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveDeletionName}
@@ -806,7 +808,7 @@ l
             body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
-                        <Text component={TextVariants.h3}>Loading Audit Log settings ...</Text>
+                        <Text component={TextVariants.h3}>{_("Loading Audit Log settings ...")}</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
                 </div>
@@ -819,12 +821,12 @@ l
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Audit Log Settings
+                                {_("Audit Log Settings")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh log settings"
+                                    title={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}

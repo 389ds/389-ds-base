@@ -1,4 +1,5 @@
 import React from "react";
+import cockpit from "cockpit";
 import PropTypes from "prop-types";
 import {
     CleanALLRUVTable,
@@ -17,6 +18,8 @@ import {
 } from "@patternfly/react-core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+
+const _ = cockpit.gettext;
 
 export class ReplMonTasks extends React.Component {
     constructor (props) {
@@ -86,19 +89,19 @@ export class ReplMonTasks extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Monitor Replication Tasks
+                            {_("Monitor Replication Tasks")}
                             <FontAwesomeIcon
                                 size="lg"
                                 className="ds-left-margin ds-refresh"
                                 icon={faSyncAlt}
-                                title="Refresh replication monitor"
+                                title={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
                             />
                         </Text>
                     </TextContent>
                 </div>
                 <Tabs isBox className="ds-margin-top-lg" activeKey={this.state.activeTabTaskKey} onSelect={this.handleNavTaskSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>CleanAllRUV Tasks <font size="2">({cleanTasks.length})</font></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("CleanAllRUV Tasks ")}<font size="2">({cleanTasks.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <CleanALLRUVTable
                                 tasks={cleanTasks}
@@ -106,7 +109,7 @@ export class ReplMonTasks extends React.Component {
                             />
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Abort CleanAllRUV Tasks <font size="2">({abortTasks.length})</font></TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Abort CleanAllRUV Tasks ")}<font size="2">({abortTasks.length})</font></TabTitleText>}>
                         <div className="ds-indent ds-margin-top-lg">
                             <AbortCleanALLRUVTable
                                 tasks={abortTasks}

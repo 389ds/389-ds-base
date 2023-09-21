@@ -22,6 +22,8 @@ import PropTypes from "prop-types";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class PAMPassthroughAuthentication extends React.Component {
     constructor(props) {
         super(props);
@@ -493,7 +495,7 @@ class PAMPassthroughAuthentication extends React.Component {
                     console.info("deletePAMConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `PAMConfig entry ${this.state.deleteName} was successfully deleted`
+                        cockpit.format(_("PAMConfig entry $0 was successfully deleted"), this.state.deleteName)
                     );
                     this.loadPAMConfigs();
                     this.closeConfirmDeleteConfig();
@@ -503,7 +505,7 @@ class PAMPassthroughAuthentication extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the pamConfig entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the pamConfig entry removal operation - $0"), errMsg.desc)
                     );
                     this.loadPAMConfigs();
                     this.closeConfirmDeleteConfig();
@@ -603,7 +605,7 @@ class PAMPassthroughAuthentication extends React.Component {
                     console.info("pamPassthroughAuthOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${pamConfigName}" entry`
+                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, pamConfigName)
                     );
                     this.loadPAMConfigs();
                     this.handleClosePAMModal();
@@ -612,7 +614,7 @@ class PAMPassthroughAuthentication extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the pamConfig entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the pamConfig entry $0 operation - $1"), action, errMsg.desc)
                     );
                     this.loadPAMConfigs();
                     this.handleClosePAMModal();
@@ -638,14 +640,14 @@ class PAMPassthroughAuthentication extends React.Component {
             savingPAM,
         } = this.state;
 
-        let saveBtnName = "Save Config";
+        let saveBtnName = _("Save Config");
         const extraPrimaryProps = {};
         if (this.state.savingPAM) {
-            saveBtnName = "Saving Config ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving Config ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
-        const title = (newPAMConfigEntry ? "Add" : "Edit") + " PAM Passthough Auth Config Entry";
+        const title = cockpit.format(_("$0 PAM Passthough Auth Config Entry"), (newPAMConfigEntry ? _("Add") : _("Edit")));
 
         return (
             <div className={savingPAM ? "ds-disabled" : ""}>
@@ -662,20 +664,20 @@ class PAMPassthroughAuthentication extends React.Component {
                             onClick={newPAMConfigEntry ? this.handleAddPAMConfig : this.handleEditPAMConfig}
                             isDisabled={this.state.saveBtnDisabledPAM || this.state.savingPAM}
                             isLoading={this.state.savingPAM}
-                            spinnerAriaValueText={this.state.savingPAM ? "Saving" : undefined}
+                            spinnerAriaValueText={this.state.savingPAM ? _("Saving") : undefined}
                             {...extraPrimaryProps}
                         >
                             {saveBtnName}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleClosePAMModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form isHorizontal autoComplete="off">
                         <Grid className="ds-margin-top">
                             <GridItem className="ds-label" span={3}>
-                                Config Name
+                                {_("Config Name")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -696,9 +698,9 @@ class PAMPassthroughAuthentication extends React.Component {
                             <GridItem
                                 className="ds-label"
                                 span={3}
-                                title="Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)"
+                                title={_("Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)")}
                             >
-                                Exclude Suffix
+                                {_("Exclude Suffix")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -712,7 +714,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                     selections={pamExcludeSuffix}
                                     isOpen={this.state.isExcludeOpen}
                                     aria-labelledby="Add a suffix"
-                                    placeholderText="Type a suffix DN ..."
+                                    placeholderText={_("Type a suffix DN ...")}
                                 >
                                     {this.state.excludeOptions.map((suffix, index) => (
                                         <SelectOption
@@ -727,9 +729,9 @@ class PAMPassthroughAuthentication extends React.Component {
                             <GridItem
                                 className="ds-label"
                                 span={3}
-                                title="Sets a suffix to include for PAM authentication (pamIncludeSuffix)"
+                                title={_("Sets a suffix to include for PAM authentication (pamIncludeSuffix)")}
                             >
-                                Include Suffix
+                                {_("Include Suffix")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -743,7 +745,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                     selections={pamIncludeSuffix}
                                     isOpen={this.state.isIncludeOpen}
                                     aria-labelledby="Add an include suffix"
-                                    placeholderText="Type a suffix DN ..."
+                                    placeholderText={_("Type a suffix DN ...")}
                                 >
                                     {this.state.includeOptions.map((suffix, index) => (
                                         <SelectOption
@@ -755,8 +757,8 @@ class PAMPassthroughAuthentication extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid>
-                            <GridItem className="ds-label" span={3} title="Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)">
-                                ID Attribute
+                            <GridItem className="ds-label" span={3} title={_("Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)")}>
+                                {_("ID Attribute")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -767,14 +769,14 @@ class PAMPassthroughAuthentication extends React.Component {
                                     }}
                                     aria-label="FormSelect Input"
                                 >
-                                    <FormSelectOption key="no_setting2" value="" label="Choose an attribute..." />
+                                    <FormSelectOption key="no_setting2" value="" label={_("Choose an attribute...")} />
                                     {this.attrRows}
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="Identifies how to handle missing include or exclude suffixes (pamMissingSuffix)">
+                        <Grid title={_("Identifies how to handle missing include or exclude suffixes (pamMissingSuffix)")}>
                             <GridItem className="ds-label" span={3}>
-                                Missing Suffix
+                                {_("Missing Suffix")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -791,9 +793,9 @@ class PAMPassthroughAuthentication extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="Sets an LDAP filter to use to identify specific entries within the included suffixes for which to use PAM pass-through authentication (pamFilter)">
+                        <Grid title={_("Sets an LDAP filter to use to identify specific entries within the included suffixes for which to use PAM pass-through authentication (pamFilter)")}>
                             <GridItem className="ds-label" span={3}>
-                                Filter
+                                {_("Filter")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -809,9 +811,9 @@ class PAMPassthroughAuthentication extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Gives the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)">
+                        <Grid title={_("Gives the method to use to map the LDAP bind DN to a PAM identity (pamIDMapMethod)")}>
                             <GridItem className="ds-label" span={3}>
-                                Map Method
+                                {_("Map Method")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -828,9 +830,9 @@ class PAMPassthroughAuthentication extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="Contains the service name to pass to PAM (pamService)">
+                        <Grid title={_("Contains the service name to pass to PAM (pamService)")}>
                             <GridItem className="ds-label" span={3}>
-                                Service
+                                {_("Service")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -848,27 +850,27 @@ class PAMPassthroughAuthentication extends React.Component {
                         </Grid>
                         <Grid>
                             <GridItem span={3} className="ds-label">
-                                Fallback Auth Enabled
+                                {_("Fallback Auth Enabled")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Checkbox
                                     id="pamFallback"
                                     isChecked={pamFallback}
                                     onChange={(checked, e) => { this.handlePAMChange(e) }}
-                                    title="Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)"
+                                    title={_("Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)")}
                                 />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top">
                             <GridItem span={3} className="ds-label">
-                                Require Secure Connection
+                                {_("Require Secure Connection")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Checkbox
                                     id="pamSecure"
                                     isChecked={pamSecure}
                                     onChange={(checked, e) => { this.handlePAMChange(e) }}
-                                    title="Requires secure TLS connection for PAM authentication (pamSecure)"
+                                    title={_("Requires secure TLS connection for PAM authentication (pamSecure)")}
                                 />
                             </GridItem>
                         </Grid>
@@ -896,7 +898,7 @@ class PAMPassthroughAuthentication extends React.Component {
                         variant="primary"
                         onClick={this.handleShowAddPAMConfigModal}
                     >
-                        Add Config
+                        {_("Add Config")}
                     </Button>
                 </PluginBasicConfig>
                 <DoubleConfirmModal
@@ -907,10 +909,10 @@ class PAMPassthroughAuthentication extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.deleteName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete PAM Passthrough Configuration"
-                    mMsg="Are you sure you want to delete this configuration?"
-                    mSpinningMsg="Deleting Configuration..."
-                    mBtnName="Delete Configuration"
+                    mTitle={_("Delete PAM Passthrough Configuration")}
+                    mMsg={_("Are you sure you want to delete this configuration?")}
+                    mSpinningMsg={_("Deleting Configuration...")}
+                    mBtnName={_("Delete Configuration")}
                 />
             </div>
         );

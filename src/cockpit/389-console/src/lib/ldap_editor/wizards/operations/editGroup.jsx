@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Button,
@@ -31,6 +32,8 @@ import {
 } from '../../lib/utils.jsx';
 import { DoubleConfirmModal } from "../../../notifications.jsx";
 import GroupTable from './groupTable.jsx';
+
+const _ = cockpit.gettext;
 
 class EditGroup extends React.Component {
     constructor (props) {
@@ -324,14 +327,15 @@ class EditGroup extends React.Component {
 
         modifyLdapEntry(params, ldifArray, (result) => {
             if (result.errorCode === 0) {
+                const value1 = memCount > 1 ? "s" : "";
                 this.props.addNotification(
                     "success",
-                    "Successfully added " + memCount + " member" + (memCount > 1 ? "s" : "")
+                    cockpit.format(_("Successfully added $0 member $1"), memCount, value1)
                 );
             } else {
                 this.props.addNotification(
                     "error",
-                    "Failed to update group, error code: " + result.errorCode
+                    _("Failed to update group, error code: ") + result.errorCode
                 );
             }
             this.setState({
@@ -347,12 +351,12 @@ class EditGroup extends React.Component {
             if (result.errorCode === 0) {
                 this.props.addNotification(
                     "success",
-                    "Successfully updated group"
+                    _("Successfully updated group")
                 );
             } else {
                 this.props.addNotification(
                     "error",
-                    "Failed to update group, error code: " + result.errorCode
+                    _("Failed to update group, error code: ") + result.errorCode
                 );
             }
             this.setState({
@@ -430,10 +434,10 @@ class EditGroup extends React.Component {
         } = this.state;
         const title = <><UsersIcon />&nbsp;&nbsp;{this.props.groupdn}</>;
         const extraPrimaryProps = {};
-        let saveBtnName = "Add Members";
+        let saveBtnName = _("Add Members");
         if (saving) {
-            saveBtnName = "Saving ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         const delMemList = this.state.delMemberList.map((member) =>
@@ -454,14 +458,14 @@ class EditGroup extends React.Component {
                             onClick={this.handleSwitchEditor}
                             className="ds-float-right"
                         >
-                            Switch To Generic Editor
+                            {_("Switch To Generic Editor")}
                         </Button>,
                     ]}
                 >
                     <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                         <Tab
                             eventKey={0}
-                            title={<TabTitleText>Current Members <font size="2">({this.props.members.length})</font></TabTitleText>}
+                            title={<TabTitleText>{_("Current Members")} <font size="2">({this.props.members.length})</font></TabTitleText>}
                         >
                             <GroupTable
                                 key={members + delMemberList}
@@ -475,13 +479,13 @@ class EditGroup extends React.Component {
                                 saving={this.state.bulkDeleting}
                             />
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText>Find New Members</TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>{_("Find New Members")}</TabTitleText>}>
                             <Form autoComplete="off">
                                 <Grid className="ds-indent">
                                     <GridItem span={12} className="ds-margin-top-xlg">
                                         <TextContent>
                                             <Text>
-                                                Search Base:
+                                                {_("Search Base:")}
                                                 <Text
                                                     className="ds-left-margin"
                                                     component={TextVariants.a}
@@ -495,7 +499,7 @@ class EditGroup extends React.Component {
                                     </GridItem>
                                     <GridItem span={12} className="ds-margin-top-lg">
                                         <SearchInput
-                                            placeholder="Find members..."
+                                            placeholder={_("Find members...")}
                                             value={this.state.searchPattern}
                                             onChange={(evt, val) => this.handleSearchPattern(val)}
                                             onSearch={this.handleSearchClick}
@@ -506,8 +510,8 @@ class EditGroup extends React.Component {
                                         <DualListSelector
                                             availableOptions={usersAvailableOptions}
                                             chosenOptions={usersChosenOptions}
-                                            availableOptionsTitle="Available Members"
-                                            chosenOptionsTitle="Chosen Members"
+                                            availableOptionsTitle={_("Available Members")}
+                                            chosenOptionsTitle={_("Chosen Members")}
                                             onListChange={this.handleUsersOnListChange}
                                             id="usersSelector"
                                         />
@@ -525,7 +529,7 @@ class EditGroup extends React.Component {
                                     </GridItem>
                                     <Modal
                                         variant={ModalVariant.medium}
-                                        title="Choose A Branch To Search"
+                                        title={_("Choose A Branch To Search")}
                                         isOpen={showLDAPNavModal}
                                         onClose={this.handleCloseLDAPNavModal}
                                         actions={[
@@ -534,7 +538,7 @@ class EditGroup extends React.Component {
                                                 variant="primary"
                                                 onClick={this.handleCloseLDAPNavModal}
                                             >
-                                                Done
+                                                {_("Done")}
                                             </Button>
                                         ]}
                                     >
@@ -559,7 +563,7 @@ class EditGroup extends React.Component {
                     </Tabs>
                     <Modal
                         variant={ModalVariant.medium}
-                        title="View Entry"
+                        title={_("View Entry")}
                         isOpen={showViewEntry}
                         onClose={this.handleCloseViewEntry}
                     >
@@ -579,10 +583,10 @@ class EditGroup extends React.Component {
                         spinning={this.state.modalSpinning}
                         item={this.state.delMember}
                         checked={this.state.modalChecked}
-                        mTitle="Remove Member From Group"
-                        mMsg="Are you sure you want to remove this member?"
-                        mSpinningMsg="Deleting ..."
-                        mBtnName="Delete"
+                        mTitle={_("Remove Member From Group")}
+                        mMsg={_("Are you sure you want to remove this member?")}
+                        mSpinningMsg={_("Deleting ...")}
+                        mBtnName={_("Delete")}
                     />
                     <DoubleConfirmModal
                         showModal={this.state.showConfirmBulkDelete}
@@ -592,10 +596,10 @@ class EditGroup extends React.Component {
                         spinning={this.state.modalSpinning}
                         item={delMemList}
                         checked={this.state.modalChecked}
-                        mTitle="Remove Members From Group"
-                        mMsg="Are you sure you want to remove these members?"
-                        mSpinningMsg="Deleting ..."
-                        mBtnName="Delete Members"
+                        mTitle={_("Remove Members From Group")}
+                        mMsg={_("Are you sure you want to remove these members?")}
+                        mSpinningMsg={_("Deleting ...")}
+                        mBtnName={_("Delete Members")}
                     />
                 </Modal>
             </div>

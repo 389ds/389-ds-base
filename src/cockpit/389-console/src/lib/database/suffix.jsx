@@ -35,6 +35,8 @@ import {
 
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 export class Suffix extends React.Component {
     constructor (props) {
         super(props);
@@ -265,7 +267,7 @@ export class Suffix extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Import successfully initiated`
+                        _("Import successfully initiated")
                     );
                     this.setState({
                         modalSpinning: false,
@@ -277,7 +279,7 @@ export class Suffix extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error importing LDIF file - ${errMsg.desc}`
+                        cockpit.format(_("Error importing LDIF file - $0"), errMsg.desc)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -322,7 +324,7 @@ export class Suffix extends React.Component {
         if (this.state.ldifLocation === "") {
             this.props.addNotification(
                 "warning",
-                `LDIF name is empty`
+                _("LDIF name is empty")
             );
             missingArgs.ldifLocation = true;
             this.setState({
@@ -335,7 +337,7 @@ export class Suffix extends React.Component {
         if (bad_file_name(this.state.ldifLocation)) {
             this.props.addNotification(
                 "warning",
-                `LDIF name should not be a path.  All export files are stored in the server's LDIF directory`
+                _("LDIF name should not be a path.  All export files are stored in the server's LDIF directory")
             );
             missingArgs.ldifLocation = true;
             this.setState({
@@ -382,18 +384,18 @@ export class Suffix extends React.Component {
                                 const attrs = config.attrs;
                                 this.props.addNotification(
                                     "success",
-                                    `Database export complete. You can find the LDIF file in ${attrs['nsslapd-ldifdir'][0]} directory on the server machine.`
+                                    cockpit.format(_("Database export complete. You can find the LDIF file in $0 directory on the server machine."), attrs['nsslapd-ldifdir'][0])
                                 );
                             })
                             .fail(err => {
                                 const errMsg = JSON.parse(err);
                                 this.props.addNotification(
                                     "success",
-                                    `Database export complete.`
+                                    _("Database export complete.")
                                 );
                                 this.props.addNotification(
                                     "error",
-                                    `Error while trying to get the server's LDIF directory- ${errMsg.desc}`
+                                    cockpit.format(_("Error while trying to get the server's LDIF directory- $0"), errMsg.desc)
                                 );
                             });
                 })
@@ -402,7 +404,7 @@ export class Suffix extends React.Component {
                     this.props.reloadLDIFs();
                     this.props.addNotification(
                         "error",
-                        `Error exporting database - ${errMsg.desc}`
+                        cockpit.format(_("Error exporting database - $0"), errMsg.desc)
                     );
                     this.setState({
                         showExportModal: false,
@@ -442,7 +444,7 @@ export class Suffix extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Database has successfully been reindexed`
+                        _("Database has successfully been reindexed")
                     );
                     this.setState({
                         modalSpinning: false,
@@ -453,7 +455,7 @@ export class Suffix extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to reindex database - ${errMsg.desc}`
+                        cockpit.format(_("Failed to reindex database - $0"), errMsg.desc)
                     );
                     this.setState({
                         modalSpinning: false,
@@ -506,7 +508,7 @@ export class Suffix extends React.Component {
                     this.closeSubSuffixModal();
                     this.props.addNotification(
                         "success",
-                        `Successfully created new sub-suffix`
+                        _("Successfully created new sub-suffix")
                     );
                     this.setState({
                         subSuffixSaving: false
@@ -518,7 +520,7 @@ export class Suffix extends React.Component {
                     this.closeSubSuffixModal();
                     this.props.addNotification(
                         "error",
-                        `Error creating sub-suffix - ${errMsg.desc}`
+                        cockpit.format(_("Error creating sub-suffix - $0"), errMsg.desc)
                     );
                     this.setState({
                         subSuffixSaving: false
@@ -568,7 +570,7 @@ export class Suffix extends React.Component {
                     this.closeLinkModal();
                     this.props.addNotification(
                         "success",
-                        `Successfully created database link`
+                        _("Successfully created database link")
                     );
                     this.setState({
                         linkSaving: false
@@ -580,7 +582,7 @@ export class Suffix extends React.Component {
                     this.closeLinkModal();
                     this.props.addNotification(
                         "error",
-                        `Error creating database link - ${errMsg.desc}`
+                        cockpit.format(_("Error creating database link - $0"), errMsg.desc)
                     );
                     this.setState({
                         linkSaving: false
@@ -752,7 +754,7 @@ export class Suffix extends React.Component {
                     this.closeDeleteConfirm();
                     this.props.addNotification(
                         "success",
-                        `Successfully deleted database`
+                        _("Successfully deleted database")
                     );
                 })
                 .fail(err => {
@@ -761,7 +763,7 @@ export class Suffix extends React.Component {
                     this.closeDeleteConfirm();
                     this.props.addNotification(
                         "error",
-                        `Error deleting database - ${errMsg.desc}`
+                        cockpit.format(_("Error deleting database - $0"), errMsg.desc)
                     );
                 });
     }
@@ -818,7 +820,7 @@ export class Suffix extends React.Component {
                         if (requireRestart) {
                             this.props.addNotification(
                                 "warning",
-                                msg + "You must restart the Directory Server for these changes to take effect."
+                                msg + _("You must restart the Directory Server for these changes to take effect.")
                             );
                         }
                         this.setState({
@@ -834,7 +836,7 @@ export class Suffix extends React.Component {
                         }
                         this.props.addNotification(
                             "error",
-                            `Error updating suffix configuration - ${msg}`
+                            cockpit.format(_("Error updating suffix configuration - $0"), msg)
                         );
                         this.setState({
                             savingConfig: false
@@ -854,24 +856,24 @@ export class Suffix extends React.Component {
         const { dropdownIsOpen, activeTabKey } = this.state;
 
         const dropdownItems = [
-            <DropdownItem key="import" component="button" onClick={this.handleShowImportModal} title="Import an LDIF file to initialize the database">
-                Initialize Suffix
+            <DropdownItem key="import" component="button" onClick={this.handleShowImportModal} title={_("Import an LDIF file to initialize the database")}>
+                {_("Initialize Suffix")}
             </DropdownItem>,
-            <DropdownItem key="export" component="button" onClick={this.handleShowExportModal} title="Export the database to an LDIF file">
-                Export Suffix
+            <DropdownItem key="export" component="button" onClick={this.handleShowExportModal} title={_("Export the database to an LDIF file")}>
+                {_("Export Suffix")}
             </DropdownItem>,
-            <DropdownItem key="reindex" component="button" onClick={this.handleShowReindexConfirm} title="Reindex the entire database">
-                Reindex Suffix
+            <DropdownItem key="reindex" component="button" onClick={this.handleShowReindexConfirm} title={_("Reindex the entire database")}>
+                {_("Reindex Suffix")}
             </DropdownItem>,
-            <DropdownItem key="subSuffix" component="button" onClick={this.handleShowSubSuffixModal} title="Create a sub-suffix under this suffix">
-                Create Sub-Suffix
+            <DropdownItem key="subSuffix" component="button" onClick={this.handleShowSubSuffixModal} title={_("Create a sub-suffix under this suffix")}>
+                {_("Create Sub-Suffix")}
             </DropdownItem>,
-            <DropdownItem key="dbLink" component="button" onClick={this.handleShowLinkModal} title="Create a database chaining link subtree">
-                Create Database Link
+            <DropdownItem key="dbLink" component="button" onClick={this.handleShowLinkModal} title={_("Create a database chaining link subtree")}>
+                {_("Create Database Link")}
             </DropdownItem>,
             <DropdownSeparator key="separator" />,
-            <DropdownItem key="deleteSuffix" component="button" onClick={this.handleShowDeleteConfirm} title="This will permanently delete the database">
-                Delete Suffix
+            <DropdownItem key="deleteSuffix" component="button" onClick={this.handleShowDeleteConfirm} title={_("This will permanently delete the database")}>
+                {_("Delete Suffix")}
             </DropdownItem>,
         ];
 
@@ -883,7 +885,7 @@ export class Suffix extends React.Component {
                         <FontAwesomeIcon
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}
-                            title="Refresh suffix"
+                            title={_("Refresh suffix")}
                             onClick={() => this.props.reload(this.props.suffix)}
                         />
                     </GridItem>
@@ -894,7 +896,7 @@ export class Suffix extends React.Component {
                             onSelect={this.handleSelect}
                             toggle={
                                 <DropdownToggle id="suffix-dropdown" isPrimary onToggle={this.handleToggle}>
-                                    Suffix Tasks
+                                    {_("Suffix Tasks")}
                                 </DropdownToggle>
                             }
                             isOpen={dropdownIsOpen}
@@ -905,7 +907,7 @@ export class Suffix extends React.Component {
 
                 <div className="ds-sub-header">
                     <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<TabTitleText>Settings</TabTitleText>}>
+                        <Tab eventKey={0} title={<TabTitleText>{_("Settings")}</TabTitleText>}>
                             <SuffixConfig
                                 cachememsize={this.state.cachememsize}
                                 cachesize={this.state.cachesize}
@@ -920,7 +922,7 @@ export class Suffix extends React.Component {
                                 saveBtnDisabled={this.state.saveBtnDisabled}
                             />
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText>Referrals</TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>{_("Referrals")}</TabTitleText>}>
                             <SuffixReferrals
                                 rows={this.props.data.refRows}
                                 suffix={this.props.suffix}
@@ -930,7 +932,7 @@ export class Suffix extends React.Component {
                                 key={this.state.refRows}
                             />
                         </Tab>
-                        <Tab eventKey={2} title={<TabTitleText>Indexes</TabTitleText>}>
+                        <Tab eventKey={2} title={<TabTitleText>{_("Indexes")}</TabTitleText>}>
                             <SuffixIndexes
                                 systemIndexRows={this.props.data.systemIndexRows}
                                 indexRows={this.props.data.indexRows}
@@ -940,7 +942,7 @@ export class Suffix extends React.Component {
                                 reload={this.props.reloadIndexes}
                             />
                         </Tab>
-                        <Tab eventKey={3} title={<TabTitleText>VLV Indexes</TabTitleText>}>
+                        <Tab eventKey={3} title={<TabTitleText>{_("VLV Indexes")}</TabTitleText>}>
                             <VLVIndexes
                                 suffix={this.props.suffix}
                                 serverId={this.props.serverId}
@@ -951,7 +953,7 @@ export class Suffix extends React.Component {
                                 key={this.props.vlvTableKey}
                             />
                         </Tab>
-                        <Tab eventKey={4} title={<TabTitleText>Encrypted Attributes</TabTitleText>}>
+                        <Tab eventKey={4} title={<TabTitleText>{_("Encrypted Attributes")}</TabTitleText>}>
                             <AttrEncryption
                                 rows={this.props.data.encAttrsRows}
                                 suffix={this.props.suffix}
@@ -971,10 +973,10 @@ export class Suffix extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Suffix"
-                    mMsg="Are you really sure you want to delete this suffix?"
-                    mSpinningMsg="Deleting suffix ..."
-                    mBtnName="Delete Suffix"
+                    mTitle={_("Delete Suffix")}
+                    mMsg={_("Are you really sure you want to delete this suffix?")}
+                    mSpinningMsg={_("Deleting suffix ...")}
+                    mBtnName={_("Delete Suffix")}
                 />
                 <CreateLinkModal
                     showModal={this.state.showLinkModal}
@@ -1019,10 +1021,10 @@ export class Suffix extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.importLDIFName}
                     checked={this.state.modalChecked}
-                    mTitle="Initialize Database From LDIF"
-                    mMsg="Are you sure you want to initialize the database (it will permanently overwrite the current database)?"
-                    mSpinningMsg="Initializing Database ..."
-                    mBtnName="Initialize Database"
+                    mTitle={_("Initialize Database From LDIF")}
+                    mMsg={_("Are you sure you want to initialize the database (it will permanently overwrite the current database)?")}
+                    mSpinningMsg={_("Initializing Database ...")}
+                    mBtnName={_("Initialize Database")}
                 />
                 <ExportModal
                     showModal={this.state.showExportModal}
@@ -1042,10 +1044,10 @@ export class Suffix extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
                     checked={this.state.modalChecked}
-                    mTitle="Reindex All Attributes"
-                    mMsg="Are you sure you want to reindex all the attribute indexes?"
-                    mSpinningMsg="Reindexing Database ..."
-                    mBtnName="Reindex"
+                    mTitle={_("Reindex All Attributes")}
+                    mMsg={_("Are you sure you want to reindex all the attribute indexes?")}
+                    mSpinningMsg={_("Reindexing Database ...")}
+                    mBtnName={_("Reindex")}
                 />
             </div>
         );
