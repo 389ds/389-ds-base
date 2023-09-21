@@ -29,6 +29,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { numToCommas, displayBytes, log_cmd } from '../tools.jsx';
 
+const _ = cockpit.gettext;
+
 export class SuffixMonitor extends React.Component {
     constructor (props) {
         super(props);
@@ -151,7 +153,7 @@ export class SuffixMonitor extends React.Component {
                     const entryRatio = config.attrs.entrycachehitratio[0];
                     const entry_data = this.state.entryCacheList;
                     entry_data.shift();
-                    entry_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(entryRatio) });
+                    entry_data.push({ name: _("Cache Hit Ratio"), x: count.toString(), y: parseInt(entryRatio) });
 
                     // Build up the Entry Util chart data
                     const entry_util_data = this.state.entryUtilCacheList;
@@ -162,13 +164,13 @@ export class SuffixMonitor extends React.Component {
                         utilratio = 1;
                     }
                     entry_util_data.shift();
-                    entry_util_data.push({ name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio) });
+                    entry_util_data.push({ name: _("Cache Utilization"), x: utilCount.toString(), y: parseInt(utilratio) });
 
                     // Build up the DN Cache chart data
                     const dnratio = config.attrs.dncachehitratio[0];
                     const dn_data = this.state.dnCacheList;
                     dn_data.shift();
-                    dn_data.push({ name: "Cache Hit Ratio", x: count.toString(), y: parseInt(dnratio) });
+                    dn_data.push({ name: _("Cache Hit Ratio"), x: count.toString(), y: parseInt(dnratio) });
 
                     // Build up the DN Cache Util chart data
                     const dn_util_data = this.state.dnCacheUtilList;
@@ -179,7 +181,7 @@ export class SuffixMonitor extends React.Component {
                         utilratio = 1;
                     }
                     dn_util_data.shift();
-                    dn_util_data.push({ name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio) });
+                    dn_util_data.push({ name: _("Cache Utilization"), x: utilCount.toString(), y: parseInt(utilratio) });
 
                     this.setState({
                         data: config.attrs,
@@ -233,7 +235,7 @@ export class SuffixMonitor extends React.Component {
             <div className="ds-margin-top-xlg ds-center">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Loading Suffix Monitor Information ...
+                        {_("Loading Suffix Monitor Information ...")}
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />
@@ -298,7 +300,7 @@ export class SuffixMonitor extends React.Component {
             content = (
                 <div id="monitor-suffix-page">
                     <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<TabTitleText>Entry Cache</TabTitleText>}>
+                        <Tab eventKey={0} title={<TabTitleText>{_("Entry Cache")}</TabTitleText>}>
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
@@ -306,9 +308,9 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent title="The entry cache hit ratio (entrycachehitratio)">
+                                                        <TextContent title={_("The entry cache hit ratio (entrycachehitratio)")}>
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
-                                                                Cache Hit Ratio
+                                                                {_("Cache Hit Ratio")}
                                                             </Text>
                                                         </TextContent>
                                                         <TextContent>
@@ -320,7 +322,7 @@ export class SuffixMonitor extends React.Component {
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                         <Chart
                                                             ariaDesc="Entry Cache"
-                                                            ariaTitle="Live Entry Cache Statistics"
+                                                            ariaTitle={_("Live Entry Cache Statistics")}
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
                                                             maxDomain={{ y: 100 }}
@@ -352,9 +354,9 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent title="The amount of the cache that is being used: max size (maxentrycachesize) vs current size (currententrycachesize)">
+                                                        <TextContent title={_("The amount of the cache that is being used: max size (maxentrycachesize) vs current size (currententrycachesize)")}>
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
-                                                                Cache Utilization
+                                                                {_("Cache Utilization")}
                                                             </Text>
                                                         </TextContent>
                                                         <TextContent>
@@ -364,7 +366,7 @@ export class SuffixMonitor extends React.Component {
                                                         </TextContent>
                                                         <TextContent>
                                                             <Text className="ds-margin-top-lg" component={TextVariants.h5}>
-                                                                Cached Entries
+                                                                {_("Cached Entries")}
                                                             </Text>
                                                         </TextContent>
                                                         <b>{cachecount}</b>
@@ -372,7 +374,7 @@ export class SuffixMonitor extends React.Component {
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                         <Chart
                                                             ariaDesc="Entry Cache Utilization"
-                                                            ariaTitle="Live Entry Cache Utilization Statistics"
+                                                            ariaTitle={_("Live Entry Cache Utilization Statistics")}
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
                                                             maxDomain={{ y: 100 }}
@@ -403,51 +405,51 @@ export class SuffixMonitor extends React.Component {
                             </div>
                             <Grid hasGutter className="ds-margin-top-xlg">
                                 <GridItem span={3}>
-                                    Entry Cache Hit Ratio:
+                                    {_("Entry Cache Hit Ratio:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{this.state.data.entrycachehitratio[0]}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    Entry Cache Max Size:
+                                    {_("Entry Cache Max Size:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{displayBytes(cachemax)} </b>
                                 </GridItem>
 
                                 <GridItem span={3}>
-                                    Entry Cache Hits:
+                                    {_("Entry Cache Hits:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.entrycachehits[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    Entry Cache Current Size:
+                                    {_("Entry Cache Current Size:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{displayBytes(cachecurr)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    Entry Cache Tries:
+                                    {_("Entry Cache Tries:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.entrycachetries[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    Entry Cache Max Entries:
+                                    {_("Entry Cache Max Entries:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.maxentrycachecount[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    Entry Cache Count:
+                                    {_("Entry Cache Count:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.currententrycachecount[0])}</b>
                                 </GridItem>
                             </Grid>
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText>DN Cache</TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>{_("DN Cache")}</TabTitleText>}>
                             <div className="ds-margin-top">
                                 <Grid hasGutter>
                                     <GridItem span={6}>
@@ -455,9 +457,9 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent title="The DN cache hit ratio (dncachehitratio)">
+                                                        <TextContent title={_("The DN cache hit ratio (dncachehitratio)")}>
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
-                                                                Cache Hit Ratio
+                                                                {_("Cache Hit Ratio")}
                                                             </Text>
                                                         </TextContent>
                                                         <TextContent>
@@ -469,7 +471,7 @@ export class SuffixMonitor extends React.Component {
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                         <Chart
                                                             ariaDesc="DN Cache"
-                                                            ariaTitle="Live DN Cache Statistics"
+                                                            ariaTitle={_("Live DN Cache Statistics")}
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
                                                             maxDomain={{ y: 100 }}
@@ -501,9 +503,9 @@ export class SuffixMonitor extends React.Component {
                                             <CardBody>
                                                 <div className="ds-container">
                                                     <div className="ds-center">
-                                                        <TextContent title="The amount of the cache that is being used: max size (maxdncachesize) vs current size (currentdncachesize)">
+                                                        <TextContent title={_("The amount of the cache that is being used: max size (maxdncachesize) vs current size (currentdncachesize)")}>
                                                             <Text className="ds-margin-top" component={TextVariants.h3}>
-                                                                Cache Utilization
+                                                                {_("Cache Utilization")}
                                                             </Text>
                                                         </TextContent>
                                                         <TextContent>
@@ -513,7 +515,7 @@ export class SuffixMonitor extends React.Component {
                                                         </TextContent>
                                                         <TextContent>
                                                             <Text className="ds-margin-top-lg" component={TextVariants.h5}>
-                                                                Cached DN's
+                                                                {_("Cached DN's")}
                                                             </Text>
                                                         </TextContent>
                                                         <b>{numToCommas(dncachecount)}</b>
@@ -521,7 +523,7 @@ export class SuffixMonitor extends React.Component {
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                         <Chart
                                                             ariaDesc="DN Cache Utilization"
-                                                            ariaTitle="Live DN Cache Utilization Statistics"
+                                                            ariaTitle={_("Live DN Cache Utilization Statistics")}
                                                             containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
                                                             height={200}
                                                             maxDomain={{ y: 100 }}
@@ -552,43 +554,43 @@ export class SuffixMonitor extends React.Component {
                             </div>
                             <Grid hasGutter className="ds-margin-top-xlg">
                                 <GridItem span={3}>
-                                    DN Cache Hit Ratio:
+                                    {_("DN Cache Hit Ratio:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{this.state.data.dncachehitratio[0]}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    DN Cache Max Size:
+                                    {_("DN Cache Max Size:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{displayBytes(dncachemax)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    DN Cache Hits:
+                                    {_("DN Cache Hits:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.dncachehits[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    DN Cache Current Size:
+                                    {_("DN Cache Current Size:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{displayBytes(dncachecurr)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    DN Cache Tries:
+                                    {_("DN Cache Tries:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.dncachetries[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    DN Cache Max Count:
+                                    {_("DN Cache Max Count:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.maxdncachecount[0])}</b>
                                 </GridItem>
                                 <GridItem span={3}>
-                                    DN Cache Current Count:
+                                    {_("DN Cache Current Count:")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <b>{numToCommas(this.state.data.currentdncachecount[0])}</b>

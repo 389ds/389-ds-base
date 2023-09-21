@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -21,6 +22,8 @@ import {
     getBaseLevelEntryFullAttributes, deleteLdapData
 } from '../lib/utils.jsx';
 
+const _ = cockpit.gettext;
+
 class DeleteOperationWizard extends React.Component {
     constructor (props) {
         super(props);
@@ -40,8 +43,8 @@ class DeleteOperationWizard extends React.Component {
             pageAddUser: 1,
             perPageAddUser: 10,
             columnsUser: [
-                { title: 'Attribute Name', cellTransforms: [headerCol()] },
-                { title: 'From ObjectClass' }
+                { title: _("Attribute Name"), cellTransforms: [headerCol()] },
+                { title: _("From ObjectClass") }
             ],
             rowsUser: [],
             pagedRowsUser: [],
@@ -55,7 +58,7 @@ class DeleteOperationWizard extends React.Component {
             rowsValues: [],
             // Review step
             reviewValue: '',
-            reviewInvalidText: 'Invalid LDIF',
+            reviewInvalidText: _("Invalid LDIF"),
             reviewIsValid: true,
             reviewValidated: 'default',
             // reviewHelperText: 'LDIF data',
@@ -74,7 +77,7 @@ class DeleteOperationWizard extends React.Component {
                                this.state.numSubordinates,
                                (result) => {
                                    this.setState({
-                                       commandOutput: result.errorCode === 0 ? 'Successfully deleted entry' : 'Failed to delete entry, error: ' + result.errorCode,
+                                       commandOutput: result.errorCode === 0 ? _("Successfully deleted entry") : _("Failed to delete entry, error: ") + result.errorCode,
                                        resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                        deleting: false,
                                    }, () => {
@@ -132,7 +135,7 @@ class DeleteOperationWizard extends React.Component {
         } = this.state;
 
         const info = numSubordinates > 0
-            ? `It has child entries which will also be recursively deleted.`
+            ? _("It has child entries which will also be recursively deleted.")
             : '';
         const entryIcon = numSubordinates > 0
             ? <UsersIcon />
@@ -141,10 +144,10 @@ class DeleteOperationWizard extends React.Component {
             <div>
                 <Card isSelectable>
                     <CardTitle>
-                        Delete Acknowledgement
+                        {_("Delete Acknowledgement")}
                     </CardTitle>
                     <CardBody>
-                        You are about to delete this entry. {info}
+                        {cockpit.format(_("You are about to delete this entry. $0"), info)}
                     </CardBody>
                     <CardBody>
                         {entryIcon}&nbsp;&nbsp;<b className="ds-info-color">{this.props.wizardEntryDn}</b>
@@ -163,20 +166,20 @@ class DeleteOperationWizard extends React.Component {
                 <Alert
                     variant="info"
                     isInline
-                    title="LDIF Entry To Be Deleted"
+                    title={_("LDIF Entry To Be Deleted")}
                 />
                 <Card isSelectable>
                     { numSubordinates > 0 &&
                         <>
                             <CardBody>
-                                Run this command to retrieve the LDAP entries that will be deleted
+                                {_("Run this command to retrieve the LDAP entries that will be deleted")}
                             </CardBody>
                             <CardBody>
                                 <ClipboardCopy
                                     variant={ClipboardCopyVariant.expansion}
                                     isReadOnly
-                                    hoverTip="Copy"
-                                    clickTip="Copied"
+                                    hoverTip={_("Copy")}
+                                    clickTip={_("Copied")}
                                 >
                                     {ldapsearchCmd}
                                 </ClipboardCopy>
@@ -193,22 +196,22 @@ class DeleteOperationWizard extends React.Component {
         );
 
         const nbToDelete = numSubordinates > 0
-            ? `This entry, as well as all its child entries,`
-            : 'This entry';
+            ? _("This entry, as well as all its child entries,")
+            : _("This entry");
         const deletionStep = (
             <div>
                 <Alert
                     variant="danger"
                     isInline
-                    title="This is an irreversible operation!"
+                    title={_("This is an irreversible operation!")}
                 />
                 <div>
                     <Card isSelectable>
                         <CardTitle>
-                            Confirm Entry Deletion
+                            {_("Confirm Entry Deletion")}
                         </CardTitle>
                         <CardBody>
-                            {nbToDelete} will be deleted.
+                            {cockpit.format(_("$0 will be deleted."), nbToDelete)}
                         </CardBody>
                         <CardBody>
                             {entryIcon}&nbsp;&nbsp;<b className="ds-info-color">{this.props.wizardEntryDn}</b>
@@ -217,8 +220,8 @@ class DeleteOperationWizard extends React.Component {
                             <Switch
                                 isDisabled={this.props.wizardEntryDn === ''}
                                 id="ack-switch"
-                                label="Yes, I'm sure."
-                                labelOff="No, don't delete."
+                                label={_("Yes, I'm sure.")}
+                                labelOff={_("No, don't delete.")}
                                 isChecked={isAckChecked}
                                 onChange={this.handleChangeAck}
                             />
@@ -231,11 +234,11 @@ class DeleteOperationWizard extends React.Component {
         let reviewInfo = '';
         if (commandOutput === '') {
             reviewInfo = numSubordinates > 0
-                ? 'The entries were'
-                : 'The entry was';
-            reviewInfo += ' successfully deleted.';
+                ? _("The entries were")
+                : _("The entry was");
+            reviewInfo += _(" successfully deleted.");
         } else {
-            reviewInfo = 'There was an error during the deletion.';
+            reviewInfo = _("There was an error during the deletion.");
         }
         const delReviewStep = (
             <div className="ds-margin-bottom-md">
@@ -255,31 +258,31 @@ class DeleteOperationWizard extends React.Component {
         const deleteEntrySteps = [
             {
                 id: 1,
-                name: 'Acknowledgement',
+                name: _("Acknowledgement"),
                 component: acknowledgementStep,
                 hideBackButton: true,
                 canJumpTo: this.state.stepIdReached >= 1 && this.state.stepIdReached < 4
             },
             {
                 id: 2,
-                name: 'LDIF Data',
+                name: _("LDIF Data"),
                 component: ldifDataStep,
                 canJumpTo: this.state.stepIdReached >= 2,
                 enableNext: this.state.stepIdReached < 4
             },
             {
                 id: 3,
-                name: 'Deletion',
+                name: _("Deletion"),
                 component: deletionStep,
-                nextButtonText: 'Delete',
+                nextButtonText: _("Delete"),
                 enableNext: isAckChecked,
                 canJumpTo: this.state.stepIdReached === 3
             },
             {
                 id: 4,
-                name: 'Review',
+                name: _("Review"),
                 component: delReviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: this.state.stepIdReached >= 4,
                 hideBackButton: true,
                 enableNext: !this.state.deleting,
@@ -291,7 +294,7 @@ class DeleteOperationWizard extends React.Component {
                 isOpen={this.props.isWizardOpen}
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
-                title={numSubordinates === 0 ? 'Delete LDAP Entry' : 'Delete LDAP Entries'}
+                title={numSubordinates === 0 ? _("Delete LDAP Entry") : _("Delete LDAP Entries")}
                 steps={deleteEntrySteps}
             />
         );

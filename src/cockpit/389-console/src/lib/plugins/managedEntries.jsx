@@ -31,6 +31,8 @@ import PropTypes from "prop-types";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 class ManagedEntries extends React.Component {
     constructor(props) {
         super(props);
@@ -652,7 +654,7 @@ class ManagedEntries extends React.Component {
                     console.info("deleteDefConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Definition entry ${this.state.configName} was successfully deleted`
+                        cockpit.format(_("Definition entry $0 was successfully deleted"), this.state.configName)
                     );
                     this.loadConfigs();
                 })
@@ -660,7 +662,7 @@ class ManagedEntries extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the definition entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the definition entry removal operation - $0"), errMsg.desc)
                     );
                     this.loadConfigs();
                 });
@@ -708,7 +710,7 @@ class ManagedEntries extends React.Component {
                     console.info("cmdDefOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${configName}" entry`
+                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, configName)
                     );
                     this.loadConfigs();
                     this.handleCloseDefModal();
@@ -717,7 +719,7 @@ class ManagedEntries extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
                     );
                     this.loadConfigs();
                     this.handleCloseDefModal();
@@ -792,7 +794,7 @@ class ManagedEntries extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Config entry ${templateDN} was successfully ${action}ed`
+                        cockpit.format(_("Config entry $0 was successfully $1ed"), templateDN, action)
                     );
                     this.loadConfigs();
                     this.handleCloseTempModal();
@@ -802,7 +804,7 @@ class ManagedEntries extends React.Component {
                     this.handleCloseTempModal();
                     this.props.addNotification(
                         "error",
-                        `Error during the template entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the template entry $0 operation - $1"), action, errMsg.desc)
                     );
                     this.toggleLoading();
                 });
@@ -832,7 +834,7 @@ class ManagedEntries extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Template entry ${templateDN} was successfully deleted`
+                        cockpit.format(_("Template entry $0 was successfully deleted"), templateDN)
                     );
                     this.loadConfigs();
                     this.closeTempDeleteConfirm();
@@ -841,7 +843,7 @@ class ManagedEntries extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the template entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the template entry removal operation - $0"), errMsg.desc)
                     );
                     this.closeTempDeleteConfirm();
                     this.toggleLoading();
@@ -880,7 +882,7 @@ class ManagedEntries extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
+                    this.props.addNotification("error", cockpit.format(_("Failed to get attributes - $0"), errMsg.desc));
                 });
     }
 
@@ -985,8 +987,8 @@ class ManagedEntries extends React.Component {
             configArea || "delete"
         ];
 
-        const templateTitle = (newTemplateEntry ? "Add" : "Edit") + " Managed Entries Template Entry";
-        const title = (newDefEntry ? "Add" : "Edit") + " Managed Entries Definition Entry";
+        const templateTitle = cockpit.format(_("$0 Managed Entries Template Entry"), (newTemplateEntry ? _("Add") : _("Edit")));
+        const title = cockpit.format(_("$0 Managed Entries Definition Entry"), (newDefEntry ? _("Add") : _("Edit")));
         const defSaveDisabled = this.validateDef(newDefEntry);
         const tempSaveDisabled = this.validateTemp(newTemplateEntry);
         const templateRdnMappingOK = this.validateTempRdnToAttrMapping();
@@ -1006,16 +1008,16 @@ class ManagedEntries extends React.Component {
                             variant="primary"
                             onClick={newDefEntry ? this.addDefConfig : this.editDefConfig}
                         >
-                            Save Definition
+                            {_("Save Definition")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseDefModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                         <FormGroup
-                            label="Definition Name"
+                            label={_("Definition Name")}
                             fieldId="configName"
                             isRequired
                         >
@@ -1031,15 +1033,15 @@ class ManagedEntries extends React.Component {
                             />
                         </FormGroup>
                         <FormGroup
-                            label="Subtree Scope"
+                            label={_("Subtree Scope")}
                             fieldId="originScope"
-                            helperTextInvalid="A valid DN must be provided"
+                            helperTextInvalid={_("A valid DN must be provided")}
                             validated={
                                 originScope !== "" && !valid_dn(originScope)
                                     ? ValidatedOptions.error
                                     : ValidatedOptions.default
                             }
-                            title="Sets the search base DN to use to find candidate entries (originScope)"
+                            title={_("Sets the search base DN to use to find candidate entries (originScope)")}
                             isRequired
                         >
                             <TextInput
@@ -1058,9 +1060,9 @@ class ManagedEntries extends React.Component {
                             />
                         </FormGroup>
                         <FormGroup
-                            label="Filter"
+                            label={_("Filter")}
                             fieldId="originFilter"
-                            title="Sets the search filter to use to search for and identify the entries within the subtree which require a managed entry (originFilter)"
+                            title={_("Sets the search filter to use to search for and identify the entries within the subtree which require a managed entry (originFilter)")}
                             isRequired
                         >
                             <TextInput
@@ -1074,15 +1076,15 @@ class ManagedEntries extends React.Component {
                             />
                         </FormGroup>
                         <FormGroup
-                            label="Managed Base"
+                            label={_("Managed Base")}
                             fieldId="managedBase"
-                            helperTextInvalid="A valid DN must be provided"
+                            helperTextInvalid={_("A valid DN must be provided")}
                             validated={
                                 managedBase !== "" && !valid_dn(managedBase)
                                     ? ValidatedOptions.error
                                     : ValidatedOptions.default
                             }
-                            title="Sets the subtree where the managed entries are created (managedBase)"
+                            title={_("Sets the subtree where the managed entries are created (managedBase)")}
                             isRequired
                         >
                             <TextInput
@@ -1101,9 +1103,9 @@ class ManagedEntries extends React.Component {
                             />
                         </FormGroup>
                         <FormGroup
-                            label="Template"
+                            label={_("Template")}
                             fieldId="managedTemplate"
-                            title="Choose which template to use for this definition"
+                            title={_("Choose which template to use for this definition")}
                             isRequired
                         >
                             <FormSelect
@@ -1133,24 +1135,24 @@ class ManagedEntries extends React.Component {
                             onClick={newTemplateEntry ? this.addTemplate : this.editTemplate}
                             isDisabled={tempSaveDisabled}
                         >
-                            Save Template
+                            {_("Save Template")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseTempModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                         <FormGroup
-                            label="Template DN"
+                            label={_("Template DN")}
                             fieldId="templateDN"
-                            helperTextInvalid="The template DN must be set to a valid DN"
+                            helperTextInvalid={_("The template DN must be set to a valid DN")}
                             validated={
                                 templateDN !== "" && !valid_dn(templateDN)
                                     ? ValidatedOptions.error
                                     : ValidatedOptions.default
                             }
-                            title="DN of the template entry"
+                            title={_("DN of the template entry")}
                             isRequired
                         >
                             <TextInput
@@ -1169,9 +1171,9 @@ class ManagedEntries extends React.Component {
                             />
                         </FormGroup>
                         <FormGroup
-                            label="RDN Attribute"
+                            label={_("RDN Attribute")}
                             fieldId="templateDN"
-                            title="DN of the template entry"
+                            title={_("DN of the template entry")}
                             isRequired
                         >
                             <Select
@@ -1183,7 +1185,7 @@ class ManagedEntries extends React.Component {
                                 selections={templateRDNAttr}
                                 isOpen={this.state.isRDNOpen}
                                 aria-labelledby="typeAhead-rdn"
-                                placeholderText="Type an attribute..."
+                                placeholderText={_("Type an attribute...")}
                             >
                                 {attributes.map((attr) => (
                                     <SelectOption
@@ -1196,9 +1198,9 @@ class ManagedEntries extends React.Component {
                     </Form>
                     <Form className="ds-margin-top-lg" autoComplete="off">
                         <FormGroup
-                            label="Mapped Attributes"
+                            label={_("Mapped Attributes")}
                             fieldId="templateDN"
-                            title="Dynamic attribute mappings"
+                            title={_("Dynamic attribute mappings")}
                             isRequired
                         >
                             <SimpleList
@@ -1218,7 +1220,7 @@ class ManagedEntries extends React.Component {
                                 hidden={templateRdnMappingOK}
                                 className="ds-error-msg"
                             >
-                                You must have at least one Mapped Attribute that matches the RDN Attribute
+                                {_("You must have at least one Mapped Attribute that matches the RDN Attribute")}
                             </p>
                             <div className="ds-margin-top">
                                 <Button
@@ -1227,7 +1229,7 @@ class ManagedEntries extends React.Component {
                                     variant="primary"
                                     onClick={this.handleOpenMappedAttrModal}
                                 >
-                                    Add Attribute
+                                    {_("Add Attribute")}
                                 </Button>
                                 <Button
                                     className="ds-left-margin"
@@ -1236,15 +1238,15 @@ class ManagedEntries extends React.Component {
                                     isDisabled={this.state.selectedMappedAttr === ""}
                                     onClick={this.handleShowMappedAttrDeleteConfirm}
                                 >
-                                    Delete Attribute
+                                    {_("Delete Attribute")}
                                 </Button>
                             </div>
                         </FormGroup>
                         <FormGroup
                             className="ds-margin-top-lg"
-                            label="Static Attributes"
+                            label={_("Static Attributes")}
                             fieldId="templateDN"
-                            title="Static attribute mappings"
+                            title={_("Static attribute mappings")}
                         >
                             <SimpleList
                                 className="ds-modal-list"
@@ -1265,7 +1267,7 @@ class ManagedEntries extends React.Component {
                                     variant="primary"
                                     onClick={this.handleOpenStaticAttrModal}
                                 >
-                                    Add Attribute
+                                    {_("Add Attribute")}
                                 </Button>
                                 <Button
                                     className="ds-left-margin"
@@ -1274,7 +1276,7 @@ class ManagedEntries extends React.Component {
                                     isDisabled={this.state.selectedStaticAttr === ""}
                                     onClick={this.handleShowStaticAttrDeleteConfirm}
                                 >
-                                    Delete Attribute
+                                    {_("Delete Attribute")}
                                 </Button>
                                 <hr />
                             </div>
@@ -1285,7 +1287,7 @@ class ManagedEntries extends React.Component {
                 <Modal
                     variant={ModalVariant.small}
                     aria-labelledby="ds-modal"
-                    title="Add Static Attribute"
+                    title={_("Add Static Attribute")}
                     isOpen={templateAddStaticShow}
                     onClose={this.handleCloseStaticAttrModal}
                     actions={[
@@ -1295,18 +1297,18 @@ class ManagedEntries extends React.Component {
                             onClick={this.handleAddStaticAttrToList}
                             isDisabled={!this.state.staticAttr.length || this.state.staticValue === ""}
                         >
-                            Add Attribute
+                            {_("Add Attribute")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseStaticAttrModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form className="ds-margin-top" autoComplete="off">
                         <FormGroup
-                            label="Static Attribute"
+                            label={_("Static Attribute")}
                             fieldId="staticAttr"
-                            title="The attribute that is set in the managed entry"
+                            title={_("The attribute that is set in the managed entry")}
                         >
                             <Select
                                 variant={SelectVariant.typeahead}
@@ -1317,7 +1319,7 @@ class ManagedEntries extends React.Component {
                                 selections={this.state.staticAttr}
                                 isOpen={this.state.isStaticOpen}
                                 aria-labelledby="typeAhead-static"
-                                placeholderText="Type an attribute..."
+                                placeholderText={_("Type an attribute...")}
                             >
                                 {attributes.map((attr) => (
                                     <SelectOption
@@ -1329,9 +1331,9 @@ class ManagedEntries extends React.Component {
                         </FormGroup>
                         <FormGroup
                             className="ds-margin-top-lg"
-                            label="Attribute Value"
+                            label={_("Attribute Value")}
                             fieldId="staticValue"
-                            title="The value set for the static attribute in the entry"
+                            title={_("The value set for the static attribute in the entry")}
                         >
                             <TextInput
                                 value={this.state.staticValue}
@@ -1350,7 +1352,7 @@ class ManagedEntries extends React.Component {
                 <Modal
                     variant={ModalVariant.small}
                     aria-labelledby="ds-modal"
-                    title="Add Mapped Attribute"
+                    title={_("Add Mapped Attribute")}
                     isOpen={templateAddMappedShow}
                     onClose={this.handleCloseMappedAttrModal}
                     actions={[
@@ -1360,18 +1362,18 @@ class ManagedEntries extends React.Component {
                             onClick={this.handleAddMappedAttrToList}
                             isDisabled={!this.state.mappedAttr.length || this.state.mappedValue === ""}
                         >
-                            Add Attribute
+                            {_("Add Attribute")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleCloseMappedAttrModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Form className="ds-margin-top" autoComplete="off">
                         <FormGroup
-                            label="Mapped Attribute"
+                            label={_("Mapped Attribute")}
                             fieldId="mappedAttr"
-                            title="The attribute that is set in the managed entry"
+                            title={_("The attribute that is set in the managed entry")}
                         >
                             <Select
                                 variant={SelectVariant.typeahead}
@@ -1382,7 +1384,7 @@ class ManagedEntries extends React.Component {
                                 selections={this.state.mappedAttr}
                                 isOpen={this.state.isMappedOpen}
                                 aria-labelledby="typeAhead-static"
-                                placeholderText="Type an attribute..."
+                                placeholderText={_("Type an attribute...")}
                             >
                                 {attributes.map((attr) => (
                                     <SelectOption
@@ -1393,10 +1395,10 @@ class ManagedEntries extends React.Component {
                             </Select>
                         </FormGroup>
                         <FormGroup
-                            label="Mapped Value"
+                            label={_("Mapped Value")}
                             fieldId="mappedValue"
                             className="ds-margin-top-lg"
-                            title="The value set for the mapped attribute"
+                            title={_("The value set for the mapped attribute")}
                         >
                             <TextInput
                                 value={this.state.mappedValue}
@@ -1414,7 +1416,7 @@ class ManagedEntries extends React.Component {
                 <div className="ds-center ds-margin-top-xlg" hidden={!this.state.loading}>
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Loading Managed Entries Configuration ...
+                            {_("Loading Managed Entries Configuration ...")}
                         </Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
@@ -1438,7 +1440,7 @@ class ManagedEntries extends React.Component {
                                 <Tab
                                     eventKey={1} title={
                                         <TabTitleText>
-                                            <b>Templates</b>
+                                            <b>{_("Templates")}</b>
                                         </TabTitleText>
                                     }
                                 >
@@ -1446,13 +1448,11 @@ class ManagedEntries extends React.Component {
                                         <Tooltip
                                             content={
                                                 <div>
-                                                    Templates are used by Definitions to construct
-                                                    the "Managed Entry".  You must have at least one
-                                                    Template before you can create a Definition entry.
+                                                    {_("Templates are used by Definitions to construct the \"Managed Entry\".  You must have at least one Template before you can create a Definition entry.")}
                                                 </div>
                                             }
                                         >
-                                            <a className="ds-font-size-sm">What is a Template?</a>
+                                            <a className="ds-font-size-sm">{_("What is a Template?")}</a>
                                         </Tooltip>
                                     </div>
                                     <ManagedTemplateTable
@@ -1466,13 +1466,13 @@ class ManagedEntries extends React.Component {
                                         variant="primary"
                                         onClick={this.handleShowAddTempModal}
                                     >
-                                        Create Template
+                                        {_("Create Template")}
                                     </Button>
                                 </Tab>
                                 <Tab
                                     eventKey={2} title={
                                         <TabTitleText>
-                                            <b>Definitions</b>
+                                            <b>{_("Definitions")}</b>
                                         </TabTitleText>
                                     }
                                 >
@@ -1480,16 +1480,11 @@ class ManagedEntries extends React.Component {
                                         <Tooltip
                                             content={
                                                 <div>
-                                                    Definitions describe the criteria that entries
-                                                    must meet in order for its "managed entry" to
-                                                    be created.  The Managed entry will be created
-                                                    using the Template specified in its configuration.
-                                                    You can not create a Definition until there is
-                                                    at least one Template.
+                                                    {_("Definitions describe the criteria that entries must meet in order for its \"managed entry\" to be created.  The Managed entry will be created using the Template specified in its configuration.  You can not create a Definition until there is at least one Template.")}
                                                 </div>
                                             }
                                         >
-                                            <a className="ds-font-size-sm">What is a Definition?</a>
+                                            <a className="ds-font-size-sm">{_("What is a Definition?")}</a>
                                         </Tooltip>
                                     </div>
                                     <ManagedDefinitionTable
@@ -1504,7 +1499,7 @@ class ManagedEntries extends React.Component {
                                         onClick={this.handleShowAddDefModal}
                                         isDisabled={this.state.defCreateDisabled}
                                     >
-                                        Add Definition
+                                        {_("Add Definition")}
                                     </Button>
                                 </Tab>
                             </Tabs>
@@ -1512,9 +1507,9 @@ class ManagedEntries extends React.Component {
                             <hr />
                             <Form className="ds-margin-top-xlg" isHorizontal autoComplete="off">
                                 <FormGroup
-                                    label="Shared Config Area"
+                                    label={_("Shared Config Area")}
                                     fieldId="configArea"
-                                    helperTextInvalid="The DN for the shared conifig area is invalid"
+                                    helperTextInvalid={_("The DN for the shared conifig area is invalid")}
                                     validated={
                                         configArea !== "" && !valid_dn(configArea)
                                             ? ValidatedOptions.error
@@ -1542,10 +1537,10 @@ class ManagedEntries extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.templateDN}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Template Entry"
-                    mMsg="Are you really sure you want to delete this template entry?"
-                    mSpinningMsg="Deleting template ..."
-                    mBtnName="Delete Template"
+                    mTitle={_("Delete Template Entry")}
+                    mMsg={_("Are you really sure you want to delete this template entry?")}
+                    mSpinningMsg={_("Deleting template ...")}
+                    mBtnName={_("Delete Template")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showDefDeleteConfirm}
@@ -1555,10 +1550,10 @@ class ManagedEntries extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.configName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Definition Entry"
-                    mMsg="Are you really sure you want to delete this definition entry?"
-                    mSpinningMsg="Deleting definition ..."
-                    mBtnName="Delete Definition"
+                    mTitle={_("Delete Definition Entry")}
+                    mMsg={_("Are you really sure you want to delete this definition entry?")}
+                    mSpinningMsg={_("Deleting definition ...")}
+                    mBtnName={_("Delete Definition")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showMappedAttrDeleteConfirm}
@@ -1568,10 +1563,10 @@ class ManagedEntries extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.selectedMappedAttr}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Mapped Attribute From Template"
-                    mMsg="Are you really sure you want to delete this mapped attribute?"
-                    mSpinningMsg="Deleting mapped attribute ..."
-                    mBtnName="Delete Attribute"
+                    mTitle={_("Delete Mapped Attribute From Template")}
+                    mMsg={_("Are you really sure you want to delete this mapped attribute?")}
+                    mSpinningMsg={_("Deleting mapped attribute ...")}
+                    mBtnName={_("Delete Attribute")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showStaticAttrDeleteConfirm}
@@ -1581,10 +1576,10 @@ class ManagedEntries extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.selectedStaticAttr}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Static Attribute From Template"
-                    mMsg="Are you really sure you want to delete this static attribute?"
-                    mSpinningMsg="Deleting static attribute ..."
-                    mBtnName="Delete Attribute"
+                    mTitle={_("Delete Static Attribute From Template")}
+                    mMsg={_("Are you really sure you want to delete this static attribute?")}
+                    mSpinningMsg={_("Deleting static attribute ...")}
+                    mBtnName={_("Delete Attribute")}
                 />
             </div>
         );

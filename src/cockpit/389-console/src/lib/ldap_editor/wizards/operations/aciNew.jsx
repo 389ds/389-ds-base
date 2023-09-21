@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -42,14 +43,16 @@ import LdapNavigator from '../../lib/ldapNavigator.jsx';
 import AciBindRuleTable from "./aciBindRuleTable.jsx";
 import { InfoCircleIcon } from '@patternfly/react-icons/dist/js/icons/info-circle-icon';
 
+const _ = cockpit.gettext;
+
 class AddNewAci extends React.Component {
     constructor (props) {
         super(props);
 
-        this.rightsColumns = [{ title: 'Right' }, { title: 'Description' }];
+        this.rightsColumns = [{ title: _("Right") }, { title: _("Description") }];
         this.targetsColumns = [
-            { title: 'Name', transforms: [sortable] },
-            { title: 'OID', transforms: [sortable] }
+            { title: _("Name"), transforms: [sortable] },
+            { title: _("OID"), transforms: [sortable] }
         ];
         this.dayMap = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
@@ -119,15 +122,15 @@ class AddNewAci extends React.Component {
             rightType: "allow",
             isOpenRights: false,
             rightsRows: [
-                { cells: ['read', 'See the values of targeted attributes'], selected: false },
-                { cells: ['compare', 'Compare targeted attribute values'], selected: false },
-                { cells: ['search', 'Determine if targeted attributes exist'], selected: false },
-                { cells: ['selfwrite', 'Add one\'s own DN to the target'], selected: false },
-                { cells: ['write', 'Modify targeted attributes'], selected: false },
-                { cells: ['delete', 'Remove targeted entries'], selected: false },
-                { cells: ['add', 'Add targeted entries'], selected: false },
-                { cells: ['moddn', 'Move an entry from one subtree to another'], selected: false },
-                { cells: ['proxy', 'Authenticate as another user'], selected: false }
+                { cells: [_("read"), _("See the values of targeted attributes")], selected: false },
+                { cells: [_("compare"), _("Compare targeted attribute values")], selected: false },
+                { cells: [_("search"), _("Determine if targeted attributes exist")], selected: false },
+                { cells: [_("selfwrite"), _("Add one's own DN to the target")], selected: false },
+                { cells: [_("write"), _("Modify targeted attributes")], selected: false },
+                { cells: [_("delete"), _("Remove targeted entries")], selected: false },
+                { cells: [_("add"), _("Add targeted entries")], selected: false },
+                { cells: [_("moddn"), _("Move an entry from one subtree to another")], selected: false },
+                { cells: [_("proxy"), _("Authenticate as another user")], selected: false }
             ],
             // Targets
             targetAttrRows: [],
@@ -309,8 +312,8 @@ class AddNewAci extends React.Component {
                 } else {
                     aciText += ' ';
                 }
-                aciText += '(timeofday' + timeStartCompOp + '"' + timeOfDayStart + '"';
-                aciText += ' and timeofday' + timeEndCompOp + '"' + timeOfDayEnd + '")';
+                aciText += _("timeofday") + timeStartCompOp + '"' + timeOfDayStart + '"';
+                aciText += _(" and timeofday") + timeEndCompOp + '"' + timeOfDayEnd + '")';
                 brCount += 1;
             }
 
@@ -564,7 +567,7 @@ class AddNewAci extends React.Component {
             modifyLdapEntry(params, ldifArray, (result) => {
                 this.props.refreshAciTable();
                 this.setState({
-                    commandOutput: result.errorCode === 0 ? 'Successfully added ACI!' : 'Failed to add ACI, error: ' + result.errorCode,
+                    commandOutput: result.errorCode === 0 ? _("Successfully added ACI!") : _("Failed to add ACI, error: ") + result.errorCode,
                     resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                     adding: false
                 }, () => { this.props.onReload() }); // refreshes tableView
@@ -757,11 +760,11 @@ class AddNewAci extends React.Component {
         const aciNameComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Choose a name for this ACI, and set the Target</Text>
+                    <Text component={TextVariants.h3}>{_("Choose a name for this ACI, and set the Target")}</Text>
                 </TextContent>
                 <Grid className="ds-margin-top-xlg" hasGutter>
                     <GridItem span={1} className="ds-label">
-                        Name
+                        {_("Name")}
                     </GridItem>
                     <GridItem span={7}>
                         <TextInput
@@ -778,7 +781,7 @@ class AddNewAci extends React.Component {
 
                 <Grid className="ds-margin-top-xlg" hasGutter>
                     <GridItem span={1} className="ds-label">
-                        Target
+                        {_("Target")}
                     </GridItem>
                     <GridItem span={7}>
                         <TextInput
@@ -799,7 +802,7 @@ class AddNewAci extends React.Component {
             <DrawerPanelContent isResizable>
                 <DrawerHead>
                     <span tabIndex={isUsersDrawerExpanded ? 0 : -1} ref={this.usersDrawerRef}>
-                        <strong>LDAP Tree</strong>
+                        <strong>{_("LDAP Tree")}</strong>
                     </span>
                     <DrawerActions>
                         <DrawerCloseButton onClick={this.handleUsersDrawerCloseClick} />
@@ -827,8 +830,8 @@ class AddNewAci extends React.Component {
                 <DualListSelector
                     availableOptions={usersAvailableOptions}
                     chosenOptions={usersChosenOptions}
-                    availableOptionsTitle="Available Entries"
-                    chosenOptionsTitle="Chosen Entries"
+                    availableOptionsTitle={_("Available Entries")}
+                    chosenOptionsTitle={_("Chosen Entries")}
                     onListChange={this.handleUsersOnListChange}
                     id="usersSelector"
                     className="ds-aci-dual-select"
@@ -839,10 +842,10 @@ class AddNewAci extends React.Component {
         const usersComponent = (
             <>
                 {isSearchRunning &&
-                    <center className="ds-font-size-md"><Spinner size="sm" />&nbsp;&nbsp;Searching database ...</center>}
+                    <center className="ds-font-size-md"><Spinner size="sm" />&nbsp;&nbsp;{_("Searching database ...")}</center>}
                 {!isSearchRunning &&
                     <SearchInput
-                        placeholder="Search for entries ..."
+                        placeholder={_("Search for entries ...")}
                         value={searchPattern}
                         onChange={(evt, val) => this.handleSearchPattern(val)}
                         onClear={() => this.handleSearchPattern('')}
@@ -852,7 +855,7 @@ class AddNewAci extends React.Component {
                 <div className="ds-margin-bottom-md" />
                 <TextContent>
                     <Text>
-                        Search Base:
+                        {_("Search Base:")}
                         <Text
                             className="ds-left-margin"
                             component={TextVariants.a}
@@ -875,18 +878,12 @@ class AddNewAci extends React.Component {
         const bindRulesComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Define the Bind Rules
+                    <Text component={TextVariants.h3}>{_("Define the Bind Rules")}
                         <Tooltip
                             position="bottom"
                             content={
                                 <div>
-                                    The bind rules in an ACI define the required bind parameters
-                                    that must meet so that Directory Server applies the ACI. For
-                                    example user-based access uses the "userdn" bind rule, while
-                                    group access uses "groupdn" bind rule.  There are other
-                                    combinations that are possible, as well as defining the
-                                    authentication method allowed or the connection security level.
-                                    Please see the Administration Guide for more information.
+                                    {_("The bind rules in an ACI define the required bind parameters that must meet so that Directory Server applies the ACI. For example user-based access uses the 'userdn' bind rule, while group access uses 'groupdn' bind rule.  There are other combinations that are possible, as well as defining the authentication method allowed or the connection security level. Please see the Administration Guide for more information.")}
                                 </div>
                             }
                         >
@@ -907,7 +904,7 @@ class AddNewAci extends React.Component {
                     onClick={this.handleOpenAddBindRule}
                     isSmall
                 >
-                    Add Bind Rule
+                    {_("Add Bind Rule")}
                 </Button>
             </>
         );
@@ -915,13 +912,12 @@ class AddNewAci extends React.Component {
         const rightsComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Choose the Rights to Allow or Deny
+                    <Text component={TextVariants.h3}>{_("Choose the Rights to Allow or Deny")}
                         <Tooltip
                             position="bottom"
                             content={
                                 <div>
-                                    This section defines what permissions and rights are
-                                    allowed/denied by this ACI.
+                                    {_("This section defines what permissions and rights are allowed/denied by this ACI.")}
                                 </div>
                             }
                         >
@@ -961,19 +957,12 @@ class AddNewAci extends React.Component {
         const targetAttrComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Choose the Target Attributes
+                    <Text component={TextVariants.h3}>{_("Choose the Target Attributes")}
                         <Tooltip
                             position="bottom"
                             content={
                                 <div>
-                                    You can control what entry attributes are affected by an ACI.
-                                    If no target attributes are defined then all attributes are
-                                    impacted by the ACI.  It is strongly discouraged to use the
-                                    comparison operator "!=" when defining target attributes
-                                    because it implicitly allows access all the other attributes
-                                    in the entry (including operational attributes).  This is a
-                                    potential unintended security risk. Instead, just use "=" to
-                                    only open up the attributes you want the ACI to allow.
+                                    {_("You can control what entry attributes are affected by an ACI. If no target attributes are defined then all attributes are impacted by the ACI.  It is strongly discouraged to use the comparison operator '!=' when defining target attributes because it implicitly allows access all the other attributes in the entry (including operational attributes).  This is a potential unintended security risk. Instead, just use '=' to only open up the attributes you want the ACI to allow.")}
                                 </div>
                             }
                         >
@@ -986,7 +975,7 @@ class AddNewAci extends React.Component {
 
                 <div className="ds-margin-top-xlg">
                     <div className="ds-inline ds-font-size-md">
-                        <b>Comparison Operator</b>
+                        <b>{_("Comparison Operator")}</b>
                     </div>
                     <div className="ds-inline ds-left-margin ds-raise-field-md">
                         <Select
@@ -1024,15 +1013,12 @@ class AddNewAci extends React.Component {
         const targetFilterComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Target Filter
+                    <Text component={TextVariants.h3}>{_("Target Filter")}
                         <Tooltip
                             position="bottom"
                             content={
                                 <div>
-                                    Optionally set an LDAP search filter to further
-                                    refine which entries this ACI will be applied to.
-                                    Warning, using targetFilters can impact the server's
-                                    performance and should be used sparingly.
+                                    {_("Optionally set an LDAP search filter to further refine which entries this ACI will be applied to. Warning, using targetFilters can impact the server's performance and should be used sparingly.")}
                                 </div>
                             }
                         >
@@ -1045,7 +1031,7 @@ class AddNewAci extends React.Component {
                 <Form className="ds-margin-top-xlg" autoComplete="off">
                     <Grid>
                         <GridItem span={2} className="ds-label">
-                            Target Filter
+                            {_("Target Filter")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -1056,7 +1042,7 @@ class AddNewAci extends React.Component {
                                 validated={targetFilter !== "" && !valid_filter(targetFilter) ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={targetFilter === "" || valid_filter(targetFilter)}>
-                                The filter must be enclosed with parentheses
+                                {_("The filter must be enclosed with parentheses")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
@@ -1067,18 +1053,12 @@ class AddNewAci extends React.Component {
         const moddnComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Moving Entries
+                    <Text component={TextVariants.h3}>{_("Moving Entries")}
                         <Tooltip
                             position="bottom"
                             content={
                                 <div>
-                                    If you need to control access for moving an entry
-                                    between specific subtrees then use the
-                                    target_from and target_to keywords. These
-                                    keywords use LDAP URL's to specify the database
-                                    resources/locations:
-                                    ldap:///uid=*,cn=staging,dc=example,dc=com,
-                                    ldap:///ou=people,dc=example,dc=com
+                                    {_("If you need to control access for moving an entry between specific subtrees then use the target_from and target_to keywords. These keywords use LDAP URL's to specify the database resources/locations: ldap:///uid=*,cn=staging,dc=example,dc=com, ldap:///ou=people,dc=example,dc=com")}
                                 </div>
                             }
                         >
@@ -1090,8 +1070,8 @@ class AddNewAci extends React.Component {
                 </TextContent>
                 <Form className="ds-margin-top-xlg" autoComplete="off">
                     <Grid>
-                        <GridItem span={2} className="ds-label" title="Specifies the entries that can be moved.  Example: ldap:///uid=*,cn=staging,dc=example,dc=com">
-                            Target From
+                        <GridItem span={2} className="ds-label" title={_("Specifies the entries that can be moved.  Example: ldap:///uid=*,cn=staging,dc=example,dc=com")}>
+                            {_("Target From")}
                         </GridItem>
                         <GridItem span={10}>
                             <TextInput
@@ -1102,10 +1082,10 @@ class AddNewAci extends React.Component {
                                 validated={target_from !== "" && !isValidLDAPUrl(target_from) ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={target_from === "" || isValidLDAPUrl(target_from)}>
-                                The LDAP URL must start with "ldap:///"
+                                {_("The LDAP URL must start with 'ldap:///'")}
                             </FormHelperText>
                         </GridItem>
-                        <GridItem span={2} className="ds-label" title="Specifies where the entries can be moved to.  Example: ldap:///ou=people,dc=example,dc=com">
+                        <GridItem span={2} className="ds-label" title={_("Specifies where the entries can be moved to.  Example: ldap:///ou=people,dc=example,dc=com")}>
                             Target To
                         </GridItem>
                         <GridItem span={10}>
@@ -1117,7 +1097,7 @@ class AddNewAci extends React.Component {
                                 validated={target_to !== "" && !isValidLDAPUrl(target_to) ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                             <FormHelperText isError isHidden={target_to === "" || isValidLDAPUrl(target_to)}>
-                                The LDAP URL must start with "ldap:///"
+                                {_('The LDAP URL must start with "ldap:///"')}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
@@ -1128,13 +1108,12 @@ class AddNewAci extends React.Component {
         const timesComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>Define Day and Time Restrictions
+                    <Text component={TextVariants.h3}>{_("Define Day and Time Restrictions")}
                         <Tooltip
                             position="bottom"
                             content={
                                 <div>
-                                    These bind rules control access based off of specific days or times.
-                                    If no days are selected then all the days of the week are assumed.
+                                    {_("These bind rules control access based off of specific days or times. If no days are selected then all the days of the week are assumed.")}
                                 </div>
                             }
                         >
@@ -1146,13 +1125,13 @@ class AddNewAci extends React.Component {
                 </TextContent>
                 <TextContent className="ds-margin-top-xlg">
                     <Text component={TextVariants.h4}>
-                        Choose Days To Allow Access
+                        {_("Choose Days To Allow Access")}
                     </Text>
                 </TextContent>
                 <div className="ds-margin-top ds-margin-left">
                     <Checkbox
                         className=""
-                        label="Sunday"
+                        label={_("Sunday")}
                         isChecked={this.state.sunday}
                         onChange={(checked, e) => this.handleChange(e)}
                         aria-label="Sunday"
@@ -1160,7 +1139,7 @@ class AddNewAci extends React.Component {
                     />
                     <Checkbox
                         className=""
-                        label="Monday"
+                        label={_("Monday")}
                         isChecked={this.state.monday}
                         onChange={(checked, e) => this.handleChange(e)}
                         aria-label="monday"
@@ -1168,7 +1147,7 @@ class AddNewAci extends React.Component {
                     />
                     <Checkbox
                         className=""
-                        label="Tuesday"
+                        label={_("Tuesday")}
                         isChecked={this.state.tuesday}
                         onChange={(checked, e) => this.handleChange(e)}
                         aria-label="Tuesday"
@@ -1176,7 +1155,7 @@ class AddNewAci extends React.Component {
                     />
                     <Checkbox
                         className=""
-                        label="Wednesday"
+                        label={_("Wednesday")}
                         isChecked={this.state.wednesday}
                         onChange={(checked, e) => this.handleChange(e)}
                         aria-label="wednesday"
@@ -1184,7 +1163,7 @@ class AddNewAci extends React.Component {
                     />
                     <Checkbox
                         className=""
-                        label="Thursday"
+                        label={_("Thursday")}
                         isChecked={this.state.thursday}
                         onChange={(checked, e) => this.handleChange(e)}
                         aria-label="thursday"
@@ -1192,7 +1171,7 @@ class AddNewAci extends React.Component {
                     />
                     <Checkbox
                         className=""
-                        label="Friday"
+                        label={_("Friday")}
                         isChecked={this.state.friday}
                         onChange={(checked, e) => this.handleChange(e)}
                         aria-label="friday"
@@ -1200,7 +1179,7 @@ class AddNewAci extends React.Component {
                     />
                     <Checkbox
                         className=""
-                        label="Saturday"
+                        label={_("Saturday")}
                         isChecked={this.state.saturday}
                         onChange={(checked, e) => this.handleChange(e)}
                         aria-label="saturday"
@@ -1210,12 +1189,12 @@ class AddNewAci extends React.Component {
 
                 <TextContent className="ds-margin-top-xlg">
                     <Text component={TextVariants.h4}>
-                        Time Range Restrictions
+                        {_("Time Range Restrictions")}
                     </Text>
                 </TextContent>
                 <Grid className="ds-margin-top-lg ds-margin-left">
-                    <GridItem span={2} className="ds-label" title="First part of the time range">
-                        Time Start
+                    <GridItem span={2} className="ds-label" title={_("First part of the time range")}>
+                        {_("Time Start")}
                     </GridItem>
                     <GridItem span={2}>
                         <FormSelect
@@ -1242,8 +1221,8 @@ class AddNewAci extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid className="ds-margin-top ds-margin-left">
-                    <GridItem span={2} className="ds-label" title="Second part of the time range">
-                        Time End
+                    <GridItem span={2} className="ds-label" title={_("Second part of the time range")}>
+                        {_("Time End")}
                     </GridItem>
                     <GridItem span={2}>
                         <FormSelect
@@ -1281,10 +1260,7 @@ class AddNewAci extends React.Component {
                             position="bottom"
                             content={
                                 <div>
-                                    Review the new ACI, and make any edits as needed,
-                                    but once you edit the ACI you can not go back
-                                    to the previous wizard steps without undoing your
-                                    changes.
+                                    {_("Review the new ACI, and make any edits as needed, but once you edit the ACI you can not go back to the previous wizard steps without undoing your changes.")}
                                 </div>
                             }
                         >
@@ -1311,7 +1287,7 @@ class AddNewAci extends React.Component {
                             isDisabled={aciText === aciTextNew}
                             isSmall
                         >
-                            Undo Changes
+                            {_("Undo Changes")}
                         </Button>
                     </CardBody>
                 </Card>
@@ -1324,19 +1300,19 @@ class AddNewAci extends React.Component {
                     <Alert
                         variant={this.state.resultVariant}
                         isInline
-                        title="Result for ACI addition"
+                        title={_("Result for ACI addition")}
                     >
-                        {this.state.resultVariant === "success" ? "Successfully added ACI" : this.state.commandOutput}
+                        {this.state.resultVariant === "success" ? _("Successfully added ACI") : this.state.commandOutput}
                         {this.state.adding &&
                             <div>
                                 <Spinner className="ds-left-margin" size="md" />
-                                &nbsp;&nbsp;Adding ACI ...
+                                &nbsp;&nbsp;{_("Adding ACI ...")}
                             </div>}
                     </Alert>
                 </div>
                 {this.state.resultVariant === 'danger' &&
                     <Card isSelectable>
-                        <CardTitle>ACI Value</CardTitle>
+                        <CardTitle>_("ACI Value")</CardTitle>
                         <CardBody>
                             {aciTextNew}
                         </CardBody>
@@ -1347,27 +1323,27 @@ class AddNewAci extends React.Component {
         const newAciStepsVisual = [
             {
                 id: 1,
-                name: "ACI Name & Target",
+                name: _("ACI Name & Target"),
                 component: aciNameComponent,
                 canJumpTo: stepIdReachedVisual >= 1 && aciText === aciTextNew,
                 enableNext: newAciName !== "" && target !== "",
             },
             {
                 id: 2,
-                name: 'Target Attributes',
+                name: _("Target Attributes"),
                 component: targetAttrComponent,
                 canJumpTo: stepIdReachedVisual >= 2 && aciText === aciTextNew,
             },
             {
                 id: 3,
-                name: 'Target Filter',
+                name: _("Target Filter"),
                 component: targetFilterComponent,
                 canJumpTo: stepIdReachedVisual >= 3 && aciText === aciTextNew,
                 enableNext: (targetFilter === "" || (targetFilter !== "" && valid_filter(targetFilter))),
             },
             {
                 id: 4,
-                name: 'Moving Entries',
+                name: _("Moving Entries"),
                 component: moddnComponent,
                 canJumpTo: stepIdReachedVisual >= 4 && aciText === aciTextNew,
                 enableNext: (target_from === "" || (target_from === "" || (target_from !== "" && isValidLDAPUrl(target_from)))) &&
@@ -1376,7 +1352,7 @@ class AddNewAci extends React.Component {
             },
             {
                 id: 5,
-                name: 'Access Rights',
+                name: _("Access Rights"),
                 component: rightsComponent,
                 canJumpTo: stepIdReachedVisual >= 5 && aciText === aciTextNew,
                 enableNext: rightsRows.filter(item => item.selected)
@@ -1385,30 +1361,30 @@ class AddNewAci extends React.Component {
             },
             {
                 id: 6,
-                name: 'Bind Rules',
+                name: _("Bind Rules"),
                 component: bindRulesComponent,
                 canJumpTo: stepIdReachedVisual >= 6 && aciText === aciTextNew,
                 enableNext: bindRuleRows.length > 0,
             },
             {
                 id: 7,
-                name: 'Days & Times',
+                name: _("Days & Times"),
                 component: timesComponent,
                 canJumpTo: stepIdReachedVisual >= 7 && aciText === aciTextNew,
             },
             {
                 id: 8,
-                name: 'Review & Edit',
+                name: _("Review & Edit"),
                 component: reviewComponent,
-                nextButtonText: 'Add ACI',
+                nextButtonText: _("Add ACI"),
                 canJumpTo: stepIdReachedVisual >= 8,
                 hideBackButton: this.state.aciText !== this.state.aciTextNew,
             },
             {
                 id: 9,
-                name: 'Result',
+                name: _("Result"),
                 component: resultComponent,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReachedVisual >= 9,
                 hideBackButton: true,
                 enableNext: !this.state.adding,
@@ -1416,7 +1392,7 @@ class AddNewAci extends React.Component {
 
         const title = (
             <>
-                ACI: &nbsp;&nbsp;<strong>{this.state.aciText}</strong>
+                {_("ACI: ")}&nbsp;&nbsp;<strong>{this.state.aciText}</strong>
             </>
         );
 
@@ -1429,13 +1405,13 @@ class AddNewAci extends React.Component {
                     onBack={this.handleBackVisual}
                     onGoToStep={this.handleBuildAciText}
                     startAtStep={savedStepId}
-                    title="Add a new Access Control Instruction"
+                    title={_("Add a new Access Control Instruction")}
                     description={this.state.savedStepId < 2 ? "" : title}
                     steps={newAciStepsVisual}
                 />
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Add Bind Rule"
+                    title={_("Add Bind Rule")}
                     isOpen={this.state.showAddBindRuleModal}
                     onClose={this.handleCloseAddBindRuleModal}
                     actions={[
@@ -1450,52 +1426,52 @@ class AddNewAci extends React.Component {
                                 (bindRuleType === "userattr" && userattrAttr === "")
                             }
                         >
-                            Add Bind Rule
+                            {_("Add Bind Rule")}
                         </Button>,
                         <Button
                             key="cancel"
                             variant="link"
                             onClick={this.handleCloseAddBindRuleModal}
                         >
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
                     <Grid className="ds-margin-top">
                         <GridItem span={3} className="ds-label">
-                            Choose Bind Rule
+                            {_("Choose Bind Rule")}
                         </GridItem>
                         <GridItem span={9}>
                             <FormSelect id="bindRuleType" value={bindRuleType} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                 { this.state.specialSelection === "" && !this.state.haveUserAttrRules &&
                                     <>
-                                        <FormSelectOption key="userdn" label="User DN (userdn)" value="userdn" title="Bind rules for user entries" />
-                                        <FormSelectOption key="groupdn" label="Group DN (groupdn)" value="groupdn" title="Bind rules for groups" />
-                                        <FormSelectOption key="roledn" label="Role DN (roledn)" value="roledn" title="Bind rules for Roles" />
+                                        <FormSelectOption key="userdn" label={_("User DN (userdn)")} value="userdn" title={_("Bind rules for user entries")} />
+                                        <FormSelectOption key="groupdn" label={_("Group DN (groupdn)")} value="groupdn" title={_("Bind rules for groups")} />
+                                        <FormSelectOption key="roledn" label={_("Role DN (roledn)")} value="roledn" title={_("Bind rules for Roles")} />
                                     </>}
                                 {!this.state.haveUserRules && !this.state.haveUserAttrRules &&
-                                    <FormSelectOption key="special" label="User DN Aliases (userdn)" value="User DN Aliases" title="Special bind rules for user DN catagories" />}
+                                    <FormSelectOption key="special" label={_("User DN Aliases (userdn)")} value="User DN Aliases" title={_("Special bind rules for user DN catagories")} />}
                                 {!this.state.haveUserRules && !this.state.haveUserAttrRules &&
-                                    <FormSelectOption key="userattr" label="User Attribute (userattr)" value="userattr" title="Bind rule to specify which attribute must match between the entry used to bind to the directory and the targeted entry" />}
-                                <FormSelectOption key="authmethod" label="Authentication Method (authmethod)" value="authmethod" title="Specify the authentication methods to restrict" />
+                                    <FormSelectOption key="userattr" label={_("User Attribute (userattr)")} value="userattr" title={_("Bind rule to specify which attribute must match between the entry used to bind to the directory and the targeted entry")} />}
+                                <FormSelectOption key="authmethod" label={_("Authentication Method (authmethod)")} value="authmethod" title={_("Specify the authentication methods to restrict")} />
                                 {this.state.ssf === "" &&
-                                    <FormSelectOption key="ssf" label="Connection Security (ssf)" value="ssf" title="Specify the connection security strength factor (ssf)" />}
-                                <FormSelectOption key="ip" label="IP Address (ip)" value="ip" title="Specify an IP address or range to restrict" />
-                                <FormSelectOption key="hostname" label="Hostname (dns)" value="dns" title="Specify a hostname or domain to restrict" />
+                                    <FormSelectOption key="ssf" label={_("Connection Security (ssf)")} value="ssf" title={_("Specify the connection security strength factor (ssf)")} />}
+                                <FormSelectOption key="ip" label={_("IP Address (ip)")} value="ip" title={_("Specify an IP address or range to restrict")} />
+                                <FormSelectOption key="hostname" label={_("Hostname (dns)")} value="dns" title={_("Specify a hostname or domain to restrict")} />
                             </FormSelect>
                         </GridItem>
                     </Grid>
                     {bindRuleType === "User DN Aliases" &&
                         <Grid className="ds-margin-top">
                             <GridItem span={3} className="ds-label">
-                                Select Alias URL
+                                {_("Select Alias URL")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect id="specialSelection" value={this.state.specialSelection} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
-                                    <FormSelectOption key="anyone" label="ldap:///anyone" value="ldap:///anyone" title="Grants Anonymous Access" />
-                                    <FormSelectOption key="all" label="ldap:///all" value="ldap:///all" title="Grants Access to Authenticated Users" />
-                                    <FormSelectOption key="self" label="ldap:///self" value="ldap:///self" title="Enables Users to Access Their Own Entries" />
-                                    <FormSelectOption key="parent" label="ldap:///parent" value="ldap:///parent" title="Grants Access for Child Entries of a User" />
+                                    <FormSelectOption key="anyone" label={_("ldap:///anyone")} value="ldap:///anyone" title={_("Grants Anonymous Access")} />
+                                    <FormSelectOption key="all" label={_("ldap:///all")} value="ldap:///all" title={_("Grants Access to Authenticated Users")} />
+                                    <FormSelectOption key="self" label={_("ldap:///self")} value="ldap:///self" title={_("Enables Users to Access Their Own Entries")} />
+                                    <FormSelectOption key="parent" label={_("ldap:///parent")} value="ldap:///parent" title={_("Grants Access for Child Entries of a User")} />
                                 </FormSelect>
 
                             </GridItem>
@@ -1504,7 +1480,7 @@ class AddNewAci extends React.Component {
                         <>
                             <Grid className="ds-margin-top">
                                 <GridItem span={3} className="ds-label">
-                                    Choose Comparator
+                                    {_("Choose Comparator")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <FormSelect id="bindRuleOperator" value={bindRuleType} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
@@ -1523,7 +1499,7 @@ class AddNewAci extends React.Component {
                         <>
                             <Grid className="ds-margin-top">
                                 <GridItem span={3} className="ds-label">
-                                    IP Address
+                                    {_("IP Address")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <FormSelect id="ipOperator" value={this.state.ipOperator} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
@@ -1542,7 +1518,7 @@ class AddNewAci extends React.Component {
                                     />
                                     {(ip === "" || !isValidIpAddress(ip)) &&
                                         <HelperText className="ds-left-margin">
-                                            <HelperTextItem variant="error">Invalid format for IP address</HelperTextItem>
+                                            <HelperTextItem variant="error">{_("Invalid format for IP address")}</HelperTextItem>
                                         </HelperText>}
                                 </GridItem>
                             </Grid>
@@ -1552,7 +1528,7 @@ class AddNewAci extends React.Component {
                         <>
                             <Grid className="ds-margin-top">
                                 <GridItem span={3} className="ds-label">
-                                    Hostname
+                                    {_("Hostname")}
                                 </GridItem>
                                 <GridItem span={2}>
                                     <FormSelect id="dnsOperator" value={this.state.dnsOperator} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
@@ -1571,7 +1547,7 @@ class AddNewAci extends React.Component {
                                     />
                                     {(dns === "" || !isValidHostname(dns)) &&
                                         <HelperText className="ds-left-margin">
-                                            <HelperTextItem variant="error">Invalid format for hostname</HelperTextItem>
+                                            <HelperTextItem variant="error">{_("Invalid format for hostname")}</HelperTextItem>
                                         </HelperText>}
                                 </GridItem>
                             </Grid>
@@ -1580,7 +1556,7 @@ class AddNewAci extends React.Component {
                     {bindRuleType === "authmethod" &&
                         <Grid className="ds-margin-top">
                             <GridItem span={3} className="ds-label">
-                                Authentication Method
+                                {_("Authentication Method")}
                             </GridItem>
                             <GridItem span={2}>
                                 <FormSelect
@@ -1605,8 +1581,8 @@ class AddNewAci extends React.Component {
                         </Grid>}
                     {bindRuleType === "ssf" &&
                         <Grid className="ds-margin-top">
-                            <GridItem span={3} className="ds-label" title="Security Strength Factor (ssf) - encryption key strength">
-                                Connection Security
+                            <GridItem span={3} className="ds-label" title={_("Security Strength Factor (ssf) - encryption key strength")}>
+                                {_("Connection Security")}
                             </GridItem>
                             <GridItem span={2}>
                                 <FormSelect
@@ -1630,7 +1606,7 @@ class AddNewAci extends React.Component {
                                     onChange={(str, e) => { this.handleChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
-                                    <FormSelectOption key="0" label="0" value="0" title="No connection security restrictions" />
+                                    <FormSelectOption key="0" label="0" value="0" title={_("No connection security restrictions")} />
                                     <FormSelectOption key="128" label="128" value="128" />
                                     <FormSelectOption key="192" label="192" value="192" />
                                     <FormSelectOption key="256" label="256" value="256" />
@@ -1640,7 +1616,7 @@ class AddNewAci extends React.Component {
                     {bindRuleType === "userattr" &&
                         <Grid className="ds-margin-top">
                             <GridItem span={3} className="ds-label">
-                                User Attribute
+                                {_("User Attribute")}
                             </GridItem>
                             <GridItem span={2}>
                                 <FormSelect
@@ -1655,7 +1631,7 @@ class AddNewAci extends React.Component {
                             </GridItem>
                             <GridItem span={5} className="ds-left-margin">
                                 <FormSelect id="userattrAttr" value={this.state.userattrAttr} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
-                                    <FormSelectOption value="" label="Select an attribute" isPlaceholder />
+                                    <FormSelectOption value="" label={_("Select an attribute")} isPlaceholder />
                                     {this.state.attributeList.map((attr, index) => (
                                         <FormSelectOption key={attr} value={attr} label={attr} />
                                     ))}
@@ -1671,8 +1647,8 @@ class AddNewAci extends React.Component {
                                 </FormSelect>
                             </GridItem>
 
-                            <GridItem span={12} className="ds-margin-top ds-label" title="Extend the application of the ACI several levels below the targeted entry. This is possible by specifying the number of levels below the target that should inherit the ACI.">
-                                Inheritance Levels
+                            <GridItem span={12} className="ds-margin-top ds-label" title={_("Extend the application of the ACI several levels below the targeted entry. This is possible by specifying the number of levels below the target that should inherit the ACI.")}>
+                                {_("Inheritance Levels")}
                             </GridItem>
                             <GridItem span={12} className="ds-left-indent ds-margin-top">
                                 <Checkbox
@@ -1682,7 +1658,7 @@ class AddNewAci extends React.Component {
                                     onChange={(checked, e) => this.handleChange(e)}
                                     aria-label="0"
                                     id="userAttrParent0"
-                                    title="Default value, this userattr bind rule only applies to the target entry (no child entries)."
+                                    title={_("Default value, this userattr bind rule only applies to the target entry (no child entries).")}
                                 />
                                 <Checkbox
                                     className=""

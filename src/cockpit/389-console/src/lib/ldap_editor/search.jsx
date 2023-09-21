@@ -49,6 +49,8 @@ import EditorTableView from './tableView.jsx';
 import { log_cmd, valid_dn } from '../tools.jsx';
 import GenericWizard from './wizards/genericWizard.jsx';
 
+const _ = cockpit.gettext;
+
 export class SearchDatabase extends React.Component {
     constructor (props) {
         super(props);
@@ -86,14 +88,14 @@ export class SearchDatabase extends React.Component {
             // Table
             columns: [
                 {
-                    title: 'Entry DN',
+                    title: _("Entry DN"),
                     cellFormatters: [expandable]
                 },
                 {
-                    title: 'Child Entries'
+                    title: _("Child Entries")
                 },
                 {
-                    title: 'Last Modified'
+                    title: _("Last Modified")
                 }
             ],
             rows: [],
@@ -106,7 +108,7 @@ export class SearchDatabase extends React.Component {
             treeViewRootSuffixes: [], // TODO when aci's are ready (is there a better list of suffixes?)
         };
 
-        this.initialResultText = 'Loading...';
+        this.initialResultText = _("Loading ...");
 
         this.handleChangeSwitch = checkIfLocked => {
             this.setState({
@@ -397,7 +399,7 @@ export class SearchDatabase extends React.Component {
                                 let ldapsubentryIcon = "";
                                 let entryStateIconFinal = "";
                                 if (info.ldapsubentry) {
-                                    ldapsubentryIcon = <InfoCircleIcon title="This is a hidden LDAP subentry" className="ds-pf-blue-color ds-info-icon" />;
+                                    ldapsubentryIcon = <InfoCircleIcon title={_("This is a hidden LDAP subentry")} className="ds-pf-blue-color ds-info-icon" />;
                                 }
                                 if ((entryState !== "") && (entryStateIcon !== "") && (entryState !== "activated")) {
                                     entryStateIconFinal = (
@@ -463,7 +465,7 @@ export class SearchDatabase extends React.Component {
                     if (info.ldapsubentry) {
                         dn = (
                             <div className="ds-info-icon">
-                                {info.dn} <InfoCircleIcon title="This is a hidden LDAP subentry" className="ds-info-icon" />
+                                {info.dn} <InfoCircleIcon title={_("This is a hidden LDAP subentry")} className="ds-info-icon" />
                             </div>
                         );
                     }
@@ -503,7 +505,7 @@ export class SearchDatabase extends React.Component {
             if (resObj.status !== 0) {
                 this.props.addNotification(
                     "error",
-                    `Error searching the database: ${resObj.msg}`
+                    cockpit.format(_("Error searching the database: $0"), resObj.msg)
                 );
             }
             this.setState({
@@ -614,7 +616,7 @@ export class SearchDatabase extends React.Component {
             if (rowData.entryState !== "activated") {
                 if (rowData.entryState.includes("probably activated") || rowData.entryState.includes("indirectly locked")) {
                     lockingDropdown = [{
-                        title: 'Lock ...',
+                        title: _("Lock ..."),
                         onClick:
                         () => {
                             const entryType = rowData.isRole ? "role" : "account";
@@ -627,7 +629,7 @@ export class SearchDatabase extends React.Component {
                     }];
                 } else {
                     lockingDropdown = [{
-                        title: 'Unlock ...',
+                        title: _("Unlock ..."),
                         onClick:
                         () => {
                             const entryType = rowData.isRole ? "role" : "account";
@@ -641,7 +643,7 @@ export class SearchDatabase extends React.Component {
                 }
             } else {
                 lockingDropdown = [{
-                    title: 'Lock ...',
+                    title: _("Lock ..."),
                     onClick:
                     () => {
                         const entryType = rowData.isRole ? "role" : "account";
@@ -656,7 +658,7 @@ export class SearchDatabase extends React.Component {
         }
         const updateActions =
             [{
-                title: 'Search ...',
+                title: _("Search ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -666,7 +668,7 @@ export class SearchDatabase extends React.Component {
                 }
             },
             {
-                title: 'Edit ...',
+                title: _("Edit ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -677,7 +679,7 @@ export class SearchDatabase extends React.Component {
                 }
             },
             {
-                title: 'New ...',
+                title: _("New ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -692,7 +694,7 @@ export class SearchDatabase extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'ACIs ...',
+                title: _("ACIs ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -703,7 +705,7 @@ export class SearchDatabase extends React.Component {
                 }
             },
             {
-                title: 'Class of Service ...',
+                title: _("Class of Service ..."),
                 onClick:
                 () => {
                     this.setState({
@@ -718,7 +720,7 @@ export class SearchDatabase extends React.Component {
                 isSeparator: true
             },
             {
-                title: 'Delete',
+                title: _("Delete"),
                 onClick:
                 () => {
                     this.setState({
@@ -755,7 +757,7 @@ export class SearchDatabase extends React.Component {
 
         if (pagedRows.length === 0) {
             columns = [' '];
-            pagedRows = [{ cells: ['No Search Results'] }];
+            pagedRows = [{ cells: [_("No Search Results")] }];
         }
 
         const treeItemsProps = wizardName === 'acis'
@@ -782,7 +784,7 @@ export class SearchDatabase extends React.Component {
                         <div className="ds-container">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Search Database
+                                    {_("Search Database")}
                                 </Text>
                             </TextContent>
                             <Grid className="ds-left-margin">
@@ -801,7 +803,7 @@ export class SearchDatabase extends React.Component {
                                             <FormSelectOption key={suffix} value={suffix} label={suffix} />
                                         ))}
                                         {suffixList.length === 0 &&
-                                            <FormSelectOption isDisabled key="No database" value="" label="No databases" />}
+                                            <FormSelectOption isDisabled key="No database" value="" label={_("No databases")} />}
                                     </FormSelect>
                                 </GridItem>
                                 <GridItem span={8}>
@@ -815,22 +817,22 @@ export class SearchDatabase extends React.Component {
                             <div className="ds-container">
                                 <ToggleGroup aria-label="Default with single selectable">
                                     <ToggleGroupItem
-                                        title="Text that will be used with pre-selected attributes to find matching entries."
-                                        text="Text"
+                                        title={_("Text that will be used with pre-selected attributes to find matching entries.")}
+                                        text={_("Text")}
                                         buttonId="Search Text"
                                         isSelected={this.state.searchType === "Search Text"}
                                         onChange={this.handleSearchTypeClick}
                                     />
                                     <ToggleGroupItem
-                                        title="Specific LDAP search filter for finding entries."
-                                        text="Filter"
+                                        title={_("Specific LDAP search filter for finding entries.")}
+                                        text={_("Filter")}
                                         buttonId="Search Filter"
                                         isSelected={this.state.searchType === "Search Filter"}
                                         onChange={this.handleSearchTypeClick}
                                     />
                                 </ToggleGroup>
                                 <SearchInput
-                                    placeholder={this.state.searchType === "Search Text" ? "Enter search text ..." : "Enter an LDAP search filter ..."}
+                                    placeholder={this.state.searchType === "Search Text" ? _("Enter search text ...") : _("Enter an LDAP search filter ...")}
                                     value={this.state.searchText}
                                     onChange={this.handleSearchChange}
                                     onClear={(evt, val) => this.handleSearchChange(evt, '')}
@@ -843,14 +845,14 @@ export class SearchDatabase extends React.Component {
 
                     <ExpandableSection
                         className="ds-margin-left"
-                        toggleText={this.state.isExpanded ? 'Hide Search Criteria' : 'Show Search Criteria'}
+                        toggleText={this.state.isExpanded ? _("Hide Search Criteria") : _("Show Search Criteria")}
                         onToggle={this.handleToggle}
                         isExpanded={this.state.isExpanded}
                         displaySize={this.state.isExpanded ? "large" : "default"}
                     >
                         <Grid className="ds-margin-left">
                             <GridItem span={2} className="ds-label">
-                                Search Base
+                                {_("Search Base")}
                             </GridItem>
                             <GridItem span={6}>
                                 <TextInput
@@ -858,7 +860,7 @@ export class SearchDatabase extends React.Component {
                                     type="text"
                                     id="searchBase"
                                     aria-describedby="searchBase"
-                                    name="searchBase"
+                                    name={_("searchBase")}
                                     onChange={(str, e) => {
                                         this.handleChange(e);
                                     }}
@@ -867,44 +869,44 @@ export class SearchDatabase extends React.Component {
                             </GridItem>
                             <GridItem span={2} className="ds-left-margin ds-lower-field-md">
                                 <FormHelperText isError isHidden={valid_dn(this.state.searchBase)}>
-                                    Invalid DN syntax
+                                    {_("Invalid DN syntax")}
                                 </FormHelperText>
                             </GridItem>
 
                         </Grid>
                         <Grid className="ds-margin-left ds-margin-top">
                             <GridItem span={2} className="ds-label">
-                                Search Scope
+                                {_("Search Scope")}
                             </GridItem>
                             <GridItem span={4}>
                                 <ToggleGroup aria-label="search scope">
                                     <ToggleGroupItem
-                                        text="Subtree"
+                                        text={_("Subtree")}
                                         buttonId="sub"
                                         isSelected={this.state.searchScope === "sub"}
                                         onChange={this.handleScopeClick}
-                                        title="Search for entries starting at the search base, and including all its child entries"
+                                        title={_("Search for entries starting at the search base, and including all its child entries")}
                                     />
                                     <ToggleGroupItem
-                                        text="One Level"
+                                        text={_("One Level")}
                                         buttonId="one"
                                         isSelected={this.state.searchScope === "one"}
                                         onChange={this.handleScopeClick}
-                                        title="Search for entries starting at the search base, and include only the first level of child entries"
+                                        title={_("Search for entries starting at the search base, and include only the first level of child entries")}
                                     />
                                     <ToggleGroupItem
-                                        text="Base"
+                                        text={_("Base")}
                                         buttonId="base"
                                         isSelected={this.state.searchScope === "base"}
                                         onChange={this.handleScopeClick}
-                                        title="Search for an exact entry (search base). This does not include child entries."
+                                        title={_("Search for an exact entry (search base). This does not include child entries.")}
                                     />
                                 </ToggleGroup>
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-left ds-margin-top">
                             <GridItem span={2} className="ds-label">
-                                Size Limit
+                                {_("Size Limit")}
                             </GridItem>
                             <GridItem span={10}>
                                 <NumberInput
@@ -922,9 +924,9 @@ export class SearchDatabase extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-left ds-margin-top" title="Search timeout in seconds">
+                        <Grid className="ds-margin-left ds-margin-top" title={_("Search timeout in seconds")}>
                             <GridItem span={2} className="ds-label">
-                                Time Limit
+                                {_("Time Limit")}
                             </GridItem>
                             <GridItem span={10}>
                                 <NumberInput
@@ -942,9 +944,9 @@ export class SearchDatabase extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-left ds-margin-top" title="Check if the search result entries are locked, and add Lock/Unlock options to the dropdown. This setting vastly impacts the search's performance. Use only when needed.">
+                        <Grid className="ds-margin-left ds-margin-top" title={_("Check if the search result entries are locked, and add Lock/Unlock options to the dropdown. This setting vastly impacts the search's performance. Use only when needed.")}>
                             <GridItem span={2} className="ds-label">
-                                Show Locking
+                                {_("Show Locking")}
                             </GridItem>
                             <GridItem span={10}>
                                 <Switch id="no-label-switch-on" aria-label="Message when on" isChecked={this.state.checkIfLocked} onChange={this.handleChangeSwitch} />
@@ -953,17 +955,17 @@ export class SearchDatabase extends React.Component {
                         <div hidden={this.state.searchType === "Search Filter"}>
                             <Grid
                                 className="ds-margin-left ds-margin-top"
-                                title="Only used for Search Text based queries.  The selected attributes will use Search Text as the attribute value in the search filter"
+                                title={_("Only used for Search Text based queries.  The selected attributes will use Search Text as the attribute value in the search filter")}
                             >
                                 <GridItem span={2} className="ds-label">
-                                    Search Attributes
+                                    {_("Search Attributes")}
                                 </GridItem>
                             </Grid>
                             <div className="ds-indent">
                                 <Grid className="ds-margin-left ds-margin-top">
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="cn"
+                                            label={_("cn")}
                                             id="cn"
                                             isChecked={this.state.cn}
                                             onChange={(checked, e) => {
@@ -974,7 +976,7 @@ export class SearchDatabase extends React.Component {
                                     </GridItem>
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="uid"
+                                            label={_("uid")}
                                             id="uid"
                                             isChecked={this.state.uid}
                                             onChange={(checked, e) => {
@@ -985,7 +987,7 @@ export class SearchDatabase extends React.Component {
                                     </GridItem>
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="sn"
+                                            label={_("sn")}
                                             id="sn"
                                             isChecked={this.state.sn}
                                             onChange={(checked, e) => {
@@ -998,7 +1000,7 @@ export class SearchDatabase extends React.Component {
                                 <Grid className="ds-margin-left ds-margin-top">
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="givenName"
+                                            label={_("givenName")}
                                             id="givenName"
                                             isChecked={this.state.givenName}
                                             onChange={(checked, e) => {
@@ -1009,7 +1011,7 @@ export class SearchDatabase extends React.Component {
                                     </GridItem>
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="mail"
+                                            label={_("mail")}
                                             id="mail"
                                             isChecked={this.state.mail}
                                             onChange={(checked, e) => {
@@ -1020,7 +1022,7 @@ export class SearchDatabase extends React.Component {
                                     </GridItem>
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="displayName"
+                                            label={_("displayName")}
                                             id="displayName"
                                             isChecked={this.state.displayName}
                                             onChange={(checked, e) => {
@@ -1033,7 +1035,7 @@ export class SearchDatabase extends React.Component {
                                 <Grid className="ds-margin-left ds-margin-top">
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="legalName"
+                                            label={_("legalName")}
                                             id="legalName"
                                             isChecked={this.state.legalName}
                                             onChange={(checked, e) => {
@@ -1044,7 +1046,7 @@ export class SearchDatabase extends React.Component {
                                     </GridItem>
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="memberOf"
+                                            label={_("memberOf")}
                                             id="memberOf"
                                             isChecked={this.state.memberOf}
                                             onChange={(checked, e) => {
@@ -1055,7 +1057,7 @@ export class SearchDatabase extends React.Component {
                                     </GridItem>
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="member"
+                                            label={_("member")}
                                             id="member"
                                             isChecked={this.state.member}
                                             onChange={(checked, e) => {
@@ -1068,7 +1070,7 @@ export class SearchDatabase extends React.Component {
                                 <Grid className="ds-margin-left ds-margin-top">
                                     <GridItem span={3}>
                                         <Checkbox
-                                            label="uniqueMember"
+                                            label={_("uniqueMember")}
                                             id="uniqueMember"
                                             isChecked={this.state.uniqueMember}
                                             onChange={(checked, e) => {
@@ -1078,7 +1080,7 @@ export class SearchDatabase extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-left ds-margin-top" title="Enter space or comma separateed list of attributes to search.">
+                                <Grid className="ds-margin-left ds-margin-top" title={_("Enter space or comma separateed list of attributes to search.")}>
                                     <GridItem span={8}>
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
@@ -1089,7 +1091,7 @@ export class SearchDatabase extends React.Component {
                                             selections={this.state.customSearchAttrs}
                                             isOpen={this.state.isCustomAttrOpen}
                                             aria-labelledby="typeAhead-attr-filter"
-                                            placeholderText="Type attributes to include in the filter ..."
+                                            placeholderText={_("Type attributes to include in the filter ...")}
                                             noResultsFoundText="There are no matching attributes"
                                         >
                                             {this.props.attributes.map((attr, index) => (
@@ -1109,14 +1111,14 @@ export class SearchDatabase extends React.Component {
                     <div className={this.state.searching ? "ds-margin-top-lg ds-center" : "ds-hidden"}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Searching <i>{this.state.searchBase}</i> ...
+                                {_("Searching")} <i>{this.state.searchBase}</i> ...
                             </Text>
                         </TextContent>
                         <Spinner className="ds-margin-top-lg" size="xl" />
                     </div>
                     <div className={searching ? "ds-hidden" : ""}>
                         <center>
-                            <p><b>Results:</b> {total}</p>
+                            <p><b>{_("Results:")}</b> {total}</p>
                         </center>
                         <EditorTableView
                             key={searching}
@@ -1139,16 +1141,16 @@ export class SearchDatabase extends React.Component {
                     // TODO: Fix confirmation modal formatting and size; add operation to the tables
                     variant={ModalVariant.medium}
                     title={
-                        `Are you sure you want to ${this.state.operationType} the ${this.state.entryType}?`
+                        cockpit.format(_("Are you sure you want to $0 the $1?"), this.state.operationType, this.state.entryTyp)
                     }
                     isOpen={this.state.isConfirmModalOpen}
                     onClose={this.handleConfirmModalToggle}
                     actions={[
                         <Button key="confirm" variant="primary" onClick={this.handleLockUnlockEntry}>
-                            Confirm
+                            {_("Confirm")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleConfirmModalToggle}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >

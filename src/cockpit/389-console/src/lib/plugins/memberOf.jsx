@@ -28,6 +28,8 @@ import {
     WrenchIcon,
 } from '@patternfly/react-icons';
 
+const _ = cockpit.gettext;
+
 class MemberOf extends React.Component {
     componentDidMount(prevProps) {
         if (this.props.wasActiveList.includes(5)) {
@@ -602,7 +604,7 @@ class MemberOf extends React.Component {
 
     handleRunFixup() {
         if (!this.state.fixupDN) {
-            this.props.addNotification("warning", "Fixup DN is required.");
+            this.props.addNotification("warning", _("Fixup DN is required."));
         } else {
             let cmd = [
                 "dsconf",
@@ -628,7 +630,7 @@ class MemberOf extends React.Component {
                     .done(content => {
                         this.props.addNotification(
                             "success",
-                            `Fixup task for ${this.state.fixupDN} was successfull`
+                            cockpit.format(_("Fixup task for $0 was successfull"), this.state.fixupDN)
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -639,7 +641,7 @@ class MemberOf extends React.Component {
                         const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
+                            cockpit.format(_("Fixup task for $0 has failed $1"), this.state.fixupDN, errMsg.desc)
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -784,7 +786,7 @@ class MemberOf extends React.Component {
         if (configAttr.length === 0 || configGroupAttr.length === 0) {
             this.props.addNotification(
                 "warning",
-                "Config Attribute and Group Attribute are required."
+                _("Config Attribute and Group Attribute are required.")
             );
         } else {
             let cmd = [
@@ -844,9 +846,10 @@ class MemberOf extends React.Component {
                     })
                     .done(content => {
                         console.info("memberOfOperation", "Result", content);
+                        const value = action === "set" ? "edit" : "add";
                         this.props.addNotification(
                             "success",
-                            `Config entry ${configDN} was successfully ${action === "set" ? "edit" : "add"}ed`
+                            cockpit.format(_("Config entry $0 was successfully $1ed"), configDN, value)
                         );
                         this.props.pluginListHandler();
                         this.handleCloseModal();
@@ -858,7 +861,7 @@ class MemberOf extends React.Component {
                         const errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Error during the config entry ${action} operation - ${errMsg.desc}`
+                            cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
                         );
                         this.props.pluginListHandler();
                         this.handleCloseModal();
@@ -894,7 +897,7 @@ class MemberOf extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${this.state.configDN} was successfully deleted`
+                        cockpit.format(_("Config entry $0 was successfully deleted"), this.state.configDN)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -906,7 +909,7 @@ class MemberOf extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -1084,7 +1087,7 @@ class MemberOf extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Successfully updated MemberOf Plugin`
+                        _("Successfully updated MemberOf Plugin")
                     );
                     this.setState({
                         saving: false
@@ -1099,7 +1102,7 @@ class MemberOf extends React.Component {
                         errMsg = errMsg.desc;
                     }
                     this.props.addNotification(
-                        "error", `Error during update - ${errMsg}`
+                        "error", cockpit.format(_("Error during update - $0"), errMsg)
                     );
                     this.setState({
                         saving: false
@@ -1144,18 +1147,18 @@ class MemberOf extends React.Component {
 
         } = this.state;
 
-        let saveBtnName = "Save Config";
+        let saveBtnName = _("Save Config");
         const extraPrimaryProps = {};
         if (saving) {
-            saveBtnName = "Saving Config ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving Config ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         let modalButtons = [];
         if (!newEntry) {
             modalButtons = [
                 <Button key="del" variant="primary" onClick={this.handleShowConfirmDelete}>
-                    Delete Config
+                    {_("Delete Config")}
                 </Button>,
                 <Button
                     key="save"
@@ -1163,13 +1166,13 @@ class MemberOf extends React.Component {
                     onClick={this.handleEditConfig}
                     isDisabled={saveBtnDisabledModal || savingModal}
                     isLoading={savingModal}
-                    spinnerAriaValueText={savingModal ? "Saving" : undefined}
+                    spinnerAriaValueText={savingModal ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                 >
-                    {savingModal ? "Saving ..." : "Save Config"}
+                    {savingModal ? _("Saving ...") : _("Save Config")}
                 </Button>,
                 <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    Cancel
+                    {_("Cancel")}
                 </Button>
             ];
         } else {
@@ -1180,13 +1183,13 @@ class MemberOf extends React.Component {
                     onClick={this.handleAddConfig}
                     isDisabled={saveBtnDisabledModal || savingModal}
                     isLoading={savingModal}
-                    spinnerAriaValueText={savingModal ? "Saving" : undefined}
+                    spinnerAriaValueText={savingModal ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                 >
-                    {savingModal ? "Adding ..." : "Add Config"}
+                    {savingModal ? _("Adding ...") : _("Add Config")}
                 </Button>,
                 <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    Cancel
+                    {_("Cancel")}
                 </Button>
             ];
         }
@@ -1196,7 +1199,7 @@ class MemberOf extends React.Component {
                 <Modal
                     variant={ModalVariant.small}
                     aria-labelledby="ds-modal"
-                    title="MemberOf Plugin FixupTask"
+                    title={_("MemberOf Plugin FixupTask")}
                     isOpen={fixupModalShow}
                     onClose={this.handleToggleFixupModal}
                     actions={[
@@ -1206,10 +1209,10 @@ class MemberOf extends React.Component {
                             onClick={this.handleRunFixup}
                             isDisabled={!valid_dn(fixupDN)}
                         >
-                            Run
+                            {_("Run")}
                         </Button>,
                         <Button key="cancel" variant="link" onClick={this.handleToggleFixupModal}>
-                            Cancel
+                            {_("Cancel")}
                         </Button>
                     ]}
                 >
@@ -1218,14 +1221,12 @@ class MemberOf extends React.Component {
                             <Form isHorizontal autoComplete="off">
                                 <TextContent>
                                     <Text className="ds-margin-top" component={TextVariants.h4}>
-                                        This task only needs to be run after enabling the plugin for the first time,
-                                        or if the plugin configuration has changed in a way that will impact the
-                                        group memberships.
+                                        {_("This task only needs to be run after enabling the plugin for the first time, or if the plugin configuration has changed in a way that will impact the group memberships.")}
                                     </Text>
                                 </TextContent>
-                                <Grid className="ds-margin-top" title="Base DN that contains entries to fix up.">
+                                <Grid className="ds-margin-top" title={_("Base DN that contains entries to fix up.")}>
                                     <GridItem className="ds-label" span={3}>
-                                        Subtree DN
+                                        {_("Subtree DN")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1238,13 +1239,13 @@ class MemberOf extends React.Component {
                                             validated={!valid_dn(fixupDN) ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                         <FormHelperText isError isHidden={valid_dn(fixupDN)}>
-                                            Value must be a valid DN
+                                            {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-bottom" title="Optional. Filter for finding entries to fix up. For example:  (uid=*).  If omitted, all entries with objectclass 'inetuser', 'inetadmin', or 'nsmemberof' under the specified subtree DN will have their memberOf attribute regenerated.">
+                                <Grid className="ds-margin-bottom" title={_("Optional. Filter for finding entries to fix up. For example:  (uid=*).  If omitted, all entries with objectclass 'inetuser', 'inetadmin', or 'nsmemberof' under the specified subtree DN will have their memberOf attribute regenerated.")}>
                                     <GridItem span={3} className="ds-label">
-                                        Search Filter
+                                        {_("Search Filter")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1264,15 +1265,15 @@ class MemberOf extends React.Component {
                 <Modal
                     variant={ModalVariant.medium}
                     aria-labelledby="ds-modal"
-                    title="Manage MemberOf Plugin Shared Config Entry"
+                    title={_("Manage MemberOf Plugin Shared Config Entry")}
                     isOpen={configEntryModalShow}
                     onClose={this.handleCloseModal}
                     actions={modalButtons}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid className="ds-margin-top" title="The config entry full DN">
+                        <Grid className="ds-margin-top" title={_("The config entry full DN")}>
                             <GridItem className="ds-label" span={3}>
-                                Config DN
+                                {_("Config DN")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1286,13 +1287,13 @@ class MemberOf extends React.Component {
                                     isDisabled={newEntry}
                                 />
                                 <FormHelperText isError isHidden={!errorModal.configDN}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)">
+                        <Grid title={_("Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)")}>
                             <GridItem className="ds-label" span={3}>
-                                Membership Attribute
+                                {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -1304,8 +1305,8 @@ class MemberOf extends React.Component {
                                     selections={configAttr}
                                     isOpen={this.state.isConfigAttrOpen}
                                     aria-labelledby="typeAhead-config-attr"
-                                    placeholderText="Type a member attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a member attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     validated={errorModal.configAttr ? "error" : "default"}
                                 >
                                     {["memberOf"].map((attr, index) => (
@@ -1317,9 +1318,9 @@ class MemberOf extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)">
+                        <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
                             <GridItem className="ds-label" span={3}>
-                                Group Attribute
+                                {_("Group Attribute")}
                             </GridItem>
                             <GridItem span={9}>
                                 <Select
@@ -1331,8 +1332,8 @@ class MemberOf extends React.Component {
                                     selections={configGroupAttr}
                                     isOpen={this.state.isConfigGroupAttrOpen}
                                     aria-labelledby="typeAhead-config-group-attr"
-                                    placeholderText="Type a member group attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a member group attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     validated={errorModal.configGroupAttr ? "error" : "default"}
                                 >
                                     {["member", "memberCertificate", "uniqueMember"].map((attr, index) => (
@@ -1344,9 +1345,9 @@ class MemberOf extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)">
+                        <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
                             <GridItem className="ds-label" span={3}>
-                                Subtree Scope
+                                {_("Subtree Scope")}
                             </GridItem>
                             <GridItem span={6}>
                                 <Select
@@ -1358,8 +1359,8 @@ class MemberOf extends React.Component {
                                     selections={configEntryScope}
                                     isOpen={isConfigSubtreeScopeOpen}
                                     aria-labelledby="typeAhead-subtrees"
-                                    placeholderText="Type a subtree DN..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a subtree DN...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleConfigCreateOption}
                                     validated={errorModal.configEntryScope ? "error" : "default"}
@@ -1372,7 +1373,7 @@ class MemberOf extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!errorModal.configEntryScope}>
-                                    Values must be valid DN's
+                                    {_("Values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={3}>
@@ -1380,14 +1381,14 @@ class MemberOf extends React.Component {
                                     id="configAllBackends"
                                     isChecked={configAllBackends}
                                     onChange={(checked, e) => { this.handleModalChange(e) }}
-                                    title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
-                                    label="All Backends"
+                                    title={_("Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)")}
+                                    label={_("All Backends")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)">
+                        <Grid title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)")}>
                             <GridItem className="ds-label" span={3}>
-                                Exclude Subtree
+                                {_("Exclude Subtree")}
                             </GridItem>
                             <GridItem span={6}>
                                 <Select
@@ -1399,8 +1400,8 @@ class MemberOf extends React.Component {
                                     selections={configEntryScopeExcludeSubtree}
                                     isOpen={isConfigExcludeScopeOpen}
                                     aria-labelledby="typeAhead-subtrees"
-                                    placeholderText="Type a subtree DN..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a subtree DN...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleConfigExcludeCreateOption}
                                     validated={errorModal.configEntryScopeExcludeSubtree ? "error" : "default"}
@@ -1413,7 +1414,7 @@ class MemberOf extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!errorModal.configEntryScopeExcludeSubtree}>
-                                    Values must be valid DN's
+                                    {_("Values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={3}>
@@ -1421,14 +1422,14 @@ class MemberOf extends React.Component {
                                     id="configSkipNested"
                                     isChecked={configSkipNested}
                                     onChange={(checked, e) => { this.handleModalChange(e) }}
-                                    title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
-                                    label="Skip Nested"
+                                    title={_("Specifies wherher to skip nested groups or not (memberOfSkipNested)")}
+                                    label={_("Skip Nested")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
+                        <Grid title={_("If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter")}>
                             <GridItem className="ds-label" span={3}>
-                                Auto Add OC
+                                {_("Auto Add OC")}
                             </GridItem>
                             <GridItem span={9}>
                                 <FormSelect
@@ -1460,9 +1461,9 @@ class MemberOf extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)">
+                        <Grid title={_("Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)")}>
                             <GridItem className="ds-label" span={3}>
-                                Membership Attribute
+                                {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={8}>
                                 <Select
@@ -1474,8 +1475,8 @@ class MemberOf extends React.Component {
                                     selections={memberOfAttr}
                                     isOpen={this.state.isMemberOfAttrOpen}
                                     aria-labelledby="typeAhead-memberof-attr"
-                                    placeholderText="Type a member attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a member attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     validated={error.memberOfAttr ? "error" : "default"}
                                 >
                                     {["memberOf"].map((attr) => (
@@ -1487,9 +1488,9 @@ class MemberOf extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)">
+                        <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
                             <GridItem className="ds-label" span={3}>
-                                Group Attribute
+                                {_("Group Attribute")}
                             </GridItem>
                             <GridItem span={8}>
                                 <Select
@@ -1501,8 +1502,8 @@ class MemberOf extends React.Component {
                                     selections={memberOfGroupAttr}
                                     isOpen={this.state.isMemberOfGroupAttrOpen}
                                     aria-labelledby="typeAhead-memberof-group-attr"
-                                    placeholderText="Type a member group attribute..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a member group attribute...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     validated={error.memberOfGroupAttr ? "error" : "default"}
                                 >
                                     {["member", "memberCertificate", "uniqueMember"].map((attr) => (
@@ -1514,9 +1515,9 @@ class MemberOf extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)">
+                        <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
                             <GridItem className="ds-label" span={3}>
-                                Subtree Scope
+                                {_("Subtree Scope")}
                             </GridItem>
                             <GridItem span={6}>
                                 <Select
@@ -1528,8 +1529,8 @@ class MemberOf extends React.Component {
                                     selections={memberOfEntryScope}
                                     isOpen={isSubtreeScopeOpen}
                                     aria-labelledby="typeAhead-subtrees"
-                                    placeholderText="Type a subtree DN..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a subtree DN...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleSubtreeScopeCreateOption}
                                     validated={error.memberOfEntryScope ? "error" : "default"}
@@ -1542,7 +1543,7 @@ class MemberOf extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!error.memberOfEntryScope}>
-                                    A subtree is required, and values must be valid DN's
+                                    {_("A subtree is required, and values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={3}>
@@ -1550,14 +1551,14 @@ class MemberOf extends React.Component {
                                     id="memberOfAllBackends"
                                     isChecked={memberOfAllBackends}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
-                                    label="All Backends"
+                                    title={_("Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)")}
+                                    label={_("All Backends")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)">
+                        <Grid title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)")}>
                             <GridItem className="ds-label" span={3}>
-                                Exclude Subtree
+                                {_("Exclude Subtree")}
                             </GridItem>
                             <GridItem span={6}>
                                 <Select
@@ -1569,8 +1570,8 @@ class MemberOf extends React.Component {
                                     selections={memberOfEntryScopeExcludeSubtree}
                                     isOpen={isExcludeScopeOpen}
                                     aria-labelledby="typeAhead-subtrees"
-                                    placeholderText="Type a subtree DN..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type a subtree DN...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                     isCreatable
                                     onCreateOption={this.handleExcludeCreateOption}
                                     validated={error.memberOfEntryScopeExcludeSubtree ? "error" : "default"}
@@ -1583,7 +1584,7 @@ class MemberOf extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText isError isHidden={!error.memberOfEntryScopeExcludeSubtree}>
-                                    Values must be valid DN's
+                                    {_("Values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={3}>
@@ -1591,14 +1592,14 @@ class MemberOf extends React.Component {
                                     id="memberOfSkipNested"
                                     isChecked={memberOfSkipNested}
                                     onChange={(checked, e) => { this.handleFieldChange(e) }}
-                                    title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
-                                    label="Skip Nested"
+                                    title={_("Specifies wherher to skip nested groups or not (memberOfSkipNested)")}
+                                    label={_("Skip Nested")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="The value to set as nsslapd-pluginConfigArea">
+                        <Grid title={_("The value to set as nsslapd-pluginConfigArea")}>
                             <GridItem className="ds-label" span={3}>
-                                Shared Config Entry
+                                {_("Shared Config Entry")}
                             </GridItem>
                             <GridItem span={6}>
                                 <TextInput
@@ -1611,7 +1612,7 @@ class MemberOf extends React.Component {
                                     validated={error.memberOfConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.memberOfConfigEntry}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={3}>
@@ -1620,13 +1621,13 @@ class MemberOf extends React.Component {
                                     isDisabled={memberOfConfigEntry === "" || !valid_dn(memberOfConfigEntry)}
                                     onClick={this.handleOpenModal}
                                 >
-                                    Manage
+                                    {_("Manage")}
                                 </Button>
                             </GridItem>
                         </Grid>
-                        <Grid title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
+                        <Grid title={_("If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter")}>
                             <GridItem className="ds-label" span={3}>
-                                Auto Add OC
+                                {_("Auto Add OC")}
                             </GridItem>
                             <GridItem span={8}>
                                 <FormSelect
@@ -1644,13 +1645,13 @@ class MemberOf extends React.Component {
                                 </FormSelect>
                             </GridItem>
                         </Grid>
-                        <Grid title="The fixup task will add the memberOf attribute to entries that are missing it.  This is typically only run once after enabling or changing the plugin.">
+                        <Grid title={_("The fixup task will add the memberOf attribute to entries that are missing it.  This is typically only run once after enabling or changing the plugin.")}>
                             <GridItem className="ds-label ds-margin-top" span={3}>
-                                MemberOf Fixup Task<WrenchIcon className="ds-left-margin" />
+                                {_("MemberOf Fixup Task")}<WrenchIcon className="ds-left-margin" />
                             </GridItem>
                             <GridItem span={9}>
                                 <Button className="ds-margin-top" variant="secondary" onClick={this.handleToggleFixupModal}>
-                                    Run Task
+                                    {_("Run Task")}
                                 </Button>
                             </GridItem>
                         </Grid>
@@ -1659,7 +1660,7 @@ class MemberOf extends React.Component {
                         className="ds-margin-top-lg"
                         key="at"
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Loading" : undefined}
+                        spinnerAriaValueText={saving ? _("Loading") : undefined}
                         variant="primary"
                         onClick={this.handleSaveConfig}
                         {...extraPrimaryProps}
@@ -1676,10 +1677,10 @@ class MemberOf extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.configDN}
                     checked={this.state.modalChecked}
-                    mTitle="Delete MemberOf Config Entry"
-                    mMsg="Are you sure you want to delete this config entry?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Delete MemberOf Config Entry")}
+                    mMsg={_("Are you sure you want to delete this config entry?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
             </div>
         );

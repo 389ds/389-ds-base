@@ -32,6 +32,8 @@ import {
     faSyncAlt
 } from '@fortawesome/free-solid-svg-icons';
 
+const _ = cockpit.gettext;
+
 //
 // This component is the global chaining & default configuration
 //
@@ -267,7 +269,7 @@ export class ChainingDatabaseConfig extends React.Component {
                         this.props.reload();
                         this.props.addNotification(
                             "success",
-                            `Successfully updated chaining configuration`
+                            _("Successfully updated chaining configuration")
                         );
                         this.setState({
                             saving: false
@@ -278,7 +280,7 @@ export class ChainingDatabaseConfig extends React.Component {
                         this.props.reload();
                         this.props.addNotification(
                             "error",
-                            `Error updating chaining configuration - ${errMsg.desc}`
+                            cockpit.format(_("Error updating chaining configuration - $0"), errMsg.desc)
                         );
                         this.setState({
                             saving: false
@@ -337,7 +339,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully updated chaining controls`
+                        _("Successfully updated chaining controls")
                     );
                 })
                 .fail(err => {
@@ -349,7 +351,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     this.props.reload(1);
                     this.props.addNotification(
                         "error",
-                        `Error updating chaining controls - ${errMsg.desc}`
+                        cockpit.format(_("Error updating chaining controls - $0,"), errMsg.desc)
                     );
                 });
     }
@@ -383,7 +385,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     this.props.reload(1);
                     this.props.addNotification(
                         "success",
-                        `Successfully removed chaining controls`
+                        _("Successfully removed chaining controls")
                     );
                 })
                 .fail(err => {
@@ -391,7 +393,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        `Error removing chaining controls - ${errMsg.desc}`
+                        cockpit.format(_("Error removing chaining controls - $0"), errMsg.desc)
                     );
                 });
     }
@@ -456,7 +458,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        `Successfully updated chaining components`
+                        _("Successfully updated chaining components")
                     );
                 })
                 .fail(err => {
@@ -468,7 +470,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error updating chaining components - ${errMsg.desc}`
+                        cockpit.format(_("Error updating chaining components - $0"), errMsg.desc)
                     );
                 });
     }
@@ -493,7 +495,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     this.props.reload(1);
                     this.props.addNotification(
                         "success",
-                        `Successfully removed chaining components`
+                        _("Successfully removed chaining components")
                     );
                 })
                 .fail(err => {
@@ -501,7 +503,7 @@ export class ChainingDatabaseConfig extends React.Component {
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        `Error removing chaining components - ${errMsg.desc}`
+                        cockpit.format(_("Error removing chaining components - $0"), errMsg.desc)
                     );
                 });
     }
@@ -551,27 +553,27 @@ export class ChainingDatabaseConfig extends React.Component {
         if (comps.length === 0) {
             comps = "";
         }
-        let saveBtnName = "Save Settings";
+        let saveBtnName = _("Save Settings");
         const extraPrimaryProps = {};
         if (this.props.refreshing) {
-            saveBtnName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
             <div id="chaining-page" className={this.state.saving ? "ds-disabled" : ""}>
                 <TextContent>
-                    <Text className="ds-config-header" component={TextVariants.h2}>Database Chaining Settings</Text>
+                    <Text className="ds-config-header" component={TextVariants.h2}>{_("Database Chaining Settings")}</Text>
                 </TextContent>
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>Default Creation Settings</TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Default Creation Settings")}</TabTitleText>}>
                         <div className="ds-indent ds-margin-bottom-md">
                             <Grid
-                                title="The size limit of entries returned over a database link (nsslapd-sizelimit)."
+                                title={_("The size limit of entries returned over a database link (nsslapd-sizelimit).")}
                                 className="ds-margin-top-xlg"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Size Limit
+                                    {_("Size Limit")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -587,11 +589,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The maximum number of operations per connections. (nsconcurrentoperationslimit)."
+                                title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Max Operations Per Conn
+                                    {_("Max Operations Per Conn")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -607,11 +609,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The time limit of an operation over a database link (nsslapd-timelimit)."
+                                title={_("The time limit of an operation over a database link (nsslapd-timelimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Time Limit
+                                    {_("Time Limit")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -627,11 +629,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The maximum number of operations per connections. (nsconcurrentoperationslimit)."
+                                title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Connection Lifetime
+                                    {_("Connection Lifetime")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -647,11 +649,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit)."
+                                title={_("The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Max TCP Connections
+                                    {_("Max TCP Connections")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -667,11 +669,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."
+                                title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Max LDAP Connections
+                                    {_("Max LDAP Connections")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -687,11 +689,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval)."
+                                title={_("The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Abandoned Op Check Interval
+                                    {_("Abandoned Op Check Interval")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -707,11 +709,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."
+                                title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Max Binds Per Connection
+                                    {_("Max Binds Per Connection")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -727,11 +729,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit)."
+                                title={_("The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Database Link Hop Limit
+                                    {_("Database Link Hop Limit")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -747,11 +749,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The amount of time before the bind attempt times out. (nsbindtimeout)."
+                                title={_("The amount of time before the bind attempt times out. (nsbindtimeout).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Bind Timeout
+                                    {_("Bind Timeout")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -767,11 +769,11 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit)."
+                                title={_("The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={3}>
-                                    Bind Retry Limit
+                                    {_("Bind Retry Limit")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <TextInput
@@ -787,12 +789,12 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci)."
+                                title={_("Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={12}>
                                     <Checkbox
-                                        label="Check Local ACIs"
+                                        label={_("Check Local ACIs")}
                                         id="defCheckAci"
                                         isChecked={this.state.defCheckAci}
                                         onChange={(str, e) => {
@@ -803,12 +805,12 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch)."
+                                title={_("Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={12}>
                                     <Checkbox
-                                        label="Send Referral On Scoped Search"
+                                        label={_("Send Referral On Scoped Search")}
                                         id="defRefOnScoped"
                                         isChecked={this.state.defRefOnScoped}
                                         onChange={(str, e) => {
@@ -819,12 +821,12 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Sets whether proxied authentication is allowed. (nsproxiedauthorization)."
+                                title={_("Sets whether proxied authentication is allowed. (nsproxiedauthorization).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={12}>
                                     <Checkbox
-                                        label="Allow Proxied Authentication"
+                                        label={_("Allow Proxied Authentication")}
                                         id="defProxy"
                                         isChecked={this.state.defProxy}
                                         onChange={(str, e) => {
@@ -835,12 +837,12 @@ export class ChainingDatabaseConfig extends React.Component {
                                 </GridItem>
                             </Grid>
                             <Grid
-                                title="Use StartTLS for connections to remote server. (nsusestarttls)."
+                                title={_("Use StartTLS for connections to remote server. (nsusestarttls).")}
                                 className="ds-margin-top"
                             >
                                 <GridItem className="ds-label" span={12}>
                                     <Checkbox
-                                        label="Use StartTLS"
+                                        label={_("Use StartTLS")}
                                         id="defUseStartTLS"
                                         isChecked={this.state.defUseStartTLS}
                                         onChange={(str, e) => {
@@ -863,15 +865,15 @@ export class ChainingDatabaseConfig extends React.Component {
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={1} title={<TabTitleText>Controls & Components</TabTitleText>}>
+                    <Tab eventKey={1} title={<TabTitleText>{_("Controls & Components")}</TabTitleText>}>
                         <div className="ds-indent">
                             <Grid className="ds-margin-top-xlg">
                                 <GridItem
                                     span={4}
-                                    title="A list of LDAP control OIDs to be forwarded through chaining."
+                                    title={_("A list of LDAP control OIDs to be forwarded through chaining.")}
                                 >
                                     <TextContent>
-                                        <Text component={TextVariants.h4}>Forwarded LDAP Controls</Text>
+                                        <Text component={TextVariants.h4}>{_("Forwarded LDAP Controls")}</Text>
                                     </TextContent>
                                     <div className="ds-box ds-margin-top">
                                         <SimpleList onSelect={this.handleSelectOids} aria-label="forward ctrls">
@@ -885,7 +887,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                                 onClick={this.handleShowOidModal}
                                                 className="ds-button-left"
                                             >
-                                                Add
+                                                {_("Add")}
                                             </Button>
                                         </div>
                                         <div className="ds-panel-right">
@@ -895,15 +897,15 @@ export class ChainingDatabaseConfig extends React.Component {
                                                 className="ds-button-right"
                                                 isDisabled={this.state.removeOid === ""}
                                             >
-                                                Delete
+                                                {_("Delete")}
                                             </Button>
                                         </div>
                                     </div>
                                 </GridItem>
                                 <GridItem span={1} />
-                                <GridItem span={4} title="A list of components to go through chaining">
+                                <GridItem span={4} title={_("A list of components to go through chaining")}>
                                     <TextContent>
-                                        <Text component={TextVariants.h4}>Components to Chain</Text>
+                                        <Text component={TextVariants.h4}>{_("Components to Chain")}</Text>
                                     </TextContent>
                                     <div className="ds-box ds-margin-top">
                                         <SimpleList onSelect={this.handleSelectComps} aria-label="comps">
@@ -917,7 +919,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                                 onClick={this.handleShowCompsModal}
                                                 className="ds-button-left"
                                             >
-                                                Add
+                                                {_("Add")}
                                             </Button>
                                         </div>
                                         <div className="ds-panel-right">
@@ -927,7 +929,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                                 className="ds-button-right"
                                                 isDisabled={this.state.removeComp === ""}
                                             >
-                                                Delete
+                                                {_("Delete")}
                                             </Button>
                                         </div>
                                     </div>
@@ -961,10 +963,10 @@ export class ChainingDatabaseConfig extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.removeOid}
                     checked={this.state.modalChecked}
-                    mTitle="Remove Chaining OID"
-                    mMsg="Are you sure you want to delete this OID?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Remove Chaining OID")}
+                    mMsg={_("Are you sure you want to delete this OID?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmCompDelete}
@@ -974,10 +976,10 @@ export class ChainingDatabaseConfig extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.removeComp}
                     checked={this.state.modalChecked}
-                    mTitle="Remove Chaining Component"
-                    mMsg="Are you sure you want to delete this component?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Remove Chaining Component")}
+                    mMsg={_("Are you sure you want to delete this component?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
             </div>
         );
@@ -1168,7 +1170,7 @@ export class ChainingConfig extends React.Component {
         if (this.state.nsfarmserverurl === "") {
             this.props.addNotification(
                 "warning",
-                `Missing Remote Server LDAP URL`
+                _("Missing Remote Server LDAP URL")
             );
             missingArgs.nsfarmserverurl = true;
             errors = true;
@@ -1176,7 +1178,7 @@ export class ChainingConfig extends React.Component {
         if (this.state.nsmultiplexorbinddn === "") {
             this.props.addNotification(
                 "warning",
-                `Missing Remote Bind DN`
+                _("Missing Remote Bind DN")
             );
             missingArgs.nsmultiplexorbinddn = true;
             errors = true;
@@ -1184,7 +1186,7 @@ export class ChainingConfig extends React.Component {
         if (this.state.nsmultiplexorcredentials === "") {
             this.props.addNotification(
                 "warning",
-                `Missing Remote Bind DN Password`
+                _("Missing Remote Bind DN Password")
             );
             missingArgs.nsmultiplexorcredentials = true;
             errors = true;
@@ -1192,7 +1194,7 @@ export class ChainingConfig extends React.Component {
         if (this.state.nsmultiplexorcredentials_confirm === "") {
             this.props.addNotification(
                 "warning",
-                `Missing Remote Bind DN Password Confirmation`
+                _("Missing Remote Bind DN Password Confirmation")
             );
             missingArgs.nsmultiplexorcredentials_confirm = true;
             errors = true;
@@ -1200,7 +1202,7 @@ export class ChainingConfig extends React.Component {
         if (this.state.nsmultiplexorcredentials !== this.state.nsmultiplexorcredentials_confirm) {
             this.props.addNotification(
                 "warning",
-                `Remote Bind DN Password Do Not Match`
+                _("Remote Bind DN Password Do Not Match")
             );
             missingArgs.nsmultiplexorcredentials = true;
             missingArgs.nsmultiplexorcredentials_confirm = true;
@@ -1304,13 +1306,13 @@ export class ChainingConfig extends React.Component {
                 promptArg: "--bind-pw-prompt",
                 passwd: bind_pw,
                 addNotification: this.props.addNotification,
-                success_msg: "Successfully Updated Link Configuration",
-                error_msg: "Failed to update link configuration",
+                success_msg: _("Successfully Updated Link Configuration"),
+                error_msg: _("Failed to update link configuration"),
                 state_callback: () => { this.setState({ saving: false }) },
                 reload_func: this.props.reload,
                 reload_arg: this.props.suffix,
                 funcName: "handleSaveLink",
-                funcDesc: "Save chaining link config"
+                funcDesc: _("Save chaining link config")
             };
             callCmdStreamPassword(config);
         }
@@ -1328,7 +1330,7 @@ export class ChainingConfig extends React.Component {
                     this.props.loadSuffixTree(true);
                     this.props.addNotification(
                         "success",
-                        `Successfully Deleted Database Link`
+                        _("Successfully Deleted Database Link")
                     );
                 })
                 .fail(err => {
@@ -1336,7 +1338,7 @@ export class ChainingConfig extends React.Component {
                     this.props.loadSuffixTree(true);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete database link - ${errMsg.desc}`
+                        cockpit.format(_("Failed to delete database link - $0"), errMsg.desc)
                     );
                 });
     }
@@ -1344,10 +1346,10 @@ export class ChainingConfig extends React.Component {
     render () {
         const error = this.state.errObj;
         const extraPrimaryProps = {};
-        let saveBtnName = "Save Settings";
+        let saveBtnName = _("Save Settings");
         if (this.state.loading) {
-            saveBtnName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Loading";
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Loading");
         }
         return (
             <div className={this.state.saving ? "ds-disabled" : ""}>
@@ -1360,7 +1362,7 @@ export class ChainingConfig extends React.Component {
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh database link"
+                                    title={_("Refresh database link")}
                                     onClick={() => this.props.reload(this.props.suffix)}
                                 />
                             </Text>
@@ -1372,17 +1374,17 @@ export class ChainingConfig extends React.Component {
                             variant="danger"
                             onClick={this.handleShowDeleteConfirm}
                         >
-                            Delete Link
+                            {_("Delete Link")}
                         </Button>
                     </GridItem>
                 </Grid>
 
                 <Grid
-                    title="The LDAP URL for the remote server.  Add additional failure server URLs by separating them with a space. (nsfarmserverurl)."
+                    title={_("The LDAP URL for the remote server.  Add additional failure server URLs by separating them with a space. (nsfarmserverurl).")}
                     className="ds-margin-top-lg"
                 >
                     <GridItem className="ds-label" span={3}>
-                        Remote Server LDAP URL
+                        {_("Remote Server LDAP URL")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -1398,11 +1400,11 @@ export class ChainingConfig extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid
-                    title="The distinguished name (DN) of the entry to authenticate to the remote server. (nsmultiplexorbinddn)."
+                    title={_("The distinguished name (DN) of the entry to authenticate to the remote server. (nsmultiplexorbinddn).")}
                     className="ds-margin-top"
                 >
                     <GridItem className="ds-label" span={3}>
-                        Remote Server Bind DN
+                        {_("Remote Server Bind DN")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -1418,11 +1420,11 @@ export class ChainingConfig extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid
-                    title="The password for the authenticating entry. (nsmultiplexorcredentials)."
+                    title={_("The password for the authenticating entry. (nsmultiplexorcredentials).")}
                     className="ds-margin-top"
                 >
                     <GridItem className="ds-label" span={3}>
-                        Bind DN Password
+                        {_("Bind DN Password")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -1439,11 +1441,11 @@ export class ChainingConfig extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid
-                    title="Confirm the password for the authenticating entry. (nsmultiplexorcredentials)."
+                    title={_("Confirm the password for the authenticating entry. (nsmultiplexorcredentials).")}
                     className="ds-margin-top"
                 >
                     <GridItem className="ds-label" span={3}>
-                        Confirm Password
+                        {_("Confirm Password")}
                     </GridItem>
                     <GridItem span={9}>
                         <TextInput
@@ -1460,11 +1462,11 @@ export class ChainingConfig extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid
-                    title="The authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism)."
+                    title={_("The authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism).")}
                     className="ds-margin-top"
                 >
                     <GridItem className="ds-label" span={3}>
-                        Bind Method
+                        {_("Bind Method")}
                     </GridItem>
                     <GridItem span={9}>
                         <Select
@@ -1483,12 +1485,12 @@ export class ChainingConfig extends React.Component {
                     </GridItem>
                 </Grid>
                 <Grid
-                    title="Use StartTLS for connections to the remote server. (nsusestarttls)."
+                    title={_("Use StartTLS for connections to the remote server. (nsusestarttls).")}
                     className="ds-margin-top"
                 >
                     <GridItem className="ds-label" span={12}>
                         <Checkbox
-                            label="Use StartTLS"
+                            label={_("Use StartTLS")}
                             id="nsusestarttls"
                             isChecked={this.state.nsusestarttls}
                             onChange={(str, e) => {
@@ -1501,17 +1503,17 @@ export class ChainingConfig extends React.Component {
 
                 <ExpandableSection
                     className="ds-margin-top-xlg"
-                    toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                    toggleText={this.state.isExpanded ? _("Hide Advanced Settings") : _("Show Advanced Settings")}
                     onToggle={this.handleToggle}
                     isExpanded={this.state.isExpanded}
                 >
                     <div className="ds-margin-top ds-margin-left">
                         <Grid
-                            title="The size limit of entries returned over a database link (nsslapd-sizelimit)."
+                            title={_("The size limit of entries returned over a database link (nsslapd-sizelimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Size Limit
+                                {_("Size Limit")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1527,11 +1529,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The time limit of an operation over a database link (nsslapd-timelimit)."
+                            title={_("The time limit of an operation over a database link (nsslapd-timelimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Time Limit
+                                {_("Time Limit")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1547,11 +1549,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit)."
+                            title={_("The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Max TCP Connections
+                                {_("Max TCP Connections")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1567,11 +1569,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit)."
+                            title={_("The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Max LDAP Connections
+                                {_("Max LDAP Connections")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1587,11 +1589,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit)."
+                            title={_("The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Max Binds Per Connection
+                                {_("Max Binds Per Connection")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1607,11 +1609,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The amount of time before the bind attempt times out. (nsbindtimeout)."
+                            title={_("The amount of time before the bind attempt times out. (nsbindtimeout).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Bind Timeout
+                                {_("Bind Timeout")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1627,11 +1629,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit)."
+                            title={_("The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Bind Retry Limit
+                                {_("Bind Retry Limit")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1647,11 +1649,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of operations per connections. (nsconcurrentoperationslimit)."
+                            title={_("The maximum number of operations per connections. (nsconcurrentoperationslimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Max Operations Per Connection
+                                {_("Max Operations Per Connection")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1667,11 +1669,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The life of a database link connection to the remote server in seconds.  0 is unlimited  (nsconnectionlife)."
+                            title={_("The life of a database link connection to the remote server in seconds.  0 is unlimited  (nsconnectionlife).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Connection Lifetime
+                                {_("Connection Lifetime")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1687,11 +1689,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval)."
+                            title={_("The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Abandoned Op Check Interval
+                                {_("Abandoned Op Check Interval")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1707,11 +1709,11 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit)."
+                            title={_("The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={3}>
-                                Hop Limit
+                                {_("Hop Limit")}
                             </GridItem>
                             <GridItem span={9}>
                                 <TextInput
@@ -1727,12 +1729,12 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="Allow proxied authentication to the remote server. (nsproxiedauthorization)."
+                            title={_("Allow proxied authentication to the remote server. (nsproxiedauthorization).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={12}>
                                 <Checkbox
-                                    label="Allow Proxied Authentication"
+                                    label={_("Allow Proxied Authentication")}
                                     id="nsproxiedauthorization"
                                     isChecked={this.state.nsproxiedauthorization}
                                     onChange={(str, e) => {
@@ -1743,12 +1745,12 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci)."
+                            title={_("Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={12}>
                                 <Checkbox
-                                    label="Check Local ACIs"
+                                    label={_("Check Local ACIs")}
                                     id="nschecklocalaci"
                                     isChecked={this.state.nschecklocalaci}
                                     onChange={(str, e) => {
@@ -1759,12 +1761,12 @@ export class ChainingConfig extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch)."
+                            title={_("Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).")}
                             className="ds-margin-top"
                         >
                             <GridItem className="ds-label" span={12}>
                                 <Checkbox
-                                    label="Send Referral On Scoped Search"
+                                    label={_("Send Referral On Scoped Search")}
                                     id="nsreferralonscopedsearch"
                                     isChecked={this.state.nsreferralonscopedsearch}
                                     onChange={(str, e) => {
@@ -1782,7 +1784,7 @@ export class ChainingConfig extends React.Component {
                     onClick={this.handleSaveLink}
                     variant="primary"
                     isLoading={this.state.saving}
-                    spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                    spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                     isDisabled={this.state.saveBtnDisabled || this.state.saving}
                 >
@@ -1796,10 +1798,10 @@ export class ChainingConfig extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Database Link"
-                    mMsg="Are you really sure you want to delete this database link?"
-                    mSpinningMsg="Deleting Database Link..."
-                    mBtnName="Delete Database Link"
+                    mTitle={_("Delete Database Link")}
+                    mMsg={_("Are you really sure you want to delete this database link?")}
+                    mSpinningMsg={_("Deleting Database Link...")}
+                    mBtnName={_("Delete Database Link")}
                 />
             </div>
         );
@@ -1824,17 +1826,17 @@ export class ChainControlsModal extends React.Component {
         const oids = oidList.map((oid) =>
             <SimpleListItem key={oid}>{oid}</SimpleListItem>
         );
-        let btnName = "Add New Controls";
+        let btnName = _("Add New Controls");
         const extraPrimaryProps = {};
         if (spinning) {
-            btnName = "Saving Controls ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            btnName = _("Saving Controls ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Chaining LDAP Controls"
+                title={_("Chaining LDAP Controls")}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -1845,20 +1847,20 @@ export class ChainControlsModal extends React.Component {
                         onClick={saveHandler}
                         isLoading={spinning}
                         isDisabled={spinning}
-                        spinnerAriaValueText={spinning ? "Loading" : undefined}
+                        spinnerAriaValueText={spinning ? _("Loading") : undefined}
                         {...extraPrimaryProps}
                     >
                         {btnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal>
-                    <TextContent title="A list of LDAP control OIDs to be forwarded through chaining">
+                    <TextContent title={_("A list of LDAP control OIDs to be forwarded through chaining")}>
                         <Text component={TextVariants.h3}>
-                            Available LDAP Controls
+                            {_("Available LDAP Controls")}
                         </Text>
                     </TextContent>
                     <div className="ds-box ds-margin-top">
@@ -1885,16 +1887,16 @@ export class ChainCompsModal extends React.Component {
         const comps = compList.map((comp) =>
             <SimpleListItem key={comp}>{comp}</SimpleListItem>
         );
-        let btnName = "Add New Components";
+        let btnName = _("Add New Components");
         const extraPrimaryProps = {};
         if (spinning) {
-            btnName = "Saving Components ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            btnName = _("Saving Components ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title="Chaining Components"
+                title={_("Chaining Components")}
                 isOpen={showModal}
                 onClose={closeHandler}
                 aria-labelledby="ds-modal"
@@ -1905,23 +1907,23 @@ export class ChainCompsModal extends React.Component {
                         onClick={saveHandler}
                         isLoading={spinning}
                         isDisabled={spinning}
-                        spinnerAriaValueText={spinning ? "Loading" : undefined}
+                        spinnerAriaValueText={spinning ? _("Loading") : undefined}
                         {...extraPrimaryProps}
                     >
                         {btnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
+                        {_("Cancel")}
                     </Button>
                 ]}
             >
                 <Form isHorizontal>
-                    <TextContent title="A list of LDAP control components">
+                    <TextContent title={_("A list of LDAP control components")}>
                         <Text component={TextVariants.h3}>
-                            Available Components
+                            {_("Available Components")}
                         </Text>
                     </TextContent>
-                    Available LDAP Controls
+                    {_("Available LDAP Controls")}
                     <div className="ds-box ds-margin-top">
                         <SimpleList onSelect={handleChange} aria-label="comps">
                             {comps}

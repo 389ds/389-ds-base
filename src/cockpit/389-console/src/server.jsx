@@ -32,6 +32,8 @@ import {
     RouteIcon
 } from '@patternfly/react-icons';
 
+const _ = cockpit.gettext;
+
 export class Server extends React.Component {
     constructor(props) {
         super(props);
@@ -45,7 +47,7 @@ export class Server extends React.Component {
             disableTree: false,
             activeItems: [
                 {
-                    name: "Server Settings",
+                    name: _("Server Settings"),
                     id: "settings-config",
                     icon: <CogIcon />,
                 }
@@ -102,7 +104,7 @@ export class Server extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error loading server configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading server configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -126,7 +128,7 @@ export class Server extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error reloading server configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error reloading server configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -134,58 +136,58 @@ export class Server extends React.Component {
     loadTree() {
         const basicData = [
             {
-                name: "Server Settings",
+                name: _("Server Settings"),
                 id: "settings-config",
                 icon: <CogIcon />,
 
             },
             {
-                name: "Tuning & Limits",
+                name: _("Tuning & Limits"),
                 icon: <TachometerAltIcon />,
                 id: "tuning-config",
             },
             {
-                name: "Security",
+                name: _("Security"),
                 icon: <LockIcon />,
                 id: "security-config",
             },
             {
-                name: "SASL Settings & Mappings",
+                name: _("SASL Settings & Mappings"),
                 icon: <RouteIcon />,
                 id: "sasl-config",
             },
             {
-                name: "LDAPI & Autobind",
+                name: _("LDAPI & Autobind"),
                 icon: <KeyIcon />,
                 id: "ldapi-config",
             },
             {
-                name: "Logging",
+                name: _("Logging"),
                 icon: <CatalogIcon />,
                 id: "logging-config",
                 children: [
                     {
-                        name: "Access Log",
+                        name: _("Access Log"),
                         icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "access-log-config",
                     },
                     {
-                        name: "Audit Log",
+                        name: _("Audit Log"),
                         icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "audit-log-config",
                     },
                     {
-                        name: "Audit Failure Log",
+                        name: _("Audit Failure Log"),
                         icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "auditfail-log-config",
                     },
                     {
-                        name: "Errors Log",
+                        name: _("Errors Log"),
                         icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "error-log-config",
                     },
                     {
-                        name: "Security Log",
+                        name: _("Security Log"),
                         icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "security-log-config",
                     }
@@ -215,7 +217,7 @@ export class Server extends React.Component {
             <div className="ds-margin-top-xlg ds-center">
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Loading Server Configuration ...
+                        {_("Loading Server Configuration ...")}
                     </Text>
                 </TextContent>
                 <Spinner className="ds-margin-top-lg" size="xl" />

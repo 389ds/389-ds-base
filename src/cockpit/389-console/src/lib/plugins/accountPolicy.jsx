@@ -20,6 +20,8 @@ import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
+const _ = cockpit.gettext;
+
 // Use default account policy name
 
 class AccountPolicy extends React.Component {
@@ -72,7 +74,6 @@ class AccountPolicy extends React.Component {
             limitAttrName: "",
             specAttrName: "",
             stateAttrName: "",
-            checkAllStateAttrs: false,
             _configDN: "",
             _altStateAttrName: [],
             _alwaysRecordLogin: false,
@@ -80,7 +81,6 @@ class AccountPolicy extends React.Component {
             _limitAttrName: "",
             _specAttrName: "",
             _stateAttrName: "",
-            _checkAllStateAttrs: false,
             errorModal: {},
             saveBtnDisabledModal: true,
             modalChecked: false,
@@ -251,10 +251,10 @@ class AccountPolicy extends React.Component {
                             sharedConfigExists: true
                         });
                     })
-                    .fail(_ => {
+                    .fail(() => {
                         this.props.addNotification(
                             "warning",
-                            `Warning! Account Policy config entry "${this.state.configArea}" doesn't exist!`
+                            cockpit.format(_("Warning! Account Policy config entry $0 doesn't exist!"), this.state.configArea)
                         );
                         this.setState({
                             sharedConfigExists: false
@@ -275,7 +275,6 @@ class AccountPolicy extends React.Component {
                 limitAttrName: "accountInactivityLimit",
                 specAttrName: "acctPolicySubentry",
                 stateAttrName: "lastLoginTime",
-                checkAllStateAttrs: "checkAllStateAttrs",
                 _configDN: "",
                 _altStateAttrName: "createTimestamp",
                 _alwaysRecordLogin: false,
@@ -283,7 +282,6 @@ class AccountPolicy extends React.Component {
                 _limitAttrName: "accountInactivityLimit",
                 _specAttrName: "acctPolicySubentry",
                 _stateAttrName: "lastLoginTime",
-                _checkAllStateAttrs: "checkAllStateAttrs",
                 savingModal: false,
                 saveBtnDisabledModal: true,
             });
@@ -384,14 +382,12 @@ class AccountPolicy extends React.Component {
                             limitAttrName: "accountInactivityLimit",
                             specAttrName: "acctPolicySubentry",
                             stateAttrName: "lastLoginTime",
-                            checkAllStateAttrs: false,
                             _altStateAttrName: "createTimestamp",
                             _alwaysRecordLogin: false,
                             _alwaysRecordLoginAttr: "lastLoginTime",
                             _limitAttrName: "accountInactivityLimit",
                             _specAttrName: "acctPolicySubentry",
                             _stateAttrName: "lastLoginTime",
-                            _checkAllStateAttrs: false,
                             saveBtnDisabledModal: false, // We preset the form so it's ready to save
                         });
                     });
@@ -410,8 +406,7 @@ class AccountPolicy extends React.Component {
             alwaysRecordLoginAttr,
             limitAttrName,
             specAttrName,
-            stateAttrName,
-            checkAllStateAttrs,
+            stateAttrName
         } = this.state;
 
         let cmd = [
@@ -424,9 +419,7 @@ class AccountPolicy extends React.Component {
             action,
             configDN,
             "--always-record-login",
-            alwaysRecordLogin ? "yes" : "no",
-            "--check-all-state-attrs",
-            checkAllStateAttrs ? "yes" : "no",
+            alwaysRecordLogin ? "yes" : "no"
         ];
 
         cmd = [...cmd, "--alt-state-attr"];
@@ -497,7 +490,7 @@ class AccountPolicy extends React.Component {
                     console.info("accountPolicyOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${configDN} was successfully ${action}ed`
+                        cockpit.format(_("Config entry $0 was successfully $1ed"), configDN, action)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -515,7 +508,7 @@ class AccountPolicy extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry $0 operation - $1"), action, errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
@@ -556,7 +549,7 @@ class AccountPolicy extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${this.state.configDN} was successfully deleted`
+                        cockpit.format(_("Config entry $0 was successfully deleted"), this.state.configDN)
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
@@ -566,7 +559,7 @@ class AccountPolicy extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${errMsg.desc}`
+                        cockpit.format(_("Error during the config entry removal operation - $0"), errMsg.desc)
                     );
                     this.props.pluginListHandler();
                     this.closeConfirmDelete();
@@ -607,8 +600,7 @@ class AccountPolicy extends React.Component {
             all_good = false;
             const attrs = [
                 'configDN', 'altStateAttrName', 'alwaysRecordLogin',
-                'alwaysRecordLoginAttr', 'limitAttrName', 'stateAttrName',
-                'checkAllStateAttrs',
+                'alwaysRecordLoginAttr', 'limitAttrName', 'stateAttrName'
             ];
             for (const check_attr of attrs) {
                 if (this.state[check_attr] !== this.state['_' + check_attr]) {
@@ -625,7 +617,7 @@ class AccountPolicy extends React.Component {
 
     handleFieldChange(e) {
         const attr = e.target.id; // always configArea
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value = e.target.value;
         let saveBtnDisabled = true;
         const errObj = {};
 
@@ -704,7 +696,7 @@ class AccountPolicy extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        `Successfully updated Account Policy Plugin`
+                        _("Successfully updated Account Policy Plugin")
                     );
                     this.setState({
                         saving: false
@@ -719,7 +711,7 @@ class AccountPolicy extends React.Component {
                         errMsg = errMsg.desc;
                     }
                     this.props.addNotification(
-                        "error", `Error during update - ${errMsg}`
+                        "error", cockpit.format(_("Error during update - $0"), errMsg)
                     );
                     this.setState({
                         saving: false
@@ -738,7 +730,6 @@ class AccountPolicy extends React.Component {
             limitAttrName,
             specAttrName,
             stateAttrName,
-            checkAllStateAttrs,
             newEntry,
             configEntryModalShow,
             error,
@@ -751,16 +742,16 @@ class AccountPolicy extends React.Component {
         } = this.state;
 
         const extraPrimaryProps = {};
-        let saveBtnText = "Save Config";
+        let saveBtnText = _("Save Config");
         if (saving) {
             // Main plugin config
-            saveBtnText = "Saving ...";
+            saveBtnText = _("Saving ...");
         }
         let modalButtons = [];
         if (!newEntry) {
             modalButtons = [
                 <Button key="del" variant="primary" onClick={this.handleShowConfirmDelete}>
-                    Delete Config
+                    {_("Delete Config")}
                 </Button>,
                 <Button
                     key="save"
@@ -768,13 +759,13 @@ class AccountPolicy extends React.Component {
                     onClick={this.handleEditConfig}
                     isDisabled={saveBtnDisabledModal || savingModal}
                     isLoading={savingModal}
-                    spinnerAriaValueText={savingModal ? "Saving" : undefined}
+                    spinnerAriaValueText={savingModal ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                 >
-                    {savingModal ? "Saving ..." : "Save Config"}
+                    {savingModal ? _("Saving ...") : _("Save Config")}
                 </Button>,
                 <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    Cancel
+                    {_("Cancel")}
                 </Button>
             ];
         } else {
@@ -785,13 +776,13 @@ class AccountPolicy extends React.Component {
                     onClick={this.handleAddConfig}
                     isDisabled={saveBtnDisabledModal || addingModal}
                     isLoading={addingModal}
-                    spinnerAriaValueText={addingModal ? "Saving" : undefined}
+                    spinnerAriaValueText={addingModal ? _("Saving") : undefined}
                     {...extraPrimaryProps}
                 >
-                    {addingModal ? "Adding ..." : "Add Config"}
+                    {addingModal ? _("Adding ...") : _("Add Config")}
                 </Button>,
                 <Button key="cancel" variant="link" onClick={this.handleCloseModal}>
-                    Cancel
+                    {_("Cancel")}
                 </Button>
             ];
         }
@@ -800,16 +791,16 @@ class AccountPolicy extends React.Component {
             <div className={this.state.saving || this.state.savingModal || this.state.addingModal ? "ds-disabled" : ""}>
                 <Modal
                     variant={ModalVariant.medium}
-                    title="Manage Account Policy Plugin Shared Config Entry"
+                    title={_("Manage Account Policy Plugin Shared Config Entry")}
                     isOpen={configEntryModalShow}
                     aria-labelledby="ds-modal"
                     onClose={this.handleCloseModal}
                     actions={modalButtons}
                 >
                     <Form isHorizontal autoComplete="no">
-                        <Grid title="DN of the config entry">
+                        <Grid title={_("DN of the config entry")}>
                             <GridItem span={4} className="ds-label">
-                                Config DN
+                                {_("Config DN")}
                             </GridItem>
                             <GridItem span={8}>
                                 <TextInput
@@ -823,13 +814,13 @@ class AccountPolicy extends React.Component {
                                     isDisabled={newEntry}
                                 />
                                 <FormHelperText isError isHidden={!errorModal.configDN}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)">
+                        <Grid title={_("Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)")}>
                             <GridItem span={4} className="ds-label">
-                                Always Record Login Attribute
+                                {_("Always Record Login Attribute")}
                             </GridItem>
                             <GridItem span={4}>
                                 <Select
@@ -841,8 +832,8 @@ class AccountPolicy extends React.Component {
                                     selections={alwaysRecordLoginAttr}
                                     isOpen={this.state.isRecordLoginOpen}
                                     aria-labelledby="typeAhead-record-login"
-                                    placeholderText="Type an attribute name ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
@@ -855,17 +846,17 @@ class AccountPolicy extends React.Component {
                             <GridItem span={4}>
                                 <Checkbox
                                     id="alwaysRecordLogin"
-                                    className="ds-left-margin ds-lower-field"
+                                    className="ds-left-margin"
                                     isChecked={alwaysRecordLogin}
-                                    title="Sets that every entry records its last login time (alwaysRecordLogin)"
+                                    title={_("Sets that every entry records its last login time (alwaysRecordLogin)")}
                                     onChange={this.handleCheckboxChange}
-                                    label="Always Record Login"
+                                    label={_("Always Record Login")}
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies the attribute to identify which entries are account policy configuration entries (specAttrName)">
+                        <Grid title={_("Specifies the attribute to identify which entries are account policy configuration entries (specAttrName)")}>
                             <GridItem span={4} className="ds-label">
-                                Specific Attribute
+                                {_("Specific Attribute")}
                             </GridItem>
                             <GridItem span={8}>
                                 <Select
@@ -877,8 +868,8 @@ class AccountPolicy extends React.Component {
                                     selections={specAttrName}
                                     isOpen={this.state.isSpecificAttrOpen}
                                     aria-labelledby="typeAhead-specific-attr"
-                                    placeholderText="Type an attribute name ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {this.props.attributes.map((attr) => (
                                         <SelectOption
@@ -889,9 +880,9 @@ class AccountPolicy extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)">
+                        <Grid title={_("Specifies the primary time attribute used to evaluate an account policy (stateAttrName)")}>
                             <GridItem span={4} className="ds-label">
-                                Limit Attribute
+                                {_("Limit Attribute")}
                             </GridItem>
                             <GridItem span={8}>
                                 <Select
@@ -903,8 +894,8 @@ class AccountPolicy extends React.Component {
                                     selections={limitAttrName}
                                     isOpen={this.state.isLimitAttrOpen}
                                     aria-labelledby="typeAhead-limit-attr"
-                                    placeholderText="Type an attribute name ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
@@ -917,7 +908,7 @@ class AccountPolicy extends React.Component {
                         </Grid>
                         <Grid title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
                             <GridItem span={4} className="ds-label">
-                                State Attribute
+                                {_("State Attribute")}
                             </GridItem>
                             <GridItem span={8}>
                                 <Select
@@ -929,8 +920,8 @@ class AccountPolicy extends React.Component {
                                     selections={stateAttrName}
                                     isOpen={this.state.isStateAttrOpen}
                                     aria-labelledby="typeAhead-state-attr"
-                                    placeholderText="Type an attribute name ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
@@ -941,9 +932,9 @@ class AccountPolicy extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Provides a backup attribute to evaluate the expiration time if the main state attribute is not present (altStateAttrName)">
+                        <Grid title={_("Provides a backup attribute for the server to reference to evaluate the expiration time (altStateAttrName)")}>
                             <GridItem span={4} className="ds-label">
-                                Alternative State Attribute
+                                {_("Alternative State Attribute")}
                             </GridItem>
                             <GridItem span={8}>
                                 <Select
@@ -955,8 +946,8 @@ class AccountPolicy extends React.Component {
                                     selections={altStateAttrName}
                                     isOpen={this.state.isAltStateAttrOpen}
                                     aria-labelledby="typeAhead-alt-state-attr"
-                                    placeholderText="Type an attribute name ..."
-                                    noResultsFoundText="There are no matching entries"
+                                    placeholderText={_("Type an attribute name ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
                                 >
                                     {this.props.attributes.map((attr, index) => (
                                         <SelectOption
@@ -967,15 +958,30 @@ class AccountPolicy extends React.Component {
                                 </Select>
                             </GridItem>
                         </Grid>
-                        <Grid title="Check both the 'state attribute', and the 'alternate state attribute' regaredless if the main state attribute is present">
-                            <GridItem span={4}>
-                                <Checkbox
-                                    id="checkAllStateAttrs"
-                                    className="ds-left-margin"
-                                    isChecked={checkAllStateAttrs}
-                                    onChange={this.handleCheckboxChange}
-                                    label="Check All State Attributes"
-                                />
+                        <Grid title={_("Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)")}>
+                            <GridItem span={4} className="ds-label">
+                                {_("Limit Attribute")}
+                            </GridItem>
+                            <GridItem span={8}>
+                                <Select
+                                    variant={SelectVariant.typeahead}
+                                    typeAheadAriaLabel={_("Type an attribute name")}
+                                    onToggle={this.handleLimitAttrToggle}
+                                    onSelect={this.handleLimitAttrSelect}
+                                    onClear={this.handleLimitAttrClear}
+                                    selections={limitAttrName}
+                                    isOpen={this.state.isLimitAttrOpen}
+                                    aria-labelledby="typeAhead-limit-attr"
+                                    placeholderText={_("Type an attribute name ...")}
+                                    noResultsFoundText={_("There are no matching entries")}
+                                >
+                                    {this.props.attributes.map((attr, index) => (
+                                        <SelectOption
+                                            key={index}
+                                            value={attr}
+                                        />
+                                    ))}
+                                </Select>
                             </GridItem>
                         </Grid>
                     </Form>
@@ -993,9 +999,9 @@ class AccountPolicy extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Form isHorizontal autoComplete="off">
-                        <Grid title="DN of the shared config entry (nsslapd-pluginConfigArea)">
+                        <Grid title={_("DN of the shared config entry (nsslapd-pluginConfigArea)")}>
                             <GridItem span={3} className="ds-label">
-                                Shared Config Entry
+                                {_("Shared Config Entry")}
                             </GridItem>
                             <GridItem span={7}>
                                 <TextInput
@@ -1008,7 +1014,7 @@ class AccountPolicy extends React.Component {
                                     validated={error.configArea ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText isError isHidden={!error.configArea}>
-                                    Value must be a valid DN
+                                    {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem span={2}>
@@ -1019,7 +1025,7 @@ class AccountPolicy extends React.Component {
                                     onClick={this.handleOpenModal}
                                     isDisabled={!this.state.sharedConfigExists && saveBtnDisabled}
                                 >
-                                    {this.state.sharedConfigExists ? "Manage Config" : "Create Config"}
+                                    {this.state.sharedConfigExists ? _("Manage Config") : _("Create Config")}
                                 </Button>
                             </GridItem>
                         </Grid>
@@ -1028,7 +1034,7 @@ class AccountPolicy extends React.Component {
                         className="ds-margin-top-lg"
                         key="at"
                         isLoading={saving}
-                        spinnerAriaValueText={saving ? "Loading" : undefined}
+                        spinnerAriaValueText={saving ? _("Loading") : undefined}
                         variant="primary"
                         onClick={this.handleSaveConfig}
                         {...extraPrimaryProps}
@@ -1045,10 +1051,10 @@ class AccountPolicy extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.configDN}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Account Policy Config Entry"
-                    mMsg="Are you sure you want to delete this config entry?"
-                    mSpinningMsg="Deleting ..."
-                    mBtnName="Delete"
+                    mTitle={_("Delete Account Policy Config Entry")}
+                    mMsg={_("Are you sure you want to delete this config entry?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete")}
                 />
             </div>
         );

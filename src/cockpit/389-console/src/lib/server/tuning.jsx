@@ -41,6 +41,8 @@ const tuning_attrs = [
     'nsslapd-ndn-cache-max-size',
 ];
 
+const _ = cockpit.gettext;
+
 export class ServerTuning extends React.Component {
     constructor(props) {
         super(props);
@@ -202,7 +204,7 @@ export class ServerTuning extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error loading server configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error loading server configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -238,7 +240,7 @@ export class ServerTuning extends React.Component {
                     this.loadConfig();
                     this.props.addNotification(
                         "success",
-                        "Successfully updated tuning configuration"
+                        _("Successfully updated tuning configuration")
                     );
                 })
                 .fail(err => {
@@ -246,25 +248,25 @@ export class ServerTuning extends React.Component {
                     this.loadConfig();
                     this.props.addNotification(
                         "error",
-                        `Error updating tuning configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating tuning configuration - $0"), errMsg.desc)
                     );
                 });
     }
 
     render () {
         let body = "";
-        let saveBtnName = "Save Settings";
+        let saveBtnName = _("Save Settings");
         const extraPrimaryProps = {};
         if (this.state.loading) {
-            saveBtnName = "Saving settings ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving settings ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         if (!this.state.loaded) {
             body = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
                     <TextContent>
-                        <Text component={TextVariants.h3}>Loading Tuning Configuration ...</Text>
+                        <Text component={TextVariants.h3}>{_("Loading Tuning Configuration ...")}</Text>
                     </TextContent>
                     <Spinner className="ds-margin-top" size="lg" />
                 </div>
@@ -276,12 +278,12 @@ export class ServerTuning extends React.Component {
                         <GridItem span={12}>
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    Tuning & Limits
+                                    {_("Tuning & Limits")}
                                     <FontAwesomeIcon
                                         size="lg"
                                         className="ds-left-margin ds-refresh"
                                         icon={faSyncAlt}
-                                        title="Refresh settings"
+                                        title={_("Refresh settings")}
                                         onClick={() => {
                                             this.loadConfig(1);
                                         }}
@@ -293,10 +295,10 @@ export class ServerTuning extends React.Component {
                     <Form className="ds-left-margin" isHorizontal autoComplete="off">
                         <Grid
                             className="ds-margin-top-xlg"
-                            title="The number of worker threads that handle database operations.  Set to '-1' for enable auto tuning. (nsslapd-threadnumber)."
+                            title={_("The number of worker threads that handle database operations.  Set to '-1' for enable auto tuning. (nsslapd-threadnumber).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Number Of Worker Threads
+                                {_("Number Of Worker Threads")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -315,10 +317,10 @@ export class ServerTuning extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of seconds allocated for a search request.  Set to '-1' to disable the time limit (nsslapd-timelimit)."
+                            title={_("The maximum number of seconds allocated for a search request.  Set to '-1' to disable the time limit (nsslapd-timelimit).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Search Time Limit
+                                {_("Search Time Limit")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -337,10 +339,10 @@ export class ServerTuning extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of entries to return from a search operation.  Set to '-1' to disable the size limit (nsslapd-sizelimit)."
+                            title={_("The maximum number of entries to return from a search operation.  Set to '-1' to disable the size limit (nsslapd-sizelimit).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Search Size Limit
+                                {_("Search Size Limit")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -359,10 +361,10 @@ export class ServerTuning extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="The maximum number of entries to return from a paged search operation. Set to '-1' to disable the size limit (nsslapd-pagedsizelimit)."
+                            title={_("The maximum number of entries to return from a paged search operation. Set to '-1' to disable the size limit (nsslapd-pagedsizelimit).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Paged Search Size Limit
+                                {_("Paged Search Size Limit")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -381,10 +383,10 @@ export class ServerTuning extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout)."
+                            title={_("Sets the amount of time in seconds after which an idle LDAP client connection is closed by the server (nsslapd-idletimeout).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                Idle Connection Timeout
+                                {_("Idle Connection Timeout")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -403,10 +405,10 @@ export class ServerTuning extends React.Component {
                             </GridItem>
                         </Grid>
                         <Grid
-                            title="Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout)."
+                            title={_("Sets the amount of time in milliseconds after which the connection to a stalled LDAP client is closed (nsslapd-ioblocktimeout).")}
                         >
                             <GridItem className="ds-label" span={3}>
-                                I/O Block Timeout
+                                {_("I/O Block Timeout")}
                             </GridItem>
                             <GridItem span={9}>
                                 <NumberInput
@@ -427,7 +429,7 @@ export class ServerTuning extends React.Component {
                     </Form>
                     <ExpandableSection
                         className="ds-margin-top-xlg"
-                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                        toggleText={this.state.isExpanded ? _("Hide Advanced Settings") : _("Show Advanced Settings")}
                         onToggle={this.handleOnToggle}
                         isExpanded={this.state.isExpanded}
                     >
@@ -435,10 +437,10 @@ export class ServerTuning extends React.Component {
                             <Form isHorizontal autoComplete="off">
                                 <Grid
                                     className="ds-margin-top"
-                                    title="Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout)."
+                                    title={_("Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Outbound IO Timeout
+                                        {_("Outbound IO Timeout")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -457,10 +459,10 @@ export class ServerTuning extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize)."
+                                    title={_("The maximum size in bytes allowed for an incoming message (nsslapd-maxbersize).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Maximum BER Size
+                                        {_("Maximum BER Size")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -479,10 +481,10 @@ export class ServerTuning extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize)."
+                                    title={_("The maximum allowed SASL IO packet size that the server will accept (nsslapd-maxsasliosize).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Maximum SASL IO Size
+                                        {_("Maximum SASL IO Size")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -501,10 +503,10 @@ export class ServerTuning extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size)."
+                                    title={_("The maximum length for how long the connection queue for the socket can grow before refusing connections (nsslapd-listen-backlog-size).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Listen Backlog Size
+                                        {_("Listen Backlog Size")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -523,10 +525,10 @@ export class ServerTuning extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level)."
+                                    title={_("Sets how deep a nested search filter is analysed (nsslapd-max-filter-nest-level).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Maximum Nested Filter Level
+                                        {_("Maximum Nested Filter Level")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <NumberInput
@@ -545,7 +547,7 @@ export class ServerTuning extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon)."
+                                    title={_("Disable DNS reverse entries for outgoing connections (nsslapd-connection-nocanon).")}
                                 >
                                     <GridItem className="ds-label" span={4}>
                                         <Checkbox
@@ -554,12 +556,12 @@ export class ServerTuning extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleChange(e);
                                             }}
-                                            label="Disable Reverse DNS Lookups"
+                                            label={_("Disable Reverse DNS Lookups")}
                                         />
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode)."
+                                    title={_("Sets the worker threads to continuously read a connection without passing it back to the polling mechanism. (nsslapd-enable-turbo-mode).")}
                                 >
                                     <GridItem className="ds-label" span={4}>
                                         <Checkbox
@@ -568,12 +570,12 @@ export class ServerTuning extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleChange(e);
                                             }}
-                                            label="Enable Connection Turbo Mode"
+                                            label={_("Enable Connection Turbo Mode")}
                                         />
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs)."
+                                    title={_("Disable the virtual attribute lookup in a search entry (nsslapd-ignore-virtual-attrs).")}
                                 >
                                     <GridItem className="ds-label" span={4}>
                                         <Checkbox
@@ -582,12 +584,12 @@ export class ServerTuning extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleChange(e);
                                             }}
-                                            label="Disable Virtual Attribute Lookups"
+                                            label={_("Disable Virtual Attribute Lookups")}
                                         />
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled)."
+                                    title={_("Enable the normalized DN cache.  Each thread has its own cache (nsslapd-ndn-cache-enabled).")}
                                 >
                                     <GridItem className="ds-label" span={4}>
                                         <Checkbox
@@ -596,16 +598,16 @@ export class ServerTuning extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleChange(e);
                                             }}
-                                            label="Enable Normalized DN Cache"
+                                            label={_("Enable Normalized DN Cache")}
                                         />
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="The max NDN cache size in bytes (nsslapd-ndn-cache-max-size)."
+                                    title={_("The max NDN cache size in bytes (nsslapd-ndn-cache-max-size).")}
                                     className="ds-left-indent-lg"
                                 >
                                     <GridItem className="ds-label" span={2}>
-                                        NDN Max Cache Size
+                                        {_("NDN Max Cache Size")}
                                     </GridItem>
                                     <GridItem span={2}>
                                         <NumberInput
@@ -633,7 +635,7 @@ export class ServerTuning extends React.Component {
                         className="ds-margin-top-xlg"
                         onClick={this.handleSaveConfig}
                         isLoading={this.state.loading}
-                        spinnerAriaValueText={this.state.loading ? "Saving" : undefined}
+                        spinnerAriaValueText={this.state.loading ? _("Saving") : undefined}
                         {...extraPrimaryProps}
                     >
                         {saveBtnName}

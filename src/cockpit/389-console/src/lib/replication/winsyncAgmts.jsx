@@ -15,6 +15,8 @@ import {
     SortByDirection,
 } from '@patternfly/react-table';
 
+const _ = cockpit.gettext;
+
 export class WinsyncAgmts extends React.Component {
     _mounted = false;
     constructor(props) {
@@ -768,7 +770,7 @@ export class WinsyncAgmts extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to get agreement information for: "${agmtName}" - ${errMsg.desc}`
+                        cockpit.format(_("Failed to get agreement information for: \"$0\" - $1"), agmtName, errMsg.desc)
                     );
                 });
     }
@@ -872,8 +874,8 @@ export class WinsyncAgmts extends React.Component {
             promptArg: "--bind-passwd-prompt",
             passwd,
             addNotification: this.props.addNotification,
-            success_msg: "Successfully updated winsync agreement",
-            error_msg: "Failed to update winsync agreement",
+            success_msg: _("Successfully updated winsync agreement"),
+            error_msg: _("Failed to update winsync agreement"),
             state_callback: () => {
                 this.setState({
                     savingAgmt: false,
@@ -898,14 +900,14 @@ export class WinsyncAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully poked winsync agreement'
+                        _("Successfully poked winsync agreement")
                     );
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         'error',
-                        `Failed to poke winsync agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to poke winsync agreement - $0"), errMsg.desc)
                     );
                 });
     }
@@ -937,7 +939,7 @@ export class WinsyncAgmts extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         'error',
-                        `Failed to initialize winsync agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to initialize winsync agreement - $0"), errMsg.desc)
                     );
                     this.setState({
                         showConfirmInitAgmt: false
@@ -989,13 +991,13 @@ export class WinsyncAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully enabled winsync agreement');
+                        _("Successfully enabled winsync agreement"));
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to enabled winsync agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to enabled winsync agreement - $0"), errMsg.desc)
                     );
                 });
     }
@@ -1014,13 +1016,13 @@ export class WinsyncAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully disabled winsync agreement');
+                        _("Successfully disabled winsync agreement"));
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to disable winsync agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to disable winsync agreement - $0"), errMsg.desc)
                     );
                 });
     }
@@ -1038,7 +1040,7 @@ export class WinsyncAgmts extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         'success',
-                        'Successfully deleted winsync agreement');
+                        _("Successfully deleted winsync agreement"));
                     this.setState({
                         showConfirmDeleteAgmt: false,
                         deleteSpinning: false
@@ -1048,7 +1050,7 @@ export class WinsyncAgmts extends React.Component {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete winsync agreement - ${errMsg.desc}`
+                        cockpit.format(_("Failed to delete winsync agreement - $0"), errMsg.desc)
                     );
                     this.setState({
                         showConfirmDeleteAgmt: false,
@@ -1126,8 +1128,8 @@ export class WinsyncAgmts extends React.Component {
             promptArg: "--bind-passwd-prompt",
             passwd,
             addNotification: this.props.addNotification,
-            success_msg: "Successfully created winsync agreement",
-            error_msg: "Failed to create winsync agreement",
+            success_msg: _("Successfully created winsync agreement"),
+            error_msg: _("Failed to create winsync agreement"),
             state_callback: () => {
                 this.setState({
                     savingAgmt: false,
@@ -1139,7 +1141,7 @@ export class WinsyncAgmts extends React.Component {
             ext_func,
             ext_arg: this.state.agmtName,
             funcName: "createAgmt",
-            funcDesc: "Create winsync agreement"
+            funcDesc: _("Create winsync agreement")
         };
         callCmdStreamPassword(config);
     }
@@ -1219,7 +1221,7 @@ export class WinsyncAgmts extends React.Component {
                         variant="primary"
                         onClick={this.handleShowCreateAgmtModal}
                     >
-                        Create Agreement
+                        {_("Create Agreement")}
                     </Button>
                     <Button
                         className="ds-left-margin"
@@ -1228,7 +1230,7 @@ export class WinsyncAgmts extends React.Component {
                             this.props.reload(this.props.suffix);
                         }}
                     >
-                        Refresh Agreements
+                        {_("Refresh Agreements")}
                     </Button>
                 </div>
                 <WinsyncAgmtModal
@@ -1327,10 +1329,10 @@ export class WinsyncAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Winsync Agreement"
-                    mMsg="Are you sure you want to delete this winsync agreement"
-                    mSpinningMsg="Deleting Winsync Agreement ..."
-                    mBtnName="Delete Agreement"
+                    mTitle={_("Delete Winsync Agreement")}
+                    mMsg={_("Are you sure you want to delete this winsync agreement")}
+                    mSpinningMsg={_("Deleting Winsync Agreement ...")}
+                    mBtnName={_("Delete Agreement")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmInitAgmt}
@@ -1340,10 +1342,10 @@ export class WinsyncAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Initialize Winsync Agreement"
-                    mMsg="Are you sure you want to initialize this winsync agreement?"
-                    mSpinningMsg="Initializing Winsync Agreement ..."
-                    mBtnName="Initialize Agreement"
+                    mTitle={_("Initialize Winsync Agreement")}
+                    mMsg={_("Are you sure you want to initialize this winsync agreement?")}
+                    mSpinningMsg={_("Initializing Winsync Agreement ...")}
+                    mBtnName={_("Initialize Agreement")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmEnableAgmt}
@@ -1353,10 +1355,10 @@ export class WinsyncAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Enable Winsync Agreement"
-                    mMsg="Are you sure you want to enable this winsync agreement?"
-                    mSpinningMsg="Enabling Winsync Agreement ..."
-                    mBtnName="Enable Agreement"
+                    mTitle={_("Enable Winsync Agreement")}
+                    mMsg={_("Are you sure you want to enable this winsync agreement?")}
+                    mSpinningMsg={_("Enabling Winsync Agreement ...")}
+                    mBtnName={_("Enable Agreement")}
                 />
                 <DoubleConfirmModal
                     showModal={this.state.showConfirmDisableAgmt}
@@ -1366,10 +1368,10 @@ export class WinsyncAgmts extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.agmtName}
                     checked={this.state.modalChecked}
-                    mTitle="Disable Winsync Agreement"
-                    mMsg="Are you sure you want to disable this winsync agreement?"
-                    mSpinningMsg="Disabling Winsync Agreement ..."
-                    mBtnName="Disable Agreement"
+                    mTitle={_("Disable Winsync Agreement")}
+                    mMsg={_("Are you sure you want to disable this winsync agreement?")}
+                    mSpinningMsg={_("Disabling Winsync Agreement ...")}
+                    mBtnName={_("Disable Agreement")}
                 />
             </div>
         );

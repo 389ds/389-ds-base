@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -36,21 +37,23 @@ import {
 import { file_is_path } from "../../tools.jsx";
 import PropTypes from "prop-types";
 
+const _ = cockpit.gettext;
+
 class EditableTable extends React.Component {
     constructor (props) {
         super(props);
 
         this.attributeValidationRules = [
             {
-                name: 'required',
+                name: _("required"),
                 validator: value => value.trim() !== '',
-                errorText: 'This field is required'
+                errorText: _("This field is required")
             }
         ];
 
         this.columns = [
-            { title: 'Attribute' },
-            { title: 'Value', cellTransforms: [breakWord] }
+            { title: _("Attribute") },
+            { title: _("Value"), cellTransforms: [breakWord] }
         ];
 
         this.state = {
@@ -248,7 +251,7 @@ class EditableTable extends React.Component {
                     myDecodedValue = (
                         <div>
                             <Label icon={<InfoCircleIcon />} color="blue">
-                                Value is too large to display
+                                {_("Value is too large to display")}
                             </Label>
                         </div>
                     );
@@ -467,7 +470,7 @@ class EditableTable extends React.Component {
                             <>
                                 <EditableTextCell
                                     // isDisabled={myData.isDisabled}
-                                    value={value !== "" ? "********" : <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label>}
+                                    value={value !== "" ? "********" : <Label color="red" icon={<InfoCircleIcon />}> {_("Empty value!")} </Label>}
                                     rowIndex={rowIndex}
                                     cellIndex={cellIndex}
                                     props={props}
@@ -506,17 +509,14 @@ class EditableTable extends React.Component {
                                 {
                                     (attrId === this.state.namingRowID || myData.namingAttr) &&
                                     <Popover
-                                        headerContent={<div>Naming Attribute</div>}
+                                        headerContent={<div>{_("Naming Attribute")}</div>}
                                         bodyContent={
                                             <div>
-                                                This attribute and value are part of
-                                                the entry's DN and can not be changed
-                                                except by doing a Rename (modrdn) operation
-                                                on the entry.
+                                                {_("This attribute and value are part of the entry's DN and can not be changed except by doing a Rename (modrdn) operation on the entry.")}
                                             </div>
                                         }
                                     >
-                                        <a href="#" className="ds-font-size-sm">Naming Attribute</a>
+                                        <a href="#" className="ds-font-size-sm">{_("Naming Attribute")}</a>
                                     </Popover>
                                 }
                             </>
@@ -531,7 +531,7 @@ class EditableTable extends React.Component {
                             <>
                                 <EditableTextCell
                                     // isDisabled={myData.isDisabled}
-                                    value={value === "" ? <Label color="red" icon={<InfoCircleIcon />}> Empty value! </Label> : value}
+                                    value={value === "" ? <Label color="red" icon={<InfoCircleIcon />}> {_("Empty value!")} </Label> : value}
                                     rowIndex={rowIndex}
                                     cellIndex={cellIndex}
                                     props={props}
@@ -577,7 +577,7 @@ class EditableTable extends React.Component {
             ? []
             : (this.props.namingAttr && myAttr !== this.props.namingAttr) || this.props.namingAttr === ""
                 ? [{
-                    title: 'Set as Naming Attribute',
+                    title: _("Set as Naming Attribute"),
                     onClick: () => {
                         const foundEmptyValue = this.state.tableRows.find(el => el.cells[1].props.value === '');
                         this.props.enableNextStep(foundEmptyValue === undefined);
@@ -597,7 +597,7 @@ class EditableTable extends React.Component {
             this.props.isAttributeSingleValued(myAttr)
                 ? []
                 : [{
-                    title: 'Add Another Value',
+                    title: _("Add Another Value"),
                     onClick: (event, rowId, rowData) => {
                         const myData = {
                             id: generateUniqueId(),
@@ -625,7 +625,7 @@ class EditableTable extends React.Component {
             ? []
             : [
                 {
-                    title: 'Remove this Row',
+                    title: _("Remove this Row"),
                     onClick: (event, rowId) => {
                         const tableRows = this.state.tableRows.filter((aRow) => aRow.cells[0].props.name !== myName);
                         this.setState({ tableRows },
@@ -667,7 +667,7 @@ class EditableTable extends React.Component {
                 actions.push(removalAction[0]);
             } else {
                 actions.push({
-                    title: 'Required Attribute',
+                    title: _("Required Attribute"),
                     isDisabled: true
                 });
             }
@@ -724,25 +724,25 @@ class EditableTable extends React.Component {
                         id="modal-dn-id"
                         variant={ModalVariant.small}
                         titleIconVariant="info"
-                        title="DN Renaming"
+                        title={_("DN Renaming")}
                         isOpen={this.state.isDnModalOpen}
                         onClose={this.handleDnModalToggle}
                         actions={[
                             <Button key="close" variant="primary" onClick={this.handleDnModalToggle}>
-                                Close
+                                {_("Close")}
                             </Button>
                         ]}
                     >
-                        You cannot modify the RDN ( Relative Distinguished Name ) in the <strong>Quick Update</strong> mode.
+                        {_("You cannot modify the RDN ( Relative Distinguished Name ) in the <strong>Quick Update</strong> mode.")}
                         <br />
-                        If you want to modify the RDN, please use the <strong>Rename</strong> action option
+                        {_("If you want to modify the RDN, please use the <strong>Quick Update</strong> action option")}
                     </Modal>}
 
                 {isPasswordField &&
                     <Modal
                         id="modal-password-id"
                         variant={ModalVariant.medium}
-                        title="Set Password"
+                        title={_("Set Password")}
                         isOpen={isPasswordField}
                         onClose={this.handlePasswordToggle}
                         actions={[
@@ -750,19 +750,19 @@ class EditableTable extends React.Component {
                                 key="confirm" variant="primary" name="confirm"
                                 onClick={this.handlePwdSave}
                             >
-                                Confirm
+                                {_("Confirm")}
                             </Button>,
                             <Button
                                 key="cancel" variant="link"
                                 onClick={this.handlePasswordToggle}
                             >
-                                Cancel
+                                {_("Cancel")}
                             </Button>
                         ]}
                     >
                         <InputGroup>
                             <TextInput
-                                name="passwordField"
+                                name={_("passwordField")}
                                 id="passwordField"
                                 type={showPassword ? 'text' : 'password'}
                                 onChange={this.handlePwdChange}
@@ -790,10 +790,10 @@ class EditableTable extends React.Component {
                                 isDisabled={encodedValueIsEmpty && strPathValueIsEmpty}
                                 onClick={this.handleToggleUri}
                             >
-                                Confirm
+                                {_("Confirm")}
                             </Button>,
                             <Button key="cancel" variant="link" onClick={this.handleToggleUri}>
-                                Cancel
+                                {_("Cancel")}
                             </Button>
                         ]}
                     >
@@ -802,8 +802,8 @@ class EditableTable extends React.Component {
                             className="ds-margin-top"
                             isChecked={uploadSelected}
                             onChange={this.handleRadioOnChange}
-                            label="Upload a file local to the browser."
-                            description="Select a file from the machine on which the browser was launched."
+                            label={_("Upload a file local to the browser.")}
+                            description={_("Select a file from the machine on which the browser was launched.")}
                             name="radio-binary-attribute"
                             id="radio-upload-binary-attribute"
                         />
@@ -812,8 +812,8 @@ class EditableTable extends React.Component {
                             value="TextInput"
                             isChecked={!uploadSelected}
                             onChange={this.handleRadioOnChange}
-                            label="Write the complete file path."
-                            description="Type the full path of the file on the server host the LDAP server."
+                            label={_("Write the complete file path.")}
+                            description={_("Type the full path of the file on the server host the LDAP server.")}
                             name="radio-binary-attribute"
                             id="radio-type-binary-attribute"
                         />
@@ -821,12 +821,12 @@ class EditableTable extends React.Component {
                         {/* binaryAttrMsg */}
 
                         {((fileName !== '') && encodedValueIsEmpty && strPathValueIsEmpty) &&
-                            <Alert variant="danger" isInline title="There was an issue with the uploaded file ( incorrect type? )." />}
+                            <Alert variant="danger" isInline title={_("There was an issue with the uploaded file ( incorrect type? ).")} />}
                         {isFileTooLarge &&
-                            <Alert variant="danger" isInline title="The file size larger than 128 MB. Use the file path option." />}
+                            <Alert variant="danger" isInline title={_("The file size larger than 128 MB. Use the file path option.")} />}
                         {!attrIsJpegPhoto &&
                             <Label className="ds-margin-top-lg" icon={<InfoCircleIcon />} color="blue">
-                                The certificate must be stored in the Distinguished Encoding Rules (DER) format.
+                                {_("The certificate must be stored in the Distinguished Encoding Rules (DER) format.")}
                             </Label>}
                         { uploadSelected &&
                             <FileUpload
@@ -839,7 +839,7 @@ class EditableTable extends React.Component {
                                 onClearClick={this.handleClear}
                                 validated={uploadSelected && fileName === "" ? 'error' : 'default'}
                                 hideDefaultPreview
-                                browseButtonText="Choose Binary File"
+                                browseButtonText={_("Choose Binary File")}
                             />}
                         { !uploadSelected &&
                             <TextInput

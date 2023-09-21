@@ -30,6 +30,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 
+const _ = cockpit.gettext;
+
 const general_attrs = [
     "nsslapd-pwpolicy-local",
     "passwordstoragescheme",
@@ -206,7 +208,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        "Successfully updated password policy configuration"
+                        _("Successfully updated password policy configuration")
                     );
                 })
                 .fail(err => {
@@ -217,7 +219,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error updating password policy configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -310,7 +312,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        "Successfully updated password policy configuration"
+                        _("Successfully updated password policy configuration")
                     );
                 })
                 .fail(err => {
@@ -321,7 +323,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error updating password policy configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -387,7 +389,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        "Successfully updated password policy configuration"
+                        _("Successfully updated password policy configuration")
                     );
                 })
                 .fail(err => {
@@ -398,7 +400,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error updating password policy configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -508,7 +510,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        "Successfully updated password policy configuration"
+                        _("Successfully updated password policy configuration")
                     );
                 })
                 .fail(err => {
@@ -519,7 +521,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error updating password policy configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -578,7 +580,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "success",
-                        "Successfully updated password policy configuration"
+                        _("Successfully updated password policy configuration")
                     );
                 })
                 .fail(err => {
@@ -589,7 +591,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error updating password policy configuration - ${errMsg.desc}`
+                        cockpit.format(_("Error updating password policy configuration - $0"), errMsg.desc)
                     );
                 });
     }
@@ -806,7 +808,7 @@ export class GlobalPwPolicy extends React.Component {
                     });
                     this.props.addNotification(
                         "error",
-                        `Error loading global password policy - ${errMsg.desc}`
+                        cockpit.format(_("Error loading global password policy - $0"), errMsg.desc)
                     );
                 });
     }
@@ -829,11 +831,11 @@ export class GlobalPwPolicy extends React.Component {
         let pwExpirationRows = "";
         let pwLockoutRows = "";
         let pwSyntaxRows = "";
-        let saveBtnName = "Save";
+        let saveBtnName = _("Save");
         const extraPrimaryProps = {};
         if (this.state.saving) {
-            saveBtnName = "Saving ...";
-            extraPrimaryProps.spinnerAriaValueText = "Saving";
+            saveBtnName = _("Saving ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
         if (this.state.passwordchecksyntax) {
@@ -841,11 +843,11 @@ export class GlobalPwPolicy extends React.Component {
                 <div className="ds-margin-left">
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Minimum Length
+                            {_("Minimum Length")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="The minimum number of characters in the password (passwordMinLength)."
+                                title={_("The minimum number of characters in the password (passwordMinLength).")}
                                 value={this.state.passwordminlength}
                                 type="number"
                                 id="passwordminlength"
@@ -857,11 +859,11 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                         <GridItem className="ds-label" offset={6} span={3}>
-                            Minimum Alpha's
+                            {_("Minimum Alpha's")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="Reject passwords with fewer than this many alpha characters (passwordMinAlphas)."
+                                title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}
                                 value={this.state.passwordminalphas}
                                 type="number"
                                 id="passwordminalphas"
@@ -875,11 +877,11 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Minimum Digits
+                            {_("Minimum Digits")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits)."
+                                title={_("Reject passwords with fewer than this many digit characters (0-9) (passwordMinDigits).")}
                                 value={this.state.passwordmindigits}
                                 type="number"
                                 id="passwordmindigits"
@@ -891,11 +893,11 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                         <GridItem className="ds-label" offset={6} span={3}>
-                            Minimum Special
+                            {_("Minimum Special")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials)."
+                                title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}
                                 value={this.state.passwordminspecials}
                                 type="number"
                                 id="passwordminspecials"
@@ -909,11 +911,11 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Minimum Uppercase
+                            {_("Minimum Uppercase")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="Reject passwords with fewer than this many uppercase characters (passwordMinUppers)."
+                                title={_("Reject passwords with fewer than this many uppercase characters (passwordMinUppers).")}
                                 value={this.state.passwordminuppers}
                                 type="number"
                                 id="passwordminuppers"
@@ -925,11 +927,11 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                         <GridItem className="ds-label" offset={6} span={3}>
-                            Minimum Lowercase
+                            {_("Minimum Lowercase")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="Reject passwords with fewer than this many lowercase characters (passwordMinLowers)."
+                                title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}
                                 value={this.state.passwordminlowers}
                                 type="number"
                                 id="passwordminlowers"
@@ -943,11 +945,11 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Minimum 8-bit
+                            {_("Minimum 8-bit")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit)."
+                                title={_("Reject passwords with fewer than this many 8-bit or multi-byte characters (passwordMin8Bit).")}
                                 value={this.state.passwordmin8bit}
                                 type="number"
                                 id="passwordmin8bit"
@@ -959,11 +961,11 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                         <GridItem className="ds-label" offset={6} span={3}>
-                            Minimum Categories
+                            {_("Minimum Categories")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories)."
+                                title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}
                                 value={this.state.passwordmincategories}
                                 type="number"
                                 id="passwordmincategories"
@@ -977,11 +979,11 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Maximum Sequences
+                            {_("Maximum Sequences")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="The maximum number of allowed monotonic characters sequences (passwordMaxSequence)."
+                                title={_("The maximum number of allowed monotonic characters sequences (passwordMaxSequence).")}
                                 value={this.state.passwordmaxsequence}
                                 type="number"
                                 id="passwordmaxsequence"
@@ -993,11 +995,11 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                         <GridItem className="ds-label" offset={6} span={3}>
-                            Max Sequence Sets
+                            {_("Max Sequence Sets")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets)."
+                                title={_("The maximum number of allowed monotonic characters sequences that can appear more than once (passwordMaxSeqSets).")}
                                 value={this.state.passwordmaxseqsets}
                                 type="number"
                                 id="passwordmaxseqsets"
@@ -1011,11 +1013,11 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Max Seq Per Class
+                            {_("Max Seq Per Class")}
                         </GridItem>
                         <GridItem span={1}>
                             <TextInput
-                                title="The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars)."
+                                title={_("The maximum number of consecutive characters from the same character class/category (passwordMaxClassChars).")}
                                 value={this.state.passwordmaxclasschars}
                                 type="number"
                                 id="passwordmaxclasschars"
@@ -1029,11 +1031,11 @@ export class GlobalPwPolicy extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top">
                         <GridItem className="ds-label" span={3}>
-                            Prohibited Words
+                            {_("Prohibited Words")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
-                                title="A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords)."
+                                title={_("A space-separated list of words that are not allowed to be contained in the new password (passwordBadWords).")}
                                 value={this.state.passwordbadwords}
                                 type="text"
                                 id="passwordbadwords"
@@ -1045,9 +1047,9 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="A list of entry attributes to compare to the new password (passwordUserAttributes).">
+                    <Grid className="ds-margin-top" title={_("A list of entry attributes to compare to the new password (passwordUserAttributes).")}>
                         <GridItem className="ds-label" span={3}>
-                            Check User Attributes
+                            {_("Check User Attributes")}
                         </GridItem>
                         <GridItem span={9}>
                             <Select
@@ -1059,7 +1061,7 @@ export class GlobalPwPolicy extends React.Component {
                                 selections={this.state.passworduserattributes}
                                 isOpen={this.state.isSelectOpen}
                                 aria-labelledby="typeAhead-user-attr"
-                                placeholderText="Type attributes to check..."
+                                placeholderText={_("Type attributes to check...")}
                                 noResultsFoundText="There are no matching entries"
                             >
                                 {this.props.attrs.map((attr, index) => (
@@ -1071,7 +1073,7 @@ export class GlobalPwPolicy extends React.Component {
                             </Select>
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top-lg" title="Check the password against the system's CrackLib dictionary (passwordDictCheck).">
+                    <Grid className="ds-margin-top-lg" title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
                         <GridItem span={12}>
                             <Checkbox
                                 id="passworddictcheck"
@@ -1079,11 +1081,11 @@ export class GlobalPwPolicy extends React.Component {
                                 onChange={(checked, e) => {
                                     this.handleSyntaxChange(e);
                                 }}
-                                label="Dictionary Check"
+                                label={_("Dictionary Check")}
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Check if the password is a palindrome (passwordPalindrome).">
+                    <Grid className="ds-margin-top" title={_("Check if the password is a palindrome (passwordPalindrome).")}>
                         <GridItem span={12}>
                             <Checkbox
                                 id="passwordpalindrome"
@@ -1092,7 +1094,7 @@ export class GlobalPwPolicy extends React.Component {
                                 onChange={(checked, e) => {
                                     this.handleSyntaxChange(e);
                                 }}
-                                label="Reject Palindromes"
+                                label={_("Reject Palindromes")}
                             />
                         </GridItem>
                     </Grid>
@@ -1103,9 +1105,9 @@ export class GlobalPwPolicy extends React.Component {
         if (this.state.passwordlockout) {
             pwLockoutRows = (
                 <div className="ds-margin-left">
-                    <Grid className="ds-margin-top" title="The maximum number of failed logins before account gets locked (passwordMaxFailure).">
+                    <Grid className="ds-margin-top" title={_("The maximum number of failed logins before account gets locked (passwordMaxFailure).")}>
                         <GridItem className="ds-label" span={5}>
-                            Number of Failed Logins That Locks out Account
+                            {_("Number of Failed Logins That Locks out Account")}
                         </GridItem>
                         <GridItem span={2}>
                             <TextInput
@@ -1120,9 +1122,9 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="The number of seconds until an accounts failure count is reset (passwordResetFailureCount).">
+                    <Grid className="ds-margin-top" title={_("The number of seconds until an accounts failure count is reset (passwordResetFailureCount).")}>
                         <GridItem className="ds-label" span={5}>
-                            Time Until <i>Failure Count</i> Resets
+                            {_("Time Until <i>Failure Count</i> Resets")}
                         </GridItem>
                         <GridItem span={2}>
                             <TextInput
@@ -1137,9 +1139,9 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="The number of seconds, duration, before the account gets unlocked (passwordLockoutDuration).">
+                    <Grid className="ds-margin-top" title={_("The number of seconds, duration, before the account gets unlocked (passwordLockoutDuration).")}>
                         <GridItem className="ds-label" span={5}>
-                            Time Until Account Unlocked
+                            {_("Time Until Account Unlocked")}
                         </GridItem>
                         <GridItem span={2}>
                             <TextInput
@@ -1154,7 +1156,7 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Do not lockout the user account forever, instead the account will unlock based on the lockout duration (passwordUnlock).">
+                    <Grid className="ds-margin-top" title={_("Do not lockout the user account forever, instead the account will unlock based on the lockout duration (passwordUnlock).")}>
                         <GridItem className="ds-label" span={5}>
                             <Checkbox
                                 id="passwordunlock"
@@ -1162,7 +1164,7 @@ export class GlobalPwPolicy extends React.Component {
                                 onChange={(checked, e) => {
                                     this.handleLockoutChange(e);
                                 }}
-                                label="Do Not Lockout Account Forever"
+                                label={_("Do Not Lockout Account Forever")}
                             />
                         </GridItem>
                     </Grid>
@@ -1173,9 +1175,9 @@ export class GlobalPwPolicy extends React.Component {
         if (this.state.passwordexp) {
             pwExpirationRows = (
                 <div className="ds-margin-left">
-                    <Grid className="ds-margin-top" title="The maxiumum age of a password in seconds before it expires (passwordMaxAge).">
+                    <Grid className="ds-margin-top" title={_("The maxiumum age of a password in seconds before it expires (passwordMaxAge).")}>
                         <GridItem className="ds-label" span={5}>
-                            Password Expiration Time
+                            {_("Password Expiration Time")}
                         </GridItem>
                         <GridItem span={2}>
                             <TextInput
@@ -1190,9 +1192,9 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="The number of logins that are allowed after the password has expired (passwordGraceLimit).">
+                    <Grid className="ds-margin-top" title={_("The number of logins that are allowed after the password has expired (passwordGraceLimit).")}>
                         <GridItem className="ds-label" span={5}>
-                            Allowed Logins After Password Expires
+                            {_("Allowed Logins After Password Expires")}
                         </GridItem>
                         <GridItem span={2}>
                             <TextInput
@@ -1207,9 +1209,9 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning).">
+                    <Grid className="ds-margin-top" title={_("Set the time (in seconds), before a password is about to expire, to send a warning. (passwordWarning).")}>
                         <GridItem className="ds-label" span={5}>
-                            Send Password Expiring Warning
+                            {_("Send Password Expiring Warning")}
                         </GridItem>
                         <GridItem span={2}>
                             <TextInput
@@ -1224,7 +1226,7 @@ export class GlobalPwPolicy extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Grid className="ds-margin-top" title="Always return a password expiring control when requested (passwordSendExpiringTime).">
+                    <Grid className="ds-margin-top" title={_("Always return a password expiring control when requested (passwordSendExpiringTime).")}>
                         <GridItem className="ds-label" span={5}>
                             <Checkbox
                                 id="passwordsendexpiringtime"
@@ -1232,7 +1234,7 @@ export class GlobalPwPolicy extends React.Component {
                                 onChange={(checked, e) => {
                                     this.handleExpChange(e);
                                 }}
-                                label={<>Always Send <i>Password Expiring</i>&nbsp; Control</>}
+                                label={_("<>Always Send <i>Password Expiring</i>&nbsp; Control</>")}
                             />
                         </GridItem>
                     </Grid>
@@ -1250,9 +1252,9 @@ export class GlobalPwPolicy extends React.Component {
             pwp_element = (
                 <div className={this.state.loading ? 'ds-fadeout ds-margin-bottom-md' : 'ds-fadein ds-left-margin ds-margin-bottom-md'}>
                     <Tabs isFilled className="ds-margin-top-lg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                        <Tab eventKey={0} title={<TabTitleText>General Settings</TabTitleText>}>
+                        <Tab eventKey={0} title={<TabTitleText>{_("General Settings")}</TabTitleText>}>
                             <Form className="ds-margin-left-sm" isHorizontal autoComplete="off">
-                                <Grid className="ds-margin-top-xlg" title="Allow subtree/user defined local password policies (nsslapd-pwpolicy-local).">
+                                <Grid className="ds-margin-top-xlg" title={_("Allow subtree/user defined local password policies (nsslapd-pwpolicy-local).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="nsslapd-pwpolicy-local"
@@ -1260,11 +1262,11 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="Allow Local Password Policies"
+                                            label={_("Allow Local Password Policies")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="If a local password policy does not defined any syntax rules then inherit the local policy syntax (nsslapd-pwpolicy-inherit-global).">
+                                <Grid title={_("If a local password policy does not defined any syntax rules then inherit the local policy syntax (nsslapd-pwpolicy-inherit-global).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="nsslapd-pwpolicy-inherit-global"
@@ -1272,11 +1274,11 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="Local Policies Inherit Global Policy"
+                                            label={_("Local Policies Inherit Global Policy")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords).">
+                                <Grid title={_("Allow anyone to add a prehashed password (nsslapd-allow-hashed-passwords).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="nsslapd-allow-hashed-passwords"
@@ -1284,11 +1286,11 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="Allow Adding Pre-Hashed Passwords"
+                                            label={_("Allow Adding Pre-Hashed Passwords")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Allow password policy state attributes to replicate (passwordIsGlobalPolicy).">
+                                <Grid title={_("Allow password policy state attributes to replicate (passwordIsGlobalPolicy).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="passwordisglobalpolicy"
@@ -1296,11 +1298,11 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="Replicate Password Policy State Attributes"
+                                            label={_("Replicate Password Policy State Attributes")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).">
+                                <Grid title={_("Record a separate timestamp specifically for the last time that the password for an entry was changed. If this is enabled, then it adds the pwdUpdateTime operational attribute to the user account entry (passwordTrackUpdateTime).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="passwordtrackupdatetime"
@@ -1308,11 +1310,11 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="Track Password Update Time"
+                                            label={_("Track Password Update Time")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Allow user's to change their passwords (passwordChange).">
+                                <Grid title={_("Allow user's to change their passwords (passwordChange).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="passwordchange"
@@ -1320,11 +1322,11 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="Allow Users To Change Their Passwords"
+                                            label={_("Allow Users To Change Their Passwords")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="User must change its password after its been reset by an administrator (passwordMustChange).">
+                                <Grid title={_("User must change its password after its been reset by an administrator (passwordMustChange).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="passwordmustchange"
@@ -1332,11 +1334,11 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="User Must Change Password After Reset"
+                                            label={_("User Must Change Password After Reset")}
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid title="Maintain a password history for each user (passwordHistory).">
+                                <Grid title={_("Maintain a password history for each user (passwordHistory).")}>
                                     <GridItem span={12}>
                                         <div className="ds-inline">
                                             <Checkbox
@@ -1345,7 +1347,7 @@ export class GlobalPwPolicy extends React.Component {
                                                 onChange={(checked, e) => {
                                                     this.handleGeneralChange(e);
                                                 }}
-                                                label="Keep Password History"
+                                                label={_("Keep Password History")}
                                             />
                                         </div>
                                         <div className="ds-inline ds-left-margin ds-raise-field-md ds-width-sm">
@@ -1362,9 +1364,9 @@ export class GlobalPwPolicy extends React.Component {
                                         </div>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title="Set the password storage scheme (passwordstoragescheme).">
+                                <Grid className="ds-margin-top" title={_("Set the password storage scheme (passwordstoragescheme).")}>
                                     <GridItem span={3} className="ds-label">
-                                        Password Storage Scheme
+                                        {_("Password Storage Scheme")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <FormSelect
@@ -1386,10 +1388,10 @@ export class GlobalPwPolicy extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Indicates the number of seconds that must pass before a user can change their password again. (passwordMinAge)."
+                                    title={_("Indicates the number of seconds that must pass before a user can change their password again. (passwordMinAge).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Password Minimum Age
+                                        {_("Password Minimum Age")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1405,10 +1407,10 @@ export class GlobalPwPolicy extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="The DN for a password administrator or administrator group (passwordAdminDN)."
+                                    title={_("The DN for a password administrator or administrator group (passwordAdminDN).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Password Administrator
+                                        {_("Password Administrator")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1424,7 +1426,7 @@ export class GlobalPwPolicy extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title="Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate)."
+                                    title={_("Disable updating password state attributes like passwordExpirationtime, passwordHistory, etc, when setting a user's password as a Password Administrator (passwordAdminSkipInfoUpdate).")}
                                 >
                                     <GridItem offset={3} span={9}>
                                         <Checkbox
@@ -1433,7 +1435,7 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleGeneralChange(e);
                                             }}
-                                            label="Do not update target entry's password state attributes"
+                                            label={_("Do not update target entry's password state attributes")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -1444,15 +1446,15 @@ export class GlobalPwPolicy extends React.Component {
                                 className="ds-margin-top-xlg ds-margin-left-sm"
                                 onClick={this.handleSaveGeneral}
                                 isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                                 {...extraPrimaryProps}
                             >
                                 {saveBtnName}
                             </Button>
                         </Tab>
-                        <Tab eventKey={1} title={<TabTitleText>Expiration</TabTitleText>}>
+                        <Tab eventKey={1} title={<TabTitleText>{_("Expiration")}</TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
-                                <Grid title="Enable a password expiration policy (passwordExp).">
+                                <Grid title={_("Enable a password expiration policy (passwordExp).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="passwordexp"
@@ -1460,7 +1462,7 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleExpChange(e);
                                             }}
-                                            label="Enforce Password Expiration"
+                                            label={_("Enforce Password Expiration")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -1472,15 +1474,15 @@ export class GlobalPwPolicy extends React.Component {
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.handleSaveExp}
                                 isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                                 {...extraPrimaryProps}
                             >
                                 {saveBtnName}
                             </Button>
                         </Tab>
-                        <Tab eventKey={2} title={<TabTitleText>Account Lockout</TabTitleText>}>
+                        <Tab eventKey={2} title={<TabTitleText>{_("Account Lockout")}</TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
-                                <Grid title="Enable account lockout (passwordLockout).">
+                                <Grid title={_("Enable account lockout (passwordLockout).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="passwordlockout"
@@ -1488,7 +1490,7 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleLockoutChange(e);
                                             }}
-                                            label="Enable Account Lockout"
+                                            label={_("Enable Account Lockout")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -1500,15 +1502,15 @@ export class GlobalPwPolicy extends React.Component {
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.handleSaveLockout}
                                 isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                                 {...extraPrimaryProps}
                             >
                                 {saveBtnName}
                             </Button>
                         </Tab>
-                        <Tab eventKey={3} title={<TabTitleText>Syntax Checking</TabTitleText>}>
+                        <Tab eventKey={3} title={<TabTitleText>{_("Syntax Checking")}</TabTitleText>}>
                             <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
-                                <Grid title="Enable password syntax checking (passwordCheckSyntax).">
+                                <Grid title={_("Enable password syntax checking (passwordCheckSyntax).")}>
                                     <GridItem span={12}>
                                         <Checkbox
                                             id="passwordchecksyntax"
@@ -1516,7 +1518,7 @@ export class GlobalPwPolicy extends React.Component {
                                             onChange={(checked, e) => {
                                                 this.handleSyntaxChange(e);
                                             }}
-                                            label="Enable Password Syntax Checking"
+                                            label={_("Enable Password Syntax Checking")}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -1528,29 +1530,29 @@ export class GlobalPwPolicy extends React.Component {
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.handleSaveSyntax}
                                 isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                                 {...extraPrimaryProps}
                             >
                                 {saveBtnName}
                             </Button>
                         </Tab>
-                        <Tab eventKey={4} title={<TabTitleText>Temporary Password Rules</TabTitleText>}>
+                        <Tab eventKey={4} title={<TabTitleText>{_("Temporary Password Rules")}</TabTitleText>}>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 {this.state.passwordmustchange === false && (
                                     <FormAlert className="ds-margin-top">
                                         <Alert
                                         variant="info"
-                                        title='"User Must Change Password After Reset" must be enabled in General Settings to activate TPR.'
+                                        title={_("\"User Must Change Password After Reset\" must be enabled in General Settings to activate TPR.")}
                                         aria-live="polite"
                                         isInline
                                         />
                                     </FormAlert>
                                 )}
                                 <Grid
-                                    title="Number of times the temporary password can be used to authenticate (passwordTPRMaxUse)."
+                                    title={_("Number of times the temporary password can be used to authenticate (passwordTPRMaxUse).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Password Max Use
+                                        {_("Password Max Use")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1569,10 +1571,10 @@ export class GlobalPwPolicy extends React.Component {
                             </Form>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid
-                                    title="Number of seconds before the temporary password expires (passwordTPRDelayExpireAt)."
+                                    title={_("Number of seconds before the temporary password expires (passwordTPRDelayExpireAt).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Password Expires In
+                                        {_("Password Expires In")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1591,10 +1593,10 @@ export class GlobalPwPolicy extends React.Component {
                             </Form>
                             <Form className="ds-margin-top ds-margin-left" isHorizontal autoComplete="off">
                                 <Grid
-                                    title="Number of seconds after which temporary password starts to be valid for authentication (passwordTPRDelayValidFrom)."
+                                    title={_("Number of seconds after which temporary password starts to be valid for authentication (passwordTPRDelayValidFrom).")}
                                 >
                                     <GridItem className="ds-label" span={3}>
-                                        Password Valid From
+                                        {_("Password Valid From")}
                                     </GridItem>
                                     <GridItem span={9}>
                                         <TextInput
@@ -1617,7 +1619,7 @@ export class GlobalPwPolicy extends React.Component {
                                 className="ds-margin-top-xlg ds-margin-left"
                                 onClick={this.handleSaveTPR}
                                 isLoading={this.state.saving}
-                                spinnerAriaValueText={this.state.saving ? "Saving" : undefined}
+                                spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
                                 {...extraPrimaryProps}
                             >
                                 {saveBtnName}
@@ -1634,12 +1636,12 @@ export class GlobalPwPolicy extends React.Component {
                     <GridItem span={12}>
                         <TextContent>
                             <Text component={TextVariants.h3}>
-                                Global Password Policy
+                                {_("Global Password Policy")}
                                 <FontAwesomeIcon
                                     size="lg"
                                     className="ds-left-margin ds-refresh"
                                     icon={faSyncAlt}
-                                    title="Refresh global password policy settings"
+                                    title={_("Refresh global password policy settings")}
                                     onClick={this.handleLoadGlobal}
                                 />
                             </Text>

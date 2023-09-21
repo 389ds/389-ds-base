@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from 'react';
 import {
     Alert,
@@ -39,6 +40,8 @@ import {
     BINARY_ATTRIBUTES,
 } from '../../lib/constants.jsx';
 
+const _ = cockpit.gettext;
+
 class EditLdapEntry extends React.Component {
     constructor (props) {
         super(props);
@@ -47,9 +50,9 @@ class EditLdapEntry extends React.Component {
         this.singleValuedAttributes = [];
         this.requiredAttributes = ['dn'];
         this.operationColumns = [
-            { title: 'Statement' },
-            { title: 'Attribute' },
-            { title: 'Value', cellTransforms: [breakWord] }
+            { title: _("Statement") },
+            { title: _("Attribute") },
+            { title: _("Value"), cellTransforms: [breakWord] }
         ];
 
         this.state = {
@@ -76,13 +79,13 @@ class EditLdapEntry extends React.Component {
             pageAttr: 1,
             perPageAttr: 10,
             columnsAttr: [
-                { title: 'Attribute Name', cellTransforms: [headerCol()] },
-                { title: 'From ObjectClass' }
+                { title: _("Attribute Name"), cellTransforms: [headerCol()] },
+                { title: _("From ObjectClass") }
             ],
             columnsOc: [
-                { title: 'ObjectClass Name', cellTransforms: [headerCol()] },
-                { title: 'Required Attributes', cellTransforms: [breakWord] },
-                { title: 'Optional Attributes', cellTransforms: [breakWord] }
+                { title: _("ObjectClass Name"), cellTransforms: [headerCol()] },
+                { title: _("Required Attributes"), cellTransforms: [breakWord] },
+                { title: _("Optional Attributes"), cellTransforms: [breakWord] }
             ],
             rowsOc: [],
             rowsAttr: [],
@@ -121,10 +124,10 @@ class EditLdapEntry extends React.Component {
                 const params = { serverId: this.state.localProps.editorLdapServer };
                 modifyLdapEntry(params, this.state.ldifArray, (result) => {
                     if (result.errorCode === 0) {
-                        result.output = "Successfully modified entry";
+                        result.output = _("Successfully modified entry");
                     }
                     this.setState({
-                        commandOutput: result.errorCode === 0 ? 'Successfully modified entry!' : 'Failed to modify entry, error: ' + result.errorCode,
+                        commandOutput: result.errorCode === 0 ? _("Successfully modified entry!") : _("Failed to modify entry, error: ") + result.errorCode,
                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                         modifying: false,
                     }, () => { this.state.localProps.onReload() }); // refreshes tableView
@@ -834,7 +837,7 @@ class EditLdapEntry extends React.Component {
                 }
                 statementRows.push({
                     cells: [
-                        { title: (<Label>Keep</Label>) },
+                        { title: (<Label>{_("Keep")}</Label>) },
                         myAttr,
                         myVal
                     ]
@@ -886,7 +889,7 @@ class EditLdapEntry extends React.Component {
                         <div>
                             {"jpegphoto:: "}
                             <Label icon={<InfoCircleIcon />} color="blue">
-                                Value is too large to display
+                                {_("Value is too large to display")}
                             </Label>
                         </div>
                     );
@@ -901,16 +904,16 @@ class EditLdapEntry extends React.Component {
                 }
                 statementRows.push({
                     cells: [
-                        { title: (<Label color="orange">Replace</Label>) },
+                        { title: (<Label color="orange">_("Replace")</Label>) },
                         myAttr,
                         {
                             title: (
                                 <LabelGroup isVertical>
                                     <Label variant="outline" color="red">
-                                        <em>old:</em>&ensp;{myVal}
+                                        <em>_("old:")</em>&ensp;{myVal}
                                     </Label>
                                     <Label variant="outline" color="blue" isTruncated>
-                                        <em>new:</em>&ensp;{datum.new}
+                                        <em>_("new:")</em>&ensp;{datum.new}
                                     </Label>
                                 </LabelGroup>
                             )
@@ -956,7 +959,7 @@ class EditLdapEntry extends React.Component {
                     <div>
                         {"jpegphoto:: "}
                         <Label icon={<InfoCircleIcon />} color="blue">
-                            Value is too large to display
+                            {_("Value is too large to display")}
                         </Label>
                     </div>
                 );
@@ -972,7 +975,7 @@ class EditLdapEntry extends React.Component {
             // Update Table
             statementRows.push({
                 cells: [
-                    { title: (<Label color="orange">Add</Label>) },
+                    { title: (<Label color="orange">{_("Add")}</Label>) },
                     myAttr,
                     {
                         title: (
@@ -1020,7 +1023,7 @@ class EditLdapEntry extends React.Component {
                         <div>
                             {"jpegphoto:: "}
                             <Label icon={<InfoCircleIcon />} color="blue">
-                                Value is too large to display
+                                {_("Value is too large to display")}
                             </Label>
                         </div>
                     );
@@ -1035,7 +1038,7 @@ class EditLdapEntry extends React.Component {
             // Update Table
             statementRows.push({
                 cells: [
-                    { title: (<Label color="red">Delete</Label>) },
+                    { title: (<Label color="red">{_("Delete")}</Label>) },
                     myAttr,
                     {
                         title: (
@@ -1063,7 +1066,7 @@ class EditLdapEntry extends React.Component {
                 cleanLdifArray.push('objectClass: ' + oldOC);
                 statementRows.push({
                     cells: [
-                        { title: (<Label color="red">Delete</Label>) },
+                        { title: (<Label color="red">_("Delete")</Label>) },
                         'objectClass',
                         {
                             title: (
@@ -1089,7 +1092,7 @@ class EditLdapEntry extends React.Component {
                 cleanLdifArray.push('objectClass: ' + newOC);
                 statementRows.push({
                     cells: [
-                        { title: (<Label color="orange">Add</Label>) },
+                        { title: (<Label color="orange">{_("Add")}</Label>) },
                         'objectClass',
                         {
                             title: (
@@ -1140,7 +1143,7 @@ class EditLdapEntry extends React.Component {
                 position={DropdownPosition.left}
                 toggle={
                     <BadgeToggle id="toggle-oc-select" onToggle={this.handleOCDropDownToggle}>
-                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isOCDropDownOpen}
@@ -1177,7 +1180,7 @@ class EditLdapEntry extends React.Component {
                 position={DropdownPosition.left}
                 toggle={
                     <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
-                        {numSelected !== 0 ? <>{numSelected} selected </> : <>0 selected </>}
+                        {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
                 isOpen={isAttrDropDownOpen}
@@ -1199,7 +1202,7 @@ class EditLdapEntry extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select ObjectClasses
+                            {_("Select ObjectClasses")}
                         </Text>
                     </TextContent>
                     {this.buildOCDropdown()}
@@ -1208,7 +1211,7 @@ class EditLdapEntry extends React.Component {
                     <div>
                         <Bullseye className="ds-margin-top-xlg" key="add-entry-bulleye">
                             <Title headingLevel="h3" size="lg" key="loading-title">
-                                Loading ...
+                                {_("Loading ...")}
                             </Title>
                         </Bullseye>
                         <Spinner className="ds-center" size="lg" key="loading-spinner" />
@@ -1218,7 +1221,7 @@ class EditLdapEntry extends React.Component {
                         <GridItem span={5}>
                             <SearchInput
                                 className="ds-font-size-md"
-                                placeholder='Search Objectclasses'
+                                placeholder={_("Search Objectclasses")}
                                 value={this.state.searchOCValue}
                                 onChange={this.handleOCSearchChange}
                                 onClear={(evt, val) => this.handleOCSearchChange(evt, '')}
@@ -1258,7 +1261,7 @@ class EditLdapEntry extends React.Component {
                 <div className="ds-container">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            Select Attributes
+                            {_("Select Attributes")}
                         </Text>
                     </TextContent>
                     {this.buildAttrDropdown()}
@@ -1267,7 +1270,7 @@ class EditLdapEntry extends React.Component {
                     <GridItem span={5}>
                         <SearchInput
                             className="ds-font-size-md"
-                            placeholder='Search Attributes'
+                            placeholder={_("Search Attributes")}
                             value={this.state.searchValue}
                             onChange={this.handleAttrSearchChange}
                             onClear={(evt, val) => this.handleAttrSearchChange(evt, '')}
@@ -1306,7 +1309,7 @@ class EditLdapEntry extends React.Component {
             <>
                 <TextContent>
                     <Text component={TextVariants.h3}>
-                        Edit Attribute Values
+                        {_("Edit Attribute Values")}
                     </Text>
                 </TextContent>
                 <EditableTable
@@ -1333,7 +1336,7 @@ class EditLdapEntry extends React.Component {
                             <div>
                                 line.substring(0, 1000)
                                 <Label icon={<InfoCircleIcon />} color="blue">
-                                    Value is too large to display
+                                    {_("Value is too large to display")}
                                 </Label>
                             </div>
                         )
@@ -1347,7 +1350,7 @@ class EditLdapEntry extends React.Component {
                     <Alert
                         variant="info"
                         isInline
-                        title="LDIF Statements"
+                        title={_("LDIF Statements")}
                     />
                 </div>
                 <Card isSelectable>
@@ -1373,19 +1376,19 @@ class EditLdapEntry extends React.Component {
                     <Alert
                         variant={resultVariant}
                         isInline
-                        title="Result for Entry Modification"
+                        title={_("Result for Entry Modification")}
                     >
                         {commandOutput}
                         {this.state.adding &&
                             <div>
                                 <Spinner className="ds-left-margin" size="md" />
-                                &nbsp;&nbsp;Modifying entry ...
+                                &nbsp;&nbsp;{_("Modifying entry ...")}
                             </div>}
                     </Alert>
                 </div>
                 {resultVariant === 'danger' &&
                     <Card isSelectable>
-                        <CardTitle>LDIF Data</CardTitle>
+                        <CardTitle>{_("LDIF Data")}</CardTitle>
                         <CardBody>
                             {ldifLines.map((line) => (
                                 <h6 key={line.id}>{line.data}</h6>
@@ -1398,7 +1401,7 @@ class EditLdapEntry extends React.Component {
         const editEntrySteps = [
             {
                 id: 1,
-                name: 'Select ObjectClasses',
+                name: _("Select ObjectClasses"),
                 component: objectClassStep,
                 canJumpTo: stepIdReached >= 1 && stepIdReached < 6,
                 enableNext: this.state.selectedObjectClasses.length > 0,
@@ -1406,20 +1409,20 @@ class EditLdapEntry extends React.Component {
             },
             {
                 id: 2,
-                name: 'Select Attributes',
+                name: _("Select Attributes"),
                 component: attributeStep,
                 canJumpTo: stepIdReached >= 2 && stepIdReached < 6,
             },
             {
                 id: 3,
-                name: 'Edit Values',
+                name: _("Edit Values"),
                 component: entryValuesStep,
                 canJumpTo: stepIdReached >= 3 && stepIdReached < 6,
                 enableNext: validMods
             },
             {
                 id: 4,
-                name: 'View Changes',
+                name: _("View Changes"),
                 component: (
                     <Table
                         aria-label="Statement Table"
@@ -1436,16 +1439,16 @@ class EditLdapEntry extends React.Component {
             },
             {
                 id: 5,
-                name: 'LDIF Statements',
+                name: _("LDIF Statements"),
                 component: ldifStatementsStep,
-                nextButtonText: 'Modify Entry',
+                nextButtonText: _("Modify Entry"),
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 6
             },
             {
                 id: 6,
-                name: 'Review Result',
+                name: _("Review Result"),
                 component: entryReviewStep,
-                nextButtonText: 'Finish',
+                nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached > 6,
                 hideBackButton: true,
                 enableNext: !this.state.modifying
@@ -1454,7 +1457,7 @@ class EditLdapEntry extends React.Component {
 
         const title = (
             <>
-                Entry DN: &nbsp;&nbsp;<strong>{this.state.localProps.wizardEntryDn}</strong>
+                {_("Entry DN: ")}&nbsp;&nbsp;<strong>{this.state.localProps.wizardEntryDn}</strong>
             </>
         );
 
@@ -1463,7 +1466,7 @@ class EditLdapEntry extends React.Component {
                 isOpen={this.state.localProps.isWizardOpen}
                 onClose={this.state.localProps.handleToggleWizard}
                 steps={editEntrySteps}
-                title="Edit An LDAP Entry"
+                title={_("Edit An LDAP Entry")}
                 description={title}
                 onNext={this.handleNext}
             />
