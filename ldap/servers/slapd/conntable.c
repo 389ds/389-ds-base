@@ -50,11 +50,11 @@
  * contention on the CPU to improve things.
  * Lastly a change was done: Instead of having a sliding windows that tend to get a never used
  * slot for each new connection, it nows reuse last freed one. That has several benefits:
- *  - Fix a bug because the last free list slaots may not be alloced.
+ *  - Fix a bug because the last free list slots may not be alloced.
  *  - Avoid to grow the memory footprint when there is no much load
  *  - Simplify the code (as only a single is needed. )
  *
- * The freelist is a ringbuffer of pointers to the connection table.
+ * The freelist is a stack of pointers to the connection table.
  * It is NULL terminated. On a small scale it looks like:
  *
  *  |--------------------------------------------|
@@ -63,8 +63,8 @@
  *  |--------------------------------------------|
  *        ^- conn_next
  *
- * As we allocate, we shift conn_next through the list, yielding the ptr that was stored (and
- * setting it to NULL as we proceed)
+ * To allocate, we pop one of the stored connection ptr out of the stack (yield the ptr, set
+ * its slot to NULL then increase conn_next)
  *
  *  |--------------------------------------------|
  *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
@@ -72,7 +72,7 @@
  *  |--------------------------------------------|
  *                        ^- conn_next
  *
- * When a connection is "freed" we return it to conn_free, which is then also slid up.
+ * When a connection is "freed" we push it back in the stack after decreasing conn_next
  *
  *  |--------------------------------------------|
  *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
@@ -80,9 +80,7 @@
  *  |--------------------------------------------|
  *              ^- conn_next
  *
- * If all connections are exhausted, frrelist[conn_next] is NULL
- * Or conn_next slot is associated with NULL pointer.
- * (With multiple ct the last freelist slots may not be associated with a connection slots)
+ * If all connections are exhausted, freelist[conn_next] is NULL
  *
  *  |--------------------------------------------|
  *  | slot 0 | slot 1 | slot 2 | slot 3 | slot 4 |
@@ -102,7 +100,7 @@
  *
  *
  *  -- invariants
- * * the ring buffer must be as large as conntable.
+ * * the stack must be as large as conntable.
  * * connection_table_move_connection_out_of_active_list is the only function able to return a
  *   connection to the freelist, as it is the function that is called when the event system has
  *   determined all IO's are complete, or unable to complete. This function is what prepares the
@@ -128,7 +126,7 @@ connection_table_new(int table_size)
     ct->c = (Connection **)slapi_ch_calloc(1, ct->size * sizeof(Connection *));
     ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, ct->list_num * sizeof(struct POLL_STRUCT*));
     ct->table_mutex = PR_NewLock();
-    /* Allocate the freelist */
+    /* Allocate the freelist (a slot for each connection plus another slot for the final NULL pointer) */
     ct->c_freelist = (Connection **)slapi_ch_calloc(1, (ct->size+1) * sizeof(Connection *));
     ct->conn_next_offset = 0;
 
@@ -266,6 +264,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
     Connection *c = ct->c_freelist[ct->conn_next_offset];
     if (c != NULL) {
         /* We allocated it, so now NULL the slot and move forward. */
+        PR_ASSERT(ct->conn_next_offset>=0 && ct->conn_next_offset<ct->size);
         ct->c_freelist[ct->conn_next_offset++] = NULL;
         PR_Unlock(ct->table_mutex);
     } else {
