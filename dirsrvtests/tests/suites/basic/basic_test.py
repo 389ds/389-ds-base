@@ -27,7 +27,16 @@ from lib389._mapped_object import DSLdapObjects
 from lib389.replica import Replicas, Changelog
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
+from lib389.nss_ssl import NssSsl
+from lib389._constants import *
+from lib389 import DirSrv
+from lib389.instance.setup import SetupDs
+from lib389.instance.options import General2Base, Slapd2Base
 import os
+import random
+import ldap
+import time
+import subprocess
 
 
 pytestmark = pytest.mark.tier0
@@ -35,6 +44,7 @@ pytestmark = pytest.mark.tier0
 default_paths = Paths()
 
 log = logging.getLogger(__name__)
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 
 # Globals
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
@@ -49,6 +59,190 @@ ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
                          'supportedSASLMechanisms',
                          'vendorName',
                          'vendorVersion')
+
+# This MAX_FDS value left about 22 connections available with bdb
+# (should have more connections with lmdb)
+MAX_FDS = 150
+
+
+
+default_paths = Paths()
+
+
+
+log = logging.getLogger(__name__)
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+
+
+class CustomSetup():
+    DEFAULT_GENERAL = { 'config_version': 2,
+                        'full_machine_name': 'localhost.localdomain',
+                        'strict_host_checking': False,
+                        # Not setting 'systemd' because it is not used.
+                        # (that is the global default.inf setting that matters)
+                      }
+    DEFAULT_SLAPD = { 'root_password': PW_DM,
+                      'defaults': INSTALL_LATEST_CONFIG,
+                    }
+    DEFAULT_BACKENDS = [ { 
+                            'cn': 'userroot',
+                            'nsslapd-suffix': DEFAULT_SUFFIX,
+                            'sample_entries': 'yes',
+                            BACKEND_SAMPLE_ENTRIES: INSTALL_LATEST_CONFIG,
+                       }, ]
+
+    WRAPPER_FORMAT = '''#!/bin/sh
+{wrapper_options}
+exec {nsslapd} -D {cfgdir} -i {pidfile} 
+'''
+
+
+    class CustomDirSrv(DirSrv):
+        def __init__(self, verbose=False, external_log=log):
+            super().__init__(verbose=verbose, external_log=external_log)
+            self.wrapper = None       # placeholder for the wrapper file name
+            
+        def _reset_systemd(self):
+            self.systemd_override = False
+    
+        def status(self):
+            self._reset_systemd()
+            return super().status()
+    
+        def start(self, timeout=120, *args):
+            if self.status():
+                return
+            tmp_env = os.environ
+            # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+            if "PYTHONPATH" in tmp_env:
+                del tmp_env["PYTHONPATH"]
+            try:
+                subprocess.check_call([
+                    '/usr/bin/sh',
+                    self.wrapper
+                ], env=tmp_env, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                log.fatal("%s failed!  Error (%s) %s" % (self.wrapper, e.returncode, e.output))
+                raise e from None
+            for count in range(timeout):
+                if self.status():
+                    return
+                time.sleep(1)
+            raise TimeoutException('Failed to start ns-slpad')
+    
+        def stop(self, timeout=120):
+            self._reset_systemd()
+            super().stop(timeout=timeout)
+    
+
+    def _search_be(belist, beinfo):
+        for be in belist:
+            if be['cn'] == beinfo['cn']:
+                return be
+        return None
+
+    def __init__(self, serverid, general=None, slapd=None, backends=None, log=log):
+        verbose = log.level > logging.DEBUG
+        self.log = log
+        self.serverid = serverid
+        self.verbose = verbose
+        self.wrapper = f'/tmp/ds_{serverid}_wrapper.sh'
+        if serverid.startswith('slapd-'):
+            self.instname = server.id
+        else:
+            self.instname = 'slapd-'+serverid
+        self.ldapi = None
+        self.pid_file = None
+        self.inst = None
+
+        # Lets prepare the options
+        general_options = General2Base(log)
+        for d in (CustomSetup.DEFAULT_GENERAL, general):
+            if d:
+                for key,val in d.items():
+                    general_options.set(key,val)
+        log.debug('[general]: %s' % general_options._options)
+        self.general = general_options
+        
+        slapd_options = Slapd2Base(self.log)
+        slapd_options.set('instance_name', serverid)
+        for d in (CustomSetup.DEFAULT_SLAPD, slapd):
+            if d:
+                for key,val in d.items():
+                    slapd_options.set(key,val)
+        log.debug('[slapd]: %s' % slapd_options._options)
+        self.slapd = slapd_options
+
+        backend_options = []
+        for backend_list in (CustomSetup.DEFAULT_BACKENDS, backends):
+            if not backend_list:
+                continue
+            for backend in backend_list:
+                target_be = CustomSetup._search_be(backend_options, backend)
+                if not target_be:
+                    target_be = {}
+                    backend_options.append(target_be)
+                for key,val in backend.items():
+                    target_be[key] = val
+        log.debug('[backends]: %s' % backend_options)
+        self.backends = backend_options
+
+    def _to_dirsrv_args(self):
+        args = {}
+        slapd = self.slapd.collect()
+        general = self.general.collect()
+        args["SER_HOST"] = general['full_machine_name']
+        args["SER_PORT"] = slapd['port']
+        args["SER_SECURE_PORT"] = slapd['secure_port']
+        args["SER_SERVERID_PROP"] = self.serverid
+        return args
+	
+    def create_instance(self):
+        sds = SetupDs(verbose=self.verbose, dryrun=False, log=self.log)
+        self.general.verify()
+        general = self.general.collect()
+        self.slapd.verify()
+        slapd = self.slapd.collect()
+        sds.create_from_args(general, slapd, self.backends, None)
+        self.ldapi = get_ldapurl_from_serverid(self.serverid)[0]
+        args = self._to_dirsrv_args()
+        log.debug('DirSrv.allocate args = %s' % str(args))
+        log.debug('ldapi = %s' % str(self.ldapi))
+        root_dn = slapd['root_dn']
+        root_password = slapd['root_password']
+        inst = DirSrv(verbose=self.verbose, external_log=self.log)
+        inst.local_simple_allocate(self.serverid, ldapuri=self.ldapi, binddn=root_dn, password=root_password)
+        self.pid_file = inst.pid_file()
+        # inst.setup_ldapi()
+        log.debug('DirSrv = %s' % str(inst.__dict__))
+        inst.open()
+        inst.stop()
+        inst = CustomSetup.CustomDirSrv(verbose=self.verbose, external_log=self.log)
+        inst.local_simple_allocate(self.serverid, ldapuri=self.ldapi, binddn=root_dn, password=root_password)
+        self.inst = inst
+        return inst
+
+    def create_wrapper(self, maxfds=None):
+        self.inst.wrapper = self.wrapper
+        slapd = self.slapd.collect()
+        sbin_dir = slapd['sbin_dir']
+        config_dir = slapd['config_dir']
+        fmtvalues = {
+            'nsslapd': f'{sbin_dir}/ns-slapd',
+            'cfgdir': config_dir.format(instance_name=self.instname),
+            'pidfile': self.pid_file,
+            'wrapper_options': ''
+        }
+        if maxfds:
+            fmtvalues['wrapper_options']=f'ulimit -n {maxfds}\nulimit -H -n {maxfds}'
+        with open(self.wrapper, 'w') as f:
+            f.write(CustomSetup.WRAPPER_FORMAT.format(**fmtvalues))
+
+    def cleanup(self):
+        self.inst.stop()
+        self.inst.delete()
+        if os.path.exists(self.wrapper):
+            os.remove(self.wrapper)
 
 
 @pytest.fixture(scope="module")
@@ -1920,6 +2114,100 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
         else:
             assert True
 
+
+@pytest.fixture(scope="module")
+def dscreate_custom_instance(request):
+    topo = CustomSetup('custom')
+
+    def fin():
+        topo.cleanup()
+
+    request.addfinalizer(fin)
+    topo.create_instance()
+    # Return CustomSetup object associated with 
+    #  a stopped instance named "custom"
+    return topo
+
+    obj.create_wrapper(maxfds=150)
+    log.info("Starting wrapper")
+    inst.start()
+    log.info("Server is started.")
+    log.info("Open connection")
+    inst.open()
+
+
+@pytest.fixture(scope="module", params=set(range(1,5)))
+def dscreate_with_numlistener(request, dscreate_custom_instance):
+    numlisteners = request.param
+    dscreate_custom_instance.create_wrapper(maxfds=MAX_FDS)
+    inst = dscreate_custom_instance.inst
+    inst.stop()
+    dse_ldif = DSEldif(inst)
+    dse_ldif.replace('cn=config', 'nsslapd-numlisteners', str(numlisteners))
+    inst.start()
+    inst.open()
+    return inst
+
+
+@pytest.mark.skipif(ds_is_older('2.2.0.0'),
+                    reason="This test is only required with multiple listener support.")
+def test_conn_limits(dscreate_with_numlistener):
+    """Check the connections limits for various number of listeners.
+
+    :id: 7be2eb5c-4d8f-11ee-ae3d-482ae39447e5
+    :parametrized: yes
+    :setup: Setup an instance then set nsslapd-numlisteners and maximum file descriptors
+    :steps:
+        1. Loops on:
+             Open new connection and perform search until timeout expires
+        2. Close one of the previously open connections
+        3. Loops MAX_FDS times on:
+              - opening a new connection
+              - perform a search
+              - close the connection
+        4. Close all open connections
+        5. Remove the instance
+    :expectedresults:
+        1. Should get a timeout (because the server has no more any connections)
+        2. Should success
+        3. Should success (otherwise issue #5924 has probably been hit)
+        4. Should success
+        5. Should success
+    """
+    inst = dscreate_with_numlistener
+
+    conns = []
+    timeout_occured = False
+    for i in range(MAX_FDS):
+        try:
+            ldc = ldap.initialize(f'ldap://localhost:{inst.port}')
+            ldc.set_option(ldap.OPT_TIMEOUT, 5)
+            ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=demo)")
+            conns.append(ldc)
+        except ldap.TIMEOUT:
+            timeout_occured = True
+            break
+    # Should not be able to open MAX_FDS connections (some file descriptor are
+    #  reserved (for example for the listening socket )
+    assert timeout_occured
+
+    conn = random.choice(conns)
+    conn.unbind()
+    conns.remove(conn)
+
+    # Should loop enough time so trigger issue #5924 if it is not fixed.
+    for i in range(MAX_FDS):
+        ldc = ldap.initialize(f'ldap://localhost:{inst.port}')
+        # Set a timeout long enough so that the test fails if server is unresponsive
+        ldc.set_option(ldap.OPT_TIMEOUT, 60)
+        ldc.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=demo)")
+        ldc.unbind()
+
+    # Close all open connections
+    for c in conns:
+        c.unbind()
+
+    # Step 6 is done in teardown phase by dscreate_instance finalizer
 
 if __name__ == '__main__':
     # Run isolated

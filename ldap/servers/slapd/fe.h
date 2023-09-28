@@ -88,7 +88,6 @@ struct connection_table
     /* An array of free connections awaiting allocation. */;
     Connection **c_freelist;
     size_t conn_next_offset;
-    size_t conn_free_offset;
     struct POLL_STRUCT **fd;
     PRLock *table_mutex;
 };

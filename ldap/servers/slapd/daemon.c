@@ -134,19 +134,25 @@ get_pid_file(void)
 }
 
 static int
-accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr, int addrlen __attribute__((unused)), int secure, int local, PRFileDesc **pr_clonefd)
+accept_and_configure(int s __attribute__((unused)), PRFileDesc *listenfd, PRNetAddr *pr_netaddr, int addrlen __attribute__((unused)), int secure, int local, PRFileDesc **pr_accepted_fd)
 {
     int ns = 0;
     PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_accept_wakeup_timer);
 
-    (*pr_clonefd) = PR_Accept(pr_acceptfd, pr_netaddr, pr_timeout);
-    if (!(*pr_clonefd)) {
+    (*pr_accepted_fd) = PR_Accept(listenfd, pr_netaddr, pr_timeout);
+    if (!(*pr_accepted_fd)) {
         PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "accept_and_configure", "PR_Accept() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      prerr, slapd_pr_strerror(prerr));
+        static time_t last_err_msg_time = 0;
+        time_t curtime = slapi_current_utc_time();
+        /* Logs the message only once per seconds */
+        if (curtime != last_err_msg_time) {
+            slapi_log_err(SLAPI_LOG_ERR, "accept_and_configure", "PR_Accept() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                          prerr, slapd_pr_strerror(prerr));
+            last_err_msg_time = curtime;
+        }
         return (SLAPD_INVALID_SOCKET);
     }
-    ns = configure_pr_socket(pr_clonefd, secure, local);
+    ns = configure_pr_socket(pr_accepted_fd, secure, local);
 
     return ns;
 }
@@ -154,7 +160,7 @@ accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRN
 /*
  * This is the shiny new re-born daemon function, without all the hair
  */
-static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn);
+static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int secure, int local, Connection **newconn);
 static void handle_pr_read_ready(Connection_Table *ct, int list_id, PRIntn num_poll);
 static int clear_signal(struct POLL_STRUCT *fds, int list_id);
 static void unfurl_banners(Connection_Table *ct, daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix);
@@ -830,6 +836,7 @@ accept_thread(void *vports)
             }
             /* Need a sleep delay here. */
             PR_Sleep(pr_timeout);
+            last_accept_new_connections = accept_new_connections;
             continue;
         } else {
             /* Log that we are now listening again */
@@ -1848,28 +1855,30 @@ handle_closed_connection(Connection *conn)
  * this function returns the connection table list the new connection is in
  */
 static int
-handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn)
+handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int secure, int local, Connection **newconn)
 {
     int ns = 0;
     Connection *conn = NULL;
     /*    struct sockaddr_in    from;*/
     PRNetAddr from = {{0}};
-    PRFileDesc *pr_clonefd = NULL;
+    PRFileDesc *pr_accepted_fd = NULL;
     slapdFrontendConfig_t *fecfg = getFrontendConfig();
     ber_len_t maxbersize;
 
     if (newconn) {
         *newconn = NULL;
     }
-    if ((ns = accept_and_configure(tcps, pr_acceptfd, &from,
-                                   sizeof(from), secure, local, &pr_clonefd)) == SLAPD_INVALID_SOCKET) {
+    if ((ns = accept_and_configure(tcps, listenfd, &from,
+                                   sizeof(from), secure, local, &pr_accepted_fd)) == SLAPD_INVALID_SOCKET) {
         return -1;
     }
 
     /* get a new Connection from the Connection Table */
     conn = connection_table_get_connection(ct, ns);
     if (conn == NULL) {
-        PR_Close(pr_acceptfd);
+        if (pr_accepted_fd) {
+            PR_Close(pr_accepted_fd);
+        }
         return -1;
     }
     pthread_mutex_lock(&(conn->c_mutex));
@@ -1881,7 +1890,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     conn->c_idletimeout = fecfg->idletimeout;
     conn->c_idletimeout_handle = idletimeout_reslimit_handle;
     conn->c_sd = ns;
-    conn->c_prfd = pr_clonefd;
+    conn->c_prfd = pr_accepted_fd;
     conn->c_flags &= ~CONN_FLAG_CLOSING;
 
     /* Set per connection static config */
