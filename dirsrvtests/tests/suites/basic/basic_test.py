@@ -2420,25 +2420,23 @@ def test_conn_limits(dscreate_with_numlistener):
 
     :id: 7be2eb5c-4d8f-11ee-ae3d-482ae39447e5
     :parametrized: yes
-    :setup: None
+    :setup: Setup an instance then set nsslapd-numlisteners and maximum file descriptors
     :steps:
-        1. Setup an instance then set nsslapd-numlisteners and maximum file descriptors
-        2. Loops on:
+        1. Loops on:
              Open new connection and perform search until timeout expires
-        3. Close one of the previously open connections
-        4. Loops MAX_FDS times on:
+        2. Close one of the previously open connections
+        3. Loops MAX_FDS times on:
               - opening a new connection
               - perform a search
               - close the connection
-        5. Close all open connections
-        6. Remove the instance
+        4. Close all open connections
+        5. Remove the instance
     :expectedresults:
-        1. Should succeeds
-        2. Should get a timeout (because the server has no more any connections)
-        3. Should success
-        4. Should success (otherwise issue #5924 has probably been hit)
+        1. Should get a timeout (because the server has no more any connections)
+        2. Should success
+        3. Should success (otherwise issue #5924 has probably been hit)
+        4. Should success
         5. Should success
-        6. Should success
     """
     inst = dscreate_with_numlistener
 
