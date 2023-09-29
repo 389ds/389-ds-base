@@ -1262,8 +1262,18 @@ main(int argc, char **argv)
     int ret = 0;
     char *find_key = NULL;
     uint32_t entry_id = 0xffffffff;
-    char *dbimpl_name = (char*) "bdb";
+    char *defdbimpl = getenv("NSSLAPD_DB_LIB");
+    char *dbimpl_name = (char*) "mdb";
     int c;
+
+    if (defdbimpl) {
+        if (strcasecmp(defdbimpl, "bdb") == 0) {
+            dbimpl_name = (char*) "bdb";
+        }
+        if (strcasecmp(defdbimpl, "mdb") == 0) {
+            dbimpl_name = (char*) "mdb";
+        }
+    }
 
     while ((c = getopt(argc, argv, "Af:RL:S:l:nG:srk:K:hvt:D:X:I:d")) != EOF) {
         switch (c) {
