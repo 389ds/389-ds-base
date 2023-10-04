@@ -10,19 +10,21 @@
 import logging
 import pytest
 import os
-from lib389 import pid_from_file
+from lib389 import DirSrv, pid_from_file
 from lib389.tasks import *
 from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME
+from lib389.cli_conf.backend import db_config_set
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups
-from lib389.backend import *
+from lib389.instance.setup import SetupDs
 from lib389.config import LDBMConfig, BDB_LDBMConfig, Config
 from lib389.cos import CosPointerDefinitions, CosTemplates
-from lib389.backend import Backends
+from lib389.backend import Backends, DatabaseConfig
 from lib389.monitor import MonitorLDBM, Monitor
 from lib389.plugins import ReferentialIntegrityPlugin
+from lib389.cli_base import FakeArgs
 
 pytestmark = pytest.mark.tier0
 
@@ -664,6 +666,88 @@ def test_changing_threadnumber(topo):
     config.replace(cfgattr, cfgnbthreads);
     time.sleep(3)
     check_number_of_threads(int(cfgnbthreads), monitor, pid)
+
+
+@pytest.fixture(scope="module")
+def create_lmdb_instance(request):
+    verbose = log.level > logging.DEBUG
+    instname = 'i_lmdb'
+    assert SetupDs(verbose=True, log=log).create_from_dict( {
+        'general' : {},
+        'slapd' : {
+            'instance_name': instname,
+            'db_lib': 'mdb',
+            'lmdb_size': 0.5,
+        },
+        'backend-userroot': {
+            'sample_entries': 'yes',
+            'suffix': DEFAULT_SUFFIX,
+        },
+    } )
+    inst = DirSrv(verbose=verbose, external_log=log)
+    inst.local_simple_allocate(instname, binddn=DN_DM, password=PW_DM)
+    inst.setup_ldapi()
+
+    def fin():
+        inst.delete()
+
+    request.addfinalizer(fin)
+    inst.open()
+    return inst
+
+
+def set_and_check(inst, db_config, dsconf_attr, ldap_attr, val):
+    val = str(val)
+    args = FakeArgs()
+    setattr(args, dsconf_attr, val)
+    db_config_set(inst, db_config.dn, log, args)
+    cfg_vals = db_config.get()
+    assert ldap_attr in cfg_vals
+    assert cfg_vals[ldap_attr][0] == val
+
+
+def test_lmdb_config(create_lmdb_instance):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+
+    :id: bca28086-61cf-11ee-a064-482ae39447e5
+    :setup: Custom instance named 'i_lmdb' having db_lib=mdb and lmdb_size=0.5
+    :steps:
+        1. Get dscreate create-template output
+        2. Check that 'db_lib' is in output
+        3. Check that 'lmdb_size' is in output
+        4. Get the database config
+        5. Check that nsslapd-backend-implement is mdb
+        6. Check that nsslapd-mdb-max-size is 536870912 (i.e 0.5Gb)
+        7. Set a value for nsslapd-mdb-max-size and test the value is properly set
+        8. Set a value for nsslapd-mdb-max-readers and test the value is properly set
+        9. Set a value for nsslapd-mdb-max-dbs and test the value is properly set
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Success
+    """
+
+    res = subprocess.run(('dscreate', 'create-template'), stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, encoding='utf-8')
+    inst = create_lmdb_instance
+    assert 'db_lib' in res.stdout
+    assert 'lmdb_size' in res.stdout
+    db_config = DatabaseConfig(inst)
+    cfg_vals = db_config.get()
+    assert 'nsslapd-backend-implement' in cfg_vals
+    assert cfg_vals['nsslapd-backend-implement'][0] == 'mdb'
+    assert 'nsslapd-mdb-max-size' in cfg_vals
+    assert cfg_vals['nsslapd-mdb-max-size'][0] == '536870912'
+    set_and_check(inst, db_config, 'mdb_max_size', 'nsslapd-mdb-max-size', 2 * GIGABYTE)
+    set_and_check(inst, db_config, 'mdb_max_readers', 'nsslapd-mdb-max-readers', 200)
+    set_and_check(inst, db_config, 'mdb_max_dbs', 'nsslapd-mdb-max-dbs', 200)
+
 
 if __name__ == '__main__':
     # Run isolated

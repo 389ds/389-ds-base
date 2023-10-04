@@ -42,6 +42,7 @@ from lib389.utils import (
     ensure_str,
     ensure_list_str,
     get_default_db_lib,
+    get_default_lmdb_max_size,
     normalizeDN,
     socket_check_open,
     selinux_label_file,
@@ -49,6 +50,8 @@ from lib389.utils import (
     resolve_selinux_path,
     selinux_restorecon,
     selinux_present)
+from lib389.backend import DatabaseConfig
+
 
 ds_paths = Paths()
 
@@ -446,6 +449,36 @@ class SetupDs(object):
             slapd['root_password'] = rootpw1
             break
 
+        # Database implementation (db_lib)
+        while 1:
+            vdef = get_default_db_lib()
+            val = input(f'\nChoose whether mdb or bdb is used. [{vdef}]: ').rstrip().lower()
+            if val == '':
+                val = vdef
+            if val in [ 'bdb', 'mdb' ]:
+                slapd['db_lib'] = val
+                break
+            else:
+                print('The value "{}" is not "mdb" nor "bdb".'.format(val))
+                continue
+
+        # Database size (mdb_max_size)
+        while slapd['db_lib'] == 'mdb':
+            try:
+                vdef = get_default_lmdb_max_size(ds_paths)
+                val = input(f'\nEnter the lmdb database size [{vdef}]: ').rstrip()
+                if val == '':
+                    val = vdef
+                val = float(val)
+                if val <= 0.0:
+                    print('The value should positive.')
+                    continue
+                slapd['mdb_max_size'] = val
+                break
+            except ValueError:
+                print('The value "{}" is not a valid real number.'.format(val))
+                continue
+
         # Backend   [{'name': 'userroot', 'suffix': 'dc=example,dc=com'}]
         backend = {'name': 'userroot', 'suffix': ''}
         backends = [backend]
@@ -563,6 +596,30 @@ class SetupDs(object):
 
         return True
 
+    def create_from_dict(self, inf_dict):
+        """
+        Will trigger a create from the settings stored in inf_dict.
+        Note: Unlike in create_from_args, missing options in the dict are
+        automatically preset to their default value (by _validate_ds_config)
+        """
+        # Get the inf data
+        self.log.debug("Using inf from %s" % inf_dict)
+        config = None
+        try:
+            config = configparser.ConfigParser()
+            config.read_dict(inf_dict)
+        except Exception as e:
+            self.log.error("Exception %s occured", e)
+            return False
+
+        self.log.debug("Configuration %s" % config.sections())
+        (general, slapd, backends) = self._validate_ds_config(config)
+
+        # Actually do the setup now.
+        self.create_from_args(general, slapd, backends, self.extra)
+
+        return True
+
     def _prepare_ds(self, general, slapd, backends):
         self.log.info("Validate installation settings ...")
         assert_c(general['defaults'] is not None, "Configuration defaults in section [general] not found")
@@ -587,6 +644,8 @@ class SetupDs(object):
             # Check it resolves with dns
             assert_c(socket.gethostbyname(general['full_machine_name']), "Strict hostname check failed. Check your DNS records for %s" % general['full_machine_name'])
             self.log.debug("PASSED: Hostname strict checking")
+
+        assert_c(slapd['db_lib'] in ['bdb', 'mdb'], "Invalid value for slapd['db_lib'] (should be 'bdb' or 'mdb'")
 
         assert_c(slapd['prefix'] is not None, "Configuration prefix in section [slapd] not found")
         if (slapd['prefix'] != ""):
@@ -993,6 +1052,11 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
             ds_instance.config.set('nsslapd-security', 'on')
+
+        # Before we create any backends, set lmdb max size
+        if slapd['db_lib'] == 'mdb':
+            mdb_max_size = round(GIGABYTE*slapd['lmdb_size'])
+            DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size)),])
 
         # Before we create any backends, create any extra default indexes that may be
         # dynamically provisioned, rather than from template-dse.ldif. Looking at you

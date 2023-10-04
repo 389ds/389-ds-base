@@ -27,6 +27,7 @@ SER_LDAPI_ENABLED = 'ldapi_enabled'
 SER_LDAPI_SOCKET = 'ldapi_socket'
 SER_LDAPI_AUTOBIND = 'ldapi_autobind'
 SER_INST_SCRIPTS_ENABLED = 'InstScriptsEnabled'
+SER_DB_LIB = 'db_lib'
 
 SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_PORT: 'nsslapd-port',
@@ -38,6 +39,7 @@ SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_LDAPI_ENABLED: 'nsslapd-ldapilisten',
                             SER_LDAPI_SOCKET: 'nsslapd-ldapifilepath',
                             SER_LDAPI_AUTOBIND: 'nsslapd-ldapiautobind',
+                            SER_DB_LIB: 'nsslapd-backend-implement',
                             }
 #
 # Those WITHOUT related attribute name
@@ -47,6 +49,7 @@ SER_GROUP_ID = 'group-id'
 SER_DEPLOYED_DIR = 'deployed-dir'
 SER_BACKUP_INST_DIR = 'inst-backupdir'
 SER_STRICT_HOSTNAME_CHECKING = 'strict_hostname_checking'
+SER_LMDB_SIZE = 'lmdb_size'
 
 ####################################
 #

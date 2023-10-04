@@ -65,6 +65,10 @@ arg_to_attr = {
         'deadlock_policy': 'nsslapd-db-deadlock-policy',
         'db_home_directory': 'nsslapd-db-home-directory',
         'db_lib': 'nsslapd-backend-implement',
+        'lmdb_size': 'nsslapd-mdb-max-size',    # For dscreate (unit is Gb)
+        'mdb_max_size': 'nsslapd-mdb-max-size', # For dsconf (unit is bytes)
+        'mdb_max_readers': 'nsslapd-mdb-max-readers',
+        'mdb_max_dbs': 'nsslapd-mdb-max-dbs',
         # VLV attributes
         'search_base': 'vlvbase',
         'search_scope': 'vlvscope',
@@ -1081,6 +1085,10 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
     set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
     set_db_config_parser.add_argument('--db-lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
+    set_db_config_parser.add_argument('--mdb-max-size', help='Sets the lmdb database maximum size (in bytes).')
+    set_db_config_parser.add_argument('--mdb-max-readers', help='Sets the lmdb database maximum number of readers (Advanced setting)')
+    set_db_config_parser.add_argument('--mdb-max-dbs', help='Sets the lmdb database maximum number of sub databases (Advanced setting)')
+
 
     #######################################################
     # Database & Suffix Monitor

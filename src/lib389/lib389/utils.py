@@ -54,7 +54,8 @@ from lib389.paths import ( Paths, DEFAULTS_PATH )
 from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
-        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB
+        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB,
+        DEFAULT_LMDB_SIZE
     )
 from lib389.properties import (
         SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
@@ -1703,6 +1704,21 @@ def is_valid_hostname(hostname):
 
 def get_default_db_lib():
     return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
+
+
+def get_default_lmdb_max_size(paths):
+    if paths is None:
+        paths = Paths()
+    lmdb_max_size = DEFAULT_LMDB_SIZE
+    try:
+        statvfs = os.statvfs(paths.db_dir)
+        avail = statvfs.f_frsize * statvfs.f_bavail / GIGABYTE
+        avail *= 0.8 # Reserve 20% as margin
+        if lmdb_max_size > avail:
+            lmdb_max_size =  avail
+    except Exception as e:
+        pass
+    return lmdb_max_size
 
 
 def is_fips():
