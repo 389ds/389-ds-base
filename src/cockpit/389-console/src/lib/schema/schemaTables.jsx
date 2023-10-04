@@ -760,7 +760,7 @@ class MatchingRulesTable extends React.Component {
             let name = "";
             // Check for matches of all the parts
             if (row.names.length > 0) {
-                name = row.name[0].toLowerCase();
+                name = row.name[0];
             }
             if (val !== "" && name.indexOf(val) === -1 &&
                 row.oid[0].indexOf(val) === -1 &&
