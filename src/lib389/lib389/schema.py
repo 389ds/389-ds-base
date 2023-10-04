@@ -128,10 +128,10 @@ class Schema(DSLdapObject):
             for obj in results:
                 obj_i = vars(object_model(obj))
                 if len(obj_i["names"]) == 1:
-                    obj_i['name'] = obj_i['names'][0].lower()
+                    obj_i['name'] = obj_i['names'][0]
                     obj_i['aliases'] = None
                 elif len(obj_i["names"]) > 1:
-                    obj_i['name'] = obj_i['names'][0].lower()
+                    obj_i['name'] = obj_i['names'][0]
                     obj_i['aliases'] = obj_i['names'][1:]
                 else:
                     obj_i['name'] = ""
@@ -645,7 +645,7 @@ class SchemaLegacy(object):
                 results.getValues('objectClasses')]
             for oc in objectclasses:
                 # Add normalized name for sorting
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             objectclasses = sorted(objectclasses, key=itemgetter('name'))
             result = {'type': 'list', 'items': objectclasses}
             return dump_json(result)
@@ -667,7 +667,7 @@ class SchemaLegacy(object):
                 results.getValues('attributeTypes')]
             for attr in attributetypes:
                 # Add normalized name for sorting
-                attr['name'] = attr['names'][0].lower()
+                attr['name'] = attr['names'][0]
             attributetypes = sorted(attributetypes, key=itemgetter('name'))
             result = {'type': 'list', 'items': attributetypes}
             return dump_json(result)
@@ -687,7 +687,7 @@ class SchemaLegacy(object):
             for mr in matchingRules:
                 # Add normalized name for sorting
                 if mr['names']:
-                    mr['name'] = mr['names'][0].lower()
+                    mr['name'] = mr['names'][0]
                 else:
                     mr['name'] = ""
             matchingRules = sorted(matchingRules, key=itemgetter('name'))
@@ -772,7 +772,6 @@ class SchemaLegacy(object):
         # filter our set of all attribute types.
         objectclasses = self.get_objectclasses()
         attributetypes = self.get_attributetypes()
-        attributetypename = attributetypename.lower()
 
         attributetype = [at for at in attributetypes
                          if attributetypename.lower() in
@@ -799,9 +798,9 @@ class SchemaLegacy(object):
             must = [vars(oc) for oc in must]
             # Add normalized 'name' for sorting
             for oc in may:
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             for oc in must:
-                oc['name'] = oc['names'][0].lower()
+                oc['name'] = oc['names'][0]
             may = sorted(may, key=itemgetter('name'))
             must = sorted(must, key=itemgetter('name'))
             result = {'type': 'schema',
