@@ -15,7 +15,8 @@ import re
 import glob
 import shutil
 from lib389.dseldif import DSEldif
-from lib389._constants import DEFAULT_LMDB_SIZE, GIGABYTE
+from lib389._constants import DEFAULT_LMDB_SIZE
+from lib389.utils import parse_size
 import subprocess
 
 
@@ -236,7 +237,7 @@ def dblib_bdb2mdb(inst, log, args):
         total_dbi += be['dbi']
 
     # Round up dbmap size
-    dbmap_size = DEFAULT_LMDB_SIZE * GIGABYTE
+    dbmap_size = parse_size(DEFAULT_LMDB_SIZE)
     while (total_dbsize * DBSIZE_MARGIN > dbmap_size):
         dbmap_size *= 1.25
 

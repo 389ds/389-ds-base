@@ -42,8 +42,9 @@ from lib389.utils import (
     ensure_str,
     ensure_list_str,
     get_default_db_lib,
-    get_default_lmdb_max_size,
+    get_default_mdb_max_size,
     normalizeDN,
+    parse_size,
     socket_check_open,
     selinux_label_file,
     selinux_label_port,
@@ -62,7 +63,7 @@ DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 def get_port(port, default_port, secure=False):
     # Get the port number for the interactive installer and validate it
-    while 1:
+    while True:
         if secure:
             val = input('\nEnter secure port number [{}]: '.format(default_port)).rstrip()
         else:
@@ -327,7 +328,7 @@ class SetupDs(object):
             general['full_machine_name'] = val
 
         # Instance name - adjust defaults once set
-        while 1:
+        while True:
             slapd['instance_name'] = general['full_machine_name'].split('.', 1)[0]
 
             # Check if default server id is taken
@@ -386,7 +387,7 @@ class SetupDs(object):
         slapd['port'] = port
 
         # Self-Signed Cert DB
-        while 1:
+        while True:
             val = input('\nCreate self-signed certificate database [yes]: ').rstrip().lower()
             if val != "":
                 if val== 'no' or val == "n":
@@ -414,7 +415,7 @@ class SetupDs(object):
             slapd['secure_port'] = False
 
         # Root DN
-        while 1:
+        while True:
             val = input('\nEnter Directory Manager DN [{}]: '.format(slapd['root_dn'])).rstrip()
             if val != '':
                 # Validate value is a DN
@@ -429,7 +430,7 @@ class SetupDs(object):
                 break
 
         # Root DN Password
-        while 1:
+        while True:
             rootpw1 = getpass.getpass('\nEnter the Directory Manager password: ').rstrip()
             if rootpw1 == '':
                 print('Password can not be empty')
@@ -450,7 +451,7 @@ class SetupDs(object):
             break
 
         # Database implementation (db_lib)
-        while 1:
+        while True:
             vdef = get_default_db_lib()
             val = input(f'\nChoose whether mdb or bdb is used. [{vdef}]: ').rstrip().lower()
             if val == '':
@@ -465,11 +466,11 @@ class SetupDs(object):
         # Database size (mdb_max_size)
         while slapd['db_lib'] == 'mdb':
             try:
-                vdef = get_default_lmdb_max_size(ds_paths)
+                vdef = get_default_mdb_max_size(ds_paths)
                 val = input(f'\nEnter the lmdb database size [{vdef}]: ').rstrip()
                 if val == '':
                     val = vdef
-                val = float(val)
+                val = parse_size(val)
                 if val <= 0.0:
                     print('The value should positive.')
                     continue
@@ -490,7 +491,7 @@ class SetupDs(object):
             else:
                 suffix += ",dc=" + comp
 
-        while 1:
+        while True:
             val = input("\nEnter the database suffix (or enter \"none\" to skip) [{}]: ".format(suffix)).rstrip()
             if val != '':
                 if val.lower() == "none":
@@ -509,7 +510,7 @@ class SetupDs(object):
 
         # Add sample entries or root suffix entry?
         if len(backends) > 0:
-            while 1:
+            while True:
                 val = input("\nCreate sample entries in the suffix [no]: ").rstrip().lower()
                 if val != "":
                     if val == "no" or val == "n":
@@ -526,7 +527,7 @@ class SetupDs(object):
 
             if 'sample_entries' not in backend:
                 # Check if they want to create the root node entry instead
-                while 1:
+                while True:
                     val = input("\nCreate just the top suffix entry [no]: ").rstrip().lower()
                     if val != "":
                         if val == "no" or val == "n":
@@ -542,7 +543,7 @@ class SetupDs(object):
                         break
 
         # Start the instance?
-        while 1:
+        while True:
             val = input('\nDo you want to start the instance after the installation? [yes]: ').rstrip().lower()
             if val == '' or val == 'yes' or val == 'y':
                 # Default behaviour
@@ -555,7 +556,7 @@ class SetupDs(object):
                 continue
 
         # Are you ready?
-        while 1:
+        while True:
             val = input('\nAre you ready to install? [no]: ').rstrip().lower()
             if val == '' or val == "no" or val == 'n':
                 print('Aborting installation...')
@@ -1055,7 +1056,7 @@ class SetupDs(object):
 
         # Before we create any backends, set lmdb max size
         if slapd['db_lib'] == 'mdb':
-            mdb_max_size = round(GIGABYTE*slapd['lmdb_size'])
+            mdb_max_size = parse_size(slapd['mdb_max_size'])
             DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size)),])
 
         # Before we create any backends, create any extra default indexes that may be

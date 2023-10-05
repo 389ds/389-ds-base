@@ -44,7 +44,7 @@ def init_user(topo_m2, request):
     def fin():
         try:
             test_user.delete()
-        except ldap.NO_SUCH_OBJECT:
+        except (ldap.NO_SUCH_OBJECT, ldap.SERVER_DOWN):
             pass
 
     request.addfinalizer(fin)

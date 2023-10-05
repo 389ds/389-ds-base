@@ -49,7 +49,6 @@ SER_GROUP_ID = 'group-id'
 SER_DEPLOYED_DIR = 'deployed-dir'
 SER_BACKUP_INST_DIR = 'inst-backupdir'
 SER_STRICT_HOSTNAME_CHECKING = 'strict_hostname_checking'
-SER_LMDB_SIZE = 'lmdb_size'
 
 ####################################
 #

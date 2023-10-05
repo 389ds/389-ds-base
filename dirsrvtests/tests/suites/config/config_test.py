@@ -15,6 +15,8 @@ from lib389.tasks import *
 from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME
+from lib389._mapped_object import DSLdapObjects
+from lib389.cli_base import FakeArgs
 from lib389.cli_conf.backend import db_config_set
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups
@@ -24,7 +26,6 @@ from lib389.cos import CosPointerDefinitions, CosTemplates
 from lib389.backend import Backends, DatabaseConfig
 from lib389.monitor import MonitorLDBM, Monitor
 from lib389.plugins import ReferentialIntegrityPlugin
-from lib389.cli_base import FakeArgs
 
 pytestmark = pytest.mark.tier0
 
@@ -677,7 +678,7 @@ def create_lmdb_instance(request):
         'slapd' : {
             'instance_name': instname,
             'db_lib': 'mdb',
-            'lmdb_size': 0.5,
+            'mdb_max_size': '0.5 Gb',
         },
         'backend-userroot': {
             'sample_entries': 'yes',
@@ -737,14 +738,14 @@ def test_lmdb_config(create_lmdb_instance):
                          stderr=subprocess.STDOUT, encoding='utf-8')
     inst = create_lmdb_instance
     assert 'db_lib' in res.stdout
-    assert 'lmdb_size' in res.stdout
+    assert 'mdb_max_size' in res.stdout
     db_config = DatabaseConfig(inst)
     cfg_vals = db_config.get()
     assert 'nsslapd-backend-implement' in cfg_vals
     assert cfg_vals['nsslapd-backend-implement'][0] == 'mdb'
     assert 'nsslapd-mdb-max-size' in cfg_vals
     assert cfg_vals['nsslapd-mdb-max-size'][0] == '536870912'
-    set_and_check(inst, db_config, 'mdb_max_size', 'nsslapd-mdb-max-size', 2 * GIGABYTE)
+    set_and_check(inst, db_config, 'mdb_max_size', 'nsslapd-mdb-max-size', parse_size('2G'))
     set_and_check(inst, db_config, 'mdb_max_readers', 'nsslapd-mdb-max-readers', 200)
     set_and_check(inst, db_config, 'mdb_max_dbs', 'nsslapd-mdb-max-dbs', 200)
 

@@ -65,8 +65,7 @@ arg_to_attr = {
         'deadlock_policy': 'nsslapd-db-deadlock-policy',
         'db_home_directory': 'nsslapd-db-home-directory',
         'db_lib': 'nsslapd-backend-implement',
-        'lmdb_size': 'nsslapd-mdb-max-size',    # For dscreate (unit is Gb)
-        'mdb_max_size': 'nsslapd-mdb-max-size', # For dsconf (unit is bytes)
+        'mdb_max_size': 'nsslapd-mdb-max-size',
         'mdb_max_readers': 'nsslapd-mdb-max-readers',
         'mdb_max_dbs': 'nsslapd-mdb-max-dbs',
         # VLV attributes
