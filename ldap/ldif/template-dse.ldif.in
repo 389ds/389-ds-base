@@ -50,6 +50,14 @@ objectclass: top
 objectclass: nsContainer
 cn: features
 
+dn: oid=1.2.840.113556.1.4.1941,cn=features,cn=config
+objectClass: top
+objectClass: directoryServerFeature
+oid: 1.2.840.113556.1.4.1941
+cn: InChain Matching Rule
+aci: (targetattr != "aci")(version 3.0; acl "InChain Matching Rule"; deny( all )
+ userdn = "ldap:///anyone";)
+
 dn: oid=1.3.6.1.4.1.42.2.27.9.5.8,cn=features,cn=config
 objectClass: top
 objectClass: directoryServerFeature
@@ -495,6 +503,16 @@ objectclass: extensibleObject
 cn: Integer Syntax
 nsslapd-pluginpath: libsyntax-plugin
 nsslapd-plugininitfunc: int_init
+nsslapd-plugintype: syntax
+nsslapd-pluginenabled: on
+
+dn: cn=In Chain,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: In Chain
+nsslapd-pluginpath: libsyntax-plugin
+nsslapd-plugininitfunc: inchain_init
 nsslapd-plugintype: syntax
 nsslapd-pluginenabled: on
 
