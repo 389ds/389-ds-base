@@ -1724,6 +1724,20 @@ def parse_size(size):
         raise ValueError(f'Unable to parse "{size}" as a size.')
 
 
+def format_size(size):
+    """
+    Return a string representing a size (like "5 kb" or "2.5Gb")
+    :param size: The size int bytes to format
+    :type size: int:
+    :return str:
+    """
+    for unit in ["B", "KB", "MB", "GB",]:
+        if (size < 1024):
+            return f"{size:3.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
+
+
 def get_default_db_lib():
     """
     Get the default value for the database implementation
