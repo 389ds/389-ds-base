@@ -1757,14 +1757,19 @@ def get_default_mdb_max_size(paths):
     size = parse_size(mdb_max_size)
     # Make sure that there is enough available disk space
     # otherwise decrease the value
+    dbdir = paths.db_dir
+    while '{' in dbdir:
+        dbdir = os.path.dirname(dbdir)
     try:
-        statvfs = os.statvfs(paths.db_dir)
+        statvfs = os.statvfs(dbdir)
         avail = statvfs.f_frsize * statvfs.f_bavail
         avail *= 0.8 # Reserve 20% as margin
         if size > avail:
             mdb_max_size = str(avail)
-    except Exception as e:
-        pass
+    except (TimeoutError, InterruptedError) as e:
+        raise e
+    except OSError as e:
+        log.warning(f'Cannot determine the free space in the file system containing {dbdir} because of {e}')
     return mdb_max_size
 
 

@@ -151,6 +151,9 @@ class DSLdapObject(DSLogging, DSLint):
     def __str__(self):
         return self.__unicode__()
 
+    def __repr__(self):
+        return f'{type(self)}(instance_name="{self._instance.serverid}", dn="{self.__unicode__()}")'
+
     def _unsafe_raw_entry(self):
         """Get an Entry object
 
