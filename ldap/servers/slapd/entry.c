@@ -841,7 +841,7 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
                 } else {
                     normdn = slapi_create_dn_string("%s", rawdn);
                     if (NULL == normdn) {
-                        slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
+                        slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck",
                                       "Invalid DN: %s\n", (char *)rawdn);
                         slapi_entry_free(e);
                         if (freeval)
@@ -865,7 +865,7 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
                     } else {
                         normdn = slapi_create_dn_string("%s", rawdn);
                         if (NULL == normdn) {
-                            slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
+                            slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck",
                                           "Invalid DN: %s\n", (char *)rawdn);
                             slapi_entry_free(e);
                             if (freeval)
@@ -885,12 +885,16 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
                              This won't affect the caller's passed address. */
         }
         if (strcasecmp(type, "dn") == 0) {
+            const char *existing_dn = slapi_entry_get_dn_const(e);
             if (slapi_entry_get_dn_const(e) != NULL) {
-                char ebuf[BUFSIZ];
-                slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck"
+                
+                if (strcasecmp(existing_dn, valuecharptr) != 0) {
+                    char ebuf[BUFSIZ];
+                    slapi_log_err(SLAPI_LOG_WARNING, "str2entry_dupcheck",
                                                "Entry has multiple dns \"%s\" and \"%s\" (second ignored)\n",
-                              (char *)slapi_entry_get_dn_const(e),
+                              (char *)existing_dn,
                               escape_string(valuecharptr, ebuf));
+                }
                 /* the memory below was not allocated by the slapi_ch_ functions */
                 if (freeval)
                     slapi_ch_free_string(&bvvalue.bv_val);
@@ -898,7 +902,7 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
             }
             normdn = slapi_create_dn_string("%s", valuecharptr);
             if (NULL == normdn) {
-                slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
+                slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck",
                               "Invalid DN: %s\n", valuecharptr);
                 slapi_entry_free(e);
                 e = NULL;
@@ -935,7 +939,7 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
         /* retrieve uniqueid */
         if ((bvtype.bv_len == SLAPI_ATTR_UNIQUEID_LENGTH) && (PL_strcasecmp(type, SLAPI_ATTR_UNIQUEID) == 0)) {
             if (e->e_uniqueid != NULL) {
-                slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck"
+                slapi_log_err(SLAPI_LOG_WARNING, "str2entry_dupcheck",
                                                "Entry has multiple uniqueids %s and %s (second ignored)\n",
                               e->e_uniqueid, valuecharptr, 0);
             } else {
@@ -1048,7 +1052,7 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
                 /* check that the dn is formatted correctly */
                 rc = slapi_dn_syntax_check(NULL, valuecharptr, 1);
                 if (rc) { /* syntax check failed */
-                    slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck"
+                    slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck",
                                                  "strict: Invalid DN value: %s: %s\n",
                                   type, valuecharptr);
                     slapi_entry_free(e);
@@ -1197,7 +1201,7 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
     if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
         /* tombstone */
         if (_entry_set_tombstone_rdn(e, slapi_entry_get_dn_const(e))) {
-            slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
+            slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck",
                           "tombstone entry has badly formatted dn: %s\n",
                           slapi_entry_get_dn_const(e));
             slapi_entry_free(e);
@@ -1209,7 +1213,7 @@ str2entry_dupcheck(const char *rawdn, const char *s, int flags, int read_statein
     /* Add the RDN values, if asked, and if not already present */
     if (flags & SLAPI_STR2ENTRY_ADDRDNVALS) {
         if (slapi_entry_add_rdn_values(e) != LDAP_SUCCESS) {
-            slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
+            slapi_log_err(SLAPI_LOG_ERR, "str2entry_dupcheck",
                           "Entry has badly formatted dn\n");
             slapi_entry_free(e);
             e = NULL;
