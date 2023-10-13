@@ -45,7 +45,7 @@
 #define DBMDB_DB_MINSIZE             ( 4LL * MEGABYTE )
 #define DBMDB_DISK_RESERVE(disksize) ((disksize)*2ULL/1000ULL)
 #define DBMDB_READERS_MARGIN         10
-#define DBMDB_READERS_DEFAULT        50
+#define DBMDB_READERS_DEFAULT        126  /* default value as described in mdb_env_set_maxreaders */
 #define DBMDB_DBS_MARGIN             10
 #define DBMDB_DBS_DEFAULT            128
 

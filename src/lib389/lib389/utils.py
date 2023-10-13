@@ -54,7 +54,8 @@ from lib389.paths import ( Paths, DEFAULTS_PATH )
 from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
-        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB
+        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS, DEFAULT_DB_LIB,
+        DEFAULT_LMDB_SIZE
     )
 from lib389.properties import (
         SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
@@ -179,6 +180,12 @@ _chars = {
     "|": u"\u00a6",
     "~": u"\u02de",
 }
+
+#
+# Size parser constants
+#
+SIZE_UNITS = { 't': 2**40, 'g': 2**30, 'm': 2**20, 'k': 2**10, '': 1, }
+SIZE_PATTERN = r'\s*(\d*\.?\d*)\s*([tgmk]?)b?\s*'
 
 #
 # Utilities
@@ -1701,8 +1708,69 @@ def is_valid_hostname(hostname):
     return all(allowed.match(x) for x in hostname.split("."))
 
 
+def parse_size(size):
+    """
+    Parse a string representing a size (like "5 kb" or "2.5Gb") and
+    return the size in bytes.
+    :param size: The size to parse
+    :type size: str:
+    :return int:
+    :raise ValueError: if the string cannot be parsed.
+    """
+    try:
+        val,unit = re.fullmatch(SIZE_PATTERN, size, flags=re.IGNORECASE).groups()
+        return round(float(val) * SIZE_UNITS[unit.lower()])
+    except AttributeError:
+        raise ValueError(f'Unable to parse "{size}" as a size.')
+
+
+def format_size(size):
+    """
+    Return a string representing a size (like "5 kb" or "2.5Gb")
+    :param size: The size int bytes to format
+    :type size: int:
+    :return str:
+    """
+    for unit in ["B", "KB", "MB", "GB",]:
+        if (size < 1024):
+            return f"{size:3.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
+
+
 def get_default_db_lib():
+    """
+    Get the default value for the database implementation
+    :return str:  Should be either 'bdb' or 'mdb'
+    """
     return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
+
+
+def get_default_mdb_max_size(paths):
+    """
+    Get the default maximum size for the lmdb database.
+    :return str:  A size that can be parsed with parse_size()
+    """
+    if paths is None:
+        paths = Paths()
+    mdb_max_size = DEFAULT_LMDB_SIZE
+    size = parse_size(mdb_max_size)
+    # Make sure that there is enough available disk space
+    # otherwise decrease the value
+    dbdir = paths.db_dir
+    while '{' in dbdir:
+        dbdir = os.path.dirname(dbdir)
+    try:
+        statvfs = os.statvfs(dbdir)
+        avail = statvfs.f_frsize * statvfs.f_bavail
+        avail *= 0.8 # Reserve 20% as margin
+        if size > avail:
+            mdb_max_size = str(avail)
+    except (TimeoutError, InterruptedError) as e:
+        raise e
+    except OSError as e:
+        log.warning(f'Cannot determine the free space in the file system containing {dbdir} because of {e}')
+    return mdb_max_size
 
 
 def is_fips():

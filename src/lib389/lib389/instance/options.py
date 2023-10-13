@@ -12,7 +12,7 @@ import os
 import random
 from lib389.paths import Paths
 from lib389._constants import INSTALL_LATEST_CONFIG
-from lib389.utils import get_default_db_lib, socket_check_bind
+from lib389.utils import get_default_db_lib, get_default_mdb_max_size, socket_check_bind
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -38,6 +38,7 @@ format_keys = [
     'db_lib',
     'ldapi',
     'ldif_dir',
+    'mdb_max_size',
     'lock_dir',
     'log_dir',
     'run_dir',
@@ -322,7 +323,12 @@ class Slapd2Base(Options2):
         self._options['db_lib'] = get_default_db_lib()
         self._type['db_lib'] = str
         self._helptext['db_lib'] = "Select the database implementation library (bdb or mdb)."
-        self._advanced['db_lib'] = True
+        self._advanced['db_lib'] = False
+
+        self._options['mdb_max_size'] = get_default_mdb_max_size(ds_paths)
+        self._type['mdb_max_size'] = str
+        self._helptext['mdb_max_size'] = "Select the lmdb database maximum size."
+        self._advanced['mdb_max_size'] = False
 
         self._options['ldif_dir'] = ds_paths.ldif_dir
         self._type['ldif_dir'] = str

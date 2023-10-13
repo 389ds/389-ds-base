@@ -42,13 +42,17 @@ from lib389.utils import (
     ensure_str,
     ensure_list_str,
     get_default_db_lib,
+    get_default_mdb_max_size,
     normalizeDN,
+    parse_size,
     socket_check_open,
     selinux_label_file,
     selinux_label_port,
     resolve_selinux_path,
     selinux_restorecon,
     selinux_present)
+from lib389.backend import DatabaseConfig
+
 
 ds_paths = Paths()
 
@@ -59,7 +63,7 @@ DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 def get_port(port, default_port, secure=False):
     # Get the port number for the interactive installer and validate it
-    while 1:
+    while True:
         if secure:
             val = input('\nEnter secure port number [{}]: '.format(default_port)).rstrip()
         else:
@@ -324,7 +328,7 @@ class SetupDs(object):
             general['full_machine_name'] = val
 
         # Instance name - adjust defaults once set
-        while 1:
+        while True:
             slapd['instance_name'] = general['full_machine_name'].split('.', 1)[0]
 
             # Check if default server id is taken
@@ -383,7 +387,7 @@ class SetupDs(object):
         slapd['port'] = port
 
         # Self-Signed Cert DB
-        while 1:
+        while True:
             val = input('\nCreate self-signed certificate database [yes]: ').rstrip().lower()
             if val != "":
                 if val== 'no' or val == "n":
@@ -411,7 +415,7 @@ class SetupDs(object):
             slapd['secure_port'] = False
 
         # Root DN
-        while 1:
+        while True:
             val = input('\nEnter Directory Manager DN [{}]: '.format(slapd['root_dn'])).rstrip()
             if val != '':
                 # Validate value is a DN
@@ -426,7 +430,7 @@ class SetupDs(object):
                 break
 
         # Root DN Password
-        while 1:
+        while True:
             rootpw1 = getpass.getpass('\nEnter the Directory Manager password: ').rstrip()
             if rootpw1 == '':
                 print('Password can not be empty')
@@ -446,6 +450,36 @@ class SetupDs(object):
             slapd['root_password'] = rootpw1
             break
 
+        # Database implementation (db_lib)
+        while True:
+            vdef = get_default_db_lib()
+            val = input(f'\nChoose whether mdb or bdb is used. [{vdef}]: ').rstrip().lower()
+            if val == '':
+                val = vdef
+            if val in [ 'bdb', 'mdb' ]:
+                slapd['db_lib'] = val
+                break
+            else:
+                print('The value "{}" is not "mdb" nor "bdb".'.format(val))
+                continue
+
+        # Database size (mdb_max_size)
+        while slapd['db_lib'] == 'mdb':
+            try:
+                vdef = get_default_mdb_max_size(ds_paths)
+                val = input(f'\nEnter the lmdb database size [{vdef}]: ').rstrip()
+                if val == '':
+                    val = vdef
+                val = parse_size(val)
+                if val <= 0.0:
+                    print('The value should positive.')
+                    continue
+                slapd['mdb_max_size'] = val
+                break
+            except ValueError:
+                print('The value "{}" is not a valid real number.'.format(val))
+                continue
+
         # Backend   [{'name': 'userroot', 'suffix': 'dc=example,dc=com'}]
         backend = {'name': 'userroot', 'suffix': ''}
         backends = [backend]
@@ -457,7 +491,7 @@ class SetupDs(object):
             else:
                 suffix += ",dc=" + comp
 
-        while 1:
+        while True:
             val = input("\nEnter the database suffix (or enter \"none\" to skip) [{}]: ".format(suffix)).rstrip()
             if val != '':
                 if val.lower() == "none":
@@ -476,7 +510,7 @@ class SetupDs(object):
 
         # Add sample entries or root suffix entry?
         if len(backends) > 0:
-            while 1:
+            while True:
                 val = input("\nCreate sample entries in the suffix [no]: ").rstrip().lower()
                 if val != "":
                     if val == "no" or val == "n":
@@ -493,7 +527,7 @@ class SetupDs(object):
 
             if 'sample_entries' not in backend:
                 # Check if they want to create the root node entry instead
-                while 1:
+                while True:
                     val = input("\nCreate just the top suffix entry [no]: ").rstrip().lower()
                     if val != "":
                         if val == "no" or val == "n":
@@ -509,7 +543,7 @@ class SetupDs(object):
                         break
 
         # Start the instance?
-        while 1:
+        while True:
             val = input('\nDo you want to start the instance after the installation? [yes]: ').rstrip().lower()
             if val == '' or val == 'yes' or val == 'y':
                 # Default behaviour
@@ -522,7 +556,7 @@ class SetupDs(object):
                 continue
 
         # Are you ready?
-        while 1:
+        while True:
             val = input('\nAre you ready to install? [no]: ').rstrip().lower()
             if val == '' or val == "no" or val == 'n':
                 print('Aborting installation...')
@@ -563,6 +597,30 @@ class SetupDs(object):
 
         return True
 
+    def create_from_dict(self, inf_dict):
+        """
+        Will trigger a create from the settings stored in inf_dict.
+        Note: Unlike in create_from_args, missing options in the dict are
+        automatically preset to their default value (by _validate_ds_config)
+        """
+        # Get the inf data
+        self.log.debug("Using inf from %s" % inf_dict)
+        config = None
+        try:
+            config = configparser.ConfigParser()
+            config.read_dict(inf_dict)
+        except Exception as e:
+            self.log.error("Exception %s occured", e)
+            return False
+
+        self.log.debug("Configuration %s" % config.sections())
+        (general, slapd, backends) = self._validate_ds_config(config)
+
+        # Actually do the setup now.
+        self.create_from_args(general, slapd, backends, self.extra)
+
+        return True
+
     def _prepare_ds(self, general, slapd, backends):
         self.log.info("Validate installation settings ...")
         assert_c(general['defaults'] is not None, "Configuration defaults in section [general] not found")
@@ -587,6 +645,8 @@ class SetupDs(object):
             # Check it resolves with dns
             assert_c(socket.gethostbyname(general['full_machine_name']), "Strict hostname check failed. Check your DNS records for %s" % general['full_machine_name'])
             self.log.debug("PASSED: Hostname strict checking")
+
+        assert_c(slapd['db_lib'] in ['bdb', 'mdb'], "Invalid value for slapd['db_lib'] (should be 'bdb' or 'mdb'")
 
         assert_c(slapd['prefix'] is not None, "Configuration prefix in section [slapd] not found")
         if (slapd['prefix'] != ""):
@@ -993,6 +1053,11 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
             ds_instance.config.set('nsslapd-security', 'on')
+
+        # Before we create any backends, set lmdb max size
+        if slapd['db_lib'] == 'mdb':
+            mdb_max_size = parse_size(slapd['mdb_max_size'])
+            DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size)),])
 
         # Before we create any backends, create any extra default indexes that may be
         # dynamically provisioned, rather than from template-dse.ldif. Looking at you

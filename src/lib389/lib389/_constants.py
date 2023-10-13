@@ -241,6 +241,7 @@ VALGRIND_LEAK_STR = " blocks are definitely lost in loss record "
 VALGRIND_INVALID_STR = " Invalid (free|read|write)"
 DISORDERLY_SHUTDOWN = ('Detected Disorderly Shutdown last time Directory '
                        'Server was running, recovering database')
+DEFAULT_LMDB_SIZE = '20Gb'
 
 #
 # LOG: see https://access.redhat.com/documentation/en-US/Red_Hat_Directory

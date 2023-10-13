@@ -15,11 +15,13 @@ import re
 import glob
 import shutil
 from lib389.dseldif import DSEldif
+from lib389._constants import DEFAULT_LMDB_SIZE
+from lib389.utils import parse_size, format_size
 import subprocess
+from errno import ENOSPC
 
 
 DBLIB_LDIF_PREFIX = "__dblib-"
-DEFAULT_DBMAP_SIZE = 2 * 1024 * 1024 * 1024
 DBSIZE_MARGIN = 1.2
 DBI_MARGIN = 60
 
@@ -142,14 +144,6 @@ def get_mdb_dbis(dbdir):
     return result
 
 
-def size_fmt(num):
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if (num < 1024):
-            return f"{num:3.1f} {unit}"
-        num /= 1024
-    return f"{num:.1f} TB"
-
-
 def run_dbscan(args):
     prefix = os.environ.get('PREFIX', "")
     prog = f'{prefix}/bin/dbscan'
@@ -235,18 +229,20 @@ def dblib_bdb2mdb(inst, log, args):
         total_entrysize += be['entrysize']
         total_dbi += be['dbi']
 
-    # Round up dbmap size
-    dbmap_size = DEFAULT_DBMAP_SIZE
-    while (total_dbsize * DBSIZE_MARGIN > dbmap_size):
-        dbmap_size *= 1.25
+    required_dbsize = round(total_dbsize * DBSIZE_MARGIN)
+
+    # Compute a dbmap size greater than required_dbsize
+    dbmap_size = parse_size(DEFAULT_LMDB_SIZE)
+    while (required_dbsize > dbmap_size):
+        dbmap_size = round(dbmap_size * 1.25)
 
     # Round up number of dbis
     nbdbis = 1
     while nbdbis < total_dbi + DBI_MARGIN:
         nbdbis *= 2
 
-    log.info(f"Required space for LDIF files is about {size_fmt(total_entrysize)}")
-    log.info(f"Required space for DBMAP files is about {size_fmt(dbmap_size)}")
+    log.info(f"Required space for LDIF files is about {format_size(total_entrysize)}")
+    log.info(f"Required space for DBMAP files is about {format_size(required_dbsize)}")
     log.info(f"Required number of dbi is {nbdbis}")
 
     # Generate the info file (so dbscan could generate the map)
@@ -260,20 +256,29 @@ def dblib_bdb2mdb(inst, log, args):
         f.write(f'MAXDBS={nbdbis}\n')
     os.chown(f'{dbmapdir}/{MDB_INFO}', uid, gid)
 
-    if os.stat(dbmapdir).st_dev == os.stat(tmpdir).st_dev:
-        total, used, free = shutil.disk_usage(dbmapdir)
-        if free < total_entrysize + dbmap_size:
-            log.error(f"Not enough space on {dbmapdir} to migrate to lmdb (Need {size_fmt(total_entrysize + dbmap_size)}, Have {size_fmt(free)})")
-            return
-    else:
-        total, used, free = shutil.disk_usage(dbmapdir)
-        if free < dbmap_size:
-            log.error(f"Not enough space on {dbmapdir} to migrate to lmdb (Need {size_fmt(dbmap_size)}, Have {size_fmt(free)})")
-            return
+    total, used, free = shutil.disk_usage(dbmapdir)
+    if os.stat(dbmapdir).st_dev != os.stat(tmpdir).st_dev:
+        # Ldif and db are on different filesystems
+        # Let check that we have enough space in tmpdir for ldif files
         total, used, free = shutil.disk_usage(tmpdir)
         if free < total_entrysize:
-            log.error("Not enough space on {tmpdir} to migrate to lmdb (Need {size_fmt(total_entrysize)}, Have {size_fmt(free)})")
-            return
+            raise OSError(ENOSPC, "Not enough space on {tmpdir} to migrate to lmdb " +
+                                  "(In {tmpdir}, {format_size(total_entrysize)} is "+
+                                  "needed but only {format_size(free)} is available)")
+        total_entrysize = 0    # do not count total_entrysize when checking dbmapdir size
+
+    # Let check that we have enough space in dbmapdir for the db and ldif files
+    total, used, free = shutil.disk_usage(dbmapdir)
+    size = required_dbsize + total_entrysize
+    if free < required_dbsize + total_entrysize:
+            raise OSError(ENOSPC, "Not enough space on {tmpdir} to migrate to lmdb " +
+                                  "(In {dbmapdir}, " +
+                                  "{format_size(required_dbsize + total_entrysize)} is "
+                                  "needed but only {format_size(free)} is available)")
+    # Lets use dbmap_size if possible, otherwise use required_dbsize
+    if free < dbmap_size + total_entrysize:
+        dbmap_size = required_dbsize
+
     progress = 0
     encrypt = False       # Should maybe be a args param
     for bename, be in backends.items():
@@ -376,23 +381,26 @@ def dblib_mdb2bdb(inst, log, args):
     # Clearly over evaluated (but better than nothing )
     total_entrysize = dbmap_size
 
-    log.info(f"Required space for LDIF files is about {size_fmt(total_entrysize)}")
-    log.info(f"Required space for bdb files is about {size_fmt(dbmap_size)}")
+    log.info(f"Required space for LDIF files is about {format_size(total_entrysize)}")
+    log.info(f"Required space for bdb files is about {format_size(dbmap_size)}")
 
-    if os.stat(dbmapdir).st_dev == os.stat(tmpdir).st_dev:
-        total, used, free = shutil.disk_usage(dbmapdir)
-        if free < total_entrysize + dbmap_size:
-            log.error(f"Not enough space on {dbmapdir} to migrate to bdb (Need {size_fmt(total_entrysize + dbmap_size)}, Have {size_fmt(free)})")
-            return
-    else:
-        total, used, free = shutil.disk_usage(dbmapdir)
-        if free < dbmap_size:
-            log.error(f"Not enough space on {dbmapdir} to migrate to bdb (Need {size_fmt(dbmap_size)}, Have {size_fmt(free)})")
-            return
+    if os.stat(dbmapdir).st_dev != os.stat(tmpdir).st_dev:
+        # Ldif and db are on different filesystems
+        # Let check that we have enough space for ldif files
         total, used, free = shutil.disk_usage(tmpdir)
         if free < total_entrysize:
-            log.error("Not enough space on {tmpdir} to migrate to bdb (Need {size_fmt(total_entrysize)}, Have {size_fmt(free)})")
-            return
+            raise OSError(ENOSPC, "Not enough space on {tmpdir} to migrate to bdb " +
+                                  "(In {tmpdir}, {format_size(total_entrysize)} bytes "+
+                                  "are needed but only {format_size(free)} are available)")
+        total_entrysize = 0    # do not count total_entrysize when checking dbmapdir size
+
+    # Let check that we have enough space for the db and ldif files
+    total, used, free = shutil.disk_usage(dbmapdir)
+    if free < dbmap_size + total_entrysize:
+            raise OSError(ENOSPC, "Not enough space on {tmpdir} to migrate to bdb " +
+                                  "(In {dbmapdir}, {format_size(dbmap_size+total_entrysize)} "+
+                                  "is needed but only {format_size(free)} is available)")
+
     progress = 0
     encrypt = False       # Should maybe be a args param
     total_dbsize = 0
