@@ -1758,7 +1758,11 @@ def get_default_mdb_max_size(paths):
     # Make sure that there is enough available disk space
     # otherwise decrease the value
     dbdir = paths.db_dir
-    while '{' in dbdir:
+    # dbdir may not exists because:
+    #  - paths instance name has not been expanded 
+    #  - dscreate has not yet created it.
+    # so let use the first existing parent in that case.
+    while not os.path.exists(dbdir):
         dbdir = os.path.dirname(dbdir)
     try:
         statvfs = os.statvfs(dbdir)
