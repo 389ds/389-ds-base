@@ -4995,7 +4995,7 @@ config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int 
                           "User setting of %s attribute is disabled, server has auto calculated its value to %d.",
                           attrname, slapdFrontendConfig->conntablesize);
 
-    return LDAP_OPERATIONS_ERROR;
+    return LDAP_SUCCESS;
 }
 
 int
