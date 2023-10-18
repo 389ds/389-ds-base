@@ -373,6 +373,7 @@ SNMP Agent for the 389 Directory Server base package.
 Summary:  A library for accessing, testing, and configuring the 389 Directory Server
 BuildArch:        noarch
 Group:            Development/Libraries
+Requires: %{name} = %{version}-%{release}
 Requires: openssl
 # This is for /usr/bin/c_rehash tool, only needed for openssl < 1.1.0
 Requires: openssl-perl
@@ -400,9 +401,9 @@ This module contains tools and libraries for accessing, testing,
 Summary:          Cockpit UI Plugin for configuring and administering the 389 Directory Server
 BuildArch:        noarch
 Requires:         cockpit
-Requires:         389-ds-base
+Requires:         %{name} = %{version}-%{release}
 Requires:         python%{python3_pkgversion}
-Requires:         python%{python3_pkgversion}-lib389
+Requires:         python%{python3_pkgversion}-lib389 = %{version}-%{release}
 
 %description -n cockpit-389-ds
 A cockpit UI Plugin for configuring and administering the 389 Directory Server
