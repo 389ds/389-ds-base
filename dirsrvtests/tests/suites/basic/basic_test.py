@@ -13,7 +13,7 @@ from lib389.idm.user import UserAccount, UserAccounts
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_st
+from lib389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM
@@ -1713,6 +1713,38 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
         else:
             assert True
 
+def test_conntablesize_attr_dse(topo):
+    """Test that instance starts with nsslapd-conntablesize attr in dse.ldif
+
+    :id: 793a28b2-bbf3-4b31-8db3-fbafae49f306
+    :setup: Standalone Instance
+    :steps:
+        1. Create an instance
+        2. Stop instance, add attr to dse.ldif
+        3. Start instance
+    :expectedresults:
+        1. Instance is running
+        2. Attr is present in dse.ldif
+        3. Instance starts without issue
+    """
+
+    attr = "nsslapd-conntablesize"
+    attr_value = 12345
+
+    inst = topo.standalone
+    dse_ldif = DSEldif(inst)
+
+    inst.restart()
+    assert inst.status() == True
+
+    inst.stop()
+    assert inst.status() == False
+    assert not dse_ldif.get(DN_CONFIG, attr)
+    dse_ldif.add(DN_CONFIG, attr, attr_value)
+    assert dse_ldif.get(DN_CONFIG, attr)
+
+    inst.start()
+    assert inst.status() == True
 
 if __name__ == '__main__':
     # Run isolated
