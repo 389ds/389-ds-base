@@ -1514,7 +1514,65 @@ def test_suffix_case(topology_st):
     domain = Domain(topology_st.standalone, TEST_SUFFIX)
     assert domain.dn == TEST_SUFFIX
 
+
+@pytest.mark.skipif(ds_is_older('1.4.3') or ds_is_newer('2.2'), reason="Not applicable")
+def test_conntablesize_attr_dse(topology_st):
+    """Test that instance starts with nsslapd-conntablesize attr in dse.ldif
+
+    :id: 793a28b2-bbf3-4b31-8db3-fbafae49f306
+    :setup: Standalone Instance
+    :steps:
+        1. Restart instance and get handle of dse.ldif
+        2. Stop the instance, verify attribute is not in dse.ldif
+        3. Add attribute to dse.ldif
+        4. Start instance
+        5. Verify config warning is in the error logs
+        6. Search to verify instance started correctly
+    :expectedresults:
+        1. Instance is running
+        2. Attr is not present in dse.ldif
+        3. Attr exists in dse.ldif
+        4. Instance starts without issue
+        5. Warning message in error logs
+        6. Success
+    """
+
+    attr = "nsslapd-conntablesize"
+    attr_value = 12345
+    warning_message = 'Config Warning: - User setting of nsslapd-conntablesize attribute is disabled'
+
+    topology_st.standalone.restart()
+    dse_ldif = DSEldif(topology_st.standalone)
+
+    topology_st.standalone.stop()
+    assert topology_st.standalone.status() == False
+    log.info('Stopped instance')
+
+    assert not dse_ldif.get(DN_CONFIG, attr)
+    log.info('Verified {} is not present in dse.ldif'.format(attr))
     
+    dse_ldif.add(DN_CONFIG, attr, attr_value)
+    assert dse_ldif.get(DN_CONFIG, attr)
+    log.info('Added {} to dse.ldif'.format(attr))
+
+    topology_st.standalone.start()
+    assert topology_st.standalone.status() == True
+    log.info('Restarted instance')
+
+    assert topology_st.standalone.searchErrorsLog(warning_message)
+    log.info('Config warning present in error logs')
+
+    try:
+        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=*)')
+        if not entries:
+            log.fatal('test_conntablesize_attr_dse: No entries returned from search')
+            assert False
+        log.info('Successful search. confirming instance is running')
+    except ldap.LDAPError as e:
+        log.fatal('test_conntablesize_attr_dse: Search failed')
+        assert False
+
+
 def test_dscreate(request):
     """Test that dscreate works
 
@@ -1912,6 +1970,8 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
             assert False
         else:
             assert True
+
+
 
 
 if __name__ == '__main__':
