@@ -2451,31 +2451,31 @@ catch_signals()
 static int
 get_connection_table_size(void)
 {
-    int size = 0;
+    int conntable_size = 0;
     int resrvdesc = 0;
-    int maxdesc = config_get_maxdescriptors();
+    int maxdesc = 0;
 
     /* Validate configured reserve descriptors */
     validate_num_config_reservedescriptors();
 
+    maxdesc = config_get_maxdescriptors();
     resrvdesc = config_get_reservedescriptors();
+    conntable_size = config_get_conntablesize();
+
     if (maxdesc > resrvdesc) {
-         size = (maxdesc - resrvdesc);
+         if ((maxdesc - resrvdesc) < conntable_size) {
+            conntable_size = (maxdesc - resrvdesc);
+         }
     } else {
         return 0;
     }
 
     /* Verify size does not exceed max num of conns */
-    if (size > MAX_LDAP_CONNS) {
-        size = MAX_LDAP_CONNS;
+    if (conntable_size > MAX_LDAP_CONNS) {
+        conntable_size = MAX_LDAP_CONNS;
     }
 
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_LOCK_WRITE(slapdFrontendConfig);
-    slapdFrontendConfig->conntablesize = size;
-    CFG_UNLOCK_WRITE(slapdFrontendConfig);
-
-    return size;
+    return conntable_size;
 }
 
 PRFileDesc *
