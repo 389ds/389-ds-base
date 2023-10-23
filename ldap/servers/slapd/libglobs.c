@@ -1964,6 +1964,7 @@ FrontendConfig_init(void)
     cfg->logging_backend = slapi_ch_strdup(SLAPD_INIT_LOGGING_BACKEND_INTERNAL);
     cfg->rootdn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
     init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
+    cfg->conntablesize = SLAPD_DEFAULT_CONNTABLESIZE;
 #if defined(LINUX)
 #if defined(__GLIBC__)
     cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
@@ -4992,10 +4993,10 @@ config_set_conntablesize(const char *attrname, char *value, char *errorbuf, int 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                          "User setting of %s attribute is disabled, server has auto calculated its value to %d.",
+                          "User setting of %s attribute is disabled, default value is %d.",
                           attrname, slapdFrontendConfig->conntablesize);
 
-    return LDAP_SUCCESS;
+    return LDAP_UNWILLING_TO_PERFORM;
 }
 
 int
