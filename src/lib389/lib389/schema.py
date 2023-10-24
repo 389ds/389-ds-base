@@ -275,7 +275,11 @@ class Schema(DSLdapObject):
             raise ValueError('Schema is already in the required state. Nothing to change')
 
         self.remove(attr_name, schema_object_str_old)
-        return self.add(attr_name, schema_object_str)
+        try:
+            return self.add(attr_name, schema_object_str)
+        except ldap.LDAPError:
+            self.add(attr_name, schema_object_str_old)
+            raise
 
     def reload(self, schema_dir=None):
         """Reload the schema"""
