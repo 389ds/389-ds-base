@@ -164,12 +164,6 @@ ps_add(Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls)
         if (!ps) {
             return; /* Error is logged by psearch_alloc */
         }
-        /*
-         * The new thread use the operation so tell worker thread
-         * not to reuse it.
-         */
-        g_pc_do_not_reuse_operation();
-
         ps->ps_pblock = slapi_pblock_clone(pb);
         ps->ps_changetypes = changetypes;
         ps->ps_send_entchg_controls = send_entchg_controls;
@@ -419,13 +413,6 @@ ps_send_results(void *arg)
                   conn->c_connid, pb_op ? pb_op->o_opid : -1);
     /* Delete this op from the connection's list */
     connection_remove_operation_ext(ps->ps_pblock, conn, pb_op);
-    /*
-     * Then free the operation:  connection_remove_operation_ext
-     *   calls operation_done and unlink op from pblock
-     *   so operation should be explictly freed
-     */
-    operation_free(&pb_op, NULL);
-
 
     /* Decrement the connection refcnt */
     if (conn_acq_flag == 0) { /* we acquired it, so release it */
