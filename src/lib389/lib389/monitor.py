@@ -46,27 +46,13 @@ class Monitor(DSLdapObject):
     def get_threads(self):
         """Get thread related attributes value for cn=monitor
 
-        :returns: Values of following attributes of cn=monitor:
-            threads,
-            currentconnectionsatmaxthreads,
-            maxthreadsperconnhits,
-            waitingthreads,
-            busythreads,
-            maxbusythreads,
-            waitingjobs,
-            maxwaitingjobs
+        :returns: Values of threads, currentconnectionsatmaxthreads, and
+                  maxthreadsperconnhits attributes of cn=monitor
         """
-        attrnames = (
-            'threads',
-            'currentconnectionsatmaxthreads',
-            'maxthreadsperconnhits',
-            'waitingthreads',
-            'busythreads',
-            'maxbusythreads',
-            'waitingjobs',
-            'maxwaitingjobs',
-        )
-        return tuple(self.get_attr_vals_utf8(attr) for attr in attrnames)
+        threads = self.get_attr_vals_utf8('threads')
+        currentconnectionsatmaxthreads = self.get_attr_vals_utf8('currentconnectionsatmaxthreads')
+        maxthreadsperconnhits = self.get_attr_vals_utf8('maxthreadsperconnhits')
+        return (threads, currentconnectionsatmaxthreads, maxthreadsperconnhits)
 
     def get_backends(self):
         """Get backends related attributes value for cn=monitor
@@ -118,11 +104,6 @@ class Monitor(DSLdapObject):
             'currenttime',
             'starttime',
             'nbackends',
-            'waitingthreads',
-            'busythreads',
-            'maxbusythreads',
-            'waitingjobs',
-            'maxwaitingjobs',
         ])
 
 

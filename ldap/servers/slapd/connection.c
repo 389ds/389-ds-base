@@ -23,14 +23,12 @@
 #include "prlog.h" /* for PR_ASSERT */
 #include "fe.h"
 #include <sasl/sasl.h>
-#include "wthreads.h"
-#include "snmp_collator.h"
 #if defined(LINUX)
 #include <netinet/tcp.h> /* for TCP_CORK */
 #endif
 
 typedef Connection work_q_item;
-static void *connection_threadmain(void *arg);
+static void connection_threadmain(void *arg);
 static void connection_add_operation(Connection *conn, Operation *op);
 static void connection_free_private_buffer(Connection *conn);
 static void op_copy_identity(Connection *conn, Operation *op);
@@ -40,91 +38,99 @@ static void log_ber_too_big_error(const Connection *conn,
                                   ber_len_t ber_len,
                                   ber_len_t maxbersize);
 
-static void add_work_q(work_q_item *);
+static PRStack *op_stack;     /* stack of Slapi_Operation * objects so we don't have to malloc/free every time */
+static PRInt32 op_stack_size; /* size of op_stack */
 
+struct Slapi_op_stack
+{
+    PRStackElem stackelem; /* must be first in struct for PRStack to work */
+    Slapi_Operation *op;
+};
 
-static time_t conn_next_warning_time;
+static void add_work_q(work_q_item *, struct Slapi_op_stack *);
+static work_q_item *get_work_q(struct Slapi_op_stack **);
 
 /*
- * The number of jobs that we may queue before leting the listener threads wait.
- * Does need to queue more than OPS_RATE_MAX*FLOW_CONTROL_DELAY jobs
- * because it would requires more than FLOW_CONTROL_DELAY to empty the queue anyway.
- * The same way, cannot have more jobs than the number of connections
- * (because we need to read the ber)
+ * We maintain a global work queue of items that have not yet
+ * been handed off to an operation thread.
  */
-#define OPS_RATE_MAX	    100    /* Maximum number of kilo operations per seconds */
-#define FLOW_CONTROL_DELAY	20        /* sleep delay in ms */
-#define MAX_QUEUED_JOBS     min(the_connection_table->size, OPS_RATE_MAX*FLOW_CONTROL_DELAY)
+struct Slapi_work_q
+{
+    PRStackElem stackelem; /* must be first in struct for PRStack to work */
+    work_q_item *work_item;
+    struct Slapi_op_stack *op_stack_obj;
+    struct Slapi_work_q *next_work_item;
+};
 
-#define CONN_FLOW_CONTROL_MSG_TIMEOUT 60  /* Delay between warning message */
+static struct Slapi_work_q *head_work_q = NULL; /* global work queue head */
+static struct Slapi_work_q *tail_work_q = NULL; /* global work queue tail */
+static pthread_mutex_t work_q_lock;             /* protects head_conn_q and tail_conn_q */
+static pthread_cond_t work_q_cv;                /* used by operation threads to wait for work -
+                                                 * when there is a conn in the queue waiting
+                                                 * to be processed */
+static PRInt32 work_q_size;                     /* size of conn_q */
+static PRInt32 work_q_size_max;                 /* high water mark of work_q_size */
+#define WORK_Q_EMPTY (work_q_size == 0)
+static PRStack *work_q_stack;         /* stack of work_q structs so we don't have to malloc/free every time */
+static PRInt32 work_q_stack_size;     /* size of work_q_stack */
+static PRInt32 work_q_stack_size_max; /* max size of work_q_stack */
+static PRInt32 op_shutdown = 0;       /* if non-zero, server is shutting down */
 
 #define LDAP_SOCKET_IO_BUFFER_SIZE 512 /* Size of the buffer we give to the I/O system for reads */
 
-
-static inline void __attribute__((always_inline))
-ll_init(ll_list_t *elmt, void *data)
+static struct Slapi_work_q *
+create_work_q(void)
 {
-    elmt->data = data;
-    elmt->head = NULL;
-    elmt->next = elmt->prev = elmt;
+    struct Slapi_work_q *work_q = (struct Slapi_work_q *)PR_StackPop(work_q_stack);
+    if (!work_q) {
+        work_q = (struct Slapi_work_q *)slapi_ch_malloc(sizeof(struct Slapi_work_q));
+    } else {
+        PR_AtomicDecrement(&work_q_stack_size);
+    }
+    return work_q;
 }
 
-static inline void __attribute__((always_inline))
-ll_headinit(ll_head_t *head)
+static void
+destroy_work_q(struct Slapi_work_q **work_q)
 {
-    ll_init(&head->h, NULL);
-    head->h.head = head;
-    head->size = head->hwm = 0;
-}
-
-static inline void __attribute__((always_inline))
-ll_link_before(ll_list_t *list, ll_list_t *elmt)
-{
-    elmt->prev = list->prev;
-    elmt->next = list;
-    elmt->head = list->head;
-    list->prev->next = elmt;
-    list->prev = elmt;
-    elmt->head->size++;
-    if (elmt->head->size > elmt->head->hwm) {
-        elmt->head->hwm = elmt->head->size;
+    if (work_q && *work_q) {
+        (*work_q)->op_stack_obj = NULL;
+        (*work_q)->work_item = NULL;
+        PR_StackPush(work_q_stack, (PRStackElem *)*work_q);
+        PR_AtomicIncrement(&work_q_stack_size);
+        if (work_q_stack_size > work_q_stack_size_max) {
+            work_q_stack_size_max = work_q_stack_size;
+        }
     }
 }
 
-static inline void __attribute__((always_inline))
-ll_link_after(ll_list_t *list, ll_list_t *elmt)
+static struct Slapi_op_stack *
+connection_get_operation(void)
 {
-    elmt->prev = list;
-    elmt->next = list->next;
-    elmt->head = list->head;
-    list->next->prev = elmt;
-    list->next = elmt;
-    elmt->head->size++;
-    if (elmt->head->size > elmt->head->hwm) {
-        elmt->head->hwm = elmt->head->size;
+    struct Slapi_op_stack *stack_obj = (struct Slapi_op_stack *)PR_StackPop(op_stack);
+    if (!stack_obj) {
+        stack_obj = (struct Slapi_op_stack *)slapi_ch_calloc(1, sizeof(struct Slapi_op_stack));
+        stack_obj->op = operation_new(plugin_build_operation_action_bitmap(0,
+                                                                           plugin_get_server_plg()));
+    } else {
+        PR_AtomicDecrement(&op_stack_size);
+        if (!stack_obj->op) {
+            stack_obj->op = operation_new(plugin_build_operation_action_bitmap(0,
+                                                                               plugin_get_server_plg()));
+        } else {
+            operation_init(stack_obj->op,
+                           plugin_build_operation_action_bitmap(0, plugin_get_server_plg()));
+        }
     }
+    return stack_obj;
 }
 
-static inline void __attribute__((always_inline))
-ll_unlink(ll_list_t *elmt)
+static void
+connection_done_operation(Connection *conn, struct Slapi_op_stack *stack_obj)
 {
-    elmt->prev->next = elmt->next;
-    elmt->next->prev = elmt->prev;
-    elmt->next = elmt->prev = elmt;
-    elmt->head->size--;
-    elmt->head = NULL;
-}
-
-static inline int __attribute__((always_inline))
-ll_is_empty(ll_head_t *head)
-{
-    return head->h.next == &head->h;
-}
-
-static inline int __attribute__((always_inline))
-min(int x, int y)
-{
-    return x<y ? x : y;
+    operation_done(&(stack_obj->op), conn);
+    PR_StackPush(op_stack, (PRStackElem *)stack_obj);
+    PR_AtomicIncrement(&op_stack_size);
 }
 
 /*
@@ -419,194 +425,71 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     conn->c_serveripaddr = slapi_ch_strdup(str_destip);
 }
 
-/*
- * worker thread context destructor.
- */
+/* Create a pool of threads for handling the operations */
 void
-op_thread_tinfo_destroy(pc_tinfo_t *tinfo)
+init_op_threads()
 {
-    /* Removing context from snmp slot */
-    pthread_mutex_lock(&g_pc.snmp.mutex);
-    if (tinfo->idx <= g_pc.snmp.nbthreads &&
-        g_pc.snmp.threads[tinfo->idx] == tinfo) {
-        g_pc.snmp.threads[tinfo->idx] = NULL;
+    pthread_condattr_t condAttr;
+    int32_t max_threads = config_get_threadnumber();
+    int32_t rc;
+    int32_t *threads_indexes;
+
+    /* Initialize the locks and cv */
+    if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new lock.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
     }
-    pthread_mutex_unlock(&g_pc.snmp.mutex);
-    /* Unqueing context from waiting/busy queues */
-    pthread_mutex_lock(&g_pc.mutex);
-    ll_unlink(&tinfo->q);
-    pthread_mutex_unlock(&g_pc.mutex);
-    /* Clear the snmp context */
-    snmp_thread_counters_cleanup(&tinfo->snmp_vars);
-    /* Free the operation */
-    operation_free(&tinfo->op, NULL);
-    /* And destroy the context */
-    slapi_ch_free((void**)&tinfo);
-}
-
-/*
- * Alloc and initialize a worker thread context
- * The caller should hold g_pc.snmp.mutex
- */
-pc_tinfo_t *
-op_thread_tinfo_init(int thread_idx)
-{
-    pc_tinfo_t *tinfo = (pc_tinfo_t*) slapi_ch_calloc(1, sizeof(*tinfo));
-    int rc = 0;
-
-    ll_init(&tinfo->q, tinfo);
-    tinfo->idx = thread_idx;
-    snmp_thread_counters_init(&tinfo->snmp_vars);
-    tinfo->op = operation_new(plugin_build_operation_action_bitmap(0, plugin_get_server_plg()));
-    if (!tinfo->op) {
-        slapi_log_err(SLAPI_LOG_ERR, "op_thread_tinfo_init",
-                      "Failed to create worker thread [%d] operation.\n", thread_idx);
-    } else if ((rc = pthread_mutex_init(&tinfo->mutex, NULL))) {
-        slapi_log_err(SLAPI_LOG_ERR, "op_thread_tinfo_init",
-                      "Failed to initialize worker thread [%d] lock.\n", thread_idx);
-    } else if ((rc = pthread_cond_init(&tinfo->cv, NULL))) {
-        slapi_log_err(SLAPI_LOG_ERR, "op_thread_tinfo_init",
-                      "Failed to initialize worker thread [%d] condition variable.\n", thread_idx);
-    } else {
-        return tinfo;
+    if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new condition attribute variable.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot set condition attr clock.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_cond_init(&work_q_cv, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new condition variable.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
     }
-    op_thread_tinfo_destroy(tinfo);
-    return NULL;
-}
+    pthread_condattr_destroy(&condAttr); /* no longer needed */
 
-/*
- * Increase or decrease the number of worker threads
- */
-void
-op_thread_set_threads_number(int threadsnumber)
-{
-    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    int oldnbthreads = 0;
-    pc_tinfo_t **oldthreads = NULL;
-    int len = 0;
-    int rc = 0;
+    work_q_stack = PR_CreateStack("connection_work_q");
+    op_stack = PR_CreateStack("connection_operation");
+    alloc_per_thread_snmp_vars(max_threads);
+    init_thread_private_snmp_vars();
+    
 
-    pthread_mutex_lock(&mutex);
-    /* Adjust snmp variables */
-    pthread_mutex_lock(&g_pc.snmp.mutex);
-    oldnbthreads = g_pc.snmp.nbthreads;
-    oldthreads = g_pc.snmp.threads;
-    if (threadsnumber>0 && !g_pc.shutdown) {
-        g_pc.snmp.threads = (pc_tinfo_t **) slapi_ch_calloc(threadsnumber+1, sizeof(pc_tinfo_t*));
-        if (oldthreads) {
-            len = min(oldnbthreads, threadsnumber)+1;
-            memcpy(g_pc.snmp.threads, oldthreads, len*sizeof(pc_tinfo_t*));
-        }
-    } else {
-        g_pc.snmp.threads = NULL;
-        threadsnumber = 0;
+    threads_indexes = (int32_t *) slapi_ch_calloc(max_threads, sizeof(int32_t));
+    for (size_t i = 0; i < max_threads; i++) {
+        threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
     }
-    g_pc.snmp.nbthreads = threadsnumber;
-    /* Create tinfo for new threads and start the thread */
-    for (size_t i=oldnbthreads+1; i<=threadsnumber; i++) {
-        pc_tinfo_t *tinfo = op_thread_tinfo_init(i);
-        g_pc.snmp.threads[i] = tinfo;
-        rc = pthread_create(&tinfo->tid, NULL, connection_threadmain, tinfo);
-        if (rc) {
+    
+    /* start the operation threads */
+    for (size_t i = 0; i < max_threads; i++) {
+        PR_SetConcurrency(4);
+        if (PR_CreateThread(PR_USER_THREAD,
+                            (VFP)(void *)connection_threadmain, (void *) &threads_indexes[i],
+                            PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                            PR_UNJOINABLE_THREAD,
+                            SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
+            int prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
-                          "Worker thread creation failed, error %d (%s)\n",
-                          rc, strerror(rc));
-            op_thread_tinfo_destroy(tinfo);
+                          "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                          prerr, slapd_pr_strerror(prerr));
         } else {
             g_incr_active_threadcnt();
         }
     }
-    pthread_mutex_unlock(&g_pc.snmp.mutex);
-
-    if (threadsnumber<oldnbthreads) {
-        /*
-         * Need to close some threads
-         * Lets save the tids to join the threads
-         * (tinfo may be freed at any time once the closing flag is set
-         */
-        pthread_t *tids = (pthread_t *)slapi_ch_calloc(oldnbthreads+1, sizeof (*tids));
-        /* Mark the removed threads as closing */
-        for (size_t i=threadsnumber+1; i<=oldnbthreads; i++) {
-            pc_tinfo_t *tinfo = oldthreads[i];
-            if (tinfo) {
-                tids[i] = tinfo->tid;
-                pthread_mutex_lock(&tinfo->mutex);
-                tinfo->closing = 1;
-                pthread_cond_signal(&tinfo->cv);
-                pthread_mutex_unlock(&tinfo->mutex);
-            }
-        }
-        /* Wait until the removed threads are really finished */
-        for (size_t i=threadsnumber+1; i<=oldnbthreads; i++) {
-            pthread_join(tids[i], NULL);
-        }
-        slapi_ch_free((void**)&tids);
-    }
-    /* lets reset hwm statistics */
-    pthread_mutex_lock(&g_pc.snmp.mutex);
-    g_pc.waiting_threads.hwm = 0;
-    g_pc.busy_threads.hwm = 0;
-    g_pc.waiting_jobs.hwm = 0;
-    g_pc.jobs_free_list.hwm = 0;
-    pthread_mutex_unlock(&g_pc.snmp.mutex);
-    pthread_mutex_unlock(&mutex);
-    slapi_ch_free((void**)&oldthreads);
-}
-
-/*
- * Collect op_threads monitoring statistics
- */
-void
-op_thread_get_stat(op_thread_stats_t *stats)
-{
-    pthread_mutex_lock(&g_pc.mutex);
-    stats->waitingthreads = g_pc.waiting_threads.size;
-    stats->busythreads = g_pc.busy_threads.size;
-    stats->maxbusythreads = g_pc.busy_threads.hwm;
-    stats->waitingjobs = g_pc.waiting_jobs.size;
-    stats->maxwaitingjobs = g_pc.waiting_jobs.hwm;
-    pthread_mutex_unlock(&g_pc.mutex);
-}
-
-/*
- * Create a pool of threads for handling the operations
- */
-void
-init_op_threads()
-{
-    int32_t max_threads = config_get_threadnumber();
-    size_t nb_free_slots = MAX_QUEUED_JOBS;
-    ll_list_t *free_slots;
-    int32_t rc;
-
-    /* Initialize the locks and cv */
-    if ((rc = pthread_mutex_init(&g_pc.mutex, NULL)) != 0 ||
-        (rc = pthread_mutex_init(&g_pc.snmp.mutex, NULL)) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
-                      "Failed to initialize a lock. error %d (%s)\n",
-                      rc, strerror(rc));
-        exit(-1);
-    }
-    ll_headinit(&g_pc.waiting_threads);
-    ll_headinit(&g_pc.busy_threads);
-    ll_headinit(&g_pc.waiting_jobs);
-    ll_headinit(&g_pc.jobs_free_list);
-    free_slots = (ll_list_t *)slapi_ch_calloc(nb_free_slots, sizeof(ll_list_t));
-    g_pc.jobs_free_list.h.data = free_slots;
-    for (size_t i=0; i<nb_free_slots; i++) {
-        ll_link_before(&g_pc.jobs_free_list.h, &free_slots[i]);
-    }
-    g_pc.threadnumber_cb = op_thread_set_threads_number;
-    g_pc.getstats_cb = op_thread_get_stat;
-    rc = pthread_key_create(&g_pc.tinfo_key, (void (*)(void*))op_thread_tinfo_destroy);
-    if (rc) {
-        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
-                      "Failed to initialize thread specific data key. error %d (%s)\n",
-                      rc, strerror(rc));
-        exit(-1);
-    }
-    g_pc.nbcpus = util_get_capped_hardware_threads(1, MAX_THREADS);
-    op_thread_set_threads_number(max_threads);
+    /* Here we should free thread_indexes, but because of the dynamic of the new
+     * threads (connection_threadmain) we are not sure when it can be freed.
+     * Let's accept that unique initialization leak (typically 32 to 64 bytes)
+     */
 }
 
 static void
@@ -1064,6 +947,14 @@ connection_free_private_buffer(Connection *conn)
  */
 
 
+/* Connection status values returned by
+    connection_wait_for_new_work(), connection_read_operation(), etc. */
+
+#define CONN_FOUND_WORK_TO_DO 0
+#define CONN_SHUTDOWN 1
+#define CONN_NOWORK 2
+#define CONN_DONE 3
+#define CONN_TIMEDOUT 4
 
 #define CONN_TURBO_TIMEOUT_INTERVAL 100 /* milliseconds */
 #define CONN_TURBO_TIMEOUT_MAXIMUM 5 /* attempts * interval IE 2000ms with 400 * 5 */
@@ -1072,81 +963,57 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_TURBO_HYSTERESIS 0          /* avoid flip flopping in and out of turbo mode */
 
 void
-connection_set_new_op_in_pb(Slapi_PBlock *pb, pc_tinfo_t *tinfo, Connection *conn)
+connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
 {
-    /*
-     * Init the pblock with conn and a fresh operation
-     * Operation no more realloced or got from a stack but
-     * it is stored in worker thread context and reused afterwards
-     * Caller should held conn->c_mutex
+    struct Slapi_op_stack *stack_obj = NULL;
+    /* we used to malloc/free the pb for each operation - now, just use a local stack pb
+     * in connection_threadmain, and just clear it out
      */
-    Slapi_Operation *op = tinfo->op;
-    operation_init(op, plugin_build_operation_action_bitmap(0, plugin_get_server_plg()));
+    /* *ppb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) ); */
+    /* *ppb = slapi_pblock_new(); */
     slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
-
-    slapi_pblock_set(pb, SLAPI_OPERATION, op);
-    connection_add_operation(conn, op);
+    stack_obj = connection_get_operation();
+    slapi_pblock_set(pb, SLAPI_OPERATION, stack_obj->op);
+    slapi_pblock_set_op_stack_elem(pb, stack_obj);
+    connection_add_operation(conn, stack_obj->op);
 }
 
-conn_status_t
-connection_wait_for_new_work(Slapi_PBlock *pb, pc_tinfo_t *tinfo)
+int
+connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
 {
-    struct conn *conn = NULL;
-    ll_list_t *job = NULL;
+    int ret = CONN_FOUND_WORK_TO_DO;
+    work_q_item *wqitem = NULL;
+    struct Slapi_op_stack *op_stack_obj = NULL;
 
-    pthread_mutex_lock(&tinfo->mutex);
-    for (;;) {
-        if (tinfo->conn) {
-            /* A job have been specifically assigned for this thread */
-            conn = tinfo->conn;
-            tinfo->conn = NULL;
-            pthread_mutex_unlock(&tinfo->mutex);
-            pthread_mutex_lock(&(conn->c_mutex));
-            connection_set_new_op_in_pb(pb, tinfo, conn);
-            pthread_mutex_unlock(&(conn->c_mutex));
-            return CONN_FOUND_WORK_TO_DO;
-        }
-        /* Nothing specifically assigned for this thread */
-        if (tinfo->closing) {
-            pthread_mutex_unlock(&tinfo->mutex);
-            return CONN_SHUTDOWN;
-        }
-        pthread_mutex_unlock(&tinfo->mutex);
-        pthread_mutex_lock(&g_pc.mutex);
-        if (ll_is_empty(&g_pc.waiting_jobs)) {
-            /* And nothing either in the global queue ==> lets wait. */
-            ll_unlink(&tinfo->q);
-            ll_link_after(&g_pc.waiting_threads.h, &tinfo->q);
-            pthread_mutex_unlock(&g_pc.mutex);
-            pthread_mutex_lock(&tinfo->mutex);
-            if (tinfo->conn) {
-                continue;
-            }
-            pthread_cond_wait(&tinfo->cv, &tinfo->mutex);
-            continue;
-        }
-        /*
-         * Lets be sure that thread is in busy mode
-         * It is already the case if add_q_work has set tinfo->conn
-         * but not if pthread_cond_wait get interrupted ( by SIGPIPE ? )
-         */
-        ll_unlink(&tinfo->q);
-        ll_link_after(&g_pc.busy_threads.h, &tinfo->q);
+    pthread_mutex_lock(&work_q_lock);
 
-        /* Lets pick first job in waiting queue */
-        job = g_pc.waiting_jobs.h.next;
-        conn = job->data;
-        job->data = NULL;
-        ll_unlink(job);
-        ll_link_after(&g_pc.jobs_free_list.h, job);
-        pthread_mutex_unlock(&g_pc.mutex);
-        pthread_mutex_lock(&(conn->c_mutex));
-        connection_set_new_op_in_pb(pb, tinfo, conn);
-        pthread_mutex_unlock(&(conn->c_mutex));
-        conn= NULL;
-        job = NULL;
-        return CONN_FOUND_WORK_TO_DO;
+    while (!op_shutdown && WORK_Q_EMPTY) {
+        if (interval == 0 ) {
+            pthread_cond_wait(&work_q_cv, &work_q_lock);
+        } else {
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_cond_timedwait(&work_q_cv, &work_q_lock, &current_time);
+        }
     }
+
+    if (op_shutdown) {
+        slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_new_work", "shutdown\n");
+        ret = CONN_SHUTDOWN;
+    } else if (NULL == (wqitem = get_work_q(&op_stack_obj))) {
+        /* not sure how this can happen */
+        slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_new_work", "no work to do\n");
+        ret = CONN_NOWORK;
+    } else {
+        /* make new pb */
+        slapi_pblock_set(pb, SLAPI_CONNECTION, wqitem);
+        slapi_pblock_set_op_stack_elem(pb, op_stack_obj);
+        slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
+    }
+
+    pthread_mutex_unlock(&work_q_lock);
+    return ret;
 }
 
 #include "openldapber.h"
@@ -1455,7 +1322,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 /* Did we time out ? */
                 if (0 == ret) {
                     /* We timed out, should the server shutdown ? */
-                    if (g_pc.shutdown) {
+                    if (op_shutdown) {
                         ret = CONN_SHUTDOWN;
                         goto done;
                     }
@@ -1724,17 +1591,18 @@ connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int *new_
     *new_turbo_flag = new_mode;
 }
 
-static void *
+static void
 connection_threadmain(void *arg)
 {
     Slapi_PBlock *pb = slapi_pblock_new();
-    pc_tinfo_t *tinfo = arg;
+    int32_t *snmp_vars_idx = (int32_t *) arg;
     /* wait forever for new pb until one is available or shutdown */
+    int32_t interval = 0; /* used be  10 seconds */
     Connection *conn = NULL;
     Operation *op;
     ber_tag_t tag = 0;
     int thread_turbo_flag = 0;
-    conn_status_t ret = 0;
+    int ret = 0;
     int more_data = 0;
     int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
     int doshutdown = 0;
@@ -1745,22 +1613,18 @@ connection_threadmain(void *arg)
     /* Arrange to ignore SIGPIPE signals. */
     SIGNAL(SIGPIPE, SIG_IGN);
 #endif
-
-    pthread_setspecific(g_pc.tinfo_key, tinfo);
-    pthread_mutex_lock(&g_pc.mutex);
-    ll_link_before(&g_pc.waiting_threads.h, &tinfo->q);
-    pthread_mutex_unlock(&g_pc.mutex);
+    thread_private_snmp_vars_set_idx(*snmp_vars_idx);
 
     while (1) {
         int is_timedout = 0;
         time_t curtime = 0;
 
-        if (tinfo->closing) {
+        if (op_shutdown) {
             slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
                           "op_thread received shutdown signal\n");
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
-            return NULL;
+            return;
         }
 
         if (!thread_turbo_flag && !more_data) {
@@ -1770,17 +1634,18 @@ connection_threadmain(void *arg)
                we should finish the op now.  Client might be thinking it's
                done sending the request and wait for the response forever.
                [blackflag 624234] */
-            ret = connection_wait_for_new_work(pb, tinfo);
+            ret = connection_wait_for_new_work(pb, interval);
 
             switch (ret) {
             case CONN_NOWORK:
+                PR_ASSERT(interval != 0); /* this should never happen */
                 continue;
             case CONN_SHUTDOWN:
                 slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
-                              "op_thread is closing\n");
+                              "op_thread received shutdown signal\n");
                 slapi_pblock_destroy(pb);
                 g_decr_active_threadcnt();
-                return NULL;
+                return;
             case CONN_FOUND_WORK_TO_DO:
                 /* note - don't need to lock here - connection should only
                    be used by this thread - since c_gettingber is set to 1
@@ -1792,7 +1657,7 @@ connection_threadmain(void *arg)
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "pb_conn is NULL\n");
                     slapi_pblock_destroy(pb);
                     g_decr_active_threadcnt();
-                    return NULL;
+                    return;
                 }
 
                 pthread_mutex_lock(&(pb_conn->c_mutex));
@@ -1843,7 +1708,7 @@ connection_threadmain(void *arg)
 
             pthread_mutex_lock(&(conn->c_mutex));
             /* Make our own pb in turbo mode */
-            connection_set_new_op_in_pb(pb, tinfo, conn);
+            connection_make_new_pb(pb, conn);
             if (connection_call_io_layer_callbacks(conn)) {
                 slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
                               "Could not add/remove IO layers from connection\n");
@@ -1861,7 +1726,7 @@ connection_threadmain(void *arg)
             slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "NULL param: conn (0x%p) op (0x%p)\n", conn, op);
             slapi_pblock_destroy(pb);
             g_decr_active_threadcnt();
-            return NULL;
+            return;
         }
         maxthreads = conn->c_max_threads_per_conn;
         more_data = 0;
@@ -1897,15 +1762,12 @@ connection_threadmain(void *arg)
             }
         }
 
-        /* turn off turbo mode immediately if any pb waiting in global queue
-         * or if all cpus are busy
-         */
-        if (thread_turbo_flag &&
-            (!ll_is_empty(&g_pc.waiting_jobs) || g_pc.busy_threads.size >= g_pc.nbcpus)) {
+        /* turn off turbo mode immediately if any pb waiting in global queue */
+        if (thread_turbo_flag && !WORK_Q_EMPTY) {
             thread_turbo_flag = 0;
             slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
                           "conn %" PRIu64 " leaving turbo mode - pb_q is not empty %d\n",
-                          conn->c_connid, g_pc.waiting_jobs.size);
+                          conn->c_connid, work_q_size);
         }
 #endif
 
@@ -2051,7 +1913,7 @@ connection_threadmain(void *arg)
             pthread_mutex_unlock(&(conn->c_mutex));
             signal_listner(conn->c_ct_list);
             slapi_pblock_destroy(pb);
-            return NULL;
+            return;
         }
         /*
          * done with this operation. delete it from the op
@@ -2150,6 +2012,8 @@ connection_threadmain(void *arg)
 int
 connection_activity(Connection *conn, int maxthreads)
 {
+    struct Slapi_op_stack *op_stack_obj;
+
     if (connection_acquire_nolock(conn) == -1) {
         slapi_log_err(SLAPI_LOG_CONNS,
                       "connection_activity", "Could not acquire lock in connection_activity as conn %" PRIu64 " closing fd=%d\n",
@@ -2170,9 +2034,11 @@ connection_activity(Connection *conn, int maxthreads)
         slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
         slapi_counter_increment(g_get_per_thread_snmp_vars()->ops_tbl.dsMaxThreadsHits);
     }
+    op_stack_obj = connection_get_operation();
+    connection_add_operation(conn, op_stack_obj->op);
     /* Add conn to the end of the work queue.  */
     /* have to do this last - add_work_q will signal waiters in connection_wait_for_new_work */
-    add_work_q((work_q_item *)conn);
+    add_work_q((work_q_item *)conn, op_stack_obj);
 
     if (!config_check_referral_mode()) {
         slapi_counter_increment(g_get_per_thread_snmp_vars()->server_tbl.dsOpInitiated);
@@ -2184,85 +2050,117 @@ connection_activity(Connection *conn, int maxthreads)
 /* add_work_q():  will add a work_q_item to the end of the global work queue. The work queue
     is implemented as a single link list. */
 
-void
-add_work_q(work_q_item *wqitem)
+static void
+add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
 {
-    ll_list_t *elmt = NULL;
-    pc_tinfo_t *tinfo = NULL;
-    time_t curtime = 0;
+    struct Slapi_work_q *new_work_q = NULL;
 
-    pthread_mutex_lock(&g_pc.mutex);
-    for (;;) {
-        if (!ll_is_empty(&g_pc.waiting_threads)) {
-            /* A thread is waiting ==> wake up that thread after
-             * having assigned the job
-             */
-            elmt = g_pc.waiting_threads.h.next;
-            tinfo = elmt->data;
-            ll_unlink(elmt);
-            ll_link_before(&g_pc.busy_threads.h, elmt);
-            pthread_mutex_unlock(&g_pc.mutex);
-            pthread_mutex_lock(&tinfo->mutex);
-            tinfo->conn = wqitem;
-            pthread_cond_signal(&tinfo->cv);
-            pthread_mutex_unlock(&tinfo->mutex);
-            return;
-        }
-        if (!ll_is_empty(&g_pc.jobs_free_list)) {
-            /* No threads are available ==> Queue the job */
-            elmt = g_pc.jobs_free_list.h.next;
-            ll_unlink(elmt);
-            elmt->data = wqitem;
-            ll_link_before(&g_pc.waiting_jobs.h, elmt);
-            pthread_mutex_unlock(&g_pc.mutex);
-            return;
-        }
-        /* Job queue is full ==> wait a bit */
-        curtime = slapi_current_rel_time_t();
-        if (curtime > conn_next_warning_time) {
-            conn_next_warning_time = curtime + CONN_FLOW_CONTROL_MSG_TIMEOUT;
-            slapi_log_err(SLAPI_LOG_WARNING, "Listening threads",
-                          "Warning: server may be unresponsive because the threads "
-                          "are exhausted and too many operations have been queued.\n");
-        }
-        pthread_mutex_unlock(&g_pc.mutex);
-        usleep(1000*FLOW_CONTROL_DELAY);
-        pthread_mutex_lock(&g_pc.mutex);
+    slapi_log_err(SLAPI_LOG_TRACE, "add_work_q", "=>\n");
+
+    new_work_q = create_work_q();
+    new_work_q->work_item = wqitem;
+    new_work_q->op_stack_obj = op_stack_obj;
+    new_work_q->next_work_item = NULL;
+
+    pthread_mutex_lock(&work_q_lock);
+    if (tail_work_q == NULL) {
+        tail_work_q = new_work_q;
+        head_work_q = new_work_q;
+    } else {
+        tail_work_q->next_work_item = new_work_q;
+        tail_work_q = new_work_q;
     }
+    PR_AtomicIncrement(&work_q_size); /* increment q size */
+    if (work_q_size > work_q_size_max) {
+        work_q_size_max = work_q_size;
+    }
+    pthread_cond_signal(&work_q_cv); /* notify waiters in connection_wait_for_new_work */
+    pthread_mutex_unlock(&work_q_lock);
+}
+
+/* get_work_q(): will get a work_q_item from the beginning of the work queue, return NULL if
+    the queue is empty.  This should only be called from connection_wait_for_new_work
+    with the work_q_lock held */
+
+static work_q_item *
+get_work_q(struct Slapi_op_stack **op_stack_obj)
+{
+    struct Slapi_work_q *tmp = NULL;
+    work_q_item *wqitem;
+
+    slapi_log_err(SLAPI_LOG_TRACE, "get_work_q", "=>\n");
+    if (head_work_q == NULL) {
+        slapi_log_err(SLAPI_LOG_TRACE, "get_work_q", "The work queue is empty.\n");
+        return NULL;
+    }
+
+    tmp = head_work_q;
+    if (head_work_q == tail_work_q) {
+        tail_work_q = NULL;
+    }
+    head_work_q = tmp->next_work_item;
+
+    wqitem = tmp->work_item;
+    *op_stack_obj = tmp->op_stack_obj;
+    PR_AtomicDecrement(&work_q_size); /* decrement q size */
+    /* Free the memory used by the item found. */
+    destroy_work_q(&tmp);
+
+    return (wqitem);
 }
 
 /* Helper functions common to both varieties of connection code: */
 
-
 /* op_thread_cleanup() : This function is called by daemon thread when it gets
-    the slapd_shutdown signal.  It will set g_pc.shutdown to 1 and notify
+    the slapd_shutdown signal.  It will set op_shutdown to 1 and notify
     all thread waiting on op_thread_cv to terminate.  */
 
 void
 op_thread_cleanup()
 {
     slapi_log_err(SLAPI_LOG_INFO, "op_thread_cleanup",
-                  "slapd shutting down - signaling operation threads\n");
+                  "slapd shutting down - signaling operation threads - op stack size %d max work q size %d max work q stack size %d\n",
+                  op_stack_size, work_q_size_max, work_q_stack_size_max);
 
-    pthread_mutex_lock(&g_pc.mutex);
-    g_pc.shutdown = 1;
-    pthread_mutex_unlock(&g_pc.mutex);
-    op_thread_set_threads_number(0);
+    PR_AtomicIncrement(&op_shutdown);
+    pthread_mutex_lock(&work_q_lock);
+    pthread_cond_broadcast(&work_q_cv); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
+    pthread_mutex_unlock(&work_q_lock);
 }
 
 /* do this after all worker threads have terminated */
 void
 connection_post_shutdown_cleanup()
 {
-    /* Free the job queue free list */
-    slapi_ch_free(&g_pc.jobs_free_list.h.data);
-    /* Cleanup snmp global variables and thread array */
-    /* remove the snmp threads array */
-    slapi_ch_free((void*)&g_pc.snmp.threads);
-    /* and snmp global counters */
-    free_global_snmp_vars();
+    struct Slapi_op_stack *stack_obj;
+    int stack_cnt = 0;
+    struct Slapi_work_q *work_q;
+    int work_cnt = 0;
+
+    while ((work_q = (struct Slapi_work_q *)PR_StackPop(work_q_stack))) {
+        Connection *conn = (Connection *)work_q->work_item;
+        stack_obj = work_q->op_stack_obj;
+        if (stack_obj) {
+            if (conn) {
+                connection_remove_operation(conn, stack_obj->op);
+            }
+            connection_done_operation(conn, stack_obj);
+        }
+        slapi_ch_free((void **)&work_q);
+        work_cnt++;
+    }
+    PR_DestroyStack(work_q_stack);
+    work_q_stack = NULL;
+    while ((stack_obj = (struct Slapi_op_stack *)PR_StackPop(op_stack))) {
+        operation_free(&stack_obj->op, NULL);
+        slapi_ch_free((void **)&stack_obj);
+        stack_cnt++;
+    }
+    PR_DestroyStack(op_stack);
+    op_stack = NULL;
     slapi_log_err(SLAPI_LOG_INFO, "connection_post_shutdown_cleanup",
-                  "slapd shutting down\n");
+                  "slapd shutting down - freed %d work q stack objects - freed %d op stack objects\n",
+                  work_cnt, stack_cnt);
 }
 
 static void
@@ -2310,7 +2208,8 @@ void
 connection_remove_operation_ext(Slapi_PBlock *pb, Connection *conn, Operation *op)
 {
     connection_remove_operation(conn, op);
-    operation_done(&op, conn);
+    void *op_stack_elem = slapi_pblock_get_op_stack_elem(pb);
+    connection_done_operation(conn, op_stack_elem);
     slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
     slapi_pblock_init(pb);
 }
