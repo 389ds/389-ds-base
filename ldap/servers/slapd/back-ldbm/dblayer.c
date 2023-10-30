@@ -57,6 +57,8 @@
  *  dblayer_release_index_file()
  */
 
+#include <sys/types.h>
+#include <sys/statvfs.h>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -64,8 +66,6 @@
 #include "dblayer.h"
 #include <prthread.h>
 #include <prclist.h>
-#include <sys/types.h>
-#include <sys/statvfs.h>
 
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."

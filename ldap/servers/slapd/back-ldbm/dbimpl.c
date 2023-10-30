@@ -26,6 +26,8 @@
  *   are in dblayer.c ( All function defined during phase 2 )
  */
 
+#include <sys/types.h>
+#include <sys/statvfs.h>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -34,8 +36,6 @@
 #include "dblayer.h"
 #include <prthread.h>
 #include <prclist.h>
-#include <sys/types.h>
-#include <sys/statvfs.h>
 
 
 static inline dblayer_private *dblayer_get_priv(Slapi_Backend *be)

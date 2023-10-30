@@ -18,7 +18,10 @@
 
 #if defined(HPUX11) || defined(OS_solaris) || defined(linux)
 /* built-in 64-bit file I/O support */
+#if ! defined(__LP64__)
+/* But not on 64-bit arch: It is needless and build fails since gcc 13.2.1-4 */
 #define DB_USE_64LFS
+#endif
 #endif
 
 /* needed by at least HPUX and Solaris, to define off64_t */
