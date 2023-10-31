@@ -7,6 +7,8 @@
  * END COPYRIGHT BLOCK **/
 
 
+#include <sys/types.h>
+#include <sys/statvfs.h>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -15,8 +17,6 @@
 #include <prthread.h>
 #include <assert.h>
 #include <prclist.h>
-#include <sys/types.h>
-#include <sys/statvfs.h>
 #include <glob.h>
 
 Slapi_ComponentId *dbmdb_componentid;

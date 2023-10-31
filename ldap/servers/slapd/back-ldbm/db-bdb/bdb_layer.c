@@ -7,14 +7,14 @@
  * END COPYRIGHT BLOCK **/
 
 
+#include <sys/types.h>
+#include <sys/statvfs.h>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 #include "bdb_layer.h"
 #include <prthread.h>
 #include <prclist.h>
-#include <sys/types.h>
-#include <sys/statvfs.h>
 #include <glob.h>
 
 
