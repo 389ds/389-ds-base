@@ -6,6 +6,8 @@
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
+#include <sys/types.h>
+#include <sys/statvfs.h>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -13,7 +15,6 @@
 /* dbmdb_ctx_t.c - Handles configuration information that is specific to a MDB backend instance. */
 
 #include "mdb_layer.h"
-#include <sys/statvfs.h>
 
 
 /* Forward declarations */
