@@ -319,13 +319,12 @@ def list_suffixes(inst, basedn, log, args):
 def get_repl_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
+    pw_and_dn_prompt = False
     if args.bind_passwd_file is not None:
-        passwd = get_passwd_from_file(args.bind_passwd_file)
-    elif args.bind_passwd_prompt:
-        passwd = _get_arg(None, msg=f"Enter password for ({args.bind_dn})", hidden=True, confirm=True)
-    else:
-        passwd = args.bind_passwd
-    status = replica.status(binddn=args.bind_dn, bindpw=passwd)
+        args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
+    if args.bind_passwd_prompt or args.bind_dn is None or args.bind_passwd is None:
+        pw_and_dn_prompt = True
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=pw_and_dn_prompt)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -336,14 +335,12 @@ def get_repl_status(inst, basedn, log, args):
 def get_repl_winsync_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
+    pw_and_dn_prompt = False
     if args.bind_passwd_file is not None:
-        passwd = get_passwd_from_file(args.bind_passwd_file)
-    elif args.bind_passwd_prompt:
-        passwd = _get_arg(None, msg=f"Enter password for ({args.bind_dn})", hidden=True, confirm=True)
-    else:
-        passwd = args.bind_passwd
-
-    status = replica.status(binddn=args.bind_dn, bindpw=passwd, winsync=True)
+        args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
+    if args.bind_passwd_prompt or args.bind_dn is None or args.bind_passwd is None:
+        pw_and_dn_prompt = True
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True, pwprompt=pw_and_dn_prompt)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -877,11 +874,12 @@ def poke_agmt(inst, basedn, log, args):
 
 def get_agmt_status(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
+    pw_and_dn_prompt = False
     if args.bind_passwd_file is not None:
         args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
-    if (args.bind_dn is not None and args.bind_passwd is None) or args.bind_passwd_prompt:
-        args.bind_passwd = _get_arg(None, msg=f"Enter password for \"{args.bind_dn}\"", hidden=True, confirm=True)
-    status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd)
+    if args.bind_passwd_prompt or args.bind_dn is None or args.bind_passwd is None:
+        pw_and_dn_prompt = True
+    status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=pw_and_dn_prompt)
     log.info(status)
 
 
@@ -1237,19 +1235,19 @@ def create_parser(subparsers):
     repl_status_parser = repl_subcommands.add_parser('status', help='Display the current status of all the replication agreements')
     repl_status_parser.set_defaults(func=get_repl_status)
     repl_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
-    repl_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer")
-    repl_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN")
-    repl_status_parser.add_argument('--bind-passwd-file', help="File containing the password")
-    repl_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    repl_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer. If not set, current instance's root DN will be used. It will be used for all agreements")
+    repl_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN. It will be used for all agreements")
+    repl_status_parser.add_argument('--bind-passwd-file', help="File containing the password. It will be used for all agreements")
+    repl_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for passwords for each agreement's instance separately")
 
     repl_winsync_status_parser = repl_subcommands.add_parser('winsync-status', help='Display the current status of all '
                                                                                     'the replication agreements')
     repl_winsync_status_parser.set_defaults(func=get_repl_winsync_status)
     repl_winsync_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
-    repl_winsync_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer")
-    repl_winsync_status_parser.add_argument('--bind-passwd', help="Sets the password of the bind DN")
-    repl_winsync_status_parser.add_argument('--bind-passwd-file', help="File containing the password")
-    repl_winsync_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    repl_winsync_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer. Currectly not used")
+    repl_winsync_status_parser.add_argument('--bind-passwd', help="Sets the password of the bind DN. Currectly not used")
+    repl_winsync_status_parser.add_argument('--bind-passwd-file', help="File containing the password. Currectly not used")
+    repl_winsync_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password. Currectly not used")
 
     repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote a replica to a hub or supplier')
     repl_promote_parser.set_defaults(func=promote_replica)
@@ -1417,10 +1415,10 @@ def create_parser(subparsers):
     agmt_status_parser.set_defaults(func=get_agmt_status)
     agmt_status_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
-    agmt_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer")
-    agmt_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN")
-    agmt_status_parser.add_argument('--bind-passwd-file', help="File containing the password")
-    agmt_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
+    agmt_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer. If not set, current instance's root DN will be used. It will be used for all agreements")
+    agmt_status_parser.add_argument('--bind-passwd', help="Sets the password for the bind DN. It will be used for all agreements")
+    agmt_status_parser.add_argument('--bind-passwd-file', help="File containing the password. It will be used for all agreements")
+    agmt_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for passwords for each agreement's instance separately")
 
     # Delete
     agmt_del_parser = agmt_subcommands.add_parser('delete', help='Delete replication agreement')

@@ -1656,13 +1656,13 @@ class Replica(DSLdapObject):
 
         return self._suffix
 
-    def status(self, binddn=None, bindpw=None, winsync=False):
+    def status(self, binddn=None, bindpw=None, winsync=False, pwprompt=False):
         """Get a list of the status for every agreement
         """
         agmtList = []
         agmts = Agreements(self._instance, self.dn, winsync=winsync).list()
         for agmt in agmts:
-            raw_status = agmt.status(binddn=binddn, bindpw=bindpw, use_json=True, winsync=winsync)
+            raw_status = agmt.status(binddn=binddn, bindpw=bindpw, use_json=True, winsync=winsync, pwprompt=pwprompt)
             agmtList.append(json.loads(raw_status))
 
         # sort the list of agreements by the lag time
