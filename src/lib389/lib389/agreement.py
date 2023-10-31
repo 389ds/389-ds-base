@@ -13,6 +13,7 @@ import json
 import datetime
 from lib389._constants import *
 from lib389.properties import *
+from lib389.cli_base import _get_arg
 from lib389._entry import FormatDict
 from lib389.utils import normalizeDN, ensure_bytes, ensure_str, ensure_dict_str, ensure_list_str
 from lib389 import Entry, DirSrv, NoSuchEntryError, InvalidArgumentError
@@ -305,7 +306,7 @@ class Agreement(DSLdapObject):
         # Return a nice formated timestamp
         return "{:0>8}".format(str(lag))
 
-    def status(self, winsync=False, just_status=False, use_json=False, binddn=None, bindpw=None):
+    def status(self, winsync=False, just_status=False, use_json=False, binddn=None, bindpw=None, pwprompt=False):
         """Get the status of a replication agreement
         :param winsync: Specifies if the the agreement is a winsync replication agreement
         :type winsync: boolean
@@ -317,6 +318,8 @@ class Agreement(DSLdapObject):
         :type binddn: str
         :param bindpw: Password for the bind DN
         :type bindpw: str
+        :param pwprompt: If binddn or bindpw is None, ask for them interactively
+        :type pwprompt: boolean
         :returns: A status message
         :raises: ValueError - if failing to get agmt status
         """
@@ -328,6 +331,14 @@ class Agreement(DSLdapObject):
         # RUV entry under the suffix, then we can't get the status.  So in this case we
         # need to provide a DN and password.
         if not winsync:
+            if pwprompt:
+                host = self.get_attr_val_utf8(AGMT_HOST)
+                port = self.get_attr_val_utf8(AGMT_PORT)
+                suffix = self.get_attr_val_utf8(REPL_ROOT)
+                if binddn is None:
+                    binddn = _get_arg(None, msg=f"Enter bind DN for the replicated suffix ({suffix}) on {host}:{port}")
+                if bindpw is None:
+                    bindpw = _get_arg(None, msg=f"Enter password for ({binddn}) to the replicated suffix ({suffix}) on {host}:{port}", hidden=True)
             try:
                 status = self.get_agmt_status(binddn=binddn, bindpw=bindpw)
             except ldap.INVALID_CREDENTIALS as e:
