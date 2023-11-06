@@ -1285,9 +1285,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
     /* Call the common multi threaded import framework */
     return_value = dbmdb_back_ldif2db(pb);
 
-    /* if it was a task, its status will be updated later after backend is ready for update */
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index", "%s: Finished indexing.\n",
-                  inst->inst_name);
+    /* Completion status is logged/updated once the backend is ready for update */
 
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_db2index", "<=\n");
     dbg_log(__FILE__, __LINE__, __FUNCTION__, DBGMDB_LEVEL_IMPORT, "db2index exited with code %d.\n", return_value);

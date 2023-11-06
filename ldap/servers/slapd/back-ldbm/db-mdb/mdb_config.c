@@ -27,6 +27,39 @@ int dbmdb_ctx_t_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_En
 
 static dblayer_private dbmdb_fake_priv;   /* A copy of the callback array used by dbmdb_be() */
 
+/* Dummy bdb config entry (needed for compatibility with application that tries to tweak it). */
+const char *bdb_config_entry_template =
+    "dn: cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config\n"
+    "objectClass: extensibleobject\n"
+    "objectClass: top\n"
+    "cn: bdb\n"
+    "description: The BerkeleyDB config entry (meaningful only \n"
+    " if nsslapd-backend-implement is bdb)\n"
+    "nsslapd-cache-autosize: 25\n"
+    "nsslapd-cache-autosize-split: 25\n"
+    "nsslapd-dbcachesize: 1610612736\n"
+    "nsslapd-db-checkpoint-interval: 60\n"
+    "nsslapd-db-compactdb-interval: 2592000\n"
+    "nsslapd-db-compactdb-time: 23:59\n"
+    "nsslapd-db-deadlock-policy: 9\n"
+    "nsslapd-db-durable-transaction: on\n"
+    "nsslapd-db-home-directory: %s\n"
+    "nsslapd-db-locks: 10000\n"
+    "nsslapd-db-locks-monitoring-enabled: on\n"
+    "nsslapd-db-locks-monitoring-pause: 500\n"
+    "nsslapd-db-locks-monitoring-threshold: 90\n"
+    "nsslapd-db-logbuf-size: 0\n"
+    "nsslapd-db-logdirectory: %s\n"
+    "nsslapd-db-private-import-mem: on\n"
+    "nsslapd-db-transaction-batch-max-wait: 50\n"
+    "nsslapd-db-transaction-batch-min-wait: 50\n"
+    "nsslapd-db-transaction-batch-val: 0\n"
+    "nsslapd-db-transaction-wait: off\n"
+    "nsslapd-import-cache-autosize: -1\n"
+    "nsslapd-import-cachesize: 16777216\n"
+    "nsslapd-search-bypass-filter-test: on\n"
+    "nsslapd-serial-lock: on\n";
+
 backend *dbmdb_be(void)
 {
     static backend be = {0};
@@ -207,7 +240,7 @@ dbmdb_ctx_t_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, 
     Slapi_PBlock *util_pb = NULL;
     int rc;
     int result;
-    char entry_string[512];
+    char entry_string[4096];
     int dont_write_file = 0;
     char ebuf[BUFSIZ];
 
@@ -217,7 +250,7 @@ dbmdb_ctx_t_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, 
 
     for (x = 0; strlen(entries[x]) > 0; x++) {
         util_pb = slapi_pblock_new();
-        PR_snprintf(entry_string, 512, entries[x], string1, string2, string3);
+        PR_snprintf(entry_string, (sizeof entry_string), entries[x], string1, string2, string3);
         e = slapi_str2entry(entry_string, 0);
         PL_strncpyz(ebuf, slapi_entry_get_dn_const(e), sizeof(ebuf)-1); /* for logging */
         slapi_add_entry_internal_set_pb(util_pb, e, NULL, li->li_identity, 0);
@@ -531,6 +564,22 @@ dbmdb_ctx_t_setup_default(struct ldbminfo *li)
     }
 }
 
+/* Add a dummy config entry to ensure compatibility with
+ * applications that tries to tweak bdb parameters
+ */
+static void
+dbmdb_create_bdb_config_entry(struct ldbminfo *li)
+{
+    int hasdbhome = 0;
+    char *dbhome = dbmdb_get_home_dir(li, &hasdbhome);
+    char *entries[] = { (char*)bdb_config_entry_template, ""};
+
+    if (!hasdbhome) {
+        dbhome = "???";
+    }
+    dbmdb_ctx_t_add_dse_entries(li, entries, dbhome, dbhome, NULL, 0);
+}
+
 static int
 dbmdb_ctx_t_upgrade_dse_info(struct ldbminfo *li)
 {
@@ -654,6 +703,9 @@ dbmdb_ctx_t_load_dse_info(struct ldbminfo *li)
     Slapi_Entry **entries = NULL;
     char *dn = NULL;
     int rval = 0;
+
+    /* Lets create bdb config entry for compatibility with legacy applications */
+    dbmdb_create_bdb_config_entry(li);
 
     /* We try to read the entry
      * cn=mdb, cn=config, cn=ldbm database, cn=plugins, cn=config.  If the entry is
