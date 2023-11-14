@@ -157,7 +157,10 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     ldbm_instance *inst;
     back_search_result_set *sr = NULL;
     int free_candidates = 1;
+    Slapi_Operation *op = NULL;
 
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     inst = (ldbm_instance *)be->be_instance_info;
     /*
@@ -165,7 +168,13 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
      * clean it up for the following sessions.
      */
     slapi_be_unset_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
-    CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
+    if (e != operation_get_target_entry(op)) {
+        /*
+         * Target entry is released later on
+         * (in cache_return_target_entry called by op_shared_search).
+         */
+        CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
+    }
     if (inst->inst_ref_count) {
         slapi_counter_decrement(inst->inst_ref_count);
     }

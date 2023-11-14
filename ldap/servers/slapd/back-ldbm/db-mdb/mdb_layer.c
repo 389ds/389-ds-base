@@ -2300,11 +2300,21 @@ int dbmdb_cursor_get_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     MDB_cursor *newcur = NULL;
     int cmpres = 0;
     int rc = 0;
+    struct ldbminfo *li = (struct ldbminfo *)cursor->be->be_database->plg_private;
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+    dbmdb_dbi_t *dbi = &ctx->dbi_slots[mdb_cursor_dbi(cursor->cur)];
 
     rc = MDB_CURSOR_GET(cursor->cur, &curpos_key, &curpos_data, MDB_GET_CURRENT);
     if (rc != 0) {
         return rc;
     }
+    if (dbi->dbname[0] == '~') {
+        /* Already hanfling the vlv cache (probably running dbscan) */
+        *dbmdb_key = curpos_key;
+        *dbmdb_data = curpos_data;
+        return rc;
+    }
+
     dbmdb_generate_recno_cache_key_by_data(&cache_key, &curpos_key, &curpos_data);
 
     rc = dbmdb_recno_cache_lookup(cursor, &cache_key, &rce);
@@ -2343,12 +2353,12 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     MDB_val cache_key = {0};
     dbi_recno_t recno;
     int rc;
-    if (!dbmdb_data || !dbmdb_data->mv_data) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_cursor_set_recno", "invalid dbmdb_data parameter (should be a dbi_recno_t)\n");
+    if (!dbmdb_key || !dbmdb_key->mv_data) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_cursor_set_recno", "invalid dbmdb_key parameter (should be a dbi_recno_t)\n");
         return DBI_RC_INVALID;
     }
 
-    memcpy(&recno, dbmdb_data->mv_data, sizeof (dbi_recno_t));
+    memcpy(&recno, dbmdb_key->mv_data, sizeof (dbi_recno_t));
     dbmdb_generate_recno_cache_key_by_recno(&cache_key, recno);
     rc = dbmdb_recno_cache_lookup(cursor, &cache_key, &rce);
     if (rc ==0) {
