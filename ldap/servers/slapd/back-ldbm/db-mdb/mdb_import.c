@@ -694,7 +694,7 @@ dbmdb_task_finish(ImportJob *job, int ret)
         dbmdb_import_log_status_add_line(job, "%s: Finished %s task",
                                          inst->inst_name, opname);
         dbmdb_import_log_status_done(job);
-        slapi_task_finish(job->task, ret & ~WARN_SKIPPED_IMPORT_ENTRY);
+        slapi_task_finish(job->task, ret);
         task_dn = slapi_ch_smprintf(" task '%s'", job->task->task_dn);
     }
     slapi_log_err(SLAPI_LOG_INFO, "dbmdb_task_finish",
@@ -704,8 +704,6 @@ dbmdb_task_finish(ImportJob *job, int ret)
         slapi_ch_free_string(&task_dn);
     }
 }
-
-
 
 /* when the import is done, this function is called to bring stuff back up.
  * returns 0 on success; anything else is an error
@@ -740,7 +738,7 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             /* bring backend online again */
             slapi_mtn_be_enable(inst->inst_be);
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_all_done",
-                          "Backend %s is now on line.\n",
+                          "Backend %s is now online.\n",
                           slapi_be_get_name(inst->inst_be));
 
         }

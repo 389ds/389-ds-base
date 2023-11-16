@@ -313,6 +313,7 @@ def test_task_status(topo):
         4. Start a Reindex task on 'badattr' and wait until it is completed
         5. Check that task has a status
         6. Check that exit code is 0
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -358,6 +359,7 @@ def test_task_and_be(topo, add_backend_and_ldif_50K_users):
         4. Modify the suffix entry description
         5. Start an Export task and wait until it is completed
         6. Modify the suffix entry description
+    :expectedresults:
         1. Success
         2. Success
         3. Success
@@ -376,7 +378,9 @@ def test_task_and_be(topo, add_backend_and_ldif_50K_users):
         input_file=ldif_file,
         args={TASK_WAIT: True}
     ) == 0
-    user.set('description', 'test_task_and_be tc1')
+    descval = 'test_task_and_be tc1'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
 
     # Reindex some attributes
     assert tasks.reindex(
@@ -384,7 +388,9 @@ def test_task_and_be(topo, add_backend_and_ldif_50K_users):
         attrname=[ 'description', 'rdn', 'uid', 'cn', 'sn', 'badattr' ],
         args={TASK_WAIT: True}
     ) == 0
-    user.set('description', 'test_task_and_be tc2')
+    descval = 'test_task_and_be tc2'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
     users = UserAccounts(topo.standalone, SUFFIX2, rdn=None)
     user = users.create(properties={
         'uid': 'user1',
@@ -401,7 +407,9 @@ def test_task_and_be(topo, add_backend_and_ldif_50K_users):
         output_file=f'{ldif_file}2',
         args={TASK_WAIT: True}
     ) == 0
-    user.set('description', 'test_task_and_be tc3')
+    descval = 'test_task_and_be tc3'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
 
 
 if __name__ == "__main__":
