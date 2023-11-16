@@ -34,6 +34,10 @@ pageresult_lock_cleanup()
     slapi_ch_free((void**)&lock_hash);
 }
 
+/* Beware to the lock order with c_mutex:
+ * c_mutex is sometime locked while holding pageresult_lock
+ * ==> Do not lock pageresult_lock when holing c_mutex
+ */
 pthread_mutex_t *
 pageresult_lock_get_addr(Connection *conn)
 {
@@ -350,7 +354,7 @@ pagedresults_free_one(Connection *conn, Operation *op, int index)
  * Used for abandoning - pageresult_lock_get_addr(conn) is already locked in do_abandone.
  */
 int
-pagedresults_free_one_msgid_nolock(Connection *conn, ber_int_t msgid)
+pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, pthread_mutex_t *mutex)
 {
     int rc = -1;
     int i;
@@ -361,6 +365,7 @@ pagedresults_free_one_msgid_nolock(Connection *conn, ber_int_t msgid)
         } else {
             slapi_log_err(SLAPI_LOG_TRACE,
                           "pagedresults_free_one_msgid_nolock", "=> msgid=%d\n", msgid);
+            pthread_mutex_lock(mutex);
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (conn->c_pagedresults.prl_list[i].pr_msgid == msgid) {
                     PagedResults *prp = conn->c_pagedresults.prl_list + i;
@@ -375,6 +380,7 @@ pagedresults_free_one_msgid_nolock(Connection *conn, ber_int_t msgid)
                     break;
                 }
             }
+            pthread_mutex_unlock(mutex);
             slapi_log_err(SLAPI_LOG_TRACE,
                           "pagedresults_free_one_msgid_nolock", "<= %d\n", rc);
         }
