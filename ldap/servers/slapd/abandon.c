@@ -38,6 +38,12 @@ do_abandon(Slapi_PBlock *pb)
     Connection *pb_conn = NULL;
     Operation *pb_op = NULL;
     Operation *o;
+    /* Keep a copy of some data because o may vanish once conn is unlocked */
+    struct {
+        struct timespec hr_time_end;
+        int nentries;
+        int opid;
+    } o_copy; 
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
@@ -90,8 +96,12 @@ do_abandon(Slapi_PBlock *pb)
 
     pthread_mutex_lock(&(pb_conn->c_mutex));
     for (o = pb_conn->c_ops; o != NULL; o = o->o_next) {
-        if (o->o_msgid == id && o != pb_op)
+        if (o->o_msgid == id && o != pb_op) {
+            slapi_operation_time_elapsed(o, &o_copy.hr_time_end);
+            o_copy.nentries = o->o_results.r.r_search.nentries;
+            o_copy.opid = o->o_opid;
             break;
+        }
     }
 
     if (o != NULL) {
@@ -130,7 +140,8 @@ do_abandon(Slapi_PBlock *pb)
         slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "op not found\n");
     }
 
-    if (0 == pagedresults_free_one_msgid_nolock(pb_conn, id)) {
+    pthread_mutex_unlock(&(pb_conn->c_mutex));
+    if (0 == pagedresults_free_one_msgid(pb_conn, id, pageresult_lock_get_addr(pb_conn))) {
         slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64
                                            " op=%d ABANDON targetop=Simple Paged Results msgid=%d\n",
                          pb_conn->c_connid, pb_op->o_opid, id);
@@ -143,15 +154,11 @@ do_abandon(Slapi_PBlock *pb)
                                            " targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
                          pb_conn->c_connid, pb_op->o_opid, id);
     } else {
-        struct timespec o_hr_time_end;
-        slapi_operation_time_elapsed(o, &o_hr_time_end);
         slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
                                            " targetop=%d msgid=%d nentries=%d etime=%" PRId64 ".%010" PRId64 "\n",
-                         pb_conn->c_connid, pb_op->o_opid, o->o_opid, id,
-                         o->o_results.r.r_search.nentries, (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
+                         pb_conn->c_connid, pb_op->o_opid, o_copy.opid, id,
+                         o_copy.nentries, (int64_t)o_copy.hr_time_end.tv_sec, (int64_t)o_copy.hr_time_end.tv_nsec);
     }
-
-    pthread_mutex_unlock(&(pb_conn->c_mutex));
     /*
      * Wake up the persistent searches, so they
      * can notice if they've been abandoned.
