@@ -1591,7 +1591,7 @@ int pagedresults_is_timedout_nolock(Connection *conn);
 int pagedresults_reset_timedout_nolock(Connection *conn);
 int pagedresults_in_use_nolock(Connection *conn);
 int pagedresults_free_one(Connection *conn, Operation *op, int index);
-int pagedresults_free_one_msgid_nolock(Connection *conn, ber_int_t msgid);
+int pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, pthread_mutex_t *mutex);
 int op_is_pagedresults(Operation *op);
 int pagedresults_cleanup_all(Connection *conn, int needlock);
 void op_set_pagedresults(Operation *op);
