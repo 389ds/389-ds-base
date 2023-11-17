@@ -921,9 +921,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     next_be = NULL; /* to break the loop */
                     if (operation->o_status & SLAPI_OP_STATUS_ABANDONED) {
                         /* It turned out this search was abandoned. */
-                        pthread_mutex_lock(pagedresults_mutex);
-                        pagedresults_free_one_msgid_nolock(pb_conn, operation->o_msgid);
-                        pthread_mutex_unlock(pagedresults_mutex);
+                        pagedresults_free_one_msgid(pb_conn, operation->o_msgid, pagedresults_mutex);
                         /* paged-results-request was abandoned; making an empty cookie. */
                         pagedresults_set_response_control(pb, 0, estimate, -1, pr_idx);
                         send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
