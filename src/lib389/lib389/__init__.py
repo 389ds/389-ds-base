@@ -1035,6 +1035,24 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_OFFLINE
 
+    def dump_errorlog(self):
+        '''
+            Its logs all errors messages within the error log that occured 
+            after the last startup.
+        '''
+        if os.path.isfile(self.errlog):
+            lines = []
+            with open(self.errlog, 'r') as file:
+                for line in file:
+                    if "starting up" in line:
+                        lines = []
+                    for key in ( 'DEBUG', 'INFO', 'NOTICE', 'WARN' ):
+                        if key in line:
+                            lines.append(line)
+                            break
+            for line in lines:
+                self.log.error(line)
+
     def start(self, timeout=120, post_open=True):
         '''
             It starts an instance and rebind it. Its final state after rebind
@@ -1058,7 +1076,13 @@ class DirSrv(SimpleLDAPObject, object):
         if self.with_systemd():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
-            subprocess.check_output(["systemctl", "start", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
+            try:
+                subprocess.check_output(["systemctl", "start", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                self.dump_errorlog()
+                self.log.error('Failed to start dirsrv@%s: "%s"' % (self.serverid, e.output.decode()))
+                self.log.error(e)
+                raise ValueError('Failed to start DS')
         else:
             self.log.debug("systemd status -> False")
             # Start the process.
@@ -1082,6 +1106,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.log.debug("DEBUG: starting with %s" % cmd)
                 output = subprocess.check_output(*cmd, env=env, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
+                self.dump_errorlog()
                 self.log.error('Failed to start ns-slapd: "%s"' % e.output.decode())
                 self.log.error(e)
                 raise ValueError('Failed to start DS')
