@@ -788,7 +788,8 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
     } else {
         /* Very bad idea to do this outside of a transaction */
     }
-    if (priv->dblayer_clear_vlv_cache_fn) {
+    if (txn && !txn->back_special_handling_fn && priv->dblayer_clear_vlv_cache_fn) {
+        /* If there is a txn and it is not an import pseudo txn then clear the vlv cache */
         priv->dblayer_clear_vlv_cache_fn(be, db_txn, db);
     }
     data.size = sizeof(entry->ep_id);
