@@ -7,7 +7,11 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import socket
+<<<<<<< HEAD
 from random import sample
+=======
+from random import sample, randrange
+>>>>>>> 06bd08629 (Issue 5984 - Crash when paged result search are abandoned (#5985))
 
 import pytest
 from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
@@ -17,8 +21,10 @@ from lib389.topologies import topology_st
 from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX, BACKEND_NAME, PASSWORD
 
 from lib389._controls import SSSRequestControl
-
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.cli_base import FakeArgs
+from lib389.config import LDBMConfig
+from lib389.dbgen import dbgen_users
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.backend import Backends
@@ -46,10 +52,55 @@ NEW_BACKEND_1 = 'parent_base'
 NEW_BACKEND_2 = 'child_base'
 
 OLD_HOSTNAME = socket.gethostname()
-socket.sethostname('localhost')
+if os.getuid() == 0:
+    socket.sethostname('localhost')
 HOSTNAME = socket.gethostname()
 IP_ADDRESS = socket.gethostbyname(HOSTNAME)
 OLD_IP_ADDRESS = socket.gethostbyname(OLD_HOSTNAME)
+
+
+@pytest.fixture(scope="module")
+def create_40k_users(topology_st, request):
+    inst = topology_st.standalone
+
+    # Prepare return value
+    retval = FakeArgs()
+    retval.inst = inst
+    retval.bename = '40k'
+    retval.suffix = f'o={retval.bename}'
+    retval.ldif_file = f'{inst.get_ldif_dir()}/{retval.bename}.ldif'
+
+    # Create new backend
+    bes = Backends(inst)
+    be_1 = bes.create(properties={
+        'cn': retval.bename,
+        'nsslapd-suffix': retval.suffix,
+    })
+
+    # Set paged search lookthrough limit
+    ldbmconfig = LDBMConfig(inst)
+    ldbmconfig.replace('nsslapd-pagedlookthroughlimit', b'100000')
+
+    # Create ldif and import it.
+    dbgen_users(inst, 40000, retval.ldif_file, retval.suffix)
+    # tasks = Tasks(inst)
+    # args = {TASK_WAIT: True}
+    # tasks.importLDIF(retval.suffix, None, retval.ldif_file, args)
+    inst.stop()
+    assert inst.ldif2db(retval.bename, None, None, None, retval.ldif_file, None)
+    inst.start()
+
+    # And set an aci allowing anonymous read
+    log.info('Adding ACI to allow our test user to search')
+    ACI_TARGET = '(targetattr != "userPassword || aci")'
+    ACI_ALLOW = '(version 3.0; acl "Enable anonymous access";allow (read, search, compare)'
+    ACI_SUBJECT = '(userdn = "ldap:///anyone");)'
+    ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    o_1 = Organization(inst, retval.suffix)
+    o_1.set('aci', ACI_BODY)
+
+    return retval
+
 
 @pytest.fixture(scope="module")
 def create_user(topology_st, request):
@@ -75,8 +126,10 @@ def create_user(topology_st, request):
 
     def fin():
         log.info('Deleting user simplepaged_test')
-        user.delete()
-        socket.sethostname(OLD_HOSTNAME)
+        if not DEBUGGING:
+            user.delete()
+        if os.getuid() == 0:
+            socket.sethostname(OLD_HOSTNAME)
 
     request.addfinalizer(fin)
 
@@ -179,7 +232,7 @@ def change_conf_attr(topology_st, suffix, attr_name, attr_value):
     return attr_value_bck
 
 
-def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist):
+def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist, abandon_rate=0):
     """Search at the DEFAULT_SUFFIX with ldap.SCOPE_SUBTREE
     using Simple Paged Control(should the first item in the
     list controls.
@@ -199,9 +252,16 @@ def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist):
                                                     req_pr_ctrl.size,
                                                     str(controls)))
     msgid = conn.search_ext(suffix, ldap.SCOPE_SUBTREE, search_flt, searchreq_attrlist, serverctrls=controls)
+    log.info('Getting page %d' % (pages,))
     while True:
-        log.info('Getting page %d' % (pages,))
-        rtype, rdata, rmsgid, rctrls = conn.result3(msgid)
+        try:
+            rtype, rdata, rmsgid, rctrls = conn.result3(msgid, timeout=0.001)
+        except ldap.TIMEOUT:
+            if pages > 0 and abandon_rate>0 and randrange(100)<abandon_rate:
+                conn.abandon(msgid)
+                log.info('Paged result search is abandonned.')
+                return all_results
+            continue
         log.debug('Data: {}'.format(rdata))
         all_results.extend(rdata)
         pages += 1
@@ -221,6 +281,7 @@ def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist):
                 break  # No more pages available
         else:
             break
+        log.info('Getting page %d' % (pages,))
 
     assert not pctrls[0].cookie
     return all_results
@@ -1178,6 +1239,39 @@ def test_maxsimplepaged_per_conn_failure(topology_st, create_user, conf_attr_val
         log.info('Remove added users')
         del_users(users_list)
         change_conf_attr(topology_st, DN_CONFIG, 'nsslapd-maxsimplepaged-per-conn', max_per_con_bck)
+
+
+def test_search_stress_abandon(create_40k_users, create_user):
+    """Verify that search with a simple paged results control
+    returns all entries it should without errors.
+
+    :id: e154b24a-83d6-11ee-90d1-482ae39447e5
+    :customerscenario: True
+    :feature: Simple paged results
+    :setup: Standalone instance, test user for binding,
+            40K  users in a second backend
+    :steps:
+        1. Bind as test user
+        2. Loops a number of times doing:
+                 - search through added users with a simple paged control
+                 - randomly abandoning the search after a few ms.
+    :expectedresults:
+        1. Bind should be successful
+        2. The loop should complete successfully.
+    """
+
+    abandon_rate = 10
+    page_size = 500
+    nbloops = 1000
+    search_flt = r'(uid=*)'
+    searchreq_attrlist = ['dn', 'sn']
+    log.info('Set user bind %s ' % create_user)
+    conn = create_user.bind(TEST_USER_PWD)
+    for idx in range(nbloops):
+        req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
+        # If the issue #5984 is not fixed the server crashs and the paged search fails with ldap.SERVER_DOWN exception
+        paged_search(conn, create_40k_users.suffix, [req_ctrl], search_flt, searchreq_attrlist, abandon_rate=abandon_rate)
+
 
 if __name__ == '__main__':
     # Run isolated
