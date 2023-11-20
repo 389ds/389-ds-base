@@ -43,7 +43,7 @@ do_abandon(Slapi_PBlock *pb)
         struct timespec hr_time_end;
         int nentries;
         int opid;
-    } o_copy; 
+    } o_copy;
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
