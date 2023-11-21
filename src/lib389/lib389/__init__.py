@@ -1048,6 +1048,38 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_OFFLINE
 
+    def dump_errorlog(self):
+        '''
+            Its logs all errors messages within the error log that occured 
+            after the last startup.
+        '''
+        errlog = self.ds_paths.error_log
+        if os.path.isfile(errlog):
+            lines = []
+            nbskipped = 0
+            with open(errlog, 'r') as file:
+                for line in file:
+                    keepit = True
+                    if "starting up" in line:
+                        nbskipped += len(lines)
+                        lines = []
+                    for key in ( 'DEBUG', 'INFO', 'NOTICE', 'WARN' ):
+                        if key in line:
+                            keepit = False
+                            nbskipped += 1
+                            break
+                    if keepit:
+                        lines.append(line)
+            for line in lines:
+                # using logger.info because for some reason:
+                #  - self.log may not be initialized
+                #  - logger.error() does not log anything
+                logger.info(line.strip())
+            if not lines:
+                logger.info('No significant errors found in %s. (%d lines ignored)' % (errlog, nbskipped))
+        else:
+            logger.info('Cannot find the error log file %s.' % errlog)
+
     def start(self, timeout=120, post_open=True):
         '''
             It starts an instance and rebind it. Its final state after rebind
@@ -1058,7 +1090,8 @@ class DirSrv(SimpleLDAPObject, object):
 
             @return None
 
-            @raise ValueError
+            @raise ValueError (if error and systemd is not used)
+            @raise subprocess.CalledProcessError (if error and systemd is used)
         '''
         if not self.isLocal:
             self.log.error("This is a remote instance!")
@@ -1071,7 +1104,13 @@ class DirSrv(SimpleLDAPObject, object):
         if self.with_systemd():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
-            subprocess.check_output(["systemctl", "start", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
+            try:
+                subprocess.check_output(["systemctl", "start", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                self.dump_errorlog()
+                logger.info('Failed to start dirsrv@%s: "%s"' % (self.serverid, e.output.decode()))
+                logger.info(e)
+                raise e from None
         else:
             self.log.debug("systemd status -> False")
             # Start the process.
@@ -1095,6 +1134,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.log.debug("DEBUG: starting with %s" % cmd)
                 output = subprocess.check_output(*cmd, env=env, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
+                self.dump_errorlog()
                 self.log.error('Failed to start ns-slapd: "%s"' % e.output.decode())
                 self.log.error(e)
                 raise ValueError('Failed to start DS')
@@ -1116,6 +1156,7 @@ class DirSrv(SimpleLDAPObject, object):
                 time.sleep(1)
                 count -= 1
             if not pid_exists(pid):
+                self.dump_errorlog()
                 self.log.error("pid (%s) of ns-slapd process does not exist" % pid)
                 raise ValueError("Failed to start DS")
         if post_open:
