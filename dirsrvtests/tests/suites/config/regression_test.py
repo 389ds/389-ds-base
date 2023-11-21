@@ -10,7 +10,7 @@ import logging
 import pytest
 from lib389.utils import *
 from lib389.dseldif import DSEldif
-from lib389.config import LDBMConfig
+from lib389.config import BDB_LDBMConfig, LDBMConfig
 from lib389.backend import Backends
 from lib389.topologies import topology_st as topo
 
@@ -112,3 +112,17 @@ def test_maxbersize_repl(topo):
     log.info("Assert no init_dse_file errors in the error log")
     assert not inst.ds_error_log.match('.*ERR - init_dse_file.*')
 
+
+def test_bdb_config(topo):
+    """Check that bdb config entry exists
+
+    :id: edbc6f54-7c98-11ee-b1c0-482ae39447e5
+    :setup: MMR with two suppliers
+    :steps:
+        1. Check that bdb config instance exists.
+    :expectedresults:
+        1. Success
+    """
+
+    inst = topo.standalone
+    assert BDB_LDBMConfig(inst).exists()

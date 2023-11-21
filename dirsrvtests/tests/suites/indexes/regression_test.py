@@ -11,17 +11,58 @@ import os
 import pytest
 import ldap
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
+from lib389.backend import Backend, Backends, DatabaseConfig
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
-from lib389.index import Indexes
-from lib389.backend import Backends, DatabaseConfig
-from lib389.idm.user import UserAccounts
+from lib389.dbgen import dbgen_users
+from lib389.idm.domain import Domain
 from lib389.idm.group import Groups, Group
+from lib389.idm.nscontainer import nsContainer
+from lib389.idm.user import UserAccount, UserAccounts
+from lib389.index import Indexes
+from lib389.plugins import MemberOfPlugin
+from lib389.properties import TASK_WAIT
+from lib389.tasks import Tasks, Task
 from lib389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
-from lib389.plugins import MemberOfPlugin
-from lib389.idm.nscontainer import nsContainer
 
 pytestmark = pytest.mark.tier1
+
+SUFFIX2 = 'dc=example2,dc=com'
+BENAME2 = 'be2'
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+
+
+@pytest.fixture(scope="function")
+def add_backend_and_ldif_50K_users(request, topo):
+    """
+    Add an empty backend and associated 50K users ldif file
+    """
+
+    tasks = Tasks(topo.standalone)
+    import_ldif = f'{topo.standalone.ldifdir}/be2_50K_users.ldif'
+    be2 = Backend(topo.standalone)
+    be2.create(properties={
+            'cn': BENAME2,
+            'nsslapd-suffix': SUFFIX2,
+        },
+    )
+
+    def fin():
+        nonlocal be2
+        if not DEBUGGING:
+            be2.delete()
+
+    request.addfinalizer(fin)
+    parent = f'ou=people,{SUFFIX2}'
+    dbgen_users(topo.standalone, 50000, import_ldif, SUFFIX2, generic=True, parent=parent)
+    assert tasks.importLDIF(
+        suffix=SUFFIX2,
+        input_file=import_ldif,
+        args={TASK_WAIT: True}
+    ) == 0
+
+    return import_ldif
 
 
 @pytest.fixture(scope="function")
@@ -259,6 +300,116 @@ def test_reject_virtual_attr_for_indexing(topo):
             with pytest.raises(ValueError):
                 be.add_index('employeeType', ['eq'])
             break
+
+def test_task_status(topo):
+    """Check that finished tasks have both a status and exit code
+
+    :id: 56d03656-79a6-11ee-bfc3-482ae39447e5
+    :setup: Standalone instance
+    :steps:
+        1. Start a Reindex task on 'cn' and wait until it is completed
+        2. Check that task has a status
+        3. Check that exit code is 0
+        4. Start a Reindex task on 'badattr' and wait until it is completed
+        5. Check that task has a status
+        6. Check that exit code is 0
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    tasks = Tasks(topo.standalone)
+    # completed reindex tasks MUST have a status because freeipa check it.
+
+    # Reindex 'cn'
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='cn',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    assert reindex_task.get_exit_code() == 0
+
+    # Reindex 'badattr'
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='badattr',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    # Bad attribute are skipped without setting error code
+    assert reindex_task.get_exit_code() == 0
+
+
+def test_task_and_be(topo, add_backend_and_ldif_50K_users):
+    """Check that backend is writable after finishing a tasks
+
+    :id: 047869da-7a4d-11ee-895c-482ae39447e5
+    :setup: Standalone instance + a second backend with 50K users
+    :steps:
+        1. Start an Import task and wait until it is completed
+        2. Modify the suffix entry description
+        3. Start a Reindex task on all attributes and wait until it is completed
+        4. Modify the suffix entry description
+        5. Start an Export task and wait until it is completed
+        6. Modify the suffix entry description
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    tasks = Tasks(topo.standalone)
+    user = UserAccount(topo.standalone, f'uid=user00001,ou=people,{SUFFIX2}')
+    ldif_file = add_backend_and_ldif_50K_users
+
+    # Import
+    tasks.importLDIF(
+        suffix=SUFFIX2,
+        input_file=ldif_file,
+        args={TASK_WAIT: True}
+    ) == 0
+    descval = 'test_task_and_be tc1'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
+
+    # Reindex some attributes
+    assert tasks.reindex(
+        suffix=SUFFIX2,
+        attrname=[ 'description', 'rdn', 'uid', 'cn', 'sn', 'badattr' ],
+        args={TASK_WAIT: True}
+    ) == 0
+    descval = 'test_task_and_be tc2'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
+    users = UserAccounts(topo.standalone, SUFFIX2, rdn=None)
+    user = users.create(properties={
+        'uid': 'user1',
+        'sn': 'user1',
+        'cn': 'user1',
+        'uidNumber': '1001',
+        'gidNumber': '1001',
+        'homeDirectory': '/home/user1'
+    })
+
+    # Export
+    assert tasks.exportLDIF(
+        suffix=SUFFIX2,
+        output_file=f'{ldif_file}2',
+        args={TASK_WAIT: True}
+    ) == 0
+    descval = 'test_task_and_be tc3'
+    user.set('description', descval)
+    assert user.get_attr_val_utf8_l('description') == descval
 
 
 if __name__ == "__main__":

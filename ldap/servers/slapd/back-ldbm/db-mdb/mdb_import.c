@@ -668,6 +668,43 @@ error:
 
 /* Helper function to make up filenames */
 
+/* Ensure that the task status and exit code is properly set */
+static void
+dbmdb_task_finish(ImportJob *job, int ret)
+{
+    ldbm_instance *inst = job->inst;
+    char *opname = "importing";
+    char *task_dn = "";
+
+    if (job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1)) {
+        opname = "upgrading dn";
+    } else if (job->flags & FLAG_REINDEXING) {
+        opname = "indexing";
+    }
+
+    if (job->task != NULL) {
+        /*
+         * freeipa expect that finished tasks have both a status and
+         * an exit code.
+         * So lets ensure that both are set.
+         */
+        if (!job->task_status) {
+            dbmdb_import_log_status_start(job);
+        }
+        dbmdb_import_log_status_add_line(job, "%s: Finished %s task",
+                                         inst->inst_name, opname);
+        dbmdb_import_log_status_done(job);
+        slapi_task_finish(job->task, ret);
+        task_dn = slapi_ch_smprintf(" task '%s'", job->task->task_dn);
+    }
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_task_finish",
+                  "%s: Finished %s%s. Exit code is %d\n",
+                  inst->inst_name, opname, task_dn, ret);
+    if (*task_dn) {
+        slapi_ch_free_string(&task_dn);
+    }
+}
+
 /* when the import is done, this function is called to bring stuff back up.
  * returns 0 on success; anything else is an error
  */
@@ -700,6 +737,10 @@ dbmdb_import_all_done(ImportJob *job, int ret)
 
             /* bring backend online again */
             slapi_mtn_be_enable(inst->inst_be);
+            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_all_done",
+                          "Backend %s is now online.\n",
+                          slapi_be_get_name(inst->inst_be));
+
         }
         ret |= rc;
     }
@@ -708,7 +749,7 @@ dbmdb_import_all_done(ImportJob *job, int ret)
      * (to avoid race condition in CI)
      */
     if ((job->task != NULL) && (0 == slapi_task_get_refcount(job->task))) {
-        slapi_task_finish(job->task, ret & ~WARN_SKIPPED_IMPORT_ENTRY);
+        dbmdb_task_finish(job, ret & ~WARN_SKIPPED_IMPORT_ENTRY);
     }
 
     return ret;
@@ -982,15 +1023,11 @@ error:
             ret |= WARN_UPGRADE_DN_FORMAT_SPACE;
         } else {
             ret = -1;
-            if (job->task != NULL) {
-                slapi_task_finish(job->task, ret);
-            }
+            dbmdb_task_finish(job, ret);
         }
     } else if (0 != ret) {
         import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main", "%s failed.", opstr);
-        if (job->task != NULL) {
-            slapi_task_finish(job->task, ret);
-        }
+        dbmdb_task_finish(job, ret);
     } else {
         if (job->task) {
             /* set task warning if there are no errors */
@@ -1177,6 +1214,14 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
         slapi_task_set_destructor_fn(job->task, dbmdb_import_task_destroy);
         slapi_task_set_cancel_fn(job->task, dbmdb_import_task_abort);
         job->flags |= FLAG_ONLINE;
+
+        if (job->flags & FLAG_REINDEXING) {
+            /* Reindexing task : so we are called by task_index_thread
+             *  that runs in a dedicated thread.
+             * ==> should process the "import" synchroneously.
+             */
+            return dbmdb_public_dbmdb_import_main((void *)job);
+        }
 
         /* create thread for dbmdb_import_main, so we can return */
         thread = PR_CreateThread(PR_USER_THREAD, dbmdb_import_main, (void *)job,
