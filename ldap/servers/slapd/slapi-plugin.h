@@ -6654,6 +6654,9 @@ int slapi_config_remove_callback(int operation, int flags, const char *base, int
 #define SLAPI_TASK_FINISHED  2
 #define SLAPI_TASK_CANCELLED 3
 
+/* Mask for slapi_task_wait_for_state() */
+#define SLAPI_TASK_STATE_MASK(state) (1<<(state))
+
 /* task flag (pb_task_flags)*/
 #define SLAPI_TASK_RUNNING_AS_TASK          0x0
 #define SLAPI_TASK_RUNNING_FROM_COMMANDLINE 0x1
@@ -6722,6 +6725,27 @@ Slapi_Task *slapi_plugin_new_task(const char *dn, void *arg);
  *     none
  */
 void slapi_destroy_task(void *arg);
+
+/* slapi_task_set_state: set task state
+ * argument:
+ *     task: task to change
+ *     state: state to set
+ * result:
+ *     none
+ */
+void slapi_task_set_state(Slapi_Task *task, int state);
+
+/* slapi_task_wait_for_state: wait until the task state matchs the mask
+ *  or until the task is finished or cancelled.
+ * argument:
+ *     task: task to change
+ *     state_mask: ored values of SLAPI_TASK_STATE_MASK(wanted_state)
+ *
+ * result:
+ *     none
+ */
+void slapi_task_wait_for_state(Slapi_Task *task, int state_mask);
+
 /* End of interface to support online tasks **********************************/
 
 /* Slapi_Counter Interface */

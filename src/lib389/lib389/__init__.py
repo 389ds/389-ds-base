@@ -1077,10 +1077,10 @@ class DirSrv(SimpleLDAPObject, object):
                 logger.info(line.strip())
             if not lines:
                 logger.info('No significant errors found in %s. (%d lines ignored)' % (errlog, nbskipped))
-            if self.with_systemd():
-                cmd = ["systemctl", "status", f"dirsrv@{self.serverid}.service"]
-                result = subprocess.run(cmd, universal_newlines=True, stderr=subprocess.STDOUT)
-                logger.info("'%s' output is: %s" % (' '.join(cmd), result.stdout))
+                if self.with_systemd():
+                    cmd = ["systemctl", "status", f"dirsrv@{self.serverid}.service"]
+                    result = subprocess.run(cmd, universal_newlines=True, stderr=subprocess.STDOUT)
+                    logger.info("'%s' output is: %s" % (' '.join(cmd), result.stdout))
         else:
             logger.info('Cannot find the error log file %s.' % errlog)
 

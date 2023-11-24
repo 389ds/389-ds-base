@@ -2293,6 +2293,8 @@ automember_task_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __at
         slapi_task_finish(task, *returncode);
         rc = SLAPI_DSE_CALLBACK_ERROR;
     } else {
+        /* Wait until task thread has really started. */
+        slapi_task_wait_for_state(task, ~SLAPI_TASK_STATE_MASK(SLAPI_TASK_SETUP));
         rc = SLAPI_DSE_CALLBACK_OK;
     }
     return rc;
@@ -2440,6 +2442,8 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __attr
         PR_Unlock(fixup_lock);
         rv = SLAPI_DSE_CALLBACK_ERROR;
     } else {
+        /* Wait until task thread has really started. */
+        slapi_task_wait_for_state(task, ~SLAPI_TASK_STATE_MASK(SLAPI_TASK_SETUP));
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 
@@ -2749,6 +2753,8 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_task_finish(task, *returncode);
     } else {
+        /* Wait until task thread has really started. */
+        slapi_task_wait_for_state(task, ~SLAPI_TASK_STATE_MASK(SLAPI_TASK_SETUP));
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 
@@ -2935,6 +2941,8 @@ automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_task_finish(task, *returncode);
     } else {
+        /* Wait until task thread has really started. */
+        slapi_task_wait_for_state(task, ~SLAPI_TASK_STATE_MASK(SLAPI_TASK_SETUP));
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 

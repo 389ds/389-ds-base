@@ -91,6 +91,7 @@ def test_abort(automember_fixture, topo):
     task.wait()
 
     # Check errors log for abort message
+    log.info('AUTOMEMBER REBUILD TASK: dn=%s %s' % (task.dn, task.get_all_attrs_utf8()))
     assert topo.standalone.searchErrorsLog("task was intentionally aborted")
 
 

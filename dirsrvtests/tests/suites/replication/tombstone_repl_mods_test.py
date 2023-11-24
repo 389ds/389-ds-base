@@ -58,7 +58,7 @@ def test_replication_with_mod_delete_and_modrdn_operations(topology_m2):
     users_s1 = UserAccounts(S1, DEFAULT_SUFFIX)
     user1 = users_s1.create_test_user(uid=USER1_UID)
     test1 = users_s1.create_test_user(uid=USER2_UID)
-    repl.wait_for_replication(S2, S1)
+    repl.wait_for_replication(S1, S2)
 
     topology_m2.pause_all_replicas()
 
@@ -85,6 +85,7 @@ def test_replication_with_mod_delete_and_modrdn_operations(topology_m2):
     topology_m2.resume_all_replicas()
 
     # Check if replication is working
+    repl.wait_for_replication(S1, S2)
     repl.wait_for_replication(S2, S1)
 
     assert not users_s1.exists(f"test_user_{USER1_UID}")

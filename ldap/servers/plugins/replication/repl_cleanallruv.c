@@ -2057,6 +2057,8 @@ replica_execute_cleanall_ruv_task(Replica *replica, ReplicaId rid, Slapi_Task *t
         slapi_ch_free_string(&data->repl_root);
         goto fail;
     } else {
+        /* Wait until task thread has really started. */
+        slapi_task_wait_for_state(task, ~SLAPI_TASK_STATE_MASK(SLAPI_TASK_SETUP));
         goto done;
     }
 

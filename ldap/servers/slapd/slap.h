@@ -1802,6 +1802,8 @@ typedef struct slapi_task
     int task_refcount;
     void *origin_plugin;       /* If this is a plugin create task, store the plugin object */
     PRLock *task_log_lock;     /* To protect task_log to be realloced if it's in use */
+    pthread_mutex_t task_state_lock; /* To protect task_state_cv */
+    pthread_cond_t task_state_cv;    /* To wait for task_state change */
 } slapi_task;
 /* End of interface to support online tasks **********************************/
 

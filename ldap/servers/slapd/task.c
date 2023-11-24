@@ -76,6 +76,7 @@ static uint64_t shutting_down = 0;
 /***********************************
  * Static Function Prototypes
  ***********************************/
+static int task_test_and_set_state(Slapi_Task *task, int state_mask, int new_state);
 static Slapi_Task *new_task(const char *dn, void *plugin);
 static void destroy_task(time_t when, void *arg);
 static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
@@ -132,7 +133,7 @@ slapi_task_begin(Slapi_Task *task, int total_work)
     if (task) {
         task->task_work = total_work;
         task->task_progress = 0;
-        task->task_state = SLAPI_TASK_RUNNING;
+        slapi_task_set_state(task, SLAPI_TASK_RUNNING);
         slapi_task_status_changed(task);
     }
 }
@@ -157,7 +158,7 @@ slapi_task_finish(Slapi_Task *task, int rc)
 {
     if (task) {
         task->task_exitcode = rc;
-        task->task_state = SLAPI_TASK_FINISHED;
+        slapi_task_set_state(task, SLAPI_TASK_FINISHED);
         slapi_plugin_op_finished(task->origin_plugin);
         slapi_task_status_changed(task);
     }
@@ -171,7 +172,7 @@ slapi_task_cancel(Slapi_Task *task, int rc)
 {
     if (task) {
         task->task_exitcode = rc;
-        task->task_state = SLAPI_TASK_CANCELLED;
+        slapi_task_set_state(task, SLAPI_TASK_CANCELLED);
         slapi_task_status_changed(task);
     }
 }
@@ -593,10 +594,63 @@ slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func)
     }
 }
 
+/*
+ * slapi_task_set_state: state task state
+ * argument:
+ *     task: the task
+ *     state: the new state
+ * result:
+ *     None.
+ */
+void
+slapi_task_set_state(Slapi_Task *task, int state)
+{
+    task_test_and_set_state(task, 0, state);
+}
+
+/*
+ * slapi_task_wait_for_state: wait until:
+ *     task state is matching the mask, or
+ *     task is finished, or
+ *     task is cancelled.
+ * argument:
+ *     task: the task
+ *     state_mask: the mask (ored values of SLAPI_TASK_STATE_MASK(wanted_state))
+ * result:
+ *     None.
+ */
+void
+slapi_task_wait_for_state(Slapi_Task *task, int state_mask)
+{
+    /* Always stop waiting is task has finished or is cancelled */
+    state_mask |= SLAPI_TASK_STATE_MASK(SLAPI_TASK_CANCELLED);
+    state_mask |= SLAPI_TASK_STATE_MASK(SLAPI_TASK_FINISHED);
+
+    pthread_mutex_lock(&task->task_state_lock);
+    while ((SLAPI_TASK_STATE_MASK(task->task_state) & state_mask) == 0) {
+        pthread_cond_wait(&task->task_state_cv, &task->task_state_lock);
+    }
+    pthread_mutex_unlock(&task->task_state_lock);
+}
 
 /***********************************
  * Static Helper Functions
  ***********************************/
+
+/* change task state if previous state matchs the mask */
+static int
+task_test_and_set_state(Slapi_Task *task, int state_mask, int new_state)
+{
+    if (state_mask == 0 || (SLAPI_TASK_STATE_MASK(task->task_state) & state_mask)) {
+        pthread_mutex_lock(&task->task_state_lock);
+        task->task_state = new_state;
+        pthread_cond_broadcast(&task->task_state_cv);
+        pthread_mutex_unlock(&task->task_state_lock);
+        return -1;
+    }
+    return 0;
+}
+
 /* create a new task, fill in DN, and setup modify callback */
 static Slapi_Task *
 new_task(const char *rawdn, void *plugin)
@@ -646,8 +700,10 @@ new_task(const char *rawdn, void *plugin)
     task->next = global_task_list;
     global_task_list = task;
     PR_Unlock(global_task_lock);
+    pthread_cond_init(&task->task_state_cv, NULL);
+    pthread_mutex_init(&task->task_state_lock, NULL);
     task->task_dn = dn;
-    task->task_state = SLAPI_TASK_SETUP;
+    task_test_and_set_state(task, 0, SLAPI_TASK_SETUP);
     task->task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     task->destructor = NULL;
     task->cancel = NULL;
@@ -716,6 +772,8 @@ destroy_task(time_t when, void *arg)
     slapi_pblock_destroy(pb);
 
     slapi_ch_free_string(&task->task_dn);
+    pthread_cond_destroy(&task->task_state_cv);
+    pthread_mutex_destroy(&task->task_state_lock);
     slapi_ch_free((void **)&task);
 }
 
@@ -871,8 +929,8 @@ task_modify(Slapi_PBlock *pb,
      */
     if (strcasecmp(slapi_fetch_attr(eAfter, "nsTaskCancel", "false"), "true") == 0) {
         /* cancel this task, if not already */
-        if (task->task_state != SLAPI_TASK_CANCELLED) {
-            task->task_state = SLAPI_TASK_CANCELLED;
+        int mask = SLAPI_TASK_STATE_MASK(SLAPI_TASK_CANCELLED);
+        if (task_test_and_set_state(task, ~mask, SLAPI_TASK_CANCELLED)) {
             if (task->cancel) {
                 (*task->cancel)(task);
                 slapi_log_err(SLAPI_LOG_INFO, "task_modify", "Canceling task '%s'\n",
@@ -2854,10 +2912,9 @@ task_cancel_all(void) {
     PR_Lock(global_task_lock);
     shutting_down = 1;
     for (task = global_task_list; task; task = task->next) {
-        if (task->task_state != SLAPI_TASK_CANCELLED &&
-            task->task_state != SLAPI_TASK_FINISHED)
-        {
-            task->task_state = SLAPI_TASK_CANCELLED;
+        int mask = SLAPI_TASK_STATE_MASK(SLAPI_TASK_CANCELLED) |
+                   SLAPI_TASK_STATE_MASK(SLAPI_TASK_FINISHED);
+        if (task_test_and_set_state(task, ~mask, SLAPI_TASK_CANCELLED)) {
             if (task->cancel) {
                 slapi_log_err(SLAPI_LOG_INFO, "task_cancel_all", "Canceling task '%s'\n",
                               task->task_dn);

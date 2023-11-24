@@ -239,15 +239,13 @@ static void
 bdb_import_task_destroy(Slapi_Task *task)
 {
     ImportJob *job = (ImportJob *)slapi_task_get_data(task);
+    int mask = SLAPI_TASK_STATE_MASK(SLAPI_TASK_RUNNING);
 
     if (!job) {
         return;
     }
 
-    while (task->task_state == SLAPI_TASK_RUNNING) {
-        /* wait for the job to finish before freeing it */
-        DS_Sleep(PR_SecondsToInterval(1));
-    }
+    slapi_task_wait_for_state(task, ~mask);
     if (job->task_status) {
         slapi_ch_free((void **)&job->task_status);
         job->task_status = NULL;
@@ -260,6 +258,7 @@ static void
 bdb_import_task_abort(Slapi_Task *task)
 {
     ImportJob *job;
+    int mask = SLAPI_TASK_STATE_MASK(SLAPI_TASK_FINISHED);
 
     /* don't log anything from here, because we're still holding the
      * DSE lock for modify...
@@ -278,8 +277,7 @@ bdb_import_task_abort(Slapi_Task *task)
     job = (ImportJob *)slapi_task_get_data(task);
 
     import_abort_all(job, 0);
-    while (slapi_task_get_state(task) != SLAPI_TASK_FINISHED)
-        DS_Sleep(PR_MillisecondsToInterval(100));
+    slapi_task_wait_for_state(task, mask);
 }
 
 

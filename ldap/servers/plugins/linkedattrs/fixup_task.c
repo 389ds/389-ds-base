@@ -78,6 +78,8 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb,
         slapi_task_finish(task, *returncode);
         rv = SLAPI_DSE_CALLBACK_ERROR;
     } else {
+        /* Wait until task thread has really started. */
+        slapi_task_wait_for_state(task, ~SLAPI_TASK_STATE_MASK(SLAPI_TASK_SETUP));
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 
