@@ -21,6 +21,8 @@ from lib389.topologies import topology_st as topo
 pytestmark = [pytest.mark.tier1,
               pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")]
 
+MAX_TRIES = 10
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -138,9 +140,17 @@ def test_mods(automember_fixture, topo):
 
     # Run rebuild task (no cleanup)
     task = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=posixaccount")
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        # test only one fixup task is allowed at a time
-        automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=top")
+    for try in range(1,MAX_TRIES+1):
+        try:
+            # test only one fixup task is allowed at a time
+            task2 = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=top")
+            # But sometime first task finished before we start the second one
+            assert task.get_attr_val_utf8('nsTaskExitCode') == '0'
+            task=task2
+            assert try < MAX_TRIES
+            continue
+        except ldap.UNWILLING_TO_PERFORM:
+            break
     task.wait()
 
     # Test membership (user should still be in groups[0])
