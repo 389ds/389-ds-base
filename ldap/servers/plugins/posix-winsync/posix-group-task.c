@@ -136,8 +136,6 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_task_finish(task, *returncode);
     } else {
-        /* Wait until task thread has really started. */
-        slapi_task_wait_for_state(task, ~SLAPI_TASK_STATE_MASK(SLAPI_TASK_SETUP));
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 

@@ -138,19 +138,24 @@ def test_mods(automember_fixture, topo):
     automemberplugin.enable()
     topo.standalone.restart()
 
-    # Run rebuild task (no cleanup)
-    task = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=posixaccount")
-    for try in range(1,MAX_TRIES+1):
+    task_exit_code = '0'
+    nbtries = 0
+    # Loops if previously run task has completed successfully
+    while task_exit_code == '0':
+        # ensure there is not too many loops.
+        assert nbtries < MAX_TRIES
+        nbtries += 1
+        # Run rebuild task (no cleanup)
+        task = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=posixaccount")
         try:
             # test only one fixup task is allowed at a time
             task2 = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=top")
-            # But sometime first task finished before we start the second one
-            assert task.get_attr_val_utf8('nsTaskExitCode') == '0'
-            task=task2
-            assert try < MAX_TRIES
-            continue
         except ldap.UNWILLING_TO_PERFORM:
             break
+        # But sometime first task finished before we start the second one
+        task_exit_code = task.get_attr_val_utf8('nsTaskExitCode')
+        automemberplugin.abort_fixup()
+        task2.wait()
     task.wait()
 
     # Test membership (user should still be in groups[0])

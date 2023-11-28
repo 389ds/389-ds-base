@@ -80,13 +80,15 @@ static void
 dbmdb_import_task_destroy(Slapi_Task *task)
 {
     ImportJob *job = (ImportJob *)slapi_task_get_data(task);
-    int mask = SLAPI_TASK_STATE_MASK(SLAPI_TASK_RUNNING);
 
     if (!job) {
         return;
     }
 
-    slapi_task_wait_for_state(task, ~mask);
+    while (task->task_state == SLAPI_TASK_RUNNING) {
+        /* wait for the job to finish before freeing it */
+        DS_Sleep(PR_SecondsToInterval(1));
+    }
     if (job->task_status) {
         slapi_ch_free((void **)&job->task_status);
         job->task_status = NULL;
@@ -1207,7 +1209,7 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
             job->task->task_work = total_files + 1;
         }
         job->task->task_progress = 0;
-        slapi_task_set_state(job->task, SLAPI_TASK_RUNNING);
+        job->task->task_state = SLAPI_TASK_RUNNING;
         slapi_task_set_data(job->task, job);
         slapi_task_set_destructor_fn(job->task, dbmdb_import_task_destroy);
         slapi_task_set_cancel_fn(job->task, dbmdb_import_task_abort);

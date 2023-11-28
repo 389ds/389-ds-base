@@ -84,19 +84,19 @@ def test_abort(automember_fixture, topo):
 
     # Run rebuild task
     task_exit_code = '0'
-    try = 0
+    nbtries = 0
     # Loops if previously run task has completed successfully
     while task_exit_code == '0':
         # ensure there is not too many loops.
-        assert try < MAX_TRIES
-        try += 1
+        assert nbtries < MAX_TRIES
+        nbtries += 1
         # Start rebuild task
         task = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=top")
         time.sleep(1)
         # Abort rebuild task
         automemberplugin.abort_fixup()
-        task_exit_code = task.get_attr_val_utf8('nsTaskExitCode') != '0':
-        
+        task_exit_code = task.get_attr_val_utf8('nsTaskExitCode')
+
     # Wait for task completion
     task.wait()
 
