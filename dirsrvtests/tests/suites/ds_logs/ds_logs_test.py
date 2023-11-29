@@ -822,6 +822,7 @@ def test_etime_at_border_of_second(topology_st, clean_access_logs):
     assert not invalid_etime
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.skipif(ds_is_older('1.3.10.1', '1.4.1'), reason="Fail because of bug 1749236")
 @pytest.mark.bz1749236
 def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):

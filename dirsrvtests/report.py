@@ -22,6 +22,8 @@ p = Paths()
 # Concat filtered lines from a file as a string
 # Keeping only relevant data
 def logErrors(path):
+    if not os.path.isfile(path):
+        return f'WARNING: No error log file {path}'
     keywords = ( "CRIT", "EMERG", "ERR" )
     cleanstop = '- INFO - main - slapd stopped.'
     res=""

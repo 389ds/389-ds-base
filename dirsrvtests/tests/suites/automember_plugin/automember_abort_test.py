@@ -18,6 +18,8 @@ from lib389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
 
+# maximum number of retries when rebuild task is too fast.
+MAX_TRIES = 10
 
 @pytest.fixture(scope="module")
 def automember_fixture(topo, request):
@@ -27,7 +29,7 @@ def automember_fixture(topo, request):
 
     # Create users
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn=None)
-    NUM_USERS = 1000
+    NUM_USERS = 5000
     for num in range(NUM_USERS):
         num_ran = int(round(num))
         USER_NAME = 'test%05d' % num_ran
@@ -81,16 +83,25 @@ def test_abort(automember_fixture, topo):
     automemberplugin = AutoMembershipPlugin(topo.standalone)
 
     # Run rebuild task
-    task = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=top")
-    time.sleep(1)
+    task_exit_code = '0'
+    nbtries = 0
+    # Loops if previously run task has completed successfully
+    while task_exit_code == '0':
+        # ensure there is not too many loops.
+        assert nbtries < MAX_TRIES
+        nbtries += 1
+        # Start rebuild task
+        task = automemberplugin.fixup(DEFAULT_SUFFIX, "objectclass=top")
+        time.sleep(1)
+        # Abort rebuild task
+        automemberplugin.abort_fixup()
+        task_exit_code = task.get_attr_val_utf8('nsTaskExitCode')
 
-    # Abort rebuild task
-    automemberplugin.abort_fixup()
-
-    # Wait for rebuild task to finish
+    # Wait for task completion
     task.wait()
 
     # Check errors log for abort message
+    log.info('AUTOMEMBER REBUILD TASK: dn=%s %s' % (task.dn, task.get_all_attrs_utf8()))
     assert topo.standalone.searchErrorsLog("task was intentionally aborted")
 
 

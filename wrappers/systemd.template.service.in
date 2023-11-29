@@ -7,6 +7,7 @@ PartOf=@systemdgroupname@
 After=chronyd.service ntpd.service network-online.target systemd-tmpfiles-setup.service
 Before=radiusd.service
 Wants=systemd-tmpfiles-setup.service
+StartLimitBurst=100
 
 [Service]
 Type=notify
