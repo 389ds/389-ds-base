@@ -101,6 +101,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     int result_sent = 0;
     Connection *pb_conn = NULL;
     int32_t parent_op = 0;
+    int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
     struct timespec parent_time;
     Slapi_Mods *smods_add_rdn = NULL;
 
@@ -999,6 +1000,9 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
             }
             slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+            if (retval) {
+                betxn_callback_fails = 1;
+            }
             goto error_return;
         }
 
@@ -1249,10 +1253,12 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+        betxn_callback_fails = 1;
         goto error_return;
     }
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
     if (retval) {
+        betxn_callback_fails = 1;
         ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
         goto error_return;
     }
@@ -1318,7 +1324,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
 
 error_return:
     /* Revert the caches if this is the parent operation */
-    if (parent_op) {
+    if (parent_op && betxn_callback_fails) {
         revert_cache(inst, &parent_time);
     }
 
@@ -1400,7 +1406,9 @@ error_return:
                 }
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 
-                /* Revert the caches if this is the parent operation */
+                /* As it is a BETXN plugin failure then
+                 * revert the caches if this is the parent operation
+                 */
                 if (parent_op) {
                     revert_cache(inst, &parent_time);
                 }
