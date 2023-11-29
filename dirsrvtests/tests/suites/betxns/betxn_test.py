@@ -8,6 +8,7 @@
 #
 import pytest
 import ldap
+import os
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
@@ -15,6 +16,7 @@ from lib389.plugins import (SevenBitCheckPlugin, AttributeUniquenessPlugin,
                             MemberOfPlugin, ManagedEntriesPlugin,
                             ReferentialIntegrityPlugin, MEPTemplates,
                             MEPConfigs)
+from lib389.plugins import MemberOfPlugin
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups, Group
@@ -356,6 +358,92 @@ def test_ri_and_mep_cache_corruption(topology_st):
     # Success
     log.info("Test PASSED")
 
+def test_revert_cache(topology_st, request):
+    """Tests that reversion of the entry cache does not occur
+    during 'normal' failure (like schema violation) but only
+    when a plugin fails
+
+    :id: a2361285-b939-4da0-aa80-7fc54d12c981
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Create a user account (with a homeDirectory)
+         2. Remove the error log file
+         3. Add a second value of homeDirectory
+         4. Check that error log does not contain entry cache reversion
+         5. Configure memberof to trigger a failure
+         6. Do a update the will fail in memberof plugin
+         7. Check that error log does contain entry cache reversion
+
+    :expectedresults:
+         1. Succeeds
+         2. Fails with OBJECT_CLASS_VIOLATION
+         3. Succeeds
+         4. Succeeds
+         5. Succeeds
+         6. Fails with OBJECT_CLASS_VIOLATION
+         7. Succeeds
+    """
+    # Create an test user entry
+    log.info('Create a user without nsMemberOF objectclass')
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn='ou=people')
+        user = users.create_test_user()
+        user.replace('objectclass', ['top', 'account', 'person', 'inetorgperson', 'posixAccount', 'organizationalPerson', 'nsAccount'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    # Remove the current error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    #
+    # Add a second value to 'homeDirectory'
+    # leads to ldap.OBJECT_CLASS_VIOLATION
+    # And check that the entry cache was not reverted
+    try:
+        topology_st.standalone.modify_s(user.dn, [(ldap.MOD_ADD, 'homeDirectory', ensure_bytes('/home/user_new'))])
+        assert False
+    except ldap.OBJECT_CLASS_VIOLATION:
+        pass
+    assert not topology_st.standalone.ds_error_log.match('.*WARN - flush_hash - Upon BETXN callback failure, entry cache is flushed during.*')
+
+    # Prepare memberof so that it will fail during a next update
+    # If memberof plugin can not add 'memberof' to the
+    # member entry, it retries after adding
+    # 'memberOfAutoAddOC' objectclass to the member.
+    # If it fails again the plugin fails with 'object
+    # violation'
+    # To trigger this failure, set 'memberOfAutoAddOC'
+    # to a value that does *not* allow 'memberof' attribute
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.enable()
+    memberof.replace('memberOfAutoAddOC', 'account')
+    memberof.replace('memberofentryscope', DEFAULT_SUFFIX)
+    topology_st.standalone.restart()
+
+    # Try to add the user to demo_group
+    # It should fail because user entry has not 'nsmemberof' objectclass
+    # As this is a BETXN plugin that fails it should revert the entry cache
+    try:
+        GROUP_DN = "cn=demo_group,ou=groups,"  + DEFAULT_SUFFIX
+        topology_st.standalone.modify_s(GROUP_DN,
+            [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+        assert False
+    except ldap.OBJECT_CLASS_VIOLATION:
+        pass
+    assert topology_st.standalone.ds_error_log.match('.*WARN - flush_hash - Upon BETXN callback failure, entry cache is flushed during.*')
+
+    def fin():
+        user.delete()
+        memberof = MemberOfPlugin(topology_st.standalone)
+        memberof.replace('memberOfAutoAddOC', 'nsmemberof')
+
+    request.addfinalizer(fin)
 
 if __name__ == '__main__':
     # Run isolated

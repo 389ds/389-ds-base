@@ -80,6 +80,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
     int result_sent = 0;
     Connection *pb_conn;
     int32_t parent_op = 0;
+    int32_t betxn_callback_fails = 0; /* if a BETXN fails we need to revert entry cache */
     struct timespec parent_time;
 
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
@@ -431,6 +432,9 @@ replace_entry:
                                           &ldap_result_code : &retval );
                     }
                     slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                    if (retval) {
+                        betxn_callback_fails = 1;
+                    }
                     goto error_return;
                 }
             }
@@ -714,6 +718,9 @@ replace_entry:
                                      ldap_result_code ? &ldap_result_code : &retval);
                 }
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                if (retval) {
+                    betxn_callback_fails = 1;
+                }
                 goto error_return;
             }
         }
@@ -743,6 +750,9 @@ replace_entry:
                 }
                 /* retval is -1 */
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                if (rc) {
+                    betxn_callback_fails = 1;
+                }
                 goto error_return;
             }
             slapi_pblock_set(pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry);
@@ -1309,6 +1319,7 @@ replace_entry:
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+        betxn_callback_fails = 1;
         goto error_return;
     }
     if (parent_found) {
@@ -1324,6 +1335,7 @@ replace_entry:
 
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN);
     if (retval) {
+        betxn_callback_fails = 1;
         ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
         goto error_return;
     }
@@ -1396,7 +1408,7 @@ commit_return:
 
 error_return:
     /* Revert the caches if this is the parent operation */
-    if (parent_op) {
+    if (parent_op && betxn_callback_fails) {
         revert_cache(inst, &parent_time);
     }
 
