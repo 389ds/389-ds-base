@@ -531,7 +531,12 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
 {
     Hashtable *ht = cache->c_idtable; /* start with the ID table as it's in both ENTRY and DN caches */
     void *e, *laste = NULL;
+    char flush_etime[ETIME_BUFSIZ] = {0};
+    struct timespec duration;
+    struct timespec flush_start;
+    struct timespec flush_end;
 
+    clock_gettime(CLOCK_MONOTONIC, &flush_start);
     cache_lock(cache);
 
     for (size_t i = 0; i < ht->size; i++) {
@@ -609,6 +614,11 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
     }
 
     cache_unlock(cache);
+
+    clock_gettime(CLOCK_MONOTONIC, &flush_end);
+    slapi_timespec_diff(&flush_end, &flush_start, &duration);
+    snprintf(flush_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
+    slapi_log_err(SLAPI_LOG_WARNING, "flush_hash", "Upon BETXN callback failure, entry cache is flushed during %s\n", flush_etime);
 }
 
 void
