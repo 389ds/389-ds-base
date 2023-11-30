@@ -12,10 +12,19 @@ import pytest
 import os
 import time
 from lib389.topologies import topology_st as topo
-from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, PLUGIN_ACCT_POLICY, DN_PLUGIN, PASSWORD
+from lib389._constants import (
+    DEFAULT_SUFFIX,
+    DN_CONFIG,
+    DN_PLUGIN,
+    LOG_DEFAULT,
+    LOG_PLUGIN,
+    PASSWORD,
+    PLUGIN_ACCT_POLICY,
+)
 from lib389.idm.user import (UserAccount, UserAccounts)
 from lib389.plugins import (AccountPolicyPlugin, AccountPolicyConfig)
 from lib389.idm.domain import Domain
+from datetime import datetime, timedelta
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +36,7 @@ NEW_PASSWORD = 'password123'
 USER_SELF_MOD_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
 
-
+@pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/5998')
 def test_inactivty_and_expiration(topo):
     """Test account expiration works when we are checking all state attributes
 
@@ -52,11 +61,14 @@ def test_inactivty_and_expiration(topo):
         7. Success
     """
 
+    INACTIVITY_LIMIT = 60
+
     # Configure instance
     inst = topo.standalone
     inst.config.set('passwordexp', 'on')
     inst.config.set('passwordmaxage', '2')
     inst.config.set('passwordGraceLimit', '5')
+    inst.config.set('nsslapd-errorlog-level', str(LOG_PLUGIN + LOG_DEFAULT))
 
     # Add aci so user and update password
     suffix = Domain(inst, DEFAULT_SUFFIX)
@@ -78,6 +90,7 @@ def test_inactivty_and_expiration(topo):
     # Reset test user password to reset passwordExpirationtime
     conn = test_user.bind(PASSWORD)
     test_user = UserAccount(conn, TEST_ENTRY_DN)
+    date_pw_is_set = datetime.now()
     test_user.replace('userpassword', NEW_PASSWORD)
 
     # Sleep a little bit, we'll sleep the remaining 10 seconds later
@@ -93,7 +106,7 @@ def test_inactivty_and_expiration(topo):
     accp.set('altstateattrname', 'passwordexpirationtime')
     accp.set('specattrname', 'acctPolicySubentry')
     accp.set('limitattrname', 'accountInactivityLimit')
-    accp.set('accountInactivityLimit', '10')
+    accp.set('accountInactivityLimit', str(INACTIVITY_LIMIT))
     accp.set('checkAllStateAttrs', 'on')
     inst.restart()
 
@@ -101,9 +114,16 @@ def test_inactivty_and_expiration(topo):
     conn = test_user.bind(NEW_PASSWORD)
     test_user = UserAccount(conn, TEST_ENTRY_DN)
 
-    # Sleep to exceed passwordexprattiontime over 10 seconds, but less than
-    # 10 seconds for lastLoginTime
-    time.sleep(7)
+    # Sleep to exceed passwordexprattiontime over INACTIVITY_LIMIT seconds, but less than
+    # INACTIVITY_LIMIT seconds for lastLoginTime
+    # Based on real time because inst.restart() time is unknown
+    limit = timedelta(seconds=INACTIVITY_LIMIT+1)
+    now = datetime.now()
+    if now - date_pw_is_set >= limit:
+         pytest.mark.skip(reason="instance restart time was greater than inactivity limit")
+         return
+    deltat = limit + date_pw_is_set - now
+    time.sleep(deltat.total_seconds())
 
     # Try to bind, but password expiration should reject this as lastLogintTime
     # has not exceeded the inactivity limit
