@@ -7,11 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import socket
-<<<<<<< HEAD
-from random import sample
-=======
 from random import sample, randrange
->>>>>>> 06bd08629 (Issue 5984 - Crash when paged result search are abandoned (#5985))
 
 import pytest
 from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
