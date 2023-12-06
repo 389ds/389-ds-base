@@ -64,6 +64,8 @@
 #define SLAPD_ACCEPT_WAKEUP_TIMER 250
 #endif
 
+#define MILLISECONDS_PER_SECOND 1000
+
 int slapd_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
 int slapd_accept_wakeup_timer = SLAPD_ACCEPT_WAKEUP_TIMER; /* time in ms to wakeup */
 int slapd_ct_thread_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
@@ -918,6 +920,41 @@ slapd_sockets_ports_free(daemon_ports_t *ports_info)
 #endif
 }
 
+/*
+ * slapi_eq_repeat_rel callback that checks that idletimeout has not expired.
+ */
+void
+check_idletimeout(time_t when __attribute__((unused)), void *arg __attribute__((unused)) )
+{
+    Connection_Table *ct = the_connection_table;
+    time_t curtime = slapi_current_rel_time_t();
+    /* Walk all active connections of all connection listeners */
+    for (int list_num = 0; list_num < ct->list_num; list_num++) {
+        for (Connection *c = connection_table_get_first_active_connection(ct, list_num);
+             c != NULL; c = connection_table_get_next_active_connection(ct, c)) {
+            if (c->c_state == CONN_STATE_FREE || c->c_gettingber ||
+                c->c_ops != NULL || c->c_idletimeout <= 0 ||
+                curtime - c->c_idlesince < c->c_idletimeout) {
+                continue;
+            }
+            /* Looks like idletimeout has expired, lets acquire the lock
+             * and double check.
+             */
+            if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+                continue;
+            }
+            if (c->c_state != CONN_STATE_FREE && !c->c_gettingber &&
+               c->c_idletimeout > 0 && NULL == c->c_ops &&
+               curtime - c->c_idlesince >= c->c_idletimeout) {
+                /* idle timeout has expired */
+                disconnect_server_nomutex(c, c->c_connid, -1,
+                                          SLAPD_DISCONNECT_IDLE_TIMEOUT, ETIMEDOUT);
+            }
+            pthread_mutex_unlock(&(c->c_mutex));
+        }
+    }
+}
+
 void
 slapd_daemon(daemon_ports_t *ports)
 {
@@ -1123,6 +1160,9 @@ slapd_daemon(daemon_ports_t *ports)
                   "MAINPID=%lu",
                   (unsigned long)getpid());
 #endif
+    slapi_eq_repeat_rel(check_idletimeout, NULL,
+                        slapi_current_rel_time_t(),
+                        MILLISECONDS_PER_SECOND);
     /* The meat of the operation is in a loop on a call to select */
     while (!g_get_shutdown()) {
 
