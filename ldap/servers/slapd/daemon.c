@@ -921,6 +921,17 @@ slapd_sockets_ports_free(daemon_ports_t *ports_info)
 }
 
 /*
+ * Tells if idle timeout has expired
+ */
+static inline int __attribute__((always_inline))
+has_idletimeout_expired(Connection *c, time_t curtime)
+{
+    return (c->c_state != CONN_STATE_FREE && !c->c_gettingber &&
+            c->c_idletimeout > 0 && NULL == c->c_ops &&
+            curtime - c->c_idlesince >= c->c_idletimeout);
+}
+
+/*
  * slapi_eq_repeat_rel callback that checks that idletimeout has not expired.
  */
 void
@@ -932,9 +943,7 @@ check_idletimeout(time_t when __attribute__((unused)), void *arg __attribute__((
     for (int list_num = 0; list_num < ct->list_num; list_num++) {
         for (Connection *c = connection_table_get_first_active_connection(ct, list_num);
              c != NULL; c = connection_table_get_next_active_connection(ct, c)) {
-            if (c->c_state == CONN_STATE_FREE || c->c_gettingber ||
-                c->c_ops != NULL || c->c_idletimeout <= 0 ||
-                curtime - c->c_idlesince < c->c_idletimeout) {
+            if (!has_idletimeout_expired(c, curtime)) {
                 continue;
             }
             /* Looks like idletimeout has expired, lets acquire the lock
@@ -943,9 +952,7 @@ check_idletimeout(time_t when __attribute__((unused)), void *arg __attribute__((
             if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
                 continue;
             }
-            if (c->c_state != CONN_STATE_FREE && !c->c_gettingber &&
-               c->c_idletimeout > 0 && NULL == c->c_ops &&
-               curtime - c->c_idlesince >= c->c_idletimeout) {
+            if (has_idletimeout_expired(c, curtime)) {
                 /* idle timeout has expired */
                 disconnect_server_nomutex(c, c->c_connid, -1,
                                           SLAPD_DISCONNECT_IDLE_TIMEOUT, ETIMEDOUT);
@@ -1685,9 +1692,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                         disconnect_server_nomutex(c, c->c_connid, -1,
                                                   SLAPD_DISCONNECT_POLL, EPIPE);
                     }
-                } else if (c->c_idletimeout > 0 &&
-                           (curtime - c->c_idlesince) >= c->c_idletimeout &&
-                           NULL == c->c_ops) {
+                } else if (has_idletimeout_expired(c, curtime)) {
                     /* idle timeout */
                     disconnect_server_nomutex(c, c->c_connid, -1,
                                               SLAPD_DISCONNECT_IDLE_TIMEOUT, ETIMEDOUT);
