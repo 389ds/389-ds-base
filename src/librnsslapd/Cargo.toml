@@ -22,5 +22,5 @@ slapd = { path = "../slapd" }
 libc = "0.2"
 
 [build-dependencies]
-cbindgen = "0.9"
+cbindgen = "0.26"
 
