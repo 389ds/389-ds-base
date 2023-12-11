@@ -6,20 +6,49 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
 import logging
 import pytest
+import time
 from lib389.utils import *
 from lib389.dseldif import DSEldif
-from lib389.config import BDB_LDBMConfig, LDBMConfig
+from lib389.config import BDB_LDBMConfig, LDBMConfig, Config
 from lib389.backend import Backends
 from lib389.topologies import topology_st as topo
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
 
 pytestmark = pytest.mark.tier0
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 CUSTOM_MEM = '9100100100'
+IDLETIMEOUT = 5
+DN_TEST_USER = f'uid={TEST_USER_PROPERTIES["uid"]},ou=People,{DEFAULT_SUFFIX}'
+
+
+@pytest.fixture(scope="module")
+def idletimeout_topo(topo, request):
+    """Create an instance with a test user and set idletimeout"""
+    inst = topo.standalone
+    config = Config(inst)
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        **TEST_USER_PROPERTIES,
+        'userpassword' : PASSWORD,
+    })
+    config.replace('nsslapd-idletimeout', str(IDLETIMEOUT))
+
+    def fin():
+        if not DEBUGGING:
+            config.reset('nsslapd-idletimeout')
+            user.delete()
+
+    request.addfinalizer(fin)
+    return topo
 
 
 # Function to return value of available memory in kb
@@ -79,7 +108,7 @@ def test_maxbersize_repl(topo):
     nsslapd-errorlog-logmaxdiskspace are set in certain order
 
     :id: 743e912c-2be4-4f5f-9c2a-93dcb18f51a0
-    :setup: MMR with two suppliers
+    :setup: Standalone Instance
     :steps:
         1. Stop the instance
         2. Set nsslapd-errorlog-maxlogsize before/after
@@ -117,7 +146,7 @@ def test_bdb_config(topo):
     """Check that bdb config entry exists
 
     :id: edbc6f54-7c98-11ee-b1c0-482ae39447e5
-    :setup: MMR with two suppliers
+    :setup: standalone
     :steps:
         1. Check that bdb config instance exists.
     :expectedresults:
@@ -126,3 +155,38 @@ def test_bdb_config(topo):
 
     inst = topo.standalone
     assert BDB_LDBMConfig(inst).exists()
+
+
+@pytest.mark.parametrize("dn,expected_result", [(DN_TEST_USER, True), (DN_DM, False)])
+def test_idletimeout(idletimeout_topo, dn, expected_result):
+    """Check that bdb config entry exists
+
+    :id: b20f2826-942a-11ee-827b-482ae39447e5
+    :parametrized: yes
+    :setup: Standalone Instance with test user and idletimeout
+    :steps:
+        1. Open new ldap connection
+        2. Bind with the provided dn
+        3. Wait longer than idletimeout
+        4. Try to bind again the provided dn and check if
+           connection is closed or not.
+        5. Check if result is the expected one.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+
+    inst = idletimeout_topo.standalone
+
+    l = ldap.initialize(f'ldap://localhost:{inst.port}')
+    l.bind_s(dn, PASSWORD)
+    time.sleep(IDLETIMEOUT+1)
+    try:
+        l.bind_s(dn, PASSWORD)
+        result = False
+    except ldap.SERVER_DOWN:
+        result = True
+    assert expected_result == result
