@@ -153,7 +153,9 @@ def test_healthcheck_list_checks(topology_st):
                    'replication:conflicts',
                    'dseldif:nsstate',
                    'tls:certificate_expiration',
-                   'logs:notes']
+                   'logs:notes',
+                   'tunables:thp',
+                   ]
 
     standalone = topology_st.standalone
 
@@ -205,6 +207,7 @@ def test_healthcheck_list_errors(topology_st):
                    'DSSKEWLE0001 :: Medium time skew',
                    'DSSKEWLE0002 :: Major time skew',
                    'DSSKEWLE0003 :: Extensive time skew',
+                   'DSTHPLE0001 :: Transparent Huge Pages',
                    'DSVIRTLE0001 :: Virtual attribute indexed']
 
     standalone = topology_st.standalone
