@@ -465,3 +465,29 @@ unknown attribute in the search filter.\n""",
     'fix': """Stop using this these unknown attributes in the filter, or add the schema
 to the server and make sure it's properly indexed."""
 }
+
+# Transparent Huge Pages
+DSTHPLE0001 = {
+    'dsle': 'DSTHPLE0001',
+    'severity': 'Medium',
+    'description': 'Transparent Huge Pages',
+    'items': ['Possible Performance Impact'],
+    'detail': """Transparent Huge Pages are enabled. This can lead to an unexpected memory
+consumption, especially when using large caches.\n""",
+    'fix': """Disable Transparent Huge Pages.
+System-wide at boot:
+Add "transparent_hugepage=never" to the list of kernel boot parameters.
+
+System-wide at runtime:
+# echo "never" > /sys/kernel/mm/transparent_hugepage/enabled
+# echo "never" > /sys/kernel/mm/transparent_hugepage/defrag
+
+Per instance (for the versions of 389 Directory Server that support it):
+Edit dirsrv unit file:
+# systemctl edit dirsrv@instance_name
+
+And uncomment the following lines:
+[Service]
+Environment=THP_DISABLE=1
+"""
+}
