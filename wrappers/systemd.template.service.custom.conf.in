@@ -51,3 +51,7 @@ TimeoutStopSec=600
 
 # Preload jemalloc
 Environment=LD_PRELOAD=@libdir@/@package_name@/lib/libjemalloc.so.2
+
+# Disable Transparent Huge Pages
+Environment=THP_DISABLE=1
+

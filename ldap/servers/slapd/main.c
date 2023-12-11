@@ -65,6 +65,10 @@ union semun
 #include <malloc.h>
 #endif
 
+#ifdef LINUX
+#include <sys/prctl.h>
+#endif
+
 /* Forward Declarations */
 
 struct main_config
@@ -513,6 +517,14 @@ main(int argc, char **argv)
 {
     int return_value = 0;
     struct main_config mcfg = {0};
+#ifdef LINUX
+#if defined(PR_SET_THP_DISABLE)
+    char *thp_disable = getenv("THP_DISABLE");
+    if (thp_disable != NULL && strcmp(thp_disable, "1") == 0) {
+        prctl(PR_SET_THP_DISABLE, 1, 0, 0, 0);
+    }
+#endif
+#endif
 
     /* Set a number of defaults */
     mcfg.slapd_exemode = SLAPD_EXEMODE_UNKNOWN;
