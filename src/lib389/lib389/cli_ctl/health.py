@@ -19,6 +19,7 @@ from lib389.replica import Replica
 from lib389.nss_ssl import NssSsl
 from lib389.dseldif import FSChecks, DSEldif
 from lib389.dirsrv_log import DirsrvAccessLog
+from lib389.tunables import Tunables
 from lib389 import lint
 from lib389 import plugins
 from lib389._constants import DSRC_HOME
@@ -39,6 +40,7 @@ CHECK_OBJECTS = [
     DSEldif,
     NssSsl,
     DirsrvAccessLog,
+    Tunables,
 ]
 
 
