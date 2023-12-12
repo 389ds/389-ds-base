@@ -98,6 +98,7 @@ find_entry_internal_dn(
     size_t tries = 0;
     int isroot = 0;
     int op_type;
+    int reverted_entry = 0;
 
     /* get the managedsait ldap message control */
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
@@ -141,11 +142,19 @@ find_entry_internal_dn(
          */
         slapi_log_err(SLAPI_LOG_ARGS, "find_entry_internal_dn",
                       "   Retrying (%s)\n", slapi_sdn_get_dn(sdn));
+        if (cache_is_reverted_entry(&inst->inst_cache, e)) {
+            reverted_entry = 1;
+            break;
+        }
         CACHE_RETURN(&inst->inst_cache, &e);
         tries++;
     }
     if (tries >= LDBM_CACHE_RETRY_COUNT) {
         slapi_log_err(SLAPI_LOG_ERR, "find_entry_internal_dn", "Retry count exceeded (%s)\n", slapi_sdn_get_dn(sdn));
+    }
+    if (reverted_entry) {
+        slapi_send_ldap_result(pb, LDAP_BUSY, NULL, "target entry busy because of a canceled operation", 0, NULL);
+        return (NULL);
     }
     /*
      * there is no such entry in this server. see how far we
@@ -262,6 +271,7 @@ find_entry_internal_uniqueid(
     struct backentry *e;
     int err;
     size_t tries = 0;
+    int reverted_entry = 0;
 
     while ((tries < LDBM_CACHE_RETRY_COUNT) &&
            (e = uniqueid2entry(be, uniqueid, txn, &err)) != NULL) {
@@ -283,6 +293,10 @@ find_entry_internal_uniqueid(
          */
         slapi_log_err(SLAPI_LOG_ARGS,
                       "   find_entry_internal_uniqueid", "Retrying; uniqueid = (%s)\n", uniqueid);
+        if (cache_is_reverted_entry(&inst->inst_cache, e)) {
+            reverted_entry = 1;
+            break;
+        }
         CACHE_RETURN(&inst->inst_cache, &e);
         tries++;
     }
@@ -292,9 +306,14 @@ find_entry_internal_uniqueid(
                       uniqueid);
     }
 
-    /* entry not found */
-    slapi_send_ldap_result(pb, (0 == err || DBI_RC_NOTFOUND == err) ? LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
-                           0, NULL);
+    if (reverted_entry) {
+        slapi_send_ldap_result(pb, LDAP_BUSY, NULL, "target entry busy because of a canceled operation", 0, NULL);
+        return (NULL);
+    } else {
+        /* entry not found */
+        slapi_send_ldap_result(pb, (0 == err || DBI_RC_NOTFOUND == err) ? LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
+                               0, NULL);
+    }
     slapi_log_err(SLAPI_LOG_TRACE,
                   "find_entry_internal_uniqueid", "<= not found; uniqueid = (%s)\n",
                   uniqueid);
