@@ -445,6 +445,92 @@ def test_revert_cache(topology_st, request):
 
     request.addfinalizer(fin)
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
+def test_revert_cache_noloop(topology_st, request):
+    """Tests that when an entry is reverted, if an update
+    hit the reverted entry then the retry loop is aborted
+    and the update gets err=51
+    NOTE: this test requires a dynamic so that the two updates
+    occurs about the same time. If the test becomes fragile it is
+    okay to make it flaky
+
+    :id: 88ef0ba5-8c66-49e6-99c9-9e3f6183917f
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Create a user account (with a homeDirectory)
+         2. Remove the error log file
+         3. Configure memberof to trigger a failure
+         4. Do in a loop 3 parallel updates (they will fail in
+            memberof plugin) and an updated on the reverted entry
+         5. Check that error log does contain entry cache reversion
+
+    :expectedresults:
+         1. Succeeds
+         2. Success
+         3. Succeeds
+         4. Succeeds
+         5. Succeeds
+    """
+    # Create an test user entry
+    log.info('Create a user without nsMemberOF objectclass')
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn='ou=people')
+        user = users.create_test_user()
+        user.replace('objectclass', ['top', 'account', 'person', 'inetorgperson', 'posixAccount', 'organizationalPerson', 'nsAccount'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    # Remove the current error log file
+    topology_st.standalone.stop()
+    lpath = topology_st.standalone.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    topology_st.standalone.start()
+
+    # Prepare memberof so that it will fail during a next update
+    # If memberof plugin can not add 'memberof' to the
+    # member entry, it retries after adding
+    # 'memberOfAutoAddOC' objectclass to the member.
+    # If it fails again the plugin fails with 'object
+    # violation'
+    # To trigger this failure, set 'memberOfAutoAddOC'
+    # to a value that does *not* allow 'memberof' attribute
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.enable()
+    memberof.replace('memberOfAutoAddOC', 'account')
+    memberof.replace('memberofentryscope', DEFAULT_SUFFIX)
+    topology_st.standalone.restart()
+
+    for i in range(50):
+        # Try to add the user to demo_group
+        # It should fail because user entry has not 'nsmemberof' objectclass
+        # As this is a BETXN plugin that fails it should revert the entry cache
+        try:
+            GROUP_DN = "cn=demo_group,ou=groups,"  + DEFAULT_SUFFIX
+            topology_st.standalone.modify(GROUP_DN,
+                [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+            topology_st.standalone.modify(GROUP_DN,
+                [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+            topology_st.standalone.modify(GROUP_DN,
+                [(ldap.MOD_REPLACE, 'member', ensure_bytes(user.dn))])
+        except ldap.OBJECT_CLASS_VIOLATION:
+            pass
+
+        user.replace('cn', ['new_value'])
+
+    # Check that both a betxn failed and a reverted entry was
+    # detected during an update
+    assert topology_st.standalone.ds_error_log.match('.*WARN - flush_hash - Upon BETXN callback failure, entry cache is flushed during.*')
+    assert topology_st.standalone.ds_error_log.match('.*cache_is_reverted_entry - Entry reverted.*')
+
+    def fin():
+        user.delete()
+        memberof = MemberOfPlugin(topology_st.standalone)
+        memberof.replace('memberOfAutoAddOC', 'nsmemberof')
+
+    request.addfinalizer(fin)
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

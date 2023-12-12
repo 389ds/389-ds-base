@@ -1693,6 +1693,25 @@ cache_lock_entry(struct cache *cache, struct backentry *e)
     return 0;
 }
 
+int
+cache_is_reverted_entry(struct cache *cache, struct backentry *e)
+{
+    struct backentry *dummy_e;
+
+    cache_lock(cache);
+    if (find_hash(cache->c_idtable, &e->ep_id, sizeof(ID), (void **)&dummy_e)) {
+        if (dummy_e->ep_state & ENTRY_STATE_INVALID) {
+            slapi_log_err(SLAPI_LOG_WARNING, "cache_is_reverted_entry", "Entry reverted = %d (0x%lX)  [entry: 0x%lX] refcnt=%d\n", 
+                          dummy_e->ep_state,
+                          pthread_self(),
+                          dummy_e, dummy_e->ep_refcnt);
+            cache_unlock(cache);
+            return 1;
+        }
+    }
+    cache_unlock(cache);
+    return 0;
+}
 /* the opposite of above */
 void
 cache_unlock_entry(struct cache *cache __attribute__((unused)), struct backentry *e)
