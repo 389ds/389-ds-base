@@ -62,8 +62,9 @@ def create_40k_users(topology_st, request):
     retval = FakeArgs()
     retval.inst = inst
     retval.bename = '40k'
-    retval.suffix = f'o={retval.bename}'
-    retval.ldif_file = f'{inst.get_ldif_dir()}/{retval.bename}.ldif'
+    retval.suffix = 'o=%s' % retval.bename
+    ldifdir = inst.get_ldif_dir()
+    retval.ldif_file = '%s/%s.ldif' % (ldifdir, retval.bename)
 
     # Create new backend
     bes = Backends(inst)
@@ -621,7 +622,8 @@ def test_search_ip_aci(topology_st, create_user):
         time.sleep(.5)
 
         log.info('Set user bind')
-        conn = create_user.bind(TEST_USER_PWD, uri=f'ldap://{HOSTNAME}:{topology_st.standalone.port}')
+        myuri = 'ldap://%s:%d' % (HOSTNAME, topology_st.standalone.port)
+        conn = create_user.bind(TEST_USER_PWD, uri=myuri)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
