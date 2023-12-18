@@ -78,7 +78,7 @@ jobs:
         sudo systemctl unmask docker
         sudo systemctl start docker
     - name: Download RPMs
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v3
       with:
         name: rpms
 
