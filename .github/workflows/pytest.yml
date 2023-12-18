@@ -12,11 +12,11 @@ on:
         required: false
         default: false
       debug_enabled:
-        description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'     
+        description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'
         required: false
         default: false
 
-permissions: 
+permissions:
   actions: read
   packages: read
   contents: read
@@ -79,10 +79,10 @@ jobs:
         sudo systemctl start docker
 
     - name: Download RPMs
-      uses: actions/download-artifact@master
+      uses: actions/download-artifact@v3
       with:
         name: rpms
-    
+
     - name: Extract RPMs
       run: tar xvf dist.tar
 
@@ -107,7 +107,7 @@ jobs:
     - name: Sanitize filename
       if: always()
       run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
-      
+
     - name: Upload pytest test results
       if: always()
       uses: actions/upload-artifact@v3
