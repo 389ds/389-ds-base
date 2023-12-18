@@ -38,10 +38,10 @@ jobs:
 
       - name: Get a list of all test suites
         id: set-matrix
-        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})"
+        run: echo "matrix=$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})" >>$GITHUB_OUTPUT
 
       - name: Build RPMs
-        run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
+        run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
 
       - name: Tar build artifacts
         run: tar -cvf dist.tar dist/
@@ -90,6 +90,10 @@ jobs:
       run: |
         set -x
         CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        until sudo docker exec $CID sh -c "systemctl is-system-running"
+        do
+          echo "Waiting for container to be ready..."
+        done
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
         export PASSWD=$(openssl rand -base64 32)
         sudo docker exec $CID sh -c "echo \"${PASSWD}\" | passwd --stdin root"
