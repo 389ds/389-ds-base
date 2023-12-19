@@ -333,7 +333,7 @@ class Encryption(DSLdapObject):
         :type ciphers: list of str
         """
         self.set('nsSSL3Ciphers', ','.join(ciphers))
-        self._log.info('Remeber to restart the server to apply the new cipher set.')
+        self._log.info('Remember to restart the server to apply the new cipher set.')
         self._log.info('Some ciphers may be disabled anyway due to allowWeakCipher attribute.')
 
     def _get_listed_ciphers(self, attr):
