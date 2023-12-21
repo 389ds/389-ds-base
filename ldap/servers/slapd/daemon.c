@@ -815,7 +815,6 @@ accept_thread(void *vports)
     PRErrorCode prerr;
     int last_accept_new_connections = -1;
     PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_accept_wakeup_timer);
-    //slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     PRFileDesc **n_tcps = NULL;
     PRFileDesc **s_tcps = NULL;
     PRFileDesc **i_unix = NULL;
