@@ -45,10 +45,18 @@ arg_to_attr = {
         'host': 'nsds5replicahost',
         'port': 'nsds5replicaport',
         'conn_protocol': 'nsds5replicatransportinfo',
+        'conn_tls_uri': 'nsds5replicatransporturi',
+        'no_conn_tls_uri': 'nsds5replicatransporturi',
+        'conn_tls_ca_uri': 'nsds5replicatransportcauri',
+        'no_conn_tls_ca_uri': 'nsds5replicatransportcauri',
         'bind_dn': 'nsds5replicabinddn',
         'bind_passwd': 'nsds5replicacredentials',
         'bind_method': 'nsds5replicabindmethod',
         'bootstrap_conn_protocol': 'nsds5replicabootstraptransportinfo',
+        'bootstrap_conn_tls_uri': 'nsds5replicabootstraptransporturi',
+        'no_bootstrap_conn_tls_uri': 'nsds5replicabootstraptransporturi',
+        'bootstrap_conn_tls_ca_uri': 'nsds5replicabootstraptransportcauri',
+        'no_bootstrap_conn_tls_ca_uri': 'nsds5replicabootstraptransportcauri',
         'bootstrap_bind_dn': 'nsds5replicabootstrapbinddn',
         'bootstrap_bind_passwd': 'nsds5replicabootstrapcredentials',
         'bootstrap_bind_method': 'nsds5replicabootstrapbindmethod',
@@ -775,6 +783,10 @@ def add_agmt(inst, basedn, log, args):
         properties['nsDS5ReplicaCredentials'] = passwd
     elif args.bind_passwd is not None:
         properties['nsDS5ReplicaCredentials'] = args.bind_passwd
+    if args.conn_tls_uri is not None:
+        properties['nsDS5ReplicaTransportUri'] = args.conn_tls_uri
+    if args.conn_tls_ca_uri is not None:
+        properties['nsDS5ReplicaTransportCAUri'] = args.conn_tls_ca_uri
     if args.schedule is not None:
         properties['nsds5replicaupdateschedule'] = args.schedule
     if frac_list is not None:
@@ -808,6 +820,10 @@ def add_agmt(inst, basedn, log, args):
         if bootstrap_conn_protocol != "ldap" and bootstrap_conn_protocol != "ldaps" and bootstrap_conn_protocol != "starttls":
             raise ValueError('Bootstrap connection protocol can only be "LDAP", "LDAPS", or "STARTTLS"')
         properties['nsDS5ReplicaBootstrapTransportInfo'] = args.bootstrap_conn_protocol
+    if args.bootstrap_conn_tls_uri is not None:
+        properties['nsDS5ReplicaBootstrapTransportUri'] = args.bootstrap_conn_tls_uri
+    if args.bootstrap_conn_tls_ca_uri is not None:
+        properties['nsDS5ReplicaBootstrapTransportCAUri'] = args.bootstrap_conn_tls_ca_uri
 
     # We do need the bind dn and credentials for 'simple' bind method
     if (bind_method == 'simple') and (args.bind_dn is None or
@@ -878,7 +894,7 @@ def set_agmt(inst, basedn, log, args):
     modlist = []
     did_something = False
     for attr, value in attrs.items():
-        if value == "":
+        if value == "" or not value:
             # Delete value
             agmt.remove_all(attr)
             did_something = True
@@ -1006,6 +1022,10 @@ def add_winsync_agmt(inst, basedn, log, args):
         properties['winsyncdirectoryfilter'] = args.ds_filter
     if args.win_filter is not None:
         properties['winsyncwindowsfilter'] = args.win_filter
+    if args.conn_tls_uri is not None:
+        properties['nsDS5ReplicaTransportUri'] = args.conn_tls_uri
+    if args.conn_tls_ca_uri is not None:
+        properties['nsDS5ReplicaTransportCAUri'] = args.conn_tls_ca_uri
     if args.schedule is not None:
         properties['nsds5replicaupdateschedule'] = args.schedule
     if frac_list is not None:
@@ -1045,7 +1065,7 @@ def set_winsync_agmt(inst, basedn, log, args):
         if attr == "onewaysync" and value == "both":
             value == ""
 
-        if value == "":
+        if value == "" or not value:
             # Delete value
             agmt.remove_all(attr)
             did_something = True
@@ -1431,7 +1451,7 @@ def create_parser(subparsers):
     repl_set_parser.add_argument('--repl-add-bind-dn', help="Adds a bind (supplier) DN")
     repl_set_parser.add_argument('--repl-del-bind-dn', help="Removes a bind (supplier) DN")
     repl_set_parser.add_argument('--repl-add-ref', help="Adds a replication referral (for consumers only)")
-    repl_set_parser.add_argument('--repl-del-ref', help="Removes a replication referral (for conusmers only)")
+    repl_set_parser.add_argument('--repl-del-ref', help="Removes a replication referral (for consumers only)")
     repl_set_parser.add_argument('--repl-purge-delay', help="Sets the replication purge delay")
     repl_set_parser.add_argument('--repl-tombstone-purge-interval', help="Sets the interval in seconds to check for tombstones that can be purged")
     repl_set_parser.add_argument('--repl-fast-tombstone-purging', help="Enables or disables improving the tombstone purging performance")
@@ -1527,6 +1547,8 @@ def create_parser(subparsers):
     agmt_add_parser.add_argument('--host', required=True, help="Sets the hostname of the remote replica")
     agmt_add_parser.add_argument('--port', required=True, help="Sets the port number of the remote replica")
     agmt_add_parser.add_argument('--conn-protocol', required=True, help="Sets the replication connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_add_parser.add_argument('--conn-tls-uri', action='append', help="Sets the replication connection TLS uris")
+    agmt_add_parser.add_argument('--conn-tls-ca-uri', action='append', help="Sets the replication connection TLS CA uris")
     agmt_add_parser.add_argument('--bind-dn', help="Sets the bind DN the agreement uses to authenticate to the replica")
     agmt_add_parser.add_argument('--bind-passwd', help="Sets the credentials for the bind DN")
     agmt_add_parser.add_argument('--bind-passwd-file', help="File containing the password")
@@ -1561,6 +1583,10 @@ def create_parser(subparsers):
     agmt_add_parser.add_argument('--bootstrap-bind-passwd-prompt', action='store_true', help="File containing the password")
     agmt_add_parser.add_argument('--bootstrap-conn-protocol',
                                  help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_add_parser.add_argument('--bootstrap-conn-tls-uri', action='append',
+                                 help="Sets the replication bootstrap connection TLS uris")
+    agmt_add_parser.add_argument('--bootstrap-conn-tls-ca-uri', action='append',
+                                 help="Sets the replication bootstrap connection TLS CA uris")
     agmt_add_parser.add_argument('--bootstrap-bind-method', help="Sets the bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
     agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initializes the agreement after creating it")
 
@@ -1572,6 +1598,10 @@ def create_parser(subparsers):
     agmt_set_parser.add_argument('--host', help="Sets the hostname of the remote replica")
     agmt_set_parser.add_argument('--port', help="Sets the port number of the remote replica")
     agmt_set_parser.add_argument('--conn-protocol', help="Sets the replication connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_set_parser.add_argument('--conn-tls-uri', action='append', help="Sets the replication connection TLS uris")
+    agmt_set_parser.add_argument('--no-conn-tls-uri', action='store_const', const='', help="Unsets all replication connection TLS uris")
+    agmt_set_parser.add_argument('--conn-tls-ca-uri', action='append', help="Sets the replication connection TLS CA uris")
+    agmt_set_parser.add_argument('--no-conn-tls-ca-uri', action='store_const', const='', help="Unsets all replication connection TLS CA uris")
     agmt_set_parser.add_argument('--bind-dn', help="Sets the Bind DN the agreement uses to authenticate to the replica")
     agmt_set_parser.add_argument('--bind-passwd', help="Sets the credentials for the bind DN")
     agmt_set_parser.add_argument('--bind-passwd-file', help="File containing the password")
@@ -1605,6 +1635,14 @@ def create_parser(subparsers):
     agmt_set_parser.add_argument('--bootstrap-bind-passwd-prompt', action='store_true', help="Prompt for password")
     agmt_set_parser.add_argument('--bootstrap-conn-protocol',
                                  help="Sets the replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_set_parser.add_argument('--bootstrap-conn-tls-uri', action='append',
+                                 help="Sets the replication bootstrap connection TLS uris")
+    agmt_set_parser.add_argument('--no-bootstrap-conn-tls-uri', action='store_const', const='',
+                                 help="Unsets the replication bootstrap connection TLS uris")
+    agmt_set_parser.add_argument('--bootstrap-conn-tls-ca-uri', action='append',
+                                 help="Sets the replication bootstrap connection TLS CA uris")
+    agmt_set_parser.add_argument('--no-bootstrap-conn-tls-ca-uri', action='store_const', const='',
+                                 help="Unsets the replication bootstrap connection TLS CA uris")
     agmt_set_parser.add_argument('--bootstrap-bind-method', help="Sets the bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
 
     # Get
@@ -1676,6 +1714,10 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--port', required=True, help="Sets the port number of the AD server")
     winsync_agmt_add_parser.add_argument('--conn-protocol', required=True,
                                          help="Sets the replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
+    winsync_agmt_add_parser.add_argument('--conn-tls-uri', action='append',
+                                         help="Sets the replication winsync connection TLS uri")
+    winsync_agmt_add_parser.add_argument('--conn-tls-ca-uri', action='append',
+                                         help="Sets the replication winsync connection TLS CA uri")
     winsync_agmt_add_parser.add_argument('--bind-dn', required=True,
                                          help="Sets the bind DN the agreement uses to authenticate to the AD Server")
     winsync_agmt_add_parser.add_argument('--bind-passwd', help="Sets the credentials for the Bind DN")
@@ -1721,6 +1763,10 @@ def create_parser(subparsers):
     winsync_agmt_set_parser.add_argument('--host', help="Sets the hostname of the AD server")
     winsync_agmt_set_parser.add_argument('--port', help="Sets the port number of the AD server")
     winsync_agmt_set_parser.add_argument('--conn-protocol', help="Sets the replication winsync connection protocol: LDAP, LDAPS, or StartTLS")
+    winsync_agmt_set_parser.add_argument('--conn-tls-uri', action='append', help="Sets the replication winsync connection TLS uris")
+    winsync_agmt_set_parser.add_argument('--no-conn-tls-uri', action='store_const', const='', help="Unsets the replication winsync connection TLS uris")
+    winsync_agmt_set_parser.add_argument('--conn-tls-ca-uri', action='append', help="Sets the replication winsync connection TLS CA uris")
+    winsync_agmt_set_parser.add_argument('--no-conn-tls-ca-uri', action='store_const', const='', help="Unsets the replication winsync connection TLS CA uris")
     winsync_agmt_set_parser.add_argument('--bind-dn', help="Sets the bind DN the agreement uses to authenticate to the AD Server")
     winsync_agmt_set_parser.add_argument('--bind-passwd', help="Sets the credentials for the Bind DN")
     winsync_agmt_set_parser.add_argument('--bind-passwd-file', help="File containing the password")

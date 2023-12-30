@@ -2066,6 +2066,15 @@ slapd_SSL_client_auth(LDAP *ld)
     char *CertExtractFile = NULL;
     char *KeyExtractFile = NULL;
 
+#ifdef LDAP_OPT_X_TLS_URIS
+    char **uris = NULL;
+    ldap_get_option(ld, LDAP_OPT_X_TLS_URIS, &uris);
+    if (uris) {
+        slapi_ch_array_free(uris);
+        return rc;
+    }
+#endif
+
     if ((family_list = getChildren(configDN))) {
         char **family;
         char *activation = NULL;

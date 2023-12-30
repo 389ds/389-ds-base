@@ -141,7 +141,10 @@ typedef struct repl5agmt
     struct berval *bootstrapCreds;     /* Bootstrap credentials */
     int64_t bootstrapBindmethod;       /* Bootstrap Bind Method: simple, TLS, client auth, etc */
     uint32_t bootstrapTransportFlags;  /* Bootstrap Transport Info: LDAPS, StartTLS, etc. */
-
+    char **transportUris;              /* Transport URIs: client certificates and keys */
+    char **bootstrapTransportUris;     /* Bootstap Transport URIs: client certificates and keys */
+    char **transportCAUris;            /* Transport CA URIs: client CA certificates */
+    char **bootstrapTransportCAUris;   /* Bootstap Transport CA URIs: client CA certificates */
 } repl5agmt;
 
 /* Forward declarations */
@@ -165,6 +168,8 @@ nsds5ReplicaTransportInfo - "LDAPS", "StartTLS", or may be absent ("SSL" and "TL
 nsds5ReplicaBindDN
 nsds5ReplicaCredentials
 nsds5ReplicaBindMethod - "SIMPLE" or "SSLCLIENTAUTH".
+nsds5ReplicaTransportUri - URIs of certificates and keys for TLS client authentication
+nsds5ReplicaTransportCAUri - URIs of CA certificates for TLS client authentication
 nsds5ReplicaRoot - Replicated suffix
 nsds5ReplicatedAttributeList - Fractional attrs for incremental update protocol (and total if not separately defined)
 nsds5ReplicatedAttributeListTotal - Fractional attrs for total update protocol
@@ -221,7 +226,19 @@ agmt_is_valid(Repl_Agmt *ra)
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
                                                        " is malformed: cannot use SSLCLIENTAUTH if using plain LDAP - please "
                                                        "change %s to LDAPS or StartTLS before changing %s to use SSLCLIENTAUTH\n",
-                      slapi_sdn_get_dn(ra->dn), type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
+                      slapi_sdn_get_dn(ra->dn), type_nsds5ReplicaTransportInfo, type_nsds5ReplicaBindMethod);
+        return_value = 0;
+    }
+    if ((BINDMETHOD_SSL_CLIENTAUTH != ra->bindmethod) && (NULL != ra->transportUris)) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
+                                                       " is malformed: cannot use %s if %s is not set to SSLCLIENTAUTH\n",
+                      slapi_sdn_get_dn(ra->dn), type_nsds5ReplicaTransportUri, type_nsds5ReplicaTransportInfo);
+        return_value = 0;
+    }
+    if ((BINDMETHOD_SSL_CLIENTAUTH != ra->bindmethod) && (NULL != ra->transportCAUris)) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_is_valid - Replication agreement \"%s\" "
+                                                       " is malformed: cannot use %s if %s is not set to SSLCLIENTAUTH\n",
+                      slapi_sdn_get_dn(ra->dn), type_nsds5ReplicaTransportCAUri, type_nsds5ReplicaTransportInfo);
         return_value = 0;
     }
     /*
@@ -310,6 +327,8 @@ agmt_new_from_entry(Slapi_Entry *e)
     /* LDAPS, StartTLS, or other transport stuff */
     ra->transport_flags = 0;
     (void)agmt_set_transportinfo_no_lock(ra, e);
+    (void)agmt_set_transporturi_from_entry(ra, e, 0);
+    (void)agmt_set_transportcauri_from_entry(ra, e, 0);
     (void)agmt_set_WaitForAsyncResults(ra, e);
 
     /* DN to use when binding. May be empty if certain SASL auth is to be used e.g. EXTERNAL GSSAPI. */
@@ -346,6 +365,8 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
     ra->bootstrapTransportFlags = 0;
     (void)agmt_set_bootstrap_transportinfo_no_lock(ra, e);
+    (void)agmt_set_transporturi_from_entry(ra, e, 1);
+    (void)agmt_set_transportcauri_from_entry(ra, e, 1);
     (void)agmt_set_bootstrap_bind_method_no_lock(ra, e);
 
     /* timeout. */
@@ -618,7 +639,6 @@ agmt_new_from_pblock(Slapi_PBlock *pb)
     return agmt_new_from_entry(e);
 }
 
-
 /*
  This should never be called directly - only should be called
  as a destructor.  XXXggood this is not finished
@@ -664,6 +684,11 @@ agmt_delete(void **rap)
     slapi_ch_array_free(ra->frac_attrs);
     slapi_ch_array_free(ra->frac_attrs_total);
     ra->frac_attr_total_defined = PR_FALSE;
+
+    slapi_ch_array_free(ra->transportUris);
+    slapi_ch_array_free(ra->transportCAUris);
+    slapi_ch_array_free(ra->bootstrapTransportUris);
+    slapi_ch_array_free(ra->bootstrapTransportCAUris);
 
     if (NULL != ra->creds) {
         ber_bvfree(ra->creds);
@@ -1073,6 +1098,56 @@ agmt_get_bootstrap_bindmethod(const Repl_Agmt *ra)
 
     PR_Lock(ra->lock);
     return_value = ra->bootstrapBindmethod;
+    PR_Unlock(ra->lock);
+
+    return return_value;
+}
+
+/* Returns a COPY of the uri list, remember to free it */
+char **
+agmt_get_transport_uri(const Repl_Agmt *ra)
+{
+    char **return_value;
+    PR_ASSERT(NULL != ra);
+    PR_Lock(ra->lock);
+    return_value = charray_dup(ra->transportUris);
+    PR_Unlock(ra->lock);
+    return return_value;
+}
+
+/* Returns a COPY of the uri list, remember to free it */
+char **
+agmt_get_bootstrap_transport_uri(const Repl_Agmt *ra)
+{
+    char **return_value;
+
+    PR_Lock(ra->lock);
+    return_value = charray_dup(ra->bootstrapTransportUris);
+    PR_Unlock(ra->lock);
+
+    return return_value;
+}
+
+/* Returns a COPY of the uri list, remember to free it */
+char **
+agmt_get_transport_ca_uri(const Repl_Agmt *ra)
+{
+    char **return_value;
+    PR_ASSERT(NULL != ra);
+    PR_Lock(ra->lock);
+    return_value = charray_dup(ra->transportCAUris);
+    PR_Unlock(ra->lock);
+    return return_value;
+}
+
+/* Returns a COPY of the uri list, remember to free it */
+char **
+agmt_get_bootstrap_transport_ca_uri(const Repl_Agmt *ra)
+{
+    char **return_value;
+
+    PR_Lock(ra->lock);
+    return_value = charray_dup(ra->bootstrapTransportCAUris);
     PR_Unlock(ra->lock);
 
     return return_value;
@@ -1913,7 +1988,7 @@ agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
     const char *tmpstr;
     int rc = 0;
 
-    tmpstr = slapi_entry_attr_get_ref((Slapi_Entry *)e, type_nsds5TransportInfo);
+    tmpstr = slapi_entry_attr_get_ref((Slapi_Entry *)e, type_nsds5ReplicaTransportInfo);
     if (!tmpstr || !strcasecmp(tmpstr, "LDAP")) {
         ra->transport_flags = 0;
     } else if (strcasecmp(tmpstr, "SSL") == 0 || strcasecmp(tmpstr, "LDAPS") == 0) {
@@ -1983,6 +2058,106 @@ agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bo
         return_value = agmt_set_transportinfo_no_lock(ra, e);
     }
     return_value |= agmt_set_transportinfo_no_lock(ra, e);
+    PR_Unlock(ra->lock);
+    prot_notify_agmt_changed(ra->protocol, ra->long_name);
+
+    return return_value;
+}
+
+
+int
+agmt_set_transporturi_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap)
+{
+    int return_value = 0;
+
+    Slapi_Attr *attr;
+    Slapi_Value *sval = NULL;
+
+    char **uris = NULL;
+
+    PR_ASSERT(NULL != ra);
+    PR_Lock(ra->lock);
+    if (ra->stop_in_progress) {
+        PR_Unlock(ra->lock);
+        return return_value;
+    }
+
+    if (0 == slapi_entry_attr_find(e,
+            bootstrap ? type_nsds5ReplicaBootstrapTransportUri : type_nsds5ReplicaTransportUri, &attr)) {
+
+        int i;
+        int uri_count = 0;
+
+        /* Get a count and allocate an array for the official matching rules */
+        slapi_attr_get_numvalues(attr, &uri_count);
+        uris = (char **)slapi_ch_malloc((uri_count + 1) * sizeof(char *));
+
+        for (i = slapi_attr_first_value(attr, &sval);
+             i >= 0; i = slapi_attr_next_value(attr, i, &sval)) {
+            uris[i] = slapi_ch_strdup(slapi_value_get_string(sval));
+        }
+
+	uris[uri_count] = NULL;
+    }
+
+    if (bootstrap) {
+        slapi_ch_array_free(ra->bootstrapTransportUris);
+        ra->bootstrapTransportUris = uris;
+    } else {
+        slapi_ch_array_free(ra->transportUris);
+        ra->transportUris = uris;
+    }
+
+    PR_Unlock(ra->lock);
+    prot_notify_agmt_changed(ra->protocol, ra->long_name);
+
+    return return_value;
+}
+
+
+int
+agmt_set_transportcauri_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap)
+{
+    int return_value = 0;
+
+    Slapi_Attr *attr;
+    Slapi_Value *sval = NULL;
+
+    char **uris = NULL;
+
+    PR_ASSERT(NULL != ra);
+    PR_Lock(ra->lock);
+    if (ra->stop_in_progress) {
+        PR_Unlock(ra->lock);
+        return return_value;
+    }
+
+    if (0 == slapi_entry_attr_find(e,
+            bootstrap ? type_nsds5ReplicaBootstrapTransportCAUri : type_nsds5ReplicaTransportCAUri, &attr)) {
+
+        int i;
+        int uri_count = 0;
+
+        /* Get a count and allocate an array for the official matching rules */
+        slapi_attr_get_numvalues(attr, &uri_count);
+        uris = (char **)slapi_ch_malloc((uri_count + 1) * sizeof(char *));
+
+        for (i = slapi_attr_first_value(attr, &sval);
+             i >= 0; i = slapi_attr_next_value(attr, i, &sval)) {
+            uris[i] = slapi_ch_strdup(slapi_value_get_string(sval));
+        }
+
+        uris[uri_count] = NULL;
+    }
+
+    if (bootstrap) {
+        slapi_ch_array_free(ra->bootstrapTransportCAUris);
+        ra->bootstrapTransportCAUris = uris;
+    } else {
+        slapi_ch_array_free(ra->transportCAUris);
+        ra->transportCAUris = uris;
+    }
+
     PR_Unlock(ra->lock);
     prot_notify_agmt_changed(ra->protocol, ra->long_name);
 

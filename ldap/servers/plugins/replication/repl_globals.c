@@ -94,7 +94,9 @@ const char *type_replicaKeepAliveUpdateInterval = "nsds5ReplicaKeepAliveUpdateIn
 /* Attribute names for replication agreement attributes */
 const char *type_nsds5ReplicaHost = "nsds5ReplicaHost";
 const char *type_nsds5ReplicaPort = "nsds5ReplicaPort";
-const char *type_nsds5TransportInfo = "nsds5ReplicaTransportInfo";
+const char *type_nsds5ReplicaTransportInfo = "nsds5ReplicaTransportInfo";
+const char *type_nsds5ReplicaTransportUri = "nsds5ReplicaTransportUri";
+const char *type_nsds5ReplicaTransportCAUri = "nsds5ReplicaTransportCAUri";
 const char *type_nsds5ReplicaBindDN = "nsds5ReplicaBindDN";
 const char *type_nsds5ReplicaBindDNGroup = "nsds5ReplicaBindDNGroup";
 const char *type_nsds5ReplicaBindDNGroupCheckInterval = "nsds5ReplicaBindDNGroupCheckInterval";
@@ -118,6 +120,8 @@ const char *type_nsds5ReplicaBootstrapBindDN = "nsds5ReplicaBootstrapBindDN";
 const char *type_nsds5ReplicaBootstrapCredentials = "nsds5ReplicaBootstrapCredentials";
 const char *type_nsds5ReplicaBootstrapBindMethod = "nsds5ReplicaBootstrapBindMethod";
 const char *type_nsds5ReplicaBootstrapTransportInfo = "nsds5ReplicaBootstrapTransportInfo";
+const char *type_nsds5ReplicaBootstrapTransportUri = "nsds5ReplicaBootstrapTransportUri";
+const char *type_nsds5ReplicaBootstrapTransportCAUri = "nsds5ReplicaBootstrapTransportCAUri";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
