@@ -1507,6 +1507,7 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
 
     if (state == SLAPI_BI_STATE_ADD) {
         Slapi_Entry *pb_import_entry = NULL;
+        char buf[BUFSIZ] = "";
         slapi_pblock_get(pb, SLAPI_BULK_IMPORT_ENTRY, &pb_import_entry);
         /* continuing previous import */
         if (!dbmdb_import_entry_belongs_here(pb_import_entry, job->inst->inst_be)) {
@@ -1518,9 +1519,17 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
             return 0;
         }
 
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            /*
+             * Queued entries are processed (then freed) by another thread
+             * so the sdn should be capured before queuing the entry to avoid
+             * race condition.
+             */
+            escape_string(slapi_sdn_get_dn(slapi_entry_get_sdn(pb_import_entry)), buf);
+        }
         rc = dbmdb_bulk_import_queue(job, pb_import_entry);
-        slapi_log_err(SLAPI_LOG_REPL, "dbmdb_ldbm_back_wire_import", "dbmdb_bulk_import_queue returned %d with entry %s\n",
-                      rc, slapi_sdn_get_dn(slapi_entry_get_sdn(pb_import_entry)));
+        slapi_log_err(SLAPI_LOG_REPL, "dbmdb_ldbm_back_wire_import",
+                      "dbmdb_bulk_import_queue returned %d with entry %s\n", rc, buf);
         return rc;
     }
 

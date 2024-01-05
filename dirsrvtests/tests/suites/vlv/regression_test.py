@@ -19,6 +19,10 @@ from lib389.backend import *
 from lib389.idm.user import UserAccounts
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
+from lib389.replica import ReplicationManager
+from lib389.agreement import Agreements
+from lib389.cli_ctl.dblib import run_dbscan
+
 
 pytestmark = pytest.mark.tier1
 
@@ -34,10 +38,10 @@ def open_new_ldapi_conn(dsinstance):
     return conn
 
 
-def check_vlv_search(conn):
-    before_count=1
-    after_count=3
-    offset=3501
+def check_vlv_search(conn, **kwargs):
+    before_count = kwargs.get('before_count', 1)
+    after_count = kwargs.get('after_count', 3)
+    offset = kwargs.get('offset', 3501)
 
     vlv_control = VLVRequestControl(criticality=True,
         before_count=before_count,
@@ -244,6 +248,87 @@ def test_vlv_recreation_reindex(topology_st):
     conn = open_new_ldapi_conn(inst.serverid)
     assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
     check_vlv_search(conn)
+
+
+def verify_vlv_subdb_names(vlvname, inst):
+    """
+    Verify that vlv index and cache sub database names are conistent.
+    """
+    output = run_dbscan(['-D', 'mdb', '-L', inst.dbdir])
+    vlvsubdbs = []
+    nbvlvindex = 0
+    for line in output.split("\n"):
+        if not line:
+            continue
+        fname = line.split()[0]
+        if 'vlv#' in fname:
+            vlvsubdbs.append(fname)
+            if '/~recno-cache/' not in fname:
+                nbvlvindex += 1
+    log.info(f'vlv sub databases arUe: {vlvsubdbs}')
+    assert f'{inst.dbdir}/userroot/vlv#{vlvname}.db' in vlvsubdbs
+    assert f'{inst.dbdir}/userroot/~recno-cache/vlv#{vlvname}.db' in vlvsubdbs
+    assert len(vlvsubdbs) == 2 * nbvlvindex
+
+@pytest.mark.skipif(get_default_db_lib() != "mdb", reason="Only meaningful over mdb")
+def test_vlv_cache_subdb_names(topology_m2):
+    """
+    Testing that vlv index cache sub database name is consistent.
+
+    :id: 7a138006-aa24-11ee-9d5f-482ae39447e5
+    :setup: Replication with two suppliers.
+    :steps:
+        1. Generate vlvSearch and vlvIndex entries
+        2. Add users and wait that they get replicated.
+        3. Check subdb names and perform vlv searches
+        4. Reinit M2 from M1
+        5. Check subdb names and perform vlv searches
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+        3. Should Success.
+        4. Should Success.
+        5. Should Success.
+    """
+    M1 = topology_m2.ms["supplier1"]
+    M2 = topology_m2.ms["supplier2"]
+
+    # generate vlvSearch and vlvIndex entries
+    vlv_search, vlv_index = create_vlv_search_and_index(M2)
+    vlvname = vlv_index.get_attr_val_utf8_l('cn')
+    assert "cn=vlvIdx,cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config" in M2.getEntry(
+        "cn=vlvIdx,cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config").dn
+    reindex_task = Tasks(M2)
+    assert reindex_task.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=vlv_index.rdn,
+        args={TASK_WAIT: True},
+        vlv=True
+    ) == 0
+
+    # Add users and wait that they get replicated.
+    add_users(M1, 50)
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(M1, M2)
+
+    # Check subdb names and perform vlv searches
+    conn = open_new_ldapi_conn(M2.serverid)
+    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
+    check_vlv_search(conn, offset=23)
+    verify_vlv_subdb_names(vlvname, M2)
+
+    # Reinit M2 from M1
+    agmt = Agreements(M1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    # Check subdb names and perform vlv searches
+    conn = open_new_ldapi_conn(M2.serverid)
+    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
+    check_vlv_search(conn, offset=23)
+    verify_vlv_subdb_names(vlvname, M2)
 
 
 if __name__ == "__main__":

@@ -2846,7 +2846,7 @@ out:
 int
 dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
 {
-    char *rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, ((dbmdb_dbi_t*)db)->dbname);
+    char *rcdbname = dbmdb_recno_cache_get_dbname(((dbmdb_dbi_t*)db)->dbname);
     dbmdb_dbi_t *rcdbi = NULL;
     MDB_val ok = { 0 };
     int rc = 0;
