@@ -124,8 +124,8 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (de
 AC_MSG_RESULT($enable_debug)
 if test "$enable_debug" = yes ; then
   debug_defs="-DDEBUG -DMCC_DEBUG"
-  debug_cflags="-g3 -ggdb -gdwarf-5  -O0"
-  debug_cxxflags="-g3 -ggdb -gdwarf-5  -O0"
+  debug_cflags="-g3 -ggdb -gdwarf-4 -O0"
+  debug_cxxflags="-g3 -ggdb -gdwarf-4 -O0"
   debug_rust_defs="-C debuginfo=2 -Z macro-backtrace"
   cargo_defs=""
   rust_target_dir="debug"
@@ -241,9 +241,6 @@ else
   # Without this, -fPIC doesn't work on generic fedora builds, --disable-gcc-sec.
   gccsec_cflags=""
 fi
-AM_COND_IF([RPM_HARDEND_CC],
-           [ gccsec_cflags="$gccsec_flags -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1" ],
-           [])
 AC_SUBST([gccsec_cflags])
 
 # Pull in profiling.
@@ -252,7 +249,7 @@ AC_ARG_ENABLE(profiling, AS_HELP_STRING([--enable-profiling], [Enable gcov profi
               [], [ enable_profiling=no ])
 AC_MSG_RESULT($enable_profiling)
 if test "$enable_profiling" = yes ; then
-  profiling_defs="-fprofile-arcs -ftest-coverage -g3 -ggdb -gdwarf-5  -O0"
+  profiling_defs="-fprofile-arcs -ftest-coverage -g3 -ggdb -gdwarf-4  -O0"
   profiling_links="-lgcov --coverage"
 else
   profiling_defs=""

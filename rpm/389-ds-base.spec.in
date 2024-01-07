@@ -34,7 +34,7 @@
 
 %if %{use_clang}
 %global toolchain clang
-%global _missing_build_ids_terminate_build 0
+%global _lto_cflags %nil
 %endif
 
 # Build cockpit plugin
