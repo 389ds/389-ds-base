@@ -16,7 +16,7 @@ from lib389.properties import TASK_WAIT
 from lib389.index import *
 from lib389.mappingTree import *
 from lib389.backend import *
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
 from lib389.replica import ReplicationManager
@@ -28,6 +28,15 @@ pytestmark = pytest.mark.tier1
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
+
+STARTING_UID_INDEX = 1000
+# VLV search always returns first the entry before the target,
+# and the entry uid=demo_user,ou=people,dc=example,dc=com
+# is before the uid=testuserNNNN,dc=example,dc=com entries
+# so VLV_SEARCH_OFFSET (The difference between the vlv index
+# and the NNNN value) is:
+VLV_SEARCH_OFFSET = STARTING_UID_INDEX - 2
+NUMUSERS_TEST_VLV_REINDEX = 5000
 
 
 def open_new_ldapi_conn(dsinstance):
@@ -58,8 +67,8 @@ def check_vlv_search(conn, **kwargs):
         filterstr='(uid=*)',
         serverctrls=[vlv_control, sss_control]
     )
-    imin = offset + 998 - before_count
-    imax = offset + 998 + after_count
+    imin = offset + VLV_SEARCH_OFFSET - before_count
+    imax = offset + VLV_SEARCH_OFFSET + after_count
 
     for i, (dn, entry) in enumerate(result, start=imin):
         assert i <= imax
@@ -72,7 +81,7 @@ def add_users(inst, users_num):
     users = UserAccounts(inst, DEFAULT_SUFFIX)
     log.info(f'Adding {users_num} users')
     for i in range(0, users_num):
-        uid = 1000 + i
+        uid = STARTING_UID_INDEX + i
         user_properties = {
             'uid': f'testuser{uid}',
             'cn': f'testuser{uid}',
@@ -227,7 +236,7 @@ def test_vlv_recreation_reindex(topology_st):
         vlv=True
     ) == 0
 
-    add_users(inst, 5000)
+    add_users(inst, NUMUSERS_TEST_VLV_REINDEX)
 
     conn = open_new_ldapi_conn(inst.serverid)
     assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
@@ -252,8 +261,10 @@ def test_vlv_recreation_reindex(topology_st):
 
 def verify_vlv_subdb_names(vlvname, inst):
     """
-    Verify that vlv index and cache sub database names are conistent.
+    Verify that vlv index and cache sub database names are conistent on lmdb.
     """
+    if get_default_db_lib() != "mdb":
+        return
     output = run_dbscan(['-D', 'mdb', '-L', inst.dbdir])
     vlvsubdbs = []
     nbvlvindex = 0
@@ -265,12 +276,12 @@ def verify_vlv_subdb_names(vlvname, inst):
             vlvsubdbs.append(fname)
             if '/~recno-cache/' not in fname:
                 nbvlvindex += 1
-    log.info(f'vlv sub databases arUe: {vlvsubdbs}')
+    log.info(f'vlv sub databases are: {vlvsubdbs}')
     assert f'{inst.dbdir}/userroot/vlv#{vlvname}.db' in vlvsubdbs
     assert f'{inst.dbdir}/userroot/~recno-cache/vlv#{vlvname}.db' in vlvsubdbs
     assert len(vlvsubdbs) == 2 * nbvlvindex
 
-@pytest.mark.skipif(get_default_db_lib() != "mdb", reason="Only meaningful over mdb")
+
 def test_vlv_cache_subdb_names(topology_m2):
     """
     Testing that vlv index cache sub database name is consistent.
@@ -290,8 +301,23 @@ def test_vlv_cache_subdb_names(topology_m2):
         4. Should Success.
         5. Should Success.
     """
+
+    NUM_USERS = 50
     M1 = topology_m2.ms["supplier1"]
     M2 = topology_m2.ms["supplier2"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    # Clean test_vlv_recreation_reindex leftover that cause trouble
+    entries = [ UserAccount(M1, dn=f'uid=testuser{uid},DEFAULT_SUFFIX') for uid in
+        range(STARTING_UID_INDEX, STARTING_UID_INDEX+NUMUSERS_TEST_VLV_REINDEX) ]
+    entries.append(VLVIndex(M2, dn='cn=vlvIdx,cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'))
+    entries.append(VLVSearch(M2, dn='cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'))
+    for entry in entries:
+        if entry.exists():
+            entry.delete()
+    repl.wait_for_replication(M1, M2)
+    # Restart the instance to workaround github issue #6028
+    M2.restart()
 
     # generate vlvSearch and vlvIndex entries
     vlv_search, vlv_index = create_vlv_search_and_index(M2)
@@ -307,8 +333,7 @@ def test_vlv_cache_subdb_names(topology_m2):
     ) == 0
 
     # Add users and wait that they get replicated.
-    add_users(M1, 50)
-    repl = ReplicationManager(DEFAULT_SUFFIX)
+    add_users(M1, NUM_USERS)
     repl.wait_for_replication(M1, M2)
 
     # Check subdb names and perform vlv searches
