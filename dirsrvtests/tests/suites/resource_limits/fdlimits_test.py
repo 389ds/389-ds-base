@@ -136,9 +136,9 @@ def test_reserve_descriptors_high(topology_st):
     :expectedresults:
         1. Success
         2. Value of SYSTEMD_LIMIT is returned
-        2. Success
-        3. Values of SYSTEMD_LIMIT -2 is returned
-        4. Instance starts correctly
+        3. Success
+        4. Values of SYSTEMD_LIMIT -2 is returned
+        5. Instance starts correctly
     """
 
     # Set nsslapd-maxdescriptors to a custom value

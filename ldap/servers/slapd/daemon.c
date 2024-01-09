@@ -830,7 +830,7 @@ accept_thread(void *vports)
 
     while (!g_get_shutdown()) {
         /* Do we need to accept new connections? */
-        int accept_new_connections = (ct->size > g_get_current_conn_count());
+        int accept_new_connections = (ct->size > ct->conn_next_offset);
         if (!accept_new_connections) {
             if (last_accept_new_connections) {
                 slapi_log_err(SLAPI_LOG_ERR, "accept_thread",
