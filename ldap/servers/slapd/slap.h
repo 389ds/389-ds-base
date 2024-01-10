@@ -751,6 +751,7 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc, void *
 #define INTEGERORDERINGMATCH_OID "2.5.13.15"  /* integerOrderingMatch */
 #define INTFIRSTCOMPMATCH_OID    "2.5.13.29"  /* integerFirstComponentMatch */
 #define OIDFIRSTCOMPMATCH_OID    "2.5.13.30"  /* objectIdentifierFirstComponentMatch */
+#define LDAP_MATCHING_RULE_IN_CHAIN_OID "1.2.840.113556.1.4.1941"
 
 /* Names for some commonly used matching rules */
 #define DNMATCH_NAME              "distinguishedNameMatch"
@@ -759,6 +760,7 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc, void *
 #define INTEGERORDERINGMATCH_NAME "integerOrderingMatch"
 #define INTFIRSTCOMPMATCH_NAME    "integerFirstComponentMatch"
 #define OIDFIRSTCOMPMATCH_NAME    "objectIdentifierFirstComponentMatch"
+#define LDAP_MATCHING_RULE_IN_CHAIN_NAME "ancestryDNMatch"
 
 #define ATTR_STANDARD_STRING "Standard Attribute"
 #define ATTR_USERDEF_STRING  "User Defined Attribute"

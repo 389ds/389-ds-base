@@ -1738,6 +1738,7 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 	ldap/servers/plugins/syntaxes/facsimile.c \
 	ldap/servers/plugins/syntaxes/guide.c \
 	ldap/servers/plugins/syntaxes/int.c \
+	ldap/servers/plugins/syntaxes/inchain.c \
 	ldap/servers/plugins/syntaxes/nameoptuid.c \
 	ldap/servers/plugins/syntaxes/numericstring.c \
 	ldap/servers/plugins/syntaxes/phonetic.c \

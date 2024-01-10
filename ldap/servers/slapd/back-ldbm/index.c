@@ -924,6 +924,10 @@ index_read_ext_allids(
 
     *err = 0;
 
+    if (strcmp(indextype, LDAP_MATCHING_RULE_IN_CHAIN_OID) == 0) {
+        type = "nsuniqueid";
+        indextype = indextype_EQUALITY;
+    }
     if (unindexed != NULL)
         *unindexed = 0;
     prefix = index_index2prefix(indextype);
