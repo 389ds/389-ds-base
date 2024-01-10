@@ -451,6 +451,7 @@ extensible_candidates(
     Slapi_PBlock *pb = slapi_pblock_new();
     int mrOP = 0;
     Slapi_Operation *op = NULL;
+    Connection *conn = NULL;
     back_txn txn = {NULL};
     slapi_log_err(SLAPI_LOG_TRACE, "extensible_candidates", "=> \n");
     slapi_pblock_get(glob_pb, SLAPI_TXN, &txn.back_txn_txn);
@@ -470,8 +471,11 @@ extensible_candidates(
             /* set the pb->pb_op to glob_pb->pb_op to catch the abandon req.
              * in case the operation is interrupted. */
             slapi_pblock_get(glob_pb, SLAPI_OPERATION, &op);
+            slapi_pblock_get(glob_pb, SLAPI_CONNECTION, &conn);
             /* coverity[var_deref_model] */
             slapi_pblock_set(pb, SLAPI_OPERATION, op);
+            slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
+            slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &op->o_isroot);
 
             slapi_pblock_get(pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX);
             slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrOBJECT);
@@ -516,16 +520,36 @@ extensible_candidates(
                     } else if (keys == NULL || keys[0] == NULL) {
                         /* no keys */
                         idl_free(&idl);
-                        idl = idl_allids(be);
+                        if (strcmp(mrOID, LDAP_MATCHING_RULE_IN_CHAIN_OID) == 0) {
+                            /* we need to return no candidate else, inchain_filter_ava
+                             * matching all candidates, the search returns invalid results
+                             */
+                            idl = idl_alloc(0);
+                        } else {
+                            idl = idl_allids(be);
+                        }
                     } else {
                         IDList *idl2 = NULL;
                         struct berval **key;
+#define KEY_STR_LGHT 35 /* stollen from nsuniqueid.c UIDSTR_SIZE 35 */
+                        char key_str[KEY_STR_LGHT + 1]; /* only used for debug logging */
                         for (key = keys; *key != NULL; ++key) {
                             int unindexed = 0;
                             IDList *idl3 = (mrOP == SLAPI_OP_EQUAL) ? index_read_ext_allids(pb, be, mrTYPE, mrOID, *key, &txn,
                                                                                             err, &unindexed, allidslimit)
                                                                     : index_range_read_ext(pb, be, mrTYPE, mrOID, mrOP,
                                                                                            *key, NULL, 0, &txn, err, allidslimit);
+                            if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
+                                int lenght_str = key[0]->bv_len;
+
+                                if (key[0]->bv_len > KEY_STR_LGHT) {
+                                    lenght_str = KEY_STR_LGHT;
+                                }
+
+                                strncpy(key_str, key[0]->bv_val, lenght_str);
+                                key_str[lenght_str] = '\0';
+                                slapi_log_err(SLAPI_LOG_FILTER, "extensible_candidates", "=> idl (%s) = (%d)\n", key_str, idl3->b_ids[0]);
+                            }
                             if (unindexed) {
                                 int pr_idx = -1;
                                 slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
@@ -542,7 +566,12 @@ extensible_candidates(
                                 /* first iteration */
                                 idl2 = idl3;
                             } else {
-                                IDList *tmp = idl_intersection(be, idl2, idl3);
+                                IDList *tmp;
+                                if (strcmp(mrOID, LDAP_MATCHING_RULE_IN_CHAIN_OID) == 0) {
+                                    tmp = idl_union(be, idl2, idl3);
+                                } else {
+                                    tmp = idl_intersection(be, idl2, idl3);
+                                }
                                 idl_free(&idl2);
                                 idl_free(&idl3);
                                 idl2 = tmp;
@@ -575,8 +604,11 @@ extensible_candidates(
     }
 return_idl:
     op = NULL;
+    conn = NULL;
+
     /* coverity[var_deref_model] */
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
+    slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
     slapi_pblock_destroy(pb);
     slapi_log_err(SLAPI_LOG_TRACE, "extensible_candidates", "<= %lu\n",
                   (u_long)IDL_NIDS(idl));

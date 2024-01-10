@@ -784,12 +784,12 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     int32_t cnt1, cnt2;
 
     if ((memberof_config == NULL) || (memberof_config->enabled == PR_FALSE)) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: config not initialized or disabled\n");
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: config not initialized or disabled\n");
         return PR_FALSE;
     }
 
     if (enabled_only) {
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: check the plugin is enabled that is %s\n",
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: check the plugin is enabled that is %s\n",
                       memberof_config->enabled ? "SUCCEEDS" : "FAILS");
         if (memberof_config->enabled) {
             return PR_TRUE;
@@ -801,7 +801,7 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     /* Check direct flags */
     if ((all_backends != memberof_config->all_backends) || (skip_nested != memberof_config->skip_nested)) {
         /* If those flags do not match the current set of 'memberof' values is invalid */
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails (allbackend %d vs %d, skip_nested %d vs %d)\n",
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails (allbackend %d vs %d, skip_nested %d vs %d)\n",
                       all_backends, memberof_config->all_backends, skip_nested, memberof_config->skip_nested);
         return PR_FALSE;
     }
@@ -811,7 +811,7 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
      */
     if ((memberof_attr == NULL) || (memberof_config->memberof_attr == NULL) || (strcasecmp(memberof_attr, memberof_config->memberof_attr))) {
         /* just be conservative, we should speak about the same attribute */
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof",
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof",
                       "sm_compare_memberof_config: fails memberof attribute differs (require '%s' vs config '%s')\n",
                       memberof_attr ? memberof_attr : "NULL",
                       memberof_config->memberof_attr ? memberof_config->memberof_attr : NULL);
@@ -823,12 +823,12 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
      */
     if (groupattrs == NULL) {
         /* This is a mandatory parameter */
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because requested group attributes is empty\n");
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because requested group attributes is empty\n");
         return PR_FALSE;
     }
     for (cnt1 = 0; groupattrs[cnt1]; cnt1++) {
         if (charray_inlist(memberof_config->groupattrs, groupattrs[cnt1]) == 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof",
+            slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof",
                           "sm_compare_memberof_config: fails because requested group attribute '%s' is not configured\n",
                           groupattrs[cnt1]);
             return PR_FALSE;
@@ -837,26 +837,26 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     for (cnt2 = 0; memberof_config->groupattrs && memberof_config->groupattrs[cnt2]; cnt2++);
     if (cnt1 != cnt2) {
         /* make sure groupattrs is not a subset of memberof_config->groupattrs */
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested group attributes differs from config\n");
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested group attributes differs from config\n");
         return PR_FALSE;
     }
 
     /* check Include scope that is optional */
     if (include_scope == NULL) {
         if (memberof_config->include_scope) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because requested include scope is empty that differs config\n");
+            slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because requested include scope is empty that differs config\n");
             return PR_FALSE;
         }
     } else {
         if (memberof_config->include_scope == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because requested include scope is not empty that differs config\n");
+            slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because requested include scope is not empty that differs config\n");
             return PR_FALSE;
         }
     }
     /* here include scopes are both NULL or both not NULL */
     for (cnt1 = 0; include_scope && include_scope[cnt1]; cnt1++) {
         if (charray_inlist(memberof_config->include_scope, (char *) slapi_sdn_get_ndn(include_scope[cnt1])) == 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because requested include scope (%s) is not in config\n",
+            slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because requested include scope (%s) is not in config\n",
                           slapi_sdn_get_ndn(include_scope[cnt1]));
             return PR_FALSE;
         }
@@ -864,26 +864,26 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     for (cnt2 = 0; memberof_config->include_scope && memberof_config->include_scope[cnt2]; cnt2++);
     if (cnt1 != cnt2) {
         /* make sure include_scope is not a subset of memberof_config->include_scope */
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested included scopes differs from config\n");
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested included scopes differs from config\n");
         return PR_FALSE;
     }
 
     /* check Exclude scope that is optional */
     if (exclude_scope == NULL) {
         if (memberof_config->exclude_scope) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because requested exclude scope is empty that differs config\n");
+            slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because requested exclude scope is empty that differs config\n");
             return PR_FALSE;
         }
     } else {
         if (memberof_config->exclude_scope == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because requested exclude scope is not empty that differs config\n");
+            slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because requested exclude scope is not empty that differs config\n");
             return PR_FALSE;
         }
     }
     /* here exclude scopes are both NULL or both not NULL */
     for (cnt1 = 0; exclude_scope && exclude_scope[cnt1]; cnt1++) {
         if (charray_inlist(memberof_config->exclude_scope, (char *) slapi_sdn_get_ndn(exclude_scope[cnt1])) == 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because requested exclude scope (%s) is not in config\n",
+            slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because requested exclude scope (%s) is not in config\n",
                           slapi_sdn_get_ndn(exclude_scope[cnt1]));
             return PR_FALSE;
         }
@@ -891,10 +891,10 @@ sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool 
     for (cnt2 = 0; memberof_config->exclude_scope && memberof_config->exclude_scope[cnt2]; cnt2++);
     if (cnt1 != cnt2) {
         /* make sure exclude_scope is not a subset of memberof_config->exclude_scope */
-        slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested exclude scopes differs from config\n");
+        slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: fails because number of requested exclude scopes differs from config\n");
         return PR_FALSE;
     }
-    slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "sm_compare_memberof_config: succeeds. requested options match config\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_memberof", "sm_compare_memberof_config: succeeds. requested options match config\n");
     return PR_TRUE;
 }
 
