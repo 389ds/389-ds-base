@@ -36,7 +36,6 @@ STARTING_UID_INDEX = 1000
 # so VLV_SEARCH_OFFSET (The difference between the vlv index
 # and the NNNN value) is:
 VLV_SEARCH_OFFSET = STARTING_UID_INDEX - 2
-NUMUSERS_TEST_VLV_REINDEX = 5000
 
 
 def open_new_ldapi_conn(dsinstance):
@@ -236,7 +235,7 @@ def test_vlv_recreation_reindex(topology_st):
         vlv=True
     ) == 0
 
-    add_users(inst, NUMUSERS_TEST_VLV_REINDEX)
+    add_users(inst, 5000)
 
     conn = open_new_ldapi_conn(inst.serverid)
     assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
@@ -307,17 +306,18 @@ def test_vlv_cache_subdb_names(topology_m2):
     M2 = topology_m2.ms["supplier2"]
     repl = ReplicationManager(DEFAULT_SUFFIX)
 
-    # Clean test_vlv_recreation_reindex leftover that cause trouble
+    # Clean test_bulk_import_when_the_backend_with_vlv_was_recreated leftover that cause trouble
     entries = [ UserAccount(M1, dn=f'uid=testuser{uid},DEFAULT_SUFFIX') for uid in
-        range(STARTING_UID_INDEX, STARTING_UID_INDEX+NUMUSERS_TEST_VLV_REINDEX) ]
+        range(STARTING_UID_INDEX, STARTING_UID_INDEX+NUM_USERS) ]
     entries.append(VLVIndex(M2, dn='cn=vlvIdx,cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'))
     entries.append(VLVSearch(M2, dn='cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'))
     for entry in entries:
         if entry.exists():
             entry.delete()
     repl.wait_for_replication(M1, M2)
-    # Restart the instance to workaround github issue #6028
-    M2.restart()
+    # Restart the instance to workaround https://github.com/389ds/389-ds-base/issues/6029
+    if get_default_db_lib() == "bdb":
+        M2.restart()
 
     # generate vlvSearch and vlvIndex entries
     vlv_search, vlv_index = create_vlv_search_and_index(M2)
