@@ -498,6 +498,7 @@ int dbmdb_dbi_remove(dbmdb_ctx_t *conf, dbi_db_t **db);
 int dbmdb_dbi_rmdir(backend *be);
 int dbmdb_clear_dirty_flags(backend *be);
 int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx);
+char *dbmdb_recno_cache_get_dbname(const char *vlvdbiname);
 int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2);
 dbmdb_stats_t *dbdmd_gather_stats(dbmdb_ctx_t *conf, backend *be);
 void dbmdb_free_stats(dbmdb_stats_t **stats);

@@ -184,11 +184,19 @@ char *dbmdb_build_dbname(backend *be, const char *filename)
     char *res, *pt;
 
     PR_ASSERT(filename[0] != '/');
-    if (strchr(filename, '/')) {
+    /* Only some special private sub db like vlv cache starts with ~
+     * None of the other sub db should contains a / unless
+     * it is a fullname with the bename
+     * So filename containing a / and nor starting by ~ are full names.
+     */
+    if (filename[0] != '~' && strchr(filename, '/')) {
+        /* be name already in filename */
         res = slapi_ch_smprintf("%s%s", filename, suffix);
     } else if (!be) {
+        /* no be name */
         return slapi_ch_strdup(filename);
     } else {
+        /* add the be name */
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         res = slapi_ch_smprintf("%s/%s%s", inst->inst_name, filename, suffix);
     }
@@ -318,7 +326,7 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
     octx->ai = ai;
 
     if (ai->ai_indexmask & INDEX_VLV) {
-        rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, ai->ai_type);
+        rcdbname = dbmdb_recno_cache_get_dbname(ai->ai_type);
         octx->rc = add_dbi(octx, octx->be, rcdbname, flags);
         slapi_ch_free_string(&rcdbname);
         if (octx->rc) {
@@ -1189,7 +1197,11 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
              * So far only known case of hitting this condition is that
              * online import/bulk import/reindex failed and suffix database was cleared)
              */
-            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_open_dbi_from_filename", "Attempt to open to open dbi %s/%s while txn is already pending. The only case this message is expected is after a failed import or reindex.\n", be->be_name, filename);
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_open_dbi_from_filename",
+                          "Attempt to open to open dbi %s/%s while txn is already pending."
+                          " Usually that means that the index must be reindex. Root cause is"
+                          " likely that last import of reindex failed or that the index was"
+                          " created but not yet reindexed).\n", be->be_name, filename);
             slapi_log_backtrace(SLAPI_LOG_WARNING);
             return MDB_NOTFOUND;
         }
@@ -1267,6 +1279,21 @@ int dbmdb_close_cursor(dbmdb_cursor_t *dbicur, int rc)
     return rc;
 }
 
+/*
+ * Returns the vlv cache db name (without the backend)
+ * Return value must be freed by the caller.
+ */
+char *
+dbmdb_recno_cache_get_dbname(const char *vlvdbiname)
+{
+    char *rcdbname = NULL;
+    const char *vlvidxname = NULL;
+
+    vlvidxname = strrchr(vlvdbiname, '/');
+    vlvidxname = vlvidxname ? vlvidxname+1 : vlvdbiname;
+    rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, vlvidxname);
+    return rcdbname;
+}
 
 /*
  * Determine how to build the recno cache:
@@ -1289,16 +1316,17 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
     rcctx->mode = RCMODE_UNKNOWN;
     rcctx->cursortxn = txn;
     rcctx->dbi = &ctx->dbi_slots[curdbi];
-    rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, rcctx->dbi->dbname);
+    rcdbname = dbmdb_recno_cache_get_dbname(rcctx->dbi->dbname);
+    rcctx->rcdbname = rcdbname;
+    rcctx->env = ctx->env;
 
     /* Now lets search for the associated recno cache dbi */
-    rcctx->rcdbi = dbi_get_by_name(ctx, NULL, rcdbname);
+    rcctx->rcdbi = dbi_get_by_name(ctx, rcctx->cursor->be, rcdbname);
     if (rcctx->rcdbi)
         rcctx->mode = RCMODE_USE_CURSOR_TXN;
 
     if (rcctx->mode == RCMODE_USE_CURSOR_TXN) {
         /* DBI cache was found,  Let check that it is usuable */
-        slapi_ch_free_string(&rcdbname);
         rcctx->key.mv_data = "OK";
         rcctx->key.mv_size = 2;
         rc = MDB_GET(txn, rcctx->rcdbi->dbi, &rcctx->key, &rcctx->data);
@@ -1306,16 +1334,13 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
             rcctx->mode = RCMODE_UNKNOWN;
         }
         if (rc != MDB_NOTFOUND) {
+            /* There was an error or cache is valid.
+             * Im both cases there is no need to rebuilt the cache.
+             */
             return rc;
         }
     }
-    /* if rcdbname is set then cache is not open
-     * if rcdbname is NULL then cache must be rebuild
-     * ==> In both case A write TXN is needed
-     *  (either as subtxn or in new thread)
-     */
-    rcctx->rcdbname = rcdbname;
-    rcctx->env = ctx->env;
+    /* Cache must be rebuilt so a write TXN is needed (either as subtxn or in new thread) */
     rc = TXN_BEGIN(ctx->env, rcctx->cursortxn, 0, &txn);
     if (rc == 0) {
         TXN_ABORT(txn);
@@ -1402,7 +1427,7 @@ dbmdb_reset_vlv_file(backend *be, const char *filename)
     struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
     dbmdb_ctx_t *ctx = MDB_CONFIG(li);
     dbmdb_dbi_t *dbi = NULL;
-    char *rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, filename);
+    char *rcdbname = dbmdb_recno_cache_get_dbname(filename);
     int rc = 0;
     dbi = dbi_get_by_name(ctx, be, filename);
     if (dbi)
