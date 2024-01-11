@@ -755,6 +755,41 @@ dbmdb_import_all_done(ImportJob *job, int ret)
     return ret;
 }
 
+/* Check if attrlist is empty or if attrname is in attrlist */
+static int
+is_reindexed_attr(const char *attrname, char **attrlist)
+{
+    if (!attrlist) {
+        return 1;
+    }
+    while (*attrlist) {
+        char *attr = *attrlist++;
+        /* Note that attrname is 'vlv#vlvIdx' while attrlist contains vlvIdx */
+        if (strcasecmp(attrname+4, attr) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* vlv_getindices callback that truncate vlv index (in reindex case) */
+static int
+truncate_index_dbi(struct attrinfo *ai, ImportCtx_t *ctx)
+{
+    int rc = 0;
+    if (is_reindexed_attr(ai->ai_type, ctx->indexAttrs)) {
+        backend *be = ctx->job->inst->inst_be;
+        dbmdb_dbi_t *dbi = NULL;
+        rc = dbmdb_open_dbi_from_filename(&dbi, be, ai->ai_type, ai, MDB_TRUNCATE_DBI);
+        if (!rc) {
+            char *dbname = dbmdb_recno_cache_get_dbname(dbi->dbname);
+            rc = dbmdb_open_dbi_from_filename(&dbi, be, dbname, ai, MDB_TRUNCATE_DBI);
+            slapi_ch_free_string(&dbname);
+        }
+    }
+    return rc;
+}
+
 int
 dbmdb_public_dbmdb_import_main(void *arg)
 {
@@ -818,6 +853,8 @@ dbmdb_public_dbmdb_import_main(void *arg)
             pthread_cond_signal(&job->wire_cv);
             pthread_mutex_unlock(&job->wire_lock);
             break;
+        case IM_INDEX:
+            vlv_getindices((IFP)truncate_index_dbi, ctx, job->inst->inst_be);
         default:
             break;
     }
