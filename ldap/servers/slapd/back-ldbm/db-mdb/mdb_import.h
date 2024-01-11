@@ -157,7 +157,6 @@ int dbmdb_run_ldif2db(Slapi_PBlock *pb);
 
 
 /* mdb_import_threads.c */
-const char *attr_in_list(const char *search, char **list);
 void safe_cond_wait(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex);
 
 struct backentry *dbmdb_import_make_backentry(Slapi_Entry *e, ID id);
