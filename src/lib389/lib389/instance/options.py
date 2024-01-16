@@ -363,7 +363,7 @@ class Backend2Base(Options2):
         self._helptext['replica_role'] = "Set the replication role.  Choose either 'supplier', 'hub', or 'consumer'"
 
         self._options['replica_id'] = "1"
-        self._type['replica_id'] = str
+        self._type['replica_id'] = int
         self._helptext['replica_id'] = "Set the unique replication identifier for this replica's database (suppliers only)"
 
         self._options['replica_binddn'] = "cn=replication manager,cn=config"
