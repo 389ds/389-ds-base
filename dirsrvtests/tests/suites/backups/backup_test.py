@@ -9,15 +9,17 @@
 import logging
 import pytest
 import os
+import shutil
 from datetime import datetime
 from lib389._constants import DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
-from lib389.topologies import topology_st as topo
+from lib389.topologies import topology_st as topo, topology_m2 as topo_m2
 from lib389.backend import Backend
 from lib389.tasks import BackupTask, RestoreTask
 from lib389.config import BDB_LDBMConfig
 from lib389 import DSEldif
 from lib389.utils import ds_is_older, get_default_db_lib
+from lib389.replica import ReplicationManager
 import tempfile
 
 pytestmark = pytest.mark.tier1
@@ -105,6 +107,65 @@ def test_db_home_dir_online_backup(topo):
         topo.standalone.start()
         topo.standalone.tasks.db2bak(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
         assert topo.standalone.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
+
+def test_replication(topo_m2):
+    """Test that if the dbhome directory is set causing an online backup to fail,
+    the dblayer_backup function should go to error processing section.
+
+    :id: 9c826d36-b17d-11ee-855f-482ae39447e5
+    :setup: Two suppliers
+    :steps:
+        1. Perform backup on S1
+        2. Perform changes on both suppliers
+        3. Wait until replication is in sync
+        4. Stop S1
+        5. Destroy S1 database
+        6. Start S1
+        7. Restore S1 from backup
+        8. Wait until replication is in sync
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+    S1 = topo_m2.ms["supplier1"]
+    S2 = topo_m2.ms["supplier2"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    with tempfile.TemporaryDirectory(dir=S1.ds_paths.backup_dir) as backup_dir:
+        # Step 1: Perform backup on S1
+        # Use the offline method to have a cleanly stopped state in changelog.
+        S1.stop()
+        assert S1.db2bak(backup_dir)
+        S1.start()
+
+        # Step 2:  Perform changes on both suppliers and wait for replication
+        # Note: wait_for_replication perform changes
+        repl.wait_for_replication(S1, S2)
+        repl.wait_for_replication(S2, S1)
+        # Step 4: Stop S1
+        S1.stop()
+        # Step 5: Destroy S1 database
+        if get_default_db_lib() == "mdb":
+            os.remove(f'{S1.ds_paths.db_dir}/data.mdb')
+        else:
+            shutil.rmtree(f'{S1.ds_paths.db_dir}/userRoot')
+        # Step 6: Start S1
+        S1.start()
+        # Step 7: Restore S1 from backup
+        rc = S1.tasks.bak2db(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
+        assert rc == 0
+        # Step 8: Wait until replication is in sync
+        # Must replicate first from S2 to S1 to resync S1
+        repl.wait_for_replication(S2, S1)
+        # To help to diagnose test failure, you may want to look first at:
+        # grep -E 'Database RUV|replica_reload_ruv|task_restore_thread|_cl5ConstructRUVs' /var/log/dirsrv/slapd-supplier1/errors
+        repl.wait_for_replication(S1, S2)
 
 
 if __name__ == '__main__':

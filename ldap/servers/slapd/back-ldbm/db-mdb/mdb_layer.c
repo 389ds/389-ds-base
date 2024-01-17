@@ -1440,23 +1440,20 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
         struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
         ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
-        if (li) {
-            dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-            if (priv && priv->dblayer_env) {
-                char *instancedir;
-                dbmdb_dbi_t *dbi = NULL;
+        if (li && MDB_CONFIG(li)) {
+            char *instancedir;
+            dbmdb_dbi_t *dbi = NULL;
 
-                slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
-                rc = dbmdb_open_dbi_from_filename(&dbi, be, BDB_CL_FILENAME, NULL, 0);
-                if (rc == MDB_NOTFOUND) {
-                    /* Nothing to do */
-                    rc = 0;
-                } else if (rc == 0) {
-                    rc = dbmdb_dbi_remove(MDB_CONFIG(li), (dbi_db_t**)&dbi);
-                }
-                inst->inst_changelog = NULL;
-                slapi_ch_free_string(&instancedir);
+            slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
+            rc = dbmdb_open_dbi_from_filename(&dbi, be, BDB_CL_FILENAME, NULL, 0);
+            if (rc == MDB_NOTFOUND) {
+                /* Nothing to do */
+                rc = 0;
+            } else if (rc == 0) {
+                rc = dbmdb_dbi_remove(MDB_CONFIG(li), (dbi_db_t**)&dbi);
             }
+            inst->inst_changelog = NULL;
+            slapi_ch_free_string(&instancedir);
         }
         break;
     }

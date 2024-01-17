@@ -2589,7 +2589,7 @@ _cl5CICbInit(dbi_val_t *key, dbi_val_t *data, DBLCI_CTX *dblcictx)
         return DBI_RC_SUCCESS;
     }
     /* Update last csn */
-    csn_init_by_string(&dblcictx->csn, data->data);
+    csn_init_by_string(&dblcictx->csn, key->data);
     if (_cl5CIEventCheckTxnEnd(&dblcictx->seen) ||
         _cl5CIEventCheckTxnEnd(&dblcictx->changed)) {
         /*
@@ -3008,7 +3008,6 @@ _cl5GenRUVInfo(dbi_val_t *key, dbi_val_t *data, void *ctx)
     DBLCI_CTX *dblcictx = ctx;
     ReplicaId rid = 0;
     RID_INFO *ridinfo = NULL;
-    CSN csn = {0};
     int rc = _cl5CICbInit(key, data, dblcictx);
     if (rc != DBI_RC_SUCCESS) {
         return rc;
@@ -3030,9 +3029,9 @@ _cl5GenRUVInfo(dbi_val_t *key, dbi_val_t *data, void *ctx)
     ridinfo = _cl5GetRidInfo(dblcictx, rid, PR_TRUE);
     if (ridinfo->new == 1) {
         ridinfo->new = 0;
-        ridinfo->mincsn = csn;
+        ridinfo->mincsn = dblcictx->csn;
     }
-    ridinfo->maxcsn = csn;
+    ridinfo->maxcsn = dblcictx->csn;
     return DBI_RC_SUCCESS;
 }
 
@@ -3045,18 +3044,19 @@ _cl5ConstructRUVs (cldb_Handle *cldb)
     char mincsnstr[CSN_STRSIZE] = "";
     char maxcsnstr[CSN_STRSIZE] = "";
     int rc = ruv_init_new(cldb->ident, 0, NULL, &cldb->purgeRUV);
+    const char * bename = cldb->be ? cldb->be->be_name : "?" ;
 
     if (rc != RUV_SUCCESS) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUVs - "
-                                                           "Failed to initialize purges RUV for file %s; ruv error - %d\n",
-                      cldb->ident, rc);
+                                                           "Failed to initialize purges RUV for %s changelog in backend %s; ruv error - %d\n",
+                      cldb->ident, bename, rc);
         return CL5_RUV_ERROR;
     }
     rc = ruv_init_new(cldb->ident, 0, NULL, &cldb->maxRUV);
     if (rc != RUV_SUCCESS) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUVs - "
-                                                           "Failed to initialize upper bound RUV for file %s; ruv error - %d\n",
-                      cldb->ident, rc);
+                                                           "Failed to initialize upper bound RUV for %s changelog in backend %s; ruv error - %d\n",
+                      cldb->ident, bename, rc);
         return CL5_RUV_ERROR;
     }
 
@@ -3073,13 +3073,13 @@ _cl5ConstructRUVs (cldb_Handle *cldb)
         /* Now that we have the min and max csn for each rids, it is time to update the RUVs */
         rc = CL5_SUCCESS;
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUVs - "
-                                                           "Found %d replicas in %s changelog file.\n",
-                      dblcictx.nb_rids, cldb->ident);
+                                                           "Found %d replicas in %s changelog in backend %s.\n",
+                      dblcictx.nb_rids, cldb->ident, bename);
         for (size_t i=0; i<dblcictx.nb_rids; i++) {
             rc = ruv_set_csns(cldb->maxRUV, &dblcictx.rids[i].maxcsn, NULL);
             if (rc != RUV_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUVs - "
-                                                                   "Failed to update upper bound RUV for file %s; ruv error - %d\n",
+                                                                   "Failed to update upper bound RUV for %s changelog; ruv error - %d\n",
                               cldb->ident, rc);
                 rc = CL5_DB_ERROR;
                 break;
@@ -3087,7 +3087,7 @@ _cl5ConstructRUVs (cldb_Handle *cldb)
             rc = ruv_set_csns(cldb->purgeRUV, &dblcictx.rids[i].mincsn, NULL);
             if (rc != RUV_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUVs - "
-                                                                   "Failed to update purge RUV for file %s; ruv error - %d\n",
+                                                                   "Failed to update purge RUV for %s changelog; ruv error - %d\n",
                               cldb->ident, rc);
                 rc = CL5_DB_ERROR;
                 break;
