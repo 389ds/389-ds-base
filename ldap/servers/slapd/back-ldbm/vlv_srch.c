@@ -475,6 +475,7 @@ vlvIndex_delete(struct vlvIndex **ppvs)
 {
     if (ppvs != NULL && *ppvs != NULL) {
         slapi_ch_free((void **)&((*ppvs)->vlv_sortspec));
+        if ((*ppvs)->vlv_sortkey != NULL)
         {
             int n;
             for (n = 0; (*ppvs)->vlv_sortkey[n] != NULL; n++) {

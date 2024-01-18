@@ -7,6 +7,9 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest, time
+import os
+from shutil import copyfile
+from contextlib import contextmanager
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2, topology_st
@@ -24,6 +27,8 @@ from lib389.agreement import Agreements
 from lib389.cli_ctl.dblib import run_dbscan
 
 
+
+
 pytestmark = pytest.mark.tier1
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -36,6 +41,31 @@ STARTING_UID_INDEX = 1000
 # so VLV_SEARCH_OFFSET (The difference between the vlv index
 # and the NNNN value) is:
 VLV_SEARCH_OFFSET = STARTING_UID_INDEX - 2
+
+# A VLV Index with invalid vlvSrch:
+# ( Using objectClass: extensibleobject instead of objectClass: vlvSrch )
+BAD_DSE_DATA = """dn: cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: extensibleobject
+cn: vlvSrch
+vlvBase: dc=example,dc=com
+vlvFilter: (uid=*)
+vlvScope: 2
+modifiersName: cn=directory manager
+createTimestamp: 20240110175704Z
+modifyTimestamp: 20240110175704Z
+numSubordinates: 1
+
+dn: cn=vlvIdx,cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvIndex
+cn: vlvIdx
+vlvSort: cn
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240110175704Z
+modifyTimestamp: 20240110175704Z
+"""
 
 
 def open_new_ldapi_conn(dsinstance):
@@ -354,6 +384,58 @@ def test_vlv_cache_subdb_names(topology_m2):
     assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
     check_vlv_search(conn, offset=23)
     verify_vlv_subdb_names(vlvname, M2)
+
+
+@contextmanager
+def custom_dse(*args, **kwds):
+    """ A Constext manager to handle a special configuration.
+    That restores the original config when exiting out of the context.
+
+    Usage:
+        with custom_dse(inst) as newdsename, olddsename:
+            update(newdsename)
+            inst.start()
+            action ...
+    """
+    inst = args[0]
+    olddsename = f'{inst.ds_paths.config_dir}/dse.ldif.vlvtc1'
+    newdsename = f'{inst.ds_paths.config_dir}/dse.ldif'
+    inst.stop()
+    assert os.path.isfile(newdsename)
+    os.replace(newdsename, olddsename)
+    copyfile(olddsename, newdsename)
+    try:
+        yield (newdsename, olddsename)
+    finally:
+        inst.stop()
+        if os.path.isfile(olddsename):
+            os.remove(newdsename)
+            os.rename(olddsename, newdsename)
+        inst.start()
+
+
+def test_vlv_start_with_bad_dse(topology_st):
+    """
+    Testing that server does not crash if dse.ldif is in disorder.
+
+    :id: ceb3e9e0-b607-11ee-845a-482ae39447e5
+    :setup: Standalone
+    :steps:
+        1. Append vlvIndex entries then vlvSearch entry in the dse.ldif
+        2. Restart the server
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+    """
+    inst = topology_st.standalone
+    # Use a context to ensure that the instance config is restored and instance
+    # restarted at the end of the test.
+    with custom_dse(inst) as (newdsename, olddsename):
+        # Step 1: Append vlvIndex entries then vlvSearch entry in the dse.ldif
+        with open(newdsename, 'at') as dse:
+            dse.write(BAD_DSE_DATA)
+        # Step 2: Restart the server
+        inst.start()
 
 
 if __name__ == "__main__":
