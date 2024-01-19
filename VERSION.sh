@@ -8,8 +8,8 @@ capbrand=389
 vendor="389 Project"
 
 # PACKAGE_VERSION is constructed from these
-VERSION_MAJOR=2
-VERSION_MINOR=5
+VERSION_MAJOR=3
+VERSION_MINOR=0
 VERSION_MAINT=0
 # NOTE: VERSION_PREREL is automatically set for builds made out of a git tree
 VERSION_PREREL=
