@@ -234,7 +234,7 @@ def prepare_ds_root(inst, log, args):
     PO = '{'
     PF = '}'
     copy_and_substitute('/usr/share/dirsrv/inf/defaults.inf', (
-            ('WORD', ' /', f' {args.root_dir}/'),
+            ('WORD', ' /', f' {os.path.abspath(args.root_dir)}/'),
             ('LINE', 'with_selinux', 'no'),
             ('LINE', 'with_systemd', '0'),
             ('LINE', 'user', user),
