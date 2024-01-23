@@ -2135,14 +2135,13 @@ agmt_set_transportcauri_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool b
     if (0 == slapi_entry_attr_find(e,
             bootstrap ? type_nsds5ReplicaBootstrapTransportCAUri : type_nsds5ReplicaTransportCAUri, &attr)) {
 
-        int i;
         int uri_count = 0;
 
         /* Get a count and allocate an array for the official matching rules */
         slapi_attr_get_numvalues(attr, &uri_count);
         uris = (char **)slapi_ch_malloc((uri_count + 1) * sizeof(char *));
 
-        for (i = slapi_attr_first_value(attr, &sval);
+        for (size_t i = slapi_attr_first_value(attr, &sval);
              i >= 0; i = slapi_attr_next_value(attr, i, &sval)) {
             uris[i] = slapi_ch_strdup(slapi_value_get_string(sval));
         }
