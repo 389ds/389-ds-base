@@ -88,7 +88,6 @@ EXPECTED_ENTRIES = (("dc=parent", 39), ("dc=child1,dc=parent", 13), ("dc=child2,
 )
 
 
-@pytest.mark.bz2083589
 @pytest.mark.skipif(not has_orphan_attribute, reason = "compatibility attribute not yet implemented in this version")
 def test_sub_suffixes(topo, orphan_param):
     """ check the entries found on suffix/sub-suffix

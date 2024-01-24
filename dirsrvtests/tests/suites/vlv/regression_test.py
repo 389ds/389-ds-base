@@ -149,7 +149,6 @@ def create_vlv_search_and_index(inst):
     return vlv_searches, vlv_index
 
 
-@pytest.mark.DS47966
 def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
     """
     Testing bulk import when the backend with VLV was recreated.

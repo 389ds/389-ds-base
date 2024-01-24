@@ -230,7 +230,6 @@ def test_filtered_attributes(_create_entries):
                                f'ou=People,{DEFAULT_SUFFIX}').get_attr_val_utf8('roomnumber')
 
 
-@pytest.mark.bz154948
 def test_fewer_changes_in_single_operation(_create_entries):
     """For bug 154948, which cause the server to crash if there were
     fewer changes (but more than one) in a single operation to fractionally
@@ -292,7 +291,6 @@ def _add_user_clean(request):
     request.addfinalizer(final_call)
 
 
-@pytest.mark.bz739172
 def test_newly_added_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_clean):
     """This test case is to test the newly added attribute nsds5replicatedattributelistTotal.
 
@@ -321,7 +319,6 @@ def test_newly_added_attribute_nsds5replicatedattributelisttotal(_create_entries
             assert not UserAccount(instance, user).get_attr_val_utf8(value)
 
 
-@pytest.mark.bz739172
 def test_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_clean):
     """This test case is to test the newly added attribute nsds5replicatedattributelistTotal.
 
@@ -353,7 +350,6 @@ def test_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_
             assert UserAccount(instance, user).get_attr_val_utf8(value)
 
 
-@pytest.mark.bz800173
 def test_implicit_replication_of_password_policy(_create_entries):
     """For bug 800173, we want to cause the implicit replication of password policy
     attributes due to failed bind operations

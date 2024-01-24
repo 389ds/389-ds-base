@@ -21,8 +21,6 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.bz918684
-@pytest.mark.ds394
 def test_password_delete_specific_password(topology_st):
     """Delete a specific userPassword, and make sure
     it is actually deleted from the entry

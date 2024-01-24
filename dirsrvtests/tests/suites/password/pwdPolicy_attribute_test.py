@@ -71,7 +71,6 @@ def password_policy(topology_st, add_test_user):
     log.info('Create password policy for user {}'.format(TEST_USER_DN))
     pwp.create_user_policy(TEST_USER_DN, policy_props)
 
-@pytest.mark.bz1845094
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
 def test_pwdReset_by_user_DM(topology_st, add_test_user):
     """Test new password policy attribute "pwdReset"

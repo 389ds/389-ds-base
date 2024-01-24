@@ -200,7 +200,6 @@ def test_write_access_to_naming_atributes_two(topo, _add_user, aci_of_user, requ
     UserAccount(topo.standalone, SAM_DAMMY_MODRDN).delete()
 
 
-@pytest.mark.bz950351
 def test_access_aci_list_contains_any_deny_rule(topo, _add_user, aci_of_user):
     """RHDS denies MODRDN access if ACI list contains any DENY rule
     Bug description: If you create a deny ACI for some or more attributes there is incorrect behaviour

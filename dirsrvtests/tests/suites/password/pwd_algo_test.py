@@ -151,7 +151,6 @@ def test_pwd_algo_test(topology_st, algo):
     log.info('Test %s PASSED' % algo)
 
 
-@pytest.mark.ds397
 def test_pbkdf2_algo(topology_st):
     """Changing password storage scheme to PBKDF2_SHA256
     and trying to bind with different password combination

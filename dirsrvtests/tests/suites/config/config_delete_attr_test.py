@@ -19,7 +19,6 @@ pytestmark = [pytest.mark.tier2,
               pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")]
 
 
-@pytest.mark.ds48961
 def test_delete_storagescheme(topology_st):
     """ Test that deletion of passwordStorageScheme is rejected
 
@@ -49,7 +48,6 @@ def test_delete_storagescheme(topology_st):
         assert "deleting the value is not allowed" in str(excinfo.value)
 
 
-@pytest.mark.ds48961
 def test_reset_attributes(topology_st):
     """ Test that we can reset some attributes while others are rejected
 

@@ -65,8 +65,6 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     topology.logcap.flush()
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_insecure_pwd_hash_configured(topology_st):
     """Check if HealthCheck returns DSCLE0002 code
@@ -114,8 +112,6 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
     """Check if HealthCheck returns DSELE0001 code
@@ -173,8 +169,6 @@ def test_healthcheck_min_allowed_tls_version_too_low(topology_st):
         assert subprocess.check_call(['update-crypto-policies', '--set', 'DEFAULT']) == 0
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_resolvconf_bad_file_perm(topology_st):
     """Check if HealthCheck returns DSPERMLE0001 code
@@ -216,8 +210,6 @@ def test_healthcheck_resolvconf_bad_file_perm(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_pwdfile_bad_file_perm(topology_st):
     """Check if HealthCheck returns DSPERMLE0002 code
@@ -260,8 +252,6 @@ def test_healthcheck_pwdfile_bad_file_perm(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_certif_expiring_within_30d(topology_st):
     """Check if HealthCheck returns DSCERTLE0001 code
@@ -299,8 +289,6 @@ def test_healthcheck_certif_expiring_within_30d(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_certif_expired(topology_st):
     """Check if HealthCheck returns DSCERTLE0002 code

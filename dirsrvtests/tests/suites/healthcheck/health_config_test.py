@@ -80,8 +80,6 @@ def setup_ldif(topology_st, request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_logging_format_should_be_revised(topology_st):
     """Check if HealthCheck returns DSCLE0001 code
@@ -124,8 +122,6 @@ def test_healthcheck_logging_format_should_be_revised(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_RI_plugin_is_misconfigured(topology_st):
     """Check if HealthCheck returns DSRILE0001 code
@@ -173,8 +169,6 @@ def test_healthcheck_RI_plugin_is_misconfigured(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_RI_plugin_missing_indexes(topology_st):
     """Check if HealthCheck returns DSRILE0002 code
@@ -274,8 +268,6 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
     standalone.restart()
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_virtual_attr_incorrectly_indexed(topology_st):
     """Check if HealthCheck returns DSVIRTLE0001 code
@@ -334,8 +326,6 @@ def test_healthcheck_virtual_attr_incorrectly_indexed(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 @pytest.mark.xfail(ds_is_older("1.4.2.4"), reason="May fail because of bug 1796050")
 def test_healthcheck_low_disk_space(topology_st):
@@ -381,8 +371,6 @@ def test_healthcheck_low_disk_space(topology_st):
 
 
 @pytest.mark.flaky(max_runs=2, min_passes=1)
-@pytest.mark.ds50791
-@pytest.mark.bz1843567
 @pytest.mark.xfail(ds_is_older("1.4.3.8"), reason="Not implemented")
 def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     """Check if HealthCheck returns DSLOGNOTES0001 code
@@ -435,8 +423,6 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
 
-@pytest.mark.ds50791
-@pytest.mark.bz1843567
 @pytest.mark.xfail(ds_is_older("1.4.3.8"), reason="Not implemented")
 def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     """Check if HealthCheck returns DSLOGNOTES0002 code

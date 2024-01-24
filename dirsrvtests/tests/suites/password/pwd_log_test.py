@@ -20,7 +20,6 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.ds365
 def test_hide_unhashed_pwd(topology_st):
     """Change userPassword, enable hiding of un-hashed
     password and check the audit logs.

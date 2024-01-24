@@ -204,7 +204,6 @@ def test_ruv_after_reindex(topo):
     assert not inst.searchErrorsLog("entryrdn_insert_key")
 
 
-@pytest.mark.ds1317
 @pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/1317')
 def test_ruv_after_import(topo):
     """Test the RUV behavior after an LDIF import operation.

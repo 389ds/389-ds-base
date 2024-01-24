@@ -323,7 +323,6 @@ def test_crash_on_ldif2db(topo, _import_clean):
     _import_offline(topo, 5)
 
 
-@pytest.mark.bz185477
 def test_ldif2db_allows_entries_without_a_parent_to_be_imported(topo, _import_clean):
     """Should reject import of entries that's missing parent suffix
 
@@ -483,7 +482,6 @@ def test_fast_slow_import(topo, _toggle_private_import_mem, _import_clean):
     assert total_time1 < total_time2
 
 
-@pytest.mark.bz175063
 def test_entry_with_escaped_characters_fails_to_import_and_index(topo, _import_clean):
     """If missing entry_id is found, skip it and continue reading the primary db to be re indexed.
 

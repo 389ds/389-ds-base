@@ -38,8 +38,6 @@ def run_db2ldif_and_clear_logs(topology, instance, backend, ldif, output_msg, en
     topology.logcap.flush()
 
 
-@pytest.mark.bz1806978
-@pytest.mark.ds51188
 @pytest.mark.skipif(ds_is_older("1.3.10", "1.4.2"), reason="Not implemented")
 def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
     """Export with dsctl db2ldif, giving a ldif file path which can't be accessed by the user (dirsrv by default)
@@ -72,8 +70,6 @@ def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path(topo):
     topo.standalone.start()
 
 
-@pytest.mark.bz1806978
-@pytest.mark.ds51188
 @pytest.mark.skipif(ds_is_older("1.4.3.8"), reason="bz1806978 not fixed")
 def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
     """Export with ns-slapd db2ldif, giving a ldif file path which can't be accessed by the user (dirsrv by default)
@@ -109,7 +105,6 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
     topo.standalone.start()
 
 
-@pytest.mark.bz1860291
 @pytest.mark.xfail(reason="bug 1860291")
 @pytest.mark.skipif(ds_is_older("1.3.10", "1.4.2"), reason="Not implemented")
 def test_dbtasks_db2ldif_with_non_accessible_ldif_file_path_output(topo):

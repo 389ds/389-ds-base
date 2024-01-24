@@ -61,8 +61,6 @@ def get_available_memory():
 
 
 @pytest.mark.skipif(get_available_memory() < (int(CUSTOM_MEM)/1024), reason="available memory is too low")
-@pytest.mark.bz1627512
-@pytest.mark.ds49618
 def test_set_cachememsize_to_custom_value(topo):
     """Test if value nsslapd-cachememsize remains set
      at the custom setting of value above 3805132804 bytes

@@ -23,8 +23,6 @@ log = logging.getLogger(__name__)
 p = Paths()
 
 
-@pytest.mark.ds50889
-@pytest.mark.bz1638875
 @pytest.mark.skipif(p.with_systemd == False, reason='Will not run without systemd')
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_pem_cert_in_private_namespace(topology_st):
@@ -77,8 +75,6 @@ def test_pem_cert_in_private_namespace(topology_st):
         assert not os.path.exists(cert_path + item)
 
 
-@pytest.mark.ds50952
-@pytest.mark.bz1809279
 @pytest.mark.xfail(ds_is_older("1.4.3"), reason="Might fail because of bz1809279")
 @pytest.mark.skipif(ds_is_older("1.4.0"), reason="Not implemented")
 def test_cert_category_authority(topology_st):

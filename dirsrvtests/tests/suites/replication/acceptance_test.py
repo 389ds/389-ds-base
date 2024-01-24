@@ -299,7 +299,6 @@ def test_modrdn_after_pause(topo_m4):
         topo_m4.ms["supplier1"].delete_s(newrdn_dn)
 
 
-@pytest.mark.bz842441
 def test_modify_stripattrs(topo_m4):
     """Check that we can modify nsds5replicastripattrs
 
@@ -551,7 +550,6 @@ def test_warining_for_invalid_replica(topo_m4):
     log.info('Check the error log for the error')
     assert topo_m4.ms["supplier1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
 
-@pytest.mark.ds51082
 def test_csnpurge_large_valueset(topo_m2):
     """Test csn generator test
 
@@ -607,7 +605,6 @@ def test_csnpurge_large_valueset(topo_m2):
     for i in range(21,25):
         test_user.add('description', 'value {}'.format(str(i)))
 
-@pytest.mark.ds51244
 def test_urp_trigger_substring_search(topo_m2):
     """Test that a ADD of a entry with a '*' in its DN, triggers
     an internal search with a escaped DN

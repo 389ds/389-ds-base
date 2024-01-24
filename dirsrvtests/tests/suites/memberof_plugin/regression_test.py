@@ -98,7 +98,6 @@ def _find_memberof(server, member_dn, group_dn):
     assert group._dn.lower() in user.get_attr_vals_utf8_l('memberOf')
 
 
-@pytest.mark.bz1352121
 def test_memberof_with_repl(topo):
     """Test that we allowed to enable MemberOf plugin in dedicated consumer
 
@@ -327,7 +326,6 @@ def test_scheme_violation_errors_logged(topo_m2):
     assert inst.ds_error_log.match(pattern)
 
 
-@pytest.mark.bz1192099
 def test_memberof_with_changelog_reset(topo_m2):
     """Test that replication does not break, after DS stop-start, due to changelog reset
 
@@ -449,7 +447,6 @@ def _find_memberof_ext(server, user_dn=None, group_dn=None, find_result=True):
         assert (not found)
 
 
-@pytest.mark.ds49161
 def test_memberof_group(topology_st):
     """Test memberof does not fail if group is moved into scope
 
@@ -527,7 +524,6 @@ def _disable_auto_oc_memberof(server):
         [(ldap.MOD_REPLACE, 'memberOfAutoAddOC', b'nsContainer')])
 
 
-@pytest.mark.ds49967
 def test_entrycache_on_modrdn_failure(topology_st):
     """This test checks that when a modrdn fails, the destination entry is not returned by a search
     This could happen in case the destination entry remains in the entry cache

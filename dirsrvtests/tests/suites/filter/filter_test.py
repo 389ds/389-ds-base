@@ -22,8 +22,6 @@ log = logging.getLogger(__name__)
 ENTRY_NAME = 'test_entry'
 
 
-@pytest.mark.bz918686
-@pytest.mark.ds497
 def test_filter_escaped(topology_st):
     """Test we can search for an '*' in a attribute value.
 
@@ -107,7 +105,6 @@ def test_filter_search_original_attrs(topology_st):
 
     log.info('test_filter_search_original_attrs: PASSED')
 
-@pytest.mark.bz1511462
 def test_filter_scope_one(topology_st):
     """Test ldapsearch with scope one gives only single entry
 
@@ -129,7 +126,6 @@ def test_filter_scope_one(topology_st):
     log.info('Search should only have one entry')
     assert len(results) == 1
 
-@pytest.mark.ds47313
 def test_filter_with_attribute_subtype(topology_st):
     """Adds 2 test entries and Search with
     filters including subtype and !
@@ -222,7 +218,6 @@ def test_filter_with_attribute_subtype(topology_st):
 
     log.info('Testcase PASSED')
 
-@pytest.mark.bz1615155
 def test_extended_search(topology_st):
     """Test we can search with equality extended matching rule
 

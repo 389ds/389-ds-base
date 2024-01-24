@@ -101,7 +101,6 @@ def relocate_pem_files(topology_m2):
     topology_m2.ms["supplier1"].restart()
     check_pems(certdir_prefix, mycacert, myservercert, myserverkey, "")
 
-@pytest.mark.ds47536
 def test_openldap_no_nss_crypto(topology_m2):
     """Check that we allow usage of OpenLDAP libraries
     that don't use NSS for crypto

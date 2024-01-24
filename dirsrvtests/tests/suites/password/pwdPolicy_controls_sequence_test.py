@@ -81,8 +81,6 @@ def change_passwd(topo):
     topo.standalone.simple_bind(DN_DM, PASSWORD)
 
 
-@pytest.mark.bz1724914
-@pytest.mark.ds3585
 def test_controltype_expired_grace_limit(topo, init_user):
     """Test for expiration control when password is expired with available and exhausted grace login
 

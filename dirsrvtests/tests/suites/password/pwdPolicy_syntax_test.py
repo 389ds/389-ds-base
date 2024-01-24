@@ -293,8 +293,6 @@ def test_basic(topology_st, create_user, password_policy):
                     '13_#Kad472h', 'Password found in user entry')
 
 
-@pytest.mark.bz1816857
-@pytest.mark.ds50875
 @pytest.mark.skipif(ds_is_older("1.4.1.18"), reason="Not implemented")
 def test_config_set_few_user_attributes(topology_st, create_user, password_policy):
     """Test that we can successfully set multiple values to passwordUserAttributes
@@ -333,8 +331,6 @@ def test_config_set_few_user_attributes(topology_st, create_user, password_polic
                         '13_#Kad472h', 'Password found in user entry')
 
 
-@pytest.mark.bz1816857
-@pytest.mark.ds50875
 @pytest.mark.skipif(ds_is_older("1.4.1.18"), reason="Not implemented")
 def test_config_set_few_bad_words(topology_st, create_user, password_policy):
     """Test that we can successfully set multiple values to passwordBadWords

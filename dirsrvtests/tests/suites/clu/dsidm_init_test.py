@@ -31,7 +31,6 @@ else:
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.ds4281
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_initialise(topology_no_sample):
     """Check that keep alive entries are created when initializing a master from another one

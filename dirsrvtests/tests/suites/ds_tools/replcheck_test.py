@@ -505,8 +505,6 @@ def test_dsreplcheck_with_password_file(topo_tls_ldapi, tmpdir):
     subprocess.Popen(tool_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
 
 
-@pytest.mark.ds51102
-@pytest.mark.bz1836428
 @pytest.mark.skipif(ds_is_older('1.4.1'), reason='Not implemented')
 def test_dsreplcheck_timeout_connection_mechanisms(topo_tls_ldapi):
     """Check that ds-replcheck timeout option works with various connection mechanisms
