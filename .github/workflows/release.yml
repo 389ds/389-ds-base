@@ -14,6 +14,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Check if the tagged commit belongs to a valid branch
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          COMMIT=$(git rev-parse HEAD)
+          BRANCHES=$(git branch -a --contains $COMMIT | grep -v 'HEAD detached at')
+          if [ -n "$BRANCHES" ]; then
+              echo "Tagged commit $COMMIT belongs to the following branch(es):"
+              echo "$BRANCHES"
+          else
+              echo "Tagged commit $COMMIT does not belong to any branch."
+              exit 1
+          fi
+
       - name: Create tarball
         run: TAG=${{ github.ref_name}} make -f rpm.mk dist-bz2
 
