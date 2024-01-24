@@ -47,14 +47,6 @@ NEW_SUFFIX_2 = 'ou={},{}'.format(NEW_SUFFIX_2_NAME, NEW_SUFFIX_1)
 NEW_BACKEND_1 = 'parent_base'
 NEW_BACKEND_2 = 'child_base'
 
-OLD_HOSTNAME = socket.gethostname()
-if os.getuid() == 0:
-    socket.sethostname('localhost')
-HOSTNAME = socket.gethostname()
-IP_ADDRESS = socket.gethostbyname(HOSTNAME)
-OLD_IP_ADDRESS = socket.gethostbyname(OLD_HOSTNAME)
-
-
 @pytest.fixture(scope="module")
 def create_40k_users(topology_st, request):
     inst = topology_st.standalone
@@ -103,8 +95,6 @@ def create_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user simplepaged_test')
-    new_uri = topology_st.standalone.ldapuri.replace(OLD_HOSTNAME, HOSTNAME)
-    topology_st.standalone.ldapuri = new_uri
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     user = users.create(properties={
         'uid': 'simplepaged_test',
@@ -124,8 +114,6 @@ def create_user(topology_st, request):
         log.info('Deleting user simplepaged_test')
         if not DEBUGGING:
             user.delete()
-        if os.getuid() == 0:
-            socket.sethostname(OLD_HOSTNAME)
 
     request.addfinalizer(fin)
 
@@ -569,7 +557,7 @@ def test_search_with_timelimit(topology_st, create_user):
 
 def test_search_ip_aci(topology_st, create_user):
     """Verify that after performing multiple simple paged searches
-    to completion on the suffix with DNS or IP based ACI
+    to completion on the suffix with IP based ACI
 
     :id: bbfddc46-a8c8-49ae-8c90-7265d05b22a9
     :customerscenario: True
@@ -583,8 +571,6 @@ def test_search_ip_aci(topology_st, create_user):
         4. Search through added users with a simple paged control
         5. Perform steps 4 three times in a row
         6. Return ACI to the initial state
-        7. Go through all steps once again, but use IP subject dn
-           instead of DNS
     :expectedresults:
         1. Operation should be successful
         2. Anonymous ACI should be successfully added
@@ -592,23 +578,21 @@ def test_search_ip_aci(topology_st, create_user):
         4. No error happens, all users should be found and sorted
         5. Results should remain the same
         6. ACI should be successfully returned
-        7. Results should be the same with ACI with IP subject dn
     """
     users_num = 20
     page_size = 5
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
-
-    log.info("test_search_dns_ip_aci: HOSTNAME: " + HOSTNAME)
-    log.info("test_search_dns_ip_aci: IP_ADDRESS: " + IP_ADDRESS)
+    HOSTNAME = socket.gethostname()
+    IP_ADDRESS = socket.gethostbyname(HOSTNAME)
 
     try:
         log.info('Back up current suffix ACI')
         acis_bck = topology_st.standalone.aci.list(DEFAULT_SUFFIX, ldap.SCOPE_BASE)
 
         log.info('Add test ACI')
-        bind_rule = 'ip = "{}" or ip = "::1" or ip = "{}"'.format(IP_ADDRESS, OLD_IP_ADDRESS)
+        bind_rule = f'ip = "{IP_ADDRESS}" or ip = "::1"'
         ACI_TARGET = '(targetattr != "userPassword")'
         ACI_ALLOW = '(version 3.0;acl "Anonymous access within domain"; allow (read,compare,search)'
         ACI_SUBJECT = '(userdn = "ldap:///anyone") and (%s);)' % bind_rule
