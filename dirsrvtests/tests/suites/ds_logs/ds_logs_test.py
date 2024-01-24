@@ -243,7 +243,6 @@ def create_backend(inst, rdn, suffix):
 
     return be1
 
-@pytest.mark.bz1273549
 def test_check_default(topology_st):
     """Check the default value of nsslapd-logging-hr-timestamps-enabled,
      it should be ON
@@ -269,7 +268,6 @@ def test_check_default(topology_st):
     log.debug(default)
 
 
-@pytest.mark.bz1273549
 def test_plugin_set_invalid(topology_st):
     """Try to set some invalid values for nsslapd-logging-hr-timestamps-enabled
     attribute
@@ -290,7 +288,6 @@ def test_plugin_set_invalid(topology_st):
         topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'JUNK')
 
 
-@pytest.mark.bz1273549
 def test_log_plugin_on(topology_st, remove_users):
     """Check access logs for millisecond, when
     nsslapd-logging-hr-timestamps-enabled=ON
@@ -326,7 +323,6 @@ def test_log_plugin_on(topology_st, remove_users):
     assert topology_st.standalone.ds_access_log.match(r'^\[.+\d{9}.+\].+')
 
 
-@pytest.mark.bz1273549
 def test_log_plugin_off(topology_st, remove_users):
     """Milliseconds should be absent from access logs when
     nsslapd-logging-hr-timestamps-enabled=OFF
@@ -377,8 +373,6 @@ def test_log_plugin_off(topology_st, remove_users):
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
 
@@ -423,8 +417,6 @@ def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_acc
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
 
@@ -473,8 +465,6 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_acc
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_access_log_buffering):
     """Tests client initiated operations when automember plugin is enabled
 
@@ -557,8 +547,6 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_acc
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disable_access_log_buffering):
     """Tests client-initiated operations while referential integrity plugin is enabled
 
@@ -642,8 +630,6 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disab
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_access_log_buffering):
     """Tests client initiated operations when referential integrity plugin is enabled
 
@@ -734,8 +720,6 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_acc
 
 
 @pytest.mark.skipif(ds_is_older('1.4.2.0'), reason="Not implemented")
-@pytest.mark.bz1358706
-@pytest.mark.ds49232
 def test_access_log_truncated_search_message(topology_st, clean_access_logs):
     """Tests that the access log message is properly truncated when the message is too long
 
@@ -771,8 +755,6 @@ def test_access_log_truncated_search_message(topology_st, clean_access_logs):
 
 @pytest.mark.skipif(ds_is_newer("1.4.3"), reason="rsearch was removed")
 @pytest.mark.xfail(ds_is_older('1.4.2.0'), reason="May fail because of bug 1732053")
-@pytest.mark.bz1732053
-@pytest.mark.ds50510
 def test_etime_at_border_of_second(topology_st, clean_access_logs):
     """Test that the etime reported in the access log doesn't contain wrong nsec value
 
@@ -824,7 +806,6 @@ def test_etime_at_border_of_second(topology_st, clean_access_logs):
 
 @pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.skipif(ds_is_older('1.3.10.1', '1.4.1'), reason="Fail because of bug 1749236")
-@pytest.mark.bz1749236
 def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
     """Test that the etime reported in the access log has a correct order of magnitude
 
@@ -904,8 +885,6 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3.8'), reason="Fail because of bug 1850275")
-@pytest.mark.bz1850275
-@pytest.mark.bz1924848
 def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
     """Test that the new optime and wtime keywords are present in the access log and have correct values
 
@@ -994,9 +973,6 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
 
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
-@pytest.mark.bz1662461
-@pytest.mark.ds50428
-@pytest.mark.ds49969
 def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_buffering):
     """Test that DS correctly logs the base dn when a search with invalid attribute request is performed
 
@@ -1040,8 +1016,6 @@ def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_b
 
 
 @pytest.mark.xfail(ds_is_older('1.3.8', '1.4.2'), reason="May fail because of bug 1676948")
-@pytest.mark.bz1676948
-@pytest.mark.ds50536
 def test_audit_log_rotate_and_check_string(topology_st, clean_access_logs, set_audit_log_config_values_to_rotate):
     """Version string should be logged only once at the top of audit log
     after it is rotated.
@@ -1176,8 +1150,6 @@ def test_enable_external_libs_debug_log(topology_st):
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3'), reason="Might fail because of bug 1895460")
-@pytest.mark.bz1895460
-@pytest.mark.ds4593
 def test_cert_personality_log_help(topology_st, request):
     """Test changing the nsSSLPersonalitySSL attribute will raise help message in log
 

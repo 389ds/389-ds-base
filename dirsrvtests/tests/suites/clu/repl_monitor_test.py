@@ -92,8 +92,6 @@ def get_hostnames_from_log(port1, port2):
 
 #unstable or unstatus tests, skipped for now
 @pytest.mark.flaky(max_runs=2, min_passes=1)
-@pytest.mark.ds50545
-@pytest.mark.bz1739718
 @pytest.mark.skipif(ds_is_older("1.4.0"), reason="Not implemented")
 def test_dsconf_replication_monitor(topology_m2, set_log_file):
     """Test replication monitor that was ported from legacy tools

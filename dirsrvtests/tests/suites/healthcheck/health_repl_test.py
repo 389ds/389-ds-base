@@ -69,8 +69,6 @@ def set_changelog_trimming(instance):
     inst_changelog.set_max_age('30d')
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_replication_replica_not_reachable(topology_m2):
     """Check if HealthCheck returns DSREPLLE0005 code
@@ -125,8 +123,6 @@ def test_healthcheck_replication_replica_not_reachable(topology_m2):
     run_healthcheck_and_flush_log(topology_m2, M1, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_changelog_trimming_not_configured(topology_m2):
     """Check if HealthCheck returns DSCLLE0001 code
@@ -173,8 +169,6 @@ def test_healthcheck_changelog_trimming_not_configured(topology_m2):
     run_healthcheck_and_flush_log(topology_m2, M1, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_replication_presence_of_conflict_entries(topology_m2):
     """Check if HealthCheck returns DSREPLLE0002 code
@@ -251,8 +245,6 @@ def test_healthcheck_non_replicated_suffixes(topology_m2):
     health_check_run(inst, topology_m2.logcap.log, args)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_replication_out_of_sync_broken(topology_m3):
     """Check if HealthCheck returns DSREPLLE0001 code

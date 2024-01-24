@@ -22,7 +22,6 @@ pytestmark = pytest.mark.tier1
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.ds47937
 def test_dnatype_only_valid(topology_st):
     """Test that DNA plugin only accepts valid attributes for "dnaType"
 

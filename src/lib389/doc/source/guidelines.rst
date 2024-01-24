@@ -278,13 +278,20 @@ Parametrizing
 Marking test functions and selecting them for a run
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+ You can “mark” a test function with custom meta data like this:
++ First you need to register a marker in ``pytest.ini``:
+  ::
+    # content of pytest.ini
+    [pytest]
+    markers =
+    tls: mark a test as a TLS related test
+
++ Then you can "mark" a test function with custom metadata like this:
 
   ::
 
-    @pytest.mark.ssl
+    @pytest.mark.tls
     def test_search_sec_port():
-        pass # perform some search through sec port
+        pass # perform some search through secure port
 
 
 + You can also set a module level marker in which case it will be
@@ -293,20 +300,20 @@ Marking test functions and selecting them for a run
   ::
 
     import pytest
-    pytestmark = pytest.mark.ssl
+    pytestmark = pytest.mark.tls
 
 
-+ You can then restrict a test run to only run tests marked with ssl:
++ You can then restrict a test run to only run tests marked with ``tls``:
 
   ::
 
-    py.test -v -m ssl
+    py.test -v -m tls
 
 + Or the inverse, running all tests except the ssl ones:
 
   ::
 
-    py.test -v -m "not ssl"
+    py.test -v -m "not tls"
 
 + Select tests based on their node ID
 

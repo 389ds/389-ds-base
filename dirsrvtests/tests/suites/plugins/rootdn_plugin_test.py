@@ -643,8 +643,6 @@ def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-host', 'host.####.com')])
 
 
-@pytest.mark.ds50800
-@pytest.mark.bz1807537
 @pytest.mark.xfail(ds_is_older('1.3.11', '1.4.3.5'), reason="May fail because of bz1807537")
 def test_rootdn_access_denied_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
     """Test denied IP feature with a wildcard
@@ -689,8 +687,6 @@ def test_rootdn_access_denied_ip_wildcard(topology_st, rootdn_setup, rootdn_clea
             time.sleep(.5)
 
 
-@pytest.mark.ds50800
-@pytest.mark.bz1807537
 @pytest.mark.xfail(ds_is_older('1.3.11', '1.4.3.5'), reason="May fail because of bz1807537")
 def test_rootdn_access_allowed_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
     """Test allowed ip feature

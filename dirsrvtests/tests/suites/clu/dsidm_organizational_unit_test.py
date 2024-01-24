@@ -43,8 +43,6 @@ def create_test_ou(topology_st, request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.bz1866294
-@pytest.mark.ds4284
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 @pytest.mark.xfail(ds_is_older("1.4.3.16"), reason="Might fail because of bz1866294")
 def test_dsidm_organizational_unit_delete(topology_st, create_test_ou):

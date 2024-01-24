@@ -73,8 +73,6 @@ def check_value_in_log_and_reset(content_list):
         f.truncate(0)
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_users(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create ldif with users
@@ -135,8 +133,6 @@ def test_dsconf_dbgen_users(topology_st, set_log_file_and_ldif):
     assert len(accounts.filter('(uid=*)')) > count_account
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_groups(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create ldif with group
@@ -208,8 +204,6 @@ def test_dsconf_dbgen_groups(topology_st, set_log_file_and_ldif):
     new_group.present('uniquemember', 'uid=group_entry1-0152,ou=people,dc=example,dc=com')
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_cos_classic(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create a COS definition
@@ -275,8 +269,6 @@ def test_dsconf_dbgen_cos_classic(topology_st, set_log_file_and_ldif):
     assert new_cos.present('cosAttribute', args.cos_attr[1])
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_cos_pointer(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create a COS definition
@@ -340,8 +332,6 @@ def test_dsconf_dbgen_cos_pointer(topology_st, set_log_file_and_ldif):
     assert new_cos.present('cosAttribute', args.cos_attr[1])
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_cos_indirect(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create a COS definition
@@ -405,8 +395,6 @@ def test_dsconf_dbgen_cos_indirect(topology_st, set_log_file_and_ldif):
     assert new_cos.present('cosAttribute', args.cos_attr[1])
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_cos_template(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create a COS template
@@ -466,8 +454,6 @@ def test_dsconf_dbgen_cos_template(topology_st, set_log_file_and_ldif):
     assert new_cos.present('postalcode', '12345')
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_managed_role(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create a managed role
@@ -525,8 +511,6 @@ def test_dsconf_dbgen_managed_role(topology_st, set_log_file_and_ldif):
     assert roles.exists(args.NAME)
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_filtered_role(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create a filtered role
@@ -587,8 +571,6 @@ def test_dsconf_dbgen_filtered_role(topology_st, set_log_file_and_ldif):
     assert new_role.present('nsRoleFilter', args.filter)
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_nested_role(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create a nested role
@@ -648,8 +630,6 @@ def test_dsconf_dbgen_nested_role(topology_st, set_log_file_and_ldif):
     assert new_role.present('nsRoleDN', args.role_dn[0])
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_mod_ldif_mixed(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create mixed modification ldif
@@ -721,8 +701,6 @@ def test_dsconf_dbgen_mod_ldif_mixed(topology_st, set_log_file_and_ldif):
     assert len(accounts.filter('(uid=*)')) > count_account
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1798394
 @pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dbgen_nested_ldif(topology_st, set_log_file_and_ldif):
     """Test ldifgen (formerly dbgen) tool to create nested ldif

@@ -47,8 +47,6 @@ def big_file():
     return TEMP_BIG_FILE
 
 
-@pytest.mark.bz1897248
-@pytest.mark.ds4315
 @pytest.mark.skipif(ds_is_older('1.4.3.16'), reason="This config setting exists in 1.4.3.16 and higher")
 def test_nagle_default_value(topo):
     """Test that nsslapd-nagle attribute is off by default
@@ -204,8 +202,6 @@ def test_config_deadlock_policy(topology_m2):
     ldbmconfig.replace('nsslapd-db-deadlock-policy', deadlock_policy)
 
 
-@pytest.mark.bz766322
-@pytest.mark.ds26
 def test_defaultnamingcontext(topo):
     """Tests configuration attribute defaultNamingContext in the rootdse
 
@@ -290,7 +286,6 @@ def test_defaultnamingcontext(topo):
     b2.delete()
 
 
-@pytest.mark.bz602456
 def test_allow_add_delete_config_attributes(topo):
     """Tests configuration attributes are allowed to add and delete
 
@@ -332,8 +327,6 @@ def test_allow_add_delete_config_attributes(topo):
     assert not topo.standalone.config.present('invalid-attribute', 'invalid-value')
 
 
-@pytest.mark.bz918705
-@pytest.mark.ds511
 def test_ignore_virtual_attrs(topo):
     """Test nsslapd-ignore-virtual-attrs configuration attribute
 
@@ -442,8 +435,6 @@ def test_ignore_virtual_attrs_after_restart(topo):
     log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
-@pytest.mark.bz918694
-@pytest.mark.ds408
 def test_ndn_cache_enabled(topo):
     """Test nsslapd-ignore-virtual-attrs configuration attribute
 

@@ -344,7 +344,6 @@ def test_custom_config_area(topo, _create_all_entries):
     assert not instance_auto.get_attr_val_utf8("nsslapd-pluginConfigArea")
 
 
-@pytest.mark.bz834053
 def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries):
     """Control behaviour of modifier's name
 

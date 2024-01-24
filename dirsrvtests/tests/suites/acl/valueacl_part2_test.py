@@ -373,7 +373,6 @@ def test_on_modrdn_allow(topo, _add_user, aci_of_user, request):
     assert useraccount.dn == 'cn=engineer,dc=example,dc=com'
 
 
-@pytest.mark.bz979515
 def test_targattrfilters_keyword(topo):
     """Testing the targattrfilters keyword that allows access control based on the value
     of the attributes being added (or deleted))

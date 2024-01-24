@@ -165,8 +165,6 @@ def _set_dbsizes(inst, dbpagesize, dbcachesize):
     inst.start()
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1795943
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_dsconf_dbmon(topology_st):

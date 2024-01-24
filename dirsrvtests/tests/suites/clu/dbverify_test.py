@@ -36,8 +36,6 @@ def set_log_file(request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1739718
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsctl_dbverify(topology_st, set_log_file):
     """Test dbverify tool, that was ported from legacy tools to dsctl

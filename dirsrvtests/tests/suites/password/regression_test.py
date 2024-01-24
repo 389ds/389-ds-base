@@ -157,7 +157,6 @@ def test_pwp_local_unlock(topo, passw_policy, create_user):
     create_user.bind(PASSWORD)
 
 
-@pytest.mark.bz1465600
 @pytest.mark.parametrize("user_pasw", TEST_PASSWORDS)
 def test_trivial_passw_check(topo, passw_policy, create_user, user_pasw):
     """PasswordCheckSyntax attribute fails to validate cn, sn, uid, givenname, ou and mail attributes
@@ -217,7 +216,6 @@ def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     # reset password
     create_user.set('userPassword', PASSWORD)
 
-@pytest.mark.ds49789
 def test_unhashed_pw_switch(topo_supplier):
     """Check that nsslapd-unhashed-pw-switch works corrently
 

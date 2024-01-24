@@ -37,7 +37,6 @@ def topology_st(topology_st_pre):
     return topology_st_pre
 
 
-@pytest.mark.ds50349
 def test_filter_validation_config(topology_st):
     """Test that the new on/warn/off setting can be set and read
     correctly
@@ -89,7 +88,6 @@ def test_filter_validation_config(topology_st):
     assert(initial_value == final_value)
 
 
-@pytest.mark.ds50349
 def test_filter_validation_enabled(topology_st):
     """Test that queries which are invalid, are correctly rejected by the server.
 
@@ -127,7 +125,6 @@ def test_filter_validation_enabled(topology_st):
     inst.restart()
 
 
-@pytest.mark.ds50349
 def test_filter_validation_warn_safe(topology_st):
     """Test that queries which are invalid, are correctly marked as "notes=F" in
     the access log, and return no entries or partial sets.
@@ -195,7 +192,6 @@ def test_filter_validation_warn_safe(topology_st):
     assert(len(r_init) + 3 == len(r_s4))
 
 
-@pytest.mark.ds50349
 def test_filter_validation_warn_unsafe(topology_st):
     """Test that queries which are invalid, are correctly marked as "notes=F" in
     the access log, and uses the legacy query behaviour to return unsafe sets.

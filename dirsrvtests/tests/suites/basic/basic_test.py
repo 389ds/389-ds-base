@@ -1381,8 +1381,6 @@ def test_basic_anonymous_search(topology_st, create_users):
         assert len(entries) != 0
 
 
-@pytest.mark.ds604
-@pytest.mark.bz915801
 def test_search_original_type(topology_st, create_users):
     """Test ldapsearch returning original attributes
        using nsslapd-search-return-original-type-switch
@@ -1418,7 +1416,6 @@ def test_search_original_type(topology_st, create_users):
     assert "objectclass overflow" not in entries[0].getAttrs()
 
 
-@pytest.mark.bz192901
 def test_search_ou(topology_st):
     """Test that DS should not return an entry that does not match the filter
 
@@ -1514,8 +1511,6 @@ def test_bind_entry_missing_passwd(topology_st):
         user.bind("some_password")
 
 
-@pytest.mark.bz1044135
-@pytest.mark.ds47319
 def test_connection_buffer_size(topology_st):
     """Test connection buffer size adjustable with different values(valid values and invalid)
 
@@ -1539,7 +1534,6 @@ def test_connection_buffer_size(topology_st):
             topology_st.standalone.config.replace('nsslapd-connection-buffer', value)
 
 
-@pytest.mark.bz1637439
 def test_critical_msg_on_empty_range_idl(topology_st):
     """Doing a range index lookup should not report a critical message even if IDL is empty
 
@@ -1612,8 +1606,6 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
 
 
-@pytest.mark.bz1870624
-@pytest.mark.ds4379
 @pytest.mark.parametrize("case,value", [('positive', ['cn','','']),
                                         ("positive", ['cn', '', '', '', '', '', '', '', '', '', '']),
                                         ("negative", ['cn', '', '', '', '', '', '', '', '', '', '', ''])])
@@ -1640,8 +1632,6 @@ def test_attr_description_limit(topology_st, case, value):
             DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
 
 
-@pytest.mark.bz1647099
-@pytest.mark.ds50026
 def test_ldbm_modification_audit_log(topology_st):
     """When updating LDBM config attributes, those attributes/values are not listed
     in the audit log
@@ -2255,8 +2245,6 @@ sample_entries = yes
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1748016
-@pytest.mark.ds50581
 def test_dscreate_ldapi(dscreate_long_instance):
     """Test that an instance with a long name can
     handle ldapi connection using a long socket name
@@ -2277,8 +2265,6 @@ def test_dscreate_ldapi(dscreate_long_instance):
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1715406
-@pytest.mark.ds50923
 def test_dscreate_multiple_dashes_name(dscreate_long_instance):
     """Test that an instance with a multiple dashes in the name
     can be removed with dsctl --remove-all
@@ -2347,8 +2333,6 @@ suffix = {request.param}
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1807419
-@pytest.mark.ds50928
 def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
     """Test that dscreate works with different RDN attributes as suffix
 

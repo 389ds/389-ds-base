@@ -118,8 +118,6 @@ def test_compaction_interval_and_time(topo):
     inst.deleteErrorLogs(restart=False)
 
 
-@pytest.mark.ds4778
-@pytest.mark.bz1748441
 @pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
 def test_no_compaction(topo):
     """Test there is no compaction when nsslapd-db-compactdb-interval is set to 0
@@ -145,8 +143,6 @@ def test_no_compaction(topo):
     inst.deleteErrorLogs(restart=False)
 
 
-@pytest.mark.ds4778
-@pytest.mark.bz1748441
 @pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
 def test_compaction_interval_invalid(topo):
     """Test that invalid value is rejected for nsslapd-db-compactdb-interval

@@ -187,7 +187,6 @@ def test_replicated_multivalued_entries(topo_m4):
         ['mail'])
 
 
-@pytest.mark.bz157377
 def test_bad_replication_agreement(topo_m4):
     """Create the bad replication agreement and try to add it
 
@@ -254,7 +253,6 @@ def test_bad_replication_agreement(topo_m4):
     for inst in topo_m4: inst.start()
 
 
-@pytest.mark.bz834074
 def test_nsds5replicaenabled_verify(topo_m4):
     """Add the attribute nsds5ReplicaEnabled to cn=config
 
@@ -366,7 +364,6 @@ def test_nsds5replicaenabled_verify(topo_m4):
         topo_m4.all_insts.get(i).start()
 
 
-@pytest.mark.bz830344
 def test_create_an_entry_on_the_supplier(topo_m4):
     """Shut down one instance and create an entry on the supplier
 
@@ -389,7 +386,6 @@ def test_create_an_entry_on_the_supplier(topo_m4):
     topo_m4.ms["supplier1"].start()
 
 
-@pytest.mark.bz923502
 def test_bob_acceptance_tests(topo_m4):
     """Run multiple modrdn_s operation on supplier1
 
@@ -439,7 +435,6 @@ def list_agmt_towards(topo_m4, serverid):
     return res
 
 
-@pytest.mark.bz830335
 def test_replica_backup_and_restore(topo_m4):
     """Test Backup and restore
 

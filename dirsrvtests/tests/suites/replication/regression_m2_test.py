@@ -355,7 +355,6 @@ def test_double_delete(topo_m2, create_entry):
     repl.test_replication(m2, m1)
 
 
-@pytest.mark.bz1506831
 def test_repl_modrdn(topo_m2):
     """Test that replicated MODRDN does not break replication
 
@@ -742,8 +741,6 @@ def test_plugin_bind_dn_tracking_and_replication(topo_m2):
     agmt.set(REPL_PROTOCOL_TIMEOUT, "20")
 
 
-@pytest.mark.bz1314956
-@pytest.mark.ds48755
 def test_moving_entry_make_online_init_fail(topo_m2):
     """
     Moving an entry could make the online init fail
@@ -941,7 +938,6 @@ def test_keepalive_entries(topo_m2):
         pytest.param( "replMgr", id="using-bind-dn"),
     ],
 )
-@pytest.mark.bz1956987
 def test_change_repl_passwd(topo_m2, request, bind_cn):
     """Replication may break after changing password.
        Testing when agmt bind group are used.
@@ -1025,8 +1021,6 @@ def test_repl_after_reindex(topo_m2):
     repl.wait_for_replication(m2, m1)
 
 
-@pytest.mark.ds49915
-@pytest.mark.bz1626375
 def test_online_reinit_may_hang(topo_with_sigkill):
     """Online reinitialization may hang when the first
        entry of the DB is RUV entry instead of the suffix

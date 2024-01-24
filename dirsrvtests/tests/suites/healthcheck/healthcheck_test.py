@@ -96,8 +96,6 @@ def test_healthcheck_disabled_suffix(topology_st):
     mt.replace("nsslapd-state", "backend")
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_standalone(topology_st):
     """Check functionality of HealthCheck Tool on standalone instance with no errors
@@ -120,8 +118,6 @@ def test_healthcheck_standalone(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50746
-@pytest.mark.bz1816851
 @pytest.mark.xfail(ds_is_older("1.4.2"), reason="Not implemented")
 def test_healthcheck_list_checks(topology_st):
     """Check functionality of HealthCheck Tool with --list-checks option
@@ -162,8 +158,6 @@ def test_healthcheck_list_checks(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, list_checks=True, searched_list=output_list)
 
 
-@pytest.mark.ds50746
-@pytest.mark.bz1816851
 @pytest.mark.xfail(ds_is_older("1.4.2"), reason="Not implemented")
 def test_healthcheck_list_errors(topology_st):
     """Check functionality of HealthCheck Tool with --list-errors option
@@ -215,8 +209,6 @@ def test_healthcheck_list_errors(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, list_errors=True, searched_list=output_list)
 
 
-@pytest.mark.ds50746
-@pytest.mark.bz1816851
 @pytest.mark.xfail(ds_is_older("1.4.2"), reason="Not implemented")
 def test_healthcheck_check_option(topology_st):
     """Check functionality of HealthCheck Tool with --check option
@@ -265,8 +257,6 @@ def test_healthcheck_check_option(topology_st):
         run_healthcheck_and_flush_log(topology_st, standalone, searched_code=JSON_OUTPUT, json=True, check=[item])
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_standalone_tls(topology_st):
     """Check functionality of HealthCheck Tool on TLS enabled standalone instance with no errors
@@ -292,8 +282,6 @@ def test_healthcheck_standalone_tls(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_replication(topology_m2):
     """Check functionality of HealthCheck Tool on replication instance with no errors
@@ -330,8 +318,6 @@ def test_healthcheck_replication(topology_m2):
     run_healthcheck_and_flush_log(topology_m2, M2, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_replication_tls(topology_m2):
     """Check functionality of HealthCheck Tool on replication instance with no errors
@@ -369,8 +355,6 @@ def test_healthcheck_replication_tls(topology_m2):
     run_healthcheck_and_flush_log(topology_m2, M2, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 @pytest.mark.xfail(ds_is_older("1.4.3"),reason="Might fail because of bz1835619")
 def test_healthcheck_backend_missing_mapping_tree(topology_st):
@@ -420,8 +404,6 @@ def test_healthcheck_backend_missing_mapping_tree(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1796343
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 @pytest.mark.xfail(reason="Will fail because of bz1837315. Set proper version after bug is fixed")
 def test_healthcheck_unable_to_query_backend(topology_st):
@@ -470,8 +452,6 @@ def test_healthcheck_unable_to_query_backend(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1796343
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_database_not_initialized(topology_no_sample):
     """Check if HealthCheck returns DSBLE0003 code

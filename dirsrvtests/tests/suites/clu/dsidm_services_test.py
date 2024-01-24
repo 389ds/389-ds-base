@@ -170,7 +170,6 @@ def test_dsidm_service_get_rdn(topology_st, create_test_service):
     check_value_in_log_and_reset(topology_st, content_list=json_content)
 
 
-@pytest.mark.bz1893667
 @pytest.mark.xfail(reason="Will fail because of bz1893667")
 @pytest.mark.skipif(ds_is_older("2.1.0"), reason="Not implemented")
 def test_dsidm_service_get_dn(topology_st, create_test_service):

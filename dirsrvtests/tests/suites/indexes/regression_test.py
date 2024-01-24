@@ -226,7 +226,6 @@ def test_reindex_task_creates_abandoned_index_file(topo):
     assert os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name}.db")
 
 
-@pytest.mark.bz1905450
 def test_unindexed_internal_search_crashes_server(topo, add_a_group_with_users, set_small_idlistscanlimit):
     """
     An internal unindexed search was able to crash the server due to missing logging function.

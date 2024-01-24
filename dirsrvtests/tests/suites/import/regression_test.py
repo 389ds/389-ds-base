@@ -261,8 +261,6 @@ def test_del_suffix_backend(topo):
     assert not topo.standalone.detectDisorderlyShutdown()
 
 
-@pytest.mark.bz1406101
-@pytest.mark.ds49071
 def test_import_duplicate_dn(topo):
     """Import ldif with duplicate DNs, should not log error "unable to flush"
 
@@ -321,7 +319,6 @@ ou: myDups00001
     log.info('Error log should have "Duplicated DN detected" message')
     assert standalone.ds_error_log.match('.*Duplicated DN detected.*')
 
-@pytest.mark.bz1749595
 @pytest.mark.tier2
 @pytest.mark.xfail(not _check_disk_space(), reason="not enough disk space for lmdb map")
 @pytest.mark.xfail(ds_is_older("1.3.10.1"), reason="bz1749595 not fixed on versions older than 1.3.10.1")

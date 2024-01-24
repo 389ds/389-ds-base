@@ -42,8 +42,6 @@ def create_test_user(topology_st, request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.bz1862971
-@pytest.mark.ds4281
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
     """ Test dsidm account entry-status option with account lock/unlock

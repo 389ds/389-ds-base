@@ -50,8 +50,6 @@ def change_config(topology_st):
     topology_st.standalone.config.set('nsslapd-disk-monitoring-readonly-on-threshold', 'on')
 
 
-@pytest.mark.ds4414
-@pytest.mark.bz1890118
 @pytest.mark.skipif(ds_is_older("1.4.3.16"), reason="Might fail because of bz1890118")
 @disk_monitoring_ack
 def test_produce_division_by_zero(topology_st, create_dummy_mount, change_config):

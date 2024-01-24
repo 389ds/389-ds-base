@@ -80,8 +80,6 @@ def test_missing_backend(topo):
     assert restore_task.get_exit_code() != 0
 
 
-@pytest.mark.bz1851967
-@pytest.mark.ds4112
 @pytest.mark.skipif(ds_is_older('1.4.1'), reason="Not implemented")
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_db_home_dir_online_backup(topo):
