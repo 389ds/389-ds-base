@@ -736,7 +736,11 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             ldbm_set_last_usn(inst->inst_be);
 
             /* bring backend online again */
-            slapi_mtn_be_enable(inst->inst_be);
+            if (job->flags & FLAG_REINDEXING) {
+                instance_set_not_busy(inst);
+            } else {
+                slapi_mtn_be_enable(inst->inst_be);
+            }
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_all_done",
                           "Backend %s is now online.\n",
                           slapi_be_get_name(inst->inst_be));
