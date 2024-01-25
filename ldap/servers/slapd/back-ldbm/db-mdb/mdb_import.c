@@ -735,8 +735,22 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             /* Reset USN slapi_counter with the last key of the entryUSN index */
             ldbm_set_last_usn(inst->inst_be);
 
-            /* bring backend online again */
-            slapi_mtn_be_enable(inst->inst_be);
+            /* Bring backend online again:
+             * In lmdb case, the import framework is also used for reindexing
+             * while in bdb case reindexing uses its own code.
+             * So dbmdb_import_all_done is called either after 
+             * dbmdb_ldif2db or after dbmdb_db2index while
+             * bdb_import_all_done is only called after bdb_ldif2db.
+             *
+             * dbmdb_db2index uses instance_set_busy_and_readonly 
+             * while dbmdb_ldif2db uses slapi_mtn_be_disable
+             * and these functions have to be reverted accordingly.
+             */
+            if (job->flags & FLAG_REINDEXING) {
+                instance_set_not_busy(inst);
+            } else {
+                slapi_mtn_be_enable(inst->inst_be);
+            }
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_all_done",
                           "Backend %s is now online.\n",
                           slapi_be_get_name(inst->inst_be));
