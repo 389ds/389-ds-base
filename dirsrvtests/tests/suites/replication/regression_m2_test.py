@@ -29,6 +29,7 @@ from lib389.replica import Replicas, ReplicationManager, ReplicaRole
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
+from lib389.tasks import Tasks
 from lib389.topologies import topology_m2 as topo_m2, TopologyMain, create_topology, _remove_ssca_db
 
 
@@ -984,6 +985,44 @@ def test_change_repl_passwd(topo_m2, request, bind_cn):
     # Mark test as successul before exiting
     a1.testok()
     a2.testok()
+
+
+def test_repl_after_reindex(topo_m2):
+    """Check that replication does not break after reindex.
+
+    :id: 0b48992e-bac6-11ee-9cbe-482ae39447e5
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Check that replication is working
+        2. Perform a few changes on supplier1
+        3. Reindex 'cn' on supplier1
+        4. Check that replication is still working
+    :expectedresults:
+        1. Replication should work
+        2. Step should run sucessfully without errors
+        3. Step should run sucessfully without errors
+        4. Replication should still work
+    """
+
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    tasks = Tasks(m1)
+    # Check that replication is working
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m2, m1)
+    # Perform a few changes on supplier1
+    for idx in range(2):
+        Domain(m1, DEFAULT_SUFFIX).replace('description', f'test_repl_after_reindex {idx}')
+    # Reindex 'cn' on supplier1
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='cn',
+        args={TASK_WAIT: True}
+    )
+    # Check that replication is still working
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m2, m1)
 
 
 @pytest.mark.ds49915
