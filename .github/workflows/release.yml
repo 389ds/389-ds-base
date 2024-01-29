@@ -10,7 +10,7 @@ on:
         description: Specify tag to generate a tarball
         required: true
       skip-audit-ci:
-        description: Skip npm audit-ci
+        description: Skip npx --yes audit-ci
         type: boolean
         default: false
 
