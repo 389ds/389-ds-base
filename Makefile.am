@@ -2099,7 +2099,7 @@ $(NODE_MODULES_TEST):
 	cd src/cockpit/389-console; npm install
 
 $(WEBPACK_TEST): $(NODE_MODULES_TEST)
-	cd src/cockpit/389-console; npx audit-ci; ./build.js
+	cd src/cockpit/389-console; npx --yes audit-ci; ./build.js
 
 389-console: $(WEBPACK_TEST)
 
