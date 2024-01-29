@@ -52,7 +52,7 @@ ifeq ($(COCKPIT_ON), 1)
 	npm ci > /dev/null
 ifndef SKIP_AUDIT_CI
 	cd src/cockpit/389-console; \
-	npx audit-ci
+	npx --yes audit-ci
 endif
 endif
 

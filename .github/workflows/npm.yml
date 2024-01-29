@@ -22,4 +22,4 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Run NPM Audit CI
-        run: cd $GITHUB_WORKSPACE/src/cockpit/389-console && npx audit-ci --config audit-ci.json
+        run: cd $GITHUB_WORKSPACE/src/cockpit/389-console && npx --yes audit-ci --config audit-ci.json
