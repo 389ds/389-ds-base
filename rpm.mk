@@ -12,6 +12,8 @@ JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^S
 JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
 BUNDLE_JEMALLOC = 1
 NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
+NODE_MODULES_PATH = src/cockpit/389-console/
+CARGO_PATH = src/
 GIT_TAG = ${TAG}
 
 # Some sanitizers are supported only by clang
@@ -42,8 +44,8 @@ download-cargo-dependencies:
 	cargo fetch --manifest-path=./src/Cargo.toml
 	tar -czf vendor.tar.gz vendor
 
-bundle-rust:
-	python3 rpm/bundle-rust-downstream.py ./src/Cargo.lock $(DS_SPECFILE) ./vendor
+bundle-rust-npm:
+	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(DS_SPECFILE) --backup-specfile
 
 install-node-modules:
 ifeq ($(COCKPIT_ON), 1)
