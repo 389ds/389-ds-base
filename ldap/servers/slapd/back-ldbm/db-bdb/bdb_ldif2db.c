@@ -20,6 +20,8 @@
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
 
+#define indextype_EQUALITY "eq"
+
 #define DB2INDEX_ANCESTORID 0x1   /* index ancestorid */
 #define DB2INDEX_ENTRYRDN 0x2     /* index entryrdn */
 #define DB2LDIF_ENTRYRDN 0x4      /* export entryrdn */

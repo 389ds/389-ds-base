@@ -541,6 +541,28 @@ else
   with_pythonexec=/usr/bin/python3
 fi
 
+dblib=".libs/libdb-5.3-389ds.so"
+AC_MSG_CHECKING(for --with-bundle-libdb)
+AC_ARG_WITH([bundle-libdb],
+   AS_HELP_STRING([--with-bundle-libdb=PATH],
+                  [Directory containing $dblib and db.h (if not using system libdb package)])
+)
+if test -n "$with_bundle_libdb"; then
+  if test  "$with_bundle_libdb" = no ; then
+    with_bundle_libdb=no
+  elif ! test -f "$with_bundle_libdb/db.h" ; then
+      AC_MSG_ERROR([Directory specified with --with-bundle-libdb=fullpath should contains db.h])
+  elif ! test -f "$with_bundle_libdb/$dblib" ; then
+      AC_MSG_ERROR([Directory specified with --with-bundle-libdb=fullpath should contains $dblib])
+  else
+    AC_MSG_RESULT([$with_bundle_libdb])
+  fi
+else
+  with_bundle_libdb=no
+fi
+AM_CONDITIONAL([BUNDLE_LIBDB],[test "$with_bundle_libdb" != no])
+
+
 AC_SUBST(prefixdir)
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
@@ -819,7 +841,11 @@ AC_SUBST(nss_libdir)
 PKG_CHECK_MODULES([OPENSSL], [openssl])
 
 m4_include(m4/openldap.m4)
-m4_include(m4/db.m4)
+if test $with_bundle_libdb = no; then
+    m4_include(m4/db.m4)
+else
+    m4_include(m4/bundle_libdb.m4)
+fi
 
 PKG_CHECK_MODULES([SASL], [libsasl2])
 

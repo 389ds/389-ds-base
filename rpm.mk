@@ -15,6 +15,12 @@ NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 NODE_MODULES_PATH = src/cockpit/389-console/
 CARGO_PATH = src/
 GIT_TAG = ${TAG}
+LIBDB_VERSION ?= 5.3
+LIBDB_FULL_VERSION ?= $(LIBDB_VERSION).28-59
+LIBDB_NAME ?= libdb-$(LIBDB_FULL_VERSION)
+LIBDB_SRC_RPM ?= $(LIBDB_NAME).fc40.src.rpm
+LIBDB_URL ?= https://kojipkgs.fedoraproject.org//packages/libdb/5.3.28/59.fc40/src/$(LIBDB_SRC_RPM)
+BUNDLE_LIBDB = 1
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
@@ -82,6 +88,14 @@ local-archive: build-cockpit
 	-mkdir -p dist/$(NAME_VERSION)
 	rsync -a --exclude=node_modules --exclude=dist --exclude=__pycache__ --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
 
+prep_bundle_libdb:
+	/bin/rm -rf dist/sources/libdb_bundle
+	mkdir -p dist/sources/libdb_bundle/SOURCES rpmbuild/SOURCES
+	cd dist/sources/libdb_bundle && curl -LO $(LIBDB_URL)
+	rpmbuild --define "_topdir $(PWD)/dist/sources/libdb_bundle" -rp --nodeps --noprep dist/sources/libdb_bundle/$(LIBDB_SRC_RPM)
+	tar -cjf dist/sources/$(LIBDB_NAME).tar.bz2 --transform "s,dist/sources/libdb_bundle/[^/]*,$(LIBDB_NAME),;" dist/sources/libdb_bundle/SOURCES dist/sources/libdb_bundle/SPECS/libdb.spec
+	/bin/rm -rf dist/sources/libdb_bundle
+
 tarballs: local-archive
 	-mkdir -p dist/sources
 	cd dist; tar cfj sources/$(TARBALL) $(NAME_VERSION)
@@ -92,6 +106,9 @@ endif
 	cd dist/sources ; \
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		curl -LO $(JEMALLOC_URL) ; \
+	fi ;
+	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+        $(MAKE) -f rpm.mk prep_bundle_libdb ; \
 	fi
 
 rpmroot:
@@ -110,6 +127,7 @@ rpmroot:
 	-e s/__COCKPIT_ON__/$(COCKPIT_ON)/ \
 	-e s/__CLANG_ON__/$(CLANG_ON)/ \
 	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \
+	-e s/__BUNDLE_LIBDB__/$(BUNDLE_LIBDB)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
 
 rpmdistdir:
@@ -124,8 +142,11 @@ rpmbuildprep:
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
 	fi
+	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+		cp dist/sources/$(LIBDB_NAME).tar.bz2 $(RPMBUILD)/SOURCES/ ; \
+	fi
 
-srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep 
+srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)

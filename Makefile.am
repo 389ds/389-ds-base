@@ -184,7 +184,11 @@ endif
 ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
+if BUNDLE_LIBDB
+DB_LINK = -llmdb
+else
 DB_LINK = @db_lib@ -ldb-@db_libver@ -llmdb
+endif
 DB_INC = @db_inc@
 DB_IMPL = libback-ldbm.la
 SASL_LINK = $(SASL_LIBS)
@@ -349,7 +353,7 @@ endif
 serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libaddn-plugin.la \
 	libattr-unique-plugin.la \
-	libautomember-plugin.la libback-ldbm.la libchainingdb-plugin.la \
+	libautomember-plugin.la $(DB_IMPL) libchainingdb-plugin.la \
 	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
 	libpbe-plugin.la libdistrib-plugin.la \
 	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
@@ -1187,6 +1191,37 @@ libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 #
 #////////////////////////////////////////////////////////////////
 #------------------------
+# libback-bdb
+#------------------------
+DB_BDB_SRCS = \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_config.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_instance_config.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_perfctrs.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c
+
+if BUNDLE_LIBDB
+  # db-bdb sources are compiled within libback-bdb.so
+  DB_BDB_WITHIN_BACKLDBM =
+  serverplugin_LTLIBRARIES += libback-bdb.la
+  libback_bdb_la_SOURCES = $(DB_BDB_SRCS)
+  libback_bdb_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)
+  libback_bdb_la_DEPENDENCIES = libslapd.la libback-ldbm.la
+  libback_bdb_la_LIBADD = libslapd.la  @db_lib@ -ldb-@db_libver@ $(LDAPSDK_LINK) $(NSPR_LINK)
+  libback_bdb_la_LDFLAGS = -avoid-version @db_lib@ -ldb-@db_libver@ -lback-ldbm
+else
+  # db-bdb sources are compiled within libback-ldbm.so
+  DB_BDB_WITHIN_BACKLDBM = $(DB_BDB_SRCS)
+endif
+
+#------------------------
 # libback-ldbm
 #------------------------
 libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
@@ -1244,18 +1279,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/vlv.c \
 	ldap/servers/slapd/back-ldbm/vlv_key.c \
 	ldap/servers/slapd/back-ldbm/vlv_srch.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_instance_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_perfctrs.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_config.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_debug.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_instance.c \
@@ -1269,8 +1292,8 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_monitor.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_ldif2db.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import_threads.c
-
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import_threads.c \
+	$(DB_BDB_WITHIN_BACKLDBM)
 
 
 libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)

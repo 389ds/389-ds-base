@@ -70,6 +70,9 @@
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
 
+#define PLUGIN_PATH_WITH_PREFIX "%s/lib/dirsrv/plugins/%s"
+#define PLUGIN_PATH_WITHOUT_PREFIX PLUGINDIR "/%s"
+#define PREFIX_ENV "PREFIX"
 
 static int dblayer_post_restore = 0;
 
@@ -161,6 +164,39 @@ dblayer_init(struct ldbminfo *li)
     return ret;
 }
 
+
+
+/* Get the db implementation plugin path (either libback-ldbm.so or libback-bdb.so) */
+char *
+backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
+{
+    PRLibrary *lib = NULL;
+    char *libpath = NULL;
+    const char *prefix = getenv(PREFIX_ENV);
+    if (strcmp(plgname, BDB_IMPL)) {
+        /* mdb ==> lets use default (libback-ldbm.so) */
+        return li->li_plugin->plg_libpath;
+    }
+    if (PR_FindSymbolAndLibrary("bdb_init", &lib)) {
+        /* bdb_init is within libback-ldbm.so ==> lets use default (libback-ldbm.so) */
+        return li->li_plugin->plg_libpath;
+    }
+    /* Lets check if libback-bdb.so exists */
+    if (prefix) {
+        libpath = slapi_ch_smprintf(PLUGIN_PATH_WITH_PREFIX, prefix, "libback-bdb.so");
+    } else {
+        libpath = slapi_ch_smprintf(PLUGIN_PATH_WITHOUT_PREFIX, "libback-bdb.so");
+    }
+    if (PR_SUCCESS != PR_Access(libpath, PR_ACCESS_READ_OK)) {
+        slapi_log_error(SLAPI_LOG_FATAL, "dblayer_setup", "Unable to find shared library %s . "
+                        "Either use 'mdb' backend or install the Berkeley Database package "
+                        "with 'dnf install 389-ds-base-bdb'. Exiting.", libpath);
+        slapi_ch_free_string(&libpath);
+        exit(1);
+    }
+    return libpath;
+}
+
 int
 dbimpl_setup(struct ldbminfo *li, const char *plgname)
 {
@@ -168,6 +204,7 @@ dbimpl_setup(struct ldbminfo *li, const char *plgname)
     dblayer_private *priv = NULL;
     char *backend_implement_init = NULL;
     backend_implement_init_fn *backend_implement_init_x = NULL;
+    char *libpath = NULL;
 
     /* initialize dblayer  */
     if (dblayer_init(li)) {
@@ -183,10 +220,13 @@ dbimpl_setup(struct ldbminfo *li, const char *plgname)
         ldbm_config_load_dse_info_phase0(li);
         plgname = li->li_backend_implement;
     }
-
+    libpath = backend_implement_get_libpath(li, plgname);
     backend_implement_init = slapi_ch_smprintf("%s_init", plgname);
-    backend_implement_init_x = sym_load(li->li_plugin->plg_libpath, backend_implement_init, "dblayer_implement", 1);
+    backend_implement_init_x = sym_load(libpath, backend_implement_init, "dblayer_implement", 1);
     slapi_ch_free_string(&backend_implement_init);
+    if (libpath != li->li_plugin->plg_libpath) {
+        slapi_ch_free_string(&libpath);
+    }
 
     if (backend_implement_init_x) {
         backend_implement_init_x(li, NULL);

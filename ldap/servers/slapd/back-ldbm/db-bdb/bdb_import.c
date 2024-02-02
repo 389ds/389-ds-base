@@ -1065,7 +1065,7 @@ bdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int
     /* If it is a tombstone entry, add tombstonesubordinates instead of
      * numsubordinates. */
     if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        numsub_str = tombstone_numsubordinates;
+        numsub_str = LDBM_TOMBSTONE_NUMSUBORDINATES_STR;
     }
     /* attr numsubordinates/tombstonenumsubordinates could already exist in
      * the entry, let's check whether it's already there or not */

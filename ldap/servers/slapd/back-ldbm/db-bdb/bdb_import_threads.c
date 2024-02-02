@@ -22,6 +22,8 @@
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
 
+#define indextype_EQUALITY "eq"
+
 static void bdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
 static int bdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
 static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
