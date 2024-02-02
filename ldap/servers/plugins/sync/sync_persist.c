@@ -156,6 +156,17 @@ ignore_op_pl(Slapi_PBlock *pb)
      * This is the same for ident
      */
     prim_op = get_thread_primary_op();
+    if (prim_op == NULL) {
+        /* This can happen if the PRE_OP (sync_update_persist_betxn_pre_op) was not called.
+         * The only known case it happens is with dynamic plugin enabled and an
+         * update that enable the sync_repl plugin. In such case sync_repl registers
+         * the postop (sync_update_persist_op) that is called while the preop was not called
+         */
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
+              "ignore_op_pl - Operation without primary op set (0x%lx)\n",
+              (ulong) op);
+        return;
+    }
     ident = sync_persist_get_operation_extension(pb);
 
     if (ident) {
@@ -232,8 +243,18 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
 
 
     prim_op = get_thread_primary_op();
+    if (prim_op == NULL) {
+        /* This can happen if the PRE_OP (sync_update_persist_betxn_pre_op) was not called.
+         * The only known case it happens is with dynamic plugin enabled and an
+         * update that enable the sync_repl plugin. In such case sync_repl registers
+         * the postop (sync_update_persist_op) that is called while the preop was not called
+         */
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
+                      "sync_update_persist_op - Operation without primary op set (0x%lx)\n",
+                      (ulong) pb_op);
+        return;
+    }
     ident = sync_persist_get_operation_extension(pb);
-    PR_ASSERT(prim_op);
 
     if ((ident == NULL) && operation_is_flag_set(pb_op, OP_FLAG_NOOP)) {
         /* This happens for URP (add cenotaph, fixup rename, tombstone resurrect)
