@@ -1,0 +1,17 @@
+FROM quay.io/389ds/devcontainer
+
+COPY ./container-entrypoint.sh /container-entrypoint.sh
+
+RUN dnf install -y tini
+
+# DEFAULTS
+ENV CC=gcc \
+    CXX=g++ \
+    CFLAGS="-O2 -g" \
+    CXXFLAGS="" \
+    LDFLAGS="" \
+    DS_DM_PASSWORD=password \
+    DS_SUFFIX_NAME=dc=example,dc=com
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/container-entrypoint.sh"]
+

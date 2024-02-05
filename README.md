@@ -33,7 +33,9 @@ Building
 
 Note: **--enable-asan** is optional, and it should only be used for debugging/development purposes.
 
-See also full [building guide](https://www.port389.org/docs/389ds/development/building.html).
+See also:
+- Full [Building Guide](https://www.port389.org/docs/389ds/development/building.html)
+- Portable [Development Container guide](https://github.com/389ds/389-ds-base/blob/main/.devcontainer/DEV_CONTAINER.md)
 
 Testing
 -------
