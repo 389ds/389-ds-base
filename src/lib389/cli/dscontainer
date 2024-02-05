@@ -48,7 +48,8 @@ from lib389._constants import (
     CONTAINER_TLS_SERVER_KEY,
     CONTAINER_TLS_SERVER_CERT,
     CONTAINER_TLS_SERVER_CADIR,
-    CONTAINER_TLS_PWDFILE
+    CONTAINER_TLS_PWDFILE,
+    CONTAINER_DM_PASS_MARKER
 )
 
 from lib389.idm.directorymanager import DirectoryManager
@@ -92,6 +93,9 @@ def _begin_environment_config():
         log.debug("Setting Directory Manager Password ...")
         dm = DirectoryManager(inst)
         dm.change_password(dm_pass)
+    with open(CONTAINER_DM_PASS_MARKER, 'w') as fp:
+        pass
+
     # TODO: Should we set replica id from env?
     # TODO: Should we set replication agreements from env?
     autotune_pct = os.getenv("DS_MEMORY_PERCENTAGE", None)
@@ -328,6 +332,10 @@ binddn = cn=Directory Manager
         # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
         loglevel = "266354688"
 
+    # Clear the runtime password marker file
+    if os.path.exists(CONTAINER_DM_PASS_MARKER):
+        os.remove(CONTAINER_DM_PASS_MARKER)
+
     # Yep! Run it ...
     # Now unlike a normal lib389 start, we use subprocess and don't fork!
     # TODO: Should we pass in a loglevel from env?
@@ -400,12 +408,17 @@ binddn = cn=Directory Manager
 
 
 def begin_healthcheck(ds_proc, log_exception):
-    # We skip the pid check if ds_proc is none because that means it's coming from the
-    # container healthcheck.
-    if ds_proc is not None and ds_proc.poll() is not None:
-        # Ruh-Roh
-        log.warning("ns-slapd pid has completed, you should check the error log ...")
-        return (False, False)
+    # if ds_proc is not none that means call is coming from startup
+    if ds_proc is not None:
+        # Check if process terminated
+        if ds_proc.poll() is not None:
+            log.warning("ns-slapd pid has completed, you should check the error log ...")
+            return (False, False)
+    # Only check for Directory Manager password marker file with command line healthcheck
+    else:
+        if not os.path.exists(CONTAINER_DM_PASS_MARKER):
+            log.warning("Runtime supplied Directory Manager password hasn't been set yet")
+            return (False, False)
     # Now do an ldapi check, make sure we are dm.
     try:
         inst = _gen_instance()
