@@ -57,7 +57,9 @@ def rename(inst, basedn, log, args, warn=True):
     _generic_rename(inst, basedn, log.getChild('_generic_rename'), MANY, rdn, args)
 
 def create_parser(subparsers):
-    service_parser = subparsers.add_parser('service', help='Manage service accounts', formatter_class=CustomHelpFormatter)
+    service_parser = subparsers.add_parser('service',
+                                           help='Manage service accounts. The organizationalUnit (by default "ou=Services") '
+                                                'needs to exist prior to managing service accounts.', formatter_class=CustomHelpFormatter)
 
     subcommands = service_parser.add_subparsers(help='action')
 

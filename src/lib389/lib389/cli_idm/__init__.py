@@ -1,15 +1,30 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import sys
 import ldap
 from getpass import getpass
 import json
+from lib389._mapped_object import DSLdapObject
+from lib389.cli_base import _get_dn_arg
+from lib389.idm.user import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_USER
+from lib389.idm.group import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_GROUP
+from lib389.idm.posixgroup import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_POSIXGROUP
+from lib389.idm.services import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_SERVICES
+
+# Create a dict where key is module and value is an rpm to search
+BASEDN_RDNS = {
+    'user': DEFAULT_BASEDN_RDN_USER,
+    'group': DEFAULT_BASEDN_RDN_GROUP,
+    'posixgroup': DEFAULT_BASEDN_RDN_POSIXGROUP,
+    'services': DEFAULT_BASEDN_RDN_SERVICES,
+}
 
 
 def _get_arg(args, msg=None):
@@ -35,6 +50,27 @@ def _get_args(args, kws):
             else:
                 kwargs[kw] = input("%s : " % msg)
     return kwargs
+
+
+def _get_basedn_arg(inst, args, log, msg=None):
+    basedn_arg = _get_dn_arg(args.basedn, msg="Enter basedn")
+    if not DSLdapObject(inst, basedn_arg).exists():
+        raise ValueError(f'The base DN "{basedn_arg}" does not exist.')
+
+    # Get the RDN based on the last part of the module name if applicable
+    # (lib389.cli_idm.user -> user)
+    try:
+        command_name = args.func.__module__.split('.')[-1]
+        object_rdn = BASEDN_RDNS[command_name]
+        # Check if the DN for our command exists
+        command_basedn = f'{object_rdn},{basedn_arg}'
+        if not DSLdapObject(inst, command_basedn).exists():
+            errmsg = f'The DN "{command_basedn}" does not exist.'
+            errmsg += f' It is required for "{command_name}" subcommand. Please create it first.'
+            raise ValueError(errmsg)
+    except KeyError:
+        pass
+    return basedn_arg
 
 
 # This is really similar to get_args, but generates from an array
