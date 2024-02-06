@@ -1008,22 +1008,23 @@ class SetupDs(object):
         # Do selinux fixups
         if general['selinux'] and selinux_present():
             self.log.info("Perform SELinux labeling ...")
-            # Since there may be some custom path, we must explicitly set the labels
-            selinux_labels = {
-                                'backup_dir': 'dirsrv_var_lib_t',
-                                'cert_dir': 'dirsrv_config_t',
-                                'config_dir': 'dirsrv_config_t',
-                                'db_dir': 'dirsrv_var_lib_t',
-                                'ldif_dir': 'dirsrv_var_lib_t',
-                                'lock_dir': 'dirsrv_var_lock_t',
-                                'log_dir': 'dirsrv_var_log_t',
-                                'db_home_dir': 'dirsrv_tmpfs_t',
-                                'run_dir': 'dirsrv_var_run_t',
-                                'schema_dir': 'dirsrv_config_t',
-                                'tmp_dir': 'tmp_t',
-            }
-            for k, label in selinux_labels.items():
-                selinux_label_file(resolve_selinux_path(slapd[k]), label)
+            # We must explicitly set the labels for non-default prefix installs
+            if ds_instance.ds_paths.prefix != '/usr':
+                selinux_labels = {
+                                    'backup_dir': 'dirsrv_var_lib_t',
+                                    'cert_dir': 'dirsrv_config_t',
+                                    'config_dir': 'dirsrv_config_t',
+                                    'db_dir': 'dirsrv_var_lib_t',
+                                    'ldif_dir': 'dirsrv_var_lib_t',
+                                    'lock_dir': 'dirsrv_var_lock_t',
+                                    'log_dir': 'dirsrv_var_log_t',
+                                    'db_home_dir': 'dirsrv_tmpfs_t',
+                                    'run_dir': 'dirsrv_var_run_t',
+                                    'schema_dir': 'dirsrv_config_t',
+                                    'tmp_dir': 'tmp_t',
+                }
+                for k, label in selinux_labels.items():
+                    selinux_label_file(resolve_selinux_path(slapd[k]), label)
 
             selinux_label_port(slapd['port'])
 

@@ -139,9 +139,11 @@ def remove_ds_instance(dirsrv, force=False):
         ssca = NssSsl(dbpath=dirsrv.get_ssca_dir())
         ssca.remove_db()
         selinux_clean_ports_label()
-        selinux_clean_files_label(all=True)
+        if dirsrv.ds_paths.prefix != '/usr':
+            selinux_clean_files_label(all=True)
     else:
-        selinux_clean_files_label()
+        if dirsrv.ds_paths.prefix != '/usr':
+            selinux_clean_files_label()
 
     ### ANY NEW REMOVAL ACTIONS MUST BE ABOVE THIS LINE!!!
 
