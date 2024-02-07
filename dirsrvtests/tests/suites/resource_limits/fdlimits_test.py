@@ -83,7 +83,7 @@ def test_fd_limits(topology_st):
 def test_reserve_descriptor_validation(topology_st):
     """Test the reserve descriptor self check
 
-    :id: TODO
+    :id: 9bacdbcc-7754-4955-8a56-1d8c82bce274
     :setup: Standalone Instance
     :steps:
         1. Set attr nsslapd-reservedescriptors to a low value of RESRV_DESC_VAL (10)
@@ -121,6 +121,41 @@ def test_reserve_descriptor_validation(topology_st):
 
     log.info("test_reserve_descriptor_validation PASSED")
 
+@pytest.mark.skipif(ds_is_older("1.4.1.2"), reason="Not implemented")
+def test_reserve_descriptors_high(topology_st):
+    """Test setting reserve descriptor value to higher than average.
+
+    :id: 19c8991b-ef78-485e-bdf9-a0977fcbcd04
+    :setup: Standalone Instance
+    :steps:
+        1. Set attr nsslapd-maxdescriptors to systemd LimitNOFILE value
+        2. Verify value has been set
+        3. Set attr nsslapd-reservedescriptors to 2 less than nsslapd-maxdescriptors
+        4. Verify value has been set
+        5. Restart instance
+    :expectedresults:
+        1. Success
+        2. Value of SYSTEMD_LIMIT is returned
+        3. Success
+        4. Values of SYSTEMD_LIMIT -2 is returned
+        5. Instance starts correctly
+    """
+
+    # Set nsslapd-maxdescriptors to a custom value
+    topology_st.standalone.config.set(FD_ATTR, SYSTEMD_LIMIT)
+    max_fd = topology_st.standalone.config.get_attr_val_utf8(FD_ATTR)
+    assert max_fd == SYSTEMD_LIMIT
+
+    # Set nsslapd-reservedescriptors to 2 less than custom value
+    topology_st.standalone.config.set(RESRV_FD_ATTR, str(int(SYSTEMD_LIMIT) - 2))
+    resrv_fd = topology_st.standalone.config.get_attr_val_utf8(RESRV_FD_ATTR)
+    assert resrv_fd == str(int(SYSTEMD_LIMIT) - 2)
+
+    # Verify instance restart
+    topology_st.standalone.restart()
+    assert (topology_st.standalone.status())
+
+    log.info("test_reserve_descriptors_high PASSED")
 
 if __name__ == '__main__':
     # Run isolated
