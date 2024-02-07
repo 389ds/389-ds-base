@@ -236,3 +236,7 @@ vendor.tar.gz
 .history
 .vscode/launch.json
 .cargo/config
+/rs/
+/rust-nsslapd-private.h
+/rust-slapi-private.h
+/src/lib389/setup.py
