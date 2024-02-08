@@ -10,6 +10,7 @@ from lib389.idm.user import nsUserAccounts
 from lib389.idm.group import Groups
 from lib389.plugins import MemberOfPlugin
 from lib389.utils import basedn_to_ldap_dns_uri
+from lib389.cli_base import CustomHelpFormatter
 
 SSSD_CONF_TEMPLATE = """
 #
