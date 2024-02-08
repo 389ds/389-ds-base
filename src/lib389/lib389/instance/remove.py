@@ -122,7 +122,7 @@ def remove_ds_instance(dirsrv, force=False):
         except OSError as e:
             _log.debug("Failed to remove tmpfile: " + str(e))
 
-    # Nor can we assume we have selinux. Try docker sometime ;)
+    # Nor can we assume we have SELinux.
     if dirsrv.ds_paths.with_selinux:
         # Remove selinux port label
         _log.debug("Removing the port labels")
@@ -133,7 +133,7 @@ def remove_ds_instance(dirsrv, force=False):
             selinux_label_port(dirsrv.sslport, remove_label=True)
 
     # If this was the last instance, remove the ssca instance
-    # and all ds related selinux customizations
+    # and all ds related SELinux customizations
     insts = dirsrv.list(all=True)
     if len(insts) == 0:
         ssca = NssSsl(dbpath=dirsrv.get_ssca_dir())

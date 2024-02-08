@@ -194,7 +194,7 @@ SIZE_PATTERN = r'\s*(\d*\.?\d*)\s*([tgmk]?)b?\s*'
 
 def selinux_present():
     """
-    Determine if selinux libraries are on a system, and if so, if we are in
+    Determine if SELinux libraries are on a system, and if so, if we are in
     a state to consume them (enabled, disabled).
 
     :returns: bool
@@ -204,20 +204,20 @@ def selinux_present():
     try:
         import selinux
         if selinux.is_selinux_enabled():
-            # We have selinux, lets see if we are allowed to configure it.
+            # We have SELinux, lets see if we are allowed to configure it.
             # (just checking the uid for now - we may rather check if semanage command success)
             if os.geteuid() != 0:
-                log.info('Non privileged user cannot use semanage, will not relabel ports or files.' )
+                log.info('Non-privileged user cannot use semanage, will not relabel ports or files.' )
             elif not os.path.exists('/usr/sbin/semanage'):
                 log.info('semanage command is not installed, will not relabel ports or files. Please install policycoreutils-python-utils.' )
             else:
                 status = True
         else:
             # We have the module, but it's disabled.
-            log.info('selinux is disabled, will not relabel ports or files.' )
+            log.info('SELinux is disabled, will not relabel ports or files.' )
     except ImportError:
         # No python module, so who knows what state we are in.
-        log.error('selinux python module not found, will not relabel files.' )
+        log.error('SELinux python module not found, will not relabel files.' )
 
     return status
 
@@ -233,11 +233,11 @@ def selinux_restorecon(path):
     try:
         import selinux
     except ImportError:
-        log.debug('selinux python module not found, skipping relabel path %s' % path)
+        log.debug('SELinux python module not found, skipping relabel path %s' % path)
         return
 
     if not selinux.is_selinux_enabled():
-        log.debug('selinux is disabled, skipping relabel path %s' % path)
+        log.debug('SELinux is disabled, skipping relabel path %s' % path)
         return
 
     try:
@@ -320,7 +320,7 @@ def selinux_label_file(path, label):
         rc = 0
         for i in range(5):
             try:
-                log.debug(f"Setting label {label} in SELinux file context {path}.  Attempt {i}")
+                log.debug(f"Setting label {label} in SELinux file context {path}. Attempt {i}")
                 result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
@@ -375,7 +375,7 @@ def selinux_clean_ports_label():
 
 
 def _get_selinux_port_policies(port):
-    """Get a list of selinux port policies for the specified port, 'tcp' protocol and
+    """Get a list of SELinux port policies for the specified port, 'tcp' protocol and
     excluding 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t' labels"""
 
     # [2:] - cut first lines containing the headers. [:-1] - empty line
@@ -413,11 +413,11 @@ def selinux_label_port(port, remove_label=False):
     try:
         import selinux
     except ImportError:
-        log.debug('selinux python module not found, skipping port labeling.')
+        log.debug('SELinux python module not found, skipping port labeling.')
         return
 
     if not selinux_present():
-        log.debug('selinux is disabled, skipping port relabel')
+        log.debug('SELinux is disabled, skipping port relabel')
         return
 
     # We only label ports that ARE NOT in the default policy that comes with
@@ -618,7 +618,7 @@ def valgrind_enable(sbin_dir, wrapper=None):
     (making a backup of the original ns-slapd binary).
 
     The script calling valgrind_enable() must be run as the 'root' user
-    as selinux needs to be disabled for valgrind to work
+    as SELinux needs to be disabled for valgrind to work
 
     The server instance(s) should be stopped prior to calling this function.
     Then after calling valgrind_enable():
@@ -685,7 +685,7 @@ def valgrind_enable(sbin_dir, wrapper=None):
         raise IOError('failed to copy valgrind wrapper to ns-slapd, error: %s' %
                       e.strerror)
 
-    # Disable selinux
+    # Disable SELinux
     if os.geteuid() == 0:
         os.system('setenforce 0')
 
@@ -709,7 +709,7 @@ def valgrind_disable(sbin_dir):
     Restore the ns-slapd binary to its original state - the server instances
     are expected to be stopped.
 
-    Note - selinux is enabled at the end of this process.
+    Note - SELinux is enabled at the end of this process.
 
     :param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
     :raise ValueError
@@ -742,7 +742,7 @@ def valgrind_disable(sbin_dir):
         raise ValueError('Failed to delete backup ns-slapd, error: %s' %
                          e.strerror)
 
-    # Enable selinux
+    # Enable SELinux
     if os.geteuid() == 0:
         os.system('setenforce 1')
 
