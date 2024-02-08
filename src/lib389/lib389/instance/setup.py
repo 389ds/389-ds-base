@@ -318,7 +318,7 @@ class SetupDs(object):
 
         # Let them know about the selinux status
         if not selinux_present():
-            val = input('\nSelinux support will be disabled, continue? [yes]: ')
+            val = input('\nSELinux labels will not be applied, continue? [yes]: ')
             if val.strip().lower().startswith('n'):
                 return
 
