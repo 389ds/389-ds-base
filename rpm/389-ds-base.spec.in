@@ -306,6 +306,9 @@ Source2:          %{name}-devel.README
 %if %{bundle_jemalloc}
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
 %endif
+%if %{bundle_libdb}
+Source4:          https://fedorapeople.org/groups/389ds/libdb-5.3.28-59.tar.bz2
+%endif
 
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
@@ -443,6 +446,10 @@ A cockpit UI Plugin for configuring and administering the 389 Directory Server
 
 %if %{bundle_jemalloc}
 %setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
+%endif
+
+%if %{bundle_libdb}
+%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 4
 %endif
 
 cp %{SOURCE2} README.devel
@@ -622,7 +629,7 @@ libdbdestdir=$PWD/../%{name}-%{version}%{?prerel}
 cp -pa $libdbbuilddir/LICENSE $libdbdestdir/LICENSE.libdb
 cp -pa $libdbbuilddir/README $libdbdestdir/README.libdb
 cp -pa $libdbbuilddir/lgpl-2.1.txt $libdbdestdir/lgpl-2.1.txt.libdb
-cp -pa $libdbbuilddir/dist/dist-tls/.libs/%{libdb_bundle_name} $RPM_BUILD_ROOT%{_libdir}/%{libdb_bundle_name}
+cp -pa $libdbbuilddir/dist/dist-tls/.libs/%{libdb_bundle_name} $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/%{libdb_bundle_name}
 popd
 %endif
 
@@ -831,7 +838,7 @@ fi
 %if %{bundle_libdb}
 %files bdb
 %doc LICENSE LICENSE.GPLv3+ README.devel LICENSE.libdb README.libdb lgpl-2.1.txt.libdb
-%{_libdir}/%{libdb_bundle_name}
+%{_libdir}/%{pkgname}/%{libdb_bundle_name}
 %{_libdir}/%{pkgname}/plugins/libback-bdb.so
 %endif
 
