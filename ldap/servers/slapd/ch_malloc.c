@@ -34,10 +34,9 @@ static const char *const oom_advice =
     "one or more of the following server configuration settings:\n"
     "  nsslapd-cachesize        (Database Settings - Maximum entries in cache)\n"
     "  nsslapd-cachememsize     (Database Settings - Memory available for cache)\n"
-    "  nsslapd-cachememsize     (Database Settings - Memory available for cache)\n"
     "  nsslapd-dbcachesize      (LDBM Plug-in Settings (if bdb) - Maximum cache size)\n"
     "  nsslapd-import-cachesize (LDBM Plug-in Settings (if bdb) - Import cache size)\n"
-    "  nsslapd-mdb-max-size     (LDBM Plug-in Settings (if mdb) - Maximum database sizee).\n"
+    "  nsslapd-mdb-max-size     (LDBM Plug-in Settings (if mdb) - Maximum database size).\n"
     "Can't recover; calling exit(1).\n";
 
 static void
