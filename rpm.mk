@@ -15,7 +15,7 @@ NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 NODE_MODULES_PATH = src/cockpit/389-console/
 CARGO_PATH = src/
 GIT_TAG = ${TAG}
-# LIBDB tar ball was gebnerated from
+# LIBDB tarball was generated from
 #  https://kojipkgs.fedoraproject.org//packages/libdb/5.3.28/59.fc40/src/libdb-5.3.28-59.fc40.src.rpm
 #  then uploaded in https://fedorapeople.org
 LIBDB_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')

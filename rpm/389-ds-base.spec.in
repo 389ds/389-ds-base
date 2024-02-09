@@ -393,7 +393,7 @@ may be removed in future versions.
 
 Group:            System Environment/Daemons
 Requires:         %{name} = %{version}-%{release}
-# Berkerkey DB database libdb was marked as deprecated since F40:
+# Berkeley DB database libdb was marked as deprecated since F40:
 # https://fedoraproject.org/wiki/Changes/389_Directory_Server_3.0.0
 # because libdb was marked as deprecated since F33
 # https://fedoraproject.org/wiki/Changes/Libdb_deprecated
