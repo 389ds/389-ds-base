@@ -1105,7 +1105,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status() is True:
             return
 
-        if self.with_systemd():
+        if self.with_systemd_running():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
             try:
@@ -1186,7 +1186,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status() is False:
             return
 
-        if self.with_systemd():
+        if self.with_systemd_running():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
             subprocess.check_output(["systemctl", "stop", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
@@ -1213,7 +1213,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         Will update the self.state parameter.
         """
-        if self.with_systemd():
+        if self.with_systemd_running():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
             rc = subprocess.call(["systemctl",
@@ -1729,6 +1729,17 @@ class DirSrv(SimpleLDAPObject, object):
         if self.systemd_override is not None:
             return self.systemd_override
         return self.ds_paths.with_systemd
+
+    def with_systemd_running(self):
+        if not self.with_systemd():
+            return False
+        cp = subprocess.run(["systemctl", "is-system-running"],
+                            universal_newlines=True, capture_output=True)
+        # is-system-running can detect the 7 modes (initializing, starting,
+        # running, degraded, maintenance, stopping, offline) or "unknown".
+        # To keep things simple, we assume that anything other than "offline"
+        # means that systemd is usable.
+        return cp.stdout.strip() != 'offline'
 
     def pid_file(self):
         if self._containerised:
