@@ -6,6 +6,11 @@
 %global jemalloc_name jemalloc
 %global jemalloc_ver 5.3.0
 %endif
+%global bundle_libdb __BUNDLE_LIBDB__
+%global libdb_version 5.3
+%global libdb_base_version db-%{libdb_version}.28
+%global libdb_full_version lib%{libdb_base_version}-59
+%global libdb_bundle_name libdb-%{libdb_version}-389ds.so
 
 # This is used in certain builds to help us know if it has extra features.
 %global variant base
@@ -173,7 +178,6 @@ BuildRequires:    nspr-devel
 BuildRequires:    nss-devel >= 3.34
 BuildRequires:    openldap-clients
 BuildRequires:    openldap-devel
-BuildRequires:    libdb-devel
 BuildRequires:    lmdb-devel
 BuildRequires:    cyrus-sasl-devel
 BuildRequires:    icu
@@ -199,6 +203,10 @@ BuildRequires:    libtsan
 BuildRequires:    libubsan
 %endif
 %endif
+%if !%{bundle_libdb}
+BuildRequires:    libdb-devel
+%endif
+
 # The following are needed to build the snmp ldap-agent
 BuildRequires:    net-snmp-devel
 BuildRequires:    bzip2-devel
@@ -269,12 +277,16 @@ Requires:         cyrus-sasl-md5
 # This is optionally supported by us, as we use it in our tests
 Requires:         cyrus-sasl-plain
 # this is needed for backldbm
+%if !%{bundle_libdb}
 Requires:         libdb
+%endif
 Requires:         lmdb
 # This picks up libperl.so as a Requires, so we add this versioned one
 Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 # Needed by logconv.pl
+%if !%{bundle_libdb}
 Requires:         perl-DB_File
+%endif
 Requires:         perl-Archive-Tar
 %if 0%{?fedora} >= 33 || 0%{?rhel} >= 9
 Requires:         perl-debugger
@@ -294,6 +306,9 @@ Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
 %if %{bundle_jemalloc}
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
+%endif
+%if %{bundle_libdb}
+Source4:          https://fedorapeople.org/groups/389ds/libdb-5.3.28-59.tar.bz2
 %endif
 
 %description
@@ -369,6 +384,23 @@ Obsoletes:        %{name} <= 1.3.5.4
 %description      snmp
 SNMP Agent for the 389 Directory Server base package.
 
+%if %{bundle_libdb}
+%package          bdb
+Summary:          Berkeley Database backend for 389 Directory Server
+%description      bdb
+Berkeley Database backend for 389 Directory Server
+Warning! This backend is deprecated in favor of lmdb and its support
+may be removed in future versions.
+
+Group:            System Environment/Daemons
+Requires:         %{name} = %{version}-%{release}
+# Berkeley DB database libdb was marked as deprecated since F40:
+# https://fedoraproject.org/wiki/Changes/389_Directory_Server_3.0.0
+# because libdb was marked as deprecated since F33
+# https://fedoraproject.org/wiki/Changes/Libdb_deprecated
+Provides:         deprecated()
+%endif
+
 
 %package -n python%{python3_pkgversion}-lib389
 Summary:  A library for accessing, testing, and configuring the 389 Directory Server
@@ -415,6 +447,10 @@ A cockpit UI Plugin for configuring and administering the 389 Directory Server
 
 %if %{bundle_jemalloc}
 %setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
+%endif
+
+%if %{bundle_libdb}
+%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 4
 %endif
 
 cp %{SOURCE2} README.devel
@@ -477,10 +513,24 @@ make %{?_smp_mflags}
 popd
 %endif
 
+# Build custom libdb package
+%if %{bundle_libdb}
+mkdir -p ../%{libdb_base_version}
+pushd ../%{libdb_base_version}
+tar -xjf  ../../SOURCES/%{libdb_full_version}.tar.bz2
+mv %{libdb_full_version} SOURCES
+rpmbuild  --define "_topdir $PWD" -bc %{_builddir}/%{name}-%{version}%{?prerel}/rpm/bundle-libdb.spec
+popd
+%endif
+
 # Rebuild the autotool artifacts now.
 autoreconf -fiv
 
-%configure --with-selinux $TMPFILES_FLAG \
+%configure \
+%if %{bundle_libdb}
+           --with-bundle-libdb=%{_builddir}/%{libdb_base_version}/BUILD/%{libdb_base_version}/dist/dist-tls \
+%endif
+           --with-selinux $TMPFILES_FLAG \
            --with-systemd \
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
@@ -572,6 +622,18 @@ cp -pa COPYING ../%{name}-%{version}%{?prerel}/COPYING.jemalloc
 cp -pa README ../%{name}-%{version}%{?prerel}/README.jemalloc
 popd
 %endif
+
+%if %{bundle_libdb}
+pushd ../%{libdb_base_version}
+libdbbuilddir=$PWD/BUILD/%{libdb_base_version}
+libdbdestdir=$PWD/../%{name}-%{version}%{?prerel}
+cp -pa $libdbbuilddir/LICENSE $libdbdestdir/LICENSE.libdb
+cp -pa $libdbbuilddir/README $libdbdestdir/README.libdb
+cp -pa $libdbbuilddir/lgpl-2.1.txt $libdbdestdir/lgpl-2.1.txt.libdb
+cp -pa $libdbbuilddir/dist/dist-tls/.libs/%{libdb_bundle_name} $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/%{libdb_bundle_name}
+popd
+%endif
+
 
 %check
 # This checks the code, if it fails it prints why, then re-raises the fail to shortcircuit the rpm build.
@@ -773,6 +835,13 @@ fi
 %{_sbindir}/ldap-agent*
 %{_mandir}/man1/ldap-agent.1.gz
 %{_unitdir}/%{pkgname}-snmp.service
+
+%if %{bundle_libdb}
+%files bdb
+%doc LICENSE LICENSE.GPLv3+ README.devel LICENSE.libdb README.libdb lgpl-2.1.txt.libdb
+%{_libdir}/%{pkgname}/%{libdb_bundle_name}
+%{_libdir}/%{pkgname}/plugins/libback-bdb.so
+%endif
 
 %files -n python%{python3_pkgversion}-lib389
 %doc LICENSE LICENSE.GPLv3+

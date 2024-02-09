@@ -15,6 +15,12 @@ NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 NODE_MODULES_PATH = src/cockpit/389-console/
 CARGO_PATH = src/
 GIT_TAG = ${TAG}
+# LIBDB tarball was generated from
+#  https://kojipkgs.fedoraproject.org//packages/libdb/5.3.28/59.fc40/src/libdb-5.3.28-59.fc40.src.rpm
+#  then uploaded in https://fedorapeople.org
+LIBDB_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
+LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
+BUNDLE_LIBDB = 1
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
@@ -92,6 +98,9 @@ endif
 	cd dist/sources ; \
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		curl -LO $(JEMALLOC_URL) ; \
+	fi ; \
+	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+		curl -LO $(LIBDB_URL) ; \
 	fi
 
 rpmroot:
@@ -110,6 +119,7 @@ rpmroot:
 	-e s/__COCKPIT_ON__/$(COCKPIT_ON)/ \
 	-e s/__CLANG_ON__/$(CLANG_ON)/ \
 	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \
+	-e s/__BUNDLE_LIBDB__/$(BUNDLE_LIBDB)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
 
 rpmdistdir:
@@ -124,8 +134,11 @@ rpmbuildprep:
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
 	fi
+	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+		cp dist/sources/$(LIBDB_TARBALL) $(RPMBUILD)/SOURCES/ ; \
+	fi
 
-srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep 
+srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
