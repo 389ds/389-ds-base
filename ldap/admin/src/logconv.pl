@@ -19,7 +19,7 @@ use warnings 'untie';
 use Time::Local;
 use IO::File;
 use Getopt::Long;
-use DB_File;
+# use DB_File;
 use sigtrap qw(die normal-signals);
 use Archive::Tar;
 use IO::Uncompress::AnyUncompress qw($AnyUncompressError);
@@ -2987,9 +2987,9 @@ openHashFiles
 	my %hashes = ();
 	for my $hn (@_) {
 		my %h = (); # using my in inner loop will create brand new hash every time through for tie
-		my $fn = "$dir/$hn.logconv.db";
-		push @removefiles, $fn;
-		tie %h, "DB_File", $fn, O_CREAT|O_RDWR, 0600, $DB_HASH or do { openFailed($!, $fn) };
+		# my $fn = "$dir/$hn.logconv.db";
+		# push @removefiles, $fn;
+		# tie %h, "DB_File", $fn, O_CREAT|O_RDWR, 0600, $DB_HASH or do { openFailed($!, $fn) };
 		$hashes{$hn} = \%h;
 	}
 	return \%hashes;
@@ -2999,13 +2999,13 @@ sub
 removeDataFiles
 {
 	if (!$needCleanup) { return ; }
-
-	for my $h (keys %{$hashes}) {
-		untie %{$hashes->{$h}};
-	}
-	for my $file (@removefiles) {
-		unlink $file;
-	}
+#
+# 	for my $h (keys %{$hashes}) {
+# 		untie %{$hashes->{$h}};
+# 	}
+# 	for my $file (@removefiles) {
+# 		unlink $file;
+# 	}
 	$needCleanup = 0;
 }
 
