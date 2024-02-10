@@ -7,12 +7,12 @@
  * END COPYRIGHT BLOCK **/
 
 
-#include <sys/types.h>
-#include <sys/statvfs.h>
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 #include "bdb_layer.h"
+#include <sys/types.h>
+#include <sys/statvfs.h>
 #include <prthread.h>
 #include <prclist.h>
 #include <glob.h>
@@ -7198,7 +7198,7 @@ bdb_dblayer_cursor_iterate(dbi_cursor_t *cursor, dbi_iterate_cb_t *action_cb,
     dbi_val_t key = {0};
     dbi_val_t data = {0};
     int rc = 0;
-    
+
     if (bdb_cur == NULL) {
         return  DBI_RC_INVALID;
     }
