@@ -74,6 +74,7 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <cert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
