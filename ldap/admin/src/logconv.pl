@@ -2858,7 +2858,7 @@ print_stats_block
 			} else {
 				$stats->{'fh'}->print(
 					"Time,time_t,Results,Search,Add,Mod,Modrdn,Moddn,Compare,Delete,Abandon,".
-					"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed search,Unindexed component,Invalid filter,ElapsedTime\n"
+					"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed search,Unindexed component,Inefficient filter,ElapsedTime\n"
 					);
 			}
 		}
