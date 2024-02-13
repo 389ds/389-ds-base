@@ -1396,11 +1396,7 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     dbmdb_delete_instance_dir(be);
     /* it's okay to fail -- it might already be gone */
 
-    /* vlv_init should be called before dbmdb_instance_start
-     * so the vlv dbi get created
-     */
-    vlv_init(job->inst);
-    /* dbmdb_instance_start will init the id2entry index. */
+    /* dbmdb_instance_start will init the id2entry index and the vlv search list. */
     /* it also (finally) fills in inst_dir_name */
     ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
     if (ret != 0)

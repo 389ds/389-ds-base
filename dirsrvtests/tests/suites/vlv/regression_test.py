@@ -22,9 +22,10 @@ from lib389.backend import *
 from lib389.idm.user import UserAccounts, UserAccount
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
-from lib389.replica import ReplicationManager
+from lib389.replica import BootstrapReplicationManager, Replicas, ReplicationManager
 from lib389.agreement import Agreements
 from lib389.cli_ctl.dblib import run_dbscan
+from lib389.idm.organizationalunit import OrganizationalUnits
 
 
 
@@ -106,11 +107,7 @@ def check_vlv_search(conn, **kwargs):
         assert dn.lower() == expected_dn.lower()
 
 
-def add_users(inst, users_num):
-    users = UserAccounts(inst, DEFAULT_SUFFIX)
-    log.info(f'Adding {users_num} users')
-    for i in range(0, users_num):
-        uid = STARTING_UID_INDEX + i
+def add_an_user(inst, users, uid):
         user_properties = {
             'uid': f'testuser{uid}',
             'cn': f'testuser{uid}',
@@ -120,6 +117,14 @@ def add_users(inst, users_num):
             'homeDirectory': f'/home/testuser{uid}'
         }
         users.create(properties=user_properties)
+
+
+def add_users(inst, users_num):
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    log.info(f'Adding {users_num} users')
+    for i in range(0, users_num):
+        uid = STARTING_UID_INDEX + i
+        add_an_user(inst, users, uid)
 
 
 def create_vlv_search_and_index(inst):
@@ -287,27 +292,60 @@ def test_vlv_recreation_reindex(topology_st):
     check_vlv_search(conn)
 
 
-def verify_vlv_subdb_names(vlvname, inst):
+def verify_keys_in_subdb(vlvname, inst, count):
+    """
+    Verify that vlv index as the expected number of keys.
+    """
+    output = run_dbscan(['-f', f'{inst.dbdir}/userroot/vlv#{vlvname}.db'])
+    found = output.count('\n')
+    assert found == count
+
+
+def verify_vlv_subdb_names(vlvname, inst, count=None):
     """
     Verify that vlv index and cache sub database names are conistent on lmdb.
     """
-    if get_default_db_lib() != "mdb":
-        return
-    output = run_dbscan(['-D', 'mdb', '-L', inst.dbdir])
-    vlvsubdbs = []
-    nbvlvindex = 0
-    for line in output.split("\n"):
-        if not line:
-            continue
-        fname = line.split()[0]
-        if 'vlv#' in fname:
-            vlvsubdbs.append(fname)
-            if '/~recno-cache/' not in fname:
-                nbvlvindex += 1
-    log.info(f'vlv sub databases are: {vlvsubdbs}')
-    assert f'{inst.dbdir}/userroot/vlv#{vlvname}.db' in vlvsubdbs
-    assert f'{inst.dbdir}/userroot/~recno-cache/vlv#{vlvname}.db' in vlvsubdbs
-    assert len(vlvsubdbs) == 2 * nbvlvindex
+    if get_default_db_lib() == "mdb":
+        output = run_dbscan(['-D', 'mdb', '-L', inst.dbdir])
+        vlvsubdbs = []
+        nbvlvindex = 0
+        for line in output.split("\n"):
+            if not line:
+                continue
+            fname = line.split()[0]
+            if 'vlv#' in fname:
+                vlvsubdbs.append(fname)
+                if '/~recno-cache/' not in fname:
+                    nbvlvindex += 1
+        log.info(f'vlv sub databases are: {vlvsubdbs}')
+        assert f'{inst.dbdir}/userroot/vlv#{vlvname}.db' in vlvsubdbs
+        assert f'{inst.dbdir}/userroot/~recno-cache/vlv#{vlvname}.db' in vlvsubdbs
+        assert len(vlvsubdbs) == 2 * nbvlvindex
+    if count:
+        verify_keys_in_subdb(vlvname, inst, count)
+
+
+def bootstrap_replication(M1, M2):
+    """
+    Setup a replication manager entry on M2 and update the
+    M1 -> M2 replication agreement to use it.
+    """
+    # Create a repl manager entry on M2
+    repl_manager_password = "Secret12"
+    brm = BootstrapReplicationManager(M2)
+    brm.create(properties={
+        'cn': brm.common_name,
+        'userPassword': repl_manager_password
+    })
+    # Let M1 -> M2 agreement use that entry
+    replica1 = Replicas(M1).get(DEFAULT_SUFFIX)
+    replica2 = Replicas(M2).get(DEFAULT_SUFFIX)
+    agmt = replica1.get_agreements().list()[0]
+    agmt.replace_many(("nsds5ReplicaBindDN", brm.dn),
+                      ("nsds5ReplicaCredentials", repl_manager_password))
+    replica2.remove_all('nsDS5ReplicaBindDNGroup')
+    # Assign the entry to the replica
+    replica2.replace('nsDS5ReplicaBindDN', brm.dn)
 
 
 def test_vlv_cache_subdb_names(topology_m2):
@@ -320,14 +358,18 @@ def test_vlv_cache_subdb_names(topology_m2):
         1. Generate vlvSearch and vlvIndex entries
         2. Add users and wait that they get replicated.
         3. Check subdb names and perform vlv searches
-        4. Reinit M2 from M1
-        5. Check subdb names and perform vlv searches
+        4. Destroy supplierr2 database and restart
+        5. Recreate M2 tree with a new user
+        6. Reinit M2 from M1
+        7. Check subdb names and perform vlv searches
     :expectedresults:
         1. Should Success.
         2. Should Success.
         3. Should Success.
         4. Should Success.
         5. Should Success.
+        6. Should Success.
+        7. Should Success.
     """
 
     NUM_USERS = 50
@@ -368,8 +410,27 @@ def test_vlv_cache_subdb_names(topology_m2):
     # Check subdb names and perform vlv searches
     conn = open_new_ldapi_conn(M2.serverid)
     assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
+    count = NUM_USERS + 4 # ( demo_user + 3 lines (lmdb environment info) )
     check_vlv_search(conn, offset=23)
-    verify_vlv_subdb_names(vlvname, M2)
+    verify_vlv_subdb_names(vlvname, M2, count=count)
+
+    # Destroy the database and restart
+    # (Ensure that the db is really destroyed.
+    #  Avoid getting tricked if database is not properly cleared by the reimport)
+    #  by a double bug (index keys not properly reset)
+    M2.stop()
+    if get_default_db_lib() == "mdb":
+        os.remove(f'{M2.dbdir}/data.mdb')
+    M2.start()
+
+    # Recreate tree with a new user on M2 (To check that its key get removed)
+    # This user is not replicated towards M1 because the db has been
+    # recreated with a different generation number
+    Domain(M2, DEFAULT_SUFFIX).create(properties={'dc': 'example'})
+    OrganizationalUnits(M2, DEFAULT_SUFFIX).create(properties={'ou': 'People'})
+    users = UserAccounts(M2, DEFAULT_SUFFIX)
+    add_an_user(M2, users, 2*STARTING_UID_INDEX)
+    bootstrap_replication(M1, M2)
 
     # Reinit M2 from M1
     agmt = Agreements(M1).list()[0]
@@ -381,8 +442,9 @@ def test_vlv_cache_subdb_names(topology_m2):
     # Check subdb names and perform vlv searches
     conn = open_new_ldapi_conn(M2.serverid)
     assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
+    count = NUM_USERS + 4
     check_vlv_search(conn, offset=23)
-    verify_vlv_subdb_names(vlvname, M2)
+    verify_vlv_subdb_names(vlvname, M2, count=count)
 
 
 @contextmanager
