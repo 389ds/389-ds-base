@@ -2852,12 +2852,13 @@ print_stats_block
 						 $stats->{'unbind'},
 						 $stats->{'notesA'},
 						 $stats->{'notesU'},
+						 $stats->{'notesF'},
 						 $stats->{'etime'}),
 					"\n" );
 			} else {
 				$stats->{'fh'}->print(
 					"Time,time_t,Results,Search,Add,Mod,Modrdn,Moddn,Compare,Delete,Abandon,".
-					"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed search,Unindexed component,ElapsedTime\n"
+					"Connections,SSL Conns,Bind,Anon Bind,Unbind,Unindexed search,Unindexed component,Invalid filter,ElapsedTime\n"
 					);
 			}
 		}
