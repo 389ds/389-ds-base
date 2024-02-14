@@ -31,6 +31,7 @@ from lib389.cli_base import (
     _generic_create,
     _get_dn_arg,
     _warn,
+    CustomHelpFormatter
     )
 from lib389.cli_idm import _generic_rename_dn
 
@@ -133,61 +134,61 @@ def unlock(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    role_parser = subparsers.add_parser('role', help='''Manage roles.''')
+    role_parser = subparsers.add_parser('role', help='''Manage roles.''', formatter_class=CustomHelpFormatter)
 
     subcommands = role_parser.add_subparsers(help='action')
 
-    list_parser = subcommands.add_parser('list', help='list roles that could login to the directory')
+    list_parser = subcommands.add_parser('list', help='list roles that could login to the directory', formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list)
 
-    get_parser = subcommands.add_parser('get', help='get')
+    get_parser = subcommands.add_parser('get', help='get', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get)
     get_parser.add_argument('selector', nargs='?', help='The term to search for')
 
-    get_dn_parser = subcommands.add_parser('get-by-dn', help='get-by-dn <dn>')
+    get_dn_parser = subcommands.add_parser('get-by-dn', help='get-by-dn <dn>', formatter_class=CustomHelpFormatter)
     get_dn_parser.set_defaults(func=get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The dn to get and display')
 
-    create_managed_parser = subcommands.add_parser('create-managed', help='create')
+    create_managed_parser = subcommands.add_parser('create-managed', help='create', formatter_class=CustomHelpFormatter)
     create_managed_parser.set_defaults(func=create_managed)
     populate_attr_arguments(create_managed_parser, MUST_ATTRIBUTES)
 
-    create_filtered_parser = subcommands.add_parser('create-filtered', help='create')
+    create_filtered_parser = subcommands.add_parser('create-filtered', help='create', formatter_class=CustomHelpFormatter)
     create_filtered_parser.set_defaults(func=create_filtered)
     populate_attr_arguments(create_filtered_parser, MUST_ATTRIBUTES)
 
-    create_nested_parser = subcommands.add_parser('create-nested', help='create')
+    create_nested_parser = subcommands.add_parser('create-nested', help='create', formatter_class=CustomHelpFormatter)
     create_nested_parser.set_defaults(func=create_nested)
     populate_attr_arguments(create_nested_parser, MUST_ATTRIBUTES_NESTED)
 
-    modify_dn_parser = subcommands.add_parser('modify-by-dn', help='modify-by-dn <dn> <add|delete|replace>:<attribute>:<value> ...')
+    modify_dn_parser = subcommands.add_parser('modify-by-dn', help='modify-by-dn <dn> <add|delete|replace>:<attribute>:<value> ...', formatter_class=CustomHelpFormatter)
     modify_dn_parser.set_defaults(func=modify)
     modify_dn_parser.add_argument('dn', nargs=1, help='The dn to modify')
     modify_dn_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
 
-    rename_dn_parser = subcommands.add_parser('rename-by-dn', help='rename the object')
+    rename_dn_parser = subcommands.add_parser('rename-by-dn', help='rename the object', formatter_class=CustomHelpFormatter)
     rename_dn_parser.set_defaults(func=rename)
     rename_dn_parser.add_argument('dn', help='The dn to rename')
     rename_dn_parser.add_argument('new_dn', help='A new account dn')
     rename_dn_parser.add_argument('--keep-old-rdn', action='store_true', help="Specify whether the old RDN (i.e. 'cn: old_account') should be kept as an attribute of the entry or not")
 
-    delete_parser = subcommands.add_parser('delete', help='deletes the role')
+    delete_parser = subcommands.add_parser('delete', help='deletes the role', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=delete)
     delete_parser.add_argument('dn', nargs='?', help='The dn of the role to delete')
 
-    lock_parser = subcommands.add_parser('lock', help='lock')
+    lock_parser = subcommands.add_parser('lock', help='lock', formatter_class=CustomHelpFormatter)
     lock_parser.set_defaults(func=lock)
     lock_parser.add_argument('dn', nargs='?', help='The dn to lock')
 
-    unlock_parser = subcommands.add_parser('unlock', help='unlock')
+    unlock_parser = subcommands.add_parser('unlock', help='unlock', formatter_class=CustomHelpFormatter)
     unlock_parser.set_defaults(func=unlock)
     unlock_parser.add_argument('dn', nargs='?', help='The dn to unlock')
 
-    status_parser = subcommands.add_parser('entry-status', help='status of a single entry')
+    status_parser = subcommands.add_parser('entry-status', help='status of a single entry', formatter_class=CustomHelpFormatter)
     status_parser.set_defaults(func=entry_status)
     status_parser.add_argument('dn', nargs='?', help='The single entry dn to check')
 
-    status_parser = subcommands.add_parser('subtree-status', help='status of a subtree')
+    status_parser = subcommands.add_parser('subtree-status', help='status of a subtree', formatter_class=CustomHelpFormatter)
     status_parser.set_defaults(func=subtree_status)
     status_parser.add_argument('basedn', help="Search base for finding entries")
     status_parser.add_argument('-f', '--filter', help="Search filter for finding entries")

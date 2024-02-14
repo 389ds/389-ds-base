@@ -10,7 +10,7 @@
 import json
 import ldap
 from lib389.plugins import (PassThroughAuthenticationPlugin)
-
+from lib389.cli_base import CustomHelpFormatter
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add, generic_show, generic_enable, generic_disable, generic_status
 
 
@@ -129,20 +129,20 @@ def create_parser(subparsers):
 
     add_generic_plugin_parsers(subcommands, PassThroughAuthenticationPlugin)
 
-    list_urls = subcommands.add_parser('list', help='Lists LDAP URLs')
+    list_urls = subcommands.add_parser('list', help='Lists LDAP URLs', formatter_class=CustomHelpFormatter)
     list_urls.set_defaults(func=pta_list)
 
-    # url = subcommands.add_parser('url', help='Manage PTA LDAP URL configurations')
+    # url = subcommands.add_parser('url', help='Manage PTA LDAP URL configurations', formatter_class=CustomHelpFormatter)
     # subcommands_url = url.add_subparsers(help='action')
 
-    add_url = subcommands.add_parser('add', help='Add an LDAP url to the config entry')
+    add_url = subcommands.add_parser('add', help='Add an LDAP url to the config entry', formatter_class=CustomHelpFormatter)
     add_url.add_argument('URL',
                          help='The full LDAP URL in format '
                               '"ldap|ldaps://authDS/subtree maxconns,maxops,timeout,ldver,connlifetime,startTLS". '
                               'If one optional parameter is specified the rest should be specified too')
     add_url.set_defaults(func=pta_add)
 
-    edit_url = subcommands.add_parser('modify', help='Edit the LDAP pass through config entry')
+    edit_url = subcommands.add_parser('modify', help='Edit the LDAP pass through config entry', formatter_class=CustomHelpFormatter)
     edit_url.add_argument('OLD_URL', help='The full LDAP URL you get from the "list" command')
     edit_url.add_argument('NEW_URL',
                           help='Sets the full LDAP URL in format '
@@ -150,7 +150,7 @@ def create_parser(subparsers):
                                'If one optional parameter is specified the rest should be specified too.')
     edit_url.set_defaults(func=pta_edit)
 
-    delete_url = subcommands.add_parser('delete', help='Delete a URL from the config entry')
+    delete_url = subcommands.add_parser('delete', help='Delete a URL from the config entry', formatter_class=CustomHelpFormatter)
     delete_url.add_argument('URL', help='The full LDAP URL you get from the "list" command')
     delete_url.set_defaults(func=pta_del)
 

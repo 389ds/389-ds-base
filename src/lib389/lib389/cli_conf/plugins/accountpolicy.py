@@ -9,6 +9,7 @@
 import ldap
 from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfig
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'config_entry': 'nsslapd_pluginconfigarea'
@@ -101,31 +102,31 @@ def _add_parser_args(parser):
 
 
 def create_parser(subparsers):
-    accountpolicy = subparsers.add_parser('account-policy', help='Manage and configure Account Policy plugin')
+    accountpolicy = subparsers.add_parser('account-policy', help='Manage and configure Account Policy plugin', formatter_class=CustomHelpFormatter)
     subcommands = accountpolicy.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, AccountPolicyPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin settings')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=accountpolicy_edit)
     edit.add_argument('--config-entry', help='Sets the nsslapd-pluginConfigArea attribute')
 
-    config = subcommands.add_parser('config-entry', help='Manage the config entry')
+    config = subcommands.add_parser('config-entry', help='Manage the config entry', formatter_class=CustomHelpFormatter)
     config_subcommands = config.add_subparsers(help='action')
 
-    add_config = config_subcommands.add_parser('add', help='Add the config entry')
+    add_config = config_subcommands.add_parser('add', help='Add the config entry', formatter_class=CustomHelpFormatter)
     add_config.set_defaults(func=accountpolicy_add_config)
     add_config.add_argument('DN', help='The full DN of the config entry')
     _add_parser_args(add_config)
 
-    edit_config = config_subcommands.add_parser('set', help='Edit the config entry')
+    edit_config = config_subcommands.add_parser('set', help='Edit the config entry', formatter_class=CustomHelpFormatter)
     edit_config.set_defaults(func=accountpolicy_edit_config)
     edit_config.add_argument('DN', help='The full DN of the config entry')
     _add_parser_args(edit_config)
 
-    show_config_parser = config_subcommands.add_parser('show', help='Display the config entry')
+    show_config_parser = config_subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show_config_parser.set_defaults(func=accountpolicy_show_config)
     show_config_parser.add_argument('DN', help='The full DN of the config entry')
 
-    del_config_parser = config_subcommands.add_parser('delete', help='Delete the config entry')
+    del_config_parser = config_subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
     del_config_parser.set_defaults(func=accountpolicy_del_config)
     del_config_parser.add_argument('DN', help='The full DN of the config entry')
