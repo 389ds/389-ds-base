@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+from lib389.cli_base import CustomHelpFormatter
 
 def backup_create(inst, basedn, log, args):
     log = log.getChild('backup_create')
@@ -41,11 +42,11 @@ def backup_restore(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    backup_parser = subparsers.add_parser('backup', help="Manage online backups")
+    backup_parser = subparsers.add_parser('backup', help="Manage online backups", formatter_class=CustomHelpFormatter)
 
     subcommands = backup_parser.add_subparsers(help="action")
 
-    create_backup_parser = subcommands.add_parser('create', help="Creates a backup of the database")
+    create_backup_parser = subcommands.add_parser('create', help="Creates a backup of the database", formatter_class=CustomHelpFormatter)
     create_backup_parser.set_defaults(func=backup_create)
     create_backup_parser.add_argument('archive', nargs='?', default=None,
                                       help="Sets the directory where to store the backup files. "
@@ -56,7 +57,7 @@ def create_parser(subparsers):
     create_backup_parser.add_argument('--timeout', type=int, default=120,
                                       help="Sets the task timeout.  Default is 120 seconds,")
 
-    restore_parser = subcommands.add_parser('restore', help="Restores a database from a backup")
+    restore_parser = subcommands.add_parser('restore', help="Restores a database from a backup", formatter_class=CustomHelpFormatter)
     restore_parser.set_defaults(func=backup_restore)
     restore_parser.add_argument('archive', help="Set the directory that contains the backup files")
     restore_parser.add_argument('-t', '--db-type', default="ldbm database",

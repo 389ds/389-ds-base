@@ -15,7 +15,7 @@ from shutil import copyfile
 from getpass import getpass
 from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
-from lib389.cli_base import _get_arg
+from lib389.cli_base import _get_arg, CustomHelpFormatter
 from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog, get_passwd_from_file
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF, Changelog
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
@@ -1285,10 +1285,10 @@ def create_parser(subparsers):
     # Replication Configuration
     ############################################
 
-    repl_parser = subparsers.add_parser('replication', aliases=['repl'], help='Manage replication for a suffix')
+    repl_parser = subparsers.add_parser('replication', aliases=['repl'], help='Manage replication for a suffix', formatter_class=CustomHelpFormatter)
     repl_subcommands = repl_parser.add_subparsers(help='Replication Configuration')
 
-    repl_enable_parser = repl_subcommands.add_parser('enable', help='Enable replication for a suffix')
+    repl_enable_parser = repl_subcommands.add_parser('enable', help='Enable replication for a suffix', formatter_class=CustomHelpFormatter)
     repl_enable_parser.set_defaults(func=enable_replication)
     repl_enable_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to be enabled for replication')
     repl_enable_parser.add_argument('--role', required=True, help="Sets the replication role: \"supplier\", \"hub\", or \"consumer\"")
@@ -1301,18 +1301,18 @@ def create_parser(subparsers):
     repl_enable_parser.add_argument('--bind-passwd-file', help="File containing the password")
     repl_enable_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password")
 
-    repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix')
+    repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix', formatter_class=CustomHelpFormatter)
     repl_disable_parser.set_defaults(func=disable_replication)
     repl_disable_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to have replication disabled')
 
-    repl_ruv_parser = repl_subcommands.add_parser('get-ruv', help='Display the database RUV entry for a suffix')
+    repl_ruv_parser = repl_subcommands.add_parser('get-ruv', help='Display the database RUV entry for a suffix', formatter_class=CustomHelpFormatter)
     repl_ruv_parser.set_defaults(func=get_ruv)
     repl_ruv_parser.add_argument('--suffix', required=True, help='Sets the DN of the replicated suffix')
 
-    repl_list_parser = repl_subcommands.add_parser('list', help='Lists all the replicated suffixes')
+    repl_list_parser = repl_subcommands.add_parser('list', help='Lists all the replicated suffixes', formatter_class=CustomHelpFormatter)
     repl_list_parser.set_defaults(func=list_suffixes)
 
-    repl_status_parser = repl_subcommands.add_parser('status', help='Display the current status of all the replication agreements')
+    repl_status_parser = repl_subcommands.add_parser('status', help='Display the current status of all the replication agreements', formatter_class=CustomHelpFormatter)
     repl_status_parser.set_defaults(func=get_repl_status)
     repl_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
     repl_status_parser.add_argument('--bind-dn', help="Sets the DN to use to authenticate to the consumer. If not set, current instance's root DN will be used. It will be used for all agreements")
@@ -1329,7 +1329,7 @@ def create_parser(subparsers):
     repl_winsync_status_parser.add_argument('--bind-passwd-file', help="File containing the password. Currectly not used")
     repl_winsync_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for password. Currectly not used")
 
-    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote a replica to a hub or supplier')
+    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote a replica to a hub or supplier', formatter_class=CustomHelpFormatter)
     repl_promote_parser.set_defaults(func=promote_replica)
     repl_promote_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix to promote")
     repl_promote_parser.add_argument('--newrole', required=True, help='Sets the new replica role to \"hub\" or \"supplier\"')
@@ -1337,7 +1337,7 @@ def create_parser(subparsers):
     repl_promote_parser.add_argument('--bind-group-dn', help="Sets a group entry DN containing members that are \"bind/supplier\" DNs")
     repl_promote_parser.add_argument('--bind-dn', help="Sets the bind or supplier DN that can make replication updates")
 
-    repl_add_manager_parser = repl_subcommands.add_parser('create-manager', help='Create a replication manager entry')
+    repl_add_manager_parser = repl_subcommands.add_parser('create-manager', help='Create a replication manager entry', formatter_class=CustomHelpFormatter)
     repl_add_manager_parser.set_defaults(func=create_repl_manager)
     repl_add_manager_parser.add_argument('--name', help="Sets the name of the new replication manager entry.For example, " +
                                                         "if the name is \"replication manager\" then the new manager " +
@@ -1348,22 +1348,22 @@ def create_parser(subparsers):
     repl_add_manager_parser.add_argument('--suffix', help='The DN of the replication suffix whose replication ' +
                                                           'configuration you want to add this new manager to (OPTIONAL)')
 
-    repl_del_manager_parser = repl_subcommands.add_parser('delete-manager', help='Delete a replication manager entry')
+    repl_del_manager_parser = repl_subcommands.add_parser('delete-manager', help='Delete a replication manager entry', formatter_class=CustomHelpFormatter)
     repl_del_manager_parser.set_defaults(func=del_repl_manager)
     repl_del_manager_parser.add_argument('--name', help="Sets the name of the replication manager entry under cn=config: \"cn=NAME,cn=config\"")
     repl_del_manager_parser.add_argument('--suffix', help='Sets the DN of the replication suffix whose replication ' +
                                                           'configuration you want to remove this manager from (OPTIONAL)')
 
-    repl_demote_parser = repl_subcommands.add_parser('demote', help='Demote replica to a hub or consumer')
+    repl_demote_parser = repl_subcommands.add_parser('demote', help='Demote replica to a hub or consumer', formatter_class=CustomHelpFormatter)
     repl_demote_parser.set_defaults(func=demote_replica)
     repl_demote_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
     repl_demote_parser.add_argument('--newrole', required=True, help="Sets the new replication role to \"hub\", or \"consumer\"")
 
-    repl_get_parser = repl_subcommands.add_parser('get', help='Display the replication configuration')
+    repl_get_parser = repl_subcommands.add_parser('get', help='Display the replication configuration', formatter_class=CustomHelpFormatter)
     repl_get_parser.set_defaults(func=get_repl_config)
     repl_get_parser.add_argument('--suffix', required=True, help='Sets the suffix DN for the replication configuration to display')
 
-    repl_set_per_backend_cl = repl_subcommands.add_parser('set-changelog', help='Set replication changelog attributes')
+    repl_set_per_backend_cl = repl_subcommands.add_parser('set-changelog', help='Set replication changelog attributes', formatter_class=CustomHelpFormatter)
     repl_set_per_backend_cl.set_defaults(func=set_per_backend_cl)
     repl_set_per_backend_cl.add_argument('--suffix', required=True, help='Sets the suffix that uses the changelog')
     repl_set_per_backend_cl.add_argument('--max-entries', help="Sets the maximum number of entries to get in the replication changelog")
@@ -1376,11 +1376,11 @@ def create_parser(subparsers):
                                          help="Sets the replication changelog to not use encryption. You must export "
                                               "and import the changelog after setting this.")
 
-    repl_get_per_backend_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes')
+    repl_get_per_backend_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes', formatter_class=CustomHelpFormatter)
     repl_get_per_backend_cl.set_defaults(func=get_per_backend_cl)
     repl_get_per_backend_cl.add_argument('--suffix', required=True, help='Sets the suffix that uses the changelog')
 
-    repl_export_cl = repl_subcommands.add_parser('export-changelog', help='Export the Directory Server replication changelog to an LDIF file')
+    repl_export_cl = repl_subcommands.add_parser('export-changelog', help='Export the Directory Server replication changelog to an LDIF file', formatter_class=CustomHelpFormatter)
     export_subcommands = repl_export_cl.add_subparsers(help='Export replication changelog')
     repl_export_cl = export_subcommands.add_parser('to-ldif', help='Sets the LDIF file name. '
                                                                    'This is typically used for setting up changelog encryption')
@@ -1400,7 +1400,7 @@ def create_parser(subparsers):
     repl_export_cl.add_argument('-r', '--replica-root', required=True,
                                 help="Specifies the replica root whose changelog you want to export")
 
-    repl_def_export_cl = export_subcommands.add_parser('default', help='Export the replication changelog to the server\'s default LDIF directory')
+    repl_def_export_cl = export_subcommands.add_parser('default', help='Export the replication changelog to the server\'s default LDIF directory', formatter_class=CustomHelpFormatter)
     repl_def_export_cl.set_defaults(func=dump_def_cl)
     repl_def_export_cl.add_argument('-r', '--replica-root', required=True,
                                     help="Specifies the replica root whose changelog you want to export")
@@ -1408,7 +1408,7 @@ def create_parser(subparsers):
     repl_import_cl = repl_subcommands.add_parser('import-changelog',
         help='Restore/import Directory Server replication change log from an LDIF file. This is typically used when managing changelog encryption')
     import_subcommands = repl_import_cl.add_subparsers(help='Restore/import replication changelog')
-    import_ldif = import_subcommands.add_parser('from-ldif', help='Restore/import a specific single LDIF file')
+    import_ldif = import_subcommands.add_parser('from-ldif', help='Restore/import a specific single LDIF file', formatter_class=CustomHelpFormatter)
     import_ldif.set_defaults(func=restore_cl_ldif)
     import_ldif.add_argument('LDIF_PATH', nargs=1, help='The path of the changelog LDIF file')
     import_ldif.add_argument('-r', '--replica-root', required=True,
@@ -1420,7 +1420,7 @@ def create_parser(subparsers):
     import_def_ldif.add_argument('-r', '--replica-root', required=True,
                                  help="Specifies the replica root whose changelog you want to import")
 
-    repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
+    repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration', formatter_class=CustomHelpFormatter)
     repl_set_parser.set_defaults(func=set_repl_config)
     repl_set_parser.add_argument('--suffix', required=True, help='Sets the DN of the replication suffix')
     repl_set_parser.add_argument('--repl-add-bind-dn', help="Adds a bind (supplier) DN")
@@ -1444,7 +1444,7 @@ def create_parser(subparsers):
                                                                           "an internal update to keep the RUV from getting stale. "
                                                                           "The default is 1 hour (3600 seconds)")
 
-    repl_monitor_parser = repl_subcommands.add_parser('monitor', help='Display the full replication topology report')
+    repl_monitor_parser = repl_subcommands.add_parser('monitor', help='Display the full replication topology report', formatter_class=CustomHelpFormatter)
     repl_monitor_parser.set_defaults(func=get_repl_monitor_info)
     repl_monitor_parser.add_argument('-c', '--connections', nargs="*",
                                      help="Sets the connection values for monitoring other not connected topologies. "
@@ -1459,47 +1459,47 @@ def create_parser(subparsers):
     # Replication Agmts
     ############################################
 
-    agmt_parser = subparsers.add_parser('repl-agmt', help='Manage replication agreements')
+    agmt_parser = subparsers.add_parser('repl-agmt', help='Manage replication agreements', formatter_class=CustomHelpFormatter)
     agmt_subcommands = agmt_parser.add_subparsers(help='Replication Agreement Configuration')
 
     # List
-    agmt_list_parser = agmt_subcommands.add_parser('list', help='List all replication agreements')
+    agmt_list_parser = agmt_subcommands.add_parser('list', help='List all replication agreements', formatter_class=CustomHelpFormatter)
     agmt_list_parser.set_defaults(func=list_agmts)
     agmt_list_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to look up replication agreements for')
     agmt_list_parser.add_argument('--entry', help='Returns the entire entry for each agreement')
 
     # Enable
-    agmt_enable_parser = agmt_subcommands.add_parser('enable', help='Enable replication agreement')
+    agmt_enable_parser = agmt_subcommands.add_parser('enable', help='Enable replication agreement', formatter_class=CustomHelpFormatter)
     agmt_enable_parser.set_defaults(func=enable_agmt)
     agmt_enable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_enable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Disable
-    agmt_disable_parser = agmt_subcommands.add_parser('disable', help='Disable replication agreement')
+    agmt_disable_parser = agmt_subcommands.add_parser('disable', help='Disable replication agreement', formatter_class=CustomHelpFormatter)
     agmt_disable_parser.set_defaults(func=disable_agmt)
     agmt_disable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_disable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Initialize
-    agmt_init_parser = agmt_subcommands.add_parser('init', help='Initialize replication agreement')
+    agmt_init_parser = agmt_subcommands.add_parser('init', help='Initialize replication agreement', formatter_class=CustomHelpFormatter)
     agmt_init_parser.set_defaults(func=init_agmt)
     agmt_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Check Initialization progress
-    agmt_check_init_parser = agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status')
+    agmt_check_init_parser = agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status', formatter_class=CustomHelpFormatter)
     agmt_check_init_parser.set_defaults(func=check_init_agmt)
     agmt_check_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_check_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Send Updates Now
-    agmt_poke_parser = agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now')
+    agmt_poke_parser = agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now', formatter_class=CustomHelpFormatter)
     agmt_poke_parser.set_defaults(func=poke_agmt)
     agmt_poke_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_poke_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Status
-    agmt_status_parser = agmt_subcommands.add_parser('status', help='Displays the current status of the replication agreement')
+    agmt_status_parser = agmt_subcommands.add_parser('status', help='Displays the current status of the replication agreement', formatter_class=CustomHelpFormatter)
     agmt_status_parser.set_defaults(func=get_agmt_status)
     agmt_status_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
@@ -1509,13 +1509,13 @@ def create_parser(subparsers):
     agmt_status_parser.add_argument('--bind-passwd-prompt', action='store_true', help="Prompt for passwords for each agreement's instance separately")
 
     # Delete
-    agmt_del_parser = agmt_subcommands.add_parser('delete', help='Delete replication agreement')
+    agmt_del_parser = agmt_subcommands.add_parser('delete', help='Delete replication agreement', formatter_class=CustomHelpFormatter)
     agmt_del_parser.set_defaults(func=delete_agmt)
     agmt_del_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_del_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Create
-    agmt_add_parser = agmt_subcommands.add_parser('create', help='Initialize replication agreement')
+    agmt_add_parser = agmt_subcommands.add_parser('create', help='Initialize replication agreement', formatter_class=CustomHelpFormatter)
     agmt_add_parser.set_defaults(func=add_agmt)
     agmt_add_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_add_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
@@ -1560,7 +1560,7 @@ def create_parser(subparsers):
     agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initializes the agreement after creating it")
 
     # Set - Note can not use add's parent args because for "set" there are no "required=True" args
-    agmt_set_parser = agmt_subcommands.add_parser('set', help='Set an attribute in the replication agreement')
+    agmt_set_parser = agmt_subcommands.add_parser('set', help='Set an attribute in the replication agreement', formatter_class=CustomHelpFormatter)
     agmt_set_parser.set_defaults(func=set_agmt)
     agmt_set_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_set_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
@@ -1603,7 +1603,7 @@ def create_parser(subparsers):
     agmt_set_parser.add_argument('--bootstrap-bind-method', help="Sets the bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
 
     # Get
-    agmt_get_parser = agmt_subcommands.add_parser('get', help='Get replication configuration')
+    agmt_get_parser = agmt_subcommands.add_parser('get', help='Get replication configuration', formatter_class=CustomHelpFormatter)
     agmt_get_parser.set_defaults(func=get_repl_agmt)
     agmt_get_parser.add_argument('AGMT_NAME', nargs=1, help='The suffix DN for which to display the replication configuration')
     agmt_get_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
@@ -1612,58 +1612,58 @@ def create_parser(subparsers):
     # Replication Winsync Agmts
     ############################################
 
-    winsync_parser = subparsers.add_parser('repl-winsync-agmt', help='Manage Winsync agreements')
+    winsync_parser = subparsers.add_parser('repl-winsync-agmt', help='Manage Winsync agreements', formatter_class=CustomHelpFormatter)
     winsync_agmt_subcommands = winsync_parser.add_subparsers(help='Replication Winsync Agreement configuration')
 
     # List
-    winsync_agmt_list_parser = winsync_agmt_subcommands.add_parser('list', help='List all the replication winsync agreements')
+    winsync_agmt_list_parser = winsync_agmt_subcommands.add_parser('list', help='List all the replication winsync agreements', formatter_class=CustomHelpFormatter)
     winsync_agmt_list_parser.set_defaults(func=list_winsync_agmts)
     winsync_agmt_list_parser.add_argument('--suffix', required=True, help='Sets the DN of the suffix to look up replication winsync agreements')
 
     # Enable
-    winsync_agmt_enable_parser = winsync_agmt_subcommands.add_parser('enable', help='Enable replication winsync agreement')
+    winsync_agmt_enable_parser = winsync_agmt_subcommands.add_parser('enable', help='Enable replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_enable_parser.set_defaults(func=enable_winsync_agmt)
     winsync_agmt_enable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
     winsync_agmt_enable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Disable
-    winsync_agmt_disable_parser = winsync_agmt_subcommands.add_parser('disable', help='Disable replication winsync agreement')
+    winsync_agmt_disable_parser = winsync_agmt_subcommands.add_parser('disable', help='Disable replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_disable_parser.set_defaults(func=disable_winsync_agmt)
     winsync_agmt_disable_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
     winsync_agmt_disable_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Initialize
-    winsync_agmt_init_parser = winsync_agmt_subcommands.add_parser('init', help='Initialize replication winsync agreement')
+    winsync_agmt_init_parser = winsync_agmt_subcommands.add_parser('init', help='Initialize replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_init_parser.set_defaults(func=init_winsync_agmt)
     winsync_agmt_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
     winsync_agmt_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Check Initialization progress
-    winsync_agmt_check_init_parser = winsync_agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status')
+    winsync_agmt_check_init_parser = winsync_agmt_subcommands.add_parser('init-status', help='Check the agreement initialization status', formatter_class=CustomHelpFormatter)
     winsync_agmt_check_init_parser.set_defaults(func=check_winsync_init_agmt)
     winsync_agmt_check_init_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     winsync_agmt_check_init_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Send Updates Now
-    winsync_agmt_poke_parser = winsync_agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now')
+    winsync_agmt_poke_parser = winsync_agmt_subcommands.add_parser('poke', help='Trigger replication to send updates now', formatter_class=CustomHelpFormatter)
     winsync_agmt_poke_parser.set_defaults(func=poke_winsync_agmt)
     winsync_agmt_poke_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
     winsync_agmt_poke_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Status
-    winsync_agmt_status_parser = winsync_agmt_subcommands.add_parser('status', help='Display the current status of the replication agreement')
+    winsync_agmt_status_parser = winsync_agmt_subcommands.add_parser('status', help='Display the current status of the replication agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_status_parser.set_defaults(func=get_winsync_agmt_status)
     winsync_agmt_status_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     winsync_agmt_status_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
 
     # Delete
-    winsync_agmt_del_parser = winsync_agmt_subcommands.add_parser('delete', help='Delete replication winsync agreement')
+    winsync_agmt_del_parser = winsync_agmt_subcommands.add_parser('delete', help='Delete replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_del_parser.set_defaults(func=delete_winsync_agmt)
     winsync_agmt_del_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
     winsync_agmt_del_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
 
     # Create
-    winsync_agmt_add_parser = winsync_agmt_subcommands.add_parser('create', help='Initialize replication winsync agreement')
+    winsync_agmt_add_parser = winsync_agmt_subcommands.add_parser('create', help='Initialize replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_add_parser.set_defaults(func=add_winsync_agmt)
     winsync_agmt_add_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
     winsync_agmt_add_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication winsync suffix")
@@ -1701,7 +1701,7 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initializes the agreement after creating it")
 
     # Set - Note can not use add's parent args because for "set" there are no "required=True" args
-    winsync_agmt_set_parser = winsync_agmt_subcommands.add_parser('set', help='Set an attribute in the replication winsync agreement')
+    winsync_agmt_set_parser = winsync_agmt_subcommands.add_parser('set', help='Set an attribute in the replication winsync agreement', formatter_class=CustomHelpFormatter)
     winsync_agmt_set_parser.set_defaults(func=set_winsync_agmt)
     winsync_agmt_set_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication winsync agreement')
     winsync_agmt_set_parser.add_argument('--suffix', help="Sets the DN of the replication winsync suffix")
@@ -1736,7 +1736,7 @@ def create_parser(subparsers):
                                          help="Sets the amount of time in seconds a supplier should wait between update sessions")
 
     # Get
-    winsync_agmt_get_parser = winsync_agmt_subcommands.add_parser('get', help='Display replication configuration')
+    winsync_agmt_get_parser = winsync_agmt_subcommands.add_parser('get', help='Display replication configuration', formatter_class=CustomHelpFormatter)
     winsync_agmt_get_parser.set_defaults(func=get_winsync_agmt)
     winsync_agmt_get_parser.add_argument('AGMT_NAME', nargs=1, help='The suffix DN for the replication configuration to display')
     winsync_agmt_get_parser.add_argument('--suffix', required=True, help="Sets the DN of the replication suffix")
@@ -1745,29 +1745,29 @@ def create_parser(subparsers):
     # Replication Tasks (cleanalruv)
     ############################################
 
-    tasks_parser = subparsers.add_parser('repl-tasks', help='Manage replication tasks')
+    tasks_parser = subparsers.add_parser('repl-tasks', help='Manage replication tasks', formatter_class=CustomHelpFormatter)
     task_subcommands = tasks_parser.add_subparsers(help='Replication tasks')
 
     # Cleanallruv
-    task_cleanallruv = task_subcommands.add_parser('cleanallruv', help='Cleanup old/removed replica IDs')
+    task_cleanallruv = task_subcommands.add_parser('cleanallruv', help='Cleanup old/removed replica IDs', formatter_class=CustomHelpFormatter)
     task_cleanallruv.set_defaults(func=run_cleanallruv)
     task_cleanallruv.add_argument('--suffix', required=True, help="Sets the Directory Server suffix")
     task_cleanallruv.add_argument('--replica-id', required=True, help="Sets the replica ID to remove/clean")
     task_cleanallruv.add_argument('--force-cleaning', action='store_true', default=False,
                                   help="Ignores errors and make a best attempt to clean all replicas")
 
-    task_cleanallruv_list = task_subcommands.add_parser('list-cleanruv-tasks', help='List all the running CleanAllRUV tasks')
+    task_cleanallruv_list = task_subcommands.add_parser('list-cleanruv-tasks', help='List all the running CleanAllRUV tasks', formatter_class=CustomHelpFormatter)
     task_cleanallruv_list.set_defaults(func=list_cleanallruv)
     task_cleanallruv_list.add_argument('--suffix', help="Lists only tasks for the specified suffix")
 
     # Abort cleanallruv
-    task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Abort cleanallruv tasks')
+    task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Abort cleanallruv tasks', formatter_class=CustomHelpFormatter)
     task_abort_cleanallruv.set_defaults(func=abort_cleanallruv)
     task_abort_cleanallruv.add_argument('--suffix', required=True, help="Sets the Directory Server suffix")
     task_abort_cleanallruv.add_argument('--replica-id', required=True, help="Sets the replica ID of the cleaning task to abort")
     task_abort_cleanallruv.add_argument('--certify', action='store_true', default=False,
                                         help="Enforces that the abort task completed on all replicas")
 
-    task_abort_cleanallruv_list = task_subcommands.add_parser('list-abortruv-tasks', help='List all the running CleanAllRUV abort tasks')
+    task_abort_cleanallruv_list = task_subcommands.add_parser('list-abortruv-tasks', help='List all the running CleanAllRUV abort tasks', formatter_class=CustomHelpFormatter)
     task_abort_cleanallruv_list.set_defaults(func=list_abort_cleanallruv)
     task_abort_cleanallruv_list.add_argument('--suffix', help="Lists only tasks for the specified suffix")

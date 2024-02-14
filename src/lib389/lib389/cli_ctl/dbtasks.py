@@ -9,6 +9,7 @@
 
 import os
 from lib389._constants import TaskWarning
+from lib389.cli_base import CustomHelpFormatter
 from pathlib import Path
 
 
@@ -124,18 +125,18 @@ def dbtasks_verify(inst, log, args):
 
 
 def create_parser(subcommands):
-    db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.")
+    db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     # db2index_parser.add_argument('suffix', help="The suffix to reindex. IE dc=example,dc=com.")
     db2index_parser.add_argument('backend', nargs="?", help="The backend to reindex. IE userRoot", default=False)
     db2index_parser.add_argument('--attr', nargs="*", help="The attribute's to reindex. IE --attr aci cn givenname", default=False)
     db2index_parser.set_defaults(func=dbtasks_db2index)
 
-    db2bak_parser = subcommands.add_parser('db2bak', help="Initialise a BDB backup of the database. The server must be stopped for this to proceed.")
+    db2bak_parser = subcommands.add_parser('db2bak', help="Initialise a BDB backup of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     db2bak_parser.add_argument('archive', help="The destination for the archive. This will be created during the db2bak process.",
                                nargs='?', default=None)
     db2bak_parser.set_defaults(func=dbtasks_db2bak)
 
-    db2ldif_parser = subcommands.add_parser('db2ldif', help="Initialise an LDIF dump of the database. The server must be stopped for this to proceed.")
+    db2ldif_parser = subcommands.add_parser('db2ldif', help="Initialise an LDIF dump of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     db2ldif_parser.add_argument('backend', help="The backend to output as an LDIF. IE userRoot")
     db2ldif_parser.add_argument('ldif', help="The path to the ldif output location.", nargs='?', default=None)
     db2ldif_parser.add_argument('--replication', help="Export replication information, suitable for importing on a new consumer or backups.",
@@ -146,15 +147,15 @@ def create_parser(subcommands):
     db2ldif_parser.add_argument('--encrypted', help="Export encrypted attributes", default=False, action='store_true')
     db2ldif_parser.set_defaults(func=dbtasks_db2ldif)
 
-    dbverify_parser = subcommands.add_parser('dbverify', help="Perform a db verification. You should only do this at direction of support")
+    dbverify_parser = subcommands.add_parser('dbverify', help="Perform a db verification. You should only do this at direction of support", formatter_class=CustomHelpFormatter)
     dbverify_parser.add_argument('backend', help="The backend to verify. IE userRoot")
     dbverify_parser.set_defaults(func=dbtasks_verify)
 
-    bak2db_parser = subcommands.add_parser('bak2db', help="Restore a BDB backup of the database. The server must be stopped for this to proceed.")
+    bak2db_parser = subcommands.add_parser('bak2db', help="Restore a BDB backup of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     bak2db_parser.add_argument('archive', help="The archive to restore. This will erase all current server databases.")
     bak2db_parser.set_defaults(func=dbtasks_bak2db)
 
-    ldif2db_parser = subcommands.add_parser('ldif2db', help="Restore an LDIF dump of the database. The server must be stopped for this to proceed.")
+    ldif2db_parser = subcommands.add_parser('ldif2db', help="Restore an LDIF dump of the database. The server must be stopped for this to proceed.", formatter_class=CustomHelpFormatter)
     ldif2db_parser.add_argument('backend', help="The backend to restore from an LDIF. IE userRoot")
     ldif2db_parser.add_argument('ldif', help="The path to the ldif to import")
     ldif2db_parser.add_argument('--encrypted', help="Import encrypted attributes", default=False, action='store_true')
@@ -162,10 +163,10 @@ def create_parser(subcommands):
     #                            default=False, action='store_true')
     ldif2db_parser.set_defaults(func=dbtasks_ldif2db)
 
-    backups_parser = subcommands.add_parser('backups', help="List backup's found in the server's default backup directory")
+    backups_parser = subcommands.add_parser('backups', help="List backup's found in the server's default backup directory", formatter_class=CustomHelpFormatter)
     backups_parser.add_argument('--delete', nargs=1, help="Delete backup directory")
     backups_parser.set_defaults(func=dbtasks_backups)
 
-    ldifs_parser = subcommands.add_parser('ldifs', help="List all the LDIF files located in the server's LDIF directory")
+    ldifs_parser = subcommands.add_parser('ldifs', help="List all the LDIF files located in the server's LDIF directory", formatter_class=CustomHelpFormatter)
     ldifs_parser.add_argument('--delete', nargs=1, help="Delete LDIF file")
     ldifs_parser.set_defaults(func=dbtasks_ldifs)
