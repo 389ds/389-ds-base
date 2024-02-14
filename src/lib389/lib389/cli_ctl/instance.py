@@ -10,6 +10,7 @@ import os
 import json
 import time
 from lib389 import DirSrv
+from lib389.cli_base import CustomHelpFormatter
 from lib389.instance.setup import SetupDs
 from lib389.utils import get_instance_list
 from lib389.instance.remove import remove_ds_instance
@@ -171,23 +172,23 @@ def instance_remove(inst, log, args):
 
 
 def create_parser(subcommands):
-    # list_parser = subcommands.add_parser('list', help="List installed instances of Directory Server")
+    # list_parser = subcommands.add_parser('list', help="List installed instances of Directory Server", formatter_class=CustomHelpFormatter)
     # list_parser.set_defaults(func=instance_list)
     # list_parser.set_defaults(noinst=True)
 
-    restart_parser = subcommands.add_parser('restart', help="Restart an instance of Directory Server, if it is running: else start it.")
+    restart_parser = subcommands.add_parser('restart', help="Restart an instance of Directory Server, if it is running: else start it.", formatter_class=CustomHelpFormatter)
     restart_parser.set_defaults(func=instance_restart)
 
-    start_parser = subcommands.add_parser('start', help="Start an instance of Directory Server, if it is not currently running")
+    start_parser = subcommands.add_parser('start', help="Start an instance of Directory Server, if it is not currently running", formatter_class=CustomHelpFormatter)
     start_parser.set_defaults(func=instance_start)
 
-    stop_parser = subcommands.add_parser('stop', help="Stop an instance of Directory Server, if it is currently running")
+    stop_parser = subcommands.add_parser('stop', help="Stop an instance of Directory Server, if it is currently running", formatter_class=CustomHelpFormatter)
     stop_parser.set_defaults(func=instance_stop)
 
-    status_parser = subcommands.add_parser('status', help="Check running status of an instance of Directory Server")
+    status_parser = subcommands.add_parser('status', help="Check running status of an instance of Directory Server", formatter_class=CustomHelpFormatter)
     status_parser.set_defaults(func=instance_status)
 
-    remove_parser = subcommands.add_parser('remove', help="Destroy an instance of Directory Server, and remove all data.")
+    remove_parser = subcommands.add_parser('remove', help="Destroy an instance of Directory Server, and remove all data.", formatter_class=CustomHelpFormatter)
     remove_parser.set_defaults(func=instance_remove)
     remove_parser.add_argument('--do-it', dest="ack", help="By default we do a dry run. This actually initiates the removal of the instance.",
                                action='store_true', default=False)

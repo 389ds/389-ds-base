@@ -16,6 +16,7 @@ from lib389.dbgen import (
     dbgen_nested_ldif,
 )
 from lib389.utils import is_a_dn
+from lib389.cli_base import CustomHelpFormatter
 
 DEFAULT_LDIF = "/ldifgen.ldif"
 
@@ -499,11 +500,11 @@ def dbgen_create_nested(inst, log, args):
 
 
 def create_parser(subparsers):
-    db_gen_parser = subparsers.add_parser('ldifgen', help="LDIF generator to make sample LDIF files for testing")
+    db_gen_parser = subparsers.add_parser('ldifgen', help="LDIF generator to make sample LDIF files for testing", formatter_class=CustomHelpFormatter)
     subcommands = db_gen_parser.add_subparsers(help="action")
 
     # Create just users
-    dbgen_users_parser = subcommands.add_parser('users', help='Generate a LDIF containing user entries')
+    dbgen_users_parser = subcommands.add_parser('users', help='Generate a LDIF containing user entries', formatter_class=CustomHelpFormatter)
     dbgen_users_parser.set_defaults(func=dbgen_create_users)
     dbgen_users_parser.add_argument('--number', help="The number of users to create.")
     dbgen_users_parser.add_argument('--suffix', help="The database suffix where the entries will be created.")
@@ -515,7 +516,7 @@ def create_parser(subparsers):
     dbgen_users_parser.add_argument('--ldif-file', default="ldifgen.ldif", help=f"The LDIF file name.  Default location is the server's LDIF directory using the name 'ldifgen.ldif'")
 
     # Create static groups
-    dbgen_groups_parser = subcommands.add_parser('groups', help='Generate a LDIF containing groups and members')
+    dbgen_groups_parser = subcommands.add_parser('groups', help='Generate a LDIF containing groups and members', formatter_class=CustomHelpFormatter)
     dbgen_groups_parser.set_defaults(func=dbgen_create_groups)
     dbgen_groups_parser.add_argument('NAME', help="The group name.")
     dbgen_groups_parser.add_argument('--number', default=1, help="The number of groups to create.")
@@ -528,7 +529,7 @@ def create_parser(subparsers):
     dbgen_groups_parser.add_argument('--ldif-file', default="ldifgen.ldif", help=f"The LDIF file name.  Default location is the server's LDIF directory using the name 'ldifgen.ldif'")
 
     # Create a COS definition
-    dbgen_cos_def_parser = subcommands.add_parser('cos-def', help='Generate a LDIF containing a COS definition (classic, pointer, or indirect)')
+    dbgen_cos_def_parser = subcommands.add_parser('cos-def', help='Generate a LDIF containing a COS definition (classic, pointer, or indirect)', formatter_class=CustomHelpFormatter)
     dbgen_cos_def_parser.set_defaults(func=dbgen_create_cos_def)
     dbgen_cos_def_parser.add_argument('NAME', help="The COS definition name.")
     dbgen_cos_def_parser.add_argument('--type', help="The COS definition type: \"classic\", \"pointer\", or \"indirect\".")
@@ -540,7 +541,7 @@ def create_parser(subparsers):
     dbgen_cos_def_parser.add_argument('--ldif-file', default="ldifgen.ldif", help=f"The LDIF file name.  Default location is the server's LDIF directory using the name 'ldifgen.ldif'")
 
     # Create a COS Template
-    dbgen_cos_tmp_parser = subcommands.add_parser('cos-template', help='Generate a LDIF containing a COS template')
+    dbgen_cos_tmp_parser = subcommands.add_parser('cos-template', help='Generate a LDIF containing a COS template', formatter_class=CustomHelpFormatter)
     dbgen_cos_tmp_parser.set_defaults(func=dbgen_create_cos_tmp)
     dbgen_cos_tmp_parser.add_argument('NAME', help="The COS template name.")
     dbgen_cos_tmp_parser.add_argument('--parent', help="The DN of the entry to store the COS template entry under.")
@@ -550,7 +551,7 @@ def create_parser(subparsers):
     dbgen_cos_tmp_parser.add_argument('--ldif-file', default="ldifgen.ldif", help=f"The LDIF file name.  Default location is the server's LDIF directory using the name 'ldifgen.ldif'")
 
     # Create Role entries
-    dbgen_roles_parser = subcommands.add_parser('roles', help='Generate a LDIF containing a role entry (managed, filtered, or indirect)')
+    dbgen_roles_parser = subcommands.add_parser('roles', help='Generate a LDIF containing a role entry (managed, filtered, or indirect)', formatter_class=CustomHelpFormatter)
     dbgen_roles_parser.set_defaults(func=dbgen_create_role)
     dbgen_roles_parser.add_argument('NAME', help="The Role name.")
     dbgen_roles_parser.add_argument('--type', help="The Role type: \"managed\", \"filtered\", or \"nested\".")
@@ -561,7 +562,7 @@ def create_parser(subparsers):
     dbgen_roles_parser.add_argument('--ldif-file', default="ldifgen.ldif", help=f"The LDIF file name.  Default location is the server's LDIF directory using the name 'ldifgen.ldif'")
 
     # Create a modification LDIF
-    dbgen_mod_load_parser = subcommands.add_parser('mod-load', help='Generate a LDIF containing modify operations.  This is intended to be consumed by ldapmodify.')
+    dbgen_mod_load_parser = subcommands.add_parser('mod-load', help='Generate a LDIF containing modify operations.  This is intended to be consumed by ldapmodify.', formatter_class=CustomHelpFormatter)
     dbgen_mod_load_parser.set_defaults(func=dbgen_create_mods)
     dbgen_mod_load_parser.add_argument('--create-users', action='store_true', help="Create the entries that will be modified or deleted.  By default the script assumes the user entries already exist.")
     dbgen_mod_load_parser.add_argument('--delete-users', action='store_true', help="Delete all the user entries at the end of the LDIF.")
@@ -577,7 +578,7 @@ def create_parser(subparsers):
     dbgen_mod_load_parser.add_argument('--ldif-file', default="ldifgen.ldif", help=f"The LDIF file name.  Default location is the server's LDIF directory using the name 'ldifgen.ldif'")
 
     # Create a heavily nested LDIF
-    dbgen_nested_parser = subcommands.add_parser('nested', help='Generate a heavily nested database LDIF in a cascading/fractal tree design')
+    dbgen_nested_parser = subcommands.add_parser('nested', help='Generate a heavily nested database LDIF in a cascading/fractal tree design', formatter_class=CustomHelpFormatter)
     dbgen_nested_parser.set_defaults(func=dbgen_create_nested)
     dbgen_nested_parser.add_argument('--num-users', help="The total number of user entries to create in the entire LDIF (does not include the container entries).")
     dbgen_nested_parser.add_argument('--node-limit', help="The total number of user entries to create under each node/subtree")

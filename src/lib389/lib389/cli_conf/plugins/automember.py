@@ -11,6 +11,7 @@ import json
 from lib389.plugins import (AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions,
                             AutoMembershipRegexRule, AutoMembershipRegexRules, AutoMembershipFixupTasks)
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+from lib389.cli_base import CustomHelpFormatter
 from lib389.utils import get_task_status
 
 arg_to_attr_definition = {
@@ -221,49 +222,49 @@ def _add_parser_args_regex(parser):
 
 
 def create_parser(subparsers):
-    automember = subparsers.add_parser('automember', help="Manage and configure Automembership plugin")
+    automember = subparsers.add_parser('automember', help="Manage and configure Automembership plugin", formatter_class=CustomHelpFormatter)
     subcommands = automember.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, AutoMembershipPlugin)
 
-    automember_list = subcommands.add_parser('list', help='List Automembership definitions or regex rules.')
+    automember_list = subcommands.add_parser('list', help='List Automembership definitions or regex rules.', formatter_class=CustomHelpFormatter)
     subcommands_list = automember_list.add_subparsers(help='action')
-    list_definitions = subcommands_list.add_parser('definitions', help='Lists Automembership definitions.')
+    list_definitions = subcommands_list.add_parser('definitions', help='Lists Automembership definitions.', formatter_class=CustomHelpFormatter)
     list_definitions.set_defaults(func=definition_list)
-    list_regexes = subcommands_list.add_parser('regexes', help='List Automembership regex rules.')
+    list_regexes = subcommands_list.add_parser('regexes', help='List Automembership regex rules.', formatter_class=CustomHelpFormatter)
     list_regexes.add_argument('DEFNAME', help='The definition entry CN')
     list_regexes.set_defaults(func=regex_list)
 
-    definition = subcommands.add_parser('definition', help='Manage Automembership definition.')
+    definition = subcommands.add_parser('definition', help='Manage Automembership definition.', formatter_class=CustomHelpFormatter)
     definition.add_argument('DEFNAME', help='The definition entry CN.')
     subcommands_definition = definition.add_subparsers(help='action')
 
-    add_def = subcommands_definition.add_parser('add', help='Creates Automembership definition.')
+    add_def = subcommands_definition.add_parser('add', help='Creates Automembership definition.', formatter_class=CustomHelpFormatter)
     add_def.set_defaults(func=definition_add)
     _add_parser_args_definition(add_def)
-    edit_def = subcommands_definition.add_parser('set', help='Edits Automembership definition.')
+    edit_def = subcommands_definition.add_parser('set', help='Edits Automembership definition.', formatter_class=CustomHelpFormatter)
     edit_def.set_defaults(func=definition_edit)
     _add_parser_args_definition(edit_def)
-    delete_def = subcommands_definition.add_parser('delete', help='Removes Automembership definition.')
+    delete_def = subcommands_definition.add_parser('delete', help='Removes Automembership definition.', formatter_class=CustomHelpFormatter)
     delete_def.set_defaults(func=definition_del)
-    show_def = subcommands_definition.add_parser('show', help='Displays Automembership definition.')
+    show_def = subcommands_definition.add_parser('show', help='Displays Automembership definition.', formatter_class=CustomHelpFormatter)
     show_def.set_defaults(func=definition_show)
 
-    regex = subcommands_definition.add_parser('regex', help='Manage Automembership regex rules.')
+    regex = subcommands_definition.add_parser('regex', help='Manage Automembership regex rules.', formatter_class=CustomHelpFormatter)
     regex.add_argument('REGEXNAME', help='The regex entry CN')
     subcommands_regex = regex.add_subparsers(help='action')
 
-    add_regex = subcommands_regex.add_parser('add', help='Creates Automembership regex.')
+    add_regex = subcommands_regex.add_parser('add', help='Creates Automembership regex.', formatter_class=CustomHelpFormatter)
     add_regex.set_defaults(func=regex_add)
     _add_parser_args_regex(add_regex)
-    edit_regex = subcommands_regex.add_parser('set', help='Edits Automembership regex.')
+    edit_regex = subcommands_regex.add_parser('set', help='Edits Automembership regex.', formatter_class=CustomHelpFormatter)
     edit_regex.set_defaults(func=regex_edit)
     _add_parser_args_regex(edit_regex)
-    delete_regex = subcommands_regex.add_parser('delete', help='Removes Automembership regex.')
+    delete_regex = subcommands_regex.add_parser('delete', help='Removes Automembership regex.', formatter_class=CustomHelpFormatter)
     delete_regex.set_defaults(func=regex_del)
-    show_regex = subcommands_regex.add_parser('show', help='Displays Automembership regex.')
+    show_regex = subcommands_regex.add_parser('show', help='Displays Automembership regex.', formatter_class=CustomHelpFormatter)
     show_regex.set_defaults(func=regex_show)
 
-    fixup_task = subcommands.add_parser('fixup', help='Run a rebuild membership task.')
+    fixup_task = subcommands.add_parser('fixup', help='Run a rebuild membership task.', formatter_class=CustomHelpFormatter)
     fixup_task.set_defaults(func=fixup)
     fixup_task.add_argument('DN', help="Base DN that contains entries to fix up")
     fixup_task.add_argument('-f', '--filter', required=True, help='Sets the LDAP filter for entries to fix up')
@@ -276,14 +277,14 @@ def create_parser(subparsers):
     fixup_task.add_argument('--timeout', default=0, type=int,
                             help="Set a timeout to wait for the fixup task.  Default is 0 (no timeout)")
 
-    fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task')
+    fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task', formatter_class=CustomHelpFormatter)
     fixup_status.set_defaults(func=do_fixup_status)
     fixup_status.add_argument('--dn', help="The task entry's DN")
     fixup_status.add_argument('--show-log', action='store_true', help="Display the task log")
     fixup_status.add_argument('--watch', action='store_true',
                               help="Watch the task's status and wait for it to finish")
 
-    abort_fixup = subcommands.add_parser('abort-fixup', help='Abort the rebuild membership task.')
+    abort_fixup = subcommands.add_parser('abort-fixup', help='Abort the rebuild membership task.', formatter_class=CustomHelpFormatter)
     abort_fixup.set_defaults(func=abort)
     abort_fixup.add_argument('--timeout', default=0, type=int,
                             help="Set a timeout to wait for the abort task.  Default is 0 (no timeout)")

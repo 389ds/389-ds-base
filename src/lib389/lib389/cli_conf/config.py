@@ -13,6 +13,7 @@ from lib389.cli_base import (
     _generic_get_entry,
     _generic_get_attr,
     _generic_replace_attr,
+    CustomHelpFormatter
     )
 
 OpType = Enum("OpType", "add delete")
@@ -118,22 +119,22 @@ def config_del_attr(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    config_parser = subparsers.add_parser('config', help="Manage the server configuration")
+    config_parser = subparsers.add_parser('config', help="Manage the server configuration", formatter_class=CustomHelpFormatter)
 
     subcommands = config_parser.add_subparsers(help="action")
 
-    get_parser = subcommands.add_parser('get', help='get')
+    get_parser = subcommands.add_parser('get', help='get', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=config_get)
     get_parser.add_argument('attrs', nargs='*', help='Configuration attribute(s) to get')
 
-    add_attr_parser = subcommands.add_parser('add', help='Add attribute value to configuration')
+    add_attr_parser = subcommands.add_parser('add', help='Add attribute value to configuration', formatter_class=CustomHelpFormatter)
     add_attr_parser.set_defaults(func=config_add_attr)
     add_attr_parser.add_argument('attr', nargs='*', help='Configuration attribute to add')
 
-    replace_attr_parser = subcommands.add_parser('replace', help='Replace attribute value in configuration')
+    replace_attr_parser = subcommands.add_parser('replace', help='Replace attribute value in configuration', formatter_class=CustomHelpFormatter)
     replace_attr_parser.set_defaults(func=config_replace_attr)
     replace_attr_parser.add_argument('attr', nargs='*', help='Configuration attribute to replace')
 
-    del_attr_parser = subcommands.add_parser('delete', help='Delete attribute value in configuration')
+    del_attr_parser = subcommands.add_parser('delete', help='Delete attribute value in configuration', formatter_class=CustomHelpFormatter)
     del_attr_parser.set_defaults(func=config_del_attr)
     del_attr_parser.add_argument('attr', nargs='*', help='Configuration attribute to delete')

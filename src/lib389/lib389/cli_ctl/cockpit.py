@@ -8,6 +8,7 @@
 
 import os
 import subprocess
+from lib389.cli_base import CustomHelpFormatter
 
 
 def enable_cockpit(inst, log, args):
@@ -67,22 +68,22 @@ def close_firewall(inst, log, args):
 
 
 def create_parser(subparsers):
-    cockpit_parser = subparsers.add_parser('cockpit', help="Enable the Cockpit interface/UI")
+    cockpit_parser = subparsers.add_parser('cockpit', help="Enable the Cockpit interface/UI", formatter_class=CustomHelpFormatter)
     subcommands = cockpit_parser.add_subparsers(help="action")
 
     # Enable socket
-    enable_parser = subcommands.add_parser('enable', help='Enable the Cockpit socket')
+    enable_parser = subcommands.add_parser('enable', help='Enable the Cockpit socket', formatter_class=CustomHelpFormatter)
     enable_parser.set_defaults(func=enable_cockpit)
 
     # Open firewall
-    open_parser = subcommands.add_parser('open-firewall', help='Open the firewall for the "cockpit" service')
+    open_parser = subcommands.add_parser('open-firewall', help='Open the firewall for the "cockpit" service', formatter_class=CustomHelpFormatter)
     open_parser.add_argument('--zone', help="The firewall zone")
     open_parser.set_defaults(func=open_firewall)
 
     # Disable socket
-    disable_parser = subcommands.add_parser('disable', help='Disable the Cockpit socket')
+    disable_parser = subcommands.add_parser('disable', help='Disable the Cockpit socket', formatter_class=CustomHelpFormatter)
     disable_parser.set_defaults(func=disable_cockpit)
 
     # Close firewall
-    close_parser = subcommands.add_parser('close-firewall', help='Remove the "cockpit" service from the firewall settings')
+    close_parser = subcommands.add_parser('close-firewall', help='Remove the "cockpit" service from the firewall settings', formatter_class=CustomHelpFormatter)
     close_parser.set_defaults(func=close_firewall)

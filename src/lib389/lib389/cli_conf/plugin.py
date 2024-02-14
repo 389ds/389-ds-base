@@ -12,6 +12,7 @@ from lib389.utils import ensure_dict_str
 from lib389.cli_base import (
     _generic_get,
     _get_arg,
+    CustomHelpFormatter
 )
 from lib389.cli_conf import generic_object_edit
 from lib389.cli_conf.plugins import memberof as cli_memberof
@@ -98,7 +99,7 @@ def plugin_edit(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    plugin_parser = subparsers.add_parser('plugin', help="Manage plug-ins available on the server")
+    plugin_parser = subparsers.add_parser('plugin', help="Manage plug-ins available on the server", formatter_class=CustomHelpFormatter)
 
     subcommands = plugin_parser.add_subparsers(help="Plugins")
 
@@ -118,14 +119,14 @@ def create_parser(subparsers):
     cli_posix_winsync.create_parser(subcommands)
     cli_entryuuid.create_parser(subcommands)
 
-    list_parser = subcommands.add_parser('list', help="List current configured (enabled and disabled) plugins")
+    list_parser = subcommands.add_parser('list', help="List current configured (enabled and disabled) plugins", formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=plugin_list)
 
-    get_parser = subcommands.add_parser('show', help='Show the plugin data')
+    get_parser = subcommands.add_parser('show', help='Show the plugin data', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=plugin_get)
     get_parser.add_argument('selector', nargs='?', help='The plugin to search for')
 
-    edit_parser = subcommands.add_parser('set', help='Edit the plugin settings')
+    edit_parser = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit_parser.set_defaults(func=plugin_edit)
     edit_parser.add_argument('selector', nargs='?', help='The plugin to edit')
     edit_parser.add_argument('--type', help='The type of plugin.')

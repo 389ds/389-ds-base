@@ -8,6 +8,7 @@
 
 from lib389.plugins import POSIXWinsyncPlugin
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'create_memberof_task': 'posixWinsyncCreateMemberOfTask',
@@ -61,15 +62,15 @@ def _add_parser_args(parser):
 
 
 def create_parser(subparsers):
-    winsync = subparsers.add_parser('posix-winsync', help='Manage and configure the Posix Winsync API plugin')
+    winsync = subparsers.add_parser('posix-winsync', help='Manage and configure the Posix Winsync API plugin', formatter_class=CustomHelpFormatter)
     subcommands = winsync.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, POSIXWinsyncPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin settings')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=winsync_edit)
     _add_parser_args(edit)
 
-    fixup = subcommands.add_parser('fixup', help='Run the memberOf fix-up task to correct mismatched member and uniquemember values for synced users')
+    fixup = subcommands.add_parser('fixup', help='Run the memberOf fix-up task to correct mismatched member and uniquemember values for synced users', formatter_class=CustomHelpFormatter)
     fixup.set_defaults(func=do_fixup)
     fixup.add_argument('DN', help="Set the base DN that contains entries to fix up")
     fixup.add_argument('-f', '--filter',
