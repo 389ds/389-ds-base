@@ -30,21 +30,15 @@ from lib389.cli_ctl.instance import instance_remove_all
 from lib389.cli_base import (
     disconnect_instance,
     setup_script_logger,
-    format_error_to_dict)
+    format_error_to_dict,
+    parent_argparser
+    )
 from lib389._constants import DSRC_CONTAINER
 
-parser = argparse.ArgumentParser(allow_abbrev=False)
-parser.add_argument('-v', '--verbose',
-        help="Display verbose operation tracing during command execution",
-        action='store_true', default=False
-    )
+parser = argparse.ArgumentParser(allow_abbrev=False, parents=[parent_argparser])
 parser.add_argument('instance', nargs='?', default=False,
         help="The name of the instance to act upon",
     ).completer = instance_choices
-parser.add_argument('-j', '--json',
-        help="Return result in JSON object",
-        default=False, action='store_true'
-    )
 parser.add_argument('-l', '--list',
         help="List available Directory Server instances",
         default=False, action='store_true'

@@ -16,6 +16,7 @@ import glob
 import shutil
 from lib389.dseldif import DSEldif
 from lib389._constants import DEFAULT_LMDB_SIZE
+from lib389.cli_base import CustomHelpFormatter
 from lib389.utils import parse_size, format_size
 import subprocess
 from errno import ENOSPC
@@ -513,16 +514,16 @@ def dblib_cleanup(inst, log, args):
 
 
 def create_parser(subparsers):
-    dblib_parser = subparsers.add_parser('dblib', help="database library (i.e bdb/lmdb) migration")
+    dblib_parser = subparsers.add_parser('dblib', help="database library (i.e bdb/lmdb) migration", formatter_class=CustomHelpFormatter)
     subcommands = dblib_parser.add_subparsers(help="action")
 
-    dblib_bdb2mdb_parser = subcommands.add_parser('bdb2mdb', help='Migrate bdb databases to lmdb')
+    dblib_bdb2mdb_parser = subcommands.add_parser('bdb2mdb', help='Migrate bdb databases to lmdb', formatter_class=CustomHelpFormatter)
     dblib_bdb2mdb_parser.set_defaults(func=dblib_bdb2mdb)
     dblib_bdb2mdb_parser.add_argument('--tmpdir', help="ldif migration files directory path.")
 
-    dblib_mdb2bdb_parser = subcommands.add_parser('mdb2bdb', help='Migrate lmdb databases to bdb')
+    dblib_mdb2bdb_parser = subcommands.add_parser('mdb2bdb', help='Migrate lmdb databases to bdb', formatter_class=CustomHelpFormatter)
     dblib_mdb2bdb_parser.set_defaults(func=dblib_mdb2bdb)
     dblib_mdb2bdb_parser.add_argument('--tmpdir', help="ldif migration files directory path.")
 
-    dblib_cleanup_parser = subcommands.add_parser('cleanup', help='Remove migration ldif file and old database')
+    dblib_cleanup_parser = subcommands.add_parser('cleanup', help='Remove migration ldif file and old database', formatter_class=CustomHelpFormatter)
     dblib_cleanup_parser.set_defaults(func=dblib_cleanup)

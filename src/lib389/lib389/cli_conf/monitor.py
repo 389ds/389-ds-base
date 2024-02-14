@@ -14,7 +14,7 @@ from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace)
 from lib389.chaining import (ChainingLinks)
 from lib389.backend import Backends
 from lib389.utils import convert_bytes
-from lib389.cli_base import _format_status
+from lib389.cli_base import _format_status, CustomHelpFormatter
 
 
 def monitor(inst, basedn, log, args):
@@ -297,30 +297,30 @@ def db_monitor(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    monitor_parser = subparsers.add_parser('monitor', help="Monitor the state of the instance")
+    monitor_parser = subparsers.add_parser('monitor', help="Monitor the state of the instance", formatter_class=CustomHelpFormatter)
     subcommands = monitor_parser.add_subparsers(help='action')
 
-    server_parser = subcommands.add_parser('server', help="Displays the server statistics, connections, and operations")
+    server_parser = subcommands.add_parser('server', help="Displays the server statistics, connections, and operations", formatter_class=CustomHelpFormatter)
     server_parser.set_defaults(func=monitor)
 
-    dbmon_parser = subcommands.add_parser('dbmon', help="Monitor all database statistics in a single report")
+    dbmon_parser = subcommands.add_parser('dbmon', help="Monitor all database statistics in a single report", formatter_class=CustomHelpFormatter)
     dbmon_parser.set_defaults(func=db_monitor)
     dbmon_parser.add_argument('-b', '--backends', help="Specifies a list of space-separated backends to monitor. Default is all backends.")
     dbmon_parser.add_argument('-x', '--indexes', action='store_true', default=False, help="Shows index stats for each backend")
 
-    ldbm_parser = subcommands.add_parser('ldbm', help="Monitor the LDBM statistics, such as dbcache")
+    ldbm_parser = subcommands.add_parser('ldbm', help="Monitor the LDBM statistics, such as dbcache", formatter_class=CustomHelpFormatter)
     ldbm_parser.set_defaults(func=ldbm_monitor)
 
-    backend_parser = subcommands.add_parser('backend', help="Monitor the behavior of a backend database")
+    backend_parser = subcommands.add_parser('backend', help="Monitor the behavior of a backend database", formatter_class=CustomHelpFormatter)
     backend_parser.add_argument('backend', nargs='?', help="The optional name of the backend to monitor")
     backend_parser.set_defaults(func=backend_monitor)
 
-    snmp_parser = subcommands.add_parser('snmp', help="Displays the SNMP statistics")
+    snmp_parser = subcommands.add_parser('snmp', help="Displays the SNMP statistics", formatter_class=CustomHelpFormatter)
     snmp_parser.set_defaults(func=snmp_monitor)
 
-    chaining_parser = subcommands.add_parser('chaining', help="Monitor database chaining statistics")
+    chaining_parser = subcommands.add_parser('chaining', help="Monitor database chaining statistics", formatter_class=CustomHelpFormatter)
     chaining_parser.add_argument('backend', nargs='?', help="The optional name of the chaining backend to monitor")
     chaining_parser.set_defaults(func=chaining_monitor)
 
-    disk_parser = subcommands.add_parser('disk', help="Displays the disk space statistics. All values are in bytes.")
+    disk_parser = subcommands.add_parser('disk', help="Displays the disk space statistics. All values are in bytes.", formatter_class=CustomHelpFormatter)
     disk_parser.set_defaults(func=disk_monitor)
