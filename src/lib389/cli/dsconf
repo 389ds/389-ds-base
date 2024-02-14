@@ -33,16 +33,13 @@ from lib389.cli_base import disconnect_instance, connect_instance
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389.cli_base import setup_script_logger
 from lib389.cli_base import format_error_to_dict
+from lib389.cli_base import parent_argparser
 from lib389.utils import instance_choices
 
-parser = argparse.ArgumentParser(allow_abbrev=True)
+parser = argparse.ArgumentParser(allow_abbrev=True, parents=[parent_argparser])
 parser.add_argument('instance',
         help="The name of the instance or its LDAP URL, such as ldap://server.example.com:389",
     ).completer = instance_choices
-parser.add_argument('-v', '--verbose',
-        help="Display verbose operation tracing during command execution",
-        action='store_true', default=False
-    )
 parser.add_argument('-D', '--binddn',
         help="The account to bind as for executing operations",
         default=None
@@ -65,10 +62,6 @@ parser.add_argument('-b', '--basedn',
     )
 parser.add_argument('-Z', '--starttls',
         help="Connect with StartTLS",
-        default=False, action='store_true'
-    )
-parser.add_argument('-j', '--json',
-        help="Return result in JSON object",
         default=False, action='store_true'
     )
 

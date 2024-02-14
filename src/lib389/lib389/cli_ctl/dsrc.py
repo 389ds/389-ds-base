@@ -13,6 +13,7 @@ from ldapurl import isLDAPUrl
 from ldap.dn import is_dn
 import configparser
 from lib389.utils import is_a_dn
+from lib389.cli_base import CustomHelpFormatter
 
 
 def create_dsrc(inst, log, args):
@@ -377,11 +378,11 @@ def replmon_dsrc(inst, log, args):
 
 
 def create_parser(subparsers):
-    dsrc_parser = subparsers.add_parser('dsrc', help="Manage the .dsrc file")
+    dsrc_parser = subparsers.add_parser('dsrc', help="Manage the .dsrc file", formatter_class=CustomHelpFormatter)
     subcommands = dsrc_parser.add_subparsers(help="action")
 
     # Create .dsrc file
-    dsrc_create_parser = subcommands.add_parser('create', help='Generate the .dsrc file')
+    dsrc_create_parser = subcommands.add_parser('create', help='Generate the .dsrc file', formatter_class=CustomHelpFormatter)
     dsrc_create_parser.set_defaults(func=create_dsrc)
     dsrc_create_parser.add_argument('--uri', help="The URI (LDAP URL) for the Directory Server instance.")
     dsrc_create_parser.add_argument('--basedn', help="The default database suffix.")
@@ -399,7 +400,7 @@ def create_parser(subparsers):
     dsrc_create_parser.add_argument('--pwdfile', help="The absolute path to a file containing the Bind DN's password.")
     dsrc_create_parser.add_argument('--do-it', action='store_true', help="Create the file without any confirmation.")
 
-    dsrc_modify_parser = subcommands.add_parser('modify', help='Modify the .dsrc file')
+    dsrc_modify_parser = subcommands.add_parser('modify', help='Modify the .dsrc file', formatter_class=CustomHelpFormatter)
     dsrc_modify_parser.set_defaults(func=modify_dsrc)
     dsrc_modify_parser.add_argument('--uri', nargs='?', const='', help="The URI (LDAP URL) for the Directory Server instance.")
     dsrc_modify_parser.add_argument('--basedn', nargs='?', const='', help="The default database suffix.")
@@ -417,17 +418,17 @@ def create_parser(subparsers):
     dsrc_modify_parser.add_argument('--do-it', action='store_true', help="Update the file without any confirmation.")
 
     # Delete the instance from the .dsrc file
-    dsrc_delete_parser = subcommands.add_parser('delete', help='Delete instance configuration from the .dsrc file.')
+    dsrc_delete_parser = subcommands.add_parser('delete', help='Delete instance configuration from the .dsrc file.', formatter_class=CustomHelpFormatter)
     dsrc_delete_parser.set_defaults(func=delete_dsrc)
     dsrc_delete_parser.add_argument('--do-it', action='store_true',
                                     help="Delete this instance's configuration from the .dsrc file.")
 
     # Display .dsrc file
-    dsrc_display_parser = subcommands.add_parser('display', help='Display the contents of the .dsrc file.')
+    dsrc_display_parser = subcommands.add_parser('display', help='Display the contents of the .dsrc file.', formatter_class=CustomHelpFormatter)
     dsrc_display_parser.set_defaults(func=display_dsrc)
 
     # Replication Monitor actions
-    dsrc_replmon_parser = subcommands.add_parser('repl-mon', help='Display the contents of the .dsrc file.')
+    dsrc_replmon_parser = subcommands.add_parser('repl-mon', help='Display the contents of the .dsrc file.', formatter_class=CustomHelpFormatter)
     dsrc_replmon_parser.set_defaults(func=replmon_dsrc)
     dsrc_replmon_parser.add_argument('--add-conn', nargs='+', help="Add a replica connection: 'NAME:HOST:PORT:BINDDN:CREDENTIAL'")
     dsrc_replmon_parser.add_argument('--del-conn', nargs='+', help="delete a replica connection by its NAME")

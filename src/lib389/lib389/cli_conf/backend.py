@@ -28,6 +28,7 @@ from lib389.cli_base import (
     _generic_get_dn,
     _get_arg,
     _warn,
+    CustomHelpFormatter
     )
 import json
 import ldap
@@ -836,39 +837,39 @@ def backend_compact(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    backend_parser = subparsers.add_parser('backend', help="Manage database suffixes and backends")
+    backend_parser = subparsers.add_parser('backend', help="Manage database suffixes and backends", formatter_class=CustomHelpFormatter)
     subcommands = backend_parser.add_subparsers(help="action")
 
     #####################################################
     # Suffix parser
     #####################################################
-    suffix_parser = subcommands.add_parser('suffix', help="Manage backend suffixes")
+    suffix_parser = subcommands.add_parser('suffix', help="Manage backend suffixes", formatter_class=CustomHelpFormatter)
     suffix_subcommands = suffix_parser.add_subparsers(help="action")
 
     # List backends/suffixes
-    list_parser = suffix_subcommands.add_parser('list', help="List active backends and suffixes")
+    list_parser = suffix_subcommands.add_parser('list', help="List active backends and suffixes", formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=backend_list)
     list_parser.add_argument('--suffix', action='store_true', help='Displays the suffixes without backend name')
     list_parser.add_argument('--skip-subsuffixes', action='store_true', help='Displays the list of suffixes without sub-suffixes')
 
     # Get backend
-    get_parser = suffix_subcommands.add_parser('get', help='Display the suffix entry')
+    get_parser = suffix_subcommands.add_parser('get', help='Display the suffix entry', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=backend_get)
     get_parser.add_argument('selector', nargs='?', help='The backend database name to search for')
 
     # Get the DN of a backend
-    get_dn_parser = suffix_subcommands.add_parser('get-dn', help='Display the DN of a backend')
+    get_dn_parser = suffix_subcommands.add_parser('get-dn', help='Display the DN of a backend', formatter_class=CustomHelpFormatter)
     get_dn_parser.set_defaults(func=backend_get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The DN to the database entry in cn=ldbm database,cn=plugins,cn=config')
 
     # Get subsuffixes
-    get_subsuffix_parser = suffix_subcommands.add_parser('get-sub-suffixes', help='Display sub-suffixes')
+    get_subsuffix_parser = suffix_subcommands.add_parser('get-sub-suffixes', help='Display sub-suffixes', formatter_class=CustomHelpFormatter)
     get_subsuffix_parser.set_defaults(func=backend_get_subsuffixes)
     get_subsuffix_parser.add_argument('--suffix', action='store_true', help='Displays the list of suffixes without backend name')
     get_subsuffix_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Set the backend/suffix configuration
-    set_backend_parser = suffix_subcommands.add_parser('set', help='Set configuration settings for a specific backend')
+    set_backend_parser = suffix_subcommands.add_parser('set', help='Set configuration settings for a specific backend', formatter_class=CustomHelpFormatter)
     set_backend_parser.set_defaults(func=backend_set)
     set_backend_parser.add_argument('--enable-readonly', action='store_true', help='Enables read-only mode for the backend database')
     set_backend_parser.add_argument('--disable-readonly', action='store_true', help='Disables read-only mode for the backend database')
@@ -889,11 +890,11 @@ def create_parser(subparsers):
     #########################################
     # Index parser
     #########################################
-    index_parser = subcommands.add_parser('index', help="Manage backend indexes")
+    index_parser = subcommands.add_parser('index', help="Manage backend indexes", formatter_class=CustomHelpFormatter)
     index_subcommands = index_parser.add_subparsers(help="action")
 
     # Create index
-    add_index_parser = index_subcommands.add_parser('add', help='Add an index')
+    add_index_parser = index_subcommands.add_parser('add', help='Add an index', formatter_class=CustomHelpFormatter)
     add_index_parser.set_defaults(func=backend_add_index)
     add_index_parser.add_argument('--index-type', required=True, action='append', help='Sets the indexing type (eq, sub, pres, or approx)')
     add_index_parser.add_argument('--matching-rule', action='append', help='Sets the matching rule for the index')
@@ -902,7 +903,7 @@ def create_parser(subparsers):
     add_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Edit index
-    edit_index_parser = index_subcommands.add_parser('set', help='Update an index')
+    edit_index_parser = index_subcommands.add_parser('set', help='Update an index', formatter_class=CustomHelpFormatter)
     edit_index_parser.set_defaults(func=backend_set_index)
     edit_index_parser.add_argument('--attr', required=True, help='Sets the indexed attribute to update')
     edit_index_parser.add_argument('--add-type', action='append', help='Adds an index type to the index (eq, sub, pres, or approx)')
@@ -913,25 +914,25 @@ def create_parser(subparsers):
     edit_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Get index
-    get_index_parser = index_subcommands.add_parser('get', help='Display an index entry')
+    get_index_parser = index_subcommands.add_parser('get', help='Display an index entry', formatter_class=CustomHelpFormatter)
     get_index_parser.set_defaults(func=backend_get_index)
     get_index_parser.add_argument('--attr', required=True, action='append', help='Sets the index name to display')
     get_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # list indexes
-    list_index_parser = index_subcommands.add_parser('list', help='Display the index')
+    list_index_parser = index_subcommands.add_parser('list', help='Display the index', formatter_class=CustomHelpFormatter)
     list_index_parser.set_defaults(func=backend_list_index)
     list_index_parser.add_argument('--just-names', action='store_true', help='Displays only the names of indexed attributes')
     list_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # Delete index
-    del_index_parser = index_subcommands.add_parser('delete', help='Delete an index')
+    del_index_parser = index_subcommands.add_parser('delete', help='Delete an index', formatter_class=CustomHelpFormatter)
     del_index_parser.set_defaults(func=backend_del_index)
     del_index_parser.add_argument('--attr', action='append', help='Sets the name of the attribute to delete from the index')
     del_index_parser.add_argument('be_name', help='The backend name or suffix')
 
     # reindex index
-    reindex_parser = index_subcommands.add_parser('reindex', help='Re-index the database for a single index or all indexes')
+    reindex_parser = index_subcommands.add_parser('reindex', help='Re-index the database for a single index or all indexes', formatter_class=CustomHelpFormatter)
     reindex_parser.set_defaults(func=backend_reindex)
     reindex_parser.add_argument('--attr', action='append', help='Sets the name of the attribute to re-index. Omit this argument to re-index all attributes')
     reindex_parser.add_argument('--wait', action='store_true', help='Waits for the index task to complete and reports the status')
@@ -940,17 +941,17 @@ def create_parser(subparsers):
     #############################################
     # VLV parser
     #############################################
-    vlv_parser = subcommands.add_parser('vlv-index', help="Manage VLV searches and indexes")
+    vlv_parser = subcommands.add_parser('vlv-index', help="Manage VLV searches and indexes", formatter_class=CustomHelpFormatter)
     vlv_subcommands = vlv_parser.add_subparsers(help="action")
 
     # List VLV Searches
-    list_vlv_search_parser = vlv_subcommands.add_parser('list', help='List VLV search and index entries')
+    list_vlv_search_parser = vlv_subcommands.add_parser('list', help='List VLV search and index entries', formatter_class=CustomHelpFormatter)
     list_vlv_search_parser.set_defaults(func=backend_list_vlv)
     list_vlv_search_parser.add_argument('--just-names', action='store_true', help='Displays only the names of VLV search entries')
     list_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Get VLV search entry and indexes
-    get_vlv_search_parser = vlv_subcommands.add_parser('get', help='Display a VLV search and indexes')
+    get_vlv_search_parser = vlv_subcommands.add_parser('get', help='Display a VLV search and indexes', formatter_class=CustomHelpFormatter)
     get_vlv_search_parser.set_defaults(func=backend_get_vlv)
     get_vlv_search_parser.add_argument('--name', help='Displays the VLV search entry and its index entries')
     get_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
@@ -967,7 +968,7 @@ def create_parser(subparsers):
     add_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Edit vlv search
-    edit_vlv_search_parser = vlv_subcommands.add_parser('edit-search', help='Update a VLV search and index')
+    edit_vlv_search_parser = vlv_subcommands.add_parser('edit-search', help='Update a VLV search and index', formatter_class=CustomHelpFormatter)
     edit_vlv_search_parser.set_defaults(func=backend_edit_vlv)
     edit_vlv_search_parser.add_argument('--name', required=True, help='Sets the name of the VLV index')
     edit_vlv_search_parser.add_argument('--search-base', help='Sets the VLV search base')
@@ -977,13 +978,13 @@ def create_parser(subparsers):
     edit_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index to update')
 
     # Delete vlv search(and index)
-    del_vlv_search_parser = vlv_subcommands.add_parser('del-search', help='Delete VLV search & index')
+    del_vlv_search_parser = vlv_subcommands.add_parser('del-search', help='Delete VLV search & index', formatter_class=CustomHelpFormatter)
     del_vlv_search_parser.set_defaults(func=backend_del_vlv)
     del_vlv_search_parser.add_argument('--name', required=True, help='Sets the name of the VLV search index')
     del_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Create VLV Index
-    add_vlv_index_parser = vlv_subcommands.add_parser('add-index', help='Create a VLV index under a VLV search entry (parent entry). '
+    add_vlv_index_parser = vlv_subcommands.add_parser('add-index', help='Create a VLV index under a VLV search entry (parent entry, formatter_class=CustomHelpFormatter). '
                                                                         'The VLV index specifies the attributes to sort')
     add_vlv_index_parser.set_defaults(func=backend_create_vlv_index)
     add_vlv_index_parser.add_argument('--parent-name', required=True, help='Sets the name or "cn" attribute of the parent VLV search entry')
@@ -993,7 +994,7 @@ def create_parser(subparsers):
     add_vlv_index_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Delete VLV Index
-    del_vlv_index_parser = vlv_subcommands.add_parser('del-index', help='Delete a VLV index under a VLV search entry (parent entry)')
+    del_vlv_index_parser = vlv_subcommands.add_parser('del-index', help='Delete a VLV index under a VLV search entry (parent entry)', formatter_class=CustomHelpFormatter)
     del_vlv_index_parser.set_defaults(func=backend_delete_vlv_index)
     del_vlv_index_parser.add_argument('--parent-name', required=True, help='Sets the name or "cn" attribute value of the parent VLV search entry')
     del_vlv_index_parser.add_argument('--index-name', help='Sets the name of the VLV index to delete')
@@ -1001,7 +1002,7 @@ def create_parser(subparsers):
     del_vlv_index_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Reindex VLV
-    reindex_vlv_parser = vlv_subcommands.add_parser('reindex', help='Index/re-index the VLV database index')
+    reindex_vlv_parser = vlv_subcommands.add_parser('reindex', help='Index/re-index the VLV database index', formatter_class=CustomHelpFormatter)
     reindex_vlv_parser.set_defaults(func=backend_reindex_vlv)
     reindex_vlv_parser.add_argument('--index-name', help='Sets the name of the VLV index entry to re-index. If not set, all indexes are re-indexed')
     reindex_vlv_parser.add_argument('--parent-name', required=True, help='Sets the name or "cn" attribute value of the parent VLV search entry')
@@ -1010,7 +1011,7 @@ def create_parser(subparsers):
     ############################################
     # Encrypted Attributes
     ############################################
-    attr_encrypt_parser = subcommands.add_parser('attr-encrypt', help='Manage encrypted attribute settings')
+    attr_encrypt_parser = subcommands.add_parser('attr-encrypt', help='Manage encrypted attribute settings', formatter_class=CustomHelpFormatter)
     attr_encrypt_parser.set_defaults(func=backend_attr_encrypt)
     attr_encrypt_parser.add_argument('--list', action='store_true', help='Lists all encrypted attributes in the backend')
     attr_encrypt_parser.add_argument('--just-names', action='store_true', help='List only the names of the encrypted attributes when used with --list')
@@ -1021,15 +1022,15 @@ def create_parser(subparsers):
     ############################################
     # Global DB Config
     ############################################
-    db_parser = subcommands.add_parser('config', help="Manage the global database configuration settings")
+    db_parser = subcommands.add_parser('config', help="Manage the global database configuration settings", formatter_class=CustomHelpFormatter)
     db_subcommands = db_parser.add_subparsers(help="action")
 
     # Get the global database configuration
-    get_db_config_parser = db_subcommands.add_parser('get', help='Display the global database configuration')
+    get_db_config_parser = db_subcommands.add_parser('get', help='Display the global database configuration', formatter_class=CustomHelpFormatter)
     get_db_config_parser.set_defaults(func=db_config_get)
 
     # Update the global database configuration
-    set_db_config_parser = db_subcommands.add_parser('set', help='Set the global database configuration')
+    set_db_config_parser = db_subcommands.add_parser('set', help='Set the global database configuration', formatter_class=CustomHelpFormatter)
     set_db_config_parser.set_defaults(func=db_config_set)
     set_db_config_parser.add_argument('--lookthroughlimit', help='Specifies the maximum number of entries that the server '
                                                                  'will check when examining candidate entries in response to a search request')
@@ -1085,14 +1086,14 @@ def create_parser(subparsers):
     #######################################################
     # Database & Suffix Monitor
     #######################################################
-    get_monitor_parser = subcommands.add_parser('monitor', help="Displays global database or suffix monitoring information")
+    get_monitor_parser = subcommands.add_parser('monitor', help="Displays global database or suffix monitoring information", formatter_class=CustomHelpFormatter)
     get_monitor_parser.set_defaults(func=get_monitor)
     get_monitor_parser.add_argument('--suffix', help='Displays monitoring information only for the specified suffix')
 
     #######################################################
     # Import LDIF
     #######################################################
-    import_parser = subcommands.add_parser('import', help="Online import of a suffix")
+    import_parser = subcommands.add_parser('import', help="Online import of a suffix", formatter_class=CustomHelpFormatter)
     import_parser.set_defaults(func=backend_import)
     import_parser.add_argument('be_name', nargs='?',
                                help='The backend name or the root suffix')
@@ -1123,7 +1124,7 @@ def create_parser(subparsers):
     #######################################################
     # Export LDIF
     #######################################################
-    export_parser = subcommands.add_parser('export', help='Online export of a suffix')
+    export_parser = subcommands.add_parser('export', help='Online export of a suffix', formatter_class=CustomHelpFormatter)
     export_parser.set_defaults(func=backend_export)
     export_parser.add_argument('be_names', nargs='+',
                                help="The backend names or the root suffixes")
@@ -1154,7 +1155,7 @@ def create_parser(subparsers):
     #######################################################
     # Create a new backend database
     #######################################################
-    create_parser = subcommands.add_parser('create', help='Create a backend database')
+    create_parser = subcommands.add_parser('create', help='Create a backend database', formatter_class=CustomHelpFormatter)
     create_parser.set_defaults(func=backend_create)
     create_parser.add_argument('--parent-suffix', default=False,
                                help="Sets the parent suffix only if this backend is a sub-suffix")
@@ -1167,7 +1168,7 @@ def create_parser(subparsers):
     #######################################################
     # Delete backend
     #######################################################
-    delete_parser = subcommands.add_parser('delete', help='Delete a backend database')
+    delete_parser = subcommands.add_parser('delete', help='Delete a backend database', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=backend_delete)
     delete_parser.add_argument('be_name', help='The backend name or suffix')
     delete_parser.add_argument('--do-it', dest="ack",
@@ -1177,13 +1178,13 @@ def create_parser(subparsers):
     #######################################################
     # Get Suffix Tree (for use in web console)
     #######################################################
-    get_tree_parser = subcommands.add_parser('get-tree', help='Display the suffix tree')
+    get_tree_parser = subcommands.add_parser('get-tree', help='Display the suffix tree', formatter_class=CustomHelpFormatter)
     get_tree_parser.set_defaults(func=backend_get_tree)
 
     #######################################################
     # Run the db compaction task
     #######################################################
-    compact_parser = subcommands.add_parser('compact-db', help='Compact the database and the replication changelog')
+    compact_parser = subcommands.add_parser('compact-db', help='Compact the database and the replication changelog', formatter_class=CustomHelpFormatter)
     compact_parser.set_defaults(func=backend_compact)
     compact_parser.add_argument('--only-changelog', action='store_true', help='Compacts only the replication change log')
     compact_parser.add_argument('--timeout', default=0, type=int,
