@@ -18,12 +18,12 @@ from lib389.idm.group import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_GROUP
 from lib389.idm.posixgroup import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_POSIXGROUP
 from lib389.idm.services import DEFAULT_BASEDN_RDN as DEFAULT_BASEDN_RDN_SERVICES
 
-# Create a dict where key is module and value is an rpm to search
+# The key is module name, the value is default RDN
 BASEDN_RDNS = {
     'user': DEFAULT_BASEDN_RDN_USER,
     'group': DEFAULT_BASEDN_RDN_GROUP,
     'posixgroup': DEFAULT_BASEDN_RDN_POSIXGROUP,
-    'services': DEFAULT_BASEDN_RDN_SERVICES,
+    'service': DEFAULT_BASEDN_RDN_SERVICES,
 }
 
 
