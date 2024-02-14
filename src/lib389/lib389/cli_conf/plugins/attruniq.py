@@ -10,6 +10,7 @@ import json
 import ldap
 from lib389.plugins import AttributeUniquenessPlugin, AttributeUniquenessPlugins
 from lib389.cli_conf import (generic_object_edit, generic_object_add)
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'enabled': 'nsslapd-pluginenabled',
@@ -136,37 +137,37 @@ def _add_parser_args(parser):
 
 
 def create_parser(subparsers):
-    attruniq = subparsers.add_parser('attr-uniq', help='Manage and configure Attribute Uniqueness plugin')
+    attruniq = subparsers.add_parser('attr-uniq', help='Manage and configure Attribute Uniqueness plugin', formatter_class=CustomHelpFormatter)
     subcommands = attruniq.add_subparsers(help='action')
     # We can't use the add_generic_plugin_parsers as we need named sub instances.
 
-    list = subcommands.add_parser('list', help='Lists available plugin configs')
+    list = subcommands.add_parser('list', help='Lists available plugin configs', formatter_class=CustomHelpFormatter)
     list.set_defaults(func=attruniq_list)
 
-    add = subcommands.add_parser('add', help='Add the config entry')
+    add = subcommands.add_parser('add', help='Add the config entry', formatter_class=CustomHelpFormatter)
     add.set_defaults(func=attruniq_add)
     _add_parser_args(add)
 
-    edit = subcommands.add_parser('set', help='Edit the config entry')
+    edit = subcommands.add_parser('set', help='Edit the config entry', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=attruniq_edit)
     _add_parser_args(edit)
 
-    show = subcommands.add_parser('show', help='Display the config entry')
+    show = subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show.add_argument('NAME', help='The name of the plug-in configuration record')
     show.set_defaults(func=attruniq_show)
 
-    delete = subcommands.add_parser('delete', help='Delete the config entry')
+    delete = subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
     delete.add_argument('NAME', help='The name of the plug-in configuration record')
     delete.set_defaults(func=attruniq_del)
 
-    enable = subcommands.add_parser('enable', help='enable plugin')
+    enable = subcommands.add_parser('enable', help='enable plugin', formatter_class=CustomHelpFormatter)
     enable.add_argument('NAME', help='The name of the plug-in configuration record')
     enable.set_defaults(func=attruniq_enable)
 
-    disable = subcommands.add_parser('disable', help='disable plugin')
+    disable = subcommands.add_parser('disable', help='disable plugin', formatter_class=CustomHelpFormatter)
     disable.add_argument('NAME', help='The name of the plug-in configuration record')
     disable.set_defaults(func=attruniq_disable)
 
-    status = subcommands.add_parser('status', help='display plugin status')
+    status = subcommands.add_parser('status', help='display plugin status', formatter_class=CustomHelpFormatter)
     status.add_argument('NAME', help='The name of the plug-in configuration record')
     status.set_defaults(func=attruniq_status)

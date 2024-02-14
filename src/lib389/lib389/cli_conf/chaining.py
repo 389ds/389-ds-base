@@ -13,6 +13,7 @@ from lib389.cli_base import (
     _generic_list,
     _generic_get,
     _get_arg,
+    CustomHelpFormatter
     )
 from lib389.cli_conf.monitor import _format_status
 from lib389.utils import get_passwd_from_file
@@ -220,25 +221,25 @@ def list_links(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    chaining_parser = subparsers.add_parser('chaining', help="Manage database chaining and database links")
+    chaining_parser = subparsers.add_parser('chaining', help="Manage database chaining and database links", formatter_class=CustomHelpFormatter)
     subcommands = chaining_parser.add_subparsers(help="action")
 
-    config_get_parser = subcommands.add_parser('config-get', help='Display the chaining controls and server component lists')
+    config_get_parser = subcommands.add_parser('config-get', help='Display the chaining controls and server component lists', formatter_class=CustomHelpFormatter)
     config_get_parser.set_defaults(func=config_get)
     config_get_parser.add_argument('--avail-controls', action='store_true', help="Lists available chaining controls")
     config_get_parser.add_argument('--avail-comps', action='store_true', help="Lists available chaining plugin components")
 
-    config_set_parser = subcommands.add_parser('config-set', help='Set the chaining controls and server component lists')
+    config_set_parser = subcommands.add_parser('config-set', help='Set the chaining controls and server component lists', formatter_class=CustomHelpFormatter)
     config_set_parser.set_defaults(func=config_set)
     config_set_parser.add_argument('--add-control', action='append', help="Adds a transmitted control OID")
     config_set_parser.add_argument('--del-control', action='append', help="Deletes a transmitted control OID")
     config_set_parser.add_argument('--add-comp', action='append', help="Adds a chaining component")
     config_set_parser.add_argument('--del-comp', action='append', help="Deletes a chaining component")
 
-    def_config_get_parser = subcommands.add_parser('config-get-def', help='Display the default creation parameters for new database links')
+    def_config_get_parser = subcommands.add_parser('config-get-def', help='Display the default creation parameters for new database links', formatter_class=CustomHelpFormatter)
     def_config_get_parser.set_defaults(func=def_config_get)
 
-    def_config_set_parser = subcommands.add_parser('config-set-def', help='Set the default creation parameters for new database links')
+    def_config_set_parser = subcommands.add_parser('config-set-def', help='Set the default creation parameters for new database links', formatter_class=CustomHelpFormatter)
     def_config_set_parser.set_defaults(func=def_config_set)
     def_config_set_parser.add_argument('--conn-bind-limit',
                                        help="Sets the maximum number of BIND connections the database link establishes "
@@ -293,7 +294,7 @@ def create_parser(subparsers):
     create_link_parser.add_argument('--bind-pw-file', help="File containing the password")
     create_link_parser.add_argument('--bind-pw-prompt', action='store_true', help="Prompt for password")
 
-    get_link_parser = subcommands.add_parser('link-get', help='Displays chaining database links')
+    get_link_parser = subcommands.add_parser('link-get', help='Displays chaining database links', formatter_class=CustomHelpFormatter)
     get_link_parser.set_defaults(func=get_link)
     get_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The chaining link name or suffix to retrieve')
 
@@ -312,13 +313,13 @@ def create_parser(subparsers):
     edit_link_parser.add_argument('--bind-pw-file', help="File containing the password")
     edit_link_parser.add_argument('--bind-pw-prompt', action='store_true', help="Prompt for password")
 
-    delete_link_parser = subcommands.add_parser('link-delete', help='Delete a database link')
+    delete_link_parser = subcommands.add_parser('link-delete', help='Delete a database link', formatter_class=CustomHelpFormatter)
     delete_link_parser.set_defaults(func=delete_link)
     delete_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The name of the database link')
 
-    monitor_link_parser = subcommands.add_parser('monitor', help='Display monitor information for a database chaining link')
+    monitor_link_parser = subcommands.add_parser('monitor', help='Display monitor information for a database chaining link', formatter_class=CustomHelpFormatter)
     monitor_link_parser.set_defaults(func=monitor_link)
     monitor_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The name of the database link')
 
-    list_link_parser = subcommands.add_parser('link-list', help='List database links')
+    list_link_parser = subcommands.add_parser('link-list', help='List database links', formatter_class=CustomHelpFormatter)
     list_link_parser.set_defaults(func=list_links)

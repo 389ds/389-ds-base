@@ -8,7 +8,7 @@
 #
 import os
 from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
-from lib389.cli_base import _warn
+from lib389.cli_base import _warn, CustomHelpFormatter
 
 
 def show_servercert(inst, log, args):
@@ -97,26 +97,27 @@ def export_cert(inst, log, args):
 
 
 def create_parser(subparsers):
-    tls_parser = subparsers.add_parser('tls', help="Manage TLS certificates")
+    tls_parser = subparsers.add_parser('tls', help="Manage TLS certificates", formatter_class=CustomHelpFormatter)
 
     subcommands = tls_parser.add_subparsers(help='action')
 
-    list_ca_parser = subcommands.add_parser('list-ca', help='list server certificate authorities including intermediates')
+    list_ca_parser = subcommands.add_parser('list-ca', help='list server certificate authorities including intermediates', formatter_class=CustomHelpFormatter)
     list_ca_parser.set_defaults(func=list_cas)
 
-    list_client_ca_parser = subcommands.add_parser('list-client-ca', help='list client certificate authorities including intermediates')
+    list_client_ca_parser = subcommands.add_parser('list-client-ca', help='list client certificate authorities including intermediates', formatter_class=CustomHelpFormatter)
     list_client_ca_parser.set_defaults(func=list_client_cas)
 
-    show_servercert_parser = subcommands.add_parser('show-server-cert', help='Show the active server certificate that clients will see and verify')
+    show_servercert_parser = subcommands.add_parser('show-server-cert', help='Show the active server certificate that clients will see and verify', formatter_class=CustomHelpFormatter)
     show_servercert_parser.set_defaults(func=show_servercert)
 
-    show_cert_parser = subcommands.add_parser('show-cert', help='Show a certificate\'s details referenced by it\'s nickname. This is analogous to certutil -L -d <path> -n <nickname>')
+    show_cert_parser = subcommands.add_parser('show-cert', help='Show a certificate\'s details referenced by it\'s nickname. This is analogous to certutil -L -d <path> -n <nickname>', formatter_class=CustomHelpFormatter)
     show_cert_parser.add_argument('nickname', help="The nickname (friendly name) of the certificate to display")
     show_cert_parser.set_defaults(func=show_cert)
 
     generate_server_cert_csr_parser = subcommands.add_parser(
         'generate-server-cert-csr',
-        help="Generate a Server-Cert certificate signing request - the csr is then submitted to a CA for verification, and when signed you import with import-ca and import-server-cert"
+        help="Generate a Server-Cert certificate signing request - the csr is then submitted to a CA for verification, and when signed you import with import-ca and import-server-cert",
+        formatter_class=CustomHelpFormatter
     )
     generate_server_cert_csr_parser.add_argument('--subject', '-s',
         default=None,
@@ -127,7 +128,8 @@ def create_parser(subparsers):
 
     import_client_ca_parser = subcommands.add_parser(
         'import-client-ca',
-        help="Import a CA trusted to issue user (client) certificates. This is part of how client certificate authentication functions."
+        help="Import a CA trusted to issue user (client) certificates. This is part of how client certificate authentication functions.",
+        formatter_class=CustomHelpFormatter
     )
     import_client_ca_parser.add_argument('cert_path',
         help="The path to the x509 cert to import as a client trust root")
@@ -137,7 +139,8 @@ def create_parser(subparsers):
     import_ca_parser = subcommands.add_parser(
         'import-ca',
         help="Import a CA or intermediate CA for signing this servers certificates (aka Server-Cert). "
-             "You should import all the CA's in the chain as required.  PEM bundles are accepted"
+             "You should import all the CA's in the chain as required.  PEM bundles are accepted",
+        formatter_class=CustomHelpFormatter
     )
     import_ca_parser.add_argument('cert_path',
         help="The path to the x509 cert to import as a server CA")
@@ -146,7 +149,8 @@ def create_parser(subparsers):
 
     import_server_cert_parser = subcommands.add_parser(
         'import-server-cert',
-        help="Import a new Server-Cert after the csr has been signed from a CA."
+        help="Import a new Server-Cert after the csr has been signed from a CA.",
+        formatter_class=CustomHelpFormatter
     )
     import_server_cert_parser.add_argument('cert_path',
         help="The path to the x509 cert to import as Server-Cert")
@@ -154,7 +158,8 @@ def create_parser(subparsers):
 
     import_server_key_cert_parser = subcommands.add_parser(
         'import-server-key-cert',
-        help="Import a new key and Server-Cert after having been signed from a CA. This is used if you have an external csr tool or a service like lets encrypt that generates PEM keys externally."
+        help="Import a new key and Server-Cert after having been signed from a CA. This is used if you have an external csr tool or a service like lets encrypt that generates PEM keys externally.",
+        formatter_class=CustomHelpFormatter
     )
     import_server_key_cert_parser.add_argument('cert_path',
         help="The path to the x509 cert to import as Server-Cert")
@@ -164,14 +169,16 @@ def create_parser(subparsers):
 
     remove_cert_parser = subcommands.add_parser(
         'remove-cert',
-        help="Delete a certificate from this database. This will remove it from acting as a CA, a client CA or the Server-Cert role."
+        help="Delete a certificate from this database. This will remove it from acting as a CA, a client CA or the Server-Cert role.",
+        formatter_class=CustomHelpFormatter
     )
     remove_cert_parser.add_argument('nickname', help="The name of the certificate to delete")
     remove_cert_parser.set_defaults(func=remove_cert)
 
     export_cert_parser = subcommands.add_parser(
         'export-cert',
-        help="Export a certificate to PEM or DER/Binary format.  PEM format is the default"
+        help="Export a certificate to PEM or DER/Binary format.  PEM format is the default",
+        formatter_class=CustomHelpFormatter
     )
     export_cert_parser.add_argument('nickname', help="The name of the certificate to export")
     export_cert_parser.add_argument('--binary-format', action='store_true',
