@@ -8,6 +8,7 @@
 
 from lib389.plugins import ContentSyncPlugin
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add_attr
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'allow_openldap': 'syncrepl-allow-openldap',
@@ -30,14 +31,14 @@ def _add_parser_args(parser):
                         help='Allows openldap servers to act as read only consumers of this server via syncrepl')
 
 def create_parser(subparsers):
-    contentsync_parser = subparsers.add_parser('contentsync', help='Manage and configure Content Sync Plugin (aka syncrepl)')
+    contentsync_parser = subparsers.add_parser('contentsync', help='Manage and configure Content Sync Plugin (aka syncrepl)', formatter_class=CustomHelpFormatter)
     subcommands = contentsync_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, ContentSyncPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin settings')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=contentsync_edit)
     _add_parser_args(edit)
 
-    addp = subcommands.add_parser('add', help='Add attributes to the plugin')
+    addp = subcommands.add_parser('add', help='Add attributes to the plugin', formatter_class=CustomHelpFormatter)
     addp.set_defaults(func=contentsync_add)
     _add_parser_args(addp)
