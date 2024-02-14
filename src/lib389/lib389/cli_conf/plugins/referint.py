@@ -9,6 +9,7 @@
 import ldap
 from lib389.plugins import ReferentialIntegrityPlugin, ReferentialIntegrityConfig
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'update_delay': 'referint-update-delay',
@@ -95,24 +96,24 @@ def create_parser(subparsers):
 
     add_generic_plugin_parsers(subcommands, ReferentialIntegrityPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin settings')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=referint_edit)
     _add_parser_args(edit)
     edit.add_argument('--config-entry', help='The value to set as nsslapd-pluginConfigArea')
 
-    config = subcommands.add_parser('config-entry', help='Manage the config entry')
+    config = subcommands.add_parser('config-entry', help='Manage the config entry', formatter_class=CustomHelpFormatter)
     config_subcommands = config.add_subparsers(help='action')
-    add_config = config_subcommands.add_parser('add', help='Add the config entry')
+    add_config = config_subcommands.add_parser('add', help='Add the config entry', formatter_class=CustomHelpFormatter)
     add_config.set_defaults(func=referint_add_config)
     add_config.add_argument('DN', help='The config entry full DN')
     _add_parser_args(add_config)
-    edit_config = config_subcommands.add_parser('set', help='Edit the config entry')
+    edit_config = config_subcommands.add_parser('set', help='Edit the config entry', formatter_class=CustomHelpFormatter)
     edit_config.set_defaults(func=referint_edit_config)
     edit_config.add_argument('DN', help='The config entry full DN')
     _add_parser_args(edit_config)
-    show_config = config_subcommands.add_parser('show', help='Display the config entry')
+    show_config = config_subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show_config.set_defaults(func=referint_show_config)
     show_config.add_argument('DN', help='The config entry full DN')
-    del_config_ = config_subcommands.add_parser('delete', help='Delete the config entry')
+    del_config_ = config_subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
     del_config_.set_defaults(func=referint_del_config)
     del_config_.add_argument('DN', help='The config entry full DN')

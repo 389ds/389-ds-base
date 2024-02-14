@@ -8,6 +8,7 @@
 
 import json
 from lib389.dseldif import DSEldif
+from lib389.cli_base import CustomHelpFormatter
 
 
 def get_nsstate(inst, log, args):
