@@ -3091,6 +3091,16 @@ attr_in_list(const char *search, char **list)
     return NULL;
 }
 
+/* Check if attrlist and vlvlist is empty or if attrname is in vlvlist */
+int
+is_reindexed_attr(const char *attrname, const ImportCtx_t *ctx, char **list)
+{
+    if (!ctx->indexAttrs && !ctx->indexVlvs) {
+        return  ((ctx->job->flags & FLAG_INDEX_ATTRS) == FLAG_INDEX_ATTRS);
+    }
+    return (list && attr_in_list(attrname, list));
+}
+
 static void
 process_vlv_index(backentry *ep, ImportWorkerInfo *info)
 {
@@ -3111,7 +3121,8 @@ process_vlv_index(backentry *ep, ImportWorkerInfo *info)
         struct vlvIndex *vlv_index = ps->vlv_index;
         Slapi_PBlock *pb = slapi_pblock_new();
         slapi_pblock_set(pb, SLAPI_BACKEND, be);
-        if (vlv_index && (ctx->indexAttrs==NULL || attr_in_list(vlv_index->vlv_name, ctx->indexAttrs))) {
+        if (vlv_index && vlv_index->vlv_attrinfo &&
+            is_reindexed_attr(vlv_index->vlv_attrinfo->ai_type , ctx, ctx->indexVlvs)) {
             ret = vlv_update_index(vlv_index, (dbi_txn_t*)&txn, inst->inst_li, pb, NULL, ep);
         }
         if (0 != ret) {
@@ -3306,11 +3317,19 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
                           "%s: Indexing %s\n", job->inst->inst_name, mii->name);
         } else {
-            if (job->task) {
-                slapi_task_log_notice(job->task, "%s: Indexing attribute: %s", job->inst->inst_name, mii->name);
+            if (ii->ai->ai_indexmask == INDEX_VLV) {
+                if (job->task) {
+                    slapi_task_log_notice(job->task, "%s: Indexing VLV: %s", job->inst->inst_name, mii->name);
+                }
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
+                              "%s: Indexing VLV: %s\n", job->inst->inst_name, mii->name);
+            } else {
+                if (job->task) {
+                    slapi_task_log_notice(job->task, "%s: Indexing attribute: %s", job->inst->inst_name, mii->name);
+                }
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
+                              "%s: Indexing attribute: %s\n", job->inst->inst_name, mii->name);
             }
-            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
-                          "%s: Indexing attribute: %s\n", job->inst->inst_name, mii->name);
         }
     }
 
@@ -3325,15 +3344,14 @@ dbmdb_build_import_index_list(ImportCtx_t *ctx)
     IndexInfo *ii;
 
     if (ctx->role != IM_UPGRADE) {
-            for (ii=job->index_list; ii; ii=ii->next) {
+        for (ii=job->index_list; ii; ii=ii->next) {
             if (ii->ai->ai_indexmask == INDEX_VLV) {
-                continue;
+                if (is_reindexed_attr(ii->ai->ai_type, ctx, ctx->indexVlvs)) {
+                    dbmdb_add_import_index(ctx, NULL, ii);
+                }
+            } else if (is_reindexed_attr(ii->ai->ai_type, ctx, ctx->indexAttrs)){
+                dbmdb_add_import_index(ctx, NULL, ii);
             }
-            /* Keep only the index in reindex  list */
-            if (ctx->indexAttrs && !(attr_in_list(ii->ai->ai_type, ctx->indexAttrs))) {
-                continue;
-            }
-            dbmdb_add_import_index(ctx, NULL, ii);
         }
     }
 
@@ -4164,6 +4182,7 @@ dbmdb_free_import_ctx(ImportJob *job)
         avl_free(ctx->indexes, (IFP) free_ii);
         ctx->indexes = NULL;
         charray_free(ctx->indexAttrs);
+        charray_free(ctx->indexVlvs);
         slapi_ch_free((void**)&ctx);
     }
 }

@@ -127,11 +127,11 @@ def add_users(inst, users_num):
         add_an_user(inst, users, uid)
 
 
-def create_vlv_search_and_index(inst):
+def create_vlv_search_and_index(inst, hyphen=''):
     vlv_searches = VLVSearch(inst)
     vlv_search_properties = {
         "objectclass": ["top", "vlvSearch"],
-        "cn": "vlvSrch",
+        "cn": f"vlv{hyphen}Srch",
         "vlvbase": DEFAULT_SUFFIX,
         "vlvfilter": "(uid=*)",
         "vlvscope": "2",
@@ -144,14 +144,29 @@ def create_vlv_search_and_index(inst):
     vlv_index = VLVIndex(inst)
     vlv_index_properties = {
         "objectclass": ["top", "vlvIndex"],
-        "cn": "vlvIdx",
+        "cn": f"vlv{hyphen}Idx",
         "vlvsort": "cn",
     }
     vlv_index.create(
-        basedn="cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config",
+        basedn=f"cn=vlv{hyphen}Srch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config",
         properties=vlv_index_properties
     )
     return vlv_searches, vlv_index
+
+
+def remove_entries(inst, basedn, filter):
+    # Remove all entries matching the criteriae.
+    conn = open_new_ldapi_conn(inst.serverid)
+    entries = conn.search_s(basedn, ldap.SCOPE_SUBTREE, filter)
+    for entry in entries:
+        conn.delete_s(entry[0])
+
+
+def cleanup(inst):
+    # Remove the left over from previous tests.
+    remove_entries(inst, "cn=config", "(objectclass=vlvIndex)")
+    remove_entries(inst, "cn=config", "(objectclass=vlvSearch)")
+    remove_entries(inst, DEFAULT_SUFFIX, "(cn=testuser*)")
 
 
 def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
@@ -230,7 +245,7 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
     repl.join_supplier(M1, M2)
     repl.test_replication(M1, M2, 30)
     repl.test_replication(M2, M1, 30)
-    entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")
+    entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)")
     assert len(entries) > 0
     entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
     entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
@@ -272,7 +287,7 @@ def test_vlv_recreation_reindex(topology_st):
     add_users(inst, 5000)
 
     conn = open_new_ldapi_conn(inst.serverid)
-    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
+    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)")) > 0
     check_vlv_search(conn)
 
     # Remove and recreate VLVs
@@ -288,7 +303,7 @@ def test_vlv_recreation_reindex(topology_st):
     ) == 0
 
     conn = open_new_ldapi_conn(inst.serverid)
-    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
+    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)")) > 0
     check_vlv_search(conn)
 
 
@@ -297,7 +312,10 @@ def verify_keys_in_subdb(vlvname, inst, count):
     Verify that vlv index as the expected number of keys.
     """
     output = run_dbscan(['-f', f'{inst.dbdir}/userroot/vlv#{vlvname}.db'])
-    found = output.count('\n')
+    # Count all lines except the MBD environment ones.
+    found = output.count('\n') - output.count('MBD environment')
+    if found != count:
+        log.info(f'dbscan output for vlv {vlvname} is: {output}')
     assert found == count
 
 
@@ -305,6 +323,9 @@ def verify_vlv_subdb_names(vlvname, inst, count=None):
     """
     Verify that vlv index and cache sub database names are conistent on lmdb.
     """
+    # Normalize the vlv db name
+    chars = set('abcdefghijklmnopqrstuvwxyz0123456789')
+    vlvname = ''.join(c for c in vlvname.lower() if c in chars)
     if get_default_db_lib() == "mdb":
         output = run_dbscan(['-D', 'mdb', '-L', inst.dbdir])
         vlvsubdbs = []
@@ -409,8 +430,8 @@ def test_vlv_cache_subdb_names(topology_m2):
 
     # Check subdb names and perform vlv searches
     conn = open_new_ldapi_conn(M2.serverid)
-    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
-    count = NUM_USERS + 4 # ( demo_user + 3 lines (lmdb environment info) )
+    count = len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 0
     check_vlv_search(conn, offset=23)
     verify_vlv_subdb_names(vlvname, M2, count=count)
 
@@ -441,8 +462,8 @@ def test_vlv_cache_subdb_names(topology_m2):
 
     # Check subdb names and perform vlv searches
     conn = open_new_ldapi_conn(M2.serverid)
-    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")) > 0
-    count = NUM_USERS + 4
+    count = len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 0
     check_vlv_search(conn, offset=23)
     verify_vlv_subdb_names(vlvname, M2, count=count)
 
@@ -497,6 +518,48 @@ def test_vlv_start_with_bad_dse(topology_st):
             dse.write(BAD_DSE_DATA)
         # Step 2: Restart the server
         inst.start()
+
+@pytest.mark.parametrize("hyphen", ( '', '-' ))
+def test_vlv_reindex(topology_st, hyphen):
+    """Test VLV reindexing.
+
+    :id: d5dc0d8e-cbe6-11ee-95b1-482ae39447e5
+    :setup: Standalone instance.
+    :steps:
+        1. Cleanup leftover from previous tests
+        2. Add users
+        3. Create new VLVs and do the reindex.
+        4. Test the new VLVs.
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+        3. Should Success.
+        4. Should Success.
+    """
+
+    NUM_USERS = 50
+    inst = topology_st.standalone
+    reindex_task = Tasks(inst)
+
+    # Clean previous tests leftover that cause trouble
+    cleanup(inst)
+
+    add_users(inst, NUM_USERS)
+
+    # Create and reindex VLVs
+    vlv_search, vlv_index = create_vlv_search_and_index(inst, hyphen=hyphen)
+    assert reindex_task.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=vlv_index.rdn,
+        args={TASK_WAIT: True},
+        vlv=True
+    ) == 0
+
+    conn = open_new_ldapi_conn(inst.serverid)
+    count = len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 0
+    verify_vlv_subdb_names(vlv_index.rdn, inst, count=count)
+    check_vlv_search(conn, offset=23)
 
 
 if __name__ == "__main__":

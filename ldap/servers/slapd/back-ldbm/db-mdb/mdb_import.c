@@ -769,29 +769,12 @@ dbmdb_import_all_done(ImportJob *job, int ret)
     return ret;
 }
 
-/* Check if attrlist is empty or if attrname is in attrlist */
-static int
-is_reindexed_attr(const char *attrname, char **attrlist)
-{
-    if (!attrlist) {
-        return 1;
-    }
-    while (*attrlist) {
-        char *attr = *attrlist++;
-        /* Note that attrname is 'vlv#vlvIdx' while attrlist contains vlvIdx */
-        if (strcasecmp(attrname+4, attr) == 0) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 /* vlv_getindices callback that truncate vlv index (in reindex case) */
 static int
 truncate_index_dbi(struct attrinfo *ai, ImportCtx_t *ctx)
 {
     int rc = 0;
-    if (is_reindexed_attr(ai->ai_type, ctx->indexAttrs)) {
+    if (is_reindexed_attr(ai->ai_type, ctx, ctx->indexVlvs)) {
         backend *be = ctx->job->inst->inst_be;
         dbmdb_dbi_t *dbi = NULL;
         rc = dbmdb_open_dbi_from_filename(&dbi, be, ai->ai_type, ai, MDB_TRUNCATE_DBI);
@@ -1129,6 +1112,28 @@ dbmdb_import_main(void *arg)
     g_decr_active_threadcnt();
 }
 
+static char *
+get_vlv_dbname(const char *attrname)
+{
+    /* Returns vlv index database name as stored in attribute names
+     * freed by the caller .
+     */
+    char *dbname = slapi_ch_malloc(4+strlen(attrname)+1);
+    char *p = dbname;
+    *p++ = 'v';
+    *p++ = 'l';
+    *p++ = 'v';
+    *p++ = '#';
+    for (; *attrname; attrname++) {
+        if (isalnum(*attrname)) {
+            *p = TOLOWER(*attrname);
+            p++;
+        }
+    }
+    *p = '\0';
+    return dbname;
+}
+
 void
 process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
 {
@@ -1155,7 +1160,7 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
             slapi_ch_array_add(&ctx->indexAttrs, slapi_ch_strdup(attrs[i] + 1));
             break;
         case 'T': /* VLV Search to index */
-            slapi_ch_array_add(&ctx->indexAttrs, slapi_ch_strdup(attrs[i] + 1));
+            slapi_ch_array_add(&ctx->indexVlvs, get_vlv_dbname(attrs[i] + 1));
             break;
         }
     }
