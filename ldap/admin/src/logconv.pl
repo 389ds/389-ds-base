@@ -267,7 +267,7 @@ my $optimeAvg = 0;
 my %cipher = ();
 my @removefiles = ();
 
-my @conncodes = qw(A1 B1 B4 T1 T2 B2 B3 R1 P1 P2 U1);
+my @conncodes = qw(A1 B1 B4 T1 T2 T3 B2 B3 R1 P1 P2 U1);
 my %conn = ();
 map {$conn{$_} = $_} @conncodes;
 
@@ -355,6 +355,7 @@ $connmsg{"B1"} = "Bad Ber Tag Encountered";
 $connmsg{"B4"} = "Server failed to flush data (response) back to Client";
 $connmsg{"T1"} = "Idle Timeout Exceeded";
 $connmsg{"T2"} = "IO Block Timeout Exceeded or NTSSL Timeout";
+$connmsg{"T3"} = "Paged Search Limit Exceeded";
 $connmsg{"B2"} = "Ber Too Big";
 $connmsg{"B3"} = "Ber Peek";
 $connmsg{"R1"} = "Revents";
@@ -1723,6 +1724,10 @@ if ($usage =~ /j/i || $verb eq "yes"){
 		print "\n $recCount.  You have some coonections that are being closed by the ioblocktimeout setting. You may want to increase the ioblocktimeout.\n";
 		$recCount++;
 	}
+	if (defined($conncount->{"T3"}) and $conncount->{"T3"} > 0){
+		print "\n $recCount.  You have some connections that are being closed because a paged result search limit has been exceeded. You may want to increase the search time limit.\n";
+		$recCount++;
+	}
 	# compare binds to unbinds, if the difference is more than 30% of the binds, then report a issue
 	if (($bindCount - $unbindCount) > ($bindCount*.3)){
 		print "\n $recCount.  You have a significant difference between binds and unbinds.  You may want to investigate this difference.\n";
@@ -2366,6 +2371,7 @@ sub parseLineNormal
 		$brokenPipeCount++;
 		if (m/- T1/){ $hashes->{rc}->{"T1"}++; }
 		elsif (m/- T2/){ $hashes->{rc}->{"T2"}++; }
+		elsif (m/- T3/){ $hashes->{rc}->{"T3"}++; }
 		elsif (m/- A1/){ $hashes->{rc}->{"A1"}++; }
 		elsif (m/- B1/){ $hashes->{rc}->{"B1"}++; }
 		elsif (m/- B4/){ $hashes->{rc}->{"B4"}++; }
@@ -2381,6 +2387,7 @@ sub parseLineNormal
 		$connResetByPeerCount++;
 		if (m/- T1/){ $hashes->{src}->{"T1"}++; }
 		elsif (m/- T2/){ $hashes->{src}->{"T2"}++; }
+		elsif (m/- T3/){ $hashes->{src}->{"T3"}++; }
 		elsif (m/- A1/){ $hashes->{src}->{"A1"}++; }
 		elsif (m/- B1/){ $hashes->{src}->{"B1"}++; }
 		elsif (m/- B4/){ $hashes->{src}->{"B4"}++; }
@@ -2396,6 +2403,7 @@ sub parseLineNormal
 		$resourceUnavailCount++;
 		if (m/- T1/){ $hashes->{rsrc}->{"T1"}++; }
 		elsif (m/- T2/){ $hashes->{rsrc}->{"T2"}++; }
+		elsif (m/- T3/){ $hashes->{rsrc}->{"T3"}++; }
 		elsif (m/- A1/){ $hashes->{rsrc}->{"A1"}++; }
 		elsif (m/- B1/){ $hashes->{rsrc}->{"B1"}++; }
 		elsif (m/- B4/){ $hashes->{rsrc}->{"B4"}++; }
@@ -2490,6 +2498,20 @@ sub parseLineNormal
 				if ($exc ne "yes"){
 					$hashes->{T2}->{$ip}++;
 					$hashes->{conncount}->{"T2"}++;
+					$connCodeCount++;
+				}
+			}
+		}
+		if (m/- T3/){
+			if ($_ =~ /conn= *([0-9A-Z]+)/i) {
+				$exc = "no";
+				$ip = getIPfromConn($1, $serverRestartCount);
+				for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
+					if ($ip eq $excludeIP[$xxx]){$exc = "yes";}
+				}
+				if ($exc ne "yes"){
+					$hashes->{T3}->{$ip}++;
+					$hashes->{conncount}->{"T3"}++;
 					$connCodeCount++;
 				}
 			}
