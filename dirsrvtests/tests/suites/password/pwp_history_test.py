@@ -387,7 +387,7 @@ def test_prehashed_pwd(topology_st):
 
     #Create pwd hash
     pwd_hash = password_hash('password2', scheme='PBKDF2_SHA256', bin_dir=topology_st.standalone.ds_paths.bin_dir)
-    log.info(pwd_hash)
+    #log.info(pwd_hash)
 
     # Update user pwd hash
     user.replace('userpassword', pwd_hash)
