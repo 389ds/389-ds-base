@@ -95,6 +95,35 @@ def test_auditlog_display_attrs(topo):
     time.sleep(1)
     assert inst.ds_audit_log.match("#sn: modrdn_delete")
 
+def test_auditlog_bof(topo):
+    """Test that value containing 256 chars doesn't crash the server
+
+    :id: 767c0604-146d-4d07-8bf4-1093f51ce97b
+    :setup: Standalone Instance
+    :steps:
+        1. Change 'cn' attribute to contain exactly 256 chars
+        2. Test that server didn't crash
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topo.standalone
+    inst.config.replace('nsslapd-auditlog-logging-enabled', 'on')
+
+    inst.config.replace('nsslapd-auditlog-display-attrs', 'cn')
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.ensure_state(properties={
+        'uid': 'test_auditlog_bof',
+        'cn': 'A'*256,
+        'sn': 'user',
+        'uidNumber': '1001',
+        'gidNumber': '1001',
+        'homeDirectory': '/home/auditlog_bof',
+    })
+    time.sleep(1)
+    assert inst.status() == True
+
 
 if __name__ == '__main__':
     # Run isolated
