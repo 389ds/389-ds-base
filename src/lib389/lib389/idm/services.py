@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,6 +16,7 @@ RDN = 'cn'
 MUST_ATTRIBUTES = [
     'cn',
 ]
+DEFAULT_BASEDN_RDN = 'ou=Services'
 
 class ServiceAccount(Account):
     """A single instance of Service entry
@@ -59,7 +60,7 @@ class ServiceAccounts(DSLdapObjects):
     :type basedn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=Services'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(ServiceAccounts, self).__init__(instance)
         self._objectclasses = [
             'applicationProcess',
