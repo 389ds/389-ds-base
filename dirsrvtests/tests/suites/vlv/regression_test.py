@@ -81,6 +81,7 @@ def check_vlv_search(conn, **kwargs):
     before_count = kwargs.get('before_count', 1)
     after_count = kwargs.get('after_count', 3)
     offset = kwargs.get('offset', 3501)
+    basedn = kwargs.get('basedn', DEFAULT_SUFFIX)
 
     vlv_control = VLVRequestControl(criticality=True,
         before_count=before_count,
@@ -92,7 +93,7 @@ def check_vlv_search(conn, **kwargs):
 
     sss_control = SSSRequestControl(criticality=True, ordering_rules=['cn'])
     result = conn.search_ext_s(
-        base='dc=example,dc=com',
+        base=basedn,
         scope=ldap.SCOPE_SUBTREE,
         filterstr='(uid=*)',
         serverctrls=[vlv_control, sss_control]
@@ -127,12 +128,12 @@ def add_users(inst, users_num):
         add_an_user(inst, users, uid)
 
 
-def create_vlv_search_and_index(inst, hyphen=''):
+def create_vlv_search_and_index(inst, hyphen='', basedn=DEFAULT_SUFFIX):
     vlv_searches = VLVSearch(inst)
     vlv_search_properties = {
         "objectclass": ["top", "vlvSearch"],
         "cn": f"vlv{hyphen}Srch",
-        "vlvbase": DEFAULT_SUFFIX,
+        "vlvbase": basedn,
         "vlvfilter": "(uid=*)",
         "vlvscope": "2",
     }
@@ -307,14 +308,30 @@ def test_vlv_recreation_reindex(topology_st):
     check_vlv_search(conn)
 
 
+def get_db_filename(vlvname, prefix='', iscache=False):
+    # Normalize the vlv db name
+    chars = set('abcdefghijklmnopqrstuvwxyz0123456789')
+    vlvname = ''.join(c for c in vlvname.lower() if c in chars)
+    bename = 'userRoot'
+    cache = ''
+    if iscache:
+        cache = '~recno-cache/'
+    if get_default_db_lib() == "mdb":
+        bename = bename.lower()
+    return f'{prefix}{bename}/{cache}vlv#{vlvname}.db'
+
+
 def verify_keys_in_subdb(vlvname, inst, count):
     """
     Verify that vlv index as the expected number of keys.
     """
-    output = run_dbscan(['-f', f'{inst.dbdir}/userroot/vlv#{vlvname}.db'])
+    dblib = get_default_db_lib()
+    dbfile = get_db_filename(vlvname, prefix=f'{inst.dbdir}/')
+    output = run_dbscan(['-D', dblib, '-f', dbfile])
     # Count all lines except the MBD environment ones.
     found = output.count('\n') - output.count('MBD environment')
     if found != count:
+        log.info(f'Running: dbscan -D {dblib} -f "{dbfile}"')
         log.info(f'dbscan output for vlv {vlvname} is: {output}')
     assert found == count
 
@@ -323,25 +340,32 @@ def verify_vlv_subdb_names(vlvname, inst, count=None):
     """
     Verify that vlv index and cache sub database names are conistent on lmdb.
     """
-    # Normalize the vlv db name
-    chars = set('abcdefghijklmnopqrstuvwxyz0123456789')
-    vlvname = ''.join(c for c in vlvname.lower() if c in chars)
-    if get_default_db_lib() == "mdb":
-        output = run_dbscan(['-D', 'mdb', '-L', inst.dbdir])
-        vlvsubdbs = []
-        nbvlvindex = 0
-        for line in output.split("\n"):
-            if not line:
-                continue
-            fname = line.split()[0]
-            if 'vlv#' in fname:
-                vlvsubdbs.append(fname)
-                if '/~recno-cache/' not in fname:
-                    nbvlvindex += 1
-        log.info(f'vlv sub databases are: {vlvsubdbs}')
-        assert f'{inst.dbdir}/userroot/vlv#{vlvname}.db' in vlvsubdbs
-        assert f'{inst.dbdir}/userroot/~recno-cache/vlv#{vlvname}.db' in vlvsubdbs
+    dblib = get_default_db_lib()
+    if dblib == "bdb":
+        # Let the time to sync bdb txn log to the db
+        prefix = ''
+        time.sleep(60)
+    else:
+        prefix = f'{inst.dbdir}/'
+    output = run_dbscan(['-D', dblib, '-L', inst.dbdir])
+    vlvsubdbs = []
+    nbvlvindex = 0
+    for line in output.split("\n"):
+        if not line:
+            continue
+        fname = line.split()[0]
+        if 'vlv#' in fname:
+            vlvsubdbs.append(fname)
+            if '/~recno-cache/' not in fname:
+                nbvlvindex += 1
+    log.info(f'vlv sub databases are: {vlvsubdbs}')
+
+    assert get_db_filename(vlvname, prefix=prefix) in vlvsubdbs
+    if dblib == "mdb":
+        assert get_db_filename(vlvname, prefix=prefix, iscache=True) in vlvsubdbs
         assert len(vlvsubdbs) == 2 * nbvlvindex
+    else:
+        assert len(vlvsubdbs) == nbvlvindex
     if count:
         verify_keys_in_subdb(vlvname, inst, count)
 
@@ -368,7 +392,7 @@ def bootstrap_replication(M1, M2):
     # Assign the entry to the replica
     replica2.replace('nsDS5ReplicaBindDN', brm.dn)
 
-
+@pytest.mark.skipif(get_default_db_lib() == "bdb", reason="Not supported over bdb")
 def test_vlv_cache_subdb_names(topology_m2):
     """
     Testing that vlv index cache sub database name is consistent.
@@ -519,8 +543,10 @@ def test_vlv_start_with_bad_dse(topology_st):
         # Step 2: Restart the server
         inst.start()
 
+@pytest.mark.skipif(get_default_db_lib() == "bdb", reason="bdb may hang because of github #6029")
 @pytest.mark.parametrize("hyphen", ( '', '-' ))
-def test_vlv_reindex(topology_st, hyphen):
+@pytest.mark.parametrize("basedn", ( DEFAULT_SUFFIX,  f'ou=People,{DEFAULT_SUFFIX}' ))
+def test_vlv_reindex(topology_st, hyphen, basedn):
     """Test VLV reindexing.
 
     :id: d5dc0d8e-cbe6-11ee-95b1-482ae39447e5
@@ -547,7 +573,7 @@ def test_vlv_reindex(topology_st, hyphen):
     add_users(inst, NUM_USERS)
 
     # Create and reindex VLVs
-    vlv_search, vlv_index = create_vlv_search_and_index(inst, hyphen=hyphen)
+    vlv_search, vlv_index = create_vlv_search_and_index(inst, hyphen=hyphen, basedn=basedn)
     assert reindex_task.reindex(
         suffix=DEFAULT_SUFFIX,
         attrname=vlv_index.rdn,
@@ -556,10 +582,10 @@ def test_vlv_reindex(topology_st, hyphen):
     ) == 0
 
     conn = open_new_ldapi_conn(inst.serverid)
-    count = len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    count = len(conn.search_s(basedn, ldap.SCOPE_SUBTREE, "(uid=*)"))
     assert count > 0
     verify_vlv_subdb_names(vlv_index.rdn, inst, count=count)
-    check_vlv_search(conn, offset=23)
+    check_vlv_search(conn, offset=23, basedn=basedn)
 
 
 if __name__ == "__main__":

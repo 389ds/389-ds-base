@@ -93,21 +93,31 @@ char *mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize);
 
 
 /* The private db records data (i.e entry_info) format is:
- *      ID: entry ID
- *      ID: nb ancestors
- *      ID: nrdn len
- *      ID: rdn len
+ *      ID: entry ID      [0]
+ *      ID: nb ancestors  [1]
+ *      ID: nrdn len      [2] ( The len include the final \0 )
+ *      ID: rdn len       [3] ( The len include the final \0 )
+ *      ID: dn len        [4] ( The len include the final \0 )
  *      ID[]: ancestors
  *      char[]: null terminated nrdn
  *      char[]: null terminated rdn
+ *      char[]: null terminated ndn
  *      Note: the IDs are stored directly as this database is transient and
  *       not shared across different hardware.
  *     Note: all these data for parent and current entry are needed
  *     by the worker thread to be able to build the entryrdn index records
  *     and ancestorid index records associated with the entry
  */
-#define INFO_NRDN(info)  ((char*)(&((ID*)(info))[4+((ID*)(info))[1]]))
-#define INFO_RDN(info)  (INFO_NRDN(info)+((ID*)(info))[2])
+#define INFO_IDX_ENTRY_ID       0
+#define INFO_IDX_NB_ANCESTORS   1
+#define INFO_IDX_NRDN_LEN       2
+#define INFO_IDX_RDN_LEN        3
+#define INFO_IDX_DN_LEN         4
+#define INFO_IDX_ANCESTORS      5
+#define INFO_NRDN(info)         ((char*)(&((ID*)(info))[INFO_IDX_ANCESTORS+((ID*)(info))[INFO_IDX_NB_ANCESTORS]]))
+#define INFO_RDN(info)          (INFO_NRDN(info)+((ID*)(info))[INFO_IDX_NRDN_LEN])
+#define INFO_DN(info)           (INFO_RDN(info)+((ID*)(info))[INFO_IDX_RDN_LEN])
+#define INFO_RECORD_LEN(info)   ((INFO_DN(info)-(char*)(info))+(info)[INFO_IDX_DN_LEN])
 
 typedef struct {
     back_txn txn;
@@ -818,7 +828,7 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
     const char *nrdn = NULL;
     dnrc_t dnrc = DNRC_OK;
     size_t len = 0;
-    static const ID pinfozero[6] = {0};
+    static const ID pinfozero[INFO_IDX_ANCESTORS+2] = {0};
     const ID *pinfo = pinfozero;
     int pidfromkey = 0;
     int rc = 0;
@@ -900,24 +910,46 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
         }
     }
     if (DNRC_IS_ENTRY(dnrc)) {
-        /* Note: If someday we needs to rebuild the entry dn, we could store it in the entry info
-         *  and build it from parent entry info + entry rdn. But as of today we do not need it.
-         */
-        len = strlen(nrdn) + strlen(rdn) + 2 + (5 + pinfo[1]) * sizeof(ID);
+        size_t rdnlen = strlen(rdn);
+        size_t dnlen = 0;
+        if (param->flags & EIP_RDN) {
+            /* In reindex case, dn must be rebuilt to be able to scope properly the vlv index */
+            dnlen = rdnlen + 1 + pinfo[4];  /* dn len (including final \0) */
+        }
+
+        len = rdnlen + strlen(nrdn) + 2 + dnlen + (INFO_IDX_ANCESTORS + 1 + pinfo[INFO_IDX_NB_ANCESTORS]) * sizeof(ID);
         data.mv_data = wqelmt->entry_info = (ID*)slapi_ch_calloc(ALIGN_TO_ID_SLOT(len), sizeof(ID));
         data.mv_size = len;
-        wqelmt->entry_info[0] = param->eid;
-        wqelmt->entry_info[1] = pinfo[1] + 1;
-        wqelmt->entry_info[2] = strlen(nrdn)+1;
-        wqelmt->entry_info[3] = strlen(rdn)+1;
-        if (pinfo[1]) {
-            /* Copy parent ancestors */
-            memcpy(&wqelmt->entry_info[4], &pinfo[4], pinfo[1]*sizeof(ID));
-            /* Then add parent id to ancestors */
-            wqelmt->entry_info[4+pinfo[1]] = pinfo[0];
+        wqelmt->entry_info[INFO_IDX_ENTRY_ID] = param->eid;
+        if (pinfo[INFO_IDX_ENTRY_ID] == 0) {
+            wqelmt->entry_info[INFO_IDX_NB_ANCESTORS] = 0;
+        } else {
+            wqelmt->entry_info[INFO_IDX_NB_ANCESTORS] = pinfo[INFO_IDX_NB_ANCESTORS] + 1; /* parent ancestors + parent id */
         }
-        memcpy(INFO_NRDN(wqelmt->entry_info), nrdn, wqelmt->entry_info[2]);
-        memcpy(INFO_RDN(wqelmt->entry_info), rdn, wqelmt->entry_info[3]);
+        wqelmt->entry_info[INFO_IDX_NRDN_LEN] = strlen(nrdn)+1;
+        wqelmt->entry_info[INFO_IDX_RDN_LEN] = rdnlen+1;
+        wqelmt->entry_info[INFO_IDX_DN_LEN] = dnlen;
+        if (pinfo[INFO_IDX_NB_ANCESTORS]) {
+            /* Copy parent ancestors */
+            memcpy(&wqelmt->entry_info[INFO_IDX_ANCESTORS], &pinfo[INFO_IDX_ANCESTORS], pinfo[INFO_IDX_NB_ANCESTORS]*sizeof(ID));
+        }
+        if (pinfo[INFO_IDX_ENTRY_ID] != 0) {
+            /* Then add parent id to ancestors */
+            wqelmt->entry_info[INFO_IDX_ANCESTORS+pinfo[INFO_IDX_NB_ANCESTORS]] = pinfo[INFO_IDX_ENTRY_ID];
+        }
+        memcpy(INFO_NRDN(wqelmt->entry_info), nrdn, wqelmt->entry_info[INFO_IDX_NRDN_LEN]);
+        memcpy(INFO_RDN(wqelmt->entry_info), rdn, wqelmt->entry_info[INFO_IDX_RDN_LEN]);
+        if (dnlen>0) {
+            char *dn = INFO_DN(wqelmt->entry_info);
+            memcpy(dn, rdn, rdnlen);
+            if (pinfo[INFO_IDX_DN_LEN]) {
+                dn[rdnlen] = ',';
+                memcpy(dn+rdnlen+1, INFO_DN(pinfo), pinfo[INFO_IDX_DN_LEN]);
+            } else {
+                /* Should be the suffix entry */
+                dn[rdnlen] = '\0';
+            }
+        }
         rc = dbmdb_privdb_put(param->db, 0, &param->ekey, &data);
         if (rc == MDB_KEYEXIST) {
             dnrc = DNRC_DUP;
@@ -1828,6 +1860,8 @@ dbmdb_import_index_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
         backentry_free(&ep);
         return NULL;
     }
+    /* Set the full dn from the entry_info data */
+    slapi_entry_set_dn(ep->ep_entry, slapi_ch_strdup(INFO_DN(wqelmnt->entry_info)));
 
     return ep;
 }
@@ -2989,8 +3023,8 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
     if (ctx->ancestorid && wqelmnt->entry_info) {
         /* Update ancestorids */
         wqd.dbi = ctx->ancestorid->dbi;
-        for (n=0; n<wqelmnt->entry_info[1]; n++) {
-            prepare_ids(&wqd, wqelmnt->entry_info[4+n], &id);
+        for (n=0; n<wqelmnt->entry_info[INFO_IDX_NB_ANCESTORS]; n++) {
+            prepare_ids(&wqd, wqelmnt->entry_info[INFO_IDX_ANCESTORS+n], &id);
             dbmdb_import_writeq_push(ctx, &wqd);
         }
     }
