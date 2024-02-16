@@ -79,6 +79,7 @@ def test_custom_schema_rewrites_standard_schema(topology):
 
     surname_attr_type = surname_attr_type.replace('caseIgnoreMatch', 'caseIgnoreIA5Match')
     surname_attr_type = surname_attr_type.replace('caseIgnoreSubstringsMatch', 'caseIgnoreIA5SubstringsMatch')
+    surname_attr_type = surname_attr_type.replace('1.3.6.1.4.1.1466.115.121.1.15', '1.3.6.1.4.1.1466.115.121.1.26')
     schema_m1.add('attributetypes', surname_attr_type)
 
     # Trigger replication and wait for completion
