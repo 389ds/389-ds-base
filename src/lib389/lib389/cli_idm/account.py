@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023, Red Hat inc,
+# Copyright (C) 2024, Red Hat inc,
 # Copyright (C) 2018, William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -91,7 +91,6 @@ def entry_status(inst, basedn, log, args):
 
 
 def subtree_status(inst, basedn, log, args):
-    basedn = _get_dn_arg(args.basedn, msg="Enter basedn to check")
     filter = ""
     scope = ldap.SCOPE_SUBTREE
     epoch_inactive_time = None
@@ -121,7 +120,6 @@ def subtree_status(inst, basedn, log, args):
 
 
 def bulk_update(inst, basedn, log, args):
-    basedn = _get_dn_arg(args.basedn, msg="Enter basedn to search")
     search_filter = "(objectclass=*)"
     scope = ldap.SCOPE_SUBTREE
     scope_str = "sub"
