@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -17,6 +17,7 @@ MUST_ATTRIBUTES = [
     'gidNumber',
 ]
 RDN = 'cn'
+DEFAULT_BASEDN_RDN = 'ou=Groups'
 
 
 class PosixGroup(DSLdapObject):
@@ -72,7 +73,7 @@ class PosixGroups(DSLdapObjects):
     :type basedn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=Groups'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(PosixGroups, self).__init__(instance)
         self._objectclasses = [
             'groupOfNames',
