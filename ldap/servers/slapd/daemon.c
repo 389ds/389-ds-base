@@ -1455,9 +1455,9 @@ setup_pr_read_pds(Connection_Table *ct)
                     int add_fd = 1;
                     /* check timeout for PAGED RESULTS */
                     if (pagedresults_is_timedout_nolock(c)) {
-                        /* Exceeded the timelimit; disconnect the client */
+                        /* Exceeded the paged search timelimit; disconnect the client */
                         disconnect_server_nomutex(c, c->c_connid, -1,
-                                                  SLAPD_DISCONNECT_IO_TIMEOUT,
+                                                  SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT,
                                                   0);
                         connection_table_move_connection_out_of_active_list(ct,
                                                                             c);
