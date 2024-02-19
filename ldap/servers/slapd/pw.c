@@ -1067,6 +1067,7 @@ int
 check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods)
 {
     Slapi_Attr *attr;
+    Slapi_Value **va = NULL;
     int i, pwresponse_req = 0;
     int is_replication = 0;
     int internal_op = 0;
@@ -1126,7 +1127,24 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                 report_pw_violation(pb, pwresponse_req, "invalid password syntax - passwords with storage scheme are not allowed");
                 return (1);
             } else {
-                /* We want to skip syntax checking since this is a pre-hashed password */
+                /* We want to skip syntax checking since this is a pre-hashed password. But if the user
+                 * has thrown caution to wind and allowed hashed passwords, we capture the history
+                 */
+                if (config_get_allow_hashed_pw() && pwpolicy->pw_history) {
+                    e = get_entry(pb, dn);
+                    if (e == NULL) {
+                        return -1;
+                    }
+                    attr = attrlist_find(e->e_attrs, SLAPI_USERPWD_ATTR);
+                    if (attr && !valueset_isempty(&attr->a_present_values)) {
+                        if (old_pw && (va = valueset_get_valuearray(&attr->a_present_values))) {
+                            *old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
+                        } else {
+                            *old_pw = NULL;
+                        }
+                    }
+                    slapi_entry_free(e);
+                }
                 return (0);
             }
         }
@@ -1336,7 +1354,6 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 
         /* check for password history */
         if (pwpolicy->pw_history == 1) {
-            Slapi_Value **va = NULL;
             attr = attrlist_find(e->e_attrs, "passwordHistory");
             if (pwpolicy->pw_inhistory && attr && !valueset_isempty(&attr->a_present_values)) {
                 /* Resetting password history array if necessary. */
@@ -1894,6 +1911,7 @@ pw_is_pwp_admin(Slapi_PBlock *pb, passwdPolicy *pwp, int rootdn_flag)
     /* first check if it's root */
     if (is_requestor_root && rootdn_flag == PWP_ADMIN_OR_ROOTDN) {
         return 1;
+
     }
     /* now check if it's a Password Policy Administrator */
     slapi_pblock_get(pb, SLAPI_REQUESTOR_SDN, &bind_sdn);

@@ -9,12 +9,14 @@
 import pytest
 import time
 import logging
+import ldap
 from lib389.tasks import *
 from lib389.utils import ds_is_newer
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.passwd import password_hash
 from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1
@@ -255,6 +257,87 @@ def test_basic(topology_st):
     # Done
     log.info('Test suite PASSED.')
 
+def test_prehashed_pwd(topology_st):
+    """Test password history is updated with a pre-hashed password change
+
+    :id: 24d08663-f36a-44ab-8f02-b8a3f502925b
+    :setup: Standalone instance
+    :steps:
+        1. Configure password history policy as bellow:
+             passwordHistory: on
+             passwordChange: on
+             nsslapd-allow-hashed-passwords: on
+        2. Create ACI to allow users change their password
+        3. Add a test user
+        4. Attempt to change password using non hased value
+        5. Bind with non hashed value
+        6. Create a hash value for update
+        7. Update user password with hash value
+        8. Bind with hashed password cleartext
+        9. Check users passwordHistory
+
+    :expectedresults:
+        1. Password history policy should be configured successfully
+        2. ACI applied correctly
+        3. User successfully added
+        4. Password change accepted
+        5. Successful bind
+        6. Hash value created
+        7. Password change accepted
+        8. Successful bind
+        9. Users passwordHistory should contain 2 enteries
+    """
+
+    # Configure password history policy and add a test user
+    try:
+        topology_st.standalone.config.replace_many(('passwordHistory', 'on'),
+                                                   ('passwordChange', 'on'),
+                                                   ('nsslapd-allow-hashed-passwords', 'on'))
+        log.info('Configured password policy.')
+    except ldap.LDAPError as e:
+        log.fatal('Failed to configure password policy: ' + str(e))
+        assert False
+    time.sleep(1)
+
+    # Add aci so users can change their own password
+    USER_ACI = '(targetattr="userpassword || passwordHistory")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
+    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
+
+    # Create user
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user = users.create(properties=TEST_USER_PROPERTIES)
+    user.set('userpassword', 'password')
+    user.rebind('password')
+
+    # Change user pwd to generate a history of 1 entry
+    user.replace('userpassword', 'password1')
+    user.rebind('password1')
+
+    #Create pwd hash
+    pwd_hash = password_hash('password2', scheme='PBKDF2_SHA256', bin_dir=topology_st.standalone.ds_paths.bin_dir)
+    #log.info(pwd_hash)
+
+    # Update user pwd hash
+    user.replace('userpassword', pwd_hash)
+    time.sleep(2)
+
+    # Bind with hashed password
+    user.rebind('password2')
+
+    # Check password history
+    pwds = user.get_attr_vals('passwordHistory')
+    if len(pwds) != 2:
+        log.fatal('Incorrect number of passwords stored in history: %d' %
+                  len(pwds))
+        log.error('password history: ' + str(pwds))
+        assert False
+    else:
+        log.info('Correct number of passwords found in history.')
+
+    # Done
+    log.info('Test suite PASSED.')
 
 if __name__ == '__main__':
     # Run isolated
