@@ -947,8 +947,8 @@ class SetupDs(object):
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
         ds_instance = DirSrv(self.verbose, containerised=self.containerised)
-        if self.containerised:
-            ds_instance.systemd_override = general['systemd']
+
+        ds_instance.systemd_override = general['systemd']
 
         # By default SUSE does something extremely silly - it creates a hostname
         # that CANT be resolved by DNS. As a result this causes all installs to
