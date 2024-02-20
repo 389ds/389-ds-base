@@ -1,5 +1,5 @@
 {
-  "dockerComposeFile": "compose.yaml",
-  "service": "dirsrv",
-  "workspaceFolder": "/389-ds-base"
+  "image": "quay.io/389ds/devcontainer",
+  "runArgs": ["--env-file",".devcontainer/overrides.env"],
+  "capAdd": ["SYS_PTRACE"]
 }
