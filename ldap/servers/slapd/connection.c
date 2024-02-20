@@ -1187,6 +1187,8 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     char str_ip[INET6_ADDRSTRLEN + 1] = {0};
     char str_haproxy_ip[INET6_ADDRSTRLEN + 1] = {0};
     char str_haproxy_destip[INET6_ADDRSTRLEN + 1] = {0};
+    int trusted_matches_ip_found = 0;
+    int trusted_matches_destip_found = 0;
     struct berval **bvals = NULL;
     int proxy_connection = 0;
 
@@ -1245,21 +1247,38 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         normalize_IPv4(conn->cin_addr, buf_ip, sizeof(buf_ip), str_ip, sizeof(str_ip));
                         normalize_IPv4(&pr_netaddr_dest, buf_haproxy_destip, sizeof(buf_haproxy_destip),
                                        str_haproxy_destip, sizeof(str_haproxy_destip));
+                        size_t ip_len = strlen(buf_ip);
+                        size_t destip_len = strlen(buf_haproxy_destip);
 
                         /* Now, reset RC and set it to 0 only if a match is found */
                         haproxy_rc = -1;
 
-                        /* Allow only:
-                        * Trusted IP == Original Client IP == HAProxy Header Destination IP */
+                        /* 
+                         * We need to allow a configuration where DS instance and HAProxy are on the same machine.
+                         * In this case, we need to check if
+                         * the HAProxy client IP (which will be a loopback address) matches one of the the trusted IP addresses,
+                         * while still checking that
+                         * the HAProxy header destination IP address matches one of the trusted IP addresses.
+                         * Additionally, this change will also allow configuration having
+                         * HAProxy listening on a different subnet than one used to forward the request.
+                         */
                         for (size_t i = 0; bvals[i] != NULL; ++i) {
-                            if ((strlen(bvals[i]->bv_val) == strlen(buf_ip)) &&
-                                (strlen(bvals[i]->bv_val) == strlen(buf_haproxy_destip)) &&
-                                (strncasecmp(bvals[i]->bv_val, buf_ip, strlen(buf_ip)) == 0) &&
-                                (strncasecmp(bvals[i]->bv_val, buf_haproxy_destip, strlen(buf_haproxy_destip)) == 0)) {
-                                haproxy_rc = 0;
-                                break;
+                            size_t bval_len = strlen(bvals[i]->bv_val);
+
+                            /* Check if the Client IP (HAProxy's machine IP) address matches the trusted IP address */
+                            if (!trusted_matches_ip_found) {
+                                trusted_matches_ip_found = (bval_len == ip_len) && (strncasecmp(bvals[i]->bv_val, buf_ip, ip_len) == 0);
+                            }
+                            /* Check if the HAProxy header destination IP address matches the trusted IP address */
+                            if (!trusted_matches_destip_found) {
+                                trusted_matches_destip_found = (bval_len == destip_len) && (strncasecmp(bvals[i]->bv_val, buf_haproxy_destip, destip_len) == 0);
                             }
                         }
+
+                        if (trusted_matches_ip_found && trusted_matches_destip_found) {
+                            haproxy_rc = 0;
+                        }
+
                         if (haproxy_rc == -1) {
                             slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation", "HAProxy header received from unknown source.\n");
                             disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
