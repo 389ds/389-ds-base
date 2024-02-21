@@ -14,7 +14,8 @@
 /* disconnect_error_strings.h
  *
  * Strings describing the errors used in logging the reason a connection
- * was closed.
+ * was closed. Ensure definitions are in the same order as the error codes
+ * defined in disconnect_errors.h
  */
 #ifndef __DISCONNECT_ERROR_STRINGS_H_
 #define __DISCONNECT_ERROR_STRINGS_H_
@@ -27,7 +28,6 @@ ER2(SLAPD_DISCONNECT_BER_FLUSH, "Server failed to flush response back to Client 
 ER2(SLAPD_DISCONNECT_IDLE_TIMEOUT, "Idle Timeout (nsslapd-idletimeout) - T1")
 ER2(SLAPD_DISCONNECT_REVENTS, "Poll revents - R1")
 ER2(SLAPD_DISCONNECT_IO_TIMEOUT, "IO Block Timeout (nsslapd-ioblocktimeout) - T2")
-ER2(SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT, "Paged Search Time Limit Exceeded - T3")
 ER2(SLAPD_DISCONNECT_PLUGIN, "Plugin - P1")
 ER2(SLAPD_DISCONNECT_UNBIND, "Cleanly Closed Connection - U1")
 ER2(SLAPD_DISCONNECT_POLL, "Poll - P2")
@@ -35,6 +35,6 @@ ER2(SLAPD_DISCONNECT_NTSSL_TIMEOUT, "NTSSL Timeout - T2")
 ER2(SLAPD_DISCONNECT_SASL_FAIL, "SASL Failure - S1")
 ER2(SLAPD_DISCONNECT_PROXY_INVALID_HEADER, "Invalid Proxy Header - P3")
 ER2(SLAPD_DISCONNECT_PROXY_UNKNOWN, "Unknown Proxy - P4")
-
+ER2(SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT, "Paged Search Time Limit Exceeded - T3")
 
 #endif /* __DISCONNECT_ERROR_STRINGS_H_ */
