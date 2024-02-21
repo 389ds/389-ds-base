@@ -14,7 +14,8 @@
 /* disconnect_error_strings.h
  *
  * Strings describing the errors used in logging the reason a connection
- * was closed.
+ * was closed. Ensure definitions are in the same order as the error codes
+ * defined in disconnect_errors.h
  */
 #ifndef __DISCONNECT_ERROR_STRINGS_H_
 #define __DISCONNECT_ERROR_STRINGS_H_
