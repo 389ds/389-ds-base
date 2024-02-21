@@ -14,7 +14,8 @@
 /* disconnect_error_strings.h
  *
  * Strings describing the errors used in logging the reason a connection
- * was closed.
+ * was closed. Ensure definitions are in the same order as the error codes
+ * defined in disconnect_errors.h
  */
 #ifndef __DISCONNECT_ERROR_STRINGS_H_
 #define __DISCONNECT_ERROR_STRINGS_H_
@@ -33,6 +34,6 @@ ER2(SLAPD_DISCONNECT_UNBIND, "U1")
 ER2(SLAPD_DISCONNECT_POLL, "P2")
 ER2(SLAPD_DISCONNECT_NTSSL_TIMEOUT, "T2")
 ER2(SLAPD_DISCONNECT_SASL_FAIL, "S1")
-
+ER2(SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT, "T3")
 
 #endif /* __DISCONNECT_ERROR_STRINGS_H_ */
