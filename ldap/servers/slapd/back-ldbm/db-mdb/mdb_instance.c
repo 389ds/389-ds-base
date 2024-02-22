@@ -365,6 +365,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     MDB_val key = {0};
     char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, BE_CHANGELOG_FILE, NULL };
     dbmdb_dbi_t *sn_dbis[(sizeof special_names) / sizeof special_names[0]] = {0};
+    ldbm_instance *inst = NULL;
     int *valid_slots = NULL;
     errinfo_t errinfo = {0};
     int ctxflags;
@@ -376,6 +377,17 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         ctx = MDB_CONFIG(li);
     }
     ctxflags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
+    if (be) {
+        inst = (ldbm_instance *)be->be_instance_info;
+        /*
+         * Must ensure that vlv search list are initialized
+         * before calling vlv_getindices.
+         * and vlv_init must not be called while dbis_lock is held.
+         */
+        if (be->vlvSearchList_lock == NULL) {
+            vlv_init(inst);
+        }
+    }
 
     /* Note: ctx->dbis_lock mutex must always be hold after getting the txn
      *  because txn is held very early (within backend code) in add operation

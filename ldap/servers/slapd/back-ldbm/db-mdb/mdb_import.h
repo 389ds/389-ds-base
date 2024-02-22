@@ -144,6 +144,7 @@ struct importctx {
     ImportWorkerInfo writer;
     ImportWorkerGlobalContext_t wgc;
     char **indexAttrs;  /* reindex index to rebuild */
+    char **indexVlvs;  /* reindex vlv index to rebuild */
     ID idsuffix;
     ID idruv;
     int dupdn;
@@ -177,3 +178,5 @@ void dbmdb_free_worker_slot(struct importqueue *q, void *slot);
 int dbmdb_import_init_writer(ImportJob *job, ImportRole_t role);
 void dbmdb_free_import_ctx(ImportJob *job);
 void dbmdb_build_import_index_list(ImportCtx_t *ctx);
+
+int is_reindexed_attr(const char *attrname, const ImportCtx_t *ctx, char **list);
