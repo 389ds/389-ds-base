@@ -242,11 +242,7 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
     dbmdb_delete_instance_dir(inst->inst_be);
     /* it's okay to fail -- the directory might have already been deleted */
 
-    /* vlv_init should be called before dbmdb_instance_start
-     * so the vlv dbi get created
-     */
-    vlv_init(inst);
-    /* dbmdb_instance_start will init the id2entry index. */
+    /* dbmdb_instance_start will init the id2entry index and the vlv search list. */
     /* it also (finally) fills in inst_dir_name */
     ret = dbmdb_instance_start(inst->inst_be, DBLAYER_IMPORT_MODE);
     if (ret != 0) {
@@ -1259,11 +1255,7 @@ dbmdb_db2index(Slapi_PBlock *pb)
             return -1;
         }
 
-        /* vlv_init should be called before dbmdb_instance_start
-         * so the vlv dbi get created by dbmdb_instance_start
-         */
-        vlv_init(inst);
-        /* dblayer_instance_start will init the id2entry index. */
+        /* dblayer_instance_start will init the id2entry index and the vlv search list. */
         if (0 != dblayer_instance_start(be, DBLAYER_INDEX_MODE)) {
             slapi_task_log_notice(task, "Failed to start instance: %s", instance_name);
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2index", "db2ldif: Failed to start instance\n");
@@ -1834,14 +1826,7 @@ dbmdb_upgradednformat(Slapi_PBlock *pb)
         }
     }
 
-    if (run_from_cmdline) {
-        /* vlv_init should be called before dbmdb_instance_start
-         * so the vlv dbi get created
-         */
-        vlv_init(inst);
-    }
-
-    /* dbmdb_instance_start will init the id2entry index. */
+    /* dbmdb_instance_start will init the id2entry index and the vlv search list. */
     be = inst->inst_be;
     if (0 != dbmdb_instance_start(be, DBLAYER_IMPORT_MODE)) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradednformat",

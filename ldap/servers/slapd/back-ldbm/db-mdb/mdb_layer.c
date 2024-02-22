@@ -2110,7 +2110,7 @@ void *dbmdb_recno_cache_build(void *arg)
         }
     }
     while (rc == 0) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_recno_cache_build", "recno=%d\n", recno);
+        slapi_log_err(SLAPI_LOG_DEBUG, "dbmdb_recno_cache_build", "recno=%d\n", recno);
         if (recno % RECNO_CACHE_INTERVAL != 1) {
             recno++;
             rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_NEXT);
