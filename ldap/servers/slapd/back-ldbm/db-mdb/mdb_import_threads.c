@@ -914,7 +914,7 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
         size_t dnlen = 0;
         if (param->flags & EIP_RDN) {
             /* In reindex case, dn must be rebuilt to be able to scope properly the vlv index */
-            dnlen = rdnlen + 1 + pinfo[4];  /* dn len (including final \0) */
+            dnlen = rdnlen + 1 + pinfo[INFO_IDX_DN_LEN];  /* dn len (including final \0) */
         }
 
         len = rdnlen + strlen(nrdn) + 2 + dnlen + (INFO_IDX_ANCESTORS + 1 + pinfo[INFO_IDX_NB_ANCESTORS]) * sizeof(ID);
