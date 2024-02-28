@@ -2292,6 +2292,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_PW_SEND_EXPIRING "passwordSendExpiringTime"
 #define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
 #define CONFIG_SECURITYLOG_BUFFERING_ATTRIBUTE "nsslapd-securitylog-logbuffering"
+#define CONFIG_AUDITLOG_BUFFERING_ATTRIBUTE "nsslapd-auditlog-logbuffering"
 #define CONFIG_CSNLOGGING_ATTRIBUTE "nsslapd-csnlogging"
 #define CONFIG_RETURN_EXACT_CASE_ATTRIBUTE "nsslapd-return-exact-case"
 #define CONFIG_RESULT_TWEAK_ATTRIBUTE "nsslapd-result-tweak"
@@ -2574,6 +2575,7 @@ typedef struct _slapdFrontendConfig
     int auditlog_exptime;
     char *auditlog_exptimeunit;
     slapi_onoff_t auditlog_logging_hide_unhashed_pw;
+    slapi_onoff_t auditlogbuffering;
     slapi_onoff_t auditlog_compress;
 
     /* AUDIT FAIL LOG */

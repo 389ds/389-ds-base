@@ -519,7 +519,7 @@ def test_healthcheck_unauth_binds(topology_st):
     inst.config.set("nsslapd-allow-unauthenticated-binds", "off")
 
 def test_healthcheck_accesslog_buffering(topology_st):
-    """Check if HealthCheck returns DSCLE0004 code when acccess log biffering
+    """Check if HealthCheck returns DSCLE0004 code when acccess log buffering
     is disabled
 
     :id: 5a6512fd-1c7b-4557-9278-45150423148b
@@ -549,6 +549,73 @@ def test_healthcheck_accesslog_buffering(topology_st):
     # reset setting
     log.info('Reset nsslapd-accesslog-logbuffering to on')
     inst.config.set("nsslapd-accesslog-logbuffering", "on")
+
+def test_healthcheck_securitylog_buffering(topology_st):
+    """Check if HealthCheck returns DSCLE0005 code when security log buffering
+    is disabled
+
+    :id: 9b84287a-e022-4bdc-8c65-2276b37371b5
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-securitylog-logbuffering to off
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports DSCLE0005
+        4. Healthcheck reports DSCLE0005
+    """
+
+    RET_CODE = 'DSCLE0005'
+
+    inst = topology_st.standalone
+
+    log.info('nsslapd-securitylog-logbuffering to off')
+    inst.config.set("nsslapd-securitylog-logbuffering", "off")
+
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+
+    # reset setting
+    log.info('Reset nnsslapd-securitylog-logbuffering to on')
+    inst.config.set("nsslapd-securitylog-logbuffering", "on")
+
+def test_healthcheck_auditlog_buffering(topology_st):
+    """Check if HealthCheck returns DSCLE0006 code when audit log buffering
+    is disabled
+
+    :id: f030c9f3-0ce7-4156-ba70-81ef3ac82867
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-auditlog-logbuffering to off
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports DSCLE0006
+        4. Healthcheck reports DSCLE0006
+    """
+
+    RET_CODE = 'DSCLE0006'
+
+    inst = topology_st.standalone
+    enabled = inst.config.get_attr_val_utf8('nsslapd-auditlog-logging-enabled')
+
+    log.info('nsslapd-auditlog-logbuffering to off')
+    inst.config.set('nsslapd-auditlog-logging-enabled', 'on')
+    inst.config.set('nsslapd-auditlog-logbuffering', 'off')
+
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+
+    # reset setting
+    log.info('Reset nnsslapd-auditlog-logbuffering to on')
+    inst.config.set('nsslapd-auditlog-logbuffering', 'on')
+    inst.config.set('nsslapd-auditlog-logging-enabled', enabled)
 
 
 if __name__ == '__main__':

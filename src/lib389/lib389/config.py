@@ -23,7 +23,7 @@ from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
 from lib389.lint import (
-    DSCLE0001, DSCLE0002, DSCLE0003, DSCLE0004, DSELE0001
+    DSCLE0001, DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSELE0001
 )
 
 class Config(DSLdapObject):
@@ -248,6 +248,26 @@ class Config(DSLdapObject):
             report = copy.deepcopy(DSCLE0004)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             report['check'] = "config:accesslogbuffering"
+            yield report
+
+    def _lint_auditlog_buffering(self):
+        # audit log buffering
+        enabled = self.get_attr_val_utf8_l('nsslapd-auditlog-logging-enabled')
+        buffering = self.get_attr_val_utf8_l('nsslapd-auditlog-logbuffering')
+        if enabled == "on" and buffering == "off":
+            report = copy.deepcopy(DSCLE0006)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "config:auditlogbuffering"
+            yield report
+
+    def _lint_securitylog_buffering(self):
+        # security log buffering
+        enabled = self.get_attr_val_utf8_l('nsslapd-securitylog-logging-enabled')
+        buffering = self.get_attr_val_utf8_l('nsslapd-securitylog-logbuffering')
+        if enabled == "on" and buffering == "off":
+            report = copy.deepcopy(DSCLE0005)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "config:securitylogbuffering"
             yield report
 
     def disable_plaintext_port(self):

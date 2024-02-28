@@ -92,6 +92,7 @@ def _create_instances(topo_dict, suffix):
             instance.use_ldap_uri()
             instance.open()
             instance.config.set('nsslapd-accesslog-logbuffering','off')
+            instance.config.set('nsslapd-auditlog-logbuffering','off')
             if role == ReplicaRole.STANDALONE:
                 ins[instance.serverid] = instance
                 instances.update(ins)
