@@ -192,6 +192,7 @@ slapi_onoff_t init_securitylogbuffering;
 slapi_onoff_t init_external_libs_debug_enabled;
 slapi_onoff_t init_errorlog_logging_enabled;
 slapi_onoff_t init_auditlog_logging_enabled;
+slapi_onoff_t init_auditlogbuffering;
 slapi_onoff_t init_auditlog_logging_hide_unhashed_pw;
 slapi_onoff_t init_auditfaillog_logging_enabled;
 slapi_onoff_t init_auditfaillog_logging_hide_unhashed_pw;
@@ -831,6 +832,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslogbuffering,
      CONFIG_ON_OFF, NULL, &init_accesslogbuffering, NULL},
+    {CONFIG_AUDITLOG_BUFFERING_ATTRIBUTE, config_set_auditlogbuffering,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.auditlogbuffering,
+     CONFIG_ON_OFF, NULL, &init_auditlogbuffering, NULL},
     {CONFIG_SECURITYLOG_BUFFERING_ATTRIBUTE, config_set_securitylogbuffering,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securitylogbuffering,
@@ -1917,6 +1922,7 @@ FrontendConfig_init(void)
     cfg->auditlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     init_auditlog_logging_hide_unhashed_pw =
         cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
+    init_auditlogbuffering = cfg->auditlogbuffering = LDAP_ON;
     init_auditlog_compress_enabled = cfg->auditlog_compress = LDAP_OFF;
 
     init_auditfaillog_logging_enabled = cfg->auditfaillog_logging_enabled = LDAP_OFF;
@@ -7690,6 +7696,21 @@ config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf,
     retVal = config_set_onoff(attrname,
                               value,
                               &(slapdFrontendConfig->accesslogbuffering),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_auditlogbuffering(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->auditlogbuffering),
                               errorbuf,
                               apply);
 

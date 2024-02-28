@@ -383,6 +383,7 @@ int config_set_minssf(const char *attrname, char *value, char *errorbuf, int app
 int config_set_minssf_exclude_rootdse(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_validate_cert_switch(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_securitylogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply);

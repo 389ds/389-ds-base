@@ -43,6 +43,7 @@ export class Server extends React.Component {
             node_name: "settings-config",
             node_text: "",
             attrs: [],
+            displayAttrs: [],
             loaded: false,
             disableTree: false,
             activeItems: [
@@ -55,6 +56,7 @@ export class Server extends React.Component {
         };
 
         this.loadTree = this.loadTree.bind(this);
+        this.getAttributes = this.getAttributes.bind(this);
         this.reloadConfig = this.reloadConfig.bind(this);
         this.enableTree = this.enableTree.bind(this);
         this.handleTreeClick = this.handleTreeClick.bind(this);
@@ -72,6 +74,30 @@ export class Server extends React.Component {
         this.setState({
             disableTree: false
         });
+    }
+
+    getAttributes() {
+        const attr_cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "list"
+        ];
+        log_cmd("getAttributes", "Get attributes for audit log display attributes", attr_cmd);
+        cockpit
+                .spawn(attr_cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const attrContent = JSON.parse(content);
+                    const attrs = [];
+                    for (const content of attrContent.items) {
+                        attrs.push(content.name[0]);
+                    }
+                    this.setState({
+                        displayAttrs: attrs,
+                    });
+                });
     }
 
     loadConfig() {
@@ -198,7 +224,7 @@ export class Server extends React.Component {
         this.setState({
             nodes: basicData,
             node_name: this.state.node_name
-        });
+        }, this.getAttributes());
     }
 
     handleTreeClick(evt, treeViewItem, parentItem) {
@@ -290,6 +316,7 @@ export class Server extends React.Component {
                     <ServerAuditLog
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
+                        displayAttrs={this.state.displayAttrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
                     />
