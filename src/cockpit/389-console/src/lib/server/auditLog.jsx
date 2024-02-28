@@ -35,6 +35,7 @@ import PropTypes from "prop-types";
 const settings_attrs = [
     'nsslapd-auditlog',
     'nsslapd-auditlog-logging-enabled',
+    'nsslapd-auditlog-logbuffering',
 ];
 
 const rotation_attrs = [
@@ -79,7 +80,7 @@ export class ServerAuditLog extends React.Component {
             attrs: this.props.attrs,
             displayAttrs: [],
             isDisplayAttrOpen: false,
-            attributes: [],
+            attributes: this.props.displayAttrs,
             displayAllAttrs: false,
         };
 
@@ -152,34 +153,10 @@ export class ServerAuditLog extends React.Component {
     componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
-            this.getAttributes();
+            this.loadConfig();
         } else {
             this.props.enableTree();
         }
-    }
-
-    getAttributes() {
-        const attr_cmd = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "attributetypes",
-            "list"
-        ];
-        log_cmd("getAttributes", "Get attributes for audit log display attributes", attr_cmd);
-        cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const attrContent = JSON.parse(content);
-                    const attrs = [];
-                    for (const content of attrContent.items) {
-                        attrs.push(content.name[0]);
-                    }
-                    this.setState({
-                        attributes: attrs,
-                    }, () => { this.loadConfig() });
-                });
     }
 
     validateSaveBtn(nav_tab, attr, value) {
@@ -365,6 +342,7 @@ export class ServerAuditLog extends React.Component {
                     const attrs = config.attrs;
                     let enabled = false;
                     let compressed = false;
+                    let buffering = false;
                     let display_attrs = [];
                     let displayAllAttrs = this.state.displayAllAttrs;
 
@@ -373,6 +351,9 @@ export class ServerAuditLog extends React.Component {
                     }
                     if (attrs['nsslapd-auditlog-compress'][0] === "on") {
                         compressed = true;
+                    }
+                    if (attrs['nsslapd-auditlog-logbuffering'][0] === "on") {
+                        buffering = true;
                     }
                     if ('nsslapd-auditlog-display-attrs' in attrs) {
                         if (attrs['nsslapd-auditlog-display-attrs'][0] === "*") {
@@ -403,6 +384,7 @@ export class ServerAuditLog extends React.Component {
                         'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
                         'nsslapd-auditlog-compress': compressed,
+                        'nsslapd-auditlog-logbuffering': buffering,
                         displayAttrs: display_attrs,
                         displayAllAttrs,
                         // Record original values
@@ -420,6 +402,7 @@ export class ServerAuditLog extends React.Component {
                         '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
                         '_nsslapd-auditlog-compress': compressed,
+                        '_nsslapd-auditlog-logbuffering': buffering,
                         _displayAttrs: display_attrs,
                         _displayAllAttrs: displayAllAttrs,
                     });
@@ -441,6 +424,7 @@ export class ServerAuditLog extends React.Component {
         const attrs = this.state.attrs;
         let enabled = false;
         let compressed = false;
+        let buffering = false;
         let display_attrs = [];
         let displayAllAttrs = this.state.displayAllAttrs;
 
@@ -449,6 +433,9 @@ export class ServerAuditLog extends React.Component {
         }
         if (attrs['nsslapd-auditlog-compress'][0] === "on") {
             compressed = true;
+        }
+        if (attrs['nsslapd-auditlog-logbuffering'][0] === "on") {
+            buffering = true;
         }
 
         if ('nsslapd-auditlog-display-attrs' in attrs) {
@@ -479,6 +466,7 @@ export class ServerAuditLog extends React.Component {
             'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
             'nsslapd-auditlog-compress': compressed,
+            'nsslapd-auditlog-logbuffering': buffering,
             displayAttrs: display_attrs,
             displayAllAttrs,
             // Record original values,
@@ -496,6 +484,7 @@ export class ServerAuditLog extends React.Component {
             '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
             '_nsslapd-auditlog-compress': compressed,
+            '_nsslapd-auditlog-logbuffering': buffering,
             _displayAttrs: display_attrs,
             _displayAllAttrs: displayAllAttrs,
         }, this.props.enableTree);
@@ -540,7 +529,7 @@ export class ServerAuditLog extends React.Component {
                             title={_("Enable audit logging (nsslapd-auditlog-logging-enabled).")}
                             label={_("Enable Audit Logging")}
                         />
-                        <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
                                 label={_("Audit Log Location")}
                                 fieldId="nsslapd-auditlog"
@@ -558,7 +547,17 @@ export class ServerAuditLog extends React.Component {
                                 />
                             </FormGroup>
                         </Form>
-                        <Form className="ds-margin-top-lg ds-margin-left" isHorizontal autoComplete="off">
+                        <Checkbox
+                            className="ds-left-margin-md ds-margin-top-lg"
+                            id="nsslapd-auditlog-logbuffering"
+                            isChecked={this.state['nsslapd-auditlog-logbuffering']}
+                            onChange={(checked, e) => {
+                                this.handleChange(e, "settings");
+                            }}
+                            title={_("This applies to both the audit & auditfail logs.  Disable audit log buffering for faster troubleshooting, but this will impact server performance (nsslapd-auditlog-logbuffering).")}
+                            label={_("Audit Log Buffering Enabled")}
+                        />
+                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
                                 label={_("Display Attributes")}
                                 fieldId="nsslapd-auditlog-display-attrs"
@@ -886,9 +885,11 @@ ServerAuditLog.propTypes = {
     addNotification: PropTypes.func,
     serverId: PropTypes.string,
     attrs: PropTypes.object,
+    displayAttrs: PropTypes.array,
 };
 
 ServerAuditLog.defaultProps = {
     serverId: "",
     attrs: {},
+    displayAttrs: [],
 };
