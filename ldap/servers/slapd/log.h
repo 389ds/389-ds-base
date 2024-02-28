@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2022 Red Hat, Inc.
+ * Copyright (C) 2022-2024 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -210,6 +210,7 @@ struct logging_opts
     char *log_auditinfo_file;           /* audit log rotation info file */
     Slapi_RWLock *log_audit_rwlock;     /* lock on audit*/
     int log_audit_compress;             /* Compress rotated logs */
+    LogBufferInfo *log_audit_buffer;    /* buffer for access log */
 
     /* These are auditfail log specific */
     int log_auditfail_state;
@@ -236,6 +237,7 @@ struct logging_opts
     char *log_auditfailinfo_file;           /* auditfail log rotation info file */
     Slapi_RWLock *log_auditfail_rwlock;     /* lock on auditfail */
     int log_auditfail_compress;             /* Compress rotated logs */
+    LogBufferInfo *log_auditfail_buffer;    /* buffer for access log */
 
     int log_backend;
 };

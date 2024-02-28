@@ -155,6 +155,22 @@ You can use 'dsconf' to set this attribute.  Here is an example:
 """
 }
 
+DSCLE0006 = {
+    'dsle': 'DSCLE0006',
+    'severity': 'LOW',
+    'description': 'Audit Log buffering disabled',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-auditlog-logbuffering is set to 'off' this will cause high
+disk IO and it will impact server performance.  This should only be used
+for debug purposes
+""",
+    'fix': """Set nsslapd-auditlog-logbuffering to 'on'.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-auditlog-logbuffering=on
+"""
+}
+
 # Security checks
 DSELE0001 = {
     'dsle': 'DSELE0001',
