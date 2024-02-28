@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2005-2024 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -173,7 +173,6 @@ struct logging_opts
     int log_audit_exptime;              /* time */
     int log_audit_exptimeunit;          /* unit time */
     int log_audit_exptime_secs;         /* time in secs */
-
     char *log_audit_file;              /* aufit log name */
     LOGFD log_audit_fdes;              /* audit log  fdes */
     unsigned int log_numof_audit_logs; /* number of logs */
@@ -181,6 +180,7 @@ struct logging_opts
     LogFileInfo *log_audit_logchain;   /* all the logs info */
     char *log_auditinfo_file;          /* audit log rotation info file */
     Slapi_RWLock *log_audit_rwlock;    /* lock on audit*/
+    LogBufferInfo *log_audit_buffer;    /* buffer for access log */
 
     /* These are auditfail log specific */
     int log_auditfail_state;
@@ -199,7 +199,6 @@ struct logging_opts
     int log_auditfail_exptime;              /* time */
     int log_auditfail_exptimeunit;          /* unit time */
     int log_auditfail_exptime_secs;         /* time in secs */
-
     char *log_auditfail_file;              /* auditfail log name */
     LOGFD log_auditfail_fdes;              /* auditfail log  fdes */
     unsigned int log_numof_auditfail_logs; /* number of logs */
@@ -207,6 +206,7 @@ struct logging_opts
     LogFileInfo *log_auditfail_logchain;   /* all the logs info */
     char *log_auditfailinfo_file;          /* auditfail log rotation info file */
     Slapi_RWLock *log_auditfail_rwlock;    /* lock on auditfail */
+    LogBufferInfo *log_auditfail_buffer;    /* buffer for access log */
     int log_backend;
 };
 
