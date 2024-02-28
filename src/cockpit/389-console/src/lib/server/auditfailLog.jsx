@@ -30,8 +30,6 @@ import PropTypes from "prop-types";
 
 const settings_attrs = [
     'nsslapd-auditfaillog',
-    'nsslapd-auditfaillog-level',
-    'nsslapd-auditfaillog-logbuffering',
     'nsslapd-auditfaillog-logging-enabled',
 ];
 
