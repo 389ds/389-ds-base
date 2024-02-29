@@ -490,7 +490,7 @@ class AccountPolicy extends React.Component {
                     console.info("accountPolicyOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("Config entry $0 was successfully $1ed"), configDN, action)
+                        cockpit.format(_("Config entry $0 was successfully $1"), configDN, action === "add" ? "added" : "set")
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
