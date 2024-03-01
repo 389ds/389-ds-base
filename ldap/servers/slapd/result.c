@@ -1944,10 +1944,10 @@ static struct slapi_note_map notemap[] = {
     {SLAPI_OP_NOTE_SIMPLEPAGED, "P", "Paged Search"},
     {SLAPI_OP_NOTE_FULL_UNINDEXED, "A", "Fully Unindexed Filter"},
     {SLAPI_OP_NOTE_FILTER_INVALID, "F", "Filter Element Missing From Schema"},
+    {SLAPI_OP_NOTE_MFA_AUTH, "M", "Multi-factor Authentication"},
 };
 
 #define SLAPI_NOTEMAP_COUNT (sizeof(notemap) / sizeof(struct slapi_note_map))
-
 
 /*
  * fill buf with a string representation of the bits present in notes.
