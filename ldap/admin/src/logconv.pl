@@ -2,11 +2,11 @@
 #
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2010-2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # END COPYRIGHT BLOCK
 #
 
@@ -218,6 +218,7 @@ my $sslClientFailedCount = 0;
 my $objectclassTopCount= 0;
 my $pagedSearchCount = 0;
 my $invalidFilterCount = 0;
+my $mfaCount = 0;
 my $bindCount = 0;
 my $filterCount = 0;
 my $baseCount = 0;
@@ -408,7 +409,7 @@ sub statusreport {
 ##########################################
 #                                        #
 #         Parse Access Logs              #
-#                                        # 
+#                                        #
 ##########################################
 
 if ($files[$#files] =~ m/access.rotationinfo/) {
@@ -710,7 +711,7 @@ if($endTime){
 
 #
 # Get the start time in seconds
-#  
+#
 my $logStart = $start;
 my $startTotal = convertTimeToNanoseconds($logStart);
 
@@ -891,6 +892,7 @@ $etimeAvg = $totalEtime / $etimeCount;
 print sprintf "Average etime (elapsed time):  %.9f\n", $etimeAvg;
 
 print "\n";
+print "Multi-factor Authentications:  $mfaCount\n";
 print "Proxied Auth Operations:       $proxiedAuthCount\n";
 print "Persistent Searches:           $persistentSrchCount\n";
 print "Internal Operations:           $internalOpCount\n";
@@ -1763,7 +1765,7 @@ if ($usage =~ /j/i || $verb eq "yes"){
 		$recCount++;
 	}
 	if ($objectclassTopCount > ($srchCount *.25)){
-		print "\n $recCount.  You have a high number of searches that query the entire search base.  Although this is not necessarily bad, it could be resource intensive if the search base contains many entries.\n"; 
+		print "\n $recCount.  You have a high number of searches that query the entire search base.  Although this is not necessarily bad, it could be resource intensive if the search base contains many entries.\n";
 		$recCount++;
 	}
 	if ($recCount == 1){
@@ -1797,7 +1799,7 @@ sub displayUsage {
 
 	print "         -h, --help         help/usage\n";
 	print "         -d, --rootDN       <Directory Managers DN>  default is \"cn=directory manager\"\n";
-	print "         -D, --data         <Location for temporary data files>  default is \"/tmp\"\n";    
+	print "         -D, --data         <Location for temporary data files>  default is \"/tmp\"\n";
 	print "         -s, --sizeLimit    <Number of results to return per catagory>  default is 20\n";
 	print "         -X, --excludeIP    <IP address to exclude from connection stats>  E.g. Load balancers\n";
 	print "         -v, --version      show version of tool\n";
@@ -1805,8 +1807,8 @@ sub displayUsage {
 	print "             E.g. \"[28/Mar/2002:13:14:22 -0800]\"\n";
 	print "         -E, --endTime      <time to stop analyzing logfile>\n";
 	print "             E.g. \"[28/Mar/2002:13:24:62 -0800]\"\n";
-	print "         -m, --reportFileSecs  <CSV output file - per second stats>\n"; 
-	print "         -M, --reportFileMins  <CSV output file - per minute stats>\n";	
+	print "         -m, --reportFileSecs  <CSV output file - per second stats>\n";
+	print "         -M, --reportFileMins  <CSV output file - per minute stats>\n";
 	print "         -B, --bind         <ALL | ANONYMOUS | \"Actual Bind DN\">\n";
 	print "	        -T, --minEtime     <minimum etime to report unindexed searches>\n";
 	print "         -V, --verbose      <enable verbose output - includes all stats listed below>\n";
@@ -2293,6 +2295,9 @@ sub parseLineNormal
 	if (m/ RESULT err=/ && m/ notes=[A-Z,]*P/){
 		$pagedSearchCount++;
 	}
+	if (m/ RESULT err=/ && m/ notes=[A-Z,]*M/){
+		$mfaCount++;
+	}
 	if (m/ RESULT err=/ && m/ notes=[A-Z,]*F/){
 		$invalidFilterCount++;
 		$con = "";
@@ -2323,7 +2328,7 @@ sub parseLineNormal
 			if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesACount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
-			#  We don't want to record vlv unindexed searches for our regular "bad" 
+			#  We don't want to record vlv unindexed searches for our regular "bad"
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
 			$unindexedSrchCountNotesA++;
 			if($reportStats){ inc_stats('notesA',$s_stats,$m_stats); }
@@ -2350,7 +2355,7 @@ sub parseLineNormal
 			if ($vlvconn[$i] eq $con && $vlvop[$i] eq $op){ $vlvNotesUCount++; $isVlvNotes="1";}
 		}
 		if($isVlvNotes == 0){
-			#  We don't want to record vlv unindexed searches for our regular "bad" 
+			#  We don't want to record vlv unindexed searches for our regular "bad"
 			#  unindexed search stat, as VLV unindexed searches aren't that bad
 			$unindexedSrchCountNotesU++;
 			if($reportStats){ inc_stats('notesU',$s_stats,$m_stats); }
@@ -2608,7 +2613,7 @@ sub parseLineNormal
 		if ($errcode ne "0"){ $errorCount++;}
 		else { $successCount++;}
 	}
-	if ($_ =~ /etime= *([0-9.]+)/ ) { 
+	if ($_ =~ /etime= *([0-9.]+)/ ) {
 		my $etime_val = $1;
 		$totalEtime = $totalEtime + $1;
 		$etimeCount++;
@@ -2630,10 +2635,10 @@ sub parseLineNormal
 		if ($reportStats){ inc_stats_val('optime',$optime_val,$s_stats,$m_stats); }
 	}
 	if ($_ =~ / tag=101 / || $_ =~ / tag=111 / || $_ =~ / tag=100 / || $_ =~ / tag=115 /){
-		if ($_ =~ / nentries= *([0-9]+)/i ){ 
+		if ($_ =~ / nentries= *([0-9]+)/i ){
 			my $nents = $1;
-			if ($usage =~ /n/i || $verb eq "yes"){ 
-				$hashes->{nentries}->{$nents}++; 
+			if ($usage =~ /n/i || $verb eq "yes"){
+				$hashes->{nentries}->{$nents}++;
 			}
 		}
 	}
@@ -2643,7 +2648,7 @@ sub parseLineNormal
 	if (m/ EXT oid=/){
 		$extopCount++;
 		my $oid;
-		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ 
+		if ($_ =~ /oid=\" *([0-9\.]+)/i ){
 			$oid = $1;
 			if ($usage =~ /x/i || $verb eq "yes"){$hashes->{oid}->{$oid}++; }
 		}
@@ -2943,7 +2948,7 @@ printClients
 	my $IPcount = "1";
 
 	foreach my $ip ( keys %connList ){   # Loop over all the IP addresses
-		foreach my $bc (@bindConns){ # Loop over each bind conn number and compare it 
+		foreach my $bc (@bindConns){ # Loop over each bind conn number and compare it
 			if($connList{$ip} =~ / $bc /){
 				print("        [$IPcount]  $ip\n");
 				$IPcount++;
