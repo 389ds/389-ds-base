@@ -3949,6 +3949,7 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
     int isroot = 0;
     int rc = 0;
     uint64_t conn_id = 0;
+    uint32_t operation_notes = 0;
     int32_t op_id = 0;
     json_object *log_json = NULL;
 
@@ -3973,6 +3974,8 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
     client_ip = pb_conn->c_ipaddr;
     server_ip = pb_conn->c_serveripaddr;
     ldap_version = pb_conn->c_ldapversion;
+    operation_notes = slapi_pblock_get_operation_notes(pb);
+
     if (saslmech) {
         external_bind = !strcasecmp(saslmech, LDAP_SASL_EXTERNAL);
     }
@@ -4039,7 +4042,8 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
         break;
     default:
         /* Simple auth */
-        PR_snprintf(method_and_mech, sizeof(method_and_mech), "SIMPLE");
+        PR_snprintf(method_and_mech, sizeof(method_and_mech), "%s",
+                    (operation_notes & SLAPI_OP_NOTE_MFA_AUTH) ? "SIMPLE/MFA" : "SIMPLE");
     }
 
     /* Get the time */
