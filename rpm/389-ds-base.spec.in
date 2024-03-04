@@ -73,6 +73,7 @@ Provides:         ldif2ldbm
 # Attach the buildrequires to the top level package:
 BuildRequires:    nspr-devel
 BuildRequires:    nss-devel >= 3.34
+BuildRequires:    openldap-clients
 BuildRequires:    openldap-devel
 BuildRequires:    libdb-devel
 BuildRequires:    cyrus-sasl-devel
