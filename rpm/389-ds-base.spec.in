@@ -176,6 +176,7 @@ Provides:  bundled(crate(zeroize_derive)) = 1.3.3
 # Attach the buildrequires to the top level package:
 BuildRequires:    nspr-devel
 BuildRequires:    nss-devel >= 3.34
+BuildRequires:    openldap-clients
 BuildRequires:    openldap-devel
 BuildRequires:    lmdb-devel
 BuildRequires:    cyrus-sasl-devel
