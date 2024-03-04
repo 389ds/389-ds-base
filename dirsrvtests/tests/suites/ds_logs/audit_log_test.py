@@ -178,6 +178,43 @@ def test_auditlog_buffering(topo, request):
     request.addfinalizer(fin)
 
 
+def test_auditlog_client_info(topo, request):
+    """Test that client information is written to audit log
+
+    :id: 9c928deb-3e1a-40b1-a2b0-4d5b5b20b063
+    :setup: Standalone Instance
+    :steps:
+        1. Set buffering off
+        2. Do an update
+        3. Check for IP address in the audit event
+        4. Check for conn id in the audit event
+        5. Check for op id in the audit event
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topo.standalone
+    inst.config.replace('nsslapd-auditlog-logging-enabled', 'on')
+    inst.config.replace('nsslapd-auditlog-logbuffering', 'off')
+    inst.deleteAuditLogs()  # Start with fresh set of logs
+
+    original_value = inst.config.get_attr_val_utf8('nsslapd-timelimit')
+    time.sleep(1)
+
+    assert inst.ds_audit_log.match("^##ip=")
+    assert inst.ds_audit_log.match("^##conn=[0-9]")
+    assert inst.ds_audit_log.match("^##op=[0-9]")
+
+    # Reset timelimit just to be safe
+    def fin():
+        inst.config.replace('nsslapd-timelimit', original_value)
+    request.addfinalizer(fin)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

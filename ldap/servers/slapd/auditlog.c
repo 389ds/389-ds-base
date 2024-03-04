@@ -33,7 +33,7 @@ static int audit_hide_unhashed_pw = 1;
 static int auditfail_hide_unhashed_pw = 1;
 
 /* Forward Declarations */
-static void write_audit_file(Slapi_Entry *entry, int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc, int sourcelog);
+static void write_audit_file(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc, int sourcelog);
 
 static const char *modrdn_changes[4];
 
@@ -99,7 +99,7 @@ write_audit_log_entry(Slapi_PBlock *pb)
     curtime = slapi_current_utc_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
-    write_audit_file(entry, SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS, SLAPD_AUDIT_LOG);
+    write_audit_file(pb, entry, SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS, SLAPD_AUDIT_LOG);
 }
 
 void
@@ -168,10 +168,10 @@ write_auditfail_log_entry(Slapi_PBlock *pb)
     audit_config = config_get_auditlog();
     if (auditfail_config == NULL || strlen(auditfail_config) == 0 || PL_strcasecmp(auditfail_config, audit_config) == 0) {
         /* If no auditfail log or "auditfaillog" == "auditlog", write to audit log */
-        write_audit_file(NULL, SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
+        write_audit_file(pb, NULL, SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     } else {
         /* If we have our own auditfail log path */
-        write_audit_file(NULL, SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
+        write_audit_file(pb, NULL, SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     }
     slapi_ch_free_string(&auditfail_config);
     slapi_ch_free_string(&audit_config);
@@ -278,6 +278,33 @@ add_entry_attrs(Slapi_Entry *entry, lenstr *l)
 }
 
 /*
+ * Log client information to the audit log as comments.  Use "##" to
+ * distinguish the client info from the entry display attributes.
+ */
+static void
+log_client_info(Slapi_PBlock *pb, lenstr *l)
+{
+    Connection *conn = NULL;
+    Operation *op = NULL;
+    char log_val[32] = {0};
+
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+
+    /* client IP */
+    sprintf(log_val, "##ip=%s\n", conn ? conn->c_ipaddr : "internal");
+    addlenstr(l, log_val);
+
+    /* conn id */
+    sprintf(log_val, "##conn=%lu\n", conn ? conn->c_connid : 0);
+    addlenstr(l, log_val);
+
+    /* op id */
+    sprintf(log_val, "##op=%d\n", op->o_opid);
+    addlenstr(l, log_val);
+}
+
+/*
  * Function: write_audit_file
  * Arguments:
  *            logtype - Destination where the message will go.
@@ -293,6 +320,7 @@ add_entry_attrs(Slapi_Entry *entry, lenstr *l)
  */
 static void
 write_audit_file(
+    Slapi_PBlock *pb,
     Slapi_Entry *entry,
     int logtype,
     int optype,
@@ -321,6 +349,9 @@ write_audit_file(
     addlenstr(l, "dn: ");
     addlenstr(l, dn);
     addlenstr(l, "\n");
+
+    /* Write the client info to the event */
+    log_client_info(pb, l);
 
     /* Display requested attributes from the entry */
     add_entry_attrs(entry, l);
