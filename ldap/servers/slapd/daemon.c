@@ -1161,7 +1161,7 @@ slapd_daemon(daemon_ports_t *ports)
                       errorCode, slapd_pr_strerror(errorCode));
         g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
     } else{
-            g_incr_active_threadcnt();
+        g_incr_active_threadcnt();
     }
 
 #ifdef WITH_SYSTEMD
