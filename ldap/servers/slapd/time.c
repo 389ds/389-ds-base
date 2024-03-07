@@ -194,7 +194,7 @@ format_localTime_log(time_t t, int initsize __attribute__((unused)), char *buf, 
         return 1;
     }
     if (PR_snprintf(buf, *bufsize, "[%s %c%02d%02d] ", tbuf, sign,
-                    (int)(tz / 3600), (int)(tz % 3600)) == (PRUint32)-1) {
+                    (int)(tz / 3600), (int)(tz % 3600 / 60)) == (PRUint32)-1) {
         return 1;
     }
     *bufsize = strlen(buf);
@@ -245,7 +245,7 @@ format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)
         return 1;
     }
     if (PR_snprintf(buf, *bufsize, "[%s.%09ld %c%02d%02d] ", tbuf, nsec, sign,
-                    (int)(tz / 3600), (int)(tz % 3600)) == (PRUint32)-1) {
+                    (int)(tz / 3600), (int)(tz % 3600 / 60)) == (PRUint32)-1) {
         return 1;
     }
     *bufsize = strlen(buf);
