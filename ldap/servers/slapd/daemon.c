@@ -869,6 +869,8 @@ accept_thread(void *vports)
     slapi_ch_free((void **)&listener_idxs);
     slapd_sockets_ports_free(ports);
     slapi_ch_free((void **)&fds);
+    g_decr_active_threadcnt();
+    slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon", "slapd shutting down - accept_thread\n");
 }
 
 void
@@ -1159,6 +1161,8 @@ slapd_daemon(daemon_ports_t *ports)
         slapi_log_err(SLAPI_LOG_EMERG, "slapd_daemon", "Unable to fd accept thread - Shutting Down (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                       errorCode, slapd_pr_strerror(errorCode));
         g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+    } else{
+        g_incr_active_threadcnt();
     }
 
 #ifdef WITH_SYSTEMD
