@@ -551,7 +551,10 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
         }
         slapi_timespec_expire_at(60, &(p->vlv_nextcheck));
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, "vlvIndex_init - Couldn't generate valid filename from Virtual List View Index Name (%s).  Need some alphabetical characters.\n", p->vlv_name, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "vlvIndex_init",
+                      "Couldn't generate valid filename from Virtual List View Index Name (%s)"
+                      " on backend %s. Need some alphabetical characters.\n",
+                      p->vlv_name, be->be_name);
     }
 }
 
@@ -810,7 +813,7 @@ vlvIndex_build_filename(const char *vlvname)
         }
     }
     *pt = '\0';
-    if (strcmp(pt, file_prefix) ==0) {
+    if (strcmp(pt, file_prefix) == 0) {
         slapi_ch_free_string(&filename);
     }
     return filename;

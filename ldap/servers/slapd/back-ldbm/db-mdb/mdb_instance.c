@@ -378,7 +378,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         ctx = MDB_CONFIG(li);
     }
     ctxflags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
-    if (be && be->vlvSearchList_lock == NULL) {
+    if (does_vlv_need_init(inst)) {
         /* Vlv initialization is quite tricky as it require that
          *  [1] dbis_lock is not held
          *  [2] inst->inst_id2entry is set
@@ -493,7 +493,7 @@ error:
         charray_free(vlv_list);
         vlv_list = NULL;
     }
-    if (rc == 0 && be && be->vlvSearchList_lock == NULL) {
+    if (rc == 0 && does_vlv_need_init(inst)) {
         vlv_init(inst);
     }
     return dbmdb_map_error(__FUNCTION__, rc);

@@ -117,7 +117,7 @@ char *mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize);
 #define INFO_NRDN(info)         ((char*)(&((ID*)(info))[INFO_IDX_ANCESTORS+((ID*)(info))[INFO_IDX_NB_ANCESTORS]]))
 #define INFO_RDN(info)          (INFO_NRDN(info)+((ID*)(info))[INFO_IDX_NRDN_LEN])
 #define INFO_DN(info)           (INFO_RDN(info)+((ID*)(info))[INFO_IDX_RDN_LEN])
-#define INFO_RECORD_LEN(info)   ((INFO_DN(info)-(char*)(info))+(info)[INFO_IDX_DN_LEN])  /* Total lenght of a record */
+#define INFO_RECORD_LEN(info)   ((INFO_DN(info)-(char*)(info))+(info)[INFO_IDX_DN_LEN])  /* Total length of a record */
 
 typedef struct {
     back_txn txn;

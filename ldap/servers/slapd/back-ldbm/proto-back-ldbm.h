@@ -478,6 +478,7 @@ struct vlv_response
 };
 
 char ** vlv_list_filenames(ldbm_instance *inst);
+int does_vlv_need_init(ldbm_instance *inst);
 int vlv_init(ldbm_instance *inst);
 void vlv_close(ldbm_instance *inst);
 int vlv_remove_callbacks(ldbm_instance *inst);
