@@ -117,7 +117,7 @@ char *mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize);
 #define INFO_NRDN(info)         ((char*)(&((ID*)(info))[INFO_IDX_ANCESTORS+((ID*)(info))[INFO_IDX_NB_ANCESTORS]]))
 #define INFO_RDN(info)          (INFO_NRDN(info)+((ID*)(info))[INFO_IDX_NRDN_LEN])
 #define INFO_DN(info)           (INFO_RDN(info)+((ID*)(info))[INFO_IDX_RDN_LEN])
-#define INFO_RECORD_LEN(info)   ((INFO_DN(info)-(char*)(info))+(info)[INFO_IDX_DN_LEN])
+#define INFO_RECORD_LEN(info)   ((INFO_DN(info)-(char*)(info))+(info)[INFO_IDX_DN_LEN])  /* Total lenght of a record */
 
 typedef struct {
     back_txn txn;
@@ -911,13 +911,14 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
     }
     if (DNRC_IS_ENTRY(dnrc)) {
         size_t rdnlen = strlen(rdn);
+        size_t nrdnlen = strlen(nrdn);
         size_t dnlen = 0;
         if (param->flags & EIP_RDN) {
             /* In reindex case, dn must be rebuilt to be able to scope properly the vlv index */
             dnlen = rdnlen + 1 + pinfo[INFO_IDX_DN_LEN];  /* dn len (including final \0) */
         }
 
-        len = rdnlen + strlen(nrdn) + 2 + dnlen + (INFO_IDX_ANCESTORS + 1 + pinfo[INFO_IDX_NB_ANCESTORS]) * sizeof(ID);
+        len = rdnlen + nrdnlen + 2 + dnlen + (INFO_IDX_ANCESTORS + 1 + pinfo[INFO_IDX_NB_ANCESTORS]) * sizeof(ID);
         data.mv_data = wqelmt->entry_info = (ID*)slapi_ch_calloc(ALIGN_TO_ID_SLOT(len), sizeof(ID));
         data.mv_size = len;
         wqelmt->entry_info[INFO_IDX_ENTRY_ID] = param->eid;
@@ -926,7 +927,7 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
         } else {
             wqelmt->entry_info[INFO_IDX_NB_ANCESTORS] = pinfo[INFO_IDX_NB_ANCESTORS] + 1; /* parent ancestors + parent id */
         }
-        wqelmt->entry_info[INFO_IDX_NRDN_LEN] = strlen(nrdn)+1;
+        wqelmt->entry_info[INFO_IDX_NRDN_LEN] = nrdnlen+1;
         wqelmt->entry_info[INFO_IDX_RDN_LEN] = rdnlen+1;
         wqelmt->entry_info[INFO_IDX_DN_LEN] = dnlen;
         if (pinfo[INFO_IDX_NB_ANCESTORS]) {
@@ -3106,7 +3107,7 @@ process_regular_index(backentry *ep, ImportWorkerInfo *info)
         if (0 != ret) {
             /* Something went wrong, eg disk filled up */
             slapi_log_err(SLAPI_LOG_ERR, "process_regular_index",
-                    "Import %s thread aborted after index_addordel_values_ext_sv failure on attribute %s.\n",
+                    "Import %s thread aborted after failing to update index %s.\n",
                     info->name, attrname);
             thread_abort(info);
             return;

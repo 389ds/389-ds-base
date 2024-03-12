@@ -365,9 +365,10 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     MDB_val key = {0};
     char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, BE_CHANGELOG_FILE, NULL };
     dbmdb_dbi_t *sn_dbis[(sizeof special_names) / sizeof special_names[0]] = {0};
-    ldbm_instance *inst = NULL;
+    ldbm_instance *inst = be ? ((ldbm_instance *)be->be_instance_info) : NULL;
     int *valid_slots = NULL;
     errinfo_t errinfo = {0};
+    char **vlv_list = NULL;
     int ctxflags;
     int rc = 0;
     int i;
@@ -377,17 +378,20 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         ctx = MDB_CONFIG(li);
     }
     ctxflags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
-    if (be) {
-        inst = (ldbm_instance *)be->be_instance_info;
-        /*
-         * Must ensure that vlv search list are initialized
-         * before calling vlv_getindices.
-         * and vlv_init must not be called while dbis_lock is held.
+    if (be && be->vlvSearchList_lock == NULL) {
+        /* Vlv initialization is quite tricky as it require that
+         *  [1] dbis_lock is not held
+         *  [2] inst->inst_id2entry is set
+         *  [3] vlv_getindices is not yet called
+         *  So for newly discovered backend, it is better to explicitly
+         *  build the vlv list before initializing it
          */
-        if (be->vlvSearchList_lock == NULL) {
-            vlv_init(inst);
-        }
+        vlv_list = vlv_list_filenames(be->be_instance_info);
     }
+
+    /*
+     * Lets start by opening all the existing db files (registered in __DBNAMES)
+     */
 
     /* Note: ctx->dbis_lock mutex must always be hold after getting the txn
      *  because txn is held very early (within backend code) in add operation
@@ -430,7 +434,6 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         rc =  0;
 
     if (be) {
-        ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         for (i=0; special_names[i]; i++) {
             TST(add_dbi(&octx, be, special_names[i], ctxflags));
             sn_dbis[i] = octx.dbi;
@@ -439,7 +442,21 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         if (avl_apply(inst->inst_attrs, add_index_dbi, &octx, STOP_AVL_APPLY, AVL_INORDER)) {
             TST(octx.rc);
         }
-        vlv_getindices((IFP)add_index_dbi, &octx, be);
+        if (be->vlvSearchList_lock) {
+            /* vlv search list is initialized so we can use it */
+            vlv_getindices((IFP)add_index_dbi, &octx, be);
+        } else if (vlv_list) {
+            char *rcdbname = NULL;
+            for (size_t i=0; rc == 0 && vlv_list[i]; i++) {
+                dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_OTHER, "Opening vlv index %s.\n", vlv_list[i]);
+                rcdbname = dbmdb_recno_cache_get_dbname(vlv_list[i]);
+                rc = add_dbi(&octx, be, rcdbname, ctxflags);
+                slapi_ch_free_string(&rcdbname);
+                if (rc ==0) {
+                    rc = add_dbi(&octx, be, vlv_list[i], ctxflags);
+                }
+            }
+        }
     }
 
 error:
@@ -472,6 +489,13 @@ error:
     slapi_ch_free((void**)&valid_slots);
 
     pthread_mutex_unlock(&ctx->dbis_lock);
+    if (vlv_list) {
+        charray_free(vlv_list);
+        vlv_list = NULL;
+    }
+    if (rc == 0 && be && be->vlvSearchList_lock == NULL) {
+        vlv_init(inst);
+    }
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 
@@ -677,9 +701,9 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
         }
     }
 
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MBD environment created with maxsize=%lu.\n", ctx->startcfg.max_size);
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MBD environment created with max readers=%d.\n", ctx->startcfg.max_readers);
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MBD environment created with max database instances=%d.\n", ctx->startcfg.max_dbs);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with maxsize=%lu.\n", ctx->startcfg.max_size);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with max readers=%d.\n", ctx->startcfg.max_readers);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with max database instances=%d.\n", ctx->startcfg.max_dbs);
 
     /* If some upgrade is needed based on libmdb version, then another test must be done here.
      *  and the new test should be based on infofileinfo.libversion
