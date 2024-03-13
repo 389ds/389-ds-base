@@ -1752,7 +1752,7 @@ cache_is_reverted_entry(struct cache *cache, struct backentry *e)
     cache_lock(cache);
     if (find_hash(cache->c_idtable, &e->ep_id, sizeof(ID), (void **)&dummy_e)) {
         if (dummy_e->ep_state & ENTRY_STATE_INVALID) {
-            slapi_log_err(SLAPI_LOG_WARNING, "cache_is_reverted_entry", "Entry reverted = %d (0x%lX)  [entry: 0x%lX] refcnt=%d\n", 
+            slapi_log_err(SLAPI_LOG_WARNING, "cache_is_reverted_entry", "Entry reverted = %d (0x%lX)  [entry: %p] refcnt=%d\n",
                           dummy_e->ep_state,
                           pthread_self(),
                           dummy_e, dummy_e->ep_refcnt);
