@@ -108,7 +108,7 @@ def check_vlv_search(conn, **kwargs):
         assert dn.lower() == expected_dn.lower()
 
 
-def add_an_user(inst, users, uid):
+def add_user(inst, users, uid):
         user_properties = {
             'uid': f'testuser{uid}',
             'cn': f'testuser{uid}',
@@ -125,7 +125,7 @@ def add_users(inst, users_num):
     log.info(f'Adding {users_num} users')
     for i in range(0, users_num):
         uid = STARTING_UID_INDEX + i
-        add_an_user(inst, users, uid)
+        add_user(inst, users, uid)
 
 
 def create_vlv_search_and_index(inst, hyphen='', basedn=DEFAULT_SUFFIX):
@@ -328,8 +328,8 @@ def verify_keys_in_subdb(vlvname, inst, count):
     dblib = get_default_db_lib()
     dbfile = get_db_filename(vlvname, prefix=f'{inst.dbdir}/')
     output = run_dbscan(['-D', dblib, '-f', dbfile])
-    # Count all lines except the MBD environment ones.
-    found = output.count('\n') - output.count('MBD environment')
+    # Count all lines except the MDB environment ones.
+    found = output.count('\n') - output.count('MDB environment')
     if found != count:
         log.info(f'Running: dbscan -D {dblib} -f "{dbfile}"')
         log.info(f'dbscan output for vlv {vlvname} is: {output}')
@@ -474,7 +474,7 @@ def test_vlv_cache_subdb_names(topology_m2):
     Domain(M2, DEFAULT_SUFFIX).create(properties={'dc': 'example'})
     OrganizationalUnits(M2, DEFAULT_SUFFIX).create(properties={'ou': 'People'})
     users = UserAccounts(M2, DEFAULT_SUFFIX)
-    add_an_user(M2, users, 2*STARTING_UID_INDEX)
+    add_user(M2, users, 2*STARTING_UID_INDEX)
     bootstrap_replication(M1, M2)
 
     # Reinit M2 from M1
@@ -581,6 +581,14 @@ def test_vlv_reindex(topology_st, hyphen, basedn):
         vlv=True
     ) == 0
 
+    conn = open_new_ldapi_conn(inst.serverid)
+    count = len(conn.search_s(basedn, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 0
+    verify_vlv_subdb_names(vlv_index.rdn, inst, count=count)
+    check_vlv_search(conn, offset=23, basedn=basedn)
+
+    # Restart and check again
+    inst.restart()
     conn = open_new_ldapi_conn(inst.serverid)
     count = len(conn.search_s(basedn, ldap.SCOPE_SUBTREE, "(uid=*)"))
     assert count > 0

@@ -378,6 +378,55 @@ vlv_close(ldbm_instance *inst)
 }
 
 /*
+ * List vlv filenames without acceding to the vlv target
+ *  backend (unlike vlv_init).
+ * Note that vlv configuration is not fully checked so it is
+ * possible to get names that are not assiciated to working index.
+ * (Useless empty mdb db files are created in such case)
+ */
+char **
+vlv_list_filenames(ldbm_instance *inst)
+{
+    /* The FE DSE *must* be initialised before we get here */
+    const char *indexfilter = "(objectclass=vlvindex)";
+    char * attrs[] = { (char*)type_vlvName, NULL };
+    Slapi_Entry **entries = NULL;
+    Slapi_PBlock *tmp_pb;
+    char *basedn = NULL;
+    char **names = NULL;
+
+    if (!inst) {
+        return names;
+    }
+
+    basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
+                                    inst->inst_name, inst->inst_li->li_plugin->plg_name);
+    if (NULL == basedn) {
+        return names;
+    }
+
+    tmp_pb = slapi_search_internal(basedn, LDAP_SCOPE_SUBTREE, indexfilter, NULL, attrs, 0);
+    slapi_pblock_get(tmp_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+    for (size_t i = 0; entries && entries[i] != NULL; i++) {
+        const char *name = slapi_entry_attr_get_ref(entries[i], type_vlvName);
+        char *filename = vlvIndex_build_filename(name);
+        if (filename) {
+            charray_add(&names, filename);
+        }
+    }
+    slapi_free_search_results_internal(tmp_pb);
+    slapi_pblock_destroy(tmp_pb);
+    slapi_ch_free_string(&basedn);
+    return names;
+}
+
+int
+does_vlv_need_init(ldbm_instance *inst)
+{
+    return (inst && inst->inst_be->vlvSearchList_lock == NULL);
+}
+
+/*
  * Search for the VLV entries which describe the pre-computed indexes we
  * support.  Register administartion DSE callback functions.
  * This is exported to the backend initialisation routine.
