@@ -31,8 +31,6 @@ char *const type_vlvUses = "vlvUses";
 
 static const char *file_prefix = "vlv#"; /* '#' used to avoid collision with real attributes */
 
-static int vlvIndex_createfilename(struct vlvIndex *pIndex, char **ppc);
-
 static int vlvIndex_equal(const struct vlvIndex *p1, const sort_spec *sort_control);
 static void vlvIndex_checkforindex(struct vlvIndex *p, backend *be);
 
@@ -539,11 +537,12 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
     }
 
     /* Create an index filename for the search */
-    if (vlvIndex_createfilename(p, &filename)) {
-        p->vlv_filename = slapi_ch_smprintf("%s%s%s", file_prefix, filename, file_suffix);
+    filename = vlvIndex_build_filename(p->vlv_name);
+    if (filename) {
+        p->vlv_filename = slapi_ch_smprintf("%s%s", filename, file_suffix);
 
         /* Create an attrinfo structure */
-        p->vlv_attrinfo->ai_type = slapi_ch_smprintf("%s%s", file_prefix, filename);
+        p->vlv_attrinfo->ai_type = filename;
         p->vlv_attrinfo->ai_indexmask = INDEX_VLV;
 
         /* Check if the index file actually exists */
@@ -551,8 +550,12 @@ vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const 
             vlvIndex_checkforindex(p, be);
         }
         slapi_timespec_expire_at(60, &(p->vlv_nextcheck));
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, "vlvIndex_init",
+                      "Couldn't generate valid filename from Virtual List View Index Name (%s)"
+                      " on backend %s. Need some alphabetical characters.\n",
+                      p->vlv_name, be->be_name);
     }
-    slapi_ch_free((void **)&filename);
 }
 
 /*
@@ -792,32 +795,28 @@ vlvIndex_isVlvIndexEntry(Slapi_Entry *e)
 }
 
 /*
- * Create the filename for the index.
- * Extract all the alphanumeric characters from the descriptive name.
- * Convert to all lower case.
+ * Generate the vlv db file name from the vlv name.
+ * Return NULL if vlv name cannot be converted to db name
  */
-static int
-vlvIndex_createfilename(struct vlvIndex *pIndex, char **ppc)
+char *
+vlvIndex_build_filename(const char *vlvname)
 {
-    int filenameValid = 1;
-    unsigned int i;
-    char *p, *filename;
-    filename = slapi_ch_malloc(strlen(pIndex->vlv_name) + 1);
-    p = filename;
-    for (i = 0; i < strlen(pIndex->vlv_name); i++) {
-        if (isalnum(pIndex->vlv_name[i])) {
-            *p = TOLOWER(pIndex->vlv_name[i]);
-            p++;
+    size_t len = strlen(vlvname);
+    size_t len_prefix = strlen(file_prefix);
+    char *filename = slapi_ch_malloc(len_prefix + len + 1);
+    char *pt = filename;
+    strcpy(pt, file_prefix);
+    pt += len_prefix;
+    for (;*vlvname; vlvname++) {
+        if (isalnum(*vlvname)) {
+            *pt++ = TOLOWER(*vlvname);
         }
     }
-    *p = '\0';
-    if (strlen(filename) == 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "vlvIndex_createfilename - Couldn't generate valid filename from Virtual List View Index Name (%s).  Need some alphabetical characters.\n", pIndex->vlv_name, 0, 0);
-        filenameValid = 0;
+    *pt = '\0';
+    if (strcmp(pt, file_prefix) == 0) {
+        slapi_ch_free_string(&filename);
     }
-    /* JCM: Check if this file clashes with another VLV Index filename */
-    *ppc = filename;
-    return filenameValid;
+    return filename;
 }
 
 int
