@@ -633,8 +633,6 @@ void entryrdn_set_switch(int val);
 int entryrdn_get_switch(void);
 void entryrdn_set_noancestorid(int val);
 int entryrdn_get_noancestorid(void);
-int entryrdn_insert_key(backend *be, dbi_cursor_t *cursor, Slapi_RDN *srdn, ID id, back_txn *txn);
-int entryrdn_delete_key(backend *be, dbi_cursor_t *cursor, Slapi_RDN *srdn, ID id, back_txn *txn);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
 int
