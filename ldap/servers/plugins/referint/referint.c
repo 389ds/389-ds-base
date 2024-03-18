@@ -75,6 +75,7 @@ static pthread_mutex_t keeprunning_mutex;
 static pthread_cond_t keeprunning_cv;
 
 static int keeprunning = 0;
+static uint64_t batch_thread_running = 0;
 static referint_config *config = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
 static Slapi_DN *_pluginDN = NULL;
@@ -1363,13 +1364,25 @@ bail:
 int
 referint_postop_close(Slapi_PBlock *pb __attribute__((unused)))
 {
-    /* signal the thread to exit */
+    /* signal the batch thread to exit */
     if (referint_get_delay() > 0) {
         pthread_mutex_lock(&keeprunning_mutex);
         keeprunning = 0;
         pthread_cond_signal(&keeprunning_cv);
         pthread_mutex_unlock(&keeprunning_mutex);
     }
+
+    /* waiting for the batch thread to exit */
+    while (1) {
+        if (slapi_atomic_load_64(&batch_thread_running, __ATOMIC_ACQUIRE) == 0) {
+            /* batch thread exited */
+            break;
+        }
+
+        DS_Sleep(PR_MillisecondsToInterval(1000));
+    }
+
+
 
     slapi_destroy_rwlock(config_rwlock);
     config_rwlock = NULL;
@@ -1398,10 +1411,23 @@ referint_thread_func(void *arg __attribute__((unused)))
     int delay;
     int no_changes;
 
+    slapi_atomic_store_64(&batch_thread_running, 1, __ATOMIC_RELEASE);
+
     /*
      * keep running this thread until plugin is signaled to close
      */
     while (1) {
+        /*
+         * In case of shutdown, plugin close function (referint_postop_close)
+         * is waiting for the end of that thread to do the cleanup
+         */
+        pthread_mutex_lock(&keeprunning_mutex);
+        if (keeprunning == 0) {
+            pthread_mutex_unlock(&keeprunning_mutex);
+            break;
+        }
+        pthread_mutex_unlock(&keeprunning_mutex);
+
         /* refresh the config */
         slapi_ch_free_string(&logfilename);
         referint_get_config(&delay, &logfilename);
@@ -1500,6 +1526,8 @@ referint_thread_func(void *arg __attribute__((unused)))
         pthread_cond_timedwait(&keeprunning_cv, &keeprunning_mutex, &current_time);
         pthread_mutex_unlock(&keeprunning_mutex);
     }
+
+    slapi_atomic_store_64(&batch_thread_running, 0, __ATOMIC_RELEASE);
 
     /* cleanup resources allocated in start  */
     pthread_mutex_destroy(&keeprunning_mutex);
