@@ -1718,7 +1718,7 @@ def parse_size(size):
     :raise ValueError: if the string cannot be parsed.
     """
     try:
-        val,unit = re.fullmatch(SIZE_PATTERN, size, flags=re.IGNORECASE).groups()
+        val,unit = re.fullmatch(SIZE_PATTERN, str(size), flags=re.IGNORECASE).groups()
         return round(float(val) * SIZE_UNITS[unit.lower()])
     except AttributeError:
         raise ValueError(f'Unable to parse "{size}" as a size.')
