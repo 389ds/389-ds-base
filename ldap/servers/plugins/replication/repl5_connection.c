@@ -42,6 +42,8 @@ typedef struct repl_connection
     const char *status;
     char *last_ldap_errmsg;
     PRUint32 transport_flags;
+    char **transport_uris;
+    char **transport_ca_uris;
     LDAP *ld;
     int supports_ldapv3;    /* 1 if does, 0 if doesn't, -1 if not determined */
     int supports_ds50_repl; /* 1 if does, 0 if doesn't, -1 if not determined */
@@ -1107,12 +1109,16 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
         creds = agmt_get_bootstrap_credentials(conn->agmt);
         conn->bindmethod = agmt_get_bootstrap_bindmethod(conn->agmt);
         conn->transport_flags = agmt_get_bootstrap_transport_flags(conn->agmt);
+        conn->transport_uris = agmt_get_bootstrap_transport_uri(conn->agmt);
+        conn->transport_ca_uris = agmt_get_bootstrap_transport_ca_uri(conn->agmt);
     } else {
         slapi_ch_free_string(&conn->binddn);
         conn->binddn = agmt_get_binddn(conn->agmt);
         creds = agmt_get_credentials(conn->agmt);
         conn->bindmethod = agmt_get_bindmethod(conn->agmt);
         conn->transport_flags = agmt_get_transport_flags(conn->agmt);
+        conn->transport_uris = agmt_get_transport_uri(conn->agmt);
+        conn->transport_ca_uris = agmt_get_transport_ca_uri(conn->agmt);
     }
 
     if (conn->flag_agmt_changed) {
@@ -1222,7 +1228,48 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
 
         /* override the default timeout with the specified timeout */
         ldap_set_option(conn->ld, LDAP_OPT_NETWORK_TIMEOUT, &conn->timeout);
-        /* We've got an ld. Now bind to the server. */
+
+        /* if we have TLS uris, set them now */
+#ifdef LDAP_OPT_X_TLS_URIS
+	ldap_set_option(conn->ld, LDAP_OPT_X_TLS_URIS, conn->transport_uris);
+#else
+        if (conn->transport_uris) {
+            return_value = CONN_OPERATION_FAILED;
+            conn->state = STATE_DISCONNECTED;
+            conn->last_operation = CONN_INIT;
+            conn->last_ldap_error = LDAP_LOCAL_ERROR;
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "conn_connect - %s - %s set but not supported, Replication over SSL FAILED\n",
+                          agmt_get_long_name(conn->agmt), type_nsds5ReplicaTransportUri);
+            return_value = CONN_SSL_NOT_ENABLED;
+            goto done;
+        }
+#endif
+
+        /* if we have TLS CA uris, set them now */
+#ifdef LDAP_OPT_X_TLS_CACERTURIS
+        if (conn->transport_ca_uris) {
+	    ldap_set_option(conn->ld, LDAP_OPT_X_TLS_CACERTURIS, conn->transport_ca_uris);
+
+	    /* unset any prior ca certificates */
+            ldap_set_option(conn->ld, LDAP_OPT_X_TLS_CACERTFILE, NULL);
+            ldap_set_option(conn->ld, LDAP_OPT_X_TLS_CACERTDIR, NULL);
+        }
+#else
+        if (conn->transport_ca_uris) {
+            return_value = CONN_OPERATION_FAILED;
+            conn->state = STATE_DISCONNECTED;
+            conn->last_operation = CONN_INIT;
+            conn->last_ldap_error = LDAP_LOCAL_ERROR;
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                          "conn_connect - %s - %s set but not supported, Replication over SSL FAILED\n",
+                          agmt_get_long_name(conn->agmt), type_nsds5ReplicaTransportCAUri);
+            return_value = CONN_SSL_NOT_ENABLED;
+            goto done;
+        }
+#endif
+
+	/* We've got an ld. Now bind to the server. */
         conn->last_operation = CONN_BIND;
     }
 
