@@ -13,7 +13,7 @@ import ldap
 import logging
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
 from lib389.backend import Backends
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.agreement import Agreements
@@ -140,6 +140,100 @@ def test_tombstone(topo_m2):
     assert error is False
     checkdbscancount(s1, 'nsuniqueid', EXPECTED_NB_NSNIQUEID)
 
+
+def test_long_rdn(topo_m2):
+    """
+    :id: 47a06e92-e14f-11ee-b492-482ae39447e5
+    :setup: 2 Suplier instances
+    :steps:
+        1. Add Users with a long name
+        2. Check Users exists
+        3. Export supplier1 with replication data
+        4. Check Users exists
+        5. Import supplier2 with previously exported ldif file
+        6. Check Users exists
+        7. Reindex entryrdn on supplier1
+        8. Check Users exists
+        9. Perform bulk import from supplier1 to supplier2
+        10. Wait until bulk import is completed
+        11. Check Users exists
+        12. Delete Users exists
+        13. Check Users does not exists
+    :expectedresults:
+        1. Should succeed
+        2. Should succeed
+        3. Should succeed
+        4. Should succeed
+        5. Should succeed
+        6. Should succeed
+        7. Should succeed
+        8. Should succeed
+        9. Should succeed
+        10. Should succeed
+        11. Should succeed
+        12. Should succeed
+        13. Should succeed
+    """
+    s1 = topo_m2.ms["supplier1"]
+    s2 = topo_m2.ms["supplier2"]
+    ldif_dir = s1.get_ldif_dir()
+    log.info("Create users with a long rdn...")
+    users_dict_s1 = {}
+    users_dict_s2 = {}
+    users = UserAccounts(s1, DEFAULT_SUFFIX, rdn=None)
+    for key in range(0x41, 0x5B):
+        # generate a name longer that lmdb key size limit (511)
+        longname = chr(key) * 700
+        userproperties = {
+            'uid': longname,
+            'sn': longname,
+            'cn': longname,
+            'uidNumber': str(1000+key),
+            'gidNumber': str(1000+key),
+            'homeDirectory': f'/home/{longname}'
+        }
+        user = users.create(properties=userproperties)
+        users_dict_s1[key] = user
+        users_dict_s2[key] = UserAccount(s2, user.dn)
+    for user in users_dict_s1.values():
+        assert user.exists()
+
+    log.info("Exporting LDIF online...")
+    export_ldif = ldif_dir + '/export.ldif'
+    export_task = Backends(s1).export_ldif(be_names=DEFAULT_BENAME, ldif=export_ldif, replication=True)
+    export_task.wait()
+    assert export_task.get_exit_code() == 0
+    for user in users_dict_s1.values():
+        assert user.exists()
+
+    log.info("Importing LDIF online...")
+    import_task = ImportTask(s2)
+    import_task.import_suffix_from_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait()
+    assert import_task.get_exit_code() == 0
+    for user in users_dict_s2.values():
+        assert user.exists()
+
+    log.info("Reindex online...")
+    task = Tasks(s2)
+    task.reindex(suffix=DEFAULT_SUFFIX, args={'wait': True})
+    for user in users_dict_s2.values():
+        assert user.exists()
+
+    log.info("Bulk import...")
+    agmt = Agreements(s1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+    for user in users_dict_s2.values():
+        assert user.exists()
+
+    log.info("Delete the users with a long rdn...")
+    for user in users_dict_s1.values():
+        user.delete()
+    for user in users_dict_s1.values():
+        assert not user.exists()
 
 
 if __name__ == "__main__":

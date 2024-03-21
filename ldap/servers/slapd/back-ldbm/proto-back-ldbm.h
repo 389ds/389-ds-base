@@ -351,9 +351,9 @@ ID next_id(backend *be);
 void next_id_return(backend *be, ID id);
 ID next_id_get(backend *be);
 void id_internal_to_stored(ID, char *);
-ID id_stored_to_internal(char *);
+ID id_stored_to_internal(const char *);
 void sizeushort_internal_to_stored(size_t i, char *b);
-size_t sizeushort_stored_to_internal(char *b);
+size_t sizeushort_stored_to_internal(const char *b);
 void get_ids_from_disk(backend *be);
 void get_both_ids(struct ldbminfo *li, ID *nextid, ID *nextid2index);
 
