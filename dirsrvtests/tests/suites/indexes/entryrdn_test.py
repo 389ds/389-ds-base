@@ -141,8 +141,28 @@ def test_tombstone(topo_m2):
     checkdbscancount(s1, 'nsuniqueid', EXPECTED_NB_NSNIQUEID)
 
 
+def create_long_rdn_users(users, users_dict):
+    for key in range(0x41, 0x5B):
+        # generate a name longer that lmdb key size limit (511)
+        longname = chr(key) * 700
+        userproperties = {
+            'uid': longname,
+            'sn': longname,
+            'cn': longname,
+            'uidNumber': str(1000+key),
+            'gidNumber': str(1000+key),
+            'homeDirectory': f'/home/{longname}'
+        }
+        user = users.create(properties=userproperties)
+        users_dict[key] = user
+    for user in users_dict.values():
+        assert user.exists()
+
+
 def test_long_rdn(topo_m2):
     """
+    Test operation on entries with rdn longer than lmdb maximum key size (511 bytes).
+
     :id: 47a06e92-e14f-11ee-b492-482ae39447e5
     :setup: 2 Suplier instances
     :steps:
@@ -158,7 +178,11 @@ def test_long_rdn(topo_m2):
         10. Wait until bulk import is completed
         11. Check Users exists
         12. Delete Users exists
-        13. Check Users does not exists
+        13. Create an organizational unit with long ou
+        14. Add children with long rdn
+        15. Rename the organizational unit
+        16. Delete the users with a long rdn
+        17. Delete the ou with a long rdn
     :expectedresults:
         1. Should succeed
         2. Should succeed
@@ -173,6 +197,10 @@ def test_long_rdn(topo_m2):
         11. Should succeed
         12. Should succeed
         13. Should succeed
+        14. Should succeed
+        15. Should succeed
+        16. Should succeed
+        17. Should succeed
     """
     s1 = topo_m2.ms["supplier1"]
     s2 = topo_m2.ms["supplier2"]
@@ -181,22 +209,9 @@ def test_long_rdn(topo_m2):
     users_dict_s1 = {}
     users_dict_s2 = {}
     users = UserAccounts(s1, DEFAULT_SUFFIX, rdn=None)
-    for key in range(0x41, 0x5B):
-        # generate a name longer that lmdb key size limit (511)
-        longname = chr(key) * 700
-        userproperties = {
-            'uid': longname,
-            'sn': longname,
-            'cn': longname,
-            'uidNumber': str(1000+key),
-            'gidNumber': str(1000+key),
-            'homeDirectory': f'/home/{longname}'
-        }
-        user = users.create(properties=userproperties)
-        users_dict_s1[key] = user
+    create_long_rdn_users(users, users_dict_s1)
+    for (key, user) in users_dict_s1.items():
         users_dict_s2[key] = UserAccount(s2, user.dn)
-    for user in users_dict_s1.values():
-        assert user.exists()
 
     log.info("Exporting LDIF online...")
     export_ldif = ldif_dir + '/export.ldif'
@@ -234,6 +249,39 @@ def test_long_rdn(topo_m2):
         user.delete()
     for user in users_dict_s1.values():
         assert not user.exists()
+
+    log.info("Create an organizational unit with long ou")
+    longname = '+' * 700
+    ous = OrganizationalUnits(s1, DEFAULT_SUFFIX)
+    ou = ous.create(properties={ 'ou': longname })
+
+    log.info("Add children with long rdn")
+    users_dict_s1 = {}
+    users = UserAccounts(s1, ou.dn, rdn=None)
+    create_long_rdn_users(users, users_dict_s1)
+
+    log.info("Rename the organizational unit")
+    longname = '-' * 700
+    ou.rename(f'ou={longname}')
+
+    # Check that user exists
+    users_list = []
+    for user in users_dict_s1.values():
+        renamed_dn = user.dn.replace('+', '-')
+        renamed_user = UserAccount(s1, renamed_dn)
+        users_list.append(renamed_user)
+    for user in users_list:
+        assert user.exists()
+
+    log.info("Delete the users with a long rdn")
+    for user in users_list:
+        user.delete()
+    for user in users_list:
+        assert not user.exists()
+
+    log.info("Delete the ou with a long rdn")
+    ou.delete()
+    assert not ou.exists()
 
 
 if __name__ == "__main__":

@@ -1610,7 +1610,7 @@ dbmdb_privdb_init_small_key(mdb_privdb_t *db, const MDB_val *longkey, int addnew
     key.mv_data = smallkey;
     key.mv_size = sizeof (*smallkey);
     rc = MDB_CURSOR_GET(db->cursor, &key, &data, MDB_SET_RANGE);
-    /* Let walk all the keys cwthjat have the right hash */
+    /* Let walk all the keys that have the right hash */
     while (rc == 0 && key.mv_size == sizeof(privdb_small_key_t) &&
            memcmp(key.mv_data, smallkey, offsetof(privdb_small_key_t, id)) == 0) {
         if (longkey->mv_size == data.mv_size &&
