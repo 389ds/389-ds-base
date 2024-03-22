@@ -274,6 +274,7 @@ typedef struct {
     MDB_txn     *txn;
     MDB_cursor  *cursor;
     int         wcount;
+    int         maxkeysize;
 } mdb_privdb_t;
 
 #include "mdb_debug.h"

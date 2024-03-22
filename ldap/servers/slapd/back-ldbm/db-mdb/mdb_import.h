@@ -129,6 +129,7 @@ struct importctx {
     ImportJob *job;
     dbmdb_ctx_t *ctx;
     MdbIndexInfo_t *entryrdn;
+    MdbIndexInfo_t *redirect;
     MdbIndexInfo_t *parentid;
     MdbIndexInfo_t *ancestorid;
     MdbIndexInfo_t *numsubordinates;

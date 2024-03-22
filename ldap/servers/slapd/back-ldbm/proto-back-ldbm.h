@@ -351,9 +351,9 @@ ID next_id(backend *be);
 void next_id_return(backend *be, ID id);
 ID next_id_get(backend *be);
 void id_internal_to_stored(ID, char *);
-ID id_stored_to_internal(char *);
+ID id_stored_to_internal(const char *);
 void sizeushort_internal_to_stored(size_t i, char *b);
-size_t sizeushort_stored_to_internal(char *b);
+size_t sizeushort_stored_to_internal(const char *b);
 void get_ids_from_disk(backend *be);
 void get_both_ids(struct ldbminfo *li, ID *nextid, ID *nextid2index);
 
@@ -633,8 +633,6 @@ void entryrdn_set_switch(int val);
 int entryrdn_get_switch(void);
 void entryrdn_set_noancestorid(int val);
 int entryrdn_get_noancestorid(void);
-int entryrdn_insert_key(backend *be, dbi_cursor_t *cursor, Slapi_RDN *srdn, ID id, back_txn *txn);
-int entryrdn_delete_key(backend *be, dbi_cursor_t *cursor, Slapi_RDN *srdn, ID id, back_txn *txn);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
 int
