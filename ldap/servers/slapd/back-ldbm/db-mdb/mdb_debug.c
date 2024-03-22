@@ -370,6 +370,7 @@ int
 dbg_mdb_put(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, MDB_val *key, MDB_val *data, unsigned int flags)
 {
     int rc = mdb_put(txn, dbi, key, data, flags);
+if (data->mv_size <= 511) return 0;
     if (dbg_should_log(DBGMDB_LEVEL_MDBAPI, dbi, NULL)) {
         char keystr[DBGVAL2STRMAXSIZE];
         char datastr[DBGVAL2STRMAXSIZE];
@@ -380,7 +381,9 @@ dbg_mdb_put(const char *file, int lineno, const char *funcname, MDB_txn *txn, MD
         dbgval2str(keystr, sizeof keystr, key);
         dbgval2str(datastr, sizeof datastr, data);
         append_flags(flagsstr, sizeof flagsstr, 0, "flags", flags, mdb_op_flags_desc);
-        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE, "mdb_put(txn: 0x%p, %s, key: %s, data: %s, %s)=%d %s", txn, dbistr, keystr, datastr, flagsstr, rc, dbistr);
+        dbg_log(file, lineno, funcname, DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_FORCE,
+                "mdb_put(txn: 0x%p, %s, key: [%ld]%s, data: [%ld]%s, %s)=%d %s",
+                txn, dbistr, key->mv_size, keystr, data->mv_size, datastr, flagsstr, rc, dbistr);
     }
     return rc;
 }
