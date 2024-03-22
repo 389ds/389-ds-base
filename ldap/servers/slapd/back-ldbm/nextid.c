@@ -193,7 +193,7 @@ id_internal_to_stored(ID i, char *b)
 }
 
 ID
-id_stored_to_internal(char *b)
+id_stored_to_internal(const char *b)
 {
     ID i;
     i = (ID)b[3] & 0x000000ff;
@@ -212,7 +212,7 @@ sizeushort_internal_to_stored(size_t i, char *b)
 }
 
 size_t
-sizeushort_stored_to_internal(char *b)
+sizeushort_stored_to_internal(const char *b)
 {
     size_t i;
     i = (PRUint16)b[1] & 0x000000ff;

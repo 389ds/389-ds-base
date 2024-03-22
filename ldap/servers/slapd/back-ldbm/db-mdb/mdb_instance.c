@@ -80,6 +80,13 @@ typedef struct {
     int line;
 } errinfo_t;
 
+/* Helper used to generate smaller key if privdn nrdn is too long. */
+typedef struct {
+    char header[sizeof (long)];
+    unsigned long h;
+    unsigned long id;
+} privdb_small_key_t;
+
 /*
  * Global reference to dbi slot table (used for debug purpose and for
  * dbmdb_dbicmp function. dbi are not closed (until either
@@ -167,6 +174,8 @@ dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **dupsort_fn)
     if (is_dbfile(fname, LDBM_ENTRYRDN_STR)) {
         *flags |= MDB_DUPSORT;
         *dupsort_fn = dbmdb_entryrdn_compare_dups;
+    } else if (is_dbfile(fname, LDBM_LONG_ENTRYRDN_STR)) {
+        *flags |= 0;
     } else if (is_dbfile(fname, ID2ENTRY)) {
         *flags |= 0;
     } else if (strstr(fname,  CHANGELOG_PATTERN)) {
@@ -1581,6 +1590,58 @@ dbmdb_privdb_destroy(mdb_privdb_t **db)
     }
 }
 
+
+/* Compute a smaller key for long rdn */
+int
+dbmdb_privdb_init_small_key(mdb_privdb_t *db, const MDB_val *longkey, int addnewkey, privdb_small_key_t *smallkey)
+{
+    MDB_val key = {0};
+    MDB_val data = {0};
+    unsigned long nextid = 0;
+    char *pt = longkey->mv_data;
+    int rc = 0;
+
+    memset(smallkey, 0, sizeof *smallkey);
+    /* Prepare the samllkey used to store the long key with id=0 */
+    strcpy(smallkey->header, "==>");
+    for (pt += longkey->mv_size - 1; pt >= (char*)longkey->mv_data; pt--) {
+        smallkey->h += ((smallkey->h << 3) | (smallkey->h >> ((8 * sizeof(long)) - 3))) ^ (*pt & 0x1f);
+    }
+    key.mv_data = smallkey;
+    key.mv_size = sizeof (*smallkey);
+    rc = MDB_CURSOR_GET(db->cursor, &key, &data, MDB_SET_RANGE);
+    /* Let walk all the keys that have the right hash */
+    while (rc == 0 && key.mv_size == sizeof(privdb_small_key_t) &&
+           memcmp(key.mv_data, smallkey, offsetof(privdb_small_key_t, id)) == 0) {
+        if (longkey->mv_size == data.mv_size &&
+            memcmp(longkey->mv_data, data.mv_data, data.mv_size) == 0) {
+            /* Key to the wanted data exists, lets return the small key used for getting/storing data ! */
+            memcpy(smallkey, key.mv_data, key.mv_size);
+            smallkey->header[0] = '@';
+            return 0;
+        }
+        /* Wrong key, lets get next one */
+        memcpy(&nextid, &((privdb_small_key_t*)data.mv_data)->id, sizeof nextid);
+        nextid++;
+        rc = MDB_CURSOR_GET(db->cursor, &key, &data, MDB_NEXT);
+    }
+    if (rc ==0 || rc == MDB_NOTFOUND) {
+        /* Key does not exists */
+        if (addnewkey) {
+            /* Lets add it! */
+            smallkey->id = nextid;
+            key.mv_data = smallkey;
+            key.mv_size = sizeof (*smallkey);
+            rc = MDB_CURSOR_PUT(db->cursor, &key, (MDB_val*)longkey, 0);
+            smallkey->header[0] = '@';
+        } else {
+            rc = MDB_NOTFOUND;
+        }
+    }
+    return rc;
+}
+
+
 int
 dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
 {
@@ -1588,7 +1649,18 @@ dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
     data->mv_data = NULL;
     data->mv_size = 0;
     if (!rc) {
-        rc = MDB_CURSOR_GET(db->cursor, key, data, MDB_SET_KEY);
+        if (key->mv_size > db->maxkeysize) {
+            privdb_small_key_t small_key = {0};
+            MDB_val key2 = {0};
+            key2.mv_data = &small_key;
+            key2.mv_size = sizeof small_key;
+            rc = dbmdb_privdb_init_small_key(db, key, 0, &small_key);
+            if (!rc) {
+                rc = MDB_CURSOR_GET(db->cursor, &key2, data, MDB_SET_KEY);
+            }
+        } else {
+            rc = MDB_CURSOR_GET(db->cursor, key, data, MDB_SET_KEY);
+        }
         if (rc && rc != MDB_NOTFOUND) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
                           "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
@@ -1597,15 +1669,27 @@ dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
     return rc;
 }
 
+
 int
 dbmdb_privdb_put(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
 {
     int rc = dbmdb_privdb_handle_cursor(db, 0);
     if (!rc) {
-        rc = MDB_CURSOR_PUT(db->cursor, key, data, MDB_NOOVERWRITE);
+        if (key->mv_size > db->maxkeysize) {
+            privdb_small_key_t small_key = {0};
+            MDB_val key2 = {0};
+            key2.mv_data = &small_key;
+            key2.mv_size = sizeof small_key;
+            rc = dbmdb_privdb_init_small_key(db, key, 1, &small_key);
+            if (!rc) {
+                rc = MDB_CURSOR_PUT(db->cursor, &key2, data, MDB_NOOVERWRITE);
+            }
+        } else {
+            rc = MDB_CURSOR_PUT(db->cursor, key, data, MDB_NOOVERWRITE);
+        }
         if (rc && rc != MDB_KEYEXIST) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to put data into dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
         }
     }
     if (!rc) {
@@ -1643,6 +1727,7 @@ dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
         goto bail;
     }
 
+    db->maxkeysize = mdb_env_get_maxkeysize(db->env);
     mdb_env_set_maxdbs(db->env, nbdbis);
     mdb_env_set_mapsize(db->env, db->db_size);
 
@@ -1663,7 +1748,7 @@ dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
         goto bail;
     }
 
-    rc = mdb_txn_begin(db->env, NULL, 0, &txn);
+    rc = TXN_BEGIN(db->env, NULL, 0, &txn);
     if (rc) {
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to begin a txn for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
         goto bail;
@@ -1675,18 +1760,18 @@ dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
         db->dbis[i].state.flags = MDB_CREATE;
         db->dbis[i].dbname = va_arg(va, char*);
         if (rc == 0) {
-            rc = mdb_dbi_open(txn, db->dbis[i].dbname, db->dbis[i].state.flags, &db->dbis[i].dbi);
+            rc = MDB_DBI_OPEN(txn, db->dbis[i].dbname, db->dbis[i].state.flags, &db->dbis[i].dbi);
         }
     }
     va_end(va);
     if (rc) {
-        mdb_txn_abort(txn);
+        TXN_ABORT(txn);
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to open a database instance for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
         goto bail;
     }
-    rc = mdb_txn_commit(txn);
+    rc = TXN_COMMIT(txn);
     if (rc) {
-        mdb_txn_abort(txn);
+        TXN_ABORT(txn);
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to commit database instance creation transaction for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
         goto bail;
     }

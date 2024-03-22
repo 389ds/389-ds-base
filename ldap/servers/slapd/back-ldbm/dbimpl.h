@@ -115,6 +115,16 @@ typedef struct {
     char info[PATH_MAX];
 } dbi_dbslist_t;
 
+/* For dblayer_entryrdn_records() */
+typedef struct {
+    int redirect;              /* 0 means: no redirect record */
+    int suffix_too_long;       /* !0 means: that suffix is too long */
+    dbi_val_t key;             /* entryrdn db key */
+    dbi_val_t data;            /* entryrdn db data */
+    dbi_val_t redirect_key;    /* redirect db key */
+    dbi_val_t redirect_data;   /* redirect db data */
+} dbi_entryrdn_records_t;
+
 struct attrinfo;
 typedef int dbi_iterate_cb_t(dbi_val_t *key, dbi_val_t *data, void *ctx);
 
@@ -165,9 +175,11 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
 int dblayer_db_remove(Slapi_Backend *be, dbi_db_t *db);
 int dblayer_show_statistics(const char *dbimpl_name, const char *dbhome, FILE *fout, FILE *ferr);
 int dblayer_is_lmdb(Slapi_Backend *be);
-int dblayer_cursor_iterate(dbi_cursor_t *cursor, 
+int dblayer_cursor_iterate(dbi_cursor_t *cursor,
                            int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
                            const dbi_val_t *startingkey, void *ctx);
-
+void dblayer_entryrdn_init_records(Slapi_Backend *be, const dbi_val_t *key, const dbi_val_t *data,
+                                  dbi_entryrdn_records_t *record);
+void dblayer_entryrdn_discard_records(Slapi_Backend *be, dbi_entryrdn_records_t *record);
 
 #endif /* DBIMPL_H_ */

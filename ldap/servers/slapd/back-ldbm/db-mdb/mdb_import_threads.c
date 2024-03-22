@@ -2955,6 +2955,51 @@ dbmdb_store_ruv_in_entryrdn(WorkerQueueData_t *wqelmnt, ID idruv, ID idsuffix, c
 }
 
 /*
+ * Push record in entryrdn and redirect dn
+ */
+void
+push_entryrdn_records(ImportWorkerInfo *info, const char *key, ID id, const char *nrdn, const char *rdn)
+{
+    ImportJob *job = info->job;
+    ImportCtx_t *ctx = job->writer_ctx;
+    backend *be = job->inst->inst_be;
+    size_t elemlen = 0;
+    void *elem = entryrdn_encode_data(be, &elemlen, id, nrdn, rdn);
+    dbi_entryrdn_records_t rec = {0};
+    WriterQueueData_t wqd = {0};
+    dbi_val_t tmpkey = {0};
+    dbi_val_t tmpdata = {0};
+
+    dblayer_value_set_buffer(be, &tmpkey, (char*)key, strlen(key)+1);
+    dblayer_value_set_buffer(be, &tmpdata, elem, elemlen);
+    dblayer_entryrdn_init_records(be, &tmpkey, &tmpdata, &rec);
+    if (rec.suffix_too_long) {
+        import_log_notice(job, SLAPI_LOG_ERR,
+                          "push_entryrdn_records", "Backend %s suffix %s is too long.\n",
+                          be->be_name, key);
+        thread_abort(info);
+        return;
+    }
+
+    wqd.dbi = ctx->entryrdn->dbi;
+    wqd.key.mv_data = rec.key.data;
+    wqd.key.mv_size = rec.key.size;
+    wqd.data.mv_data = rec.data.data;
+    wqd.data.mv_size = rec.data.size;
+    dbmdb_import_writeq_push(ctx, &wqd);
+    if (rec.redirect) {
+        wqd.dbi = ctx->redirect->dbi;
+        wqd.key.mv_data = rec.redirect_key.data;
+        wqd.key.mv_size = rec.redirect_key.size;
+        wqd.data.mv_data = rec.redirect_data.data;
+        wqd.data.mv_size = rec.redirect_data.size;
+        dbmdb_import_writeq_push(ctx, &wqd);
+    }
+    slapi_ch_free((void **)&elem);
+    dblayer_entryrdn_discard_records(be, &rec);
+}
+
+/*
  * Compute entry rdn and parentid and store entyrdn related keys:
  *       id --> id nrdn rdn
  *       'C'+parentid --> id nrdn rdn
@@ -2969,7 +3014,6 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
     ImportWorkerInfo *info = &wqelmnt->winfo;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
-    backend *be = job->inst->inst_be;
     WriterQueueData_t wqd = {0};
     char key_id[10];
     char *nrdn, *rdn;
@@ -2977,41 +3021,32 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
     int n;
 
    if (ctx->entryrdn && wqelmnt->entry_info) {
-        wqd.dbi = ctx->entryrdn->dbi;
         id = wqelmnt->entry_info[0];
         nrdn = INFO_NRDN(wqelmnt->entry_info);
         rdn = INFO_RDN(wqelmnt->entry_info);
 
         /* id --> id nrdn rdn */
         if (wqelmnt->dnrc == DNRC_SUFFIX) {
-            wqd.key.mv_data = nrdn;
+            push_entryrdn_records(info, nrdn, id, nrdn, rdn);
         } else {
-            wqd.key.mv_data = key_id;
             PR_snprintf(key_id, (sizeof key_id), "%d", id);
+            push_entryrdn_records(info, key_id, id, nrdn, rdn);
         }
-        wqd.key.mv_size = strlen(wqd.key.mv_data)+1;
-        wqd.data.mv_data = entryrdn_encode_data(be, &wqd.data.mv_size, id, nrdn, rdn);
-        dbmdb_import_writeq_push(ctx, &wqd);
-        slapi_ch_free(&wqd.data.mv_data);
+
         if (wqelmnt->parent_info) {
             /* 'C'+parentid --> id nrdn rdn */
             pid = wqelmnt->parent_info[0];
             PR_snprintf(key_id, (sizeof key_id), "C%d", pid);
-            wqd.key.mv_size = strlen(wqd.key.mv_data)+1;
-            wqd.data.mv_data = entryrdn_encode_data(be, &wqd.data.mv_size, id, nrdn, rdn);
-            dbmdb_import_writeq_push(ctx, &wqd);
-            slapi_ch_free(&wqd.data.mv_data);
+            push_entryrdn_records(info, key_id, id, nrdn, rdn);
             /* 'P'+id --> parentid parentnrdn parentrdn */
             nrdn = INFO_NRDN(wqelmnt->parent_info);
             rdn = INFO_RDN(wqelmnt->parent_info);
             PR_snprintf(key_id, (sizeof key_id), "P%d", id);
-            wqd.key.mv_size = strlen(wqd.key.mv_data)+1;
-            wqd.data.mv_data = entryrdn_encode_data(be, &wqd.data.mv_size, pid, nrdn, rdn);
-            dbmdb_import_writeq_push(ctx, &wqd);
-            slapi_ch_free(&wqd.data.mv_data);
+            push_entryrdn_records(info, key_id, pid, nrdn, rdn);
         }
     }
 
+    wqd.key.mv_data = key_id;  /* Reserve some memory space to write the key */
     if (ctx->parentid && wqelmnt->parent_info) {
         /* Update parentid */
         pid = wqelmnt->parent_info[0];
@@ -3372,6 +3407,33 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
     avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
 }
 
+/*
+ * Open redirect database and link it in the index avl
+ * so its data get freed/closed when the import completes
+ * It is similar to dbmdb_add_import_index but do
+ * not rely on job->index_list (as the db is nor really an index)
+ */
+void
+dbmdb_open_redirect_db(ImportCtx_t *ctx)
+{
+    int dbi_flags = MDB_CREATE|MDB_MARK_DIRTY_DBI|MDB_OPEN_DIRTY_DBI|MDB_TRUNCATE_DBI;
+    ImportJob *job = ctx->job;
+    Slapi_Backend *be = job->inst->inst_be;
+    MdbIndexInfo_t *mii = CALLOC(MdbIndexInfo_t);
+
+    struct attrinfo *ai = NULL;
+    ainfo_get(be, LDBM_LONG_ENTRYRDN_STR, &ai);
+    if (NULL == ai || strcmp(LDBM_LONG_ENTRYRDN_STR, ai->ai_type)) {
+        attr_create_empty(be, LDBM_LONG_ENTRYRDN_STR, &ai);
+    }
+    mii->name = (char*) slapi_utf8StrToLower((unsigned char*)LDBM_LONG_ENTRYRDN_STR);
+    mii->ai = ai;
+    mii->flags = MII_SKIP | MII_NOATTR;
+    dbmdb_open_dbi_from_filename(&mii->dbi, be, mii->name, mii->ai, dbi_flags);
+    avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
+    ctx->redirect = mii;
+}
+
 void
 dbmdb_build_import_index_list(ImportCtx_t *ctx)
 {
@@ -3391,9 +3453,12 @@ dbmdb_build_import_index_list(ImportCtx_t *ctx)
     }
 
     /* If a naming attribute is present, make sure that all of the are rebuilt */
-    if (ctx->entryrdn || ctx->parentid || ctx->ancestorid || ctx->role != IM_INDEX) {
+    if (ctx->entryrdn || ctx->redirect || ctx->parentid || ctx->ancestorid || ctx->role != IM_INDEX) {
         if (!ctx->entryrdn) {
             dbmdb_add_import_index(ctx, LDBM_ENTRYRDN_STR, NULL);
+        }
+        if (!ctx->redirect) {
+            dbmdb_open_redirect_db(ctx);
         }
         if (!ctx->parentid) {
             dbmdb_add_import_index(ctx, LDBM_PARENTID_STR, NULL);
