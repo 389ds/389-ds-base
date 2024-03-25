@@ -409,7 +409,7 @@ vlv_list_filenames(ldbm_instance *inst)
     slapi_pblock_get(tmp_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     for (size_t i = 0; entries && entries[i] != NULL; i++) {
         const char *name = slapi_entry_attr_get_ref(entries[i], type_vlvName);
-        char *filename = vlvIndex_build_filename(name);
+        char *filename = name ? vlvIndex_build_filename(name) : NULL;
         if (filename) {
             charray_add(&names, filename);
         }

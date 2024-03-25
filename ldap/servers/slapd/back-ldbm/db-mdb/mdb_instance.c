@@ -374,8 +374,17 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     int i;
 
     if (!ctx) {
-        struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
-        ctx = MDB_CONFIG(li);
+        if (!be) {
+            /* Testing for "be" to avoid a covscan warning although 
+              * dbmdb_open_all_files is never called with both parameters NULL
+              */
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_all_files",
+                          "Unable to open the database environment witout either the database context or a backend.\n");
+            return DBI_RC_INVALID;
+        } else {
+            struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
+            ctx = MDB_CONFIG(li);
+        }
     }
     ctxflags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
     if (does_vlv_need_init(inst)) {
