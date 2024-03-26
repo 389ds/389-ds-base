@@ -136,6 +136,8 @@ struct configEntry
     char *shared_cfg_dn;
     char *remote_binddn;
     char *remote_bindpw;
+    char *remote_bind_method;
+    char *remote_conn_prot;
     PRUint64 timeout;
     /* This lock protects the 5 members below.  All
      * of the above members are safe to read as long
@@ -1172,6 +1174,10 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
     /* now grab the password */
     entry->remote_bindpw = slapi_entry_attr_get_charptr(e, DNA_REMOTE_BIND_PW);
 
+    /* Optionally, get the remote bind method and a connection protocol */
+    entry->remote_bind_method = slapi_entry_attr_get_charptr(e, DNA_REMOTE_BIND_METHOD);
+    entry->remote_conn_prot = slapi_entry_attr_get_charptr(e, DNA_REMOTE_CONN_PROT);
+
     /* validate that we have both a bind dn or password, or we have none */
     if ((entry->remote_bindpw != NULL && entry->remote_binddn == NULL) ||
         (entry->remote_binddn != NULL && entry->remote_bindpw == NULL)) {
@@ -1472,6 +1478,8 @@ dna_free_config_entry(struct configEntry **entry)
     slapi_ch_free_string(&e->shared_cfg_dn);
     slapi_ch_free_string(&e->remote_binddn);
     slapi_ch_free_string(&e->remote_bindpw);
+    slapi_ch_free_string(&e->remote_bind_method);
+    slapi_ch_free_string(&e->remote_conn_prot);
 
     slapi_destroy_mutex(e->lock);
 
@@ -1875,8 +1883,14 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
                 server->remote_bindpw = config_entry->remote_bindpw;
                 server->remote_bind_method = slapi_entry_attr_get_charptr(entries[i],
                                                                           DNA_REMOTE_BIND_METHOD);
+		if (server->remote_bind_method == NULL && config_entry->remote_bind_method != NULL)
+			server->remote_bind_method = slapi_ch_strdup(config_entry->remote_bind_method);
+
                 server->remote_conn_prot = slapi_entry_attr_get_charptr(entries[i],
                                                                         DNA_REMOTE_CONN_PROT);
+
+		if (server->remote_conn_prot == NULL && config_entry->remote_conn_prot != NULL)
+			server->remote_conn_prot = slapi_ch_strdup(config_entry->remote_conn_prot);
 
                 /* validate the entry */
                 if (!server->host || (server->port == 0 && server->secureport == 0)) {
