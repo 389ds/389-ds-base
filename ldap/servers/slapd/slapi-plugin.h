@@ -7326,6 +7326,16 @@ typedef enum _slapi_op_note_t {
     SLAPI_OP_NOTE_MFA_AUTH = 0x10,
 } slapi_op_note_t;
 
+/**
+ * Set an operation note on an operation.  This will append a notes keyword
+ * in the access log result line for this operation
+ *
+ * \param pb - The slapi_pblock structure
+ * \param opnotes
+ * \return void
+ */
+void slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes);
+
 
 /* Allows controls to be passed before operation object is created */
 #define SLAPI_CONTROLS_ARG 58
