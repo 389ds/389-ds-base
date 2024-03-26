@@ -1733,16 +1733,15 @@ _entryrdn_put_data(entryrdn_db_ctx_t *ctx, dbi_val_t *key, dbi_val_t *data, char
     int db_retry = 0;
     int rc = -1;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_put_data",
-                  "--> _entryrdn_put_data\n");
     if (NULL == ctx || NULL == key || NULL == data) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_put_data",
                       "Param error: Empty %s\n",
                       NULL == ctx ? "database context" : NULL == key
                       ? "key" : NULL == data ? "data" : "unknown");
-        _ENTRYRDN_DEBUG_GOTO_BAIL();
-        goto bail;
+        return -1;
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_put_data",
+                  "--> _entryrdn_put_data\n");
 
     dblayer_entryrdn_init_records(ctx->be, key, data, &rec);
     if (rec.suffix_too_long) {
@@ -1819,15 +1818,14 @@ _entryrdn_del_data(entryrdn_db_ctx_t *ctx, dbi_val_t *key, dbi_val_t *data)
     int db_retry = 0;
     int rc = -1;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_del_data",
-                  "--> _entryrdn_del_data\n");
     if (NULL == ctx || NULL == key || NULL == data) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_del_data",
                       "Param error: Empty %s\n",
                       NULL == ctx ? "database context" : NULL == key ? "key" : NULL == data ? "data" : "unknown");
-        _ENTRYRDN_DEBUG_GOTO_BAIL();
-        goto bail;
+        return -1;
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_del_data",
+                  "--> _entryrdn_del_data\n");
     dblayer_entryrdn_init_records(ctx->be, key, data, &rec);
     if (rec.suffix_too_long) {
         errmsg = "Backend suffix is too long";
@@ -1928,17 +1926,16 @@ _entryrdn_insert_key_elems(entryrdn_db_ctx_t *ctx,
     int rc = 0;
     ID myid = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_insert_key_elems",
-                  "--> _entryrdn_insert_key_elems\n");
-
     if (NULL == ctx || NULL == srdn ||
         NULL == key || NULL == parentelem || NULL == elem) {
         slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_insert_key_elems",
                       "Param error: Empty %s\n",
                       NULL == ctx ? "database context" : NULL == srdn ? "RDN" : NULL == key ? "key" : NULL == parentelem ? "parent element" : NULL == elem ? "target element" : "unknown");
-        _ENTRYRDN_DEBUG_GOTO_BAIL();
-        goto bail;
+        return -1;
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_insert_key_elems",
+                  "--> _entryrdn_insert_key_elems\n");
+
     _ENTRYRDN_DUMP_RDN_ELEM(elem);
     dblayer_value_set_buffer(ctx->be, &adddata, elem, elemlen);
 
@@ -2182,7 +2179,7 @@ _entryrdn_replace_suffix_id(entryrdn_db_ctx_t *ctx, dbi_val_t *key, dbi_val_t *a
             rc = _entryrdn_resolve_redirect(ctx, &pelem, 1);
             if (rc) {
                 _ENTRYRDN_DEBUG_GOTO_BAIL();
-                goto bail;
+                goto bail0;
             }
             moddata.data = pelem;
         }
@@ -2250,16 +2247,14 @@ entryrdn_insert_key(entryrdn_db_ctx_t *ctx, Slapi_RDN *srdn, ID id)
     Slapi_RDN *tmpsrdn = NULL;
     int db_retry = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_insert_key",
-                  "--> _entryrdn_insert_key\n");
-
     if (NULL == ctx || NULL == srdn || 0 == id) {
         slapi_log_err(SLAPI_LOG_ERR, "entryrdn_insert_key",
                       "Param error: Empty %s\n",
                       NULL == ctx ? "database context" : NULL == srdn ? "RDN" : 0 == id ? "id" : "unknown");
-        _ENTRYRDN_DEBUG_GOTO_BAIL();
-        goto bail;
+        return -1;
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_insert_key",
+                  "--> _entryrdn_insert_key\n");
 
     if (ctx->txn && ctx->txn->back_special_handling_fn) {
         /* back_special_handling_fn means that the calling thread is doing an import or reindex
@@ -2644,16 +2639,14 @@ entryrdn_delete_key(entryrdn_db_ctx_t *ctx, Slapi_RDN *srdn, ID id)
     int done = 0;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
 
-    slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_delete_key",
-                  "--> entryrdn_delete_key\n");
-
     if (NULL == ctx || NULL == srdn || 0 == id) {
         slapi_log_err(SLAPI_LOG_ERR, "entryrdn_delete_key",
                       "Param error: Empty %s\n",
                       NULL == ctx ? "database context" : NULL == srdn ? "RDN" : 0 == id ? "ID" : "unknown");
-        _ENTRYRDN_DEBUG_GOTO_BAIL();
-        goto bail;
+        return -1;
     }
+    slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_delete_key",
+                  "--> entryrdn_delete_key\n");
 
     if (ctx->txn && ctx->txn->back_special_handling_fn) {
         /* back_special_handling_fn means that the calling thread is doing an import or reindex
