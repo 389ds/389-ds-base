@@ -1510,7 +1510,6 @@ struct slapi_entry *slapi_pblock_get_pw_entry(Slapi_PBlock *pb);
 void slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry);
 
 uint32_t slapi_pblock_get_operation_notes(Slapi_PBlock *pb);
-void slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes);
 void slapi_pblock_set_flag_operation_notes(Slapi_PBlock *pb, uint32_t opflag);
 void slapi_pblock_set_result_text_if_empty(Slapi_PBlock *pb, char *text);
 
