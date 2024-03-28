@@ -878,9 +878,11 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
                 param->ekey.mv_data = (void*)slapi_sdn_get_ndn(&param->sdn);
                 param->ekey.mv_size = strlen(param->ekey.mv_data)+1;
                 param->pkey.mv_data = (void*)slapi_dn_find_parent_ext(param->ekey.mv_data, dnrc != DNRC_OK);
-                param->pkey.mv_size = strlen(param->pkey.mv_data)+1;
                 if (!param->pkey.mv_data) {
                     dnrc = DNRC_NOPARENT_DN;
+                    param->pkey.mv_size = 0;
+                } else {
+                    param->pkey.mv_size = strlen(param->pkey.mv_data)+1;
                 }
             }
         }
@@ -2864,6 +2866,11 @@ process_foreman(backentry *ep, WorkerQueueData_t *wqelmnt)
             return -1;
         }
     }
+    if (!job->all_vlv_init) {
+        /* Let check if we have to update vlvSearch filters with that entryid */
+        vlv_grok_new_import_entry(ep, be, &job->all_vlv_init);
+    }
+
     return 0;
 }
 

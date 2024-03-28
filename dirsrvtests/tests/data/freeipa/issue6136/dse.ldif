@@ -1,0 +1,2122 @@
+dn: cn=o\3Dipaca,cn=mapping tree,cn=config
+aci: (targetattr = "*")(version 3.0;acl "cert manager: Add Replication Agreeme
+ nts";allow (add) userdn = "ldap:///uid=pkidbuser,ou=people,o=ipaca";)
+aci: (targetattr = "*")(targetfilter="(|(objectclass=nsds5Replica)(objectclass
+ =nsds5replicationagreement)(objectclass=nsDSWindowsReplicationAgreement)(obje
+ ctClass=nsMappingTree))")(version 3.0; acl "cert manager: Modify Replication 
+ Agreements"; allow (read, write, search) userdn = "ldap:///uid=pkidbuser,ou=p
+ eople,o=ipaca";)
+aci: (targetattr = "*")(targetfilter="(|(objectclass=nsds5replicationagreement
+ )(objectclass=nsDSWindowsReplicationAgreement))")(version 3.0;acl "cert manag
+ er: Remove Replication Agreements";allow (delete) userdn = "ldap:///uid=pkidb
+ user,ou=people,o=ipaca";)
+cn: o=ipaca
+createTimestamp: 20240322124910Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124912Z
+nsslapd-backend: ipaca
+nsslapd-state: Backend
+objectClass: top
+objectClass: extensibleObject
+objectClass: nsMappingTree
+
+dn: cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: ipaca
+createTimestamp: 20240322124910Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124910Z
+objectClass: top
+objectClass: extensibleObject
+objectClass: nsBackendInstance
+nsslapd-suffix: o=ipaca
+nsslapd-cachesize: -1
+nsslapd-cachememsize: 512000
+nsslapd-readonly: off
+nsslapd-require-index: off
+nsslapd-require-internalop-index: off
+nsslapd-dncachememsize: 16777216
+numSubordinates: 51
+
+dn: cn=allCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=*)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allExpiredCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=conf
+ ig
+cn: allExpiredCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=EXPIRED)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allInvalidCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=conf
+ ig
+cn: allInvalidCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=INVALID)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allInValidCertsNotBefore-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugin
+ s,cn=config
+cn: allInValidCertsNotBefore-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=INVALID)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allKeys-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(serialno=*)(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=keyRepository,ou=kra,o=kra,o=ipaca
+cn: allKeys-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=allNonRevokedCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=c
+ onfig
+cn: allNonRevokedCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (|(certstatus=VALID)(certstatus=INVALID)(certstatus=EXPIRED))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allRevokedCaCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=co
+ nfig
+cn: allRevokedCaCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (&(certStatus=REVOKED)(extension=2.5.29.19;*isCA=true*))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allRevokedCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=conf
+ ig
+cn: allRevokedCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=REVOKED)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allRevokedCertsNotAfter-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins
+ ,cn=config
+cn: allRevokedCertsNotAfter-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=REVOKED)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allRevokedExpiredCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,
+ cn=config
+cn: allRevokedExpiredCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=REVOKED_EXPIRED)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allRevokedOrRevokedExpiredCaCerts-pki-tomcat,cn=ipaca,cn=ldbm database,
+ cn=plugins,cn=config
+cn: allRevokedOrRevokedExpiredCaCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (&(|(certStatus=REVOKED)(certStatus=REVOKED_EXPIRED))(extension=2.5
+ .29.19;*isCA=true*))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allRevokedOrRevokedExpiredCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn
+ =plugins,cn=config
+cn: allRevokedOrRevokedExpiredCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (|(certstatus=REVOKED)(certstatus=REVOKED_EXPIRED))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allValidCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allValidCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=VALID)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allValidCertsNotAfter-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,c
+ n=config
+cn: allValidCertsNotAfter-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (certstatus=VALID)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=allValidOrRevokedCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,
+ cn=config
+cn: allValidOrRevokedCerts-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=certificateRepository,ou=ca,o=ipaca
+vlvFilter: (|(certstatus=VALID)(certstatus=REVOKED))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caAll-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caAll-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requeststate=*)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caCanceled-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caCanceled-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requeststate=canceled)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caCanceledEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn
+ =config
+cn: caCanceledEnrollment-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=canceled)(requesttype=enrollment))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caCanceledRenewal-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=co
+ nfig
+cn: caCanceledRenewal-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=canceled)(requesttype=renewal))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caCanceledRevocation-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn
+ =config
+cn: caCanceledRevocation-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=canceled)(requesttype=revocation))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caComplete-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caComplete-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requeststate=complete)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caCompleteEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn
+ =config
+cn: caCompleteEnrollment-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=complete)(requesttype=enrollment))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caCompleteRenewal-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=co
+ nfig
+cn: caCompleteRenewal-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=complete)(requesttype=renewal))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caCompleteRevocation-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn
+ =config
+cn: caCompleteRevocation-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=complete)(requesttype=revocation))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caEnrollment-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requesttype=enrollment)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caPending-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caPending-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requeststate=pending)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caPendingEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=
+ config
+cn: caPendingEnrollment-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=pending)(requesttype=enrollment))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caPendingRenewal-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=con
+ fig
+cn: caPendingRenewal-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=pending)(requesttype=renewal))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caPendingRevocation-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=
+ config
+cn: caPendingRevocation-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=pending)(requesttype=revocation))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caRejected-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caRejected-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requeststate=rejected)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caRejectedEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn
+ =config
+cn: caRejectedEnrollment-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=rejected)(requesttype=enrollment))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caRejectedRenewal-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=co
+ nfig
+cn: caRejectedRenewal-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=rejected)(requesttype=renewal))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caRejectedRevocation-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn
+ =config
+cn: caRejectedRevocation-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (&(requeststate=rejected)(requesttype=revocation))
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caRenewal-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caRenewal-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requesttype=renewal)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=caRevocation-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caRevocation-pki-tomcat
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvSearch
+vlvBase: ou=ca,ou=requests,o=ipaca
+vlvFilter: (requesttype=revocation)
+vlvScope: 1
+numSubordinates: 1
+
+dn: cn=encrypted attribute keys,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: encrypted attribute keys
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+objectClass: top
+objectClass: extensibleObject
+numSubordinates: 2
+
+dn: cn=encrypted attributes,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: encrypted attributes
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+objectClass: top
+objectClass: extensibleObject
+
+dn: cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: index
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+objectClass: top
+objectClass: extensibleObject
+numSubordinates: 65
+
+dn: cn=kraAll-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(requeststate=*)(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraAll-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraArchival-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(requesttype=enrollment)(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraArchival-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraCanceled-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(requeststate=canceled)(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraCanceled-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraCanceledEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,c
+ n=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(&(requeststate=canceled)(requesttype=enrollment))(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraCanceledEnrollment-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraCanceledRecovery-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=
+ config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(&(requeststate=canceled)(requesttype=recovery))(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraCanceledRecovery-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraComplete-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(requeststate=complete)(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraComplete-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraCompleteEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,c
+ n=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(&(requeststate=complete)(requesttype=enrollment))(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraCompleteEnrollment-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraCompleteRecovery-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=
+ config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(&(requeststate=complete)(requesttype=recovery))(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraCompleteRecovery-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraRecovery-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(requesttype=recovery)(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraRecovery-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraRejected-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(requeststate=rejected)(!(realm=*))))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraRejected-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraRejectedEnrollment-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,c
+ n=config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(&(requeststate=rejected)(requesttype=enrollment))(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraRejectedEnrollment-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=kraRejectedRecovery-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=
+ config
+objectClass: top
+objectClass: vlvSearch
+vlvFilter: (&(&(requeststate=rejected)(requesttype=recovery))(!(realm=*)))
+vlvScope: 1
+vlvBase: ou=kra,ou=requests,o=kra,o=ipaca
+cn: kraRejectedRecovery-pki-tomcat
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+numSubordinates: 1
+
+dn: cn=monitor,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: monitor
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+objectClass: top
+objectClass: extensibleObject
+
+dn: cn=allCerts-pki-tomcatIndex,cn=allCerts-pki-tomcat,cn=ipaca,cn=ldbm databa
+ se,cn=plugins,cn=config
+cn: allCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allExpiredCerts-pki-tomcatIndex,cn=allExpiredCerts-pki-tomcat,cn=ipaca,
+ cn=ldbm database,cn=plugins,cn=config
+cn: allExpiredCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allInvalidCerts-pki-tomcatIndex,cn=allInvalidCerts-pki-tomcat,cn=ipaca,
+ cn=ldbm database,cn=plugins,cn=config
+cn: allInvalidCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allInValidCertsNotBefore-pki-tomcatIndex,cn=allInValidCertsNotBefore-pk
+ i-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allInValidCertsNotBefore-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: notBefore
+vlvUses: 0
+
+dn: cn=allKeys-pki-tomcatIndex,cn=allKeys-pki-tomcat,cn=ipaca,cn=ldbm database
+ ,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: serialno
+objectClass: top
+objectClass: vlvIndex
+cn: allKeys-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=allNonRevokedCerts-pki-tomcatIndex,cn=allNonRevokedCerts-pki-tomcat,cn=
+ ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allNonRevokedCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allRevokedCaCerts-pki-tomcatIndex,cn=allRevokedCaCerts-pki-tomcat,cn=ip
+ aca,cn=ldbm database,cn=plugins,cn=config
+cn: allRevokedCaCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allRevokedCerts-pki-tomcatIndex,cn=allRevokedCerts-pki-tomcat,cn=ipaca,
+ cn=ldbm database,cn=plugins,cn=config
+cn: allRevokedCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allRevokedCertsNotAfter-pki-tomcatIndex,cn=allRevokedCertsNotAfter-pki-
+ tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allRevokedCertsNotAfter-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: notAfter
+vlvUses: 0
+
+dn: cn=allRevokedExpiredCerts-pki-tomcatIndex,cn=allRevokedExpiredCerts-pki-to
+ mcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allRevokedExpiredCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allRevokedOrRevokedExpiredCaCerts-pki-tomcatIndex,cn=allRevokedOrRevoke
+ dExpiredCaCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allRevokedOrRevokedExpiredCaCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allRevokedOrRevokedExpiredCerts-pki-tomcatIndex,cn=allRevokedOrRevokedE
+ xpiredCerts-pki-tomcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allRevokedOrRevokedExpiredCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allValidCerts-pki-tomcatIndex,cn=allValidCerts-pki-tomcat,cn=ipaca,cn=l
+ dbm database,cn=plugins,cn=config
+cn: allValidCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=allValidCertsNotAfter-pki-tomcatIndex,cn=allValidCertsNotAfter-pki-tomc
+ at,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allValidCertsNotAfter-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: notAfter
+vlvUses: 0
+
+dn: cn=allValidOrRevokedCerts-pki-tomcatIndex,cn=allValidOrRevokedCerts-pki-to
+ mcat,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: allValidOrRevokedCerts-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: serialno
+vlvUses: 0
+
+dn: cn=caAll-pki-tomcatIndex,cn=caAll-pki-tomcat,cn=ipaca,cn=ldbm database,cn=
+ plugins,cn=config
+cn: caAll-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caCanceled-pki-tomcatIndex,cn=caCanceled-pki-tomcat,cn=ipaca,cn=ldbm da
+ tabase,cn=plugins,cn=config
+cn: caCanceled-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caCanceledEnrollment-pki-tomcatIndex,cn=caCanceledEnrollment-pki-tomcat
+ ,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caCanceledEnrollment-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caCanceledRenewal-pki-tomcatIndex,cn=caCanceledRenewal-pki-tomcat,cn=ip
+ aca,cn=ldbm database,cn=plugins,cn=config
+cn: caCanceledRenewal-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caCanceledRevocation-pki-tomcatIndex,cn=caCanceledRevocation-pki-tomcat
+ ,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caCanceledRevocation-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caComplete-pki-tomcatIndex,cn=caComplete-pki-tomcat,cn=ipaca,cn=ldbm da
+ tabase,cn=plugins,cn=config
+cn: caComplete-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caCompleteEnrollment-pki-tomcatIndex,cn=caCompleteEnrollment-pki-tomcat
+ ,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caCompleteEnrollment-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caCompleteRenewal-pki-tomcatIndex,cn=caCompleteRenewal-pki-tomcat,cn=ip
+ aca,cn=ldbm database,cn=plugins,cn=config
+cn: caCompleteRenewal-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caCompleteRevocation-pki-tomcatIndex,cn=caCompleteRevocation-pki-tomcat
+ ,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caCompleteRevocation-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caEnrollment-pki-tomcatIndex,cn=caEnrollment-pki-tomcat,cn=ipaca,cn=ldb
+ m database,cn=plugins,cn=config
+cn: caEnrollment-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caPending-pki-tomcatIndex,cn=caPending-pki-tomcat,cn=ipaca,cn=ldbm data
+ base,cn=plugins,cn=config
+cn: caPending-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caPendingEnrollment-pki-tomcatIndex,cn=caPendingEnrollment-pki-tomcat,c
+ n=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caPendingEnrollment-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caPendingRenewal-pki-tomcatIndex,cn=caPendingRenewal-pki-tomcat,cn=ipac
+ a,cn=ldbm database,cn=plugins,cn=config
+cn: caPendingRenewal-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caPendingRevocation-pki-tomcatIndex,cn=caPendingRevocation-pki-tomcat,c
+ n=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caPendingRevocation-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caRejected-pki-tomcatIndex,cn=caRejected-pki-tomcat,cn=ipaca,cn=ldbm da
+ tabase,cn=plugins,cn=config
+cn: caRejected-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caRejectedEnrollment-pki-tomcatIndex,cn=caRejectedEnrollment-pki-tomcat
+ ,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caRejectedEnrollment-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caRejectedRenewal-pki-tomcatIndex,cn=caRejectedRenewal-pki-tomcat,cn=ip
+ aca,cn=ldbm database,cn=plugins,cn=config
+cn: caRejectedRenewal-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caRejectedRevocation-pki-tomcatIndex,cn=caRejectedRevocation-pki-tomcat
+ ,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: caRejectedRevocation-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caRenewal-pki-tomcatIndex,cn=caRenewal-pki-tomcat,cn=ipaca,cn=ldbm data
+ base,cn=plugins,cn=config
+cn: caRenewal-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=caRevocation-pki-tomcatIndex,cn=caRevocation-pki-tomcat,cn=ipaca,cn=ldb
+ m database,cn=plugins,cn=config
+cn: caRevocation-pki-tomcatIndex
+createTimestamp: 20240322124913Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124913Z
+objectClass: top
+objectClass: vlvIndex
+vlvEnabled: 0
+vlvSort: requestId
+vlvUses: 0
+
+dn: cn=3DES,cn=encrypted attribute keys,cn=ipaca,cn=ldbm database,cn=plugins,c
+ n=config
+cn: 3DES
+createTimestamp: 20240322125122Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322125122Z
+nsSymmetricKey:: XLbDZ85jnOzgCs+b2MWMyhVMjWez0ItbATXh76vf78vf2o4ZdbCOnQ0l/C+9I
+ a4EnYP2qf5PrYIX/dhniKhxwCXnvQmfG8Z+9aywWB67VoCMYBkpBfh/+F4Z6hahg9QIYanh5Jc06W
+ eKr1HGa0/Lk1Y8BEjNcUrQrPgB1Z9m3r69mKDr/KLuBiJLb7YgMuPz2GKPf9BYpEgbVJZBqoAg8vA
+ 1ta/dDKAj0DB2vceYDxcYh6tESVfV9Czc8qR6ITwNKcv/HA6uc1Hj8GLzOIjHcDkFy6SMDtviqVdm
+ /VIPJYzerNjqm8WB3usciP5D8WSoUYZw6EIXdbUvKwuYR2h+NQ==
+objectClass: top
+objectClass: extensibleObject
+
+dn: cn=AES,cn=encrypted attribute keys,cn=ipaca,cn=ldbm database,cn=plugins,cn
+ =config
+cn: AES
+createTimestamp: 20240322125122Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322125122Z
+nsSymmetricKey:: sZWKMBsW0c032IzU3tnvh+0tTG3Ad1YSJtgqN/RB5pflhNazJYndbF2g7epdc
+ im1rGJrXrIg2A8h1W9/T7uOODkJzfQdsxlHUCoXzzVA5/22O0LwibN/izO+wivi0rzd6by7IeKixt
+ WQc47FkWo+iAZm1vNylO5G6/NdJmx2dczELvVw4WHXCTumPPCsN6sddHeko1AE6P2ctN5XokgVUtf
+ 9vl9ayZa3WyKdejgKcoH+jyZ1k5OcMuuoM8wyJ+D9YPyuJv6+RMczNXREzbZMuFeZUj/4avsrQyAH
+ htGtj1HEgN3RAleMU+S5IyuIjcmAagzlP+sDxVk+WWHpOFa7Eg==
+objectClass: top
+objectClass: extensibleObject
+
+dn: cn=aci,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: aci
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: pres
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=acmeAccountId,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: acmeAccountId
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=acmeAuthorizationId,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=co
+ nfig
+cn: acmeAuthorizationId
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=acmeAuthorizationWildcard,cn=index,cn=ipaca,cn=ldbm database,cn=plugins
+ ,cn=config
+cn: acmeAuthorizationWildcard
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: pres
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=acmeCertificateId,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=conf
+ ig
+cn: acmeCertificateId
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=acmeExpires,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: acmeExpires
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=acmeIdentifier,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: acmeIdentifier
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=acmeStatus,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: acmeStatus
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=archivedBy,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: archivedBy
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=certstatus,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: certstatus
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=clientId,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: clientId
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=cn,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: cn
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: pres
+nsIndexType: eq
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=dataType,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: dataType
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=dateOfCreate,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: dateOfCreate
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=description,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: description
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=duration,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: duration
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=entryrdn,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: entryrdn
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: subtree
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=entryusn,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: entryusn
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsMatchingRule: integerOrderingMatch
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=entryUUID,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: entryUUID
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=extension,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: extension
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=gidnumber,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: gidnumber
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=givenName,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: givenName
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: pres
+nsIndexType: eq
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=issuedby,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: issuedby
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=issuername,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: issuername
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=mail,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: mail
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: pres
+nsIndexType: eq
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=mailAlternateAddress,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=c
+ onfig
+cn: mailAlternateAddress
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=mailHost,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: mailHost
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=member,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: member
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=memberOf,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: memberOf
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=memberuid,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: memberuid
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=metaInfo,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: metaInfo
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=notafter,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: notafter
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=notbefore,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: notbefore
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=nsCertSubjectDN,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: nsCertSubjectDN
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=nscpEntryDN,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: nscpEntryDN
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=nsds5ReplConflict,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=conf
+ ig
+cn: nsds5ReplConflict
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=nsTombstoneCSN,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: nsTombstoneCSN
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=nsuniqueid,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: nsuniqueid
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=ntUniqueId,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: ntUniqueId
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=ntUserDomainId,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: ntUserDomainId
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=numsubordinates,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: numsubordinates
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: pres
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=objectclass,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: objectclass
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=owner,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: owner
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=ownername,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: ownername
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=parentid,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: parentid
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: true
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=publicKeyData,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: publicKeyData
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=realm,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+cn: realm
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125301Z
+modifyTimestamp: 20240322125301Z
+
+dn: cn=requestid,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: requestid
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=requestowner,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: requestowner
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=requestsourceid,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: requestsourceid
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=requeststate,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: requeststate
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=requesttype,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: requesttype
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=revInfo,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: revInfo
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=revokedby,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: revokedby
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=revokedOn,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: revokedOn
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=seeAlso,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: seeAlso
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=serialno,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: serialno
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=sn,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: sn
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: pres
+nsIndexType: eq
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=status,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: status
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=subjectname,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: subjectname
+createTimestamp: 20240322124911Z
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+modifyTimestamp: 20240322124911Z
+nsIndexType: eq
+nsIndexType: pres
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=targetuniqueid,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: targetuniqueid
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=telephoneNumber,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: telephoneNumber
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: pres
+nsIndexType: eq
+nsIndexType: sub
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=uid,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: uid
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=uidnumber,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: uidnumber
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=uniquemember,cn=index,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+cn: uniquemember
+createTimestamp: 20240322124910Z
+creatorsName: cn=ldbm database,cn=plugins,cn=config
+modifiersName: cn=ldbm database,cn=plugins,cn=config
+modifyTimestamp: 20240322124910Z
+nsIndexType: eq
+nsSystemIndex: false
+objectClass: top
+objectClass: nsIndex
+
+dn: cn=kraAll-pki-tomcatIndex,cn=kraAll-pki-tomcat,cn=ipaca,cn=ldbm database,c
+ n=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraAll-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraArchival-pki-tomcatIndex,cn=kraArchival-pki-tomcat,cn=ipaca,cn=ldbm 
+ database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraArchival-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraCanceled-pki-tomcatIndex,cn=kraCanceled-pki-tomcat,cn=ipaca,cn=ldbm 
+ database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraCanceled-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraCanceledEnrollment-pki-tomcatIndex,cn=kraCanceledEnrollment-pki-tomc
+ at,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraCanceledEnrollment-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraCanceledRecovery-pki-tomcatIndex,cn=kraCanceledRecovery-pki-tomcat,c
+ n=ipaca,cn=ldbm database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraCanceledRecovery-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraComplete-pki-tomcatIndex,cn=kraComplete-pki-tomcat,cn=ipaca,cn=ldbm 
+ database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraComplete-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraCompleteEnrollment-pki-tomcatIndex,cn=kraCompleteEnrollment-pki-tomc
+ at,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraCompleteEnrollment-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125303Z
+modifyTimestamp: 20240322125303Z
+
+dn: cn=kraCompleteRecovery-pki-tomcatIndex,cn=kraCompleteRecovery-pki-tomcat,c
+ n=ipaca,cn=ldbm database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraCompleteRecovery-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125303Z
+modifyTimestamp: 20240322125303Z
+
+dn: cn=kraRecovery-pki-tomcatIndex,cn=kraRecovery-pki-tomcat,cn=ipaca,cn=ldbm 
+ database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraRecovery-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraRejected-pki-tomcatIndex,cn=kraRejected-pki-tomcat,cn=ipaca,cn=ldbm 
+ database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraRejected-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraRejectedEnrollment-pki-tomcatIndex,cn=kraRejectedEnrollment-pki-tomc
+ at,cn=ipaca,cn=ldbm database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraRejectedEnrollment-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
+
+dn: cn=kraRejectedRecovery-pki-tomcatIndex,cn=kraRejectedRecovery-pki-tomcat,c
+ n=ipaca,cn=ldbm database,cn=plugins,cn=config
+vlvUses: 0
+vlvEnabled: 0
+vlvSort: requestId
+objectClass: top
+objectClass: vlvIndex
+cn: kraRejectedRecovery-pki-tomcatIndex
+creatorsName: cn=directory manager
+modifiersName: cn=directory manager
+createTimestamp: 20240322125302Z
+modifyTimestamp: 20240322125302Z
