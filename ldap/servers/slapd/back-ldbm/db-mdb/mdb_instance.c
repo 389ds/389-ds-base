@@ -514,6 +514,9 @@ error:
     if (rc == 0 && does_vlv_need_init(inst)) {
         vlv_init(inst);
     }
+    if (be) {
+        vlv_rebuild_scope_filter(be);
+    }
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 

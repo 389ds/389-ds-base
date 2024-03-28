@@ -5785,9 +5785,9 @@ error_out:
 static char *
 bdb__import_file_name(ldbm_instance *inst)
 {
-    char *fname = slapi_ch_smprintf("%s/.import_%s",
-                                    inst->inst_parent_dir_name,
-                                    inst->inst_dir_name);
+    struct ldbminfo *li = inst->inst_li;
+    char *dbdir = inst->inst_parent_dir_name ? inst->inst_parent_dir_name : li->li_directory;
+    char *fname = slapi_ch_smprintf("%s/.import_%s", li->li_directory, inst->inst_name);
     slapi_log_err(SLAPI_LOG_DEBUG, "bdb__import_file_name", "DBG: fname=%s\n", fname);
     return fname;
 }
@@ -5826,6 +5826,11 @@ bdb_import_file_init(ldbm_instance *inst)
     if (prfd) {
         PR_Close(prfd);
         rc = 0;
+    }
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "bdb_import_file_init", "Failed to open file: %s, error: (%d) %s\n",
+                      fname, rc, slapd_pr_strerror(rc));
     }
     slapi_ch_free_string(&fname);
     return rc;

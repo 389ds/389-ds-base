@@ -139,6 +139,7 @@ typedef struct _ImportJob
     Slapi_Value *usn_value; /* entryusn for import */
     FILE *upgradefd;        /* used for the upgrade */
     int numsubordinates;
+    int all_vlv_init;        /* Tells if can bypass vlv initialization */
     void *writer_ctx;        /* Context used to push data in worker thread */
 } ImportJob;
 

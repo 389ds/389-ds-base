@@ -8,7 +8,9 @@
 #
 import pytest, time
 import os
-from shutil import copyfile
+import glob
+import ldap
+from shutil import copyfile, rmtree
 from contextlib import contextmanager
 from lib389.tasks import *
 from lib389.utils import *
@@ -20,6 +22,7 @@ from lib389.index import *
 from lib389.mappingTree import *
 from lib389.backend import *
 from lib389.idm.user import UserAccounts, UserAccount
+from lib389.idm.organization import Organization
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
 from lib389.replica import BootstrapReplicationManager, Replicas, ReplicationManager
@@ -34,6 +37,7 @@ pytestmark = pytest.mark.tier1
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 
 STARTING_UID_INDEX = 1000
 # VLV search always returns first the entry before the target,
@@ -83,6 +87,11 @@ def check_vlv_search(conn, **kwargs):
     offset = kwargs.get('offset', 3501)
     basedn = kwargs.get('basedn', DEFAULT_SUFFIX)
 
+    log.info('Testing that VLV search is returning the expected entries: '
+             f'basedn={basedn} '
+             f'before_count={before_count} '
+             f'after_count={after_count} '
+             f'offset={offset}')
     vlv_control = VLVRequestControl(criticality=True,
         before_count=before_count,
         after_count=after_count,
@@ -103,53 +112,53 @@ def check_vlv_search(conn, **kwargs):
 
     for i, (dn, entry) in enumerate(result, start=imin):
         assert i <= imax
-        expected_dn = f'uid=testuser{i},ou=People,dc=example,dc=com'
-        log.debug(f'found {dn} expected {expected_dn}')
-        assert dn.lower() == expected_dn.lower()
+        expected_rdn = f'uid=testuser{i},'
+        log.debug(f'found {dn} should starts with {expected_rdn}')
+        assert dn.lower().startswith(expected_rdn)
 
 
 def add_user(inst, users, uid):
-        user_properties = {
-            'uid': f'testuser{uid}',
-            'cn': f'testuser{uid}',
-            'sn': 'user',
-            'uidNumber': str(uid),
-            'gidNumber': str(uid),
-            'homeDirectory': f'/home/testuser{uid}'
-        }
-        users.create(properties=user_properties)
+    user_properties = {
+        'uid': f'testuser{uid}',
+        'cn': f'testuser{uid}',
+        'sn': 'user',
+        'uidNumber': str(uid),
+        'gidNumber': str(uid),
+        'homeDirectory': f'/home/testuser{uid}'
+    }
+    users.create(properties=user_properties)
 
 
-def add_users(inst, users_num):
-    users = UserAccounts(inst, DEFAULT_SUFFIX)
+def add_users(inst, users_num, suffix=DEFAULT_SUFFIX):
+    users = UserAccounts(inst, suffix)
     log.info(f'Adding {users_num} users')
     for i in range(0, users_num):
         uid = STARTING_UID_INDEX + i
         add_user(inst, users, uid)
 
 
-def create_vlv_search_and_index(inst, hyphen='', basedn=DEFAULT_SUFFIX):
+def create_vlv_search_and_index(inst, basedn=DEFAULT_SUFFIX, bename='userRoot', scope=2, prefix="vlv"):
     vlv_searches = VLVSearch(inst)
     vlv_search_properties = {
         "objectclass": ["top", "vlvSearch"],
-        "cn": f"vlv{hyphen}Srch",
+        "cn": f"{prefix}Srch",
         "vlvbase": basedn,
         "vlvfilter": "(uid=*)",
-        "vlvscope": "2",
+        "vlvscope": str(scope),
     }
     vlv_searches.create(
-        basedn="cn=userRoot,cn=ldbm database,cn=plugins,cn=config",
+        basedn=f"cn={bename},cn=ldbm database,cn=plugins,cn=config",
         properties=vlv_search_properties
     )
 
     vlv_index = VLVIndex(inst)
     vlv_index_properties = {
         "objectclass": ["top", "vlvIndex"],
-        "cn": f"vlv{hyphen}Idx",
+        "cn": f"{prefix}Idx",
         "vlvsort": "cn",
     }
     vlv_index.create(
-        basedn=f"cn=vlv{hyphen}Srch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config",
+        basedn=f"cn={prefix}Srch,cn={bename},cn=ldbm database,cn=plugins,cn=config",
         properties=vlv_index_properties
     )
     return vlv_searches, vlv_index
@@ -168,6 +177,120 @@ def cleanup(inst):
     remove_entries(inst, "cn=config", "(objectclass=vlvIndex)")
     remove_entries(inst, "cn=config", "(objectclass=vlvSearch)")
     remove_entries(inst, DEFAULT_SUFFIX, "(cn=testuser*)")
+
+
+@pytest.fixture
+def vlv_setup_with_two_backend(topology_st, request):
+    inst = topology_st.standalone
+    belist = []
+
+    def fin():
+        # Cleanup function
+        if not DEBUGGING:
+            for be in Backends(inst).list():
+                if be.get_attr_val_utf8_l('cn') in [ 'be1', 'be2' ]:
+                    be.delete()
+
+    request.addfinalizer(fin)
+
+    def setup_vlv_and_backend(inst, bename):
+        # Create a backend, add vlv index and populate the backend.
+        bes = Backends(inst)
+        suffix = f'o={bename}'
+        be = bes.create(properties={
+            'cn': bename,
+            'nsslapd-suffix': suffix,
+        })
+        # Add suffix entry
+        Organization(inst, dn=suffix).create(properties={ 'o': bename, })
+        # Configure vlv
+        vlv_search, vlv_index = create_vlv_search_and_index(
+            inst, basedn=suffix,
+            bename=bename, scope=1,
+            prefix=f'vlv_1lvl_{bename}')
+        # Add ou=People entry
+        OrganizationalUnits(inst, suffix).create(properties={'ou': 'People'})
+        # Add another ou that will be deleted before the export
+        # so that import will change the vlv search basedn entryid
+        ou2 = OrganizationalUnits(inst, suffix).create(properties={'ou': 'dummy ou'})
+        # Add a demo user so that vlv_check is happy
+        dn = f'uid=demo_user,ou=people,{suffix}'
+        UserAccount(inst, dn=dn).create( properties= {
+                'uid': 'demo_user',
+                'cn': 'Demo user',
+                'sn': 'Demo user',
+                'uidNumber': '99998',
+                'gidNumber': '99998',
+                'homeDirectory': '/var/empty',
+                'loginShell': '/bin/false', })
+        # Add regular user
+        add_users(inst, 10, suffix=suffix)
+        # Removing ou2
+        ou2.delete()
+        # And export
+        tasks = Tasks(inst)
+        ldif = f'{inst.get_ldif_dir()}/db-{bename}.ldif'
+        assert tasks.exportLDIF(suffix=suffix,
+                                output_file=ldif,
+                                args={TASK_WAIT: True}) == 0
+        # Add the various parameters in topology_st.belist
+        belist.append( { 'be': be,
+                         'suffix': suffix,
+                         'ldif': ldif,
+                         'vlv_search' : vlv_search,
+                         'vlv_index' : vlv_index, })
+
+    # Make sure that our backend are not already present.
+    # and gran userRoot be while doing that
+    be0 = None
+    for be in Backends(inst).list():
+        bename = be.get_attr_val_utf8_l('cn')
+        if bename in [ 'be1', 'be2' ]:
+            be.delete()
+        if bename == 'userroot':
+            be0 = be
+
+    # Add userRoot backend to the backend list
+    be0ldif = f'{inst.get_ldif_dir()}/db-userroot.ldif'
+    assert Tasks(inst).exportLDIF(suffix=DEFAULT_SUFFIX,
+                                  output_file=be0ldif,
+                                  args={TASK_WAIT: True}) == 0
+    belist.append( { 'be': be0,
+                     'suffix': DEFAULT_SUFFIX,
+                     'ldif': be0ldif, })
+    # Then add two new backends
+    setup_vlv_and_backend(inst, "be1")
+    setup_vlv_and_backend(inst, "be2")
+    topology_st.belist = belist
+    return topology_st
+
+
+@pytest.fixture
+def freeipa(topology_st):
+    # generate a standalone instance with same vlv config than freeipa
+    inst = topology_st.standalone
+    datadir = os.path.join(os.path.dirname(__file__), '../../data/freeipa/issue6136')
+    # Stop instance
+    inst.stop()
+    # Copy schema
+    for file in glob.glob(f'{datadir}/schema/*.ldif'):
+        target = f'{inst.schemadir}/{os.path.basename(file)}'
+        log.info(f'Copying Schema {file} to {target}')
+        copyfile(file, target)
+    # append dse
+    file = f'{datadir}/dse.ldif'
+    target = f'{inst.confdir}/{os.path.basename(file)}'
+    log.info(f'Appending ldif {file} to dse {target}')
+    with open(file, 'r') as fin:
+        with open(target, 'a') as fout:
+            fout.write(fin.read())
+    # import ipaca
+    file = f'{datadir}/ipaca.ldif'
+    log.info(f'Importing ldif {file} to ipaca')
+    assert inst.ldif2db('ipaca', None, None, None, file)
+    # restart instance
+    inst.restart()
+    return topology_st
 
 
 def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
@@ -392,6 +515,20 @@ def bootstrap_replication(M1, M2):
     # Assign the entry to the replica
     replica2.replace('nsDS5ReplicaBindDN', brm.dn)
 
+
+def remove_database(inst):
+    # remove the database
+    inst.stop()
+    for file in glob.glob(f'{inst.dbdir}/*'):
+        if os.path.islink(file):
+            continue
+        if os.path.isfile(file):
+            os.remove(file)
+        if os.path.isdir(file):
+            rmtree(file)
+    inst.start()
+
+
 @pytest.mark.skipif(get_default_db_lib() == "bdb", reason="Not supported over bdb")
 def test_vlv_cache_subdb_names(topology_m2):
     """
@@ -464,8 +601,7 @@ def test_vlv_cache_subdb_names(topology_m2):
     #  Avoid getting tricked if database is not properly cleared by the reimport)
     #  by a double bug (index keys not properly reset)
     M2.stop()
-    if get_default_db_lib() == "mdb":
-        os.remove(f'{M2.dbdir}/data.mdb')
+    remove_database(M2)
     M2.start()
 
     # Recreate tree with a new user on M2 (To check that its key get removed)
@@ -544,9 +680,9 @@ def test_vlv_start_with_bad_dse(topology_st):
         inst.start()
 
 @pytest.mark.skipif(get_default_db_lib() == "bdb", reason="bdb may hang because of github #6029")
-@pytest.mark.parametrize("hyphen", ( '', '-' ))
+@pytest.mark.parametrize("prefix", ( 'vlv', 'vl-v' ))
 @pytest.mark.parametrize("basedn", ( DEFAULT_SUFFIX,  f'ou=People,{DEFAULT_SUFFIX}' ))
-def test_vlv_reindex(topology_st, hyphen, basedn):
+def test_vlv_reindex(topology_st, prefix, basedn):
     """Test VLV reindexing.
 
     :id: d5dc0d8e-cbe6-11ee-95b1-482ae39447e5
@@ -556,11 +692,13 @@ def test_vlv_reindex(topology_st, hyphen, basedn):
         2. Add users
         3. Create new VLVs and do the reindex.
         4. Test the new VLVs.
+        5. Restart the server and test again the VLVs
     :expectedresults:
         1. Should Success.
         2. Should Success.
         3. Should Success.
         4. Should Success.
+        5. Should Success.
     """
 
     NUM_USERS = 50
@@ -573,7 +711,7 @@ def test_vlv_reindex(topology_st, hyphen, basedn):
     add_users(inst, NUM_USERS)
 
     # Create and reindex VLVs
-    vlv_search, vlv_index = create_vlv_search_and_index(inst, hyphen=hyphen, basedn=basedn)
+    vlv_search, vlv_index = create_vlv_search_and_index(inst, prefix=prefix, basedn=basedn)
     assert reindex_task.reindex(
         suffix=DEFAULT_SUFFIX,
         attrname=vlv_index.rdn,
@@ -594,6 +732,170 @@ def test_vlv_reindex(topology_st, hyphen, basedn):
     assert count > 0
     verify_vlv_subdb_names(vlv_index.rdn, inst, count=count)
     check_vlv_search(conn, offset=23, basedn=basedn)
+
+
+@pytest.mark.skipif(get_default_db_lib() == "bdb", reason="bdb may hang because of github #6029")
+@pytest.mark.parametrize("prefix", ( 'vlv', 'vl-v' ))
+@pytest.mark.parametrize("basedn", ( DEFAULT_SUFFIX,  f'ou=People,{DEFAULT_SUFFIX}' ))
+def test_vlv_offline_import(topology_st, prefix, basedn):
+    """Test VLV after off line import.
+
+    :id: 8732d7a8-e851-11ee-9d63-482ae39447e5
+    :setup: Standalone instance.
+    :steps:
+        1. Cleanup leftover from previous tests
+        2. Add users
+        3. Create new VLVs and do the reindex.
+        4. Test the new VLVs.
+        5. Export userRoot backend
+        6. Stop the instance
+        7. Perform off-line import
+        8. Restart instance and check the vlvs
+
+
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+        3. Should Success.
+        4. Should Success.
+        5. Should Success.
+        6. Should Success.
+        7. Should Success.
+        8. Should Success.
+    """
+
+    NUM_USERS = 50
+    inst = topology_st.standalone
+    tasks = Tasks(inst)
+
+    # Clean previous tests leftover that cause trouble
+    cleanup(inst)
+
+    add_users(inst, NUM_USERS)
+
+    # Create and reindex VLVs
+    vlv_search, vlv_index = create_vlv_search_and_index(inst, prefix=prefix, basedn=basedn)
+    assert tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=vlv_index.rdn,
+        args={TASK_WAIT: True},
+        vlv=True
+    ) == 0
+
+    conn = open_new_ldapi_conn(inst.serverid)
+    count = len(conn.search_s(basedn, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 0
+    verify_vlv_subdb_names(vlv_index.rdn, inst, count=count)
+    check_vlv_search(conn, offset=23, basedn=basedn)
+
+    # Export to ldif
+    ldif = f'{inst.get_ldif_dir()}/db.ldif'
+    assert tasks.exportLDIF(
+        suffix=DEFAULT_SUFFIX,
+        output_file=ldif,
+        args={TASK_WAIT: True}
+    ) == 0
+
+    # Perform off-line import
+    inst.stop()
+    assert inst.ldif2db('userRoot', None, None, None, ldif)
+
+    # Restart and check again the vlv
+    inst.start()
+    conn = open_new_ldapi_conn(inst.serverid)
+    count = len(conn.search_s(basedn, ldap.SCOPE_SUBTREE, "(uid=*)"))
+    assert count > 0
+    verify_vlv_subdb_names(vlv_index.rdn, inst, count=count)
+    check_vlv_search(conn, offset=23, basedn=basedn)
+
+
+def test_vlv_as_freeipa_backup_restore(freeipa):
+    """Test vlv as if freeipa restore was performed.
+
+    :id: fb0621da-e879-11ee-900e-482ae39447e5
+    :setup: Standalone instance with freeipa test config.
+    :steps:
+        1. Check that standard search returns 16 valid certificate
+        2. Check that vlv search returns 16 valid certificate
+
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+    """
+
+    DATE_LIMIT = '20260323135138Z'
+    EXPECTED_COUNT = 12
+    inst = freeipa.standalone
+    conn = open_new_ldapi_conn(inst.serverid)
+    basedn = 'ou=certificateRepository,ou=ca,o=ipaca'
+    count = len(conn.search_s(basedn, ldap.SCOPE_SUBTREE, f"(&(certStatus=VALID)(notAfter<={DATE_LIMIT}))"))
+    assert count == EXPECTED_COUNT
+
+    vlv_control = VLVRequestControl(criticality=True,
+        before_count=200,
+        after_count=0,
+        offset=None,
+        content_count=None,
+        greater_than_or_equal='20260323135138Z',
+        context_id=None)
+
+    sss_control = SSSRequestControl(criticality=True, ordering_rules=['notAfter'])
+    result = conn.search_ext_s(
+        base=basedn,
+        scope=ldap.SCOPE_SUBTREE,
+        filterstr='(certStatus=VALID)',
+        serverctrls=[vlv_control, sss_control]
+    )
+    assert len(result) == EXPECTED_COUNT
+
+
+def test_vlv_scope_one_on_two_backends(vlv_setup_with_two_backend):
+    """Test one level scoped vlv on two backends.
+
+    :id: 7652a2ea-eab0-11ee-891f-482ae39447e5
+    :setup: Standalone instance with two backens and one level scoped vlv
+    :steps:
+        1. Check that standard search returns 16 valid certificate
+        2. Check that vlv search returns 16 valid certificate
+
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+    """
+    inst = vlv_setup_with_two_backend.standalone
+    tasks = Tasks(inst)
+    conn = open_new_ldapi_conn(inst.serverid)
+    assert len(conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)")) > 0
+    # Check that vlv are working as excpected
+    for tmpd in vlv_setup_with_two_backend.belist:
+        if 'vlv_index' in tmpd:
+            check_vlv_search(conn, offset=6, basedn=tmpd['suffix'])
+
+    # Export userRoot backend
+    ldif = f'{inst.get_ldif_dir()}/db.ldif'
+    assert tasks.exportLDIF(
+        suffix=DEFAULT_SUFFIX,
+        output_file=ldif,
+        args={TASK_WAIT: True}
+    ) == 0
+    # Remove the db
+    remove_database(inst)
+    conn = open_new_ldapi_conn(inst.serverid)
+    # Check that vlv are broken
+    for tmpd in vlv_setup_with_two_backend.belist:
+        if 'vlv_index' in tmpd:
+            with pytest.raises(ldap.NO_SUCH_OBJECT):
+                check_vlv_search(conn, offset=6, basedn=tmpd['suffix'])
+    # Reimport the backends
+    for tmpd in vlv_setup_with_two_backend.belist:
+        assert tasks.importLDIF(
+            suffix=tmpd['suffix'],
+            input_file=tmpd['ldif'],
+            args={TASK_WAIT: True}, ) == 0
+    # Check that vlv are working as excpected
+    for tmpd in vlv_setup_with_two_backend.belist:
+        if 'vlv_index' in tmpd:
+            check_vlv_search(conn, offset=6, basedn=tmpd['suffix'])
 
 
 if __name__ == "__main__":
