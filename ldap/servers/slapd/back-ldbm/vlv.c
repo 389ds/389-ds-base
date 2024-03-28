@@ -336,15 +336,14 @@ be initialized given the new entry. Added write lock. */
 
 
 void
-vlv_grok_new_import_entry(const struct backentry *e, backend *be)
+vlv_grok_new_import_entry(const struct backentry *e, backend *be, int *seen_them_all)
 {
     struct vlvSearch *p = NULL;
-    static int seen_them_all = 0;
     int any_not_done = 0;
 
 
     slapi_rwlock_wrlock(be->vlvSearchList_lock);
-    if (seen_them_all) {
+    if (*seen_them_all) {
         slapi_rwlock_unlock(be->vlvSearchList_lock);
         return;
     }
@@ -362,9 +361,58 @@ vlv_grok_new_import_entry(const struct backentry *e, backend *be)
             }
         }
     if (!any_not_done) {
-        seen_them_all = 1;
+        *seen_them_all = 1;
     }
     slapi_rwlock_unlock(be->vlvSearchList_lock);
+}
+
+void
+vlv_rebuild_scope_filter(backend *be)
+{
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    struct vlvSearch *p = NULL;
+    back_txn new_txn = {NULL};
+    back_txn *txn = NULL;
+    Slapi_PBlock *pb;
+
+    txn = dblayer_get_pvt_txn(); /* Let reuse existing txn if possible */
+    if (!txn && dblayer_read_txn_begin(be, NULL, &new_txn) == 0) {
+            txn = &new_txn;
+    }
+    pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(pb, "", 0, NULL, NULL, 0, NULL, NULL,
+                                 (void *)plugin_get_default_component_id(), 0);
+    slapi_pblock_set(pb, SLAPI_BACKEND, be);
+    slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
+    slapi_pblock_set(pb, SLAPI_TXN, txn->back_txn_txn);
+
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
+    for (p = be->vlvSearchList; p != NULL; p = p->vlv_next) {
+        if (p->vlv_scope != LDAP_SCOPE_ONELEVEL) {
+            /* Only the LDAP_SCOPE_ONELEVEL needs to be rebuild as
+             * they have parentid = baseentryid in their filter
+             */
+            continue;
+        }
+        p->vlv_initialized = 0;
+        if (!slapi_sdn_isempty(p->vlv_base)) {
+            struct backentry *e = NULL;
+            entry_address addr;
+            addr.sdn = p->vlv_base;
+            addr.uniqueid = NULL;
+            e = find_entry(pb, be, &addr, txn, NULL);
+            if (NULL != e) {
+                vlvSearch_reinit(p, e);
+                CACHE_RETURN(&inst->inst_cache, &e);
+                p->vlv_initialized = 1;
+            }
+        }
+    }
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
+    if (txn == &new_txn) {
+        dblayer_txn_abort(be, txn);
+    }
+    slapi_pblock_destroy(pb);
 }
 
 void

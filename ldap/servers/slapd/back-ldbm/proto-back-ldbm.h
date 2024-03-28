@@ -496,13 +496,14 @@ int vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct v
 int vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp);
 void vlv_getindices(IFP callback_fn, void *param, backend *be);
 void vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo);
-void vlv_grok_new_import_entry(const struct backentry *e, backend *be);
+void vlv_grok_new_import_entry(const struct backentry *e, backend *be, int *seen_them_all);
 IDList *vlv_find_index_by_filter(struct backend *be, const char *base, Slapi_Filter *f);
 IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base, Slapi_Filter *f, back_txn *txn);
 int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, ldbm_instance *inst);
 void vlv_acquire_lock(backend *be);
 void vlv_release_lock(backend *be);
 int vlv_isvlv(char *filename);
+void vlv_rebuild_scope_filter(backend *be);
 
 
 /*
