@@ -384,9 +384,9 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
 
     if (!ctx) {
         if (!be) {
-            /* Testing for "be" to avoid a covscan warning although 
-              * dbmdb_open_all_files is never called with both parameters NULL
-              */
+            /* Testing for "be" to avoid a covscan warning although
+             * dbmdb_open_all_files is never called with both parameters NULL
+             */
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_all_files",
                           "Unable to open the database environment witout either the database context or a backend.\n");
             return DBI_RC_INVALID;
@@ -456,6 +456,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
             TST(add_dbi(&octx, be, special_names[i], ctxflags));
             sn_dbis[i] = octx.dbi;
         }
+        TST(add_dbi(&octx, be, LDBM_LONG_ENTRYRDN_STR, ctxflags));
         inst->inst_id2entry = sn_dbis[0];
         if (avl_apply(inst->inst_attrs, add_index_dbi, &octx, STOP_AVL_APPLY, AVL_INORDER)) {
             TST(octx.rc);

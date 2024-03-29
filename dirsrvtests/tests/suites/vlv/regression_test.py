@@ -186,7 +186,7 @@ def vlv_setup_with_two_backend(topology_st, request):
 
     def fin():
         # Cleanup function
-        if not DEBUGGING:
+        if not DEBUGGING and inst.exists() and inst.status():
             for be in Backends(inst).list():
                 if be.get_attr_val_utf8_l('cn') in [ 'be1', 'be2' ]:
                     be.delete()
@@ -826,6 +826,7 @@ def test_vlv_as_freeipa_backup_restore(freeipa):
     DATE_LIMIT = '20260323135138Z'
     EXPECTED_COUNT = 12
     inst = freeipa.standalone
+    inst.restart()
     conn = open_new_ldapi_conn(inst.serverid)
     basedn = 'ou=certificateRepository,ou=ca,o=ipaca'
     count = len(conn.search_s(basedn, ldap.SCOPE_SUBTREE, f"(&(certStatus=VALID)(notAfter<={DATE_LIMIT}))"))

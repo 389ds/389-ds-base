@@ -5786,7 +5786,6 @@ static char *
 bdb__import_file_name(ldbm_instance *inst)
 {
     struct ldbminfo *li = inst->inst_li;
-    char *dbdir = inst->inst_parent_dir_name ? inst->inst_parent_dir_name : li->li_directory;
     char *fname = slapi_ch_smprintf("%s/.import_%s", li->li_directory, inst->inst_name);
     slapi_log_err(SLAPI_LOG_DEBUG, "bdb__import_file_name", "DBG: fname=%s\n", fname);
     return fname;
