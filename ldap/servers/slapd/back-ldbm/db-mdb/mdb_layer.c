@@ -85,6 +85,12 @@ static int dbmdb_force_checkpoint(struct ldbminfo *li);
 static const char *backupfilelists[] = { INFOFILE, DBMAPFILE, DSE_INSTANCE, DSE_INDEX, NULL };
 
 /*
+ * if ATTRINFO_DEBUG_DELAY > 0
+ * log info message are logged periodically when waiting for busy attrinfo.
+ */
+#define ATTRINFO_DEBUG_DELAY 0 /* delay between messages in seconds */
+
+/*
  * return nsslapd-db-home-directory (dbmdb_dbhome_directory), if exists.
  * Otherwise, return nsslapd-directory (dbmdb_home_directory).
  *
@@ -434,6 +440,9 @@ dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_
     struct ldbminfo *li = NULL;
     ldbm_instance *inst = NULL;
     dblayer_handle *handle = NULL;
+#if ATTRINFO_DEBUG_DELAY > 0
+    time_t attrinfo_log_time = 0;
+#endif
     char *dbname = NULL;
     int rc = 0;
     dbi_db_t *db = 0;
@@ -478,6 +487,16 @@ dbmdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_
                  */
                 PR_ASSERT(a->ai_indexmask & INDEX_OFFLINE);
                 PR_Unlock(inst->inst_handle_list_mutex);
+#if ATTRINFO_DEBUG_DELAY > 0
+                if (attrinfo_log_time == 0) {
+                    attrinfo_log_time = slapi_current_utc_time() + ATTRINFO_DEBUG_DELAY;
+                } else if (attrinfo_log_time < slapi_current_utc_time()) {
+                    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_rm_db_file",
+                                  "Waiting that index %s get released, count=%ld.\n",
+                                  a->ai_type, a->ai_dblayer_count);
+                    attrinfo_log_time = slapi_current_utc_time() + ATTRINFO_DEBUG_DELAY;
+                }
+#endif
                 DS_Sleep(DBLAYER_CACHE_DELAY);
                 PR_Lock(inst->inst_handle_list_mutex);
             }

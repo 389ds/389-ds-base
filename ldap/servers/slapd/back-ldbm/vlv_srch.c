@@ -776,6 +776,7 @@ vlvIndex_checkforindex(struct vlvIndex *p, backend *be)
         /* In lmdb case, always open the dbi */
         if (li->li_flags & LI_LMDB_IMPL) {
             (void) dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0) ;
+            dblayer_release_index_file(be, p->vlv_attrinfo, db);
         }
         return;
     }

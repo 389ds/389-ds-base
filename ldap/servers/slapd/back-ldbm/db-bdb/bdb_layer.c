@@ -5783,12 +5783,11 @@ error_out:
 }
 
 static char *
-bdb__import_file_name(ldbm_instance *inst)
+bdb_import_file_name(ldbm_instance *inst)
 {
-    char *fname = slapi_ch_smprintf("%s/.import_%s",
-                                    inst->inst_parent_dir_name,
-                                    inst->inst_dir_name);
-    slapi_log_err(SLAPI_LOG_DEBUG, "bdb__import_file_name", "DBG: fname=%s\n", fname);
+    struct ldbminfo *li = inst->inst_li;
+    char *fname = slapi_ch_smprintf("%s/.import_%s", li->li_directory, inst->inst_name);
+    slapi_log_err(SLAPI_LOG_DEBUG, "bdb_import_file_name", "DBG: fname=%s\n", fname);
     return fname;
 }
 
@@ -5821,11 +5820,16 @@ bdb_import_file_init(ldbm_instance *inst)
 {
     int rc = -1;
     PRFileDesc *prfd = NULL;
-    char *fname = bdb__import_file_name(inst);
+    char *fname = bdb_import_file_name(inst);
     rc = bdb_file_open(fname, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, inst->inst_li->li_mode, &prfd);
     if (prfd) {
         PR_Close(prfd);
         rc = 0;
+    }
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "bdb_import_file_init", "Failed to open file: %s, error: (%d) %s\n",
+                      fname, rc, slapd_pr_strerror(rc));
     }
     slapi_ch_free_string(&fname);
     return rc;
@@ -5849,7 +5853,7 @@ void
 bdb_import_file_update(ldbm_instance *inst)
 {
     PRFileDesc *prfd;
-    char *fname = bdb__import_file_name(inst);
+    char *fname = bdb_import_file_name(inst);
     bdb_file_open(fname, PR_RDWR, inst->inst_li->li_mode, &prfd);
 
     if (prfd) {
@@ -5899,7 +5903,7 @@ int
 bdb_import_file_check(ldbm_instance *inst)
 {
     int rc;
-    char *fname = bdb__import_file_name(inst);
+    char *fname = bdb_import_file_name(inst);
     rc = bdb_file_check(fname, inst->inst_li->li_mode);
     slapi_ch_free_string(&fname);
     return rc;

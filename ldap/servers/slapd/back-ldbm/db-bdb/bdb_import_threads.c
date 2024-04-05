@@ -2739,11 +2739,12 @@ bdb_import_foreman(void *param)
                 goto error;
         }
 
-        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
+        if (!job->all_vlv_init &&
+            !slapi_entry_flag_is_set(fi->entry->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* Lastly, before we're finished with the entry, pass it to the
                vlv code to see whether it's within the scope a VLV index. */
-            vlv_grok_new_import_entry(fi->entry, be);
+            vlv_grok_new_import_entry(fi->entry, be, &job->all_vlv_init);
         }
         if (job->flags & FLAG_ABORT) {
             goto error;
