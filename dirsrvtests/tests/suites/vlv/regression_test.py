@@ -137,7 +137,8 @@ def add_users(inst, users_num, suffix=DEFAULT_SUFFIX):
         add_user(inst, users, uid)
 
 
-def create_vlv_search_and_index(inst, basedn=DEFAULT_SUFFIX, bename='userRoot', scope=2, prefix="vlv"):
+def create_vlv_search_and_index(inst, basedn=DEFAULT_SUFFIX, bename='userRoot',
+                                scope=ldap.SCOPE_SUBTREE, prefix="vlv"):
     vlv_searches = VLVSearch(inst)
     vlv_search_properties = {
         "objectclass": ["top", "vlvSearch"],
@@ -206,7 +207,7 @@ def vlv_setup_with_two_backend(topology_st, request):
         # Configure vlv
         vlv_search, vlv_index = create_vlv_search_and_index(
             inst, basedn=suffix,
-            bename=bename, scope=1,
+            bename=bename, scope=ldap.SCOPE_ONELEVEL,
             prefix=f'vlv_1lvl_{bename}')
         # Add ou=People entry
         OrganizationalUnits(inst, suffix).create(properties={'ou': 'People'})
