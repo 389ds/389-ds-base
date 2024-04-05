@@ -355,8 +355,6 @@ ldbm_instance_config_set(ldbm_instance *inst, char *attr_name, config_info *conf
     config_info *config;
     int rc = LDAP_SUCCESS;
 
-slapi_log_err(SLAPI_LOG_INFO, "ldbm_instance_config_set", "instance: %s attr %s \n", inst->inst_name, attr_name);
-
     config = config_info_get(config_array, attr_name);
     if (NULL == config) {
         struct ldbminfo *li = inst->inst_li;
