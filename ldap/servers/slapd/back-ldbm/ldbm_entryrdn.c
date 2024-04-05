@@ -1404,6 +1404,9 @@ _entryrdn_open_index(entryrdn_db_ctx_t *ctx)
             attr_create_empty(ctx->be, LDBM_LONG_ENTRYRDN_STR, &ctx->redirect_ai);
         }
         rc = dblayer_get_index_file(ctx->be, ctx->redirect_ai, &ctx->redirect_db, dbopen_flags);
+        if (rc) {
+            dblayer_release_index_file(ctx->be, ctx->ai, &ctx->db);
+        }
     }
 bail:
     return rc;
