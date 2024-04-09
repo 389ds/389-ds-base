@@ -384,7 +384,9 @@ vlv_rebuild_scope_filter(backend *be)
                                  (void *)plugin_get_default_component_id(), 0);
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
     slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
-    slapi_pblock_set(pb, SLAPI_TXN, txn->back_txn_txn);
+    if (txn) {
+        slapi_pblock_set(pb, SLAPI_TXN, txn->back_txn_txn);
+    }
 
     slapi_rwlock_wrlock(be->vlvSearchList_lock);
     for (p = be->vlvSearchList; p != NULL; p = p->vlv_next) {

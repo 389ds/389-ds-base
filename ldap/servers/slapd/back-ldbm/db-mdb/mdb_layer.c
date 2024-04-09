@@ -2338,17 +2338,17 @@ int dbmdb_cursor_get_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
         rc = MDB_CURSOR_OPEN(mdb_cursor_txn(cursor->cur), mdb_cursor_dbi(cursor->cur), &newcur);
     }
     if (rc == 0) {
-        rc = MDB_CURSOR_GET(newcur, &rce->key, &rce-> data, MDB_SET);
+        rc = MDB_CURSOR_GET(newcur, &rce->key, &rce->data, MDB_SET);
     }
     while (rc == 0) {
         cmpres = dbmdb_cmp_dbi_record(mdb_cursor_dbi(cursor->cur), &curpos_key, &curpos_data, &rce->key, &rce->data);
-        if (cmpres >= 0) {
+        if (cmpres <= 0) {
             break;
         }
         rce->recno++;
         rc = MDB_CURSOR_GET(newcur, &rce->key, &rce->data, MDB_NEXT);
     }
-    if (cmpres > 0) {
+    if (cmpres < 0) {
         rc = MDB_NOTFOUND;
     }
     if (rc == 0) {
