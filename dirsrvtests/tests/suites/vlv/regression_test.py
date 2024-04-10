@@ -900,6 +900,45 @@ def test_vlv_scope_one_on_two_backends(vlv_setup_with_two_backend):
             check_vlv_search(conn, offset=6, basedn=tmpd['suffix'])
 
 
+def test_vlv_by_keyword(freeipa):
+    """Test vlv search by keyword instead of by range
+
+    :id: 0e74bbf6-f5c6-11ee-b086-482ae39447e5
+    :setup: Standalone instance with freeipa test config.
+    :steps:
+        1. Perform a vlv search returning the six entries with
+           highest serialno that is lesser or equal than "0210"
+        2. Check that the 6 expected entries are returned.
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+    """
+
+    inst = freeipa.standalone
+    conn = open_new_ldapi_conn(inst.serverid)
+    basedn = 'ou=certificateRepository,ou=ca,o=ipaca'
+
+    vlv_control = VLVRequestControl(criticality=True,
+        before_count=5,
+        after_count=0,
+        offset=None,
+        content_count=None,
+        greater_than_or_equal='0211',
+        context_id=None)
+
+    sss_control = SSSRequestControl(criticality=True, ordering_rules=['serialno'])
+    result = conn.search_ext_s(
+        base=basedn,
+        scope=ldap.SCOPE_ONELEVEL,
+        filterstr='(certStatus=*)',
+        serverctrls=[vlv_control, sss_control]
+    )
+    assert len(result) == 6
+    dns = [ dn for dn,entry in result ]
+    for idx in range(6,12):
+        assert f'cn={idx},ou=certificateRepository,ou=ca,o=ipaca' in dns
+
+
 if __name__ == "__main__":
     # Run isolated
     # -s for DEBUG mode
