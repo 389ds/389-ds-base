@@ -115,10 +115,10 @@ def test_healthcheck_standalone(topology_st):
         3. Success
     """
 
-    standalone = topology_st.standalone
+    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
 
-    run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT,json=False)
-    run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
+    run_healthcheck_and_flush_log(topology_st.logcap, topology_st.standalone, CMD_OUTPUT,json=False)
+    run_healthcheck_and_flush_log(topology_st.logcap, topology_st.standalone, JSON_OUTPUT, json=True)
 
 
 @pytest.mark.xfail(ds_is_older("1.4.2"), reason="Not implemented")
@@ -529,7 +529,7 @@ def test_lint_backend_implementation_wrong_files(topology_st):
 
 
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not needed for mdb")
-def test_lint_backend_implementation(create_custom_db_instance):
+def test_lint_backend_implementation(topology_st):
     """Test the lint for backend implementation mismatch
 
     :id: eff607de-768a-4cf4-bcde-48d4c7368934
