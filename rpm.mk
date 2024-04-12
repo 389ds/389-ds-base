@@ -20,7 +20,7 @@ GIT_TAG = ${TAG}
 #  then uploaded in https://fedorapeople.org
 LIBDB_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
 LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
-BUNDLE_LIBDB = 1
+BUNDLE_LIBDB ?= 0
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
