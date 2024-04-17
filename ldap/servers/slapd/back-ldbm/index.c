@@ -71,6 +71,32 @@ typedef struct _index_buffer_handle index_buffer_handle;
 #define INDEX_BUFFER_FLAG_SERIALIZE 1
 #define INDEX_BUFFER_FLAG_STATS 2
 
+/*
+ * space needed to encode a byte:
+ *  0x00-0x31 and 0x7f-0xff requires 3 bytes: \xx
+ *  0x22 and 0x5C requires 2 bytes: \" and \\
+ *  other requires 1 byte: c
+ */
+static char encode_size[] = {
+    /* 0x00 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0x10 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0x20 */   1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    /* 0x30 */   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    /* 0x40 */   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    /* 0x50 */   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1,
+    /* 0x60 */   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    /* 0x70 */   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3,
+    /* 0x80 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0x90 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0xA0 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0xB0 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0xC0 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0xD0 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0xE0 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    /* 0xF0 */   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+};
+
+
 /* Index buffering functions */
 
 static int
@@ -799,65 +825,46 @@ index_add_mods(
 
 /*
  * Convert a 'struct berval' into a displayable ASCII string
+ * returns the printable string
  */
-
-#define SPECIAL(c) (c < 32 || c > 126 || c == '\\' || c == '"')
-
 const char *
 encode(const struct berval *data, char buf[BUFSIZ])
 {
-    char *s;
-    char *last;
-    if (data == NULL || data->bv_len == 0)
-        return "";
-    last = data->bv_val + data->bv_len - 1;
-    for (s = data->bv_val; s < last; ++s) {
-        if (SPECIAL(*s)) {
-            char *first = data->bv_val;
-            char *bufNext = buf;
-            size_t bufSpace = BUFSIZ - 4;
-            while (1) {
-                /* printf ("%lu bytes ASCII\n", (unsigned long)(s - first)); */
-                if (bufSpace < (size_t)(s - first))
-                    s = first + bufSpace - 1;
-                if (s != first) {
-                    memcpy(bufNext, first, s - first);
-                    bufNext += (s - first);
-                    bufSpace -= (s - first);
-                }
-                do {
-                    if (bufSpace) {
-                        *bufNext++ = '\\';
-                        --bufSpace;
-                    }
-                    if (bufSpace < 2) {
-                        memcpy(bufNext, "..", 2);
-                        bufNext += 2;
-                        goto bail;
-                    }
-                    if (*s == '\\' || *s == '"') {
-                        *bufNext++ = *s;
-                        --bufSpace;
-                    } else {
-                        sprintf(bufNext, "%02x", (unsigned)*(unsigned char *)s);
-                        bufNext += 2;
-                        bufSpace -= 2;
-                    }
-                } while (++s <= last && SPECIAL(*s));
-                if (s > last)
-                    break;
-                first = s;
-                while (!SPECIAL(*s) && s <= last)
-                    ++s;
-            }
-        bail:
-            *bufNext = '\0';
-            /* printf ("%lu chars in buffer\n", (unsigned long)(bufNext - buf)); */
+    if (!data || !data->bv_val) {
+        strcpy(buf, "<NULL>");
+        return buf;
+    }
+    char *endbuff = &buf[BUFSIZ-4];  /* Reserve space to append "...\0" */
+    char *ptout = buf;
+    unsigned char *ptin = (unsigned char*) data->bv_val;
+    unsigned char *endptin = ptin+data->bv_len;
+
+    while (ptin < endptin) {
+        if (ptout >= endbuff) {
+            /*
+             * BUFSIZ(8K) > SLAPI_LOG_BUFSIZ(2K) so the error log message will be
+             * truncated anyway. So there is no real interrest to test if the original
+             * data contains no special characters and return it as is.
+             */
+            strcpy(endbuff, "...");
             return buf;
         }
+        switch (encode_size[*ptin]) {
+            case 1:
+                *ptout++ = *ptin++;
+                break;
+            case 2:
+                *ptout++ = '\\';
+                *ptout++ = *ptin++;
+                break;
+            case 3:
+                sprintf(ptout, "\\%02x", *ptin++);
+                ptout += 3;
+                break;
+        }
     }
-    /* printf ("%lu bytes, all ASCII\n", (unsigned long)(s - data->bv_val)); */
-    return data->bv_val;
+    *ptout = 0;
+    return buf;
 }
 
 static const char *
