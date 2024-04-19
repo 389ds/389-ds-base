@@ -567,7 +567,6 @@ dist_noinst_DATA = \
 	$(srcdir)/m4 \
 	$(srcdir)/rpm/389-ds-base.spec.in \
 	$(srcdir)/rpm/389-ds-base-devel.README \
-	$(srcdir)/rpm/389-ds-base-git.sh \
 	$(srcdir)/README.md \
 	$(srcdir)/LICENSE \
 	$(srcdir)/LICENSE.* \

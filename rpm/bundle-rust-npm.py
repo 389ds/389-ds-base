@@ -19,9 +19,8 @@ import argcomplete
 import shutil
 import json
 import re
+import logging
 from typing import List, Dict, Tuple, Set
-from lib389.cli_base import setup_script_logger
-from lib389.utils import ensure_list_str, ensure_str
 
 SPECFILE_COMMENT_LINE = 'Bundled cargo crates list'
 START_LINE = f"##### {SPECFILE_COMMENT_LINE} - START #####\n"
@@ -39,8 +38,10 @@ You need to have 'cargo install cargo-license' and 'dnf install npm' to be able 
 
 parser.add_argument('-v', '--verbose',
                     help="Display verbose operation tracing during command execution",
+                    action='store_const', const=logging.DEBUG, default=logging.WARNING)
+parser.add_argument('-f', '--fix-it',
+                    help="Don't comment out License: field",
                     action='store_true', default=False)
-
 parser.add_argument('cargo_path',
                     help="The path to the directory with Cargo.lock file.")
 parser.add_argument('npm_path',
@@ -72,12 +73,10 @@ def backup_specfile(spec_file: str):
 
 def run_cmd(cmd):
     """Executes a command and returns its output."""
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    args = ' '.join(ensure_list_str(result.args))
-    stdout = ensure_str(result.stdout)
-    stderr = ensure_str(result.stderr)
-    log.debug(f"CMD: {args} returned {result.returncode} STDOUT: {stdout} STDERR: {stderr}")
-    return stdout
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    args = ' '.join(result.args)
+    log.debug(f"CMD: {args} returned {result.returncode} STDOUT: {result.stdout} STDERR: {result.stderr}")
+    return result.stdout
 
 
 def process_rust_crates(output: str) -> Dict[str, Tuple[str, str]]:
@@ -138,7 +137,7 @@ def create_license_line(rust_crates: Dict[str, Tuple[str, str]], npm_packages: D
 
 
 def replace_license(spec_file: str, license_string: str):
-    """Replaces the license section in the spec file with a new license string and 
+    """Replaces the license section in the spec file with a new license string and
     adds a comment for manual review and adjustment.
     """
     result = []
@@ -146,9 +145,12 @@ def replace_license(spec_file: str, license_string: str):
         contents = file.readlines()
         for line in contents:
             if line.startswith("License: "):
-                result.append("# IMPORTANT - Check if it looks right. Additionally, "
-                              "compare with the original line. Then, remove this comment and # FIX ME - part.\n")
-                result.append(f"# FIX ME - License:          GPL-3.0-or-later AND {license_string}\n")
+                if args.fix_it:
+                    result.append(f"License:          GPL-3.0-or-later AND {license_string}\n")
+                else:
+                    result.append("# IMPORTANT - Check if it looks right. Additionally, "
+                                  "compare with the original line. Then, remove this comment and # FIXME - part.\n")
+                    result.append(f"# FIXME - License:          GPL-3.0-or-later AND {license_string}\n")
             else:
                 result.append(line)
     with open(spec_file, "w") as file:
@@ -186,7 +188,7 @@ def clean_specfile(spec_file: str) -> bool:
 
 
 def write_provides_bundled(provides_lines: List[str], spec_file: str, cleaned: bool):
-    """Writes bundled package information to the spec file. 
+    """Writes bundled package information to the spec file.
     Includes generated 'Provides' lines and marks the section for easy future modification.
     """
     # Find a line index where 'Provides' ends
@@ -223,9 +225,10 @@ def write_provides_bundled(provides_lines: List[str], spec_file: str, cleaned: b
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    log = setup_script_logger('bundle-rust-npm', args.verbose)
+    logging.basicConfig(level=args.verbose)
+    log = logging.getLogger("bundle-rust-npm")
 
-    log.debug("389-ds-base Rust Crates and Node Modules to Bundled Downstream Specfile tool")
+    log.debug("389-ds-base Rust Crates and Node Modules to Bundled Downstream spec file tool")
     log.debug(f"Called with: {args}")
 
     if args.backup_specfile:
@@ -246,7 +249,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     rust_output = run_cmd(["cargo", "license", "--json", "--current-dir", args.cargo_path])
-    npm_output = run_cmd(["npx", "license-checker", "--production", "--json", "--start", args.npm_path])
+    npm_output = run_cmd(["npx", "--yes", "license-checker", "--production", "--json", "--start", args.npm_path])
 
     if rust_output is None or npm_output is None:
         log.error("Failed to process dependencies. Ensure cargo-license and license-checker are installed and accessible. "
@@ -263,8 +266,9 @@ if __name__ == '__main__':
 
     license_string = create_license_line(rust_crates, npm_packages)
     replace_license(args.spec_file, license_string)
-    log.info(f"Specfile {args.spec_file} is successfully modified! Please:\n"
-              "1. Open the specfile with your editor of choice\n"
-              "2. Make sure that Provides with bundled crates are correct\n"
-              "3. Follow the instructions for 'License:' field and remove the helper comments")
+    if not args.fix_it:
+        print(f"Spec file {args.spec_file} is successfully modified! Please:")
+        print("1. Open the spec file with your editor of choice")
+        print("2. Make sure that 'Provides:' with bundled crates are correct")
+        print("3. Follow the instructions for 'License:' field and remove the helper comments")
 
