@@ -1,0 +1,33 @@
+
+# entry-id: 21
+dn: cn=u22449+nsUniqueId=c6654281-f11b11ee-ad93a02d-7ba2db25
+ ,dc=example,dc=com
+objectClass;vucsn-660c4965000000010000: extensibleobject
+objectClass;vucsn-660c4965000000010000: ldapsubentry
+objectClass;vucsn-660c4965000000010000: top
+cn;vucsn-660c4965000000010000;mdcsn-660c4965000000010000: u22449
+creatorsName;vucsn-660c4965000000010000: cn=Directory Manager
+modifiersName;vucsn-660c4965000000010000: cn=Directory Manager
+createTimestamp;vucsn-660c4965000000010000: 20240402180733Z
+modifyTimestamp;vucsn-660c4965000000010000: 20240402180733Z
+nsUniqueId: c6654281-f11b11ee-ad93a02d-7ba2db25
+nsds5ReplConflict;vucsn-660c4965000000020000: namingConflict (ADD) cn=u22449,d
+ c=example,dc=com
+ConflictCSN;vucsn-660c4965000000010000: 660c4965000000010000
+entryUUID: bf5a0e9e-07cb-4271-a85d-f8bc0e50e748
+dsEntryDN: cn=u22449+nsUniqueId=c6654281-f11b11ee-ad93a02d-7ba2db25
+ ,dc=example,dc=com
+
+# entry-id: 22
+dn: cn=u22449,dc=example,dc=com
+objectClass;vucsn-660c4965000000020000: extensibleobject
+objectClass;vucsn-660c4965000000020000: top
+cn;vucsn-660c4965000000020000;mdcsn-660c4965000000020000: u22449
+creatorsName;vucsn-660c4965000000020000: cn=Directory Manager
+modifiersName;vucsn-660c4965000000020000: cn=Directory Manager
+createTimestamp;vucsn-660c4965000000020000: 20240402180733Z
+modifyTimestamp;vucsn-660c4965000000020000: 20240402180733Z
+nsUniqueId: cd8c5081-f11b11ee-9829d059-db401164
+entryUUID;vucsn-660c4965000000020000: 180e45bf-1fdf-4ee8-9eb9-a53e95276abb
+dsEntryDN: cn=u22449,dc=example,dc=com
+
