@@ -764,7 +764,9 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
      * flagged - leave mod attributes alone */
     if (!repl_op && !skip_modified_attrs && lastmod) {
         modify_update_last_modified_attr(pb, &smods);
+        slapi_pblock_set(pb, SLAPI_MODIFY_MODS, slapi_mods_get_ldapmods_byref(&smods));
     }
+
 
     if (0 == slapi_mods_get_num_mods(&smods)) {
         /* nothing to do - no mods - this is not an error - just
@@ -932,8 +934,10 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
 
             /* encode password */
             if (pw_encodevals_ext(pb, sdn, va)) {
-                slapi_log_err(SLAPI_LOG_CRIT, "op_shared_modify", "Unable to hash userPassword attribute for %s.\n", slapi_entry_get_dn_const(e));
-                send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Unable to store attribute \"userPassword\" correctly\n", 0, NULL);
+                slapi_log_err(SLAPI_LOG_CRIT, "op_shared_modify", "Unable to hash userPassword attribute for %s, "
+                    "check value is utf8 string.\n", slapi_entry_get_dn_const(e));
+                send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Unable to hash \"userPassword\" attribute, "
+                    "check value is utf8 string.\n", 0, NULL);
                 valuearray_free(&va);
                 goto free_and_return;
             }
