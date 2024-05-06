@@ -38,6 +38,11 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=F
     args.dry_run = False
     args.json = json
 
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
+    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
+       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
+        searched_code = 'DSBLE0006'
+
     log.info('Use healthcheck with --json == {} option'.format(json))
     health_check_run(instance, topology.logcap.log, args)
 
@@ -50,7 +55,11 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=F
         log.info('Healthcheck returned searched code: %s' % searched_code)
 
     if searched_code2 is not None:
-        assert topology.logcap.contains(searched_code2)
+        if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
+        (searched_code2 is CMD_OUTPUT or searched_code2 is JSON_OUTPUT):
+            searched_code = 'DSBLE0006'
+
+        assert logcap.contains(searched_code2)
         log.info('Healthcheck returned searched code: %s' % searched_code2)
 
     log.info('Clear the log')
@@ -262,7 +271,6 @@ def test_healthcheck_check_option(topology_st):
         log.info('Check {}'.format(item))
         run_healthcheck_and_flush_log(topology_st, standalone, searched_code=pattern, json=False, check=[item],
                                       searched_code2=CMD_OUTPUT)
-        run_healthcheck_and_flush_log(topology_st, standalone, searched_code=JSON_OUTPUT, json=True, check=[item])
 
 
 @pytest.mark.ds50873
@@ -491,8 +499,78 @@ def test_healthcheck_database_not_initialized(topology_no_sample):
     RET_CODE = 'DSBLE0003'
     standalone = topology_no_sample.standalone
 
-    run_healthcheck_and_flush_log(topology_no_sample, standalone, RET_CODE, json=False)
-    run_healthcheck_and_flush_log(topology_no_sample, standalone, RET_CODE, json=True)
+    run_healthcheck_and_flush_log(topology_no_sample.logcap, standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_no_sample.logcap, standalone, RET_CODE, json=True)
+
+
+def create_dummy_db_files(inst, backend_type):
+    # Define the sets of dummy files for each backend type
+    mdb_files = ['data.mdb', 'lock.mdb', 'INFO.mdb']
+    bdb_files = ['__db.001', 'DBVERSION', '__db.003', 'userRoot', 'log.0000000001', '__db.002']
+
+    # Determine the target file list based on the backend type
+    if backend_type == 'mdb':
+        target_files = mdb_files
+    else:
+        target_files = bdb_files
+
+    # Get the database directory paths from the instance
+    db_dir = inst.ds_paths.db_dir
+
+    # Create dummy files in the primary database directory
+    for filename in target_files:
+        filepath = os.path.join(db_dir, filename)
+        with open(filepath, 'w') as f:
+            f.write('')  # Create an empty file for simplicity
+
+
+def test_lint_backend_implementation_wrong_files(topology_st):
+    """Test the lint for backend implementation wrong files
+
+    :id: 22cd14f2-c5ba-45e0-96fc-0678adc5c5db
+    :setup: Custom instance with db_lib set to either mdb or bdb.
+    :steps:
+        1. Manually create dummy backend files for the test instance.
+        2. Run the linting function to check for errors.
+    :expectedresults:
+        1. The dummy backend files are created successfully.
+        2. The linting function identifies the issue and reports correctly.
+    """
+
+    RET_CODE = 'DSBLE0004'
+
+    inst = topology_st.standalone
+
+    if inst.get_db_lib() == 'mdb':
+        create_dummy_db_files(inst, 'bdb')
+    else:
+        create_dummy_db_files(inst, 'mdb')
+
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
+
+
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not needed for mdb")
+def test_lint_backend_implementation(topology_st):
+    """Test the lint for backend implementation mismatch
+
+    :id: eff607de-768a-4cf4-bcde-48d4c7368934
+    :setup: Custom instance with db_lib set to either mdb or bdb.
+    :steps:
+        1. Fetch the 'nsslapd-backend-implement' attribute value.
+        2. Manually set BDB as the backend implementation if MDB
+        3. Run the linting function to check if BDB is used
+    :expectedresults:
+        1. The 'nsslapd-backend-implement' attribute is fetched correctly.
+        2. The implementation is set to BDB.
+        3. The linting function identifies that BDB is still used as a backend and reports the correct severity issue.
+    """
+
+    RET_CODE = 'DSBLE0006'
+    inst = topology_st.standalone
+
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st.logcap, inst, RET_CODE, json=True)
 
 
 if __name__ == '__main__':

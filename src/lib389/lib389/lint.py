@@ -57,6 +57,35 @@ DSBLE0003 = {
     'fix': """You need to import an LDIF file, or create the suffix entry, in order to initialize the database."""
 }
 
+# BDB and MDB checks
+DSBLE0004 = {
+    'dsle': 'DSBLE0004',
+    'severity': 'LOW',
+    'description': 'Both MDB and BDB database files are present.',
+    'items': [],
+    'detail': """Files for both MDB and BDB databases have been found. This indicates that a cleanup of the database
+files has not been performed after a backend implementation change.""",
+    'fix': """Run 'dsctl <instance> dblib cleanup' to remove old database files that are no longer needed or remove them manually."""
+}
+
+DSBLE0005 = {
+    'dsle': 'DSBLE0005',
+    'severity': 'LOW',
+    'description': 'Backend configuration attributes mismatch.',
+    'items': [],
+    'detail': 'Found configuration attributes that are not applicable for the configured backend type.',
+    'fix': 'Review the backend configuration and remove or adjust the incorrect attributes.'
+}
+
+DSBLE0006 = {
+    'dsle': 'DSBLE0006',
+    'severity': 'MEDIUM',
+    'description': 'BDB is still used as a backend.',
+    'items': [],
+    'detail': 'BDB is deprecated and should not be used as a backend.',
+    'fix': 'Migrate the backend to MDB.'
+}
+
 # Config checks
 DSCLE0001 = {
     'dsle': 'DSCLE0001',

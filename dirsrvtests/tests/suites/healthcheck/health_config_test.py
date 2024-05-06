@@ -40,6 +40,11 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.check = ['config', 'refint', 'backends', 'monitor-disk-space', 'logs', 'memberof']
     args.dry_run = False
 
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
+    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
+       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
+        searched_code = 'DSBLE0006'
+
     if json:
         log.info('Use healthcheck with --json option')
         args.json = json
