@@ -216,7 +216,17 @@ class Agreement(DSLdapObject):
         con_maxcsn = "Unknown"
         try:
             agmt_maxcsn = self.get_agmt_maxcsn()
-            agmt_status = json.loads(self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS_JSON))
+            agmt_status_json = self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS_JSON)
+            try:
+                agmt_status = json.loads(agmt_status_json)
+            except TypeError:
+                # This may happen when dealing with an old version of directory server
+                agmt_status_legacy = self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS)
+                agmt_status = { 'state': 'amber',
+                                'message': f'Legacy replica message: is {agmt_status_legacy}' }
+            except json.JSONDecodeError:
+                agmt_status = { 'state': 'red', 
+                                'message': f'Invalid status syntax: {agmt_status_json}' }
             if agmt_maxcsn is not None:
                 try:
                     con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
