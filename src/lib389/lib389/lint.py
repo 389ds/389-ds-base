@@ -63,7 +63,7 @@ DSBLE0004 = {
     'severity': 'LOW',
     'description': 'Both MDB and BDB database files are present.',
     'items': [],
-    'detail': """Files for both MDB and BDB databases have been found. This indicates that a cleanup of the database 
+    'detail': """Files for both MDB and BDB databases have been found. This indicates that a cleanup of the database
 files has not been performed after a backend implementation change.""",
     'fix': """Run 'dsctl <instance> dblib cleanup' to remove old database files that are no longer needed or remove them manually."""
 }
