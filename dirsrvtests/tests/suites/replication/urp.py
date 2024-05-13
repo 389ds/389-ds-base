@@ -263,6 +263,11 @@ def urp_tester(topology_m3):
 
     return UrpTester(topology_m3)
 
+
+# Warning. test_urp_delete is very long and requires a reasonably
+# fast machine and enough memory to run 3 instances without swapping.
+# FYI: the test spend 6 days on my laptop with i7-9850H CPU @ 2.60GHz
+#      and 32Gb of memory.
 @pytest.mark.skipif(SKIP_THE_TESTS, reason="This test is meant to execute in specific test environment")
 @pytest.mark.parametrize("actionorder", list_order_combinations(4,3))
 def test_urp_delete(urp_tester, actionorder):
@@ -308,10 +313,12 @@ def gen_ldif_file(first, second, result):
             with open(file, 'r') as input:
                 for line in input:
                     output.write(line)
-
+    # ldif sould be readable by dirsrv
+    os.chmod(result, 0o755)
 
 
 @pytest.mark.skipif(SKIP_THE_TESTS, reason="This test is meant to execute in specific test environment")
+@pytest.mark.xfail(reason="URP does not properly handle this case")
 def test_urp_with_crossed_entries(topology_m2):
     """Test urp behaviour if entry conflict entries are crossed
 
@@ -343,12 +350,13 @@ def test_urp_with_crossed_entries(topology_m2):
     export_ldif = f'{s1.get_ldif_dir()}/db.ldif'
     import_ldif1 = f'{s1.get_ldif_dir()}/db1.ldif'
     import_ldif2 = f'{s1.get_ldif_dir()}/db2.ldif'
-    Tasks(s1).exportLDIF(DEFAULT_SUFFIX, output_file=export_ldif, args={EXPORT_REPL_INFO: True, TASK_WAIT: True})
+    assert Tasks(s1).exportLDIF(DEFAULT_SUFFIX, output_file=export_ldif,
+                                args={EXPORT_REPL_INFO: True, TASK_WAIT: True}) == 0
     gen_ldif_file(export_ldif, f'{datadir}/db1.ldif', import_ldif1)
     gen_ldif_file(export_ldif, f'{datadir}/db2.ldif', import_ldif2)
     # 2. import the ldif files
-    Tasks(s1).importLDIF(DEFAULT_SUFFIX, input_file=import_ldif1, args={TASK_WAIT: True})
-    Tasks(s2).importLDIF(DEFAULT_SUFFIX, input_file=import_ldif2, args={TASK_WAIT: True})
+    assert Tasks(s1).importLDIF(DEFAULT_SUFFIX, input_file=import_ldif1, args={TASK_WAIT: True}) == 0
+    assert Tasks(s2).importLDIF(DEFAULT_SUFFIX, input_file=import_ldif2, args={TASK_WAIT: True}) == 0
     # 3. Remove a conflict entry
     ConflictEntry(s1, 'cn=u22449+nsUniqueId=c6654281-f11b11ee-ad93a02d-7ba2db25,dc=example,dc=com').delete()
     # 4. Wait until le replication is in sync
