@@ -1627,7 +1627,6 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newr
                       "writeintegritylog - Could not write integrity log \"%s\" " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                       logfilename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
 
-        PR_Unlock(referint_mutex);
         referint_unlock();
         return;
     }
