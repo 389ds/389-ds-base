@@ -9,7 +9,11 @@
 import logging
 
 import pytest
+import time
+from lib389.dirsrv_log import DirsrvAccessLog
 from lib389.tasks import *
+from lib389.backend import Backends, Backend
+from lib389.dbgen import dbgen_users, dbgen_groups
 from lib389.topologies import topology_st
 from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX
 from lib389.utils import *
@@ -298,6 +302,127 @@ def test_extended_search(topology_st):
     topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
     ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
     assert len(ents) == 1
+
+def test_match_large_valueset(topology_st):
+    """Test that when returning a big number of entries
+    and that we need to match the filter from a large valueset
+    we get benefit to use the sorted valueset
+
+    :id: 7db5aa88-50e0-4c31-85dd-1d2072cb674c
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Create a users and groups backends and tune them
+         2. Generate a test ldif (2k users and 1K groups with all users)
+         3. Import test ldif file using Offline import (ldif2db).
+         4. Prim the 'groups' entrycache with a "fast" search
+         5. Search the 'groups' with a difficult matching value
+         6. check that etime from step 5 is less than a second
+
+    :expectedresults:
+         1. Create a users and groups backends should PASS
+         2. Generate LDIF should PASS.
+         3. Offline import should PASS.
+         4. Priming should PASS.
+         5. Performance search should PASS.
+         6. Etime of performance search should PASS.
+    """
+
+    log.info('Running test_match_large_valueset...')
+    #
+    # Test online/offline LDIF imports
+    #
+    inst = topology_st.standalone
+    inst.start()
+    backends = Backends(inst)
+    users_suffix = "ou=users,%s" % DEFAULT_SUFFIX
+    users_backend = 'users'
+    users_ldif = 'users_import.ldif'
+    groups_suffix = "ou=groups,%s" % DEFAULT_SUFFIX
+    groups_backend = 'groups'
+    groups_ldif = 'groups_import.ldif'
+    groups_entrycache = '200000000'
+    users_number = 2000
+    groups_number = 1000
+
+
+    # For priming the cache we just want to be fast
+    # taking the first value in the valueset is good
+    # whether the valueset is sorted or not
+    priming_user_rdn = "user0001"
+
+    # For performance testing, this is important to use
+    # user1000 rather then user0001
+    # Because user0001 is the first value in the valueset
+    # whether we use the sorted valuearray or non sorted
+    # valuearray the performance will be similar.
+    # With middle value user1000, the performance boost of
+    # the sorted valuearray will make the difference.
+    perf_user_rdn = "user1000"
+
+    # Step 1. Prepare the backends and tune the groups entrycache
+    try:
+        be_users = backends.create(properties={'parent': DEFAULT_SUFFIX, 'nsslapd-suffix': users_suffix, 'name': users_backend})
+        be_groups = backends.create(properties={'parent': DEFAULT_SUFFIX, 'nsslapd-suffix': groups_suffix, 'name': groups_backend})
+
+        # set the entry cache to 200Mb as the 1K groups of 2K users require at least 170Mb
+        be_groups.replace('nsslapd-cachememsize', groups_entrycache)
+    except:
+        raise
+
+    # Step 2. Generate a test ldif (10k users entries)
+    log.info("Generating users LDIF...")
+    ldif_dir = inst.get_ldif_dir()
+    users_import_ldif = "%s/%s" % (ldif_dir, users_ldif)
+    groups_import_ldif = "%s/%s" % (ldif_dir, groups_ldif)
+    dbgen_users(inst, users_number, users_import_ldif, suffix=users_suffix, generic=True, parent=users_suffix)
+
+    # Generate a test ldif (800 groups with 10k members) that fit in 700Mb entry cache
+    props = {
+        "name": "group",
+        "suffix": groups_suffix,
+        "parent": groups_suffix,
+        "number": groups_number,
+        "numMembers": users_number,
+        "createMembers": False,
+        "memberParent": users_suffix,
+        "membershipAttr": "uniquemember",
+    }
+    dbgen_groups(inst, groups_import_ldif, props)
+
+    # Step 3. Do the both offline imports
+    inst.stop()
+    if not inst.ldif2db(users_backend, None, None, None, users_import_ldif):
+        log.fatal('test_basic_import_export: Offline users import failed')
+        assert False
+    if not inst.ldif2db(groups_backend, None, None, None, groups_import_ldif):
+        log.fatal('test_basic_import_export: Offline groups import failed')
+        assert False
+    inst.start()
+
+    # Step 4. first prime the cache
+    # Just request the 'DN'. We are interested by the time of matching not by the time of transfert
+    entries = topology_st.standalone.search_s(groups_suffix, ldap.SCOPE_SUBTREE, "(&(objectclass=groupOfUniqueNames)(uniquemember=uid=%s,%s))" % (priming_user_rdn, users_suffix), ['dn'])
+    assert len(entries) == groups_number
+
+    # Step 5. Now do the real performance checking it should take less than a second
+    # Just request the 'DN'. We are interested by the time of matching not by the time of transfert
+    search_start = time.time()
+    entries = topology_st.standalone.search_s(groups_suffix, ldap.SCOPE_SUBTREE, "(&(objectclass=groupOfUniqueNames)(uniquemember=uid=%s,%s))" % (perf_user_rdn, users_suffix), ['dn'])
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+
+    # Step 6. Gather the etime from the access log
+    inst.stop()
+    access_log = DirsrvAccessLog(inst)
+    search_result = access_log.match(".*RESULT err=0 tag=101 nentries=%s.*" % groups_number)
+    log.info("Found patterns are %s", search_result[0])
+    log.info("Found patterns are %s", search_result[1])
+    etime = float(search_result[1].split('etime=')[1])
+    log.info("Duration of the search from access log was %f", etime)
+    assert len(entries) == groups_number
+    assert (etime < 1)
 
 if __name__ == '__main__':
     # Run isolated
