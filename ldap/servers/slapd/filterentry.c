@@ -296,7 +296,27 @@ test_ava_filter(
         rc = -1;
         for (; a != NULL; a = a->a_next) {
             if (slapi_attr_type_cmp(ava->ava_type, a->a_type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
-                rc = plugin_call_syntax_filter_ava(a, ftype, ava);
+                if ((ftype == LDAP_FILTER_EQUALITY) &&
+                    (slapi_attr_is_dn_syntax_type(a->a_type))) {
+                    /* This path is for a performance improvement */
+
+                    /* In case of equality filter we can get benefit of the
+                     * sorted valuearray (from valueset).
+                     * This improvement is limited to DN syntax attributes for
+                     * which the sorted valueset was designed.
+                     */
+                    Slapi_Value *sval = NULL;
+                    sval = slapi_value_new_berval(&ava->ava_value);
+                    if (slapi_valueset_find((const Slapi_Attr *)a, &a->a_present_values, sval)) {
+                        rc = 0;
+                    }
+                    slapi_value_free(&sval);
+                } else {
+                    /* When sorted valuearray optimization cannot be used
+                     * lets filter the value according to its syntax
+                     */
+                    rc = plugin_call_syntax_filter_ava(a, ftype, ava);
+                }
                 if (rc == 0) {
                     break;
                 }
