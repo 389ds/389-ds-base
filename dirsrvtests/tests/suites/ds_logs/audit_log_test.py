@@ -14,6 +14,7 @@ import time
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts
+from lib389.idm.group import Groups
 
 log = logging.getLogger(__name__)
 
@@ -176,6 +177,37 @@ def test_auditlog_buffering(topo, request):
     def fin():
         inst.config.replace('nsslapd-timelimit', original_value)
     request.addfinalizer(fin)
+
+def test_auditlog_buffering_large_update(topo, request):
+    """Test log buffering works as expected with very large updates
+
+    :id: 8c157ccd-5cc2-4d93-bc96-16f1e098efba
+    :setup: Standalone Instance
+    :steps:
+        1. Set buffering on
+        2. Make large update
+        3. Check if the entire update was written to the log
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    # Configure instance
+    inst = topo.standalone
+    inst.config.replace('nsslapd-auditlog-logging-enabled', 'on')
+    inst.config.replace('nsslapd-auditlog-logbuffering', 'on')
+    inst.deleteAuditLogs()  # Start with fresh set of logs
+
+    groups = Groups(inst, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={'cn': 'large_group'})
+
+    large_value = "L" * 5000
+    large_value += "The End"
+    group.add('description', large_value)
+
+    time.sleep(1)
+    assert inst.ds_audit_log.match(".*The End")
 
 
 if __name__ == '__main__':
