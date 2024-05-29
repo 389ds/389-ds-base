@@ -861,6 +861,7 @@ class SetupDs(object):
                 ldapi_autobind="on",
             )
             file_dse.write(dse_fmt)
+        os.chown(os.path.join(slapd['config_dir'], 'dse.ldif'), slapd['user_uid'], slapd['group_gid'])
 
         self.log.info("Create file system structures ...")
         # Create all the needed paths
@@ -977,7 +978,7 @@ class SetupDs(object):
         # Create a certificate database.
         tlsdb = NssSsl(dirsrv=ds_instance, dbpath=slapd['cert_dir'])
         if not tlsdb._db_exists():
-            tlsdb.reinit()
+            tlsdb.reinit(uid=slapd['user_uid'], gid=slapd['group_gid'])
 
         if slapd['self_sign_cert']:
             self.log.info("Create self-signed certificate database ...")

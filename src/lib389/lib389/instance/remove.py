@@ -81,8 +81,9 @@ def remove_ds_instance(dirsrv, force=False):
 
     # Stop the instance (if running) and now we know it really does exist
     # and hopefully have permission to access it ...
-    _log.debug("Stopping instance %s" % dirsrv.serverid)
-    dirsrv.stop()
+    if dirsrv.status():
+        _log.debug("Stopping instance %s" % dirsrv.serverid)
+        dirsrv.stop()
 
     _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
 
