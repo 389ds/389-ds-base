@@ -39,11 +39,6 @@
 static unsigned char itoa64[] = /* 0 ... 63 => ascii - 64 */
     "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-#define CRYPT_UNIX 0
-#define CRYPT_MD5 1
-#define CRYPT_SHA256 2
-#define CRYPT_SHA512 3
-
 /* Use the same salt lengths as passwd */
 #define CRYPT_UNIX_SALT_LENGTH 2
 #define CRYPT_MD5_SALT_LENGTH 8
@@ -78,7 +73,7 @@ crypt_pw_cmp(const char *userpwd, const char *dbpwd)
 }
 
 static char *
-crypt_pw_enc_by_hash(const char *pwd, int hash_algo, int salt_len, const char *algo_id)
+crypt_pw_enc_by_hash(const char *pwd, int salt_len, const char *algo_id)
 {
     char salt[CRYPT_SALT_STRING_MAXLEN];
     char *algo_salt = NULL;
@@ -114,21 +109,20 @@ crypt_pw_enc_by_hash(const char *pwd, int hash_algo, int salt_len, const char *a
 char *
 crypt_pw_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_UNIX, CRYPT_UNIX_SALT_LENGTH, NULL);
+    return crypt_pw_enc_by_hash(pwd, CRYPT_UNIX_SALT_LENGTH, NULL);
 }
-
 char *
 crypt_pw_md5_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_MD5, CRYPT_MD5_SALT_LENGTH, "$1$");
+    return crypt_pw_enc_by_hash(pwd, CRYPT_MD5_SALT_LENGTH, "$1$");
 }
 char *
 crypt_pw_sha256_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA256, CRYPT_SHA_SALT_LENGTH, "$5$");
+    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, "$5$");
 }
 char *
 crypt_pw_sha512_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA512, CRYPT_SHA_SALT_LENGTH, "$6$");
+    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, "$6$");
 }
