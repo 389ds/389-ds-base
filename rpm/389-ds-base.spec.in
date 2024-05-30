@@ -1,5 +1,4 @@
 %global pkgname   dirsrv
-%global srcname   389-ds-base
 
 %bcond bundle_jemalloc 1
 %if %{with bundle_jemalloc}
@@ -17,12 +16,7 @@
 
 # This is used in certain builds to help us know if it has extra features.
 %global variant base
-# for a pre-release, define the prerel field e.g. .a1 .rc2 - comment out for official release
-# also remove the space between % and global - this space is needed because
-# fedpkg verrel stupidly ignores comment lines
 %global prerel __VERSION_PREREL__%{nil}
-# also need the relprefix field for a pre-release e.g. .0 - also comment out for official release
-#% global relprefix 0.
 
 # This enables a sanitized build.
 %bcond asan 0
@@ -64,11 +58,10 @@
 
 Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
-Version:          __VERSION__
-Release:          __RELEASE__%{?with_asan:.asan}%{?dist}
+Version:          __VERSION__%{?prerel}
+Release:          %{autorelease -n %{?with_asan:-e asan}}%{?dist}
 License:          GPLv3+ and (ASL 2.0 or MIT)
 URL:              https://www.port389.org/
-Group:            System Environment/Daemons
 Obsoletes:        %{name} <= 1.4.0.9
 Obsoletes:        %{name}-legacy-tools < 1.4.4.6
 Obsoletes:        %{name}-legacy-tools-debuginfo < 1.4.4.6
@@ -159,9 +152,7 @@ BuildRequires:    nodejs
 # Now, attach the requires only to the package that needs them.
 # -libs has most of our runtime libs
 Requires:         %{name}-libs = %{version}-%{release}
-%if 0%{?rhel} > 7 || 0%{?fedora}
 Requires:         python%{python3_pkgversion}-lib389 = %{version}-%{release}
-%endif
 
 # this is needed for using semanage from our setup scripts
 Requires:         policycoreutils-python-utils
@@ -204,7 +195,7 @@ Requires:         zlib-devel
 # Picks up our systemd deps.
 %{?systemd_requires}
 
-Source0:          %{name}-%{version}%{?prerel}.tar.bz2
+Source0:          %{name}-%{version}.tar.bz2
 Source2:          %{name}-devel.README
 %if %{with bundle_jemalloc}
 Source3:          https://github.com/jemalloc/%{jemalloc_name}/releases/download/%{jemalloc_ver}/%{jemalloc_name}-%{jemalloc_ver}.tar.bz2
@@ -225,7 +216,6 @@ Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
 
 %package          libs
 Summary:          Core libraries for 389 Directory Server (%{variant})
-Group:            System Environment/Daemons
 Provides:         svrcore = 4.1.4
 Obsoletes:        svrcore <= 4.1.3
 Conflicts:        svrcore
@@ -261,7 +251,6 @@ package to be installed with just the -libs package and without the main package
 
 %package          devel
 Summary:          Development libraries for 389 Directory Server (%{variant})
-Group:            Development/Libraries
 Provides:         svrcore-devel = 4.1.4
 Obsoletes:        svrcore-devel <= 4.1.3
 Conflicts:        svrcore-devel
@@ -279,7 +268,6 @@ Development Libraries and headers for the 389 Directory Server base package.
 
 %package          snmp
 Summary:          SNMP Agent for 389 Directory Server
-Group:            System Environment/Daemons
 Requires:         %{name} = %{version}-%{release}
 Obsoletes:        %{name} <= 1.3.5.4
 
@@ -294,7 +282,6 @@ Berkeley Database backend for 389 Directory Server
 Warning! This backend is deprecated in favor of lmdb and its support
 may be removed in future versions.
 
-Group:            System Environment/Daemons
 Requires:         %{name} = %{version}-%{release}
 # Berkeley DB database libdb was marked as deprecated since F40:
 # https://fedoraproject.org/wiki/Changes/389_Directory_Server_3.0.0
@@ -307,7 +294,6 @@ Provides:         deprecated()
 %package -n python%{python3_pkgversion}-lib389
 Summary:  A library for accessing, testing, and configuring the 389 Directory Server
 BuildArch:        noarch
-Group:            Development/Libraries
 Requires: %{name} = %{version}-%{release}
 Requires: openssl
 # This is for /usr/bin/c_rehash tool, only needed for openssl < 1.1.0
@@ -345,14 +331,14 @@ A cockpit UI Plugin for configuring and administering the 389 Directory Server
 %endif
 
 %prep
-%setup -q -n %{name}-%{version}%{?prerel}
+%setup -q -n %{name}-%{version}
 
 %if %{with bundle_jemalloc}
-%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
+%setup -q -n %{name}-%{version} -T -D -b 3
 %endif
 
 %if %{with bundle_libdb}
-%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 4
+%setup -q -n %{name}-%{version} -T -D -b 4
 %endif
 
 cp %{SOURCE2} README.devel
@@ -421,7 +407,7 @@ mkdir -p ../%{libdb_base_version}
 pushd ../%{libdb_base_version}
 tar -xjf  ../../SOURCES/%{libdb_full_version}.tar.bz2
 mv %{libdb_full_version} SOURCES
-rpmbuild  --define "_topdir $PWD" -bc %{_builddir}/%{name}-%{version}%{?prerel}/rpm/bundle-libdb.spec
+rpmbuild  --define "_topdir $PWD" -bc %{_builddir}/%{name}-%{version}/rpm/bundle-libdb.spec
 popd
 %endif
 
@@ -446,10 +432,9 @@ autoreconf -fiv
 
 # Avoid "Unknown key name 'XXX' in section 'Service', ignoring." warnings from systemd on older releases
 %if 0%{?rhel} && 0%{?rhel} < 9
-  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' %{_builddir}/%{name}-%{version}%{?prerel}/wrappers/*.service.in
+  sed -r -i '/^(Protect(Home|Hostname|KernelLogs)|PrivateMounts)=/d' %{_builddir}/%{name}-%{version}/wrappers/*.service.in
 %endif
 
-%if 0%{?rhel} > 7 || 0%{?fedora}
 # lib389
 make src/lib389/setup.py
 pushd ./src/lib389
@@ -457,12 +442,10 @@ pushd ./src/lib389
 popd
 # argparse-manpage dynamic man pages have hardcoded man v1 in header,
 # need to change it to v8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/src/lib389/man/dsconf.8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/src/lib389/man/dsctl.8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/src/lib389/man/dsidm.8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}%{?prerel}/src/lib389/man/dscreate.8
-
-%endif
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dsconf.8
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dsctl.8
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dsidm.8
+sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dscreate.8
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS
@@ -470,7 +453,6 @@ export XCFLAGS=$RPM_OPT_FLAGS
 make %{?_smp_mflags}
 
 %install
-rm -rf $RPM_BUILD_ROOT
 
 mkdir -p %{buildroot}%{_datadir}/gdb/auto-load%{_sbindir}
 %if %{with cockpit}
@@ -483,16 +465,18 @@ find %{buildroot}%{_datadir}/cockpit/389-console -type d | sed -e "s@%{buildroot
 find %{buildroot}%{_datadir}/cockpit/389-console -type f | sed -e "s@%{buildroot}@@" >> cockpit.list
 %endif
 
-# Copy in our docs from doxygen.
-cp -r %{_builddir}/%{name}-%{version}%{?prerel}/man/man3 $RPM_BUILD_ROOT/%{_mandir}/man3
+find %{buildroot}%{_libdir}/%{pkgname}/plugins/ -type f -iname 'lib*.so' | sed -e "s@%{buildroot}@@" > plugins.list
+%if %{with bundle_libdb}
+sed -i -e "/libback-bdb/d" plugins.list
+%endif
 
-%if 0%{?rhel} > 7 || 0%{?fedora}
+# Copy in our docs from doxygen.
+cp -r %{_builddir}/%{name}-%{version}/man/man3 $RPM_BUILD_ROOT/%{_mandir}/man3
+
 # lib389
 pushd src/lib389
 %py3_install
 popd
-
-%endif
 
 # Register CLI tools for bash completion
 for clitool in dsconf dsctl dsidm dscreate ds-replcheck
@@ -520,15 +504,15 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 %if %{with bundle_jemalloc}
 pushd ../%{jemalloc_name}-%{jemalloc_ver}
 make DESTDIR="$RPM_BUILD_ROOT" install_lib install_bin
-cp -pa COPYING ../%{name}-%{version}%{?prerel}/COPYING.jemalloc
-cp -pa README ../%{name}-%{version}%{?prerel}/README.jemalloc
+cp -pa COPYING ../%{name}-%{version}/COPYING.jemalloc
+cp -pa README ../%{name}-%{version}/README.jemalloc
 popd
 %endif
 
 %if %{with bundle_libdb}
 pushd ../%{libdb_base_version}
 libdbbuilddir=$PWD/BUILD/%{libdb_base_version}
-libdbdestdir=$PWD/../%{name}-%{version}%{?prerel}
+libdbdestdir=$PWD/../%{name}-%{version}
 cp -pa $libdbbuilddir/LICENSE $libdbdestdir/LICENSE.libdb
 cp -pa $libdbbuilddir/README $libdbdestdir/README.libdb
 cp -pa $libdbbuilddir/lgpl-2.1.txt $libdbdestdir/lgpl-2.1.txt.libdb
@@ -545,9 +529,6 @@ export TSAN_OPTIONS=print_stacktrace=1:second_deadlock_stack=1:history_size=7
 %if %{without asan} && %{without msan}
 if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; fi
 %endif
-
-%clean
-rm -rf $RPM_BUILD_ROOT
 
 %post
 if [ -n "$DEBUGPOSTTRANS" ] ; then
@@ -641,7 +622,7 @@ fi
 %systemd_postun_with_restart %{pkgname}-snmp.service
 
 
-%files
+%files -f plugins.list
 %if %{with bundle_jemalloc}
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.jemalloc
 %license COPYING.jemalloc
@@ -684,7 +665,6 @@ fi
 %{_mandir}/man5/dirsrv.systemd.5.gz
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
-%{_libdir}/%{pkgname}/plugins/*.so
 # This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
 # sysctl.d is always in /lib.
 %{_prefix}/lib/sysctl.d/*
@@ -767,6 +747,5 @@ fi
 %endif
 
 %changelog
-* Mon Jun 19 2023 User <user@port389.org> - 2.4.1-1
-- Bump version to 2.4.1-1
+%autochangelog
 
