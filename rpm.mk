@@ -145,7 +145,7 @@ rpmbuildprep:
 
 srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep
 	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(RPMBUILD)/SPECS/$(PACKAGE).spec -f
-	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
+	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec $(RPMBUILD_OPTIONS)
 	cp $(RPMBUILD)/SRPMS/*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
 
