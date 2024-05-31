@@ -90,6 +90,10 @@ jobs:
       run: |
         set -x
         CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        until sudo docker exec $CID sh -c "systemctl is-system-running"
+        do
+          echo "Waiting for container to be ready..."
+        done
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
         export PASSWD=$(openssl rand -base64 32)
         sudo docker exec $CID sh -c "echo \"${PASSWD}\" | passwd --stdin root"
