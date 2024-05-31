@@ -1484,12 +1484,27 @@ referint_thread_func(void *arg __attribute__((unused)))
             }
 
             ptoken = ldap_utf8strtok_r(NULL, delimiter, &iter);
+            if (ptoken == NULL) {
+                /* Invalid line in referint log, skip it */
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                        "Skipping invalid referint log line: (%s)\n", thisline);
+                slapi_sdn_free(&sdn);
+                continue;
+            }
             if (!strcasecmp(ptoken, "NULL")) {
                 tmpsuperior = NULL;
             } else {
                 tmpsuperior = slapi_sdn_new_normdn_byref(ptoken);
             }
+
             ptoken = ldap_utf8strtok_r(NULL, delimiter, &iter);
+            if (ptoken == NULL) {
+                /* Invalid line in referint log, skip it */
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                        "Skipping invalid referint log line: (%s)\n", thisline);
+                slapi_sdn_free(&sdn);
+                continue;
+            }
             if (strcasecmp(ptoken, "NULL") != 0) {
                 /* Set the bind DN in the thread data */
                 if (slapi_td_set_dn(slapi_ch_strdup(ptoken))) {
