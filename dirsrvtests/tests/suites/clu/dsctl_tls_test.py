@@ -10,6 +10,7 @@ import logging
 import pytest
 import ssl
 import os
+import re
 from lib389.topologies import topology_st as topo
 from lib389.nss_ssl import NssSsl
 
@@ -79,9 +80,10 @@ def test_tls_command_returns_error_text(topo):
     except ValueError as e:
         assert '255' not in str(e)
         if 'OpenSSL 3' in ssl.OPENSSL_VERSION:
-            assert 'Could not read private key from' in str(e)
+            error_message = r"Could not (read|find) private key from"
         else:
-            assert 'unable to load private key' in str(e)
+            error_message = r"unable to load private key"
+        assert re.search(error_message, str(e))
 
 
 if __name__ == '__main__':
