@@ -164,6 +164,14 @@ typedef struct _slapi_pblock_intop
     int pb_paged_results_index;  /* stash SLAPI_PAGED_RESULTS_INDEX */
     int pb_paged_results_cookie; /* stash SLAPI_PAGED_RESULTS_COOKIE */
     int32_t pb_usn_tombstone_incremented; /* stash SLAPI_PAGED_RESULTS_COOKIE */
+
+    /* For memberof deferred thread
+     * It is set by be_txn_postop with the task that
+     * will be processed by the memberof deferred thread
+     * It is reset by the be_postop, once the txn is committed
+     * when it pushes the task to list of deferred tasks
+     */
+    void *memberof_deferred_task;
 } slapi_pblock_intop;
 
 /* Stuff that is rarely used, but still present */
@@ -217,6 +225,7 @@ typedef struct slapi_pblock
     struct _slapi_pblock_intop *pb_intop;
     struct _slapi_pblock_intplugin *pb_intplugin;
     struct _slapi_pblock_deprecated *pb_deprecated;
+    int pb_deferred_memberof;
 
 #ifdef PBLOCK_ANALYTICS
     uint32_t analytics_init;
