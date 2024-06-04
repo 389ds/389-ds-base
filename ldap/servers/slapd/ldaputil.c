@@ -508,16 +508,12 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     int ssl_strength = 0;
     int rc = 0;
     const char *cacert = NULL;
+    char **cauris = NULL;
 
-    /* certdir is used to setup outgoing secure connection (openldap)
-     * It refers to the place where PEM files have been extracted
-     *
-     * If a private tmp namespace exists
-     * it is the place where PEM files have been extracted
-     */
-    if ((certdir = check_private_certdir()) == NULL) {
-        certdir = config_get_certdir();
-    }
+    /* if set, cacerturis takes precedence */
+#ifdef LDAP_OPT_X_TLS_CACERTURIS
+    ldap_get_option(ld, LDAP_OPT_X_TLS_CACERTURIS, &cauris);
+#endif
 
     if (config_get_ssl_check_hostname()) {
         ssl_strength = LDAP_OPT_X_TLS_HARD;
@@ -530,18 +526,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                       "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
     }
-    if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
-        cacert = slapi_get_cacertfile();
-        if (cacert) {
-            /* CA Cert PEM file exists.  Set the path to openldap option. */
-            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTFILE, cacert);
-            if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                              "Could not set CA cert path [%s]: %d:%s\n",
-                              cacert, rc, ldap_err2string(rc));
-            }
-        }
-    }
+
     if (slapi_client_uses_openssl(ld)) {
         int32_t crlcheck = LDAP_OPT_X_TLS_CRL_NONE;
         tls_check_crl_t tls_check_state = config_get_tls_check_crl();
@@ -558,12 +543,47 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
                     crlcheck, rc, ldap_err2string(rc));
         }
     }
+
     /* tell it where our cert db/file is */
-    if (ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir)) {
-        slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set CACERTDIR option to %s\n", certdir);
+    if (!cauris) {
+
+        if (slapi_client_uses_non_nss(ld) && config_get_extract_pem()) {
+            cacert = slapi_get_cacertfile();
+            if (cacert) {
+                /* CA Cert PEM file exists.  Set the path to openldap option. */
+                rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTFILE, cacert);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
+                                  "Could not set CA cert path [%s]: %d:%s\n",
+                                  cacert, rc, ldap_err2string(rc));
+                }
+            }
+        }
+
+        /* certdir is used to setup outgoing secure connection (openldap)
+         * It refers to the place where PEM files have been extracted
+         *
+         * If a private tmp namespace exists
+         * it is the place where PEM files have been extracted
+         */
+        if ((certdir = check_private_certdir()) == NULL) {
+            certdir = config_get_certdir();
+        }
+
+        if (ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir)) {
+            slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
+                          "failed: unable to set CACERTDIR option to %s\n", certdir);
+        }
+
+        slapi_ch_free_string(&certdir);
     }
-    slapi_ch_free_string(&certdir);
+
+#ifdef LDAP_OPT_X_TLS_CACERTURIS
+    else {
+        slapi_ch_array_free(cauris);
+    }
+#endif
+
 #if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
     getSSLVersionRangeOL(&optval, NULL);
     if (ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval)) {
@@ -574,6 +594,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         slapi_ch_free_string(&minstr);
     }
 #endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
+
     if (clientauth) {
         rc = slapd_SSL_client_auth(ld);
         if (rc) {

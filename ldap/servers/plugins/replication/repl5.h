@@ -140,7 +140,9 @@
 /* Attribute names for replication agreement attributes */
 extern const char *type_nsds5ReplicaHost;
 extern const char *type_nsds5ReplicaPort;
-extern const char *type_nsds5TransportInfo;
+extern const char *type_nsds5ReplicaTransportInfo;
+extern const char *type_nsds5ReplicaTransportUri;
+extern const char *type_nsds5ReplicaTransportCAUri;
 extern const char *type_nsds5ReplicaBindDN;
 extern const char *type_nsds5ReplicaBindDNGroup;
 extern const char *type_nsds5ReplicaBindDNGroupCheckInterval;
@@ -168,6 +170,8 @@ extern const char *type_nsds5ReplicaBootstrapBindDN;
 extern const char *type_nsds5ReplicaBootstrapCredentials;
 extern const char *type_nsds5ReplicaBootstrapBindMethod;
 extern const char *type_nsds5ReplicaBootstrapTransportInfo;
+extern const char *type_nsds5ReplicaBootstrapTransportUri;
+extern const char *type_nsds5ReplicaBootstrapTransportCAUri;
 extern const char *type_replicaKeepAliveUpdateInterval;
 
 /* Attribute names for windows replication agreements */
@@ -399,6 +403,10 @@ char *agmt_get_hostname(const Repl_Agmt *ra);
 int agmt_get_port(const Repl_Agmt *ra);
 uint32_t agmt_get_transport_flags(const Repl_Agmt *ra);
 uint32_t agmt_get_bootstrap_transport_flags(const Repl_Agmt *ra);
+char **agmt_get_transport_uri(const Repl_Agmt *ra);
+char **agmt_get_bootstrap_transport_uri(const Repl_Agmt *ra);
+char **agmt_get_transport_ca_uri(const Repl_Agmt *ra);
+char **agmt_get_bootstrap_transport_ca_uri(const Repl_Agmt *ra);
 char *agmt_get_binddn(const Repl_Agmt *ra);
 char *agmt_get_bootstrap_binddn(const Repl_Agmt *ra);
 struct berval *agmt_get_credentials(const Repl_Agmt *ra);
@@ -426,6 +434,8 @@ int agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int32_t agmt_set_bootstrap_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int agmt_set_bind_method_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap);
 int agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap);
+int agmt_set_transporturi_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap);
+int agmt_set_transportcauri_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap);
 int agmt_set_port_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int agmt_set_host_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 const char *agmt_get_long_name(const Repl_Agmt *ra);
