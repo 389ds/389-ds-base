@@ -15,9 +15,18 @@ NotifyAccess=all
 EnvironmentFile=-@initconfigdir@/@package_name@
 EnvironmentFile=-@initconfigdir@/@package_name@-%i
 PIDFile=/run/@package_name@/slapd-%i.pid
-ExecStartPre=@libexecdir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
-ExecStartPre=@libexecdir@/ds_selinux_restorecon.sh @instconfigdir@/slapd-%i/dse.ldif
+
+# The =+ denotes that ExecStartPre tasks will be run with privileges in the case the instance
+# is configured with a non root User/Group via an override.
+# See https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#Command%20lines
+ExecStartPre=+@libexecdir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
+ExecStartPre=+@libexecdir@/ds_selinux_restorecon.sh @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i /run/@package_name@/slapd-%i.pid
+
+# Allow non-root instances to bind to low ports.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
 PrivateTmp=on
 # https://en.opensuse.org/openSUSE:Security_Features#Systemd_hardening_effort
 ProtectSystem=full

@@ -1734,7 +1734,7 @@ class DirSrv(SimpleLDAPObject, object):
         if not self.with_systemd():
             return False
         cp = subprocess.run(["systemctl", "is-system-running"],
-                            universal_newlines=True, capture_output=True)
+                            universal_newlines=True, stdout=subprocess.PIPE)
         # is-system-running can detect the 7 modes (initializing, starting,
         # running, degraded, maintenance, stopping, offline) or "unknown".
         # To keep things simple, we assume that anything other than "offline"

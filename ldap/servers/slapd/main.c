@@ -817,11 +817,17 @@ main(int argc, char **argv)
     }
 
     /* Now, sockets are open, so we can safely change identity now */
-    return_value = main_setuid(slapdFrontendConfig->localuser);
-    if (0 != return_value) {
-        slapi_log_err(SLAPI_LOG_ERR, "main", "Failed to change user and group identity to that of %s\n",
-                      slapdFrontendConfig->localuser);
-        exit(1);
+    /*
+     * We can only change uid if we are already root - otherwise it's likely
+     * that our external service manager has setup the uid/gid for us.
+     */
+    if (getuid() == 0) {
+        return_value = main_setuid(slapdFrontendConfig->localuser);
+        if (0 != return_value) {
+            slapi_log_err(SLAPI_LOG_ERR, "main", "Failed to change user and group identity to that of %s\n",
+                          slapdFrontendConfig->localuser);
+            exit(1);
+        }
     }
 
     /*
