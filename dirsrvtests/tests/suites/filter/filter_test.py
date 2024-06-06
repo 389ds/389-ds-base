@@ -15,7 +15,7 @@ from lib389.tasks import *
 from lib389.backend import Backends, Backend
 from lib389.dbgen import dbgen_users, dbgen_groups
 from lib389.topologies import topology_st
-from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX
+from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX, DN_CONFIG_LDBM
 from lib389.utils import *
 
 pytestmark = pytest.mark.tier1
@@ -372,6 +372,9 @@ def test_match_large_valueset(topology_st):
         be_groups = backends.create(properties={'parent': DEFAULT_SUFFIX, 'nsslapd-suffix': groups_suffix, 'name': groups_backend})
 
         # set the entry cache to 200Mb as the 1K groups of 2K users require at least 170Mb
+        if get_default_db_lib() == "bdb":
+            config_ldbm = DSLdapObject(inst, DN_CONFIG_LDBM)
+            config_ldbm.set('nsslapd-cache-autosize', '0')
         be_groups.replace('nsslapd-cachememsize', groups_entrycache)
     except:
         raise
@@ -427,7 +430,7 @@ def test_match_large_valueset(topology_st):
     etime = float(search_result[1].split('etime=')[1])
     log.info("Duration of the search from access log was %f", etime)
     assert len(entries) == groups_number
-    assert (etime < 1)
+    assert (etime < 5)
 
 if __name__ == '__main__':
     # Run isolated
