@@ -53,9 +53,7 @@ jobs:
       image: ${{ matrix.image }}
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Checkout and configure
-        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure
+      - uses: actions/checkout@v4
         env:
           CC: ${{ matrix.compiler }}
           CXX: ${{ matrix.cpp-compiler }}
@@ -67,7 +65,7 @@ jobs:
       - name: Build using ${{ matrix.compiler }}
         run: bash -c "(make V=0 2> >(tee /dev/stderr)) > log.txt"
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: log.txt
