@@ -82,6 +82,78 @@ const long CERTMAP_BIT_POS_DC = 1L << 9;   /* DC */
 
 const int SEC_OID_AVA_UNKNOWN = 0; /* unknown OID */
 
+/*
+ * Size of escaped character to represent a dn in a filter
+ * 1 ==> c
+ * 3 ==> \xx
+ */
+const static char value2filter_sizes[128] = {
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+
+    1, 1, 1, 1, 1, 1, 1, 1,
+    3, 3, 3, 1, 1, 1, 1, 1,  /* ( ) * */
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 3, 1, 1, 1,  /* \ */
+
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 3
+};
+
+const static char b2hex[] = "0123456789ABCDEF";
+
+
+static int
+value2filter(char *dst, size_t dstlen, const char *src, size_t srclen)
+{
+    /*
+     * Escape the dn to store it as a value in a filter
+     * To be sure that the function is successfull caller should
+     * ensure that dstlen >= 3*srclen+1
+     */
+
+    if (dstlen < 1) {
+        return LDAPU_ERR_OUT_OF_MEMORY;
+    }
+    while (dstlen >= 2 && srclen > 0) {
+        char c = *src++;
+        int ecsize = (c & 0x80) ? 3 : value2filter_sizes[c & 0x7f];
+        srclen--;
+        dstlen -= ecsize;
+        if (dstlen < 1) {
+            /* Not enough space to write the final \0 */
+            return LDAPU_ERR_OUT_OF_MEMORY;
+        }
+        switch ( ecsize ) {
+            default:
+                return LDAPU_ERR_INTERNAL;
+            case 1:
+                *dst++ = c;
+                break;
+            case 3:
+                *dst ++ = '\\';
+                *dst ++ = b2hex[(c >> 4) & 0xf];
+                *dst ++ = b2hex[c & 0xf];
+                break;
+        }
+    }
+    if (srclen > 0) {
+        return LDAPU_ERR_OUT_OF_MEMORY;
+    }
+    *dst = 0;
+    return LDAPU_SUCCESS;
+}
+
+
 static long
 certmap_secoid_to_bit_pos(int oid)
 {
@@ -757,23 +829,30 @@ ldapu_cert_searchfn_default(void *cert, LDAP *ld, void *certmap_info_in, const c
 
     if (certmap_info && certmap_info->searchAttr) {
         char *subjectDN = 0;
-        char *certFilter = 0;
-        int len;
 
         rv = ldapu_get_cert_subject_dn(cert, &subjectDN);
-
         if (rv != LDAPU_SUCCESS || !subjectDN) {
             return rv;
         }
-        len = strlen(certmap_info->searchAttr) + strlen(subjectDN) +
-              strlen("=") + 1;
-        certFilter = (char *)ldapu_malloc(len * sizeof(char));
+        size_t subjectDN_len = strlen(subjectDN);
+        size_t eqout_len = 3 * subjectDN_len + 1; /* big enough for worst case (and final \0) */
+        size_t searchAttr_len = strlen(certmap_info->searchAttr);
+        size_t len = searchAttr_len + 1 + eqout_len;
+        char *certFilter = (char *)ldapu_malloc(len * sizeof(char));
         if (!certFilter) {
             free(subjectDN);
             return LDAPU_ERR_OUT_OF_MEMORY;
         }
-        sprintf(certFilter, "%s=%s", certmap_info->searchAttr, subjectDN);
+        strcpy(certFilter, certmap_info->searchAttr);
+        certFilter[searchAttr_len] = '=';
+        rv = value2filter(certFilter+searchAttr_len+1, eqout_len, subjectDN, subjectDN_len);
         free(subjectDN);
+        len = strlen(certFilter);
+        if (rv != LDAPU_SUCCESS || len <= 0) {
+            ldapu_free((void *)certFilter);
+            return LDAPU_ERR_INVALID_ARGUMENT;
+        }
+
         if (ldapu_strcasecmp(basedn, "")) {
             rv = ldapu_find(ld, basedn, LDAP_SCOPE_SUBTREE, certFilter, attrs, 0, &single_res);
             ldapu_free((void *)certFilter);
@@ -944,7 +1023,7 @@ ldapu_certmap_info_attrval(void *certmap_info_in,
 }
 
 static int
-AddAVAToBuf(char *buf, int size, int *len, const char *tagName, CERTAVA *ava)
+AddAVAToBuf(char *buf, int size, int *len, const char *tagName, CERTAVA *ava, int is_filter)
 {
     int lenLen;
     int taglen;
@@ -964,14 +1043,22 @@ AddAVAToBuf(char *buf, int size, int *len, const char *tagName, CERTAVA *ava)
     memcpy(buf, tagName, taglen);
     buf[taglen++] = '=';
 
-    rv = CERT_RFC1485_EscapeAndQuote(buf + taglen,
-                                     size - taglen,
-                                     (char *)ava->value.data + lenLen,
-                                     ava->value.len - lenLen);
-
-    *len += strlen(buf);
-
-    return (rv == SECSuccess ? LDAPU_SUCCESS : LDAPU_FAILED);
+    if (is_filter != 0) {
+        /* values should not be quoted in filter but * must be escaped */
+        rv = value2filter(buf + taglen,
+                          size - taglen,
+                          (char *)ava->value.data + lenLen,
+                          ava->value.len - lenLen);
+        *len += strlen(buf);
+        return rv;
+    } else {
+        rv = CERT_RFC1485_EscapeAndQuote(buf + taglen,
+                                         size - taglen,
+                                         (char *)ava->value.data + lenLen,
+                                         ava->value.len - lenLen);
+        *len += strlen(buf);
+        return (rv == SECSuccess ? LDAPU_SUCCESS : LDAPU_FAILED);
+    }
 }
 
 static int
@@ -984,7 +1071,7 @@ AddToLdapDN(char *ldapdn, int size, int *dnlen, const char *tagName, CERTAVA *av
         dn += 2;
         *dnlen += 2;
     }
-    return AddAVAToBuf(ldapdn, size, dnlen, tagName, ava);
+    return AddAVAToBuf(ldapdn, size, dnlen, tagName, ava, 0);
 }
 
 static int
@@ -995,7 +1082,7 @@ AddToFilter(char *filter, int size, int *flen, const char *tagName, CERTAVA *ava
     /* Append opening parenthesis */
     strcat(filter + *flen, " (");
     *flen += 2;
-    rv = AddAVAToBuf(filter, size, flen, tagName, ava);
+    rv = AddAVAToBuf(filter, size, flen, tagName, ava, 1);
 
     if (rv != LDAPU_SUCCESS)
         return rv;
