@@ -14,12 +14,18 @@ from lib389.utils import *
 from lib389.topologies import topology_m2
 from lib389._constants import *
 from lib389.replica import ReplicationManager
+from lib389.config import CertmapLegacy, Config
+from lib389.idm.user import UserAccounts
+from lib389.nss_ssl import NssSsl, USER_ISSUER
 
 pytestmark = [pytest.mark.tier1,
               pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")]
 
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
+
+test_user_uid = 1000
 
 ISSUER = 'cn=CAcert'
 CACERT = 'CAcertificate'
@@ -170,6 +176,175 @@ def test_openldap_no_nss_crypto(topology_m2):
     m1.tasks.exportLDIF(benamebase='userRoot', output_file=output_file, args={'wait': True})
 
     log.info("Ticket 47536 - PASSED")
+
+
+def create_sasl_user(inst, users, ssca, cn, pw=PW_DM):
+    # Create a dict with user data needed for certificate authentication as an user
+
+    global test_user_uid
+
+    assert cn.startswith('test_')
+    subjectDN = USER_ISSUER.format(HOSTNAME=cn)
+    properties = {
+        'uid': cn,
+        'cn': cn,
+        'sn': cn,
+        'uidNumber': str(test_user_uid),
+        'gidNumber': '2000',
+        'homeDirectory': '/home/' + cn,
+        'userPassword': pw,
+        'nsCertSubjectDN': subjectDN,
+    }
+    user = users.create(properties=properties)
+    test_user_uid += 1
+
+    # Create user's certificate
+    ssca.create_rsa_user(cn)
+
+    # Get the details of where the key and crt are.
+    tls_locs = ssca.get_rsa_user(cn)
+    user.enroll_certificate(tls_locs['crt_der_path'])
+
+    return { 'user': user,
+             'subjectDN': subjectDN,
+             'ssca_dir': inst.get_ssca_dir(),
+             'tls_locs': tls_locs,
+             'key': tls_locs['key'],
+             'crt': tls_locs['crt'],
+             'cn': cn,
+           }
+
+
+def remove_test_users(inst):
+    if inst.state == DIRSRV_STATE_ONLINE:
+        users = UserAccounts(inst, DEFAULT_SUFFIX)
+        for user in users.list():
+            if user.rdn.startswith('test_'):
+                user.delete()
+
+
+def rebind(inst):
+    inst.simple_bind_s(DN_DM, PW_DM, escapehatch='i am sure')
+
+
+def sasl_bind_as_user(inst, user):
+    # Bind with user then rebind as Directory Manager
+    dn = user["subjectDN"]
+    log.info(f'Trying to bind with {dn} certificate')
+    try:
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=user['ssca_dir'],
+                  userkey=user['key'], usercert=user['crt'])
+        log.info(f'Bind with {dn} certificate is successful.')
+        rebind(inst)
+    except ldap.LDAPError as e:
+        log.error(f'Bind with {dn} certificate failed. Error is: {e}.')
+        rebind(inst)
+        raise e
+
+
+def test_bind_certifcate_with_unescaped_subject(topology_m2, request):
+    """Test close connection on failed bind with a failed cert mapping
+
+    :id: 7545ad30-21dc-11ef-a27e-482ae39447e5
+    :setup: Replication with two suppliers
+            (Only one instance is used but it is better to reuse the
+            same topology than the other tests in this module)
+    :steps:
+        1. perform cleanup and initialize security framework
+        2. create user1 and its associated certificate
+        3. create user2 and its associated certificate. user2 bane include a wildchar
+        4. Check that subtring searches are working as expected
+        5. configure certmap and set nsslapd-certmap-basedn
+        6. check that EXTERNAL is listed in supported mechns.
+        7. bind using user1 certificate
+        8. bind using user2 certificate
+        9. delete user2 but keep its certificates
+        10. bind using user2 certificate
+    :expectedresults:
+        1. success
+        2. success
+        3. success
+        4. success
+        5. success
+        6. success
+        7. success
+        8. success
+        9. success
+        10. should get INVALID_CREDENTIALS exception
+    """
+
+    # Perform some cleanup and initialize the security framework
+    inst = topology_m2.ms["supplier1"]
+    rebind(inst)
+    inst.enable_tls()
+    ssca = NssSsl(dbpath=inst.get_ssca_dir())
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    remove_test_users(inst)
+
+    # Prepare to update certmap.conf file
+    cm = CertmapLegacy(inst)
+    certmaps = cm.list()
+    previous_certmaps_default = certmaps['default']
+    log.info(f'previous_certmaps_default = {previous_certmaps_default}')
+
+    # register cleanup finalizer before actually changing the certmap.conf file
+    def fin():
+        if inst.status():
+            rebind(inst)
+        # Restore certmaps
+        if not DEBUGGING:
+            remove_test_users(inst)
+            certmaps['default'] = previous_certmaps_default
+            cm.set(certmaps)
+
+    request.addfinalizer(fin)
+
+    # update the certmap.conf file
+    certmaps['default'] = {
+        **{ key: None for key in previous_certmaps_default.keys() },
+        'VerifyCert': 'off',
+        'DNComps': '',
+        'CmapLdapAttr': 'nsCertSubjectDN',
+        'issuer': 'default'
+    }
+    log.info(f"certmaps_default = {certmaps['default']}")
+    cm.set(certmaps)
+
+    # And set nsslapd-certmap-basedn properly
+    config = Config(inst)
+    config.replace('nsslapd-certmap-basedn', DEFAULT_SUFFIX)
+
+    # Check that EXTERNAL is listed in supported mechns.
+    assert(inst.rootdse.supports_sasl_external())
+
+    # Restart to allow certmaps to be re-read
+    inst.restart()
+
+    # create users
+    user1 = create_sasl_user(inst, users, ssca, 'test_user_1000')
+    user2 = create_sasl_user(inst, users, ssca, 'test_user_1*')
+
+    # Check that subtring searches are working as expected
+    # ( This step because 'test_u*_1000' hits
+    #   https://github.com/389ds/389-ds-base/issues/6203 )
+    for cn,result_len in ( (user1['cn'], 1), (user2['cn'], 2), ('*', 2), ):
+        filterstr = f'(nsCertSubjectDN={USER_ISSUER.format(HOSTNAME=cn)})'
+        ents = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filterstr, escapehatch='i am sure')
+        log.info(f'Search with filter {filterstr} returned {len(ents)} entries. {result_len} are expected.')
+        assert len(ents) == result_len
+
+    # bind with user1 cert (Should be successful)
+    sasl_bind_as_user(inst, user1)
+
+    # bind with user2 cert (Should be successful)
+    sasl_bind_as_user(inst, user1)
+
+    # Remove user2 entry (but keep its certificate)
+    user2['user'].delete()
+
+    # bind with user2 certificate (Should fail)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        sasl_bind_as_user(inst, user2)
 
 
 if __name__ == '__main__':
