@@ -31,7 +31,7 @@ jobs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add GITHUB_WORKSPACE as a safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -47,7 +47,7 @@ jobs:
         run: tar -cvf dist.tar dist/
 
       - name: Upload RPMs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rpms
           path: dist.tar
@@ -62,7 +62,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
@@ -79,7 +79,7 @@ jobs:
         sudo systemctl start docker
 
     - name: Download RPMs
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: rpms
 
@@ -114,7 +114,7 @@ jobs:
 
     - name: Upload pytest test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: pytest-${{ env.PYTEST_SUITE }}
         path: |
