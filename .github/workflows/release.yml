@@ -12,7 +12,10 @@ jobs:
       image: quay.io/389ds/ci-images:test
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.get_version.outputs.version }}
 
       - name: Check if the tagged commit belongs to a valid branch
         run: |
@@ -31,7 +34,7 @@ jobs:
         run: TAG=${{ github.ref_name}} make -f rpm.mk dist-bz2
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ github.ref_name}}.tar.bz2
           path: ${{ github.ref_name}}.tar.bz2
