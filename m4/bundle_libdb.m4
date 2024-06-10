@@ -8,7 +8,7 @@
 
 AC_MSG_CHECKING(Handling bundle_libdb)
 
-db_lib="-L${with_bundle_libdb}/.libs -R${prefix}/lib/dirsrv"
+db_lib="-L${with_bundle_libdb}/.libs -R${prefix}/lib64/dirsrv"
 db_incdir=$with_bundle_libdb
 db_inc="-I $db_incdir"
 db_libver="5.3-389ds"
