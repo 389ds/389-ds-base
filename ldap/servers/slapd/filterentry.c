@@ -240,6 +240,36 @@ slapi_filter_test_ext(
 }
 
 
+static const char *
+filter_type_as_string(int filter_type)
+{
+    switch (filter_type) {
+    case LDAP_FILTER_AND:
+        return "&";
+    case LDAP_FILTER_OR:
+        return "|";
+    case LDAP_FILTER_NOT:
+        return "!";
+    case LDAP_FILTER_EQUALITY:
+        return "=";
+    case LDAP_FILTER_SUBSTRINGS:
+        return "*";
+    case LDAP_FILTER_GE:
+        return ">=";
+    case LDAP_FILTER_LE:
+        return "<=";
+    case LDAP_FILTER_PRESENT:
+        return "=*";
+    case LDAP_FILTER_APPROX:
+        return "~";
+    case LDAP_FILTER_EXT:
+        return "EXT";
+    default:
+        return "?";
+    }
+}
+
+
 int
 test_ava_filter(
     Slapi_PBlock *pb,
@@ -253,7 +283,13 @@ test_ava_filter(
 {
     int rc;
 
-    slapi_log_err(SLAPI_LOG_FILTER, "test_ava_filter", "=>\n");
+    if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
+        char *val = slapi_berval_get_string_copy(&ava->ava_value);
+        char buf[BUFSIZ];
+        slapi_log_err(SLAPI_LOG_FILTER, "test_ava_filter", "=> AVA: %s%s%s\n",
+                      ava->ava_type, filter_type_as_string(ftype), escape_string(val, buf));
+        slapi_ch_free_string(&val);
+    }
 
     *access_check_done = 0;
 
