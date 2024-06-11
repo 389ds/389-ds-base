@@ -1664,7 +1664,7 @@ retry_get0:
         for (dblayer_bulk_start(&data); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&data, &dataret);) {
             childelem = (rdn_elem *)dataret.data;
             if (RDN_IS_REDIRECT(childelem)) {
-                rc = _entryrdn_resolve_redirect(ctx, &childelem, 1);
+                rc = _entryrdn_resolve_redirect(ctx, &childelem, 0);
                 if (rc) {
                     /* Should not have any retry on lmdb and
                      * DBI_RC_NOTFOUND means that redirect db is corrupted
