@@ -300,6 +300,57 @@ ou: myDups00001
     assert standalone.ds_error_log.match('.*Duplicated DN detected.*')
 
 
+def create_backend_and_import(instance, ldif_file, suffix, backend):
+    log.info(f'Add suffix:{suffix} and backend: {backend}...')
+    backends = Backends(instance)
+    backends.create(properties={'nsslapd-suffix': suffix, 'name': backend})
+    props = {'numUsers': 10000, 'nodeLimit': 5, 'suffix': suffix}
+
+    log.info(f'Create a large nested ldif file using dbgen : {ldif_file}')
+    dbgen_nested_ldif(instance, ldif_file, props)
+
+    log.info('Stop the server and run offline import...')
+    instance.stop()
+    log.info('Measure the import time for the ldif file...')
+    start = time.time()
+    assert instance.ldif2db(backend, None, None, None, ldif_file)
+    end = time.time()
+    instance.start()
+    return end - start
+
+
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not cache size over mdb")
+def test_ldif2db_after_backend_create(topo):
+    """Test that ldif2db after backend creation is not slow first time
+
+    :id: c1ab1df7-c70a-46be-bbca-8d65c6ebaa14
+    :setup: Standalone Instance
+    :steps:
+        1. Create backend and suffix
+        2. Generate large LDIF file
+        3. Stop server and run offline import
+        4. Measure import time
+        5. Restart server and repeat steps 1-4 with new backend and suffix
+    :expectedresults:
+        1. Operation successful
+        2. Operation successful
+        3. Operation successful
+        4. Import times should be approximately the same
+        5. Operation successful
+    """
+
+    instance = topo.standalone
+    ldif_dir = instance.get_ldif_dir()
+    ldif_file_1 = os.path.join(ldif_dir, 'large_nested_1.ldif')
+    ldif_file_2 = os.path.join(ldif_dir, 'large_nested_2.ldif')
+
+    import_time_1 = create_backend_and_import(instance, ldif_file_1, 'o=test_1', 'test_1')
+    import_time_2 = create_backend_and_import(instance, ldif_file_2, 'o=test_2', 'test_2')
+
+    log.info('Import times should be approximately the same')
+    assert abs(import_time_1 - import_time_2) < 5
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
