@@ -455,7 +455,6 @@ def create_backend_and_import(instance, ldif_file, suffix, backend):
     return end - start
 
 
-@pytest.mark.xfail(not _check_disk_space(), reason="not enough disk space for lmdb map")
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not cache size over mdb")
 def test_ldif2db_after_backend_create(topo):
     """Test that ldif2db after backend creation is not slow first time
