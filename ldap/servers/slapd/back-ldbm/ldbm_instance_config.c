@@ -1031,6 +1031,24 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb __attribute__((un
     /* Initialize and register callbacks for VLV indexes */
     vlv_init(inst);
 
+    /* We are autotuning the caches. was:
+     * retval = ldbm_back_start_autotune(li);
+     * This involves caches specific to instances managed in the ldbm layer
+     * and to caches specific to the db implementation.
+     * The cache usage and requirements of the db is not known here, also it
+     * might have impact on the sizing of the instance caches.
+     * Therfor this functionality is moved to the db_xxx layer.
+     * The latest autotune function was implemented only with BDB in mind
+     * so it should be safe to move it to db_bdb.
+     */
+    priv = (dblayer_private *)li->li_dblayer_private;
+    rval = priv->dblayer_auto_tune_fn(li);
+    if (rval != 0) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_instance_postadd_instance_entry_callback",
+                      "Failed to set database tuning on backends\n");
+    }
+
     /* this is an ACTUAL ADD being done while the server is running!
      * start up the appropriate backend...
      */
@@ -1044,7 +1062,6 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb __attribute__((un
 
 
     /* call the backend implementation specific callbacks */
-    priv = (dblayer_private *)li->li_dblayer_private;
     priv->instance_postadd_config_fn(li, inst);
 
     slapi_ch_free((void **)&instance_name);
