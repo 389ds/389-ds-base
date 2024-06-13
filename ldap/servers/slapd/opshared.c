@@ -219,6 +219,7 @@ cache_return_target_entry(Slapi_PBlock *pb, Slapi_Backend *be, Slapi_Operation *
         operation_set_target_entry_id(operation, 0);
     }
 }
+
 /*
  * Returns: 0    - if the operation is successful
  *        < 0    - if operation fails.
@@ -480,6 +481,20 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             index = 0;
             while (be_list[index] && be_list[index + 1]) {
                 index++;
+            }
+            if (scope == LDAP_SCOPE_ONELEVEL) {
+                /*
+                 * ONE LEVEL searches may ends up on multiple backends
+                 *  with a ONE LEVEL search on a suffix and a BASE search on its
+                 *  subsuffixes. Because LDAP_SCOPE_ONELEVEL rewrite the filter
+                 *  the backends should be reversed so that the BASE search(es)
+                 *  are done first (with the original filter).
+                 */
+                for (int idx = 0; idx <= index/2; idx++) {
+                    be = be_list[index-idx];
+                    be_list[index-idx] = be_list[idx];
+                    be_list[idx] = be;
+                }
             }
             be = be_list[index];
         } else {
@@ -779,7 +794,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                         (slapi_sdn_get_ndn_len(basesdn) == 0)) {
                         int tmp_scope = LDAP_SCOPE_BASE;
                         slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-
                         if (free_sdn) {
                             slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
                             slapi_sdn_free(&sdn);
@@ -790,6 +804,12 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     } else if (slapi_sdn_issuffix(basesdn, be_suffix)) {
                         int tmp_scope = LDAP_SCOPE_ONELEVEL;
                         slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
+                        if (free_sdn) {
+                            slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+                            slapi_sdn_free(&sdn);
+                            sdn = slapi_sdn_dup(basesdn);
+                            slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, (void *)sdn);
+                        }
                     } else {
                         slapi_sdn_done(&monitorsdn);
                         goto next_be;
