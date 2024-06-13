@@ -92,7 +92,6 @@ EXPECTED_ENTRIES = (("dc=parent", 39), ("dc=child1,dc=parent", 13), ("dc=child2,
 @pytest.mark.skipif(not has_orphan_attribute, reason = "compatibility attribute not yet implemented in this version")
 def test_sub_suffixes(topo, orphan_param):
     """ check the entries found on suffix/sub-suffix
-    used int
 
     :id: 5b4421c2-d851-11ec-a760-482ae39447e5
     :feature: mapping-tree
@@ -122,8 +121,41 @@ def test_sub_suffixes(topo, orphan_param):
         log.info(f'Verifying domain component entries count for search under {suffix} ...')
         entries = topo.standalone.search_s(suffix, ldap.SCOPE_SUBTREE, "(dc=*)")
         assert len(entries) == expected
-        log.info('Found {expected} domain component entries as expected while searching {suffix}')
+        log.info(f'Found {expected} domain component entries as expected while searching {suffix}')
 
     log.info('Test PASSED')
 
+
+def test_one_level_search_on_sub_suffixes(topo):
+    """ Perform one level scoped search accross suffix and sub-suffix
+
+    :id: 92f3139e-280e-11ef-a989-482ae39447e5
+    :feature: mapping-tree
+    :setup: Standalone instance with 3 additional backends:
+            dc=parent, dc=child1,dc=parent, dc=childr21,dc=parent
+    :steps:
+        1. Perform a ONE LEVEL search on dc=parent
+        2. Check that all expected entries have been returned
+        3. Check that only the expected entries have been returned
+    :expectedresults:
+        1. Success
+        2. each expected dn should be in the result set
+        3. Number of returned entries should be the same as the number of expected entries
+    """
+    expected_dns = ( 'dc=child1,dc=parent',
+                         'dc=child2,dc=parent',
+                         'ou=accounting,dc=parent',
+                         'ou=product development,dc=parent',
+                         'ou=product testing,dc=parent',
+                         'ou=human resources,dc=parent',
+                         'ou=payroll,dc=parent',
+                         'ou=people,dc=parent',
+                         'ou=groups,dc=parent', )
+    entries = topo.standalone.search_s("dc=parent", ldap.SCOPE_ONELEVEL, "(objectClass=*)",
+                                       attrlist=("dc","ou"), escapehatch='i am sure')
+    log.info(f'one level search on dc=parent returned the following entries: {entries}')
+    dns = [ entry.dn for entry in entries ]
+    for dn in expected_dns:
+        assert dn in dns
+    assert len(entries) == len(expected_dns)
 
