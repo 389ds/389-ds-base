@@ -37,11 +37,18 @@ md5_pw_cmp(const char *userpwd, const char *dbpwd)
     unsigned char hash_out[MD5_HASH_LEN];
     unsigned char b2a_out[MD5_HASH_LEN * 2]; /* conservative */
     SECItem binary_item;
+    size_t dbpwd_len = strlen(dbpwd);
 
     ctx = PK11_CreateDigestContext(SEC_OID_MD5);
     if (ctx == NULL) {
         slapi_log_err(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
                       "Could not create context for digest operation for password compare");
+        goto loser;
+    }
+
+    if (dbpwd_len >= sizeof b2a_out) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
+                      "The hashed password stored in the user entry is longer than any valid md5 hash");
         goto loser;
     }
 
@@ -57,7 +64,7 @@ md5_pw_cmp(const char *userpwd, const char *dbpwd)
     bver = NSSBase64_EncodeItem(NULL, (char *)b2a_out, sizeof b2a_out, &binary_item);
     /* bver points to b2a_out upon success */
     if (bver) {
-        rc = slapi_ct_memcmp(bver, dbpwd, strlen(dbpwd));
+        rc = slapi_ct_memcmp(bver, dbpwd, dbpwd_len);
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
                       "Could not base64 encode hashed value for password compare");
