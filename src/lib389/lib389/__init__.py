@@ -69,7 +69,7 @@ from lib389.utils import (
     get_user_is_root)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
-from lib389.tasks import BackupTask, RestoreTask
+from lib389.tasks import BackupTask, RestoreTask, Task
 from lib389.dseldif import DSEldif
 
 # mixin
@@ -1420,7 +1420,7 @@ class DirSrv(SimpleLDAPObject, object):
                                        name, self.ds_paths.prefix)
 
         # create the archive
-        name = "backup_%s_%s.tar.gz" % (self.serverid, time.strftime("%m%d%Y_%H%M%S"))
+        name = "backup_%s_%s.tar.gz" % (self.serverid, Task.get_timestamp())
         backup_file = os.path.join(backup_dir, name)
         tar = tarfile.open(backup_file, "w:gz")
         tar.extraction_filter = (lambda member, path: member)
@@ -2817,7 +2817,7 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             # No output file specified.  Use the default ldif location/name
             cmd.append('-a')
-            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            tnow = Task.get_timestamp()
             if bename:
                 ldifname = os.path.join(self.ds_paths.ldif_dir, "%s-%s-%s.ldif" % (self.serverid, bename, tnow))
             else:
@@ -2888,7 +2888,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         if archive_dir is None:
             # Use the instance name and date/time as the default backup name
-            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            tnow = Task.get_timestamp()
             archive_dir = os.path.join(self.ds_paths.backup_dir, "%s-%s" % (self.serverid, tnow))
         elif not archive_dir.startswith("/"):
             # Relative path, append it to the bak directory
@@ -3510,7 +3510,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         if archive is None:
             # Use the instance name and date/time as the default backup name
-            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            tnow = Task.get_timestamp()
             if self.serverid is not None:
                 backup_dir_name = "%s-%s" % (self.serverid, tnow)
             else:

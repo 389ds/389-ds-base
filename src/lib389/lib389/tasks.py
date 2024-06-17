@@ -118,7 +118,7 @@ class Task(DSLdapObject):
         return super(Task, self).create(rdn, properties, basedn)
 
     @staticmethod
-    def _get_task_date():
+    def get_timestamp():
         """Return a timestamp to use in naming new task entries."""
 
         return datetime.now().isoformat()
@@ -132,7 +132,7 @@ class AutomemberRebuildMembershipTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'automember_rebuild_' + Task._get_task_date()
+        self.cn = 'automember_rebuild_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_AUTOMEMBER_REBUILD_TASK
 
         super(AutomemberRebuildMembershipTask, self).__init__(instance, dn)
@@ -147,7 +147,7 @@ class AutomemberAbortRebuildTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'automember_abort_' + Task._get_task_date()
+        self.cn = 'automember_abort_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_AUTOMEMBER_ABORT_REBUILD_TASK
 
         super(AutomemberAbortRebuildTask, self).__init__(instance, dn)
@@ -161,7 +161,7 @@ class FixupLinkedAttributesTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'fixup_linked_attrs_' + Task._get_task_date()
+        self.cn = 'fixup_linked_attrs_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_FIXUP_LINKED_ATTIBUTES
 
         super(FixupLinkedAttributesTask, self).__init__(instance, dn)
@@ -175,7 +175,7 @@ class MemberUidFixupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'memberUid_fixup_' + Task._get_task_date()
+        self.cn = 'memberUid_fixup_' + Task.get_timestamp()
         dn = f"cn={self.cn},cn=memberuid task,cn=tasks,cn=config"
 
         super(MemberUidFixupTask, self).__init__(instance, dn)
@@ -190,7 +190,7 @@ class MemberOfFixupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'memberOf_fixup_' + Task._get_task_date()
+        self.cn = 'memberOf_fixup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_MBO_TASK
 
         super(MemberOfFixupTask, self).__init__(instance, dn)
@@ -205,7 +205,7 @@ class USNTombstoneCleanupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'usn_cleanup_' + Task._get_task_date()
+        self.cn = 'usn_cleanup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=USN tombstone cleanup task," + DN_TASKS
 
         super(USNTombstoneCleanupTask, self).__init__(instance, dn)
@@ -225,7 +225,7 @@ class csngenTestTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'csngenTest_' + Task._get_task_date()
+        self.cn = 'csngenTest_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=csngen_test," + DN_TASKS
         super(csngenTestTask, self).__init__(instance, dn)
 
@@ -238,7 +238,7 @@ class EntryUUIDFixupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'entryuuid_fixup_' + Task._get_task_date()
+        self.cn = 'entryuuid_fixup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_EUUID_TASK
         super(EntryUUIDFixupTask, self).__init__(instance, dn)
         self._must_attributes.extend(['basedn'])
@@ -252,7 +252,7 @@ class DBCompactTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'compact_db_' + Task._get_task_date()
+        self.cn = 'compact_db_' + Task.get_timestamp()
         dn = "cn=" + self.cn + "," + DN_COMPACTDB_TASK
         super(DBCompactTask, self).__init__(instance, dn)
 
@@ -265,7 +265,7 @@ class SchemaReloadTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'schema_reload_' + Task._get_task_date()
+        self.cn = 'schema_reload_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=schema reload task," + DN_TASKS
         super(SchemaReloadTask, self).__init__(instance, dn)
 
@@ -278,7 +278,7 @@ class SyntaxValidateTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'syntax_validate_' + Task._get_task_date()
+        self.cn = 'syntax_validate_' + Task.get_timestamp()
         dn = f"cn={self.cn},cn=syntax validate,cn=tasks,cn=config"
 
         super(SyntaxValidateTask, self).__init__(instance, dn)
@@ -295,7 +295,7 @@ class AbortCleanAllRUVTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'abortcleanallruv_' + Task._get_task_date()
+        self.cn = 'abortcleanallruv_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=abort cleanallruv," + DN_TASKS
 
         super(AbortCleanAllRUVTask, self).__init__(instance, dn)
@@ -312,7 +312,7 @@ class CleanAllRUVTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'cleanallruv_' + Task._get_task_date()
+        self.cn = 'cleanallruv_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=cleanallruv," + DN_TASKS
         self._properties = None
 
@@ -359,7 +359,7 @@ class ImportTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'import_' + Task._get_task_date()
+        self.cn = 'import_' + Task.get_timestamp()
         dn = "cn=%s,%s" % (self.cn, DN_IMPORT_TASK)
         self._properties = None
 
@@ -388,7 +388,7 @@ class ExportTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'export_' + Task._get_task_date()
+        self.cn = 'export_' + Task.get_timestamp()
         dn = "cn=%s,%s" % (self.cn, DN_EXPORT_TASK)
         self._properties = None
 
@@ -411,7 +411,7 @@ class BackupTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'backup_' + Task._get_task_date()
+        self.cn = 'backup_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=backup," + DN_TASKS
         self._properties = None
 
@@ -426,7 +426,7 @@ class RestoreTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'restore_' + Task._get_task_date()
+        self.cn = 'restore_' + Task.get_timestamp()
         dn = "cn=" + self.cn + ",cn=restore," + DN_TASKS
         self._properties = None
 
@@ -513,7 +513,7 @@ class Tasks(object):
             raise ValueError("Import file (%s) does not exist" % input_file)
 
         # Prepare the task entry
-        cn = "import_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "import_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_IMPORT_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -581,7 +581,7 @@ class Tasks(object):
             raise ValueError("output_file is mandatory")
 
         # Prepare the task entry
-        cn = "export_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "export_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_EXPORT_TASK)
         entry = Entry(dn)
         entry.update({
@@ -637,7 +637,7 @@ class Tasks(object):
             raise ValueError("You must specify a backup directory.")
 
         # build the task entry
-        cn = "backup_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "backup_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_BACKUP_TASK)
         entry = Entry(dn)
         entry.update({
@@ -694,7 +694,7 @@ class Tasks(object):
             raise ValueError("Backup file (%s) does not exist" % backup_dir)
 
         # build the task entry
-        cn = "restore_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "restore_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_RESTORE_TASK)
         entry = Entry(dn)
         entry.update({
@@ -789,7 +789,7 @@ class Tasks(object):
                     attrs.append(attr)
             else:
                 attrs.append(attrname)
-            cn = "index_vlv_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+            cn = "index_vlv_%s" % (Task.get_timestamp())
             dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
             entry = Entry(dn)
             entry.update({
@@ -803,7 +803,7 @@ class Tasks(object):
                 #
                 # Reindex all attributes - gather them first...
                 #
-                cn = "index_all_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+                cn = "index_all_%s" % (Task.get_timestamp())
                 dn = ('cn=%s,cn=ldbm database,cn=plugins,cn=config' % backend)
                 try:
                     indexes = self.conn.search_s(dn, ldap.SCOPE_SUBTREE, '(objectclass=nsIndex)')
@@ -815,7 +815,7 @@ class Tasks(object):
                 #
                 # Reindex specific attributes
                 #
-                cn = "index_attrs_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+                cn = "index_attrs_%s" % (Task.get_timestamp())
                 if isinstance(attrname, (tuple, list)):
                     # Need to guarantee this is a list (and not a tuple)
                     for attr in attrname:
@@ -903,8 +903,7 @@ class Tasks(object):
 
             suffix = ents[0].getValue(attr)
 
-        cn = "fixupmemberof_" + time.strftime("%m%d%Y_%H%M%S",
-                                              time.localtime())
+        cn = "fixupmemberof_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_MBO_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -965,8 +964,7 @@ class Tasks(object):
             if len(ents) != 1:
                 raise ValueError("invalid backend name: %s" % bename)
 
-        cn = "fixupTombstone_" + time.strftime("%m%d%Y_%H%M%S",
-                                               time.localtime())
+        cn = "fixupTombstone_" + Task.get_timestamp()
         dn = "cn=%s,%s" % (cn, DN_TOMB_FIXUP_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1019,7 +1017,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=automember rebuild membership,cn=tasks,cn=config' % cn)
 
         entry = Entry(dn)
@@ -1077,7 +1075,7 @@ class Tasks(object):
         if not ldif_out:
             raise ValueError("Missing ldif_out")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=automember export updates,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1129,7 +1127,7 @@ class Tasks(object):
         if not ldif_out or not ldif_in:
             raise ValueError("Missing ldif_out and/or ldif_in")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=automember map updates,cn=tasks,cn=config' % cn)
 
         entry = Entry(dn)
@@ -1175,7 +1173,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=fixup linked attributes,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1219,7 +1217,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=schema reload task,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1264,7 +1262,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=memberuid task,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1311,7 +1309,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=syntax validate,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1358,7 +1356,7 @@ class Tasks(object):
         @return exit code
         '''
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=USN tombstone cleanup task,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1413,7 +1411,7 @@ class Tasks(object):
         if not configfile:
             raise ValueError("Missing required paramter: configfile")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=sysconfig reload,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1464,7 +1462,7 @@ class Tasks(object):
         if not suffix:
             raise ValueError("Missing required paramter: suffix")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=cleanallruv,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1516,7 +1514,7 @@ class Tasks(object):
         if not suffix:
             raise ValueError("Missing required paramter: suffix")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=abort cleanallruv,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1571,7 +1569,7 @@ class Tasks(object):
         if not nsArchiveDir:
             raise ValueError("Missing required paramter: nsArchiveDir")
 
-        cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = 'task-' + Task.get_timestamp()
         dn = ('cn=%s,cn=upgradedb,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -1616,6 +1614,6 @@ class LDAPIMappingReloadTask(Task):
     """
 
     def __init__(self, instance, dn=None):
-        self.cn = 'reload-' + Task._get_task_date()
+        self.cn = 'reload-' + Task.get_timestamp()
         dn = f'cn={self.cn},cn=reload ldapi mappings,cn=tasks,cn=config'
         super(LDAPIMappingReloadTask, self).__init__(instance, dn)
