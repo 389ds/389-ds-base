@@ -15,6 +15,7 @@ from lib389._constants import DEFAULT_SUFFIX, PW_DM, PLUGIN_MEMBER_OF
 from lib389.topologies import topology_st as topo
 from lib389.plugins import MemberOfPlugin
 
+from lib389.schema import Schema
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.account import Accounts
 from lib389.idm.account import Anonymous
@@ -811,6 +812,24 @@ def test_invalid_assertion(topo):
     user = "uid=not_existing_entry,ou=People,%s" % (DEFAULT_SUFFIX)
     memberof = topo.standalone.search_s(DEFAULT_SUFFIX, SCOPE_SUBTREE, "(member:%s:=%s)" % (INCHAIN_OID, user))
     assert len(memberof) == 0
+
+def test_check_dsconf_matchingrule(topo):
+    """Test that the matching rule 'inchain' is listed by dsconf
+
+    :id: b8dd4049-ccec-4316-bc9c-5aa5c5afcfbd
+    :setup: Standalone Instance
+    :steps:
+        1. fetch matching rules from the schema
+        2. Checks that matching rules contains inchaineMatch matching rule
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+    schema = Schema(topo.standalone)
+    mrs = [ f"{mr.oid} {mr.names[0]}" for mr in schema.get_matchingrules() if len(mr.names) > 0 ]
+    for mr in mrs:
+        log.info("retrieved matching rules are: %s", mr)
+    assert '1.2.840.113556.1.4.1941 inchainMatch' in mrs
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
