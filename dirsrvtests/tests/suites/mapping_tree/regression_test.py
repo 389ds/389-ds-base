@@ -11,10 +11,14 @@ import ldap
 import logging
 import os
 import pytest
+import time
 from lib389.backend import Backends, Backend
+from lib389._constants import HOST_STANDALONE, PORT_STANDALONE, DN_DM, PW_DM
 from lib389.dbgen import dbgen_users
 from lib389.mappingTree import MappingTrees
 from lib389.topologies import topology_st
+from lib389.referral import Referrals, Referral
+
 
 try:
     from lib389.backend import BackendSuffixView
@@ -31,14 +35,26 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+PARENT_SUFFIX = "dc=parent"
+CHILD1_SUFFIX = f"dc=child1,{PARENT_SUFFIX}"
+CHILD2_SUFFIX = f"dc=child2,{PARENT_SUFFIX}"
+
+PARENT_REFERRAL_DN = f"cn=ref,ou=People,{PARENT_SUFFIX}"
+CHILD1_REFERRAL_DN = f"cn=ref,ou=people,{CHILD1_SUFFIX}"
+CHILD2_REFERRAL_DN = f"cn=ref,ou=people,{CHILD2_SUFFIX}"
+
+REFERRAL_CHECK_PEDIOD = 7
+
+
+
 BESTRUCT = [
-    { "bename" : "parent", "suffix": "dc=parent" },
-    { "bename" : "child1", "suffix": "dc=child1,dc=parent" },
-    { "bename" : "child2", "suffix": "dc=child2,dc=parent" },
+    { "bename" : "parent", "suffix": PARENT_SUFFIX },
+    { "bename" : "child1", "suffix": CHILD1_SUFFIX },
+    { "bename" : "child2", "suffix": CHILD2_SUFFIX },
 ]
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def topo(topology_st, request):
     bes = []
 
@@ -50,6 +66,9 @@ def topo(topology_st, request):
         request.addfinalizer(fin)
 
     inst = topology_st.standalone
+    # Reduce nsslapd-referral-check-period to accelerate test
+    topology_st.standalone.config.set("nsslapd-referral-check-period", str(REFERRAL_CHECK_PEDIOD))
+
     ldif_files = {}
     for d in BESTRUCT:
         bename = d['bename']
@@ -76,14 +95,13 @@ def topo(topology_st, request):
     inst.start()
     return topology_st
 
-# Parameters for test_change_repl_passwd
-EXPECTED_ENTRIES = (("dc=parent", 39), ("dc=child1,dc=parent", 13), ("dc=child2,dc=parent", 13))
+# Parameters for test_sub_suffixes
 @pytest.mark.parametrize(
     "orphan_param",
     [
-        pytest.param( ( True, { "dc=parent": 2, "dc=child1,dc=parent":1, "dc=child2,dc=parent":1}), id="orphan-is-true" ),
-        pytest.param( ( False, { "dc=parent": 3, "dc=child1,dc=parent":1, "dc=child2,dc=parent":1}), id="orphan-is-false" ),
-        pytest.param( ( None, { "dc=parent": 3, "dc=child1,dc=parent":1, "dc=child2,dc=parent":1}), id="no-orphan" ),
+        pytest.param( ( True, { PARENT_SUFFIX: 2, CHILD1_SUFFIX:1, CHILD2_SUFFIX:1}), id="orphan-is-true" ),
+        pytest.param( ( False, { PARENT_SUFFIX: 3, CHILD1_SUFFIX:1, CHILD2_SUFFIX:1}), id="orphan-is-false" ),
+        pytest.param( ( None, { PARENT_SUFFIX: 3, CHILD1_SUFFIX:1, CHILD2_SUFFIX:1}), id="no-orphan" ),
     ],
 )
 
@@ -158,4 +176,97 @@ def test_one_level_search_on_sub_suffixes(topo):
     for dn in expected_dns:
         assert dn in dns
     assert len(entries) == len(expected_dns)
+
+
+def test_sub_suffixes_errlog(topo):
+    """ check the entries found on suffix/sub-suffix
+    used int
+
+    :id: 1db9d52e-28de-11ef-b286-482ae39447e5
+    :feature: mapping-tree
+    :setup: Standalone instance with 3 additional backends:
+            dc=parent, dc=child1,dc=parent, dc=childr21,dc=parent
+    :steps:
+        1. Check that id2entry error message is not in the error log.
+    :expectedresults:
+        1. Success
+    """
+    inst = topo.standalone
+    assert not inst.searchErrorsLog('id2entry - Could not open id2entry err 0')
+
+
+# Parameters for test_referral_subsuffix:
+#   a tuple pair containing:
+#     -  list of referral dn that must be created
+#     -  dict of searches basedn: expected_number_of_referrals
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        pytest.param( ((PARENT_REFERRAL_DN, CHILD1_REFERRAL_DN), {PARENT_SUFFIX: 2, CHILD1_SUFFIX:1, CHILD2_SUFFIX:0}), id="Both"),
+        pytest.param( ((PARENT_REFERRAL_DN,), {PARENT_SUFFIX: 1, CHILD1_SUFFIX:0, CHILD2_SUFFIX:0}) , id="Parent"),
+        pytest.param( ((CHILD1_REFERRAL_DN,), {PARENT_SUFFIX: 1, CHILD1_SUFFIX:1, CHILD2_SUFFIX:0}) , id="Child"),
+        pytest.param( ((), {PARENT_SUFFIX: 0, CHILD1_SUFFIX:0, CHILD2_SUFFIX:0}), id="None"),
+    ])
+
+def test_referral_subsuffix(topo, request, parameters):
+    """Test the results of an inverted parent suffix definition in the configuration.
+
+    For more details see:
+    https://www.port389.org/docs/389ds/design/mapping_tree_assembly.html
+
+    :id: 4e111a22-2a5d-11ef-a890-482ae39447e5
+    :feature: referrals
+    :setup: Standalone instance with 3 additional backends:
+            dc=parent, dc=child1,dc=parent, dc=childr21,dc=parent
+
+    :setup: Standalone instance
+    :parametrized: yes
+    :steps:
+        refs,searches = referrals
+
+        1. Create the referrals according to the current parameter
+        2. Wait enough time so they get detected
+        3. For each search base dn, in the current parameter, perform the two following steps
+        4. In 3. loop: Perform a search with provided base dn
+        5. In 3. loop: Check that the number of returned referrals is the expected one.
+
+    :expectedresults:
+        all steps succeeds
+    """
+    inst = topo.standalone
+
+    def fin():
+        log.info('Deleting all referrals')
+        for ref in Referrals(inst, PARENT_SUFFIX).list():
+            ref.delete()
+
+    # Set cleanup callback
+    if DEBUGGING:
+        request.addfinalizer(fin)
+
+    # Remove all referrals
+    fin()
+    # Add requested referrals
+    for dn in parameters[0]:
+        refs = Referral(inst, dn=dn)
+        refs.create(basedn=dn, properties={ 'cn': 'ref', 'ref': f'ldap://remote/{dn}'})
+    # Wait that the internal search detects the referrals
+    time.sleep(REFERRAL_CHECK_PEDIOD + 1)
+    # Open a test connection
+    ldc = ldap.initialize(f"ldap://{HOST_STANDALONE}:{PORT_STANDALONE}")
+    ldc.set_option(ldap.OPT_REFERRALS,0)
+    ldc.simple_bind_s(DN_DM,PW_DM)
+
+    # For each search base dn:
+    for basedn,nbref in parameters[1].items():
+        log.info(f"Referrals are: {parameters[0]}")
+        # Perform a search with provided base dn
+        result = ldc.search_s(basedn, ldap.SCOPE_SUBTREE, filterstr="(ou=People)")
+        found_dns = [ dn for dn,entry in result if dn is not None ]
+        found_refs = [ entry for dn,entry in result if dn is None ]
+        log.info(f"Search on {basedn} returned {found_dns} and {found_refs}")
+        # Check that the number of returned referrals is the expected one.
+        log.info(f"Search returned {len(found_refs)} referrals. {nbref} are expected.")
+        assert len(found_refs) == nbref
+    ldc.unbind()
 
