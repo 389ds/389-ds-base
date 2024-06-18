@@ -230,12 +230,17 @@ slapi_exist_referral(Slapi_Backend *be)
 
         /* search for ("smart") referral entries */
         search_pb = slapi_pblock_new();
-        server_ctrls = (LDAPControl **) slapi_ch_calloc(2, sizeof (LDAPControl *));
+        server_ctrls = (LDAPControl **) slapi_ch_calloc(3, sizeof (LDAPControl *));
         server_ctrls[0] = (LDAPControl *) slapi_ch_malloc(sizeof (LDAPControl));
         server_ctrls[0]->ldctl_oid = slapi_ch_strdup(LDAP_CONTROL_MANAGEDSAIT);
         server_ctrls[0]->ldctl_value.bv_val = NULL;
         server_ctrls[0]->ldctl_value.bv_len = 0;
         server_ctrls[0]->ldctl_iscritical = '\0';
+        server_ctrls[1] = (LDAPControl *) slapi_ch_malloc(sizeof (LDAPControl));
+        server_ctrls[1]->ldctl_oid = slapi_ch_strdup(MTN_CONTROL_USE_ONE_BACKEND_EXT_OID);
+        server_ctrls[1]->ldctl_value.bv_val = NULL;
+        server_ctrls[1]->ldctl_value.bv_len = 0;
+        server_ctrls[1]->ldctl_iscritical = '\0';
         slapi_search_internal_set_pb(search_pb, suffix, LDAP_SCOPE_SUBTREE,
                 filter, NULL, 0, server_ctrls, NULL,
                 (void *) plugin_get_default_component_id(), 0);
