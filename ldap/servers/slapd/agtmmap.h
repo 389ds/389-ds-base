@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <semaphore.h>
 #include <errno.h>
 #include "nspr.h"
 
@@ -187,6 +188,18 @@ int agt_mopen_stats(char *statsfile, int mode, int *hdl);
 int agt_mclose_stats(int hdl);
 
 int agt_mread_stats(int hdl, struct hdr_stats_t *, struct ops_stats_t *, struct entries_stats_t *);
+
+/****************************************************************************
+ *
+ *  agt_sem_open () - Like sem_open but ignores umask
+ *
+ *
+ * Inputs:            see sem_open man page.
+ * Outputs:           see sem_open man page.
+ * Return Values:     see sem_open man page.
+ *
+ ****************************************************************************/
+sem_t *agt_sem_open(const char *name, int oflag, mode_t mode, unsigned int value);
 
 #ifdef __cplusplus
 }

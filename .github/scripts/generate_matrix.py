@@ -21,9 +21,6 @@ else:
     # Use tests from the source
     suites = next(os.walk('dirsrvtests/tests/suites/'))[1]
 
-    # Filter out snmp as it is an empty directory:
-    suites.remove('snmp')
-
     # Filter out webui because of broken tests
     suites.remove('webui')
 
