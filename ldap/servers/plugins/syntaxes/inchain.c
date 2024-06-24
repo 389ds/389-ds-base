@@ -277,7 +277,7 @@ inchain_values2keys(Slapi_PBlock *pb, Slapi_Value **vals, Slapi_Value ***ivals, 
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &base_sdn);
 
     if (! slapi_attr_is_dn_syntax_type(mrTYPE)) {
-        slapi_log_err(SLAPI_LOG_ERR, "inchain", "Requires distinguishedName syntax. AttributeDescription %s is not distinguishedName\n");
+        slapi_log_err(SLAPI_LOG_ERR, "inchain", "Requires distinguishedName syntax. AttributeDescription %s is not distinguishedName\n", mrTYPE);
         result = (Slapi_Value **)slapi_ch_calloc(1, sizeof(Slapi_Value *));
         *ivals = result;
         return(0);
