@@ -12,6 +12,12 @@
 %global libdb_base_version db-%{libdb_version}.28
 %global libdb_full_version lib%{libdb_base_version}-59
 %global libdb_bundle_name libdb-%{libdb_version}-389ds.so
+%if 0%{?fedora} >= 41 || 0%{?rhel} >= 11
+# RPM 4.20
+%global libdb_base_dir lib%{libdb_base_version}-build/%{libdb_base_version}
+%else
+%global libdb_base_dir %{libdb_base_version}
+%endif
 %endif
 
 # This is used in certain builds to help us know if it has extra features.
@@ -405,7 +411,7 @@ popd
 %if %{with bundle_libdb}
 mkdir -p ../%{libdb_base_version}
 pushd ../%{libdb_base_version}
-tar -xjf  ../../SOURCES/%{libdb_full_version}.tar.bz2
+tar -xjf  %{_topdir}/SOURCES/%{libdb_full_version}.tar.bz2
 mv %{libdb_full_version} SOURCES
 rpmbuild  --define "_topdir $PWD" -bc %{_builddir}/%{name}-%{version}/rpm/bundle-libdb.spec
 popd
@@ -416,7 +422,7 @@ autoreconf -fiv
 
 %configure \
 %if %{with bundle_libdb}
-           --with-bundle-libdb=%{_builddir}/%{libdb_base_version}/BUILD/%{libdb_base_version}/dist/dist-tls \
+           --with-bundle-libdb=%{_builddir}/%{libdb_base_version}/BUILD/%{libdb_base_dir}/dist/dist-tls \
 %endif
            --with-selinux $TMPFILES_FLAG \
            --with-systemd \
@@ -511,7 +517,7 @@ popd
 
 %if %{with bundle_libdb}
 pushd ../%{libdb_base_version}
-libdbbuilddir=$PWD/BUILD/%{libdb_base_version}
+libdbbuilddir=$PWD/BUILD/%{libdb_base_dir}
 libdbdestdir=$PWD/../%{name}-%{version}
 cp -pa $libdbbuilddir/LICENSE $libdbdestdir/LICENSE.libdb
 cp -pa $libdbbuilddir/README $libdbdestdir/README.libdb
