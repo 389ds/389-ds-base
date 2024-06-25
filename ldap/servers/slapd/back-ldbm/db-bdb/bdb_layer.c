@@ -4772,7 +4772,7 @@ bdb_copyfile(char *source, char *destination, int overwrite __attribute__((unuse
     int dest_fd = -1;
     char *buffer = NULL;
     int return_value = -1;
-    int bytes_to_write = 0;
+    size_t bytes_to_write = 0;
 
     /* malloc the buffer */
     buffer = slapi_ch_malloc(64 * 1024);

@@ -3664,7 +3664,7 @@ bdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 {
     int rval = 0;
     rval = bdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
-    rval += bdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
+    rval |= bdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
     return rval;
 }
 
@@ -3791,7 +3791,7 @@ bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 
     rval = bdb_dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
                                 "Instance Config");
-    rval += bdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
+    rval |= bdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
                                  "Index Config");
 
     slapi_ch_free_string(&instance_entry_filter);
