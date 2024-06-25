@@ -1,0 +1,43 @@
+---
+# See the documentation for more information:
+# https://packit.dev/docs/configuration/
+specfile_path: rpm/389-ds-base.spec
+paths:
+  - ./
+actions:
+  post-upstream-clone:
+    - "bash -c 'cd ${PACKIT_UPSTREAM_REPO}; make -f rpm.mk rpmspec'"
+  create-archive:
+    - "bash -c 'cd ${PACKIT_UPSTREAM_REPO}; make -f rpm.mk download-cargo-dependencies tarballs'"
+    - "bash -c 'cd ${PACKIT_UPSTREAM_REPO}; ls -1 dist/sources/389-ds-base*.tar.bz2'"
+      #  fix-spec-file:
+      #    - "bash -c 'cd ${PACKIT_UPSTREAM_REPO}; make -f rpm.mk rpmspec'"
+  get-current-version:
+  - rpmspec -q --qf "%{Version}" --srpm rpm/389-ds-base.spec
+srpm_build_deps:
+  - make
+  - cargo
+  - npm
+# See: https://packit.dev/docs/configuration/#upstream_tag_template
+upstream_tag_template: "389-ds-base-{version}"
+
+# See: https://packit.dev/docs/configuration/#release_suffix
+#release_suffix: {original_release_number}.{current_time}.{sanitized_current_branch}{git_desc_suffix}
+release_suffix: "packit"
+
+upstream_package_name: 389-ds-base
+downstream_package_name: 389-ds-base
+
+files_to_sync:
+  - rpm/389-ds-base.spec
+  - .packit.yaml
+
+allowed_pr_authors:
+  - packit
+  - all_admins
+
+jobs:
+- job: copr_build
+  trigger: pull_request
+  targets:
+  - fedora-all
