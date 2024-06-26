@@ -821,6 +821,14 @@ static struct config_get_and_set
      log_set_logging, SLAPD_AUDIT_LOG,
      (void **)&global_slapdFrontendConfig.auditlog_logging_enabled,
      CONFIG_ON_OFF, NULL, &init_auditlog_logging_enabled, NULL},
+    {CONFIG_AUDITLOG_LOG_FORMAT_ATTRIBUTE, config_set_auditlog_log_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.auditlog_log_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_AUDITLOG_LOG_FORMAT, NULL},
+    {CONFIG_AUDITLOG_TIME_FORMAT_ATTRIBUTE, config_set_auditlog_time_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.auditlog_time_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_AUDITLOG_TIME_FORMAT, NULL},
     {CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW, config_set_auditlog_unhashed_pw,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_logging_hide_unhashed_pw,
@@ -1912,6 +1920,8 @@ FrontendConfig_init(void)
     init_errorlog_compress_enabled = cfg->errorlog_compress = LDAP_OFF;
 
     init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
+    cfg->auditlog_log_format = slapi_ch_strdup(SLAPD_INIT_AUDITLOG_LOG_FORMAT);
+    cfg->auditlog_time_format = slapi_ch_strdup(SLAPD_INIT_AUDITLOG_TIME_FORMAT);
     cfg->auditlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
     cfg->auditlog_maxnumlogs = SLAPD_DEFAULT_LOG_MAXNUMLOGS;
     cfg->auditlog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
@@ -2275,6 +2285,54 @@ config_value_is_null(const char *attrname, const char *value, char *errorbuf, in
     }
 
     return 0;
+}
+
+int32_t
+config_set_auditlog_log_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strcasecmp(value, "default") && strcasecmp(value, "json") && strcasecmp(value, "json-pretty")) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is invalid, the acceptable values "
+                              "are \"default\", \"json\", and \"json-pretty\"",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->auditlog_log_format);
+        slapdFrontendConfig->auditlog_log_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return LDAP_SUCCESS;
+}
+
+int32_t
+config_set_auditlog_time_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int32_t retVal = LDAP_SUCCESS;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->auditlog_time_format);
+        slapdFrontendConfig->auditlog_time_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
 }
 
 int32_t
@@ -2721,7 +2779,7 @@ config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char 
         PL_strncasecmp((char *)value[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, value[0]->bv_len) != 0) {
         for (size_t i = 0; value[i] != NULL; i++) {
             end = strspn(value[i]->bv_val, "0123456789:ABCDEFabcdef.*");
-            /* 
+            /*
             * If no valid characters are found, or if there are characters after the valid ones,
             * then print an error message and exit with LDAP_OPERATIONS_ERROR.
             */
@@ -6950,6 +7008,41 @@ config_get_auditfaillog_logging_enabled()
     retVal = (int)slapdFrontendConfig->auditfaillog_logging_enabled;
 
     return retVal;
+}
+
+int
+config_get_auditlog_log_format()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *value;
+    int retVal;
+
+    /* map string value to int to avoid excessive freeing and duping */
+    CFG_LOCK_READ(slapdFrontendConfig);
+    value = slapdFrontendConfig->auditlog_log_format;
+    if (strcasecmp(value, "default") == 0) {
+        retVal = LOG_FORMAT_DEFAULT;
+    } else if (strcasecmp(value, "json") == 0) {
+        retVal = LOG_FORMAT_JSON;
+    } else {
+        retVal = LOG_FORMAT_JSON_PRETTY;
+    }
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+char *
+config_get_auditlog_time_format(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *ret;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    ret = config_copy_strval(slapdFrontendConfig->auditlog_time_format);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return ret;
 }
 
 int
