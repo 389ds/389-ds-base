@@ -36,6 +36,8 @@ const settings_attrs = [
     'nsslapd-auditlog',
     'nsslapd-auditlog-logging-enabled',
     'nsslapd-auditlog-logbuffering',
+    'nsslapd-auditlog-log-format',
+    'nsslapd-auditlog-time-format',
 ];
 
 const rotation_attrs = [
@@ -385,6 +387,8 @@ export class ServerAuditLog extends React.Component {
                         'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
                         'nsslapd-auditlog-compress': compressed,
                         'nsslapd-auditlog-logbuffering': buffering,
+                        'nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+                        'nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
                         displayAttrs: display_attrs,
                         displayAllAttrs,
                         // Record original values
@@ -403,6 +407,8 @@ export class ServerAuditLog extends React.Component {
                         '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
                         '_nsslapd-auditlog-compress': compressed,
                         '_nsslapd-auditlog-logbuffering': buffering,
+                        '_nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+                        '_nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
                         _displayAttrs: display_attrs,
                         _displayAllAttrs: displayAllAttrs,
                     });
@@ -467,6 +473,8 @@ export class ServerAuditLog extends React.Component {
             'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
             'nsslapd-auditlog-compress': compressed,
             'nsslapd-auditlog-logbuffering': buffering,
+            'nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+            'nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
             displayAttrs: display_attrs,
             displayAllAttrs,
             // Record original values,
@@ -485,6 +493,8 @@ export class ServerAuditLog extends React.Component {
             '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
             '_nsslapd-auditlog-compress': compressed,
             '_nsslapd-auditlog-logbuffering': buffering,
+            '_nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+            '_nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
             _displayAttrs: display_attrs,
             _displayAllAttrs: displayAllAttrs,
         }, this.props.enableTree);
@@ -546,17 +556,41 @@ export class ServerAuditLog extends React.Component {
                                     }}
                                 />
                             </FormGroup>
+                            <FormGroup
+                                label="Time Format"
+                                fieldId="nsslapd-auditlog-time-format"
+                                title="Time format using strftime formatting (nsslapd-auditlog-time-format)."
+                            >
+                                <TextInput
+                                    value={this.state['nsslapd-auditlog-time-format']}
+                                    type="text"
+                                    id="nsslapd-auditlog-time-format"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="nsslapd-auditlog-time-format"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                />
+                            </FormGroup>
+                            <FormGroup
+                                label="Log Format"
+                                fieldId="nsslapd-auditlog-log-format"
+                                title="Choose the log format (nsslapd-auditlog-log-format)."
+                            >
+                                <FormSelect
+                                    id="nsslapd-auditlog-log-format"
+                                    value={this.state['nsslapd-auditlog-log-format']}
+                                    onChange={(str, e) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key="0" value="default" label="Default" />
+                                    <FormSelectOption key="1" value="json" label="JSON" />
+                                    <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
+                                </FormSelect>
+                            </FormGroup>
                         </Form>
-                        <Checkbox
-                            className="ds-left-margin-md ds-margin-top-lg"
-                            id="nsslapd-auditlog-logbuffering"
-                            isChecked={this.state['nsslapd-auditlog-logbuffering']}
-                            onChange={(checked, e) => {
-                                this.handleChange(e, "settings");
-                            }}
-                            title={_("This applies to both the audit & auditfail logs.  Disable audit log buffering for faster troubleshooting, but this will impact server performance (nsslapd-auditlog-logbuffering).")}
-                            label={_("Audit Log Buffering Enabled")}
-                        />
                         <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
                                 label={_("Display Attributes")}
@@ -596,6 +630,16 @@ export class ServerAuditLog extends React.Component {
                                 />
                             </FormGroup>
                         </Form>
+                        <Checkbox
+                            className="ds-left-margin-md ds-margin-top-lg"
+                            id="nsslapd-auditlog-logbuffering"
+                            isChecked={this.state['nsslapd-auditlog-logbuffering']}
+                            onChange={(checked, e) => {
+                                this.handleChange(e, "settings");
+                            }}
+                            title={_("This applies to both the audit & auditfail logs.  Disable audit log buffering for faster troubleshooting, but this will impact server performance (nsslapd-auditlog-logbuffering).")}
+                            label={_("Audit Log Buffering Enabled")}
+                        />
                         <Button
                             key="save settings"
                             isDisabled={this.state.saveSettingsDisabled || this.state.loading}
