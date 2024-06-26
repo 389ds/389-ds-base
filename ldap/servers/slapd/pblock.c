@@ -435,7 +435,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
          * a pointer that could be freed out from under them.
          */
         if (pblock->pb_conn == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR,
+            slapi_log_err(SLAPI_LOG_TRACE,
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_DN \n");
             return (-1);
         }

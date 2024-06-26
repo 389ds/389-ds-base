@@ -321,7 +321,10 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.aci import Aci
         from lib389.config import RSA
         from lib389.config import Encryption
-        from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog, DirsrvAuditLog, DirsrvSecurityLog
+        from lib389.dirsrv_log import (
+            DirsrvAccessLog, DirsrvErrorLog, DirsrvAuditLog,
+            DirsrvAuditJSONLog, DirsrvSecurityLog
+        )
         from lib389.ldclt import Ldclt
         from lib389.mappingTree import MappingTrees
         from lib389.mappingTree import MappingTreeLegacy as MappingTree
@@ -367,6 +370,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ds_access_log = DirsrvAccessLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
         self.ds_audit_log = DirsrvAuditLog(self)
+        self.ds_audit_json_log = DirsrvAuditJSONLog(self)
         self.ds_security_log = DirsrvSecurityLog(self)
         self.ldclt = Ldclt(self)
         self.saslmaps = SaslMappings(self)
@@ -1050,7 +1054,7 @@ class DirSrv(SimpleLDAPObject, object):
 
     def dump_errorlog(self):
         '''
-            Its logs all errors messages within the error log that occured 
+            Its logs all errors messages within the error log that occured
             after the last startup.
         '''
         errlog = self.ds_paths.error_log
