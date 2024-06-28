@@ -430,7 +430,6 @@ rootdn_load_config(Slapi_PBlock *pb)
         result = -1;
     }
 
-free_and_return:
     if (result == 0) {
         /*
          * Free the existing global vars, and move the new ones over
@@ -443,6 +442,7 @@ free_and_return:
         ips_to_deny = ips_to_deny_tmp;
     }
 
+free_and_return:
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
 
     return result;

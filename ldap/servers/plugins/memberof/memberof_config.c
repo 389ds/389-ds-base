@@ -573,16 +573,16 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
             bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
             if (bytes_out<0) {
                 slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
-                returncode = LDAP_UNWILLING_TO_PERFORM;
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
                 goto done;
             }
 
             /* Add filter section for each groupattr. */
-            for (size_t = 0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
+            for (size_t i=0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
                 size_t bytes_read = snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
                 if (bytes_read<0) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
-                    returncode = LDAP_UNWILLING_TO_PERFORM;
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
                     goto done;
                 }
                 bytes_out += bytes_read;

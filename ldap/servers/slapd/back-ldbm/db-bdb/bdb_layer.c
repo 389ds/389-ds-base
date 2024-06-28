@@ -4817,12 +4817,12 @@ bdb_copyfile(char *source, char *destination, int overwrite __attribute__((unuse
                 break;
             } else {
                 /* means error */
-                slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to write by \"%s\"; real: %d bytes, exp: %d bytes\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to write by \"%s\"; real: %d bytes, exp: %lu bytes\n",
                               strerror(errno), return_value, bytes_to_write);
                 if (return_value > 0) {
                     bytes_to_write -= return_value;
                     ptr += return_value;
-                    slapi_log_err(SLAPI_LOG_NOTICE, "bdb_copyfile", "Retrying to write %d bytes\n", bytes_to_write);
+                    slapi_log_err(SLAPI_LOG_NOTICE, "bdb_copyfile", "Retrying to write %lu bytes\n", bytes_to_write);
                 } else {
                     break;
                 }
