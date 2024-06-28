@@ -982,6 +982,9 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     if (ldbm_archive_config(dest_dir, task) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_backup",
                 "Backup of config files failed or is incomplete\n");
+         if (0 == return_value) {
+            return_value = -1;
+        }
     }
 
     goto bail;
