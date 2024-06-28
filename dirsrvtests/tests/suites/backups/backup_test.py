@@ -267,11 +267,13 @@ def test_backup_task_after_failure(mytopo):
         if exitCode != 0:
             break
     # Step 4. Check that backup failed.
-    assert exitCode != 0
+    # If next assert fails too often, that means that the backup is too fast
+    # A fix would would probably be to add more backends within mytopo
+    assert exitCode != 0, "Backup did not fail as expected."
     # Step 5. Perform a seconf backup after backup failure
     exitCode = tasks.db2bak(backup_dir=archive_dir2, args={TASK_WAIT: True})
     # Step 6. Check it is successful
-    assert exitCode == 0
+    assert exitCode == 0, "Backup failed. Issue #6229 may not be fixed."
 
 
 if __name__ == '__main__':

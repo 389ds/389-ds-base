@@ -16,6 +16,8 @@
 #include "back-ldbm.h"
 #include "dblayer.h"
 
+#define NO_OBJECT ((Object*)-1)
+
 int
 ldbm_temporary_close_all_instances(Slapi_PBlock *pb)
 {
@@ -270,8 +272,7 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
     int run_from_cmdline = 0;
     Slapi_Task *task;
     struct stat sbuf;
-    Object *no_object = (Object*)-1;
-    Object *last_busy_inst_obj = no_object;
+    Object *last_busy_inst_obj = NO_OBJECT;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawdirectory);
@@ -416,7 +417,7 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
 
 err:
     /* Clear all BUSY flags that have been previously set */
-    if (last_busy_inst_obj != no_object) {
+    if (last_busy_inst_obj != NO_OBJECT) {
         ldbm_instance *inst;
         Object *inst_obj;
 
