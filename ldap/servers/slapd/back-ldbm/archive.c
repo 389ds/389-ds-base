@@ -16,6 +16,8 @@
 #include "back-ldbm.h"
 #include "dblayer.h"
 
+#define NO_OBJECT ((Object*)-1)
+
 int
 ldbm_temporary_close_all_instances(Slapi_PBlock *pb)
 {
@@ -270,6 +272,7 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
     int run_from_cmdline = 0;
     Slapi_Task *task;
     struct stat sbuf;
+    Object *last_busy_inst_obj = NO_OBJECT;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawdirectory);
@@ -380,13 +383,12 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
 
     /* to avoid conflict w/ import, do this check for commandline, as well */
     {
-        Object *inst_obj, *inst_obj2;
         ldbm_instance *inst = NULL;
 
         /* server is up -- mark all backends busy */
-        for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-             inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-            inst = (ldbm_instance *)object_get_data(inst_obj);
+        for (last_busy_inst_obj = objset_first_obj(li->li_instance_set); last_busy_inst_obj;
+             last_busy_inst_obj = objset_next_obj(li->li_instance_set, last_busy_inst_obj)) {
+            inst = (ldbm_instance *)object_get_data(last_busy_inst_obj);
 
             /* check if an import/restore is already ongoing... */
             if (instance_set_busy(inst) != 0 || dblayer_in_import(inst) != 0) {
@@ -400,20 +402,6 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
                                           "another task and cannot be disturbed.",
                                           inst->inst_name);
                 }
-
-                /* painfully, we have to clear the BUSY flags on the
-                 * backends we'd already marked...
-                 */
-                for (inst_obj2 = objset_first_obj(li->li_instance_set);
-                     inst_obj2 && (inst_obj2 != inst_obj);
-                     inst_obj2 = objset_next_obj(li->li_instance_set,
-                                                 inst_obj2)) {
-                    inst = (ldbm_instance *)object_get_data(inst_obj2);
-                    instance_set_not_busy(inst);
-                }
-                if (inst_obj2 && inst_obj2 != inst_obj)
-                    object_release(inst_obj2);
-                object_release(inst_obj);
                 goto err;
             }
         }
@@ -427,18 +415,26 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
         goto err;
     }
 
-    if (!run_from_cmdline) {
+err:
+    /* Clear all BUSY flags that have been previously set */
+    if (last_busy_inst_obj != NO_OBJECT) {
         ldbm_instance *inst;
         Object *inst_obj;
 
-        /* none of these backends are busy anymore */
-        for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
+        for (inst_obj = objset_first_obj(li->li_instance_set);
+             inst_obj && (inst_obj != last_busy_inst_obj);
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
             instance_set_not_busy(inst);
         }
+        if (last_busy_inst_obj != NULL) {
+            /* release last seen object for aborted objset_next_obj iterations */
+            if (inst_obj != NULL) {
+                object_release(inst_obj);
+            }
+            object_release(last_busy_inst_obj);
+        }
     }
-err:
     if (return_value) {
         if (dir_bak) {
             slapi_log_err(SLAPI_LOG_ERR,
@@ -727,7 +723,10 @@ ldbm_archive_config(char *bakdir, Slapi_Task *task)
     }
 
 error:
-    PR_CloseDir(dirhandle);
+    if (NULL != dirhandle) {
+        PR_CloseDir(dirhandle);
+        dirhandle = NULL;
+    }
     dse_backup_unlock();
     slapi_ch_free_string(&backup_config_dir);
     slapi_ch_free_string(&dse_file);
