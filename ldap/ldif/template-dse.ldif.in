@@ -195,6 +195,15 @@ nsslapd-plugininitfunc: crypt_sha512_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
 
+dn: cn=CRYPT-YESCRYPT,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: CRYPT-YESCRYPT
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: crypt_yescrypt_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
 dn: cn=MD5,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

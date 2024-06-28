@@ -42,6 +42,8 @@ static Slapi_PluginDesc crypt_sha256_pdesc = {"crypt-sha256-password-storage-sch
 
 static Slapi_PluginDesc crypt_sha512_pdesc = {"crypt-sha512-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT-SHA512)"};
 
+static Slapi_PluginDesc crypt_yescrypt_pdesc = {"crypt-yescrypt-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT-YESCRYPT)"};
+
 static Slapi_PluginDesc clear_pdesc = {"clear-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "No encryption (CLEAR)"};
 
 static Slapi_PluginDesc ns_mta_md5_pdesc = {"NS-MTA-MD5-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Netscape MD5 (NS-MTA-MD5)"};
@@ -321,6 +323,28 @@ crypt_sha512_pwd_storage_scheme_init(Slapi_PBlock *pb)
                            "CRYPT-SHA512");
 
     slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_sha512_pwd_storage_scheme_init %d\n\n", rc);
+    return (rc);
+}
+
+int
+crypt_yescrypt_pwd_storage_scheme_init(Slapi_PBlock *pb)
+{
+    int rc;
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> crypt_yescrypt_pwd_storage_scheme_init\n");
+
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
+                          (void *)SLAPI_PLUGIN_VERSION_01);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
+                           (void *)&crypt_yescrypt_pdesc);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
+                           (void *)crypt_pw_yescrypt_enc);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
+                           (void *)crypt_pw_cmp);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
+                           "CRYPT-YESCRYPT");
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_yescrypt_pwd_storage_scheme_init %d\n\n", rc);
     return (rc);
 }
 
