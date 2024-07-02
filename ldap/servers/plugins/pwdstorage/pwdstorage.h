@@ -80,6 +80,7 @@ char *crypt_pw_enc(const char *pwd);
 char *crypt_pw_md5_enc(const char *pwd);
 char *crypt_pw_sha256_enc(const char *pwd);
 char *crypt_pw_sha512_enc(const char *pwd);
+char *crypt_pw_yescrypt_enc(const char *pwd);
 int ns_mta_md5_pw_cmp(const char *userpwd, const char *dbpwd);
 int md5_pw_cmp(const char *userpwd, const char *dbpwd);
 char *md5_pw_enc(const char *pwd);

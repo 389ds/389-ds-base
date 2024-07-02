@@ -39,12 +39,20 @@
 static unsigned char itoa64[] = /* 0 ... 63 => ascii - 64 */
     "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
+/* Standard Crypt Algorithms identifiers (with usual options when needed) */
+#define CRYPT_ALGO_ID_UNIX ""
+#define CRYPT_ALGO_ID_MD5 "$1$"
+#define CRYPT_ALGO_ID_SHA256 "$5$"
+#define CRYPT_ALGO_ID_SHA512 "$6$"
+#define CRYPT_ALGO_ID_YESCRYPT "$y$j9T$"
+
 /* Use the same salt lengths as shadow */
 #define CRYPT_UNIX_SALT_LENGTH 2
 #define CRYPT_MD5_SALT_LENGTH 8
 #define CRYPT_SHA_SALT_LENGTH 16
+#define CRYPT_YESCRYPT_SALT_LENGTH 24
 
-#define CRYPT_SALT_STRING_MAXLEN CRYPT_SHA_SALT_LENGTH + 1
+#define CRYPT_SALT_STRING_MAXLEN CRYPT_YESCRYPT_SALT_LENGTH + 1
 
 int
 crypt_pw_cmp(const char *userpwd, const char *dbpwd)
@@ -106,21 +114,26 @@ crypt_pw_enc_by_hash(const char *pwd, int salt_len, const char *algo_id)
 char *
 crypt_pw_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_UNIX_SALT_LENGTH, "");
+    return crypt_pw_enc_by_hash(pwd, CRYPT_UNIX_SALT_LENGTH, CRYPT_ALGO_ID_UNIX);
 }
 
 char *
 crypt_pw_md5_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_MD5_SALT_LENGTH, "$1$");
+    return crypt_pw_enc_by_hash(pwd, CRYPT_MD5_SALT_LENGTH, CRYPT_ALGO_ID_MD5);
 }
 char *
 crypt_pw_sha256_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, "$5$");
+    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, CRYPT_ALGO_ID_SHA256);
 }
 char *
 crypt_pw_sha512_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, "$6$");
+    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, CRYPT_ALGO_ID_SHA512);
+}
+char *
+crypt_pw_yescrypt_enc(const char *pwd)
+{
+    return crypt_pw_enc_by_hash(pwd, CRYPT_YESCRYPT_SALT_LENGTH, CRYPT_ALGO_ID_YESCRYPT);
 }
