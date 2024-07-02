@@ -117,6 +117,27 @@ ldcltExit(
 
 
 /* ****************************************************************************
+    FUNCTION :    safe_malloc
+    PURPOSE :    alloc data from the heap and returns NULL.
+    INPUT :        datalen    = lenght of the alloced buffer in bytes.
+    OUTPUT :        None
+    RETURN :    alloced buffer
+    DESCRIPTION :
+ *****************************************************************************/
+void *
+safe_malloc(size_t datalen)
+{
+    void *pt = malloc(datalen);
+    if (pt == NULL) {
+        fprintf(stderr, "ldclt: %s\n", strerror(ENOMEM));
+        fprintf(stderr, "ldclt: Error: Unable to alloc %zd bytes.\n", datalen);
+        exit(3);
+    }
+    return pt;
+}
+
+
+/* ****************************************************************************
     FUNCTION :    copyVersAttribute
     PURPOSE :    Copy a versatile object's attribute
     INPUT :        srcattr    = source attribute
@@ -134,7 +155,7 @@ copyVersAttribute(
 
     dstattr->name = srcattr->name;
     dstattr->src = srcattr->src;
-    dstattr->field = (vers_field *)malloc(sizeof(vers_field));
+    dstattr->field = (vers_field *)safe_malloc(sizeof(vers_field));
 
     /*
    * Copy each field of the attribute
@@ -145,7 +166,7 @@ copyVersAttribute(
         memcpy(dst, src, sizeof(vers_field));
         dst->commonField = src; /*JLS 28-03-01*/
         if ((src = src->next) != NULL) {
-            dst->next = (vers_field *)malloc(sizeof(vers_field));
+            dst->next = (vers_field *)safe_malloc(sizeof(vers_field));
             dst = dst->next;
         }
     }
@@ -156,7 +177,7 @@ copyVersAttribute(
     if (srcattr->buf == NULL) /*JLS 28-03-01*/
         dstattr->buf = NULL;  /*JLS 28-03-01*/
     else                      /*JLS 28-03-01*/
-        dstattr->buf = (char *)malloc(MAX_FILTER);
+        dstattr->buf = (char *)safe_malloc(MAX_FILTER);
 
     /*
    * End of function
@@ -182,7 +203,7 @@ copyVersObject(
     /*
    * Copy the object and initiates the buffers...
    */
-    newobj = (vers_object *)malloc(sizeof(vers_object));
+    newobj = (vers_object *)safe_malloc(sizeof(vers_object));
     newobj->attribsNb = srcobj->attribsNb;
     newobj->fname = srcobj->fname;
 
@@ -193,14 +214,14 @@ copyVersObject(
         if (srcobj->var[i] == NULL)
             newobj->var[i] = NULL;
         else
-            newobj->var[i] = (char *)malloc(MAX_FILTER);
+            newobj->var[i] = (char *)safe_malloc(MAX_FILTER);
 
     /*
    * Maybe copy the rdn ?
    */
     if (srcobj->rdn != NULL) {
         newobj->rdnName = strdup(srcobj->rdnName);
-        newobj->rdn = (vers_attribute *)malloc(sizeof(vers_attribute));
+        newobj->rdn = (vers_attribute *)safe_malloc(sizeof(vers_attribute));
         if (copyVersAttribute(srcobj->rdn, newobj->rdn) < 0)
             return (NULL);
     }
@@ -249,7 +270,7 @@ tttctxInit(
     sprintf(tttctx->thrdId, "T%03d", tttctx->thrdNum);
 
     if (mctx.mod2 & M2_OBJECT) {
-        tttctx->bufObject1 = (char *)malloc(MAX_FILTER);
+        tttctx->bufObject1 = (char *)safe_malloc(MAX_FILTER);
         if ((tttctx->object = copyVersObject(&(mctx.object))) == NULL)
             return (-1);
     }
@@ -890,7 +911,7 @@ parseFilter(
 
     for (i = 0; (i < strlen(src)) && (src[i] != 'X'); i++)
         ;
-    *head = (char *)malloc(i + 1);
+    *head = (char *)safe_malloc(i + 1);
     if (*head == NULL) {
         printf("Error: cannot malloc(*head), error=%d (%s)\n",
                errno, strerror(errno));
@@ -901,7 +922,7 @@ parseFilter(
 
     for (j = i; (i < strlen(src)) && (src[j] == 'X'); j++)
         ;
-    *tail = (char *)malloc(strlen(src) - j + 1);
+    *tail = (char *)safe_malloc(strlen(src) - j + 1);
     if (*tail == NULL) {
         printf("Error: cannot malloc(*tail), error=%d (%s)\n",
                errno, strerror(errno));
@@ -1190,7 +1211,7 @@ basicInit(void)
         /*
          * Parse the attribute value
          */
-        mctx.attrplFile = (char *)malloc(strlen(mctx.attrpl + i) + 2);
+        mctx.attrplFile = (char *)safe_malloc(strlen(mctx.attrpl + i) + 2);
         if (mctx.attrplFile == NULL) {
             printf("Error: unable to allocate memory for attreplfile\n");
             return (-1);
@@ -1233,7 +1254,7 @@ basicInit(void)
         }
 
         /* start to read file content */
-        mctx.attrplFileContent = (char *)malloc(mctx.attrplFileSize + 1);
+        mctx.attrplFileContent = (char *)safe_malloc(mctx.attrplFileSize + 1);
         i = 0;
         while ((ret = fread(buffer, BUFFERSIZE, 1, attrF))) {
             memcpy(mctx.attrplFileContent + i, buffer, ret);
@@ -1310,7 +1331,7 @@ basicInit(void)
      * We need to initiate this entry to dummy values because some opXyz()
      * functions will access this entry careless.
      */
-        mctx.opListTail = (oper *)malloc(sizeof(oper));
+        mctx.opListTail = (oper *)safe_malloc(sizeof(oper));
         if (mctx.opListTail == NULL) /*JLS 06-03-00*/
         {                            /*JLS 06-03-00*/
             printf("Error: cannot malloc(mctx.opListTail), error=%d (%s)\n",
@@ -1663,7 +1684,7 @@ addAttrToList(
 
         for (end = start; (list[end] != '\0') && (list[end] != ':'); end++)
             ;
-        mctx.attrlist[mctx.attrlistNb] = (char *)malloc(1 + end - start);
+        mctx.attrlist[mctx.attrlistNb] = (char *)safe_malloc(1 + end - start);
         if (mctx.attrlist[mctx.attrlistNb] == NULL) {
             fprintf(stderr, "Error : failed to allocate mctx.attrlist\n");
             return (-1);
@@ -1698,7 +1719,7 @@ decodeRdnParam(
    *        simply lost this data...
    *        Anyway, there is not a lot of memory used here...
    */
-    mctx.object.rdn = (vers_attribute *)malloc(sizeof(vers_attribute));
+    mctx.object.rdn = (vers_attribute *)safe_malloc(sizeof(vers_attribute));
     if (mctx.object.rdn == NULL) {
         fprintf(stderr, "Error : failed to allocate mctx.object.rdn\n");
         return (-1);
@@ -1714,7 +1735,7 @@ decodeRdnParam(
         fprintf(stderr, "Error: missing rdn attribute name\n");
         return (-1);
     }
-    mctx.object.rdnName = (char *)malloc(i + 1);
+    mctx.object.rdnName = (char *)safe_malloc(i + 1);
     if (mctx.object.rdnName == NULL) {
         fprintf(stderr, "Error : failed to allocate mctx.object.rdnName\n");
         return (-1);
@@ -2208,7 +2229,7 @@ buildArgListString(
         if ((strchr(argv[i], ' ') != NULL) || (strchr(argv[i], '\t') != NULL))
             lgth += 2;
     }
-    argvList = (char *)malloc(lgth);
+    argvList = (char *)safe_malloc(lgth);
     if (argvList == NULL) {
         return (argvList);
     }

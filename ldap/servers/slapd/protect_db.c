@@ -99,6 +99,7 @@ grab_lockfile(void)
             size_t nb_bytes = 0;
 
             nb_bytes = read(fd, (void *)&owning_pid, sizeof(pid_t));
+            close(fd);
             if ((nb_bytes != (size_t)(sizeof(pid_t))) || (owning_pid == 0) || (kill(owning_pid, 0) != 0 && errno == ESRCH)) {
                 /* The process that owns the lock is dead. Try to remove the old lockfile. */
                 if (unlink(lockfile) != 0) {

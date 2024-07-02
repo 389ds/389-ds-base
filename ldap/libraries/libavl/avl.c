@@ -713,6 +713,10 @@ avl_buildlist(caddr_t data, int arg __attribute__((unused)))
                                       (unsigned)slots * sizeof(caddr_t));
     }
 
+    if (avl_list == NULL) {
+        return (-1);
+    }
+
     avl_list[avl_maxlist++] = data;
 
     return (0);

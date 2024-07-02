@@ -863,7 +863,8 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
             case -1: /* an error occurred */
                 /* PAGED RESULTS */
-                if (op_is_pagedresults(operation)) {
+                /* Need to test ctrlp to avoid gcc -fanalyzer warning */
+                if (ctrlp && op_is_pagedresults(operation)) {
                     /* cleanup the slot */
                     pthread_mutex_lock(pagedresults_mutex);
                     pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
