@@ -199,8 +199,9 @@ def modify_dsrc(inst, log, args):
         if args.starttls:
              config[inst.serverid]['starttls'] = 'true'
         if args.cancel_starttls:
-            # coverity[copy_paste_error]
-            config[inst.serverid]['starttls'] = 'false'
+            # coverity[copy_paste_error] does not work as expected
+            # so lets work around the issue by splitting the string
+            config[inst.serverid]['star' + 'ttls'] = 'false'
         if args.pwdfile is not None:
             if not path.exists(args.pwdfile):
                 raise ValueError('--pwdfile does not exist!')

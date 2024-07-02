@@ -40,11 +40,13 @@ struct SVRCOREStdSystemdPinObj
     SVRCOREPinObj *top;
 };
 
+#ifdef WITH_SYSTEMD
 static void destroyObject(SVRCOREPinObj *obj);
 static char *getPin(SVRCOREPinObj *pinObj, const char *tokenName, PRBool retry);
 
 static const SVRCOREPinMethods vtable =
 { 0, 0, destroyObject, getPin };
+#endif // Systemd
 
 
 /* ------------------------------------------------------------ */
@@ -210,6 +212,7 @@ SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
 #endif // Systemd
 }
 
+#ifdef WITH_SYSTEMD
 /* ------------------------------------------------------------ */
 /*
  * vtable methods
@@ -231,4 +234,5 @@ getPin(SVRCOREPinObj *pinObj, const char *tokenName, PRBool retry)
     /* Just forward call to the top level handler */
     return SVRCORE_GetPin(obj->top, tokenName, retry);
 }
+#endif // Systemd
 

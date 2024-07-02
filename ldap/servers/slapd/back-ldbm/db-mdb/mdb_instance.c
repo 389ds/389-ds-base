@@ -959,6 +959,10 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;
     END_TXN(&txn, 0);
     mdb_env_info(ctx.env, &info);
+    if (st.ms_psize == 0) {
+        /* Should never happen but avoid DIVIDE_BY_ZERO coverity scan error */
+        st.ms_psize = 1;
+    }
     alloced = fst.st_size / st.ms_psize;
     PR_snprintf(dbs[i].filename, PATH_MAX, "GLOBAL STATS: pages max=%ld alloced=%ld used=%ld size=%d",
         info.me_mapsize / st.ms_psize, alloced, used_pages, st.ms_psize);

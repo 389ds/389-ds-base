@@ -3582,8 +3582,12 @@ _cl5LDIF2Operation(char *ldifEntry, slapi_operation_parameters *op, char **replG
             op->target_address.uniqueid = slapi_ch_strdup(value.bv_val);
         } else if (strncasecmp(type.bv_val, T_DNSTR, type.bv_len) == 0) {
             PR_ASSERT(op->operation_type);
-
             if (op->operation_type == SLAPI_OPERATION_ADD) {
+                /* Usually the T_DNSTR if followed by a T_CHANGESTR so rawDN is freed
+                 * but lets avoid leak if ldif is corrupted (and in static analysis reports)
+                 * by always freeing it explicitly.
+                 */
+                slapi_ch_free_string(&rawDN);
                 rawDN = slapi_ch_strdup(value.bv_val);
                 op->target_address.sdn = slapi_sdn_new_dn_byval(rawDN);
             } else
@@ -3667,6 +3671,7 @@ _cl5LDIF2Operation(char *ldifEntry, slapi_operation_parameters *op, char **replG
         }
     }
     slapi_ch_free_string(&ldifEntryWork);
+    slapi_ch_free_string(&rawDN);
     return rval;
 }
 

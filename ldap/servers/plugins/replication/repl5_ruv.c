@@ -2033,10 +2033,10 @@ get_ruvelement_from_berval(const struct berval *bval)
                 char mincsnstr[CSN_STRSIZE];
                 char maxcsnstr[CSN_STRSIZE];
 
-                memset(mincsnstr, '\0', CSN_STRSIZE);
-                memset(maxcsnstr, '\0', CSN_STRSIZE);
                 memcpy(mincsnstr, &bval->bv_val[mincsnbegin], _CSN_VALIDCSN_STRLEN);
                 memcpy(maxcsnstr, &bval->bv_val[mincsnbegin + _CSN_VALIDCSN_STRLEN + 1], _CSN_VALIDCSN_STRLEN);
+                maxcsnstr[_CSN_VALIDCSN_STRLEN] = 0;
+                mincsnstr[_CSN_VALIDCSN_STRLEN] = 0;
                 ret_ruve = (RUVElement *)slapi_ch_calloc(1, sizeof(RUVElement));
                 ret_ruve->min_csn = csn_new_by_string(mincsnstr);
                 ret_ruve->csn = csn_new_by_string(maxcsnstr);
