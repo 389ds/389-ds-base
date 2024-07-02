@@ -396,7 +396,7 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         }
     }
     ctxflags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
-    if (does_vlv_need_init(inst)) {
+    if (be != NULL && does_vlv_need_init(inst)) {
         /* Vlv initialization is quite tricky as it require that
          *  [1] dbis_lock is not held
          *  [2] inst->inst_id2entry is set
@@ -414,8 +414,13 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     /* Note: ctx->dbis_lock mutex must always be hold after getting the txn
      *  because txn is held very early (within backend code) in add operation
      *  and inverting the order may lead to deadlock
+     * BTW TST macro cannot be used here because mutex is not held and valid_slot is NULL
      */
-    TST(START_TXN(&txn, NULL, TXNFL_DBI));
+    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+    if (rc != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_all_files", "failed to begin a new transaction rc=%d: %s.\n", rc, mdb_strerror(rc));
+        return dbmdb_map_error(__FUNCTION__, rc);
+    }
     pthread_mutex_lock(&ctx->dbis_lock);
 
     if (!ctx->dbi_slots) {
@@ -1384,16 +1389,13 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
 
     /* Now lets search for the associated recno cache dbi */
     rcctx->rcdbi = dbi_get_by_name(ctx, rcctx->cursor->be, rcdbname);
-    if (rcctx->rcdbi)
-        rcctx->mode = RCMODE_USE_CURSOR_TXN;
-
-    if (rcctx->mode == RCMODE_USE_CURSOR_TXN) {
+    if (rcctx->rcdbi) {
         /* DBI cache was found,  Let check that it is usuable */
         rcctx->key.mv_data = "OK";
         rcctx->key.mv_size = 2;
         rc = MDB_GET(txn, rcctx->rcdbi->dbi, &rcctx->key, &rcctx->data);
-        if (rc) {
-            rcctx->mode = RCMODE_UNKNOWN;
+        if (rc == MDB_SUCCESS) {
+            rcctx->mode = RCMODE_USE_CURSOR_TXN;
         }
         if (rc != MDB_NOTFOUND) {
             /* There was an error or cache is valid.

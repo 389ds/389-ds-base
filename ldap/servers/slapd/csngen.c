@@ -858,6 +858,10 @@ void csngen_multi_suppliers_test(void)
         if (gen[i]) {
             gen[i]->gettime = _csngen_tester_gettime;
             gen[i]->state.sampled_time = now.tv_sec;
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "csngen_multi_suppliers_test",
+                          "Failed to initialize the CSNs\n");
+            return;
         }
     }
 

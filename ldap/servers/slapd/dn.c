@@ -3051,6 +3051,9 @@ slapi_sdn_common_ancestor(Slapi_DN *dn1, Slapi_DN *dn2)
     }
     dn1str = slapi_sdn_get_ndn(dn1);
     dn2str = slapi_sdn_get_ndn(dn2);
+    if ((NULL == dn1str) || (NULL == dn2str)) {
+        return NULL;
+    }
     if (0 == strcmp(dn1str, dn2str)) {
         /* identical */
         return slapi_sdn_dup(dn1);

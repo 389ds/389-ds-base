@@ -3141,6 +3141,7 @@ static int
 bdb_import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
 {
     ldbm_instance *inst = worker->job->inst;
+    PR_ASSERT(NULL != inst);
     backend *be = inst->inst_be;
     DB *output_file = NULL;
     int ret = 0;
@@ -3149,8 +3150,6 @@ bdb_import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
     int pass_number = 0;
     DB **input_files = NULL;
     DBC **input_cursors = NULL;
-
-    PR_ASSERT(NULL != inst);
 
     /* Try to open all the input files.
        If we can't open file a file, we assume that is

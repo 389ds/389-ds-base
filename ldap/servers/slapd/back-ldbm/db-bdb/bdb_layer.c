@@ -5713,14 +5713,14 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         slapi_log_err(SLAPI_LOG_ERR,
                       "bdb_restore", "%s is on, while the instance %s is in the DN format. "
                                          "Please run dn2rdn to convert the database format.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                      CONFIG_ENTRYRDN_SWITCH, (inst != NULL) ? inst->inst_name : "<Null>");
         return_value = -1;
         goto error_out;
     } else if (action & DBVERSION_NEED_RDN2DN) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "bdb_restore", "%s is off, while the instance %s is in the RDN format. "
                                          "Please change the value to on in dse.ldif.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                      CONFIG_ENTRYRDN_SWITCH, (inst != NULL) ? inst->inst_name : "<Null>");
         return_value = -1;
         goto error_out;
     } else {

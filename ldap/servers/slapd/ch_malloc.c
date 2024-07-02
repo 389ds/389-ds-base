@@ -244,6 +244,10 @@ struct berval **
 slapi_ch_bvecdup(struct berval **v)
 {
     struct berval **newberval = NULL;
+    /* Disable fanalyzer false positive */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
+
     if (v != NULL) {
         size_t i = 0;
         while (v[i] != NULL)
@@ -254,6 +258,7 @@ slapi_ch_bvecdup(struct berval **v)
             newberval[i] = slapi_ch_bvdup(v[i]);
         }
     }
+#pragma GCC diagnostic pop
     return newberval;
 }
 

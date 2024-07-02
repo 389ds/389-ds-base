@@ -1474,6 +1474,10 @@ bdb_upgradedn_producer(void *param)
     PR_ASSERT(inst != NULL);
     PR_ASSERT(be != NULL);
 
+/* Disable fanalyzer false positive about job->upgradefd */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-malloc-leak"
+
     if (job->flags & FLAG_ABORT) {
         goto error;
     }
@@ -2195,6 +2199,7 @@ done:
     if (job->upgradefd) {
         fclose(job->upgradefd);
     }
+#pragma GCC diagnostic pop
 }
 
 static void
