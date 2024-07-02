@@ -31,7 +31,7 @@
 #include <pwd.h> /* getpwnam */
 #include "zlib.h"
 #define _PSEP '/'
-#include <json-c/json.h>
+// #include <json-c/json.h>
 #include <assert.h>
 #include <execinfo.h>
 
@@ -117,7 +117,7 @@ static PRInt64 log__getfilesize_with_filename(char *filename);
 static int log__enough_freespace(char *path);
 static int vslapd_log_error(LOGFD fp, int sev_level, const char *subsystem, const char *fmt, va_list ap, int locked);
 static int vslapd_log_access(const char *fmt, va_list ap);
-static int vslapd_log_audit(const char *log_data);
+static int vslapd_log_audit(const char *log_data, PRBool json);
 static int vslapd_log_security(const char *log_data);
 static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
@@ -2409,7 +2409,7 @@ auditfail_log_openf(char *pathname, int locked)
 * write in the audit log
 ******************************************************************************/
 static int
-vslapd_log_audit(const char *log_data)
+vslapd_log_audit(const char *log_data, PRBool json_format)
 {
     char buffer[SLAPI_LOG_BUFSIZ];
     time_t tnl = slapi_current_utc_time();
@@ -2442,9 +2442,16 @@ vslapd_log_audit(const char *log_data)
     }
 
     /* We do this sooner, because that we can use the message in other calls */
-    if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s", log_data)) == -1) {
-        log__error_emergency("vslapd_log_audit, Unable to format message", 1, 0);
-        return -1;
+    if (json_format) {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s\n", log_data)) == -1) {
+            log__error_emergency("vslapd_log_audit, Unable to format message", 1, 0);
+            return -1;
+        }
+    } else {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s", log_data)) == -1) {
+            log__error_emergency("vslapd_log_audit, Unable to format message", 1, 0);
+            return -1;
+        }
     }
 
 #ifdef SYSTEMTAP
@@ -2460,17 +2467,14 @@ vslapd_log_audit(const char *log_data)
 }
 
 int
-slapd_log_audit(
-    char *buffer,
-    int buf_len,
-    int sourcelog)
+slapd_log_audit(char *buffer, PRBool json_format)
 {
     /* We use this to route audit log entries to where they need to go */
     int retval = LDAP_SUCCESS;
     int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
 
     if (lbackend & LOGGING_BACKEND_INTERNAL) {
-        retval = vslapd_log_audit(buffer);
+        retval = vslapd_log_audit(buffer, json_format);
     }
 
     if (retval != LDAP_SUCCESS) {
@@ -2478,11 +2482,19 @@ slapd_log_audit(
     }
     if (lbackend & LOGGING_BACKEND_SYSLOG) {
         /* This returns void, so we hope it worked */
-        syslog(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            syslog(LOG_NOTICE, "%s\n", buffer);
+        } else {
+            syslog(LOG_NOTICE, "%s", buffer);
+        }
     }
 #ifdef HAVE_JOURNALD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
-        retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            retval = sd_journal_print(LOG_NOTICE, "%s\n", buffer);
+        }else {
+            retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        }
     }
 #endif
     return retval;
@@ -2528,7 +2540,7 @@ log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
 * write in the audit fail log
 ******************************************************************************/
 static int
-vslapd_log_auditfail(const char *log_data)
+vslapd_log_auditfail(const char *log_data, PRBool json_format)
 {
     char buffer[SLAPI_LOG_BUFSIZ];
     time_t tnl = slapi_current_utc_time();;
@@ -2561,10 +2573,18 @@ vslapd_log_auditfail(const char *log_data)
     }
 
     /* We do this sooner, because that we can use the message in other calls */
-    if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s", log_data)) == -1) {
-        log__error_emergency("vslapd_log_auditfail, Unable to format message", 1, 0);
-        return -1;
+    if (json_format) {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s\n", log_data)) == -1) {
+            log__error_emergency("vslapd_log_auditfail, Unable to format message", 1, 0);
+            return -1;
+        }
+    } else {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s", log_data)) == -1) {
+            log__error_emergency("vslapd_log_auditfail, Unable to format message", 1, 0);
+            return -1;
+        }
     }
+
 
 #ifdef SYSTEMTAP
     STAP_PROBE(ns-slapd, vslapd_log_auditfail__prepared);
@@ -2579,26 +2599,33 @@ vslapd_log_auditfail(const char *log_data)
 }
 
 int
-slapd_log_auditfail(
-    char *buffer,
-    int buf_len)
+slapd_log_auditfail(char *buffer, PRBool json_format)
 {
     /* We use this to route audit log entries to where they need to go */
     int retval = LDAP_SUCCESS;
     int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
     if (lbackend & LOGGING_BACKEND_INTERNAL) {
-        retval = vslapd_log_auditfail(buffer);
+        retval = vslapd_log_auditfail(buffer, json_format);
     }
     if (retval != LDAP_SUCCESS) {
         return retval;
     }
     if (lbackend & LOGGING_BACKEND_SYSLOG) {
         /* This returns void, so we hope it worked */
-        syslog(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            syslog(LOG_NOTICE, "%s\n", buffer);
+        } else {
+            syslog(LOG_NOTICE, "%s", buffer);
+        }
+
     }
 #ifdef HAVE_JOURNALD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
-        retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            retval = sd_journal_print(LOG_NOTICE, "%s\n", buffer);
+        } else {
+            retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        }
     }
 #endif
     return retval;
@@ -4173,12 +4200,12 @@ slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode 
         return 0;
     }
 
-    /* 
+    /*
      * Continue (not return 0) if the event is either SECURITY_TCP_ERROR
      * with one of the specified error codes, or SECURITY_HAPROXY_SUCCESS.
      */
     if (!((strcmp(event_type, SECURITY_TCP_ERROR) == 0) &&
-          (error == SLAPD_DISCONNECT_BAD_BER_TAG || 
+          (error == SLAPD_DISCONNECT_BAD_BER_TAG ||
            error == SLAPD_DISCONNECT_BER_TOO_BIG ||
            error == SLAPD_DISCONNECT_BER_PEEK ||
            error == SLAPD_DISCONNECT_PROXY_UNKNOWN ||

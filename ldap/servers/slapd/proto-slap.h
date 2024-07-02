@@ -397,6 +397,8 @@ int config_set_disk_threshold(const char *attrname, char *value, char *errorbuf,
 int config_set_disk_grace_period(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_disk_logging_critical(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_auditlog_display_attrs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply);
@@ -525,6 +527,8 @@ int config_get_securitylog_level(void);
 int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);
 char *config_get_auditlog_display_attrs(void);
+int config_get_auditlog_log_format(void);
+char *config_get_auditlog_time_format(void);
 char *config_get_referral_mode(void);
 int config_get_num_listeners(void);
 int config_check_referral_mode(void);
@@ -855,10 +859,8 @@ int slapi_log_access(int level, const char *fmt, ...)
 #endif
 int slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg);
 int slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode error, const char *msg);
-int slapd_log_audit(char *buffer, int buf_len, int sourcelog);
-int slapd_log_audit_internal(char *buffer, int buf_len, int *state);
-int slapd_log_auditfail(char *buffer, int buf_len);
-int slapd_log_auditfail_internal(char *buffer, int buf_len);
+int slapd_log_audit(char *buffer, PRBool json);
+int slapd_log_auditfail(char *buffer, PRBool json);
 void logs_flush(void);
 
 int access_log_openf(char *pathname, int locked);
