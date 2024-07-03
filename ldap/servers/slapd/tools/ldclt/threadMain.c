@@ -817,7 +817,7 @@ threadMain(
     if ((mctx.mode & NEED_FILTER) || (mctx.mod2 & (M2_GENLDIF | M2_NEED_FILTER))) /*JLS 19-03-01*/
     {
         if (mctx.mod2 & M2_RDN_VALUE)                       /*JLS 23-03-01*/
-            tttctx->bufFilter = (char *)malloc(MAX_FILTER); /*JLS 23-03-01*/
+            tttctx->bufFilter = (char *)safe_malloc(MAX_FILTER); /*JLS 23-03-01*/
         else                                                /*JLS 23-03-01*/
         {                                                   /*JLS 23-03-01*/
             /*
@@ -921,6 +921,9 @@ threadMain(
    */
     if (mctx.mod2 & M2_RNDBINDFILE)                        /*JLS 03-05-01*/
     {                                                      /*JLS 03-05-01*/
+        if (tttctx->bufBindDN != NULL) {
+            free(tttctx->bufBindDN);
+        }
         tttctx->bufBindDN = (char *)malloc(MAX_DN_LENGTH); /*JLS 03-05-01*/
         tttctx->bufPasswd = (char *)malloc(MAX_DN_LENGTH); /*JLS 03-05-01*/
         mctx.passwd = "foo bar"; /* trick... */            /*JLS 03-05-01*/

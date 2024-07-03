@@ -380,6 +380,7 @@ scalab01_addLogin(
         if (s1ctx.list->counter >= duration) {
             new->next = s1ctx.list;
             s1ctx.list = new;
+            new = NULL;
         } else {
             cur = s1ctx.list;
 
@@ -391,10 +392,12 @@ scalab01_addLogin(
             while (cur != NULL) {
                 if (cur->next == NULL) {
                     cur->next = new;
+                    new = NULL;
                     cur = NULL; /* Exit loop */
                 } else if (cur->next->counter >= duration) {
                     new->next = cur->next;
                     cur->next = new;
+                    new = NULL;
                     cur = NULL; /* Exit loop */
                 } else {
                     cur = cur->next;
@@ -403,13 +406,10 @@ scalab01_addLogin(
         }
     }
 
-    goto done;
-
 error:
     if (new)
         free(new);
 
-done:
     /*
    * Free mutex
    */

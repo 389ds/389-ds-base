@@ -41,6 +41,7 @@
 #include <sys/mman.h>                           /* mmap(), etc... */
 #include "port.h" /* Portability definitions */ /*JLS 28-11-00*/
 #include "ldclt.h"                              /* This tool's include file */
+#include "utils.h"                              /* Utilities functions */
 
 
 /* ****************************************************************************
@@ -324,7 +325,7 @@ loadDataListFile(
    */
     for (dlf->strNb = 0; fgets(line, MAX_FILTER, ifile) != NULL; dlf->strNb++)
         ;
-    dlf->str = (char **)malloc(dlf->strNb * sizeof(char *));
+    dlf->str = (char **)safe_malloc(dlf->strNb * sizeof(char *));
     if (fseek(ifile, 0, SEEK_SET) != 0) {
         perror(dlf->fname);
         fprintf(stderr, "Error: cannot rewind file \"%s\"\n", dlf->fname);

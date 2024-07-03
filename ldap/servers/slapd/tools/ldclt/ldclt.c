@@ -117,27 +117,6 @@ ldcltExit(
 
 
 /* ****************************************************************************
-    FUNCTION :    safe_malloc
-    PURPOSE :    alloc data from the heap and returns NULL.
-    INPUT :        datalen    = lenght of the alloced buffer in bytes.
-    OUTPUT :        None
-    RETURN :    alloced buffer
-    DESCRIPTION :
- *****************************************************************************/
-void *
-safe_malloc(size_t datalen)
-{
-    void *pt = malloc(datalen);
-    if (pt == NULL) {
-        fprintf(stderr, "ldclt: %s\n", strerror(ENOMEM));
-        fprintf(stderr, "ldclt: Error: Unable to alloc %zd bytes.\n", datalen);
-        exit(3);
-    }
-    return pt;
-}
-
-
-/* ****************************************************************************
     FUNCTION :    copyVersAttribute
     PURPOSE :    Copy a versatile object's attribute
     INPUT :        srcattr    = source attribute
@@ -267,6 +246,7 @@ tttctxInit(
     tttctx->status = FREE;
     tttctx->thrdNum = num;
     tttctx->totalReq = mctx.totalReq;
+    tttctx->bufBindDN = NULL;
     sprintf(tttctx->thrdId, "T%03d", tttctx->thrdNum);
 
     if (mctx.mod2 & M2_OBJECT) {
