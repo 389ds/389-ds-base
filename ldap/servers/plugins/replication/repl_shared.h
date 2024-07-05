@@ -104,7 +104,7 @@ int copyfile(char *source, char *destination, int overwrite, int mode);
 time_t age_str2time(const char *age);
 const char *changeType2Str(int type);
 int str2ChangeType(const char *str);
-lenstr *make_changes_string(LDAPMod **ldm, char **includeattrs);
+lenstr *make_changes_string(LDAPMod **ldm, char **includeattrs) __ATTRIBUTE__((returns_nonnull));
 Slapi_Mods *parse_changes_string(char *str);
 PRBool IsValidOperation(const slapi_operation_parameters *op);
 const char *map_repl_root_to_dbid(Slapi_DN *repl_root);

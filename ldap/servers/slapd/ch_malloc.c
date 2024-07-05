@@ -370,3 +370,15 @@ slapi_ct_memcmp(const void *p1, const void *p2, size_t n)
     }
     return result;
 }
+
+/* Log out of memory error message and exit process */
+void
+slapi_ch_oom(const char *funcname)
+{
+        int oserr = errno;
+        oom_occurred();
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                      "Run out of memory while calling %s(); OS error %d (%s)%s\n",
+                      funcname, oserr, slapd_system_strerror(oserr), oom_advice);
+        exit(1);
+}

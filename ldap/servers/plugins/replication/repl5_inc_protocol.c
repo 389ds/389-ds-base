@@ -384,8 +384,7 @@ repl5_inc_rd_new(Private_Repl_Protocol *prp)
         res->prp = prp;
         res->lock = PR_NewLock();
         if (NULL == res->lock) {
-            slapi_ch_free((void **)&res);
-            res = NULL;
+            slapi_ch_oom("PR_NewLock");
         }
     }
     return res;

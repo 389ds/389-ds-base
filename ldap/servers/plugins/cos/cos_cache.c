@@ -1677,7 +1677,7 @@ cos_cache_release(cos_cache *ptheCache)
 
     slapi_unlock_mutex(cache_lock);
 
-    if (destroy) {
+    if (destroy && (pOldCache != NULL)) {
         cosDefinitions *pDef = pOldCache->pDefs;
 
         /* now is the first time it is

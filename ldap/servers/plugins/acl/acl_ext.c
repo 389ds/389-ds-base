@@ -428,6 +428,12 @@ acl_create_aclpb_pool()
     first_aclpb = NULL;
     for (i = 0; i < maxThreads; i++) {
         aclpb = acl__malloc_aclpb();
+        if (aclpb == NULL) {
+            /* ERROR */
+            aclQueue->aclq_free = first_aclpb;
+            aclQueue->aclq_nfree = i;
+            return 1;
+        }
         if (0 == i)
             first_aclpb = aclpb;
 
@@ -512,12 +518,14 @@ acl__get_aclpb_from_pool(void)
 
 
     /* Now move it to the FRONT of busy list */
-    t_aclpb = aclQueue->aclq_busy;
-    aclpb->aclpb_next = t_aclpb;
-    if (t_aclpb)
-        t_aclpb->aclpb_prev = aclpb;
-    aclQueue->aclq_busy = aclpb;
-    aclQueue->aclq_nbusy++;
+    if (aclpb != NULL) {
+        t_aclpb = aclQueue->aclq_busy;
+        aclpb->aclpb_next = t_aclpb;
+        if (t_aclpb)
+            t_aclpb->aclpb_prev = aclpb;
+        aclQueue->aclq_busy = aclpb;
+        aclQueue->aclq_nbusy++;
+    }
 
     PR_Unlock(aclQueue->aclq_lock);
 
