@@ -474,7 +474,7 @@ static void
 snmp_collator_create_semaphore(void)
 {
     /* First just try to create the semaphore.  This should usually just work. */
-    if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
+    if ((stats_sem = agt_sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_SNMP_FILE_MODE, 1)) == SEM_FAILED) {
         if (errno == EEXIST) {
             /* It appears that we didn't exit cleanly last time and left the semaphore
              * around.  Recreate it since we don't know what state it is in. */
@@ -486,7 +486,7 @@ snmp_collator_create_semaphore(void)
                 exit(1);
             }
 
-            if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
+            if ((stats_sem = agt_sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_SNMP_FILE_MODE, 1)) == SEM_FAILED) {
                 /* No dice */
                 slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
                               "Failed to create semaphore for stats file (/dev/shm/sem.%s). Error %d (%s).\n",
