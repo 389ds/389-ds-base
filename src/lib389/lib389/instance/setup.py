@@ -10,6 +10,7 @@
 import os
 import sys
 import shutil
+import stat
 import pwd
 import grp
 import re
@@ -861,6 +862,10 @@ class SetupDs(object):
                 ldapi_autobind="on",
             )
             file_dse.write(dse_fmt)
+            # Set minimum permission required by snmp ldap-agent
+            status = os.fstat(file_dse.fileno())
+            os.fchmod(file_dse.fileno(), status.st_mode | stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
+        os.chown(os.path.join(slapd['config_dir'], 'dse.ldif'), slapd['user_uid'], slapd['group_gid'])
 
         self.log.info("Create file system structures ...")
         # Create all the needed paths
