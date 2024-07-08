@@ -687,7 +687,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb, int 
                           "The configuration file %s could not be accessed, error %d\n",
                           filename, rc);
             rc = 0; /* Fail */
-        } else if ((prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE)) == NULL) {
+        } else if ((prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_DSE_FILE_MODE)) == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, "dse_read_one_file",
                           "The configuration file %s could not be read. " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                           filename,
@@ -875,7 +875,7 @@ dse_rw_permission_to_one_file(const char *name, int loglevel)
         PRFileDesc *prfd;
 
         prfd = PR_Open(name, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
-                       SLAPD_DEFAULT_FILE_MODE);
+                       SLAPD_DEFAULT_DSE_FILE_MODE);
         if (NULL == prfd) {
             prerr = PR_GetError();
             accesstype = "create";
@@ -976,7 +976,7 @@ dse_write_file_nolock(struct dse *pdse)
     dse_backup_lock();
 
     if (NULL != pdse->dse_filename) {
-        if ((fpw.fpw_prfd = PR_Open(pdse->dse_tmpfile, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, SLAPD_DEFAULT_FILE_MODE)) == NULL) {
+        if ((fpw.fpw_prfd = PR_Open(pdse->dse_tmpfile, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, SLAPD_DEFAULT_DSE_FILE_MODE)) == NULL) {
             rc = PR_GetOSError();
             slapi_log_err(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot open "
                                                                   "temporary DSE file \"%s\" for update: OS error %d (%s)\n",
