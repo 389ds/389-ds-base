@@ -36,6 +36,68 @@ agt_mmap_context_t mmap_tbl[2] = {{AGT_MAP_UNINIT, -1, (caddr_t)-1},
 
 #define CHECK_MAP_FAILURE(addr) ((addr)==NULL || (addr) == (caddr_t) -1)
 
+
+/****************************************************************************
+ *
+ *  agt_set_fmode () - try to increase file mode if some flags are missing.
+ *
+ *
+ * Inputs:
+ *    fd -> The file descriptor.
+ *
+ *    mode -> the wanted mode
+ *
+ * Outputs:           None
+ * Return Values:     None
+ *
+ ****************************************************************************/
+static void
+agt_set_fmode(int fd, mode_t mode)
+{
+    /* ns-slapd umask is 0022 which is usually fine.
+     * but ldap-agen needs S_IWGRP permission on snmp semaphore and mmap file
+     * ( when SELinux is enforced process with uid=0 does not bypass the file permission
+     * (unless the unfamous dac_override capability is set)
+     * Changing umask could lead to race conditions so it is better to check the
+     * file permission and change them if needed and if the process own the file.
+     */
+    struct stat fileinfo = {0};
+    if (fstat(fd, &fileinfo) == 0 && fileinfo.st_uid == getuid() &&
+        (fileinfo.st_mode & mode) != mode) {
+        (void) fchmod(fd, fileinfo.st_mode | mode);
+    }
+}
+
+/****************************************************************************
+ *
+ *  agt_sem_open () - Like sem_open but ignores umask
+ *
+ *
+ * Inputs:            see sem_open man page.
+ * Outputs:           see sem_open man page.
+ * Return Values:     see sem_open man page.
+ *
+ ****************************************************************************/
+sem_t *
+agt_sem_open(const char *name, int oflag, mode_t mode, unsigned int value)
+{
+    sem_t *sem = sem_open(name, oflag, mode, value);
+    char *semname = NULL;
+
+    if (sem != NULL) {
+        if (asprintf(&semname, "/dev/shm/sem.%s", name+1) > 0) {
+            int fd = open(semname, O_RDONLY);
+            if (fd >= 0) {
+                agt_set_fmode(fd, mode);
+                (void) close(fd);
+            }
+            free(semname);
+            semname = NULL;
+        }
+    }
+    return sem;
+}
+
 /****************************************************************************
  *
  *  agt_mopen_stats () - open and Memory Map the stats file.  agt_mclose_stats()
@@ -54,7 +116,6 @@ agt_mmap_context_t mmap_tbl[2] = {{AGT_MAP_UNINIT, -1, (caddr_t)-1},
  *               as defined in <errno.h>, otherwise.
  *
  ****************************************************************************/
-
 int
 agt_mopen_stats(char *statsfile, int mode, int *hdl)
 {
@@ -66,6 +127,7 @@ agt_mopen_stats(char *statsfile, int mode, int *hdl)
     int err;
     size_t sz;
     struct stat fileinfo;
+    mode_t rw_mode = S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH;
 
     switch (mode) {
     case O_RDONLY:
@@ -130,10 +192,7 @@ agt_mopen_stats(char *statsfile, int mode, int *hdl)
         break;
 
     case O_RDWR:
-        fd = open(path,
-                  O_RDWR | O_CREAT,
-                  S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-
+        fd = open(path, O_RDWR | O_CREAT, rw_mode);
         if (fd < 0) {
             err = errno;
 #if (0)
@@ -142,6 +201,7 @@ agt_mopen_stats(char *statsfile, int mode, int *hdl)
             rc = err;
             goto bail;
         }
+        agt_set_fmode(fd, rw_mode);
 
         if (fstat(fd, &fileinfo) != 0) {
             close(fd);

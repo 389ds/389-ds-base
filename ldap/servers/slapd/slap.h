@@ -248,6 +248,12 @@ typedef void (*VFPV)(); /* takes undefined arguments */
  */
 
 #define SLAPD_DEFAULT_FILE_MODE S_IRUSR | S_IWUSR
+/* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP | S_IWGRP
+ * on semaphore and mmap file if SELinux is enforced.
+ */
+#define SLAPD_DEFAULT_SNMP_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
+/* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP on dse.ldif if SELinux is enforced. */
+#define SLAPD_DEFAULT_DSE_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP
 #define SLAPD_DEFAULT_DIR_MODE S_IRWXU
 #define SLAPD_DEFAULT_IDLE_TIMEOUT 3600 /* seconds - 0 == never */
 #define SLAPD_DEFAULT_IDLE_TIMEOUT_STR "3600"
