@@ -367,6 +367,16 @@ server slapd-{topology_st.standalone.serverid}
     return config_file
 
 
+def search_file_for_string(filetocheck, attrtofind):
+        with open(filetocheck, "r") as fitetoread:
+            filecontents = fitetoread.read()
+            match = re.search(attrtofind + ": (.*)", filecontents)
+            if match:
+                return match.group(1)
+            else:
+                return None
+
+
 def test_basic_ops(topology_st, import_example_ldif):
     """Tests adds, mods, modrdns, and deletes operations
 
@@ -2456,6 +2466,62 @@ def test_conn_limits(dscreate_with_numlistener):
         c.unbind()
 
     # Step 6 is done in teardown phase by dscreate_instance finalizer
+
+
+@pytest.mark.skipif(ds_is_older('2.2.0.0'),
+                    reason="This test is only required with multiple listener support.")
+def test_invalid_numlistener_args(topology_st):
+    """Check invalid attribute values are handled correctly.
+
+    :id: 479a8db2-f7b2-4492-ba68-ee56f58dc49c
+    :parametrized: yes
+    :setup: Setup an instance then set nsslapd-numlisteners to an invalid value.
+    :steps:
+        1. Verify the default value of nsslapd-numlisteners
+        2. Set the attr value to a valid value
+        3. Set the attr value to an invalid value
+        4. Set the attr value to an invalid value
+    :expectedresults:
+        1. Default attr value == 1 and attr is not present in dse.ldif
+        2. Attr value == NL_GOOD (2) and is present in dse.ldif
+        3. Operations error is returned, the invalid value has not been applied and is not present in dse.ldif
+        4. Operations error is returned, the invalid value has not been applied and is not present in dse.ldif
+    """
+    NL_ATTR = 'nsslapd-numlisteners'
+    NL_DEFAULT = 1
+    NL_GOOD = 2
+    NL_INVALID1 = 5
+    NL_INVALID2 = 'invalid'
+    dse_ldif = topology_st.standalone.confdir + '/dse.ldif'
+
+    topology_st.standalone.start()
+
+    # Verify the default attr value == 1 and that attr is not present in dse.ldif
+    assert(topology_st.standalone.config.get_attr_val_int(NL_ATTR) == NL_DEFAULT)
+    assert(None == search_file_for_string(dse_ldif, NL_ATTR))
+
+    # Verify valid attr value has been applied and exists in dse.ldif
+    topology_st.standalone.config.replace(NL_ATTR, str(NL_GOOD))
+    topology_st.standalone.restart()
+    assert (topology_st.standalone.status())
+    assert(NL_GOOD == topology_st.standalone.config.get_attr_val_int(NL_ATTR))
+    assert(str(NL_GOOD) == search_file_for_string(dse_ldif, NL_ATTR))
+
+    # Verify an invalid attr value triggers an operations error and doesnt apply changes to dse.ldif
+    with pytest.raises(ldap.OPERATIONS_ERROR):
+        assert( not topology_st.standalone.config.replace(NL_ATTR, str(NL_INVALID1)))
+    topology_st.standalone.restart()
+    assert (topology_st.standalone.status())
+    assert(NL_GOOD == topology_st.standalone.config.get_attr_val_int(NL_ATTR))
+    assert(str(NL_GOOD) == search_file_for_string(dse_ldif, NL_ATTR))
+
+    # Verify an invalid attr value triggers an operations error and doewsnt apply changes to dse.ldif
+    with pytest.raises(ldap.OPERATIONS_ERROR):
+        assert( not topology_st.standalone.config.replace(NL_ATTR, str(NL_INVALID2)))
+    topology_st.standalone.restart()
+    assert (topology_st.standalone.status())
+    assert(NL_GOOD == topology_st.standalone.config.get_attr_val_int(NL_ATTR))
+    assert(str(NL_GOOD) == search_file_for_string(dse_ldif, NL_ATTR))
 
 if __name__ == '__main__':
     # Run isolated
