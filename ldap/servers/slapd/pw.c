@@ -1135,10 +1135,13 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
                     }
                     attr = attrlist_find(e->e_attrs, SLAPI_USERPWD_ATTR);
                     if (attr && !valueset_isempty(&attr->a_present_values)) {
-                        if (old_pw && (va = valueset_get_valuearray(&attr->a_present_values))) {
-                            *old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
-                        } else {
-                            *old_pw = NULL;
+                        if (old_pw) {
+                            va = valueset_get_valuearray(&attr->a_present_values);
+                            if (va != NULL) {
+                                *old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
+                            } else {
+                                *old_pw = NULL;
+                            }
                         }
                     }
                     slapi_entry_free(e);
