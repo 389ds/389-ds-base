@@ -162,8 +162,11 @@ export class Replication extends React.Component {
             }
             if (treeBranch[sub].children.length === 0) {
                 delete treeBranch[sub].children;
+            } else {
+                this.processBranch(treeBranch[sub].children);
             }
-            this.processBranch(treeBranch[sub].children);
+            // Load replication data for this suffix
+            this.loadReplSuffix(treeBranch[sub].id);
         }
     }
 
@@ -528,7 +531,7 @@ export class Replication extends React.Component {
                             nsds5flags: config.attrs.nsds5flags[0],
                             nsds5replicatype: config.attrs.nsds5replicatype[0],
                             nsds5replicaid: 'nsds5replicaid' in config.attrs ? config.attrs.nsds5replicaid[0] : "",
-                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : "",
+                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : [],
                             nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config.attrs ? config.attrs.nsds5replicabinddngroup[0] : "",
                             nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config.attrs ? config.attrs.nsds5replicabinddngroupcheckinterval[0] : "",
                             nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",
@@ -671,7 +674,7 @@ export class Replication extends React.Component {
                             nsds5flags: config.attrs.nsds5flags[0],
                             nsds5replicatype: config.attrs.nsds5replicatype[0],
                             nsds5replicaid: 'nsds5replicaid' in config.attrs ? config.attrs.nsds5replicaid[0] : "",
-                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : "",
+                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : [],
                             nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config.attrs ? config.attrs.nsds5replicabinddngroup[0] : "",
                             nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config.attrs ? config.attrs.nsds5replicabinddngroupcheckinterval[0] : "",
                             nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",
