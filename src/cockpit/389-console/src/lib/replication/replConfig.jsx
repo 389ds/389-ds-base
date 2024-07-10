@@ -40,8 +40,8 @@ export class ReplConfig extends React.Component {
             saveBtnDisabled: true,
             isExpanded: false,
             // Config Settings
-            nsds5replicabinddn: this.props.data.nsds5replicabinddn,
-            nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
+            nsds5replicabinddn: this.props.data?.nsds5replicabinddn || [],
+            nsds5replicabinddngroup: this.props.data?.nsds5replicabinddngroup || "",
             nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) === 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
             nsds5replicareleasetimeout: Number(this.props.data.nsds5replicareleasetimeout),
             nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) === 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
@@ -52,8 +52,8 @@ export class ReplConfig extends React.Component {
             nsds5replicabackoffmax: Number(this.props.data.nsds5replicabackoffmax) === 0 ? 300 : Number(this.props.data.nsds5replicabackoffmax),
             nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) === 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
             // Original settings
-            _nsds5replicabinddn: this.props.data.nsds5replicabinddn,
-            _nsds5replicabinddngroup: this.props.data.nsds5replicabinddngroup,
+            _nsds5replicabinddn: this.props.data?.nsds5replicabinddn || [],
+            _nsds5replicabinddngroup: this.props.data?.nsds5replicabinddngroup || "",
             _nsds5replicabinddngroupcheckinterval: Number(this.props.data.nsds5replicabinddngroupcheckinterval) === 0 ? -1 : Number(this.props.data.nsds5replicabinddngroupcheckinterval),
             _nsds5replicareleasetimeout: this.props.data.nsds5replicareleasetimeout,
             _nsds5replicapurgedelay: Number(this.props.data.nsds5replicapurgedelay) === 0 ? 604800 : Number(this.props.data.nsds5replicapurgedelay),
