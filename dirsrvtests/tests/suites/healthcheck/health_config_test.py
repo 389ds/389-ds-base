@@ -425,6 +425,7 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     log.info('Use filters to reproduce "notes=A" in access log')
     accounts = Accounts(standalone, DEFAULT_SUFFIX)
     accounts.filter('(uid=test*)')
+    time.sleep(1)
 
     log.info('Check that access log contains "notes=A"')
     assert standalone.ds_access_log.match(r'.*notes=A.*')
