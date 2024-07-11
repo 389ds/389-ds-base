@@ -1648,6 +1648,11 @@ class Replica(DSLdapObject):
         """
         self.replace('nsds5task', 'ldif2cl')
 
+    def begin_task_compact_cl5(self):
+        """Begin COMPACT_CL5 task
+        """
+        self.replace('nsds5task', 'COMPACT_CL5')
+
     def get_suffix(self):
         """Return the suffix
         """
@@ -1828,6 +1833,41 @@ class Replicas(DSLdapObjects):
             else:
                 log.error(f"Changelog LDIF for '{repl_root}' was not found")
                 continue
+
+    def compact_changelog(self, replica_roots=[], log=None):
+        """Compact Directory Server replication changelog
+
+        :param replica_roots: Replica suffixes that need to be processed (and optional LDIF file path)
+        :type replica_roots: list of str
+        :param log: The logger object
+        :type log: logger
+        """
+
+        if log is None:
+            log = self._log
+
+        # Check if the changelog entry exists
+        try:
+            cl = Changelog5(self._instance)
+            cl.get_attr_val_utf8_l("nsslapd-changelogdir")
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("Changelog entry was not found. Probably, the replication is not enabled on this instance")
+
+        # Get all the replicas on the server if --replica-roots option is not specified
+        repl_roots = []
+        if not replica_roots:
+            for replica in self.list():
+                repl_roots.append(replica.get_attr_val_utf8("nsDS5ReplicaRoot"))
+        else:
+            for repl_root in replica_roots:
+                repl_roots.append(repl_root)
+
+        # Dump the changelog for the replica
+
+        # Dump the changelog for the replica
+        for repl_root in repl_roots:
+            replica = self.get(repl_root)
+            replica.begin_task_compact_cl5()
 
 
 class BootstrapReplicationManager(DSLdapObject):

@@ -13,14 +13,14 @@ import time
 import datetime
 from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
-from lib389.replica import Changelog5
+from lib389.replica import Changelog5, Replicas
 from lib389.topologies import topology_m1 as topo
 
 log = logging.getLogger(__name__)
 
 
 def test_compact_db_task(topo):
-    """Specify a test case purpose or name here
+    """Test compaction of database
 
     :id: 1b3222ef-a336-4259-be21-6a52f76e1859
     :setup: Standalone Instance
@@ -48,7 +48,7 @@ def test_compact_db_task(topo):
 
 
 def test_compaction_interval_and_time(topo):
-    """Specify a test case purpose or name here
+    """Test compaction interval and time for database and changelog
 
     :id: f361bee9-d7e7-4569-9255-d7b60dd9d92e
     :setup: Supplier Instance
@@ -95,10 +95,36 @@ def test_compaction_interval_and_time(topo):
 
     # Check compaction occurred as expected
     time.sleep(45)
-    assert not inst.searchErrorsLog("Compacting databases")
+    assert not inst.searchErrorsLog("compacting replication changelogs")
 
     time.sleep(90)
-    assert inst.searchErrorsLog("Compacting databases")
+    assert inst.searchErrorsLog("compacting replication changelogs")
+    inst.deleteErrorLogs(restart=False)
+
+
+def test_compact_cl5_task(topo):
+    """Test compaction of changelog5 database
+
+    :id: aadfa9f7-73c0-463a-912c-0a29aa1f8167
+    :setup: Standalone Instance
+    :steps:
+        1. Run compaction task
+        2. Check errors log to show task was run
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+    inst = topo.ms["supplier1"]
+
+    replicas = Replicas(inst)
+    replicas.compact_changelog(log=log)
+
+    # Check compaction occurred as expected. But instead of time.sleep(5) check 1 sec in loop
+    for _ in range(5):
+        time.sleep(1)
+        if inst.searchErrorsLog("compacting replication changelogs"):
+            break
+    assert inst.searchErrorsLog("compacting replication changelogs")
     inst.deleteErrorLogs(restart=False)
 
 
