@@ -193,6 +193,7 @@ loadImages(
                 fprintf(stderr, "Cannot close(%s)\n", name);
                 fflush(stderr);
                 rc = -1;
+                fd = -1;
                 goto exit;
             } else {
                 fd = -1;

@@ -1684,9 +1684,15 @@ cos_cache_release(cos_cache *ptheCache)
          * safe to assess whether
          * vattr caching can be turned on
          */
+        /* Work around gcc -fanalyzer bug: it complain about pOldCache
+         * but that is pCache that is tested ...
+         */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-deref-before-check"
         if (pCache && pCache->vattr_cacheable) {
             slapi_vattrcache_cache_all();
         }
+#pragma GCC diagnostic pop
 
         /* destroy the cache here - no locking required, no references outstanding */
 

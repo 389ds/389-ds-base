@@ -490,7 +490,7 @@ out:
 #define CPRETRY 4
 /* Copy a file to the backup */
 static int32_t
-archive_copyfile(char *source, char *destination, char *filename, mode_t mode, Slapi_Task *task)
+archive_copyfile(char *source, char *destination, const char *filename, mode_t mode, Slapi_Task *task)
 {
     PRFileDesc *source_fd = NULL;
     PRFileDesc *dest_fd = NULL;
@@ -626,10 +626,10 @@ error:
     return return_value;
 }
 
-static char *cert_files_600[] = {
+static const char *cert_files_600[] = {
     "key4.db", "cert9.db", "pin.txt", "pwdfile.txt", NULL
 };
-static char *config_files_440[] = {"certmap.conf", "slapd-collations.conf", NULL};
+static const char *config_files_440[] = {"certmap.conf", "slapd-collations.conf", NULL};
 
 /* Archive nss files, 99user.ldif, and config files */
 int32_t

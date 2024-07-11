@@ -9143,6 +9143,9 @@ config_set_value(
     int ival = 0;
     uintptr_t pval;
 
+    /* gcc -fanalyzer false postive with switch and type lenght */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
     switch (cgas->config_var_type) {
     case CONFIG_ON_OFF: /* convert 0,1 to "off","on" */
         slapi_entry_attr_set_charptr(e, cgas->attr_name,
@@ -9362,6 +9365,7 @@ config_set_value(
         PR_ASSERT(0); /* something went horribly wrong . . . */
         break;
     }
+#pragma GCC diagnostic pop
 
     return;
 }
