@@ -237,6 +237,7 @@ def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist, abandon
     msgid = conn.search_ext(suffix, ldap.SCOPE_SUBTREE, search_flt, searchreq_attrlist, serverctrls=controls)
     log.info('Getting page %d' % (pages,))
     while True:
+        time.sleep(1)
         try:
             rtype, rdata, rmsgid, rctrls = conn.result3(msgid, timeout=0.001)
         except ldap.TIMEOUT:
