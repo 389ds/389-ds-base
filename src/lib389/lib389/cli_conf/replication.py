@@ -1199,6 +1199,11 @@ def restore_cl_dir(inst, basedn, log, args):
     replicas.restore_changelog(replica_roots=args.REPLICA_ROOTS, log=log)
 
 
+def compact_cl5(inst, basedn, log, args):
+    replicas = Replicas(inst)
+    replicas.compact_changelog(replica_roots=args.REPLICA_ROOTS, log=log)
+
+
 def create_parser(subparsers):
 
     ############################################
@@ -1325,6 +1330,11 @@ def create_parser(subparsers):
     restore_ldif.add_argument('-r', '--replica-root', nargs=1, required=True,
                               help="Specify one replica root whose changelog you want to restore. "
                                    "The replica root will be consumed from the LDIF file name if the option is omitted.")
+
+    compact_cl = repl_subcommands.add_parser('compact-changelog', help='Compact the changelog database')
+    compact_cl.set_defaults(func=compact_cl5)
+    compact_cl.add_argument('REPLICA_ROOTS', nargs="+",
+                            help="Specify replica roots whose changelog you want to compact.")
 
     restore_changelogdir = restore_subcommands.add_parser('from-changelogdir', help='Restore LDIF files from changelogdir.')
     restore_changelogdir.set_defaults(func=restore_cl_dir)
