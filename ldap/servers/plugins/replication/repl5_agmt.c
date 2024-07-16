@@ -56,10 +56,14 @@
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
 #include "slapi-plugin.h"
+#include "../../slapd/back-ldbm/dbimpl.h"          /* for dblayer_is_lmdb */
 
-#define DEFAULT_TIMEOUT 120             /* (seconds) default outbound LDAP connection */
-#define DEFAULT_FLOWCONTROL_WINDOW 1000 /* #entries sent without acknowledgment */
-#define DEFAULT_FLOWCONTROL_PAUSE 2000  /* msec of pause when #entries sent witout acknowledgment */
+#define DEFAULT_TIMEOUT 120                  /* (seconds) default outbound LDAP connection */
+#define DEFAULT_FLOWCONTROL_WINDOW      1000 /* #entries sent without acknowledgment (bdb) */
+#define DEFAULT_FLOWCONTROL_PAUSE       2000 /* msec of pause when #entries sent witout acknowledgment (bdb) */
+#define LMDB_DEFAULT_FLOWCONTROL_WINDOW 50   /* #entries sent without acknowledgment (lmdb) */
+#define LMDB_DEFAULT_FLOWCONTROL_PAUSE  200  /* msec of pause when #entries sent witout acknowledgment (lmdb) */
+
 #define STATUS_LEN 2048
 #define STATUS_GOOD "green"
 #define STATUS_WARNING "amber"
@@ -260,8 +264,10 @@ agmt_new_from_entry(Slapi_Entry *e)
     char **denied_attrs = NULL;
     const char *auto_initialize = NULL;
     char *val_nsds5BeginReplicaRefresh = "start";
+    Slapi_Backend *be = NULL;
     const char *val = NULL;
     int64_t ptimeout = 0;
+    int use_lmdb = 0;
     int rc = 0;
 
     ra = (Repl_Agmt *)slapi_ch_calloc(1, sizeof(repl5agmt));
@@ -358,8 +364,33 @@ agmt_new_from_entry(Slapi_Entry *e)
         ra->timeout = timeout;
     }
 
+    /* DN of entry at root of replicated area */
+    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
+    if (NULL != tmpstr) {
+        ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
+
+        /* now that we set the repl area, when can bump our agmt count */
+        if ((replica = replica_get_replica_from_dn(ra->replarea))) {
+            replica_incr_agmt_count(replica);
+        }
+        be = slapi_be_select(ra->replarea);
+    }
+    if (!be) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "agmt_new_from_entry - Failed to get backend for agreement %s on replicated suffix %s).\n",
+                      slapi_entry_get_dn(e), tmpstr ? tmpstr : "<NULL>");
+        goto loser;
+    }
+    use_lmdb = dblayer_is_lmdb(be);
+    if (!replica) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                      "agmt_new_from_entry - Failed to get replica for agreement %s on replicated suffix %s).\n",
+                      slapi_entry_get_dn(e), tmpstr ? tmpstr : "<NULL>");
+        goto loser;
+    }
+
     /* flow control update window. */
-    ra->flowControlWindow = DEFAULT_FLOWCONTROL_WINDOW;
+    ra->flowControlWindow = use_lmdb ? LMDB_DEFAULT_FLOWCONTROL_WINDOW : DEFAULT_FLOWCONTROL_WINDOW;
     if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaFlowControlWindow))){
         int64_t flow;
         if (repl_config_valid_num(type_nsds5ReplicaFlowControlWindow, (char *)val, 0, INT_MAX, &rc, errormsg, &flow) != 0) {
@@ -369,7 +400,7 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
 
     /* flow control update pause. */
-    ra->flowControlPause = DEFAULT_FLOWCONTROL_PAUSE;
+    ra->flowControlPause = use_lmdb ? LMDB_DEFAULT_FLOWCONTROL_PAUSE : DEFAULT_FLOWCONTROL_PAUSE;
     if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaFlowControlPause))){
         int64_t pause;
         if (repl_config_valid_num(type_nsds5ReplicaFlowControlPause, (char *)val, 0, INT_MAX, &rc, errormsg, &pause) != 0) {
@@ -389,23 +420,6 @@ agmt_new_from_entry(Slapi_Entry *e)
         } else if (strcasecmp(tmpstr, "always") == 0) {
             ra->ignoreMissingChange = -1;
         };
-    }
-
-    /* DN of entry at root of replicated area */
-    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
-    if (NULL != tmpstr) {
-        ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
-
-        /* now that we set the repl area, when can bump our agmt count */
-        if ((replica = replica_get_replica_from_dn(ra->replarea))) {
-            replica_incr_agmt_count(replica);
-        }
-    }
-    if (!replica) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                      "agmt_new_from_entry - Failed to get replica for agreement %s on replicated suffix %s).\n",
-                      slapi_entry_get_dn(e), tmpstr ? tmpstr : "<NULL>");
-        goto loser;
     }
 
     /* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */

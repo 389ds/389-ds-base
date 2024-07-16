@@ -45,6 +45,35 @@ struct idl_private
     int dummy;
 };
 
+/* Used to store leftover parentid and entry ids */
+typedef struct _range_id_pair
+{
+    ID key;
+    ID id;
+} idl_range_id_pair;
+
+/* lmdb iterator callback context */
+typedef struct {
+    backend *be;
+    dbi_val_t *upperkey;
+    struct attrinfo *ai;
+    int allidslimit;
+    int sizelimit;
+    struct timespec *expire_time;
+    int lookthrough_limit;
+    int operator;
+    idl_range_id_pair *leftover;
+    size_t leftoverlen;
+    size_t leftovercnt;
+    IDList *idl;
+    int flag_err;
+    ID lastid;
+    ID suffix;
+    uint64_t count;
+    char *index_id;
+} idl_range_ctx_t;
+
+
 static int idl_tune = DEFAULT_IDL_TUNE; /* tuning parameters for IDL code */
 /* Currently none for new IDL code */
 
@@ -349,15 +378,6 @@ keycmp(dbi_val_t *L, dbi_val_t *R, value_compare_fn_type cmp_fn)
     return cmp_fn(&Lv, &Rv);
 }
 
-
-
-
-
-typedef struct _range_id_pair
-{
-    ID key;
-    ID id;
-} idl_range_id_pair;
 /*
  * Perform the range search in the idl layer instead of the index layer
  * to improve the performance.
@@ -437,6 +457,16 @@ idl_new_range_fetch(
 
     if (NEW_IDL_NOOP == *flag_err) {
         return NULL;
+    }
+    if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
+        char *included = ((operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS) ? "not " : "";
+        const char *sorted = (operator & SLAPI_OP_RANGE_NO_IDL_SORT) ? "not " : "";
+        slapi_log_err(SLAPI_LOG_FILTER,
+                      "idl_new_range_fetch", "Getting index %s range from keys %s to %s\n",
+                      index_id, (char*)lowerkey->data, (char*)upperkey->data);
+        slapi_log_err(SLAPI_LOG_FILTER, "idl_new_range_fetch",
+                      "Candidate list is %ssorted. lower key is %sincluded.\n",
+                      sorted, included);
     }
 
     dblayer_txn_init(li, &s_txn);
@@ -639,6 +669,9 @@ error:
         }
     }
     if (ret) {
+        slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch",
+                      "Failed to build range candidate list on %s index. Error is %d\n",
+                      index_id, ret);
         dblayer_read_txn_abort(be, &s_txn);
     } else {
         dblayer_read_txn_commit(be, &s_txn);
@@ -670,7 +703,292 @@ error:
         }
         slapi_ch_free((void **)&leftover);
     }
+    slapi_log_err(SLAPI_LOG_FILTER, "idl_new_range_fetch",
+                  "Found %d candidates; error code is: %d\n",
+                  idl ? idl->b_nids : 0, *flag_err);
     return idl;
+}
+
+/*
+ * Callback used by idl_lmdb_range_fetch to add a new id in the id list
+ */
+static int
+idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
+{
+    idl_range_ctx_t *rctx = ctx;
+    int idl_rc = 0;
+    ID id = 0;
+
+    if (key->data == NULL) {
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_range_add_id",
+                      "Unexpected empty key while iterating on %s index cursor\n", rctx->index_id);
+        return DBI_RC_NOTFOUND;
+    }
+    /* Stop iterating when reaching the upperkey */
+    if ((rctx->upperkey != NULL) && (rctx->upperkey->data != NULL)) {
+        if ((rctx->operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS) {
+            if (keycmp(key, rctx->upperkey, rctx->ai->ai_key_cmp_fn) >= 0) {
+                return DBI_RC_NOTFOUND;
+            }
+        } else {
+            if (keycmp(key, rctx->upperkey, rctx->ai->ai_key_cmp_fn) > 0) {
+                return DBI_RC_NOTFOUND;
+            }
+        }
+    }
+    /* Check limits */
+    if ((rctx->lookthrough_limit != -1) &&
+        (rctx->idl->b_nids > (ID)rctx->lookthrough_limit)) {
+        idl_free(&rctx->idl);
+        rctx->idl = idl_allids(rctx->be);
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_range_add_id", "lookthrough_limit exceeded\n");
+        rctx->flag_err = LDAP_ADMINLIMIT_EXCEEDED;
+        return DBI_RC_NOTFOUND;
+    }
+    if ((rctx->sizelimit > 0) && (rctx->idl->b_nids > (ID)rctx->sizelimit)) {
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_range_add_id", "sizelimit exceeded\n");
+        rctx->flag_err = LDAP_SIZELIMIT_EXCEEDED;
+        return DBI_RC_NOTFOUND;
+    }
+    if ((rctx->idl->b_nids & 0xff) == 0 &&
+        slapi_timespec_expire_check(rctx->expire_time) == TIMER_EXPIRED) {
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_range_add_id", "timelimit exceeded\n");
+        rctx->flag_err = LDAP_TIMELIMIT_EXCEEDED;
+        return DBI_RC_NOTFOUND;
+    }
+    if (data->size != sizeof(ID)) {
+        slapi_log_err(SLAPI_LOG_ERR, "idl_range_add_id",
+                      "Database %s index is corrupt; key %s has a data item with the wrong size (%ld)\n",
+                      rctx->index_id, (char *)key->data, data->size);
+        rctx->flag_err = LDAP_UNWILLING_TO_PERFORM;
+        return DBI_RC_NOTFOUND;
+    }
+    memcpy(&id, data->data, sizeof(ID));
+    if (id == rctx->lastid) {
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_lmdb_range_fetch",
+                      "Detected duplicate id %d due to DB_MULTIPLE error - skipping\n", id);
+        return 0;
+    }
+    /* we got another ID, add it to our IDL */
+    if (rctx->operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+        ID keyval = (ID)strtol((char *)key->data + 1, (char **)NULL, 10);
+        if ((rctx->count == 0) && (rctx->suffix == 0)) {
+            /* First time.  Keep the suffix ID.
+             * note that 'suffix==0' mean we did not retrieve the suffix entry id
+             * from the parentid index (key '=0'), so let assume the first
+             * found entry is the one from the suffix
+             */
+            rctx->suffix = keyval;
+            idl_rc = idl_append_extend(&rctx->idl, id);
+        } else if ((keyval == rctx->suffix) || idl_id_is_in_idlist(rctx->idl, keyval)) {
+            /* the parent is the suffix or already in idl. */
+            idl_rc = idl_append_extend(&rctx->idl, id);
+        } else {
+            /* Otherwise, keep the {keyval,id} in leftover array */
+            if (!rctx->leftover) {
+                rctx->leftover = (idl_range_id_pair *)slapi_ch_calloc(rctx->leftoverlen, sizeof(idl_range_id_pair));
+            } else if (rctx->leftovercnt == rctx->leftoverlen) {
+                rctx->leftover = (idl_range_id_pair *)slapi_ch_realloc((char *)rctx->leftover, 2 * rctx->leftoverlen * sizeof(idl_range_id_pair));
+                memset(rctx->leftover + rctx->leftovercnt, 0, rctx->leftoverlen * sizeof(idl_range_id_pair));
+                rctx->leftoverlen *= 2;
+            }
+            rctx->leftover[rctx->leftovercnt].key = keyval;
+            rctx->leftover[rctx->leftovercnt].id = id;
+            rctx->leftovercnt++;
+        }
+    } else {
+        idl_rc = idl_append_extend(&rctx->idl, id);
+    }
+    if (idl_rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "idl_lmdb_range_fetch",
+                      "Unable to extend id list (err=%d)\n", idl_rc);
+        idl_free(&rctx->idl);
+        rctx->flag_err = LDAP_UNWILLING_TO_PERFORM;
+        return DBI_RC_NOTFOUND;
+    }
+#if defined(DB_ALLIDS_ON_READ)
+    /* enforce the allids read limit */
+    if ((NEW_IDL_NO_ALLID != rctx->flag_err) && rctx->ai && (rctx->idl != NULL) &&
+        idl_new_exceeds_allidslimit(rctx->count, rctx->ai, rctx->allidslimit)) {
+        rctx->idl->b_nids = 1;
+        rctx->idl->b_ids[0] = ALLID;
+        return DBI_RC_NOTFOUND; /* fool the code below into thinking that we finished the dups */
+    }
+#endif
+
+    rctx->count++;
+    return 0;
+}
+
+/*
+ * Same as idl_new_range_fetch but without using bulk operation
+ */
+IDList *
+idl_lmdb_range_fetch(
+    backend *be,
+    dbi_db_t *db,
+    dbi_val_t *lowerkey,
+    dbi_val_t *upperkey,
+    dbi_txn_t *txn,
+    struct attrinfo *ai,
+    int *flag_err,
+    int allidslimit,
+    int sizelimit,
+    struct timespec *expire_time,
+    int lookthrough_limit,
+    int
+    operator)
+{
+    int ret = 0;
+    int ret2 = 0;
+    int idl_rc = 0;
+    dbi_cursor_t cursor = {0};
+    back_txn s_txn;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    idl_range_ctx_t idl_range_ctx = {0};
+    char *index_id = get_index_name(be, db, ai);
+
+    if ((NULL == flag_err) || (NEW_IDL_NOOP == *flag_err)) {
+        return NULL;
+    }
+    if (slapi_is_loglevel_set(SLAPI_LOG_FILTER)) {
+        char *included = ((operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS) ? "not " : "";
+        const char *sorted = (operator & SLAPI_OP_RANGE_NO_IDL_SORT) ? "not " : "";
+        slapi_log_err(SLAPI_LOG_FILTER,
+                      "idl_lmdb_range_fetch", "Getting index %s range from keys %s to %s\n",
+                      index_id, (char*)lowerkey->data, (char*)upperkey->data);
+        slapi_log_err(SLAPI_LOG_FILTER, "idl_lmdb_range_fetch",
+                      "Candidate list is %ssorted. lower key is %sincluded.\n",
+                      sorted, included);
+    }
+
+    dblayer_txn_init(li, &s_txn);
+    if (txn) {
+        dblayer_read_txn_begin(be, txn, &s_txn);
+    }
+
+    /* Make a cursor */
+    ret = dblayer_new_cursor(be, db, s_txn.back_txn_txn, &cursor);
+    if (0 != ret) {
+        ldbm_nasty("idl_lmdb_range_fetch - idl_new.c", index_id, 1, ret);
+        goto error;
+    }
+
+    /* Initialize the callnack context */
+    idl_range_ctx.be = be;
+    idl_range_ctx.upperkey = upperkey;
+    idl_range_ctx.ai = ai;
+    idl_range_ctx.allidslimit = allidslimit;
+	idl_range_ctx.sizelimit = sizelimit;
+    idl_range_ctx.expire_time = expire_time;
+    idl_range_ctx.lookthrough_limit = lookthrough_limit;
+    idl_range_ctx.operator = operator;
+    idl_range_ctx.leftover = NULL;
+    idl_range_ctx.leftoverlen = 32;
+    idl_range_ctx.leftovercnt = 0;
+    idl_range_ctx.idl = idl_alloc(IDLIST_MIN_BLOCK_SIZE);
+    idl_range_ctx.flag_err = 0;
+    idl_range_ctx.lastid = 0;
+    idl_range_ctx.count = 0;
+    idl_range_ctx.index_id = index_id;
+    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+            struct _back_info_index_key bck_info;
+            /* We are doing a bulk import
+             * try to retrieve the suffix entry id from the index
+             */
+
+            bck_info.index = SLAPI_ATTR_PARENTID;
+            bck_info.key = "0";
+
+            if ((ret = slapi_back_get_info(be, BACK_INFO_INDEX_KEY, (void **)&bck_info))) {
+                slapi_log_err(SLAPI_LOG_WARNING, "idl_lmdb_range_fetch",
+                              "Total update: fail to retrieve suffix entryID, continue assuming it is the first entry\n");
+            }
+            if (bck_info.key_found) {
+                idl_range_ctx.suffix = bck_info.id;
+            }
+    }
+
+    /*
+     * Iterate
+     */
+    ret = dblayer_cursor_iterate(&cursor, idl_range_add_id_cb, lowerkey, &idl_range_ctx);
+    if (DBI_RC_NOTFOUND == ret) {
+        ret = 0; /* normal case */
+    } else if (0 != ret) {
+        ldbm_nasty("idl_lmdb_range_fetch - idl_new.c", index_id, 2, ret);
+        idl_free(&idl_range_ctx.idl);
+        goto error;
+    }
+
+    slapi_log_err(SLAPI_LOG_TRACE, "idl_lmdb_range_fetch",
+                  "Bulk fetch buffer nids=%" PRIu64 "\n", idl_range_ctx.count);
+
+    /* check for allids value */
+    if ((idl_range_ctx.idl->b_nids == 1) && (idl_range_ctx.idl->b_ids[0] == ALLID)) {
+        idl_free(&idl_range_ctx.idl);
+        idl_range_ctx.idl = idl_allids(be);
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_lmdb_range_fetch", "%s returns allids\n",
+                      index_id);
+    } else {
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_lmdb_range_fetch", "%s returns nids=%lu\n",
+                      index_id, (u_long)IDL_NIDS(idl_range_ctx.idl));
+    }
+
+error:
+    /* Close the cursor */
+    if (0 == idl_range_ctx.flag_err) {
+        idl_range_ctx.flag_err = ret;
+slapi_log_err(SLAPI_LOG_INFO, "idl_lmdb_range_fetch", "flag_err=%d\n", idl_range_ctx.flag_err);
+    }
+    ret = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
+    if (ret) {
+        ldbm_nasty("idl_lmdb_range_fetch - idl_new.c", index_id, 3, ret2);
+    }
+    if (ret) {
+        slapi_log_err(SLAPI_LOG_ERR, "idl_lmdb_range_fetch",
+                      "Failed to build range candidate list on %s index. Error is %d\n",
+                      index_id, ret);
+        dblayer_read_txn_abort(be, &s_txn);
+    } else {
+        dblayer_read_txn_commit(be, &s_txn);
+    }
+    if (0 == idl_range_ctx.flag_err) {
+        idl_range_ctx.flag_err = ret;
+slapi_log_err(SLAPI_LOG_INFO, "idl_lmdb_range_fetch", "flag_err=%d\n", idl_range_ctx.flag_err);
+    }
+
+    /* sort idl */
+    if (!ALLIDS(idl_range_ctx.idl) && !(operator&SLAPI_OP_RANGE_NO_IDL_SORT)) {
+        qsort((void *)&idl_range_ctx.idl->b_ids[0], idl_range_ctx.idl->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
+    }
+    if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
+        size_t remaining = idl_range_ctx.leftovercnt;
+
+        while(remaining > 0) {
+            for (size_t i = 0; i < idl_range_ctx.leftovercnt; i++) {
+                if (idl_range_ctx.leftover[i].key > 0 &&
+                    idl_id_is_in_idlist(idl_range_ctx.idl, idl_range_ctx.leftover[i].key) != 0) {
+                    /* if the leftover key has its parent in the idl */
+                    idl_rc = idl_append_extend(&idl_range_ctx.idl, idl_range_ctx.leftover[i].id);
+                    if (idl_rc) {
+                        slapi_log_err(SLAPI_LOG_ERR, "idl_lmdb_range_fetch",
+                                      "Unable to extend id list (err=%d)\n", idl_rc);
+                        idl_free(&idl_range_ctx.idl);
+                        break;
+                    }
+                    idl_range_ctx.leftover[i].key = 0;
+                    remaining--;
+                }
+            }
+        }
+        slapi_ch_free((void **)&idl_range_ctx.leftover);
+    }
+    *flag_err = idl_range_ctx.flag_err;
+    slapi_log_err(SLAPI_LOG_FILTER, "idl_lmdb_range_fetch",
+                  "Found %d candidates; error code is: %d\n",
+                  idl_range_ctx.idl ? idl_range_ctx.idl->b_nids : 0, *flag_err);
+    return idl_range_ctx.idl;
 }
 
 int

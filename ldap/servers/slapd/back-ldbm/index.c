@@ -1631,12 +1631,23 @@ index_range_read_ext(
     if (operator&SLAPI_OP_RANGE_NO_ALLIDS) {
         *err = NEW_IDL_NO_ALLID;
     }
+
     if (idl_get_idl_new()) { /* new idl */
-        slapi_log_err(SLAPI_LOG_FILTER,
-                      "index_range_read_ext", "Getting index range from keys %s to %s.\n", (char*)cur_key.data, (char*)upperkey.data);
-        idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
-                                  ai, err, allidslimit, sizelimit, &expire_time,
-                                  lookthrough_limit, operator);
+        /*
+         * li->li_flags is not set when doing internal search (as in bulk import)
+         * and since idl_new_range_fetch is broken for lmdb (because of bulk read operations)
+         * better use idl_lmdb_range_fetch in that case (which work on bdb but may be a
+         * bit slower)
+         */
+        if ((li->li_flags & (LI_LMDB_IMPL|LI_BDB_IMPL)) == LI_BDB_IMPL) {
+            idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
+                                      ai, err, allidslimit, sizelimit, &expire_time,
+                                      lookthrough_limit, operator);
+        } else {
+            idl = idl_lmdb_range_fetch(be, db, &cur_key, &upperkey, db_txn,
+                                      ai, err, allidslimit, sizelimit, &expire_time,
+                                      lookthrough_limit, operator);
+        }
     } else { /* old idl */
         int retry_count = 0;
         while (*err == 0 &&
