@@ -133,7 +133,7 @@ def pytest_runtest_makereport(item, call):
                         instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
                         extra.append(pytest_html.extras.text(text, name=f"{instance_name}-{log_name}"))
                 elif 'rotationinfo' not in f:
-                    with open(f) as dirsrv_log:
+                    with open(f, errors='ignore') as dirsrv_log:
                         text = dirsrv_log.read()
                         log_name = os.path.basename(f)
                         instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
