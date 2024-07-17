@@ -1717,6 +1717,11 @@ bdb_upgradedn_producer(void *param)
                            the temp work file */
             /* open "path" once, and set FILE* to upgradefd */
             if (NULL == job->upgradefd) {
+                /* Disable gcc -fanalyzer false positive about job->upgradefd */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-malloc-leak"
+#pragma GCC diagnostic ignored "-Wanalyzer-file-leak"
+
                 char *ldifdir = config_get_ldifdir();
                 if (ldifdir) {
                     path = slapi_ch_smprintf("%s/%s_dn_norm_sp.txt",
@@ -1753,6 +1758,7 @@ bdb_upgradedn_producer(void *param)
                         goto error;
                     }
                 }
+#pragma GCC diagnostic pop
             }
             slapi_ch_free_string(&path);
             if (is_dryrun) {

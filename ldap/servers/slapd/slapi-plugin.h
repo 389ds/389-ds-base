@@ -5836,6 +5836,7 @@ char *slapi_ch_smprintf(const char *fmt, ...) __ATTRIBUTE__((format(printf, 1, 2
  * \return 0 on match. 1 on non-match. 2 on presence of NULL pointer in p1 or p2.
  */
 int slapi_ct_memcmp(const void *p1, const void *p2, size_t n);
+void slapi_ch_oom(const char *funcname) __ATTRIBUTE__((noreturn));
 
 /*
  * syntax plugin routines

@@ -248,7 +248,7 @@ do_bind(Slapi_PBlock *pb)
     /* You are "bound" when the SSL connection is made,
        but the client still passes a BIND SASL/EXTERNAL request.
      */
-    if ((LDAP_AUTH_SASL == method) &&
+    if ((LDAP_AUTH_SASL == method) && (saslmech != NULL) &&
         (0 == strcasecmp(saslmech, LDAP_SASL_EXTERNAL)) &&
         (0 == dn || 0 == dn[0]) && pb_conn->c_unix_local) {
         slapd_bind_local_user(pb_conn);

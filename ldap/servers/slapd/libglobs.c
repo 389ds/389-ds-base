@@ -9136,13 +9136,16 @@ static void
 config_set_value(
     Slapi_Entry *e,
     struct config_get_and_set *cgas,
-    void **value)
+    void *value)
 {
     struct berval **values = 0;
     char *sval = 0;
     int ival = 0;
     uintptr_t pval;
 
+    /* gcc -fanalyzer false postive with switch and type lenght */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
     switch (cgas->config_var_type) {
     case CONFIG_ON_OFF: /* convert 0,1 to "off","on" */
         slapi_entry_attr_set_charptr(e, cgas->attr_name,
@@ -9195,7 +9198,7 @@ config_set_value(
     case CONFIG_SPECIAL_REFERRALLIST:
         /* referral list is already an array of berval* */
         if (value)
-            slapi_entry_attr_replace(e, cgas->attr_name, (struct berval **)*value);
+            slapi_entry_attr_replace(e, cgas->attr_name, *(struct berval ***)value);
         else
             slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
         break;
@@ -9203,7 +9206,7 @@ config_set_value(
     case CONFIG_SPECIAL_TRUSTED_IP_LIST:
         /* trusted IP list is already an array of berval* */
         if (value)
-            slapi_entry_attr_replace(e, cgas->attr_name, (struct berval **)*value);
+            slapi_entry_attr_replace(e, cgas->attr_name, *(struct berval ***)value);
         else
             slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
         break;
@@ -9362,6 +9365,7 @@ config_set_value(
         PR_ASSERT(0); /* something went horribly wrong . . . */
         break;
     }
+#pragma GCC diagnostic pop
 
     return;
 }
@@ -9390,7 +9394,7 @@ config_set_entry(Slapi_Entry *e)
     CFG_LOCK_READ(slapdFrontendConfig);
     for (ii = 0; ii < tablesize; ++ii) {
         struct config_get_and_set *cgas = &ConfigList[ii];
-        void **value = 0;
+        void *value = 0;
 
         PR_ASSERT(cgas);
         value = cgas->config_var_addr;
@@ -9413,7 +9417,7 @@ config_set_entry(Slapi_Entry *e)
         struct config_get_and_set *cgas = &ConfigList[ii];
         int ival = 0;
         long lval = 0;
-        void **value = NULL;
+        void *value = NULL;
         void *alloc_val = NULL;
         int needs_free = 0;
 
@@ -9430,10 +9434,10 @@ config_set_entry(Slapi_Entry *e)
         /* otherwise endianness problems will ensue */
         if (isInt(cgas->config_var_type)) {
             ival = (int)(intptr_t)(cgas->getfunc)();
-            value = (void **)&ival; /* value must be address of int */
+            value = &ival; /* value must be address of int */
         } else if (cgas->config_var_type == CONFIG_LONG) {
             lval = (long)(intptr_t)(cgas->getfunc)();
-            value = (void **)&lval; /* value must be address of long */
+            value = &lval; /* value must be address of long */
         } else {
             alloc_val = (cgas->getfunc)();
             value = &alloc_val; /* value must be address of pointer */
@@ -9445,9 +9449,9 @@ config_set_entry(Slapi_Entry *e)
 
         if (needs_free && value) { /* assumes memory allocated by slapi_ch_Xalloc */
             if (CONFIG_CHARRAY == cgas->config_var_type) {
-                charray_free((char **)*value);
+                charray_free(*(char ***)value);
             } else if (CONFIG_SPECIAL_REFERRALLIST == cgas->config_var_type) {
-                ber_bvecfree((struct berval **)*value);
+                ber_bvecfree(*(struct berval ***)value);
             } else if ((CONFIG_CONSTANT_INT != cgas->config_var_type) && /* do not free constants */
                        (CONFIG_CONSTANT_STRING != cgas->config_var_type)) {
                 slapi_ch_free(value);

@@ -1918,6 +1918,11 @@ memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod, Slap
 
     op_this_val = slapi_value_new_string(slapi_sdn_get_ndn(op_this_sdn));
     slapi_value_set_flags(op_this_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
+    /* For gcc -analyser: ignore false positive about dn_str 
+     * (last_str cannot be NULL if last_size > bv->bv_len)
+     */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-null-argument"
 
     while (val && rc == 0) {
         char *dn_str = 0;
@@ -1967,6 +1972,7 @@ memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod, Slap
     if (last_str)
         slapi_ch_free_string(&last_str);
 
+#pragma GCC diagnostic pop
     return rc;
 }
 
@@ -2712,9 +2718,13 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *group_
 
                     post_index++;
                 } else if (post_index == post_total) {
+                    /* For gcc -fanalyzer: pre_index cannot be null when pre_index < pre_total */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-null-dereference"
                     /* delete the rest of pre */
                     slapi_sdn_set_normdn_byref(sdn,
                                                slapi_value_get_string(pre_array[pre_index]));
+#pragma GCC diagnostic pop
                     rc = memberof_del_one(pb, config, group_sdn, sdn);
 
                     pre_index++;

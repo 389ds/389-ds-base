@@ -4065,6 +4065,9 @@ aclutil_evaluate_macro(char *rule, lasInfo *lasinfo, acl_eval_types evalType)
     */
 
     candidate_list = acllas_replace_dn_macro(rule, matched_val, lasinfo);
+    if (candidate_list == NULL) {
+        return matched;
+    }
 
     sptr = candidate_list;
     while (*sptr != NULL && !matched) {
