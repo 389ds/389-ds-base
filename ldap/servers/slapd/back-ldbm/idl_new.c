@@ -730,7 +730,7 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
             if (keycmp(key, rctx->upperkey, rctx->ai->ai_key_cmp_fn) >= 0) {
                 return DBI_RC_NOTFOUND;
             }
-        } else {
+        } else { /* (rctx->operator & SLAPI_OP_RANGE) == SLAPI_OP_LESS_OR_EQUAL */
             if (keycmp(key, rctx->upperkey, rctx->ai->ai_key_cmp_fn) > 0) {
                 return DBI_RC_NOTFOUND;
             }
@@ -750,7 +750,7 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
         rctx->flag_err = LDAP_SIZELIMIT_EXCEEDED;
         return DBI_RC_NOTFOUND;
     }
-    if ((rctx->idl->b_nids & 0xff) == 0 &&
+    if ((rctx->idl->b_nids & 0xff) == 0 && /* Check time every 256 candidates */
         slapi_timespec_expire_check(rctx->expire_time) == TIMER_EXPIRED) {
         slapi_log_err(SLAPI_LOG_TRACE, "idl_range_add_id", "timelimit exceeded\n");
         rctx->flag_err = LDAP_TIMELIMIT_EXCEEDED;
@@ -767,7 +767,7 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
     if (id == rctx->lastid) {
         slapi_log_err(SLAPI_LOG_TRACE, "idl_lmdb_range_fetch",
                       "Detected duplicate id %d due to DB_MULTIPLE error - skipping\n", id);
-        return 0;
+        return DBI_RC_SUCCESS;
     }
     /* we got another ID, add it to our IDL */
     if (rctx->operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
@@ -817,7 +817,7 @@ idl_range_add_id_cb(dbi_val_t *key, dbi_val_t *data, void *ctx)
 #endif
 
     rctx->count++;
-    return 0;
+    return DBI_RC_SUCCESS;
 }
 
 /*
@@ -960,7 +960,7 @@ slapi_log_err(SLAPI_LOG_INFO, "idl_lmdb_range_fetch", "flag_err=%d\n", idl_range
 
     /* sort idl */
     if (!ALLIDS(idl_range_ctx.idl) && !(operator&SLAPI_OP_RANGE_NO_IDL_SORT)) {
-        qsort((void *)&idl_range_ctx.idl->b_ids[0], idl_range_ctx.idl->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
+        qsort((void *)&idl_range_ctx.idl->b_ids[0], idl_range_ctx.idl->b_nids, sizeof(ID), idl_sort_cmp);
     }
     if (operator&SLAPI_OP_RANGE_NO_IDL_SORT) {
         size_t remaining = idl_range_ctx.leftovercnt;

@@ -381,7 +381,6 @@ agmt_new_from_entry(Slapi_Entry *e)
                       slapi_entry_get_dn(e), tmpstr ? tmpstr : "<NULL>");
         goto loser;
     }
-    use_lmdb = dblayer_is_lmdb(be);
     if (!replica) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "agmt_new_from_entry - Failed to get replica for agreement %s on replicated suffix %s).\n",
@@ -390,6 +389,7 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
 
     /* flow control update window. */
+    use_lmdb = dblayer_is_lmdb(be);
     ra->flowControlWindow = use_lmdb ? LMDB_DEFAULT_FLOWCONTROL_WINDOW : DEFAULT_FLOWCONTROL_WINDOW;
     if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaFlowControlWindow))){
         int64_t flow;

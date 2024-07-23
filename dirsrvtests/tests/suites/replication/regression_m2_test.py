@@ -276,10 +276,9 @@ def preserve_topo_m2(topo_m2, request):
     if not DEBUGGING:
         request.addfinalizer(fin)
 
-    bindcn = "replication managerg"
+    bindcn = "replication manager"
     binddn = f"cn={bindcn},cn=config"
     bindpw = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
-    bindpw = "secret12"
     for inst in topo_m2:
         backup_dir = f'{inst.ds_paths.backup_dir}/topo_bak'
         try:
