@@ -214,6 +214,11 @@ agt_mopen_stats(char *statsfile, int mode, int *hdl)
         if (fileinfo.st_size < (off_t)sz) {
             /* Without this we will get segv when we try to read/write later */
             buf = calloc(1, sz);
+            if (!buf) {
+                rc = errno;
+                close(fd);
+                goto bail;
+            }
             if (write(fd, buf, sz) < 0) {
                 err = errno;
 #if (0)

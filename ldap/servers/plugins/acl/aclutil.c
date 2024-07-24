@@ -827,7 +827,7 @@ acl_match_macro_in_target(const char *ndn, char *match_this, char *macro_ptr)
                 /* do a initial * final substring match */
                 ndn_prefix_len = acl_match_substr_prefix(macro_prefix, ndn, &exact_match);
             }
-            if (ndn_prefix_len != -1) {
+            if (ndn_prefix_len >= 0) {
 
                 /*
                  * ndn[0..ndn_prefix_len] is the prefix in ndn.

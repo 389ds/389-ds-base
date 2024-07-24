@@ -39,8 +39,13 @@ get_flock_path(void)
 {
     char *result = "";
     char *port = getenv("SERVER_PORT");
+    if (port == NULL) {
+        port = "";
+    }
     result = (char *)MALLOC(strlen("/tmp/lock.%%s.") + strlen(port) + 4);
-    sprintf(result, "/tmp/lock.%%s.%s", port);
+    if (result != NULL) {
+        sprintf(result, "/tmp/lock.%%s.%s", port);
+    }
     return result;
 }
 
@@ -55,6 +60,9 @@ alert_word_wrap(char *str, int width, char *linefeed)
 
     /* assume worst case */
     ans = (char *)MALLOC((strlen(str) * strlen(linefeed)) + 32);
+    if (ans == NULL) {
+        return NULL;
+    }
 
     for (strc = 0, ansc = 0; str[strc]; /*none*/) {
         if (str[strc] == '\n') {
@@ -142,7 +150,15 @@ cookieValue(char *var, char *val)
             cookie = STRDUP(cookie);
             numVars = 0;
             vars = (char **)MALLOC(sizeof(char *));
+            if (vars == NULL) {
+                return NULL;
+            }
             vals = (char **)MALLOC(sizeof(char *));
+            if (vals == NULL) {
+                FREE(vars);
+                return NULL;
+            }
+
             vars[0] = cookie;
             for (i = 0; i < len; ++i) {
                 if ((!foundVal) && (cookie[i] == '=')) {

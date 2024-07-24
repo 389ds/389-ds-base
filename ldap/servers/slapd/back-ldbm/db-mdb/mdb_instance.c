@@ -826,6 +826,11 @@ dbmdb_list_dbis(dbmdb_ctx_t *ctx, backend *be, char *fname, int islocked, int *s
         pthread_mutex_lock(&ctx->dbis_lock);
     if (fname) {
         treekey.dbname = dbmdb_build_dbname(be, fname);
+        /* coverity false positive:
+         * Accessing "ctx->dbis_treeroot" without holding lock "dbmdb_ctx_t.dbis_lock"
+         * But the lock is held.
+         */
+        /* coverity[missing_lock] */
         node = tfind(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
         slapi_ch_free((void**)&treekey.dbname);
         octx.dbilist = (dbmdb_dbi_t **)slapi_ch_calloc(2, sizeof (dbmdb_dbi_t *));

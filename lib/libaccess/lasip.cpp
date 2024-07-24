@@ -274,6 +274,9 @@ LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_patter
                 if (curptr && (*curptr == '+')) {
                     /* There was a space before (and possibly after) the plus sign*/
                     curptr = strpbrk((++curptr), "1234567890.*");
+                    if (!curptr) {
+                        return LAS_EVAL_INVALID;
+                    }
                     delimiter = strcspn(curptr, ", \t");
                     delimiter = (delimiter <= strlen(curptr)) ? delimiter : strlen(curptr);
                     if (delimiter >= sizeof(token2)) {
@@ -311,6 +314,9 @@ LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_patter
                 if (curptr && (*curptr == '/')) {
                     /* There was a space before (and possibly after) the plus sign */
                     curptr = strpbrk((++curptr), "1234567890.*:ABCDEFabcdef");
+                    if (!curptr) {
+                        return LAS_EVAL_INVALID;
+                    }
                     delimiter = strcspn(curptr, ", \t");
                     delimiter = (delimiter <= strlen(curptr)) ?	delimiter : strlen(curptr);
                     strncpy(token2, curptr, delimiter);
