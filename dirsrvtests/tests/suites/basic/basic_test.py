@@ -2457,7 +2457,6 @@ def test_conn_limits(dscreate_with_numlistener):
 
     # Step 6 is done in teardown phase by dscreate_instance finalizer
 
-
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
