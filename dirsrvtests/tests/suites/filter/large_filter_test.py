@@ -177,7 +177,7 @@ def test_long_filter_value(topo):
         :setup: Standalone
         :steps:
             1. Create a specially crafted LDAP filter and
-               pass the filter to a search query with the special repeating string "a\x1Edmin"
+               pass the filter to a search query with the special repeating string "a\\x1Edmin"
             2. Pass the filter to a search query with repeating string "aAdmin"
             3. Pass the filter to a search query with string "*"
         :expectedresults:
