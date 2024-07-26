@@ -287,8 +287,7 @@ load_config_dse(Slapi_PBlock *pb __attribute__((unused)),
         if (attr_name) {
             retval = config_set(attr_name, values, returntext, 1 /* force apply */);
             if ((strcasecmp(attr_name, CONFIG_MAXDESCRIPTORS_ATTRIBUTE) == 0) ||
-                (strcasecmp(attr_name, CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE) == 0) ||
-                (strcasecmp(attr_name, CONFIG_NUM_LISTENERS_ATTRIBUTE) == 0)) {
+                (strcasecmp(attr_name, CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE) == 0)) {
                 /* We should not treat an LDAP_UNWILLING_TO_PERFORM as fatal for
                  * the these config attributes.  This error is returned when
                  * the value we are trying to set is higher than the current

@@ -5186,7 +5186,7 @@ config_set_num_listeners(const char *attrname, char *value, char *errorbuf, int 
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                                 "%s: invalid value \"%s\", %s must range from %d to %d.",
                                 CONFIG_NUM_LISTENERS_ATTRIBUTE, attrname, value, minVal, maxVal);
-        retVal = LDAP_OPERATIONS_ERROR;
+        retVal = LDAP_UNWILLING_TO_PERFORM;
         return retVal;
     }
 
