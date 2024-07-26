@@ -787,7 +787,8 @@ def test_numlisteners_limit(topo):
     assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
 
     # Check if nsslapd-numlisteners value is not set more than 4
-    topo.standalone.config.set('nsslapd-numlisteners', '5')
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        assert(not topo.standalone.config.replace('nsslapd-numlisteners', '5'))
 
     assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
 
