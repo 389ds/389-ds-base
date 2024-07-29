@@ -755,7 +755,9 @@ def test_numlisteners_limit(topo):
         4. Check dse.ldif value of nsslapd-numlisteners is set to 4
         5. systemctl restart dirsrv@localhost
         6. Check nsslapd-numlisteners value is 4, after server restart
-        7. Check if nsslapd-numlisteners value is still 4
+        7. Set nsslapd-numlisteners value to greater than the max value (4)
+        8. Check if nsslapd-numlisteners value is still 4
+        9. Check dse.ldif value of nsslapd-numlisteners is set to 4
     :expectedresults:
         1. nsslapd-numlisteners config value should show 1 by default
         2. nsslapd-numlisteners value should be successfully set to 4
@@ -763,7 +765,9 @@ def test_numlisteners_limit(topo):
         4. nsslapd-numlisteners value in localhost dse.ldif file is set to 4
         5. restart DS instance is successful
         6. nsslapd-numlisteners value is still 4 after server restart
-        7. nsslapd-numlisteners is still 4 even if we try to set it to 5
+        7. Invalid value is rejected
+        8. nsslapd-numlisteners value is still 4
+        9. nsslapd-numlisteners value in localhost dse.ldif file is set to 4
     """
     # Check default value for nsslapd-numlisteners is 1
     assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '1'
@@ -790,7 +794,12 @@ def test_numlisteners_limit(topo):
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         assert(not topo.standalone.config.replace('nsslapd-numlisteners', '5'))
 
+    # Check nsslapd-numlisteners value is set to 4
     assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
+
+    # Check the value of nsslapd-numlisteners in dse.ldif is set to 4
+    numlisteners = dse_ldif.get(DN_CONFIG, 'nsslapd-numlisteners')
+    assert numlisteners[0] == '4'
 
 
 if __name__ == '__main__':
