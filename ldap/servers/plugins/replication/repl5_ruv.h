@@ -61,6 +61,7 @@ enum
 
 typedef struct ruv_enum_data
 {
+    ReplicaId rid;
     CSN *csn;
     CSN *min_csn;
 } ruv_enum_data;
@@ -99,7 +100,7 @@ int ruv_get_max_csn(const RUV *ruv, CSN **csn);
 int ruv_get_max_csn_ext(const RUV *ruv, CSN **csn, int ignore_cleaned_rid);
 int ruv_get_rid_max_csn(const RUV *ruv, CSN **csn, ReplicaId rid);
 int ruv_get_rid_max_csn_ext(const RUV *ruv, CSN **csn, ReplicaId rid, int ignore_cleaned_rid);
-int ruv_enumerate_elements(const RUV *ruv, FNEnumRUV fn, void *arg);
+int ruv_enumerate_elements(const RUV *ruv, FNEnumRUV fn, void *arg, int all_elements);
 Slapi_Value **ruv_last_modified_to_valuearray(RUV *ruv);
 Slapi_Value **ruv_to_valuearray(RUV *ruv);
 int ruv_to_smod(const RUV *ruv, Slapi_Mod *smod);
