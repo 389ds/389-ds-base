@@ -2455,7 +2455,7 @@ _cl5CheckMaxRUV(cldb_Handle *cldb, RUV *maxruv)
 {
     int rc = 0;
 
-    rc = ruv_enumerate_elements(maxruv, _cl5CheckCSNinCL, (void *)cldb);
+    rc = ruv_enumerate_elements(maxruv, _cl5CheckCSNinCL, (void *)cldb, 0 /* all_elements */);
 
     return rc;
 }
@@ -3154,6 +3154,12 @@ _cl5UpdateRUV (cldb_Handle *cldb, CSN *csn, PRBool newReplica, PRBool purge)
     return CL5_SUCCESS;
 }
 
+/*
+ * This callback is used to determine the point from where
+ * the replication changelog will be trimmed.
+ * It uses the RUV of the replica (ruv) and the element of RUV of the replication agreement.
+ * It keeps, in the replica.RUV, the smallest csn between replica.RUV and RA.RUV.
+ */
 static int
 _cl5EnumConsumerRUV(const ruv_enum_data *element, void *arg)
 {
@@ -3164,6 +3170,15 @@ _cl5EnumConsumerRUV(const ruv_enum_data *element, void *arg)
     PR_ASSERT(element && element->csn && arg);
 
     ruv = (RUV *)arg;
+
+    /*
+     * If RA contains no csn (the consumer never received update generated from this RID)
+     * then the trimming should ignore the RID that is in the ruv of the replica
+     */
+    if (element->csn == NULL) {
+	ruv_delete_replica(ruv, element->rid);
+	return 0;
+    }
 
     rc = ruv_get_largest_csn_for_replica(ruv, csn_get_replicaid(element->csn), &csn);
     if (rc != RUV_SUCCESS || csn == NULL || csn_compare(element->csn, csn) < 0) {
@@ -3213,7 +3228,7 @@ _cl5GetRUV2Purge2(Replica *replica, RUV **ruv)
         consRUVObj = agmt_get_consumer_ruv(agmt);
         if (consRUVObj) {
             consRUV = (RUV *)object_get_data(consRUVObj);
-            rc = ruv_enumerate_elements(consRUV, _cl5EnumConsumerRUV, *ruv);
+            rc = ruv_enumerate_elements(consRUV, _cl5EnumConsumerRUV, *ruv, 1 /* all_elements */);
             if (rc != RUV_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5GetRUV2Purge2 - "
                                                                    "Failed to construct ruv; ruv error - %d\n",
@@ -4118,10 +4133,10 @@ cl5BuildCSNList(const RUV *consRuv, const RUV *supRuv)
     data.pos = 0;
 
     /* add consumer elements to the list */
-    rc = ruv_enumerate_elements(consRuv, ruv_consumer_iterator, &data);
+    rc = ruv_enumerate_elements(consRuv, ruv_consumer_iterator, &data, 0 /* all_elements */);
     if (rc == 0 && supRuv) {
         /* add supplier elements to the list */
-        rc = ruv_enumerate_elements(supRuv, ruv_supplier_iterator, &data);
+        rc = ruv_enumerate_elements(supRuv, ruv_supplier_iterator, &data, 0 /* all_elements */);
     }
 
     /* we have no csns */
