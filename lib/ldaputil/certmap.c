@@ -533,7 +533,7 @@ ldapu_cert_verifyfn_default(void *subject_cert, LDAP *ld, void *certmap_info __a
 static int
 parse_into_bitmask(const char *comps_in, long *bitmask_out, long default_val)
 {
-    long bitmask;
+    long bitmask = default_val;
     char *comps = comps_in ? strdup(comps_in) : 0;
 
     if (!comps) {
@@ -543,32 +543,12 @@ parse_into_bitmask(const char *comps_in, long *bitmask_out, long default_val)
         /* present but empty */
         bitmask = 0;
     } else {
-        char *ptr = comps;
-        char *name = comps;
-        long bit;
-        int break_loop = 0;
-
-        bitmask = 0;
-
-        while (*name) {
-            /* advance ptr to delimeter */
-            while (*ptr && !isspace(*ptr) && *ptr != ',')
-                ptr++;
-
-            if (!*ptr)
-                break_loop = 1;
-            else
-                *ptr++ = 0;
-
-            bit = certmap_name_to_bit_pos(name);
+        char *delim = " \t\r\n,";
+        char *saveptr = NULL;
+        for (char *name = strtok_r(comps, delim, &saveptr);
+             name!=NULL; name = strtok_r(NULL, delim, &saveptr)) {
+            long bit = certmap_name_to_bit_pos(name);
             bitmask |= bit;
-
-            if (break_loop)
-                break;
-            /* skip delimeters */
-            while (*ptr && (isspace(*ptr) || *ptr == ','))
-                ptr++;
-            name = ptr;
         }
     }
 
@@ -984,6 +964,7 @@ ldapu_issuer_certinfo(const CERTName *issuerDN, void **certmap_info)
 
             if (NULL == info->issuerDN) {
                 /* no DN to compare to (probably the default certmap info) */
+                cur = cur->next;
                 continue;
             }
 

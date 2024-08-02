@@ -4772,7 +4772,7 @@ bdb_copyfile(char *source, char *destination, int overwrite __attribute__((unuse
     int dest_fd = -1;
     char *buffer = NULL;
     int return_value = -1;
-    int bytes_to_write = 0;
+    size_t bytes_to_write = 0;
 
     /* malloc the buffer */
     buffer = slapi_ch_malloc(64 * 1024);
@@ -4817,12 +4817,12 @@ bdb_copyfile(char *source, char *destination, int overwrite __attribute__((unuse
                 break;
             } else {
                 /* means error */
-                slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to write by \"%s\"; real: %d bytes, exp: %d bytes\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_copyfile", "Failed to write by \"%s\"; real: %d bytes, exp: %lu bytes\n",
                               strerror(errno), return_value, bytes_to_write);
                 if (return_value > 0) {
                     bytes_to_write -= return_value;
                     ptr += return_value;
-                    slapi_log_err(SLAPI_LOG_NOTICE, "bdb_copyfile", "Retrying to write %d bytes\n", bytes_to_write);
+                    slapi_log_err(SLAPI_LOG_NOTICE, "bdb_copyfile", "Retrying to write %lu bytes\n", bytes_to_write);
                 } else {
                     break;
                 }
@@ -5713,14 +5713,14 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         slapi_log_err(SLAPI_LOG_ERR,
                       "bdb_restore", "%s is on, while the instance %s is in the DN format. "
                                          "Please run dn2rdn to convert the database format.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                      CONFIG_ENTRYRDN_SWITCH, (inst != NULL) ? inst->inst_name : "<Null>");
         return_value = -1;
         goto error_out;
     } else if (action & DBVERSION_NEED_RDN2DN) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "bdb_restore", "%s is off, while the instance %s is in the RDN format. "
                                          "Please change the value to on in dse.ldif.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                      CONFIG_ENTRYRDN_SWITCH, (inst != NULL) ? inst->inst_name : "<Null>");
         return_value = -1;
         goto error_out;
     } else {

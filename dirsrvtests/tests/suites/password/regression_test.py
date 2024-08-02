@@ -8,11 +8,12 @@
 import pytest
 import time
 import glob
+import base64
 from lib389._constants import PASSWORD, DN_DM, DEFAULT_SUFFIX
 from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB, DEFAULT_BENAME
 from lib389 import Entry
 from lib389.topologies import topology_m1 as topo_supplier
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
 from lib389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
@@ -39,6 +40,13 @@ TEST_PASSWORDS += ['CNpwtest1ZZZZ', 'ZZZZZCNpwtest1',
 
 TEST_PASSWORDS2 = (
     'CN12pwtest31', 'SN3pwtest231', 'UID1pwtest123', 'MAIL2pwtest12@redhat.com', '2GN1pwtest123', 'People123')
+
+SUPPORTED_SCHEMES = (
+    "{SHA}", "{SSHA}", "{SHA256}", "{SSHA256}",
+    "{SHA384}", "{SSHA384}", "{SHA512}", "{SSHA512}",
+    "{crypt}", "{NS-MTA-MD5}", "{clear}", "{MD5}",
+    "{SMD5}", "{PBKDF2_SHA256}", "{PBKDF2_SHA512}",
+    "{GOST_YESCRYPT}", "{PBKDF2-SHA256}", "{PBKDF2-SHA512}" )
 
 def _check_unhashed_userpw(inst, user_dn, is_present=False):
     """Check if unhashed#user#password attribute is present or not in the changelog"""
@@ -318,6 +326,47 @@ def test_unhashed_pw_switch(topo_supplier):
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
+
+@pytest.mark.parametrize("scheme", SUPPORTED_SCHEMES )
+def test_long_hashed_password(topo, create_user, scheme):
+    """Check that hashed password with very long value does not cause trouble
+
+    :id: 252a1f76-114b-11ef-8a7a-482ae39447e5
+    :setup: standalone Instance
+    :parametrized: yes
+    :steps:
+        1. Add a test user user
+        2. Set a long password with requested scheme
+        3. Bind on that user using a wrong password
+        4. Check that instance is still alive
+        5. Remove the added user
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Should get ldap.INVALID_CREDENTIALS exception
+        4. Success
+        5. Success
+    """
+    inst = topo.standalone
+    inst.simple_bind_s(DN_DM, PASSWORD)
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    # Make sure that server is started as this test may crash it
+    inst.start()
+    # Adding Test user (It may already exists if previous test failed)
+    user2 = UserAccount(inst, dn='uid=test_user_1002,ou=People,dc=example,dc=com')
+    if not user2.exists():
+        user2 = users.create_test_user(uid=1002, gid=2002)
+    # Setting hashed password
+    passwd = 'A'*4000
+    hashed_passwd = scheme.encode('utf-8') + base64.b64encode(passwd.encode('utf-8'))
+    user2.replace('userpassword', hashed_passwd)
+    # Bind on that user using a wrong password
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        conn = user2.bind(PASSWORD)
+    # Check that instance is still alive
+    assert inst.status()
+    # Remove the added user
+    user2.delete()
 
 
 if __name__ == '__main__':

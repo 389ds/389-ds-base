@@ -863,12 +863,17 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
             case -1: /* an error occurred */
                 /* PAGED RESULTS */
+                /* Explicit ctrlp test avoid gcc -fanalyzer warning */
                 if (op_is_pagedresults(operation)) {
+                    /* Disable gcc -fanalyzer false positive about pagedresults_mutex == NULL */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-null-argument"
                     /* cleanup the slot */
                     pthread_mutex_lock(pagedresults_mutex);
                     pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
                     rc = pagedresults_set_current_be(pb_conn, NULL, pr_idx, 1);
                     pthread_mutex_unlock(pagedresults_mutex);
+#pragma GCC diagnostic pop
                 }
                 if (1 == flag_no_such_object) {
                     break;

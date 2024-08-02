@@ -154,39 +154,39 @@ cp %{SOURCE2} .
 tar -xf %{SOURCE3}
 
 
-%patch0 -p1
+%patch -P0 -p1
 pushd db.1.85/PORT/linux
-%patch10 -p0
+%patch -P10 -p0
 popd
 pushd db.1.85
-%patch11 -p0
-%patch12 -p0
-%patch13 -p0
-%patch20 -p1
+%patch -P11 -p0
+%patch -P12 -p0
+%patch -P13 -p0
+%patch -P20 -p1
 popd
 
-%patch22 -p1
-%patch24 -p1
-%patch25 -p1
-%patch27 -p1
-%patch28 -p1
-%patch29 -p1
-%patch30 -p1
-%patch31 -p1
-%patch32 -p1
-%patch33 -p1
-%patch34 -p1
-%patch35 -p1
-%patch36 -p1
-%patch37 -p1
-%patch38 -p1
-%patch39 -p1
-%patch40 -p1 -b .cve-2019-2708
-%patch41 -p1
-%patch42 -p1
-%patch43 -p1
-%patch44 -p1
-%patch45 -p1
+%patch -P22 -p1
+%patch -P24 -p1
+%patch -P25 -p1
+%patch -P27 -p1
+%patch -P28 -p1
+%patch -P29 -p1
+%patch -P30 -p1
+%patch -P31 -p1
+%patch -P32 -p1
+%patch -P33 -p1
+%patch -P34 -p1
+%patch -P35 -p1
+%patch -P36 -p1
+%patch -P37 -p1
+%patch -P38 -p1
+%patch -P39 -p1
+%patch -P40 -p1 -b .cve-2019-2708
+%patch -P41 -p1
+%patch -P42 -p1
+%patch -P43 -p1
+%patch -P44 -p1
+%patch -P45 -p1
 
 cd dist
 ./s_config

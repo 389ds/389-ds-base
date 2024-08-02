@@ -1717,6 +1717,11 @@ bdb_upgradedn_producer(void *param)
                            the temp work file */
             /* open "path" once, and set FILE* to upgradefd */
             if (NULL == job->upgradefd) {
+                /* Disable gcc -fanalyzer false positive about job->upgradefd */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-malloc-leak"
+#pragma GCC diagnostic ignored "-Wanalyzer-file-leak"
+
                 char *ldifdir = config_get_ldifdir();
                 if (ldifdir) {
                     path = slapi_ch_smprintf("%s/%s_dn_norm_sp.txt",
@@ -1753,6 +1758,7 @@ bdb_upgradedn_producer(void *param)
                         goto error;
                     }
                 }
+#pragma GCC diagnostic pop
             }
             slapi_ch_free_string(&path);
             if (is_dryrun) {
@@ -3664,7 +3670,7 @@ bdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 {
     int rval = 0;
     rval = bdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
-    rval += bdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
+    rval |= bdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
     return rval;
 }
 
@@ -3791,7 +3797,7 @@ bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 
     rval = bdb_dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
                                 "Instance Config");
-    rval += bdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
+    rval |= bdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
                                  "Index Config");
 
     slapi_ch_free_string(&instance_entry_filter);

@@ -46,6 +46,10 @@ OpenTextFile(char *filename, int access)
         return NULL;
 
     txtfile = (TEXTFILE *)malloc(sizeof(TEXTFILE));
+    if (txtfile == NULL) {
+        (void) fclose(file);
+        return NULL;
+    }
     memset(txtfile, 0, sizeof(TEXTFILE));
 
     txtfile->file = file;

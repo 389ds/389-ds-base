@@ -3399,6 +3399,9 @@ _cl5Operation2LDIF(const slapi_operation_parameters *op, const char *replGen, ch
     PR_ASSERT(op && replGen && ldifEntry && IsValidOperation(op));
 
     strType = _cl5OperationType2Str(op->operation_type);
+    if ((NULL == strType) || (NULL == op->target_address.uniqueid)) {
+        return CL5_BAD_FORMAT;
+    }
     csn_as_string(op->csn, PR_FALSE, strCSN);
 
     /* find length of the buffer */
@@ -3436,6 +3439,11 @@ _cl5Operation2LDIF(const slapi_operation_parameters *op, const char *replGen, ch
 
     case SLAPI_OPERATION_MODRDN:
         if (NULL == op->p.p_modrdn.modrdn_mods) {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                          "_cl5Operation2LDIF - MODRDN - mods are NULL\n");
+            return CL5_BAD_FORMAT;
+        }
+        if (NULL == op->p.p_modrdn.modrdn_newrdn) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5Operation2LDIF - MODRDN - mods are NULL\n");
             return CL5_BAD_FORMAT;
@@ -3486,6 +3494,14 @@ _cl5Operation2LDIF(const slapi_operation_parameters *op, const char *replGen, ch
     slapi_ldif_put_type_and_value_with_options(&buff, T_UNIQUEIDSTR, op->target_address.uniqueid,
                                                strlen(op->target_address.uniqueid), 0);
 
+    /*
+     * Disable two false positives with gcc -fanalyser (about rawDN and l)
+     * because the analyzer does not select the same branch in consecutive
+     * similar switches
+     */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-null-dereference"
+#pragma GCC diagnostic ignored "-Wanalyzer-null-argument"
     switch (op->operation_type) {
     case SLAPI_OPERATION_ADD:
         if (op->p.p_add.parentuniqueid)
@@ -3525,6 +3541,7 @@ _cl5Operation2LDIF(const slapi_operation_parameters *op, const char *replGen, ch
                                                    REPL_GET_DN_LEN(&op->target_address), 0);
         break;
     }
+#pragma GCC diagnostic pop
 
     *buff = '\n';
     buff++;
@@ -3582,8 +3599,12 @@ _cl5LDIF2Operation(char *ldifEntry, slapi_operation_parameters *op, char **replG
             op->target_address.uniqueid = slapi_ch_strdup(value.bv_val);
         } else if (strncasecmp(type.bv_val, T_DNSTR, type.bv_len) == 0) {
             PR_ASSERT(op->operation_type);
-
             if (op->operation_type == SLAPI_OPERATION_ADD) {
+                /* Usually the T_DNSTR if followed by a T_CHANGESTR so rawDN is freed
+                 * but lets avoid leak if ldif is corrupted (and in static analysis reports)
+                 * by always freeing it explicitly.
+                 */
+                slapi_ch_free_string(&rawDN);
                 rawDN = slapi_ch_strdup(value.bv_val);
                 op->target_address.sdn = slapi_sdn_new_dn_byval(rawDN);
             } else
@@ -3667,6 +3688,7 @@ _cl5LDIF2Operation(char *ldifEntry, slapi_operation_parameters *op, char **replG
         }
     }
     slapi_ch_free_string(&ldifEntryWork);
+    slapi_ch_free_string(&rawDN);
     return rval;
 }
 

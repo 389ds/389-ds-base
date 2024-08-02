@@ -709,8 +709,16 @@ avl_buildlist(caddr_t data, int arg __attribute__((unused)))
         avl_maxlist = 0;
     } else if (avl_maxlist == slots) {
         slots += AVL_GRABSIZE;
-        avl_list = (caddr_t *)realloc((char *)avl_list,
-                                      (unsigned)slots * sizeof(caddr_t));
+        caddr_t *new_avl_list = realloc((char *)avl_list,
+                                        (unsigned)slots * sizeof(caddr_t));
+        if (!new_avl_list) {
+            free(avl_list);
+        }
+        avl_list = new_avl_list;
+    }
+
+    if (avl_list == NULL) {
+        return (-1);
     }
 
     avl_list[avl_maxlist++] = data;
@@ -744,8 +752,8 @@ avl_getfirst(Avlnode *root)
         return (0);
 
     (void)avl_apply(root, avl_buildlist, (caddr_t)0, -1, AVL_INORDER);
-    if (avl_list && avl_list[avl_nextlist++]) {
-        return avl_list[avl_nextlist];
+    if (avl_list && avl_list[avl_nextlist]) {
+        return avl_list[avl_nextlist++];
     } else {
         return (NULL);
     }

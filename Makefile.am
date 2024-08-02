@@ -2108,7 +2108,7 @@ git-archive:
 # Python test tests
 # How will we update this to python 3?
 
-lib389: src/lib389/setup.py
+lib389: $(srcdir)/src/lib389/setup.py
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build ; $(PYTHON) setup.py build_manpages
 
 lib389-install: lib389

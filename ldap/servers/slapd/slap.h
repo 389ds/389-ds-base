@@ -142,6 +142,8 @@ typedef struct symbol_t
 #define GET_THREAD_ID() pthread_self()
 #endif
 
+#include <json-c/json.h>
+
 /*
  * XXXmcs: these are defined by ldap.h or ldap-extension.h,
  * but only in a newer release than we use with DS today.
@@ -246,6 +248,12 @@ typedef void (*VFPV)(); /* takes undefined arguments */
  */
 
 #define SLAPD_DEFAULT_FILE_MODE S_IRUSR | S_IWUSR
+/* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP | S_IWGRP
+ * on semaphore and mmap file if SELinux is enforced.
+ */
+#define SLAPD_DEFAULT_SNMP_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
+/* ldap_agent run as uid=root gid=dirsrv and requires S_IRGRP on dse.ldif if SELinux is enforced. */
+#define SLAPD_DEFAULT_DSE_FILE_MODE S_IRUSR | S_IWUSR | S_IRGRP
 #define SLAPD_DEFAULT_DIR_MODE S_IRWXU
 #define SLAPD_DEFAULT_IDLE_TIMEOUT 3600 /* seconds - 0 == never */
 #define SLAPD_DEFAULT_IDLE_TIMEOUT_STR "3600"
@@ -318,6 +326,11 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_INIT_AUDITLOG_ROTATIONUNIT     "week"
 #define SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT "week"
 #define SLAPD_INIT_LOG_EXPTIMEUNIT           "month"
+#define SLAPD_INIT_AUDITLOG_TIME_FORMAT "%FT%TZ"
+#define SLAPD_INIT_AUDITLOG_LOG_FORMAT "default"
+#define LOG_FORMAT_DEFAULT 1
+#define LOG_FORMAT_JSON 0
+#define LOG_FORMAT_JSON_PRETTY JSON_C_TO_STRING_PRETTY
 
 #define SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR 0
 #define SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR "0"
@@ -2195,6 +2208,8 @@ typedef struct _slapdEntryPoints
 #define CONFIG_AUDITLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditlog-compress"
 #define CONFIG_AUDITFAILLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-compress"
 #define CONFIG_ERRORLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-errorlog-compress"
+#define CONFIG_AUDITLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-auditlog-log-format"
+#define CONFIG_AUDITLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-auditlog-time-format"
 #define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
@@ -2572,6 +2587,8 @@ typedef struct _slapdFrontendConfig
     char *auditlog; /* replication audit file */
     int auditloglevel;
     slapi_onoff_t auditlog_logging_enabled;
+    char *auditlog_log_format;
+    char *auditlog_time_format;
     char *auditlog_mode;
     int auditlog_maxnumlogs;
     int auditlog_maxlogsize;

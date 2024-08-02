@@ -185,7 +185,7 @@ class DirsrvAccessLog(DirsrvLog):
         @param dirsrv - A DirSrv object
         """
         super(DirsrvAccessLog, self).__init__(dirsrv)
-        ## We precompile our regex for parse_line to make it faster.
+        # We precompile our regex for parse_line to make it faster.
         self.prog_m1 = re.compile(r'^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\s(?P<action>\w*)\s(?P<rem>.*)')
         self.prog_con = re.compile(r'^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sfd=(?P<fd>\d*)\sslot=(?P<slot>\d*)\sconnection\sfrom\s(?P<remote>[^\s]*)\sto\s(?P<local>[^\s]*)')
         self.prog_discon = re.compile(r'^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\sfd=(?P<fd>\d*)\s(?P<action>closed)\s-\s(?P<status>\w*)')
@@ -197,6 +197,7 @@ class DirsrvAccessLog(DirsrvLog):
         self.full_regexs = [self.prog_m1, self.prog_con, self.prog_discon]
         self.result_regexs = [self.prog_notes, self.prog_repl,
                               self.prog_result]
+
     @classmethod
     def lint_uid(cls):
         return 'logs'
@@ -256,9 +257,8 @@ class DirsrvAccessLog(DirsrvLog):
                     report['detail'] = report['detail'].replace('NUMBER', str(count))
                     for srch in searches:
                         report['detail'] += srch
-                    report['check'] = f'logs:notes'
+                    report['check'] = 'logs:notes'
                     yield report
-
 
     def _get_log_path(self):
         """Return the current log file location"""
@@ -397,3 +397,47 @@ class DirsrvAuditLog(DirsrvLog):
         """
         return map(self.parse_line, lines)
 
+
+class DirsrvAuditJSONLog(DirsrvLog):
+    """Directory Server Audit JSON log class"""
+    def __init__(self, dirsrv):
+        """Init the Audit log class
+        @param dirsrv - A DirSrv object
+        """
+        super(DirsrvAuditJSONLog, self).__init__(dirsrv)
+        self.jsonFormat = True
+
+    def _get_log_path(self):
+        """Return the current log file location"""
+        return self.dirsrv.ds_paths.audit_log
+
+    def readlines(self):
+        """Returns an array of all the lines in the log. Need to ignore
+        encoding errors when dealing with the audit log
+
+        @return - an array of all the lines in the log.
+        """
+        lines = []
+        self.lpath = self._get_log_path()
+        if self.lpath is not None:
+            # Open the log
+            with open(self.lpath, 'r', errors='ignore') as lf:
+                lines = lf.readlines()
+        return lines
+
+    def parse_line(self, line):
+        """Parse a audit log line
+        @line - a text string from a audit log
+        @return - A dictionary of the log parts
+        """
+        line = line.strip()
+        action = json.loads(line)
+        action['datetime'] = action['gm_time']
+        return action
+
+    def parse_lines(self, lines):
+        """Parse multiple lines from a audit log
+        @param lines - a lits of strings/lines from a audit log
+        @return - A dictionary of the log parts for each line
+        """
+        return map(self.parse_line, lines)

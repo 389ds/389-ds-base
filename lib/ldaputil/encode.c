@@ -71,9 +71,12 @@ Snip-n-shift, snip-n-shift, etc....
 
     /* Always do 4-for-3, but if not round threesome, have to go
           clean up the last extra bytes */
-
+    
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
     for (; i != srclen; i--)
         *--p = '=';
+#pragma GCC diagnostic pop
 
     return r;
 }
@@ -107,6 +110,9 @@ _uudecode(const char *bufcoded)
     nbytesdecoded = ((nprbytes + 3) / 4) * 3;
 
     bufout = (unsigned char *)malloc(nbytesdecoded + 1);
+    if (bufout == NULL) {
+        return NULL;
+    }            
     bufplain = bufout;
 
     bufin = bufcoded;

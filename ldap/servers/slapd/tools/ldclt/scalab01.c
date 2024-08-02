@@ -336,7 +336,7 @@ scalab01_addLogin(
 {
     int ret;       /* Return value */
     isp_user *new; /* New entry */
-    isp_user *cur; /* Current entry */
+    isp_user **ptcur; /* Current entry address */
     int rc = 0;
 
     /*
@@ -368,48 +368,24 @@ scalab01_addLogin(
         goto error;
     }
 
-    /*
-   * Maybe this is the first entry of the list ?
-   */
-    if (s1ctx.list == NULL)
-        s1ctx.list = new;
-    else {
-        /*
-     * Check with the list's head
+    /* 
+     * Find insertion point
      */
-        if (s1ctx.list->counter >= duration) {
-            new->next = s1ctx.list;
-            s1ctx.list = new;
-        } else {
-            cur = s1ctx.list;
-
-            /* If cur is NULL, we should just bail and free new. */
-            if (cur == NULL) {
-                goto error;
-            }
-
-            while (cur != NULL) {
-                if (cur->next == NULL) {
-                    cur->next = new;
-                    cur = NULL; /* Exit loop */
-                } else if (cur->next->counter >= duration) {
-                    new->next = cur->next;
-                    cur->next = new;
-                    cur = NULL; /* Exit loop */
-                } else {
-                    cur = cur->next;
-                }
-            }
-        }
+    ptcur = &s1ctx.list;
+    while ((*ptcur != NULL) && ((*ptcur)->counter < duration)) {
+        ptcur = &(*ptcur)->next;
     }
-
-    goto done;
+    /*
+     * Insert new element
+     */
+    new->next = *ptcur;
+    *ptcur = new;
+    new = NULL;
 
 error:
     if (new)
         free(new);
 
-done:
     /*
    * Free mutex
    */

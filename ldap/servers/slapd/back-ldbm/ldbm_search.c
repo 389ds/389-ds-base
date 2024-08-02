@@ -1929,13 +1929,6 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             }
         }
     }
-    /* check for the final abandon */
-    if (slapi_op_abandoned(pb)) {
-        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-        slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
-        delete_search_result_set(pb, &sr);
-        rc = SLAPI_FAIL_GENERAL;
-    }
 
 bail:
     if (rc && op) {

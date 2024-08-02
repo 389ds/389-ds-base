@@ -525,8 +525,9 @@ retrocl_start(Slapi_PBlock *pb)
                 strncpy(retrocl_attributes[i], value, pos - value);
                 retrocl_attributes[i][pos - value] = '\0';
 
-                retrocl_aliases[i] = slapi_ch_malloc(value + length - pos);
-                strcpy(retrocl_aliases[i], pos + 1);
+                retrocl_aliases[i] = slapi_ch_malloc(value + length - pos + 1);
+                strncpy(retrocl_aliases[i], pos + 1, value + length - pos);
+                retrocl_aliases[i][value + length - pos] = '\0';
 
                 slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s [%s]\n",
                               retrocl_attributes[i], retrocl_aliases[i]);

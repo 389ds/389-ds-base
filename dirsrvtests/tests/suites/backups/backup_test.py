@@ -10,11 +10,14 @@ import logging
 import pytest
 import os
 import shutil
+import time
+import glob
 from datetime import datetime
 from lib389._constants import DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
 from lib389.topologies import topology_st as topo, topology_m2 as topo_m2
-from lib389.backend import Backend
+from lib389.backend import Backends, Backend
+from lib389.dbgen import dbgen_users
 from lib389.tasks import BackupTask, RestoreTask
 from lib389.config import BDB_LDBMConfig
 from lib389 import DSEldif
@@ -30,6 +33,58 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+
+
+BESTRUCT = [
+    { "bename" : "be1", "suffix": "dc=be1", "nbusers": 1000 },
+    { "bename" : "be2", "suffix": "dc=be2", "nbusers": 1000 },
+    { "bename" : "be3", "suffix": "dc=be3", "nbusers": 1000 },
+]
+
+
+@pytest.fixture(scope="function")
+def mytopo(topo, request):
+    bes = []
+
+    def fin():
+        for be in bes:
+            be.delete()
+        for dir in glob.glob(f'{inst.ds_paths.backup_dir}/*'):
+            shutil.rmtree(dir)
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    inst = topo.standalone
+
+    ldif_files = {}
+    for d in BESTRUCT:
+        bename = d['bename']
+        suffix = d['suffix']
+        nbusers = d['nbusers']
+        log.info(f'Adding suffix: {suffix} and backend: {bename}...')
+        backends = Backends(inst)
+        try:
+            be = backends.create(properties={'nsslapd-suffix': suffix, 'name': bename})
+            # Insert at list head so that children backends get deleted before parent one.
+            bes.insert(0, be)
+        except ldap.UNWILLING_TO_PERFORM as e:
+            if str(e) == "Mapping tree for this suffix exists!":
+                pass
+            else:
+                raise e
+
+        ldif_dir = inst.get_ldif_dir()
+        ldif_files[bename] = os.path.join(ldif_dir, f'default_{bename}.ldif')
+        dbgen_users(inst, nbusers, ldif_files[bename], suffix)
+    inst.stop()
+    for d in BESTRUCT:
+        bename = d['bename']
+        inst.ldif2db(bename, None, None, None, ldif_files[bename])
+    inst.start()
+    return topo
+
 
 def test_missing_backend(topo):
     """Test that an error is returned when a restore is performed for a
@@ -164,6 +219,61 @@ def test_replication(topo_m2):
         # To help to diagnose test failure, you may want to look first at:
         # grep -E 'Database RUV|replica_reload_ruv|task_restore_thread|_cl5ConstructRUVs' /var/log/dirsrv/slapd-supplier1/errors
         repl.wait_for_replication(S1, S2)
+
+
+def test_backup_task_after_failure(mytopo):
+    """Test that new backup task is successful after a failure.
+    backend that is no longer present.
+
+    :id: a6c24898-2cd9-11ef-8c09-482ae39447e5
+    :setup: Standalone Instance with multiple backends
+    :steps:
+        1. Cleanup
+        2. Perform a back up
+        3. Rename the backup directory while waiting for backup completion.
+        4. Check that backup failed.
+        5. Perform a back up
+        6. Check that backup succeed.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Backup should fail
+        5. Success
+        6. Backup should succeed
+    """
+
+    inst = mytopo.standalone
+    tasks = inst.tasks
+    archive_dir1 = f'{inst.ds_paths.backup_dir}/bak1'
+    archive_dir1b = f'{inst.ds_paths.backup_dir}/bak1b'
+    archive_dir2 = f'{inst.ds_paths.backup_dir}/bak2'
+
+    # Sometime the backup complete too fast, so lets retry if first
+    # backup is successful
+    for retry in range(50):
+        # Step 1. Perform cleanup
+        for dir in glob.glob(f'{inst.ds_paths.backup_dir}/*'):
+            shutil.rmtree(dir)
+        # Step 2. Perform a backup
+        tasks.db2bak(backup_dir=archive_dir1)
+        # Step 3. Wait until task is completed, trying to rename backup directory
+        done,exitCode,warningCode = (False, None, None)
+        while not done:
+            if os.path.isdir(archive_dir1):
+                os.rename(archive_dir1, archive_dir1b)
+            done,exitCode,warningCode = tasks.checkTask(tasks.entry)
+            time.sleep(0.01)
+        if exitCode != 0:
+            break
+    # Step 4. Check that backup failed.
+    # If next assert fails too often, that means that the backup is too fast
+    # A fix would would probably be to add more backends within mytopo
+    assert exitCode != 0, "Backup did not fail as expected."
+    # Step 5. Perform a seconf backup after backup failure
+    exitCode = tasks.db2bak(backup_dir=archive_dir2, args={TASK_WAIT: True})
+    # Step 6. Check it is successful
+    assert exitCode == 0, "Backup failed. Issue #6229 may not be fixed."
 
 
 if __name__ == '__main__':

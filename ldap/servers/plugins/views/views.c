@@ -1352,7 +1352,7 @@ views_update_views_cache(Slapi_Entry *e, char *dn __attribute__((unused)), int m
          * update all child filters
          * re-index
          */
-        if (modtype == LDAP_CHANGETYPE_DELETE) {
+        if ((modtype == LDAP_CHANGETYPE_DELETE) && (theView != NULL)) {
 
             if (theCache.view_count - 1) {
                 /* detach view */

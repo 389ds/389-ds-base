@@ -533,7 +533,11 @@ dbgec_test_if_entry_pointer_is_valid(void *e, void *prev, int slot, int line)
          */ 
         slapi_log_err(SLAPI_LOG_FATAL, "dbgec_test_if_entry_pointer_is_valid", "cache.c[%d]: Wrong entry address: %p Previous entry address is: %p hash table slot is %d\n", line, e, prev, slot);
         slapi_log_backtrace(SLAPI_LOG_FATAL);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds="
+#pragma GCC diagnostic ignored "-Wstringop-overflow="
         *(char*)23 = 1;   /* abort() somehow corrupt gdb stack backtrace so lets generate a SIGSEGV */
+#pragma GCC diagnostic pop
         abort();
     }
 }

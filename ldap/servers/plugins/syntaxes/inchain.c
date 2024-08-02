@@ -38,7 +38,7 @@ static char *names[] = {"inchain", "inchain", LDAP_MATCHING_RULE_IN_CHAIN_OID, 0
 static Slapi_PluginDesc pdesc = {"inchain-matching-rule", VENDOR, DS_PACKAGE_VERSION,
                                  "inchain matching rule plugin"};
 
-static const char *inchainMatch_names[] = {"inchainMatch", "1.2.840.113556.1.4.1941", NULL};
+static const char *inchainMatch_names[] = {"inchainMatch", LDAP_MATCHING_RULE_IN_CHAIN_OID, NULL};
 
 static struct mr_plugin_def mr_plugin_table[] = {
     {
@@ -64,7 +64,7 @@ static struct mr_plugin_def mr_plugin_table[] = {
             "the AVA comparisons evaluate to Undefined and the remaining AVA "
             "comparisons return TRUE then the distinguishedNameMatch rule "
             "evaluates to Undefined.",
-            NULL,
+            DN_SYNTAX_OID,
             0,
             NULL /* dn only for now */
         },       /* matching rule desc */
@@ -277,7 +277,7 @@ inchain_values2keys(Slapi_PBlock *pb, Slapi_Value **vals, Slapi_Value ***ivals, 
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &base_sdn);
 
     if (! slapi_attr_is_dn_syntax_type(mrTYPE)) {
-        slapi_log_err(SLAPI_LOG_ERR, "inchain", "Requires distinguishedName syntax. AttributeDescription %s is not distinguishedName\n");
+        slapi_log_err(SLAPI_LOG_ERR, "inchain", "Requires distinguishedName syntax. AttributeDescription %s is not distinguishedName\n", mrTYPE);
         result = (Slapi_Value **)slapi_ch_calloc(1, sizeof(Slapi_Value *));
         *ivals = result;
         return(0);

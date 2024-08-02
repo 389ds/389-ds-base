@@ -25,10 +25,14 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-@pytest.fixture(params=[(None, (4, 11)),
+# Expected minimum and maximum number of async result in usual cases
+USUAL_MIN_AP = 3
+USUAL_MAX_AP = 11
+
+@pytest.fixture(params=[(None, (USUAL_MIN_AP, USUAL_MAX_AP)),
                         ('2000', (0, 2)),
-                        ('0', (4, 11)),
-                        ('-5', (4, 11))])
+                        ('0', (USUAL_MIN_AP, USUAL_MAX_AP)),
+                        ('-5', (USUAL_MIN_AP, USUAL_MAX_AP))])
 def waitfor_async_attr(topology_m2, request):
     """Sets attribute on all replicas"""
 

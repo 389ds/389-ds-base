@@ -3061,6 +3061,9 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
         prepare_ids(&wqd, pid, &id);
         dbmdb_import_writeq_push(ctx, &wqd);
         dbmdb_add_op_attrs(job, ep, pid);  /* Before loosing the pid */
+    } else {
+        /* Update entryid */
+        add_update_entry_operational_attributes(ep, 0);
     }
 
     if (ctx->ancestorid && wqelmnt->entry_info) {
@@ -3644,7 +3647,7 @@ dbmdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 {
     int rval = 0;
     rval = dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
-    rval += dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
+    rval |= dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
     return rval;
 }
 

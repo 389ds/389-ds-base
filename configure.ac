@@ -941,7 +941,7 @@ AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/libsds.pc src/pkgconfig/s
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
 
-AC_CONFIG_FILES([.cargo/config])
+AC_CONFIG_FILES([.cargo/config.toml])
 
 AC_OUTPUT
 

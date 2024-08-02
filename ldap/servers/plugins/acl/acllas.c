@@ -1890,16 +1890,16 @@ struct eval_info
 
 #ifdef FOR_DEBUGGING
 static void
-dump_member_info(struct eval_info *info, struct member_info *minfo, char *buf)
+dump_member_info(struct eval_info *info, struct member_info *minfo, char *buf, size_t buflen)
 {
     if (minfo) {
         if (minfo->parentId >= 0) {
             dump_member_info(info, minfo->parentId, buf);
         } else {
-            strcat(buf, "<nil>");
+            strlcat(buf, "<nil>", buflen);
         }
-        strcat(buf, "->");
-        strcat(buf, minfo->member);
+        strlcat(buf, "->", buflen);
+        strlcat(buf, minfo->member, buflen);
     }
 }
 
@@ -1923,7 +1923,7 @@ dump_eval_info(char *caller, struct eval_info *info, int idx)
             for (i = 0; i <= info->lu_idx; i++) {
                 len = strlen(buf);
                 sprintf(&buf[len], "\n  [%d]: ", i);
-                dump_member_info(info, info->memberInfo[i], buf);
+                dump_member_info(info, info->memberInfo[i], buf, sizeof buf);
             }
         slapi_log_err(SLAPI_LOG_DEBUG, plugin_name, "\n======== candidate member info in eval_info ========%s\n\n", buf);
     } else {
@@ -1943,7 +1943,7 @@ dump_eval_info(char *caller, struct eval_info *info, int idx)
             sprintf(&(buf[len]), "%d\n", info->result);
             break;
         }
-        dump_member_info(info, info->memberInfo[idx], buf);
+        dump_member_info(info, info->memberInfo[idx], buf, sizeof buf);
     }
 }
 #endif
@@ -4065,6 +4065,9 @@ aclutil_evaluate_macro(char *rule, lasInfo *lasinfo, acl_eval_types evalType)
     */
 
     candidate_list = acllas_replace_dn_macro(rule, matched_val, lasinfo);
+    if (candidate_list == NULL) {
+        return matched;
+    }
 
     sptr = candidate_list;
     while (*sptr != NULL && !matched) {

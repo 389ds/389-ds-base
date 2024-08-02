@@ -11,6 +11,7 @@ import logging
 import pytest
 import os
 from lib389 import DirSrv, pid_from_file
+from lib389.dseldif import DSEldif
 from lib389.tasks import *
 from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
@@ -739,6 +740,66 @@ def test_lmdb_config(create_lmdb_instance):
     set_and_check(inst, db_config, 'mdb_max_size', 'nsslapd-mdb-max-size', parse_size('2G'))
     set_and_check(inst, db_config, 'mdb_max_readers', 'nsslapd-mdb-max-readers', 200)
     set_and_check(inst, db_config, 'mdb_max_dbs', 'nsslapd-mdb-max-dbs', 200)
+
+
+def test_numlisteners_limit(topo):
+    """Test higher limit of nsslapd-numlisteners than 4
+    DS allows a higher value of nsslapd-numlisteners than it's limit of 4
+
+    :id: 96869ea9-c7b4-4a4f-85f9-ea1d3f4a63aa
+    :setup: Standalone Instance
+    :steps:
+        1. Check default nsslapd-numlisteners value is 1
+        2. Set nsslapd-numlisteners value to 4
+        3. Check nsslapd-numlisteners value is set to 4
+        4. Check dse.ldif value of nsslapd-numlisteners is set to 4
+        5. systemctl restart dirsrv@localhost
+        6. Check nsslapd-numlisteners value is 4, after server restart
+        7. Set nsslapd-numlisteners value to greater than the max value (4)
+        8. Check if nsslapd-numlisteners value is still 4
+        9. Check dse.ldif value of nsslapd-numlisteners is set to 4
+    :expectedresults:
+        1. nsslapd-numlisteners config value should show 1 by default
+        2. nsslapd-numlisteners value should be successfully set to 4
+        3. nsslapd-numlisteners is indeed set to 4
+        4. nsslapd-numlisteners value in localhost dse.ldif file is set to 4
+        5. restart DS instance is successful
+        6. nsslapd-numlisteners value is still 4 after server restart
+        7. Invalid value is rejected
+        8. nsslapd-numlisteners value is still 4
+        9. nsslapd-numlisteners value in localhost dse.ldif file is set to 4
+    """
+    # Check default value for nsslapd-numlisteners is 1
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '1'
+
+    # Set nsslapd-numlisteners value to 4
+    topo.standalone.config.set('nsslapd-numlisteners', '4')
+
+    # Check nsslapd-numlisteners value is set to 4
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
+
+    # Check instance dse.ldif value is set to 4
+    inst = topo.standalone
+    dse_ldif = DSEldif(inst)
+    numlisteners = dse_ldif.get(DN_CONFIG, 'nsslapd-numlisteners')
+    assert numlisteners[0] == '4'
+
+    # Restart instance
+    topo.standalone.restart()
+
+    # Check nsslapd-numlisteners value is set to 4
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
+
+    # Check if nsslapd-numlisteners value is not set more than 4
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        assert(not topo.standalone.config.replace('nsslapd-numlisteners', '5'))
+
+    # Check nsslapd-numlisteners value is set to 4
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
+
+    # Check the value of nsslapd-numlisteners in dse.ldif is set to 4
+    numlisteners = dse_ldif.get(DN_CONFIG, 'nsslapd-numlisteners')
+    assert numlisteners[0] == '4'
 
 
 if __name__ == '__main__':

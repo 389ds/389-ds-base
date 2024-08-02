@@ -9,6 +9,7 @@ After=network.target
 
 [Service]
 Type=forking
+Group=@defaultgroup@
 PIDFile=/run/dirsrv/ldap-agent.pid
 ExecStart=@sbindir@/ldap-agent @configdir@/ldap-agent.conf
 PrivateTmp=on

@@ -35,6 +35,7 @@
 #include <stdlib.h>                             /* lrand48(), etc... */
 #include <ctype.h>    /* isascii(), etc... */   /*JLS 16-11-00*/
 #include <string.h>    /* strerror(), etc... */ /*JLS 14-11-00*/
+#include <errno.h>    /* ENOMEM */
 
 
 /*
@@ -201,4 +202,24 @@ incr_and_wrap(int val, int min, int max, int incr)
 {
     int range = max - min + 1;
     return (((val + incr) - min) % range) + min;
+}
+
+/* ****************************************************************************
+    FUNCTION :    safe_malloc
+    PURPOSE :    a malloc that never returns NULL
+    INPUT :        datalen    = lenght of the alloced buffer in bytes.
+    OUTPUT :        None
+    RETURN :    alloced buffer
+    DESCRIPTION :
+ *****************************************************************************/
+void *
+safe_malloc(size_t datalen)
+{
+    void *pt = malloc(datalen);
+    if (pt == NULL) {
+        fprintf(stderr, "ldclt: %s\n", strerror(ENOMEM));
+        fprintf(stderr, "ldclt: Error: Unable to alloc %zd bytes.\n", datalen);
+        exit(3);
+    }
+    return pt;
 }

@@ -13,17 +13,27 @@ verify and testing  Filter from a search
 
 import os
 import pytest
+import ldap
 
-from lib389._constants import PW_DM
+from lib389._constants import PW_DM, DEFAULT_SUFFIX, ErrorLog
 from lib389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.account import Accounts
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
+from lib389.utils import get_ldapurl_from_serverid
 
 SUFFIX = 'dc=anuj,dc=com'
 
 pytestmark = pytest.mark.tier1
+
+
+def open_new_ldapi_conn(dsinstance):
+    ldapurl, certdir = get_ldapurl_from_serverid(dsinstance)
+    assert 'ldapi://' in ldapurl
+    conn = ldap.initialize(ldapurl)
+    conn.sasl_interactive_bind_s("", ldap.sasl.external())
+    return conn
 
 
 @pytest.fixture(scope="module")
@@ -157,6 +167,33 @@ def test_large_filter(topo, _create_entries, real_value):
     assert len(Accounts(topo.standalone, SUFFIX).filter(real_value)) == 3
     conn = UserAccount(topo.standalone, f'uid=drose,{SUFFIX}').bind(PW_DM)
     assert len(Accounts(conn, SUFFIX).filter(real_value)) == 3
+
+
+def test_long_filter_value(topo):
+    """Exercise large eq filter with dn syntax attributes
+
+        :id: b069ef72-fcc3-11ee-981c-482ae39447e5
+        :setup: Standalone
+        :steps:
+            1. Create a specially crafted LDAP filter and
+               pass the filter to a search query with the special repeating string "a\\x1Edmin"
+            2. Pass the filter to a search query with repeating string "aAdmin"
+            3. Pass the filter to a search query with string "*"
+        :expectedresults:
+            1. Search should not result in server crash and the server should be running
+    """
+    inst = topo.standalone
+    conn = open_new_ldapi_conn(inst.serverid)
+    inst.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.TRACE,ErrorLog.SEARCH_FILTER))
+    filter_value = "a\x1Edmin" * 1025
+    conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f'(cn={filter_value})')
+    filter_value = "aAdmin" * 1025
+    conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f'(cn={filter_value})')
+    filter_value = "*"
+    conn.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f'(cn={filter_value})')
+    inst.config.loglevel(vals=(ErrorLog.DEFAULT,))
+    # Check if server is running
+    assert inst.status()
 
 
 if __name__ == '__main__':

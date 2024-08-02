@@ -56,7 +56,7 @@ static int32_t rootdn_check_access(Slapi_PBlock *pb);
 static int32_t rootdn_check_host_wildcard(char *host, char *client_host);
 static int rootdn_check_ip_wildcard(char *ip, char *client_ip);
 static int32_t rootdn_preop_bind_init(Slapi_PBlock *pb);
-char *strToLower(char *str);
+void strToLower(char *str);
 
 /*
  * Plug-in globals
@@ -238,7 +238,7 @@ rootdn_load_config(Slapi_PBlock *pb)
          *  Validate out settings
          */
         if (daysAllowed_tmp) {
-            daysAllowed_tmp = strToLower(daysAllowed_tmp);
+            strToLower(daysAllowed_tmp);
             end = strspn(daysAllowed_tmp, "abcdefghijklmnopqrstuvwxyz ,");
             if (!end || daysAllowed_tmp[end] != '\0') {
                 slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
@@ -430,7 +430,6 @@ rootdn_load_config(Slapi_PBlock *pb)
         result = -1;
     }
 
-free_and_return:
     if (result == 0) {
         /*
          * Free the existing global vars, and move the new ones over
@@ -443,6 +442,7 @@ free_and_return:
         ips_to_deny = ips_to_deny_tmp;
     }
 
+free_and_return:
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
 
     return result;
@@ -499,13 +499,12 @@ rootdn_check_access(Slapi_PBlock *pb)
      */
     if (daysAllowed) {
         char *timestr;
-        char day[4] = {0};
-        char *today = day;
+        char today[4] = {0};
 
         timestr = asctime(timeinfo);  // DDD MMM dd hh:mm:ss YYYY
-        memmove(day, timestr, 3);     // we only want the day
-        today = strToLower(today);
-        daysAllowed = strToLower(daysAllowed);
+        memmove(today, timestr, 3);   // we only want the day
+        strToLower(today);
+        strToLower(daysAllowed);
 
         if (!strstr(daysAllowed, today)) {
             slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
@@ -758,11 +757,15 @@ rootdn_check_ip_wildcard(char *ip, char *client_ip)
     return 0;
 }
 
-char *
+void
 strToLower(char *str)
 {
-    for (size_t i = 0; str && i < strlen(str); i++) {
-        str[i] = tolower(str[i]);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
+    if (NULL != str) {
+        for (char *pt = str; *pt != '\0'; pt++) {
+            *pt = tolower(*pt);
+        }
     }
-    return str;
+#pragma GCC diagnostic pop
 }
