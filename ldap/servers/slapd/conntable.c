@@ -115,20 +115,26 @@ connection_table_new(int table_size)
 {
     Connection_Table *ct;
     size_t i = 0;
-    int ct_list = 0;
-    int free_idx = 0;
+    size_t ct_list = 0;
+    size_t free_idx = 0;
     ber_len_t maxbersize = config_get_maxbersize();
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
     ct->list_num = config_get_num_listeners();
     ct->num_active = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
+    /* Connection table size must be divisible by the number of listeners */
     ct->size = table_size - (table_size % ct->list_num);
     /* Account for first slot of each list being used as head (c_next).  */
     ct->list_size = (ct->size/ct->list_num)+1;
+    /*
+     * Since there are extra list heads, in the case ct->size was a multiple of list_num, we
+     * need to expand ct->size to reflect the true allocation amount.
+     */
+    ct->size = ct->list_size * ct->list_num;
     ct->c = (Connection **)slapi_ch_calloc(1, ct->size * sizeof(Connection *));
     ct->fd = (struct POLL_STRUCT **)slapi_ch_calloc(1, ct->list_num * sizeof(struct POLL_STRUCT*));
     ct->table_mutex = PR_NewLock();
     /* Allocate the freelist (a slot for each connection plus another slot for the final NULL pointer) */
-    ct->c_freelist = (Connection **)slapi_ch_calloc(1, (ct->size+1) * sizeof(Connection *));
+    ct->c_freelist = (Connection **)slapi_ch_calloc(1, (ct->size + 1) * sizeof(Connection *));
     ct->conn_next_offset = 0;
 
     slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "Number of connection sub-tables %d, each containing %d slots.\n",
@@ -184,11 +190,26 @@ connection_table_new(int table_size)
 
             /* Ready to rock, mark as such. */
             ct->c[ct_list][i].c_state = CONN_STATE_INIT;
+        }
+    }
 
+    /*
+     * The freelist is how new connections are inserted into our ct to be used. We need to ensure
+     * these are *spread* initially over the set of listeners so that we distributed between handlers
+     * from the start. Over time as things are re-added to the freelist it will "shuffle" and we
+     * will effectively have randomised listener assignment.
+     *
+     * Without this it means that a single listener will be "focused on" until it's conntable
+     * is full at which point we spill out into the next listener.
+     *
+     * This is why in the subsequent loops we INVERT the loop to iterate over list_size
+     * first, and then the ct_list as the inner component so that the freelist initially
+     * alternates between the listeners first to help distribute requests.
+     */
+    for (i = 1; i < ct->list_size; i++) {
+        for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
             /* Map multiple ct lists to a single freelist, but skip slot 0 of each list. */
-            if (i != 0) {
-                ct->c_freelist[free_idx++] = &(ct->c[ct_list][i]);
-            }
+            ct->c_freelist[free_idx++] = &(ct->c[ct_list][i]);
         }
     }
 
