@@ -55,7 +55,7 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
         dbscanOut = inst.dbscan(DEFAULT_BENAME, 'replication_changelog')
     else:
         changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
-        for changelog_dbfile in glob.glob(f'{changelog_dbdir}*/*.db*'):
+        for changelog_dbfile in glob.glob('{}*/*.db*'.format(changelog_dbdir)):
             log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
             dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
 
