@@ -251,7 +251,7 @@ class Schema(DSLdapObject):
                 value = self._validate_ldap_schema_value(value)
                 setattr(schema_object, oc_param, value)
             else:
-                if getattr(schema_object, oc_param, False):
+                if not getattr(schema_object, oc_param, False) or not value:
                     # Need to set the correct "type" for the empty value
                     if oc_param in ['may', 'must',  'x-origin', 'sup']:
                         # Expects tuple
