@@ -96,15 +96,15 @@ def test_nested_groups_weird_error(memberof_setup):
     group_lvl_2.add('member', user.dn)
 
     # Check for errors in the log
-    assert not topo.standalone.ds_error_log.match('.*memberof_fix_memberof_callback: Weird.*')
+    assert not topo.standalone.ds_error_log.match('.*memberof_fix_memberof_callback - Weird.*')
 
     # Make USER_DN memberof GROUP_1_LVL_1_DN
     group_1_lvl_1.add('member', user.dn)
-    assert not topo.standalone.ds_error_log.match('.*memberof_fix_memberof_callback: Weird.*')
+    assert not topo.standalone.ds_error_log.match('.*memberof_fix_memberof_callback - Weird.*')
 
     # Make USER_DN memberof GROUP_2_LVL_1_DN
     group_2_lvl_1.add('member', user.dn)
-    assert not topo.standalone.ds_error_log.match('.*memberof_fix_memberof_callback: Weird.*')
+    assert not topo.standalone.ds_error_log.match('.*memberof_fix_memberof_callback - Weird.*')
 
     # Additional controls
     find_memberof(topo, user, group_lvl_2.dn)
