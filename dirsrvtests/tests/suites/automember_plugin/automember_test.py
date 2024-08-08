@@ -10,6 +10,7 @@ import logging
 import pytest
 import os
 import ldap
+import time
 from lib389.utils import ds_is_older
 from lib389._constants import *
 from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions, AutoMembershipRegexRule
@@ -172,6 +173,10 @@ def test_delete_default_group(automember_fixture, topo):
 
     from lib389.plugins import MemberOfPlugin
     memberof = MemberOfPlugin(topo.standalone)
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 10 # to avoid any risk of transient failure
+    else:
+        delay = 0
     memberof.enable()
     topo.standalone.restart()
     topo.standalone.setLogLevel(65536)
@@ -182,6 +187,7 @@ def test_delete_default_group(automember_fixture, topo):
     try:
         assert group.is_member(user_1.dn)
         group.delete()
+        time.sleep(delay)
         error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group.dn)
         assert (len(error_lines) == 1)
     finally:
@@ -285,6 +291,10 @@ def test_delete_target_group(automember_fixture, topo):
 
     from lib389.plugins import MemberOfPlugin
     memberof = MemberOfPlugin(topo.standalone)
+    if (memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     memberof.enable()
 
     topo.standalone.restart()
@@ -300,6 +310,7 @@ def test_delete_target_group(automember_fixture, topo):
 
         # delete that target filter group
         group_regex.delete()
+        time.sleep(delay)
         error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group_regex.dn)
         # one line for default group and one for target group
         assert (len(error_lines) == 1)
