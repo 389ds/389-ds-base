@@ -244,7 +244,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                 slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                       "Invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n",
                               daysAllowed_tmp);
-                slapi_ch_free_string(&daysAllowed_tmp);
                 result = -1;
                 goto free_and_return;
             }
@@ -256,7 +255,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "Invalid rootdn-days-allowed day value(%s), must be \"Mon, Tue, Wed, Thu, Fri, Sat, or Sun\".\n",
                                   token);
-                    slapi_ch_free_string(&daysAllowed_tmp);
                     slapi_ch_free_string(&copy);
                     result = -1;
                     goto free_and_return;
@@ -350,7 +348,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "Hostname (%s) contains invalid characters, skipping\n",
                                   hosts_tmp[i]);
-                    slapi_ch_array_free(hosts_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -363,7 +360,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "Hostname (%s) contains invalid characters, skipping\n",
                                   hosts_to_deny_tmp[i]);
-                    slapi_ch_array_free(hosts_to_deny_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -376,7 +372,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "IP address contains invalid characters (%s), skipping\n",
                                   ips_tmp[i]);
-                    slapi_ch_array_free(ips_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -389,7 +384,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                         slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                               "IPv4 address contains invalid characters (%s), skipping\n",
                                       ips_tmp[i]);
-                        slapi_ch_array_free(ips_tmp);
                         result = -1;
                         goto free_and_return;
                     }
@@ -403,7 +397,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "IP address contains invalid characters (%s), skipping\n",
                                   ips_to_deny_tmp[i]);
-                    slapi_ch_array_free(ips_to_deny_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -416,7 +409,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                         slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                               "IPv4 address contains invalid characters (%s), skipping\n",
                                       ips_to_deny_tmp[i]);
-                        slapi_ch_array_free(ips_to_deny_tmp);
                         result = -1;
                         goto free_and_return;
                     }
@@ -436,15 +428,32 @@ rootdn_load_config(Slapi_PBlock *pb)
          */
         rootdn_free();
         daysAllowed = daysAllowed_tmp;
+        daysAllowed_tmp = NULL;
         hosts = hosts_tmp;
+        hosts_tmp = NULL;
         hosts_to_deny = hosts_to_deny_tmp;
+        hosts_to_deny_tmp = NULL;
         ips = ips_tmp;
+        ips_tmp = NULL;
         ips_to_deny = ips_to_deny_tmp;
+        ips_to_deny_tmp = NULL;
     }
 
 free_and_return:
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
-
+    slapi_ch_free_string(&daysAllowed_tmp);
+    if (hosts_tmp != NULL) {
+        slapi_ch_array_free(hosts_tmp);
+    }
+    if (hosts_to_deny_tmp != NULL) {
+        slapi_ch_array_free(hosts_to_deny_tmp);
+    }
+    if (ips_tmp != NULL) {
+        slapi_ch_array_free(ips_tmp);
+    }
+    if (ips_to_deny_tmp != NULL) {
+        slapi_ch_array_free(ips_to_deny_tmp);
+    }
     return result;
 }
 

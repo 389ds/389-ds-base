@@ -98,6 +98,9 @@ write_audit_log_entry(Slapi_PBlock *pb)
     default:
         return; /* Unsupported operation type. */
     }
+    if (change == NULL) {
+        return; /* No operation. */
+    }
     curtime = slapi_current_utc_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);

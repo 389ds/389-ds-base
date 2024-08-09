@@ -225,7 +225,7 @@ bdb_import_get_entry(ldif_context *c, int fd, int *lineno)
 
         /* copy what we did so far into the output buffer */
         /* (first, make sure the output buffer is large enough) */
-        if (bufSize - bufOffset < i - c->offset + 1) {
+        while (bufSize - bufOffset < i - c->offset + 1) {
             char *newbuf = NULL;
             size_t newsize = (buf ? bufSize * 2 : LDIF_BUFFER_SIZE);
 

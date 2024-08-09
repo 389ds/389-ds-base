@@ -236,7 +236,6 @@ update_db(Slapi_PBlock *pb, LDIF *db, ldif_Entry *new, ldif_Entry *prev, int mod
             return (0);
         } else {
             slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
-            fclose(fp);
             return (-1);
         }
 
