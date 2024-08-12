@@ -140,7 +140,8 @@ class Account(DSLdapObject):
                                                  "nsAccountLock", state_attr])
 
         last_login_time = self._dict_get_with_ignore_indexerror(account_data, state_attr)
-        if not last_login_time:
+        # if last_login_time not exist then check alt_state_attr only if its not disabled and exist 
+        if not last_login_time and alt_state_attr in account_data:
             last_login_time = self._dict_get_with_ignore_indexerror(account_data, alt_state_attr)
 
         create_time = self._dict_get_with_ignore_indexerror(account_data, "createTimestamp")
