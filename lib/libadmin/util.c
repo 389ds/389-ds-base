@@ -148,13 +148,18 @@ cookieValue(char *var, char *val)
             int foundVal = 0;
 
             cookie = STRDUP(cookie);
+            if (cookie == NULL) {
+                return NULL;
+            }
             numVars = 0;
             vars = (char **)MALLOC(sizeof(char *));
             if (vars == NULL) {
+                FREE(cookie);
                 return NULL;
             }
             vals = (char **)MALLOC(sizeof(char *));
             if (vals == NULL) {
+                FREE(cookie);
                 FREE(vars);
                 return NULL;
             }
