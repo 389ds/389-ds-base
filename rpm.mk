@@ -8,21 +8,23 @@ PACKAGE = 389-ds-base
 RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(RPM_VERSION_PREREL)
 NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
 TARBALL = $(NAME_VERSION).tar.bz2
-JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
-JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
-BUNDLE_JEMALLOC = 1
-RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_JEMALLOC)),--with bundle_jemalloc,--without bundle_jemalloc)
 NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 NODE_MODULES_PATH = src/cockpit/389-console/
 CARGO_PATH = src/
 GIT_TAG = ${TAG}
+
+BUNDLE_JEMALLOC = 1
+RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_JEMALLOC)),--with bundle_jemalloc,--without bundle_jemalloc)
+JEMALLOC_URL ?= $(shell rpmspec $(RPMBUILD_OPTIONS) -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
+JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
+
+BUNDLE_LIBDB ?= 0
+RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_LIBDB)),--with bundle_libdb,--without bundle_libdb)
 # LIBDB tarball was generated from
 #  https://kojipkgs.fedoraproject.org//packages/libdb/5.3.28/59.fc40/src/libdb-5.3.28-59.fc40.src.rpm
 #  then uploaded in https://fedorapeople.org
-LIBDB_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
+LIBDB_URL ?= $(shell rpmspec $(RPMBUILD_OPTIONS) -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
 LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
-BUNDLE_LIBDB ?= 0
-RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_LIBDB)),--with bundle_libdb,--without bundle_libdb)
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
