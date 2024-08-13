@@ -75,8 +75,21 @@ def test_password_delete_specific_password(topology_st):
 
     log.info('test_password_delete_specific_password: PASSED')
 
+@pytest.fixture(scope="function")
+def pbkdf2_sha512_scheme(request, topology_st):
+    """Set default password storage scheme to PBKDF2-SHA512"""
 
-def test_password_modify_non_utf8(topology_st):
+    inst = topology_st.standalone
+    default_scheme = inst.config.get_attr_val_utf8('passwordStorageScheme')
+    inst.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
+
+    def fin():
+        inst.config.set('passwordStorageScheme', default_scheme)
+
+    request.addfinalizer(fin)
+
+
+def test_password_modify_non_utf8(topology_st, pbkdf2_sha512_scheme):
     """Attempt a modify of the userPassword attribute with
     an invalid non utf8 value
 
