@@ -5,7 +5,7 @@ import {
     ChainingConfig,
     ChainingDatabaseConfig
 } from "./lib/database/chaining.jsx";
-import { GlobalDatabaseConfig } from "./lib/database/databaseConfig.jsx";
+import { GlobalDatabaseConfig, GlobalDatabaseConfigMDB } from "./lib/database/databaseConfig.jsx";
 import { Suffix } from "./lib/database/suffix.jsx";
 import { Backups } from "./lib/database/backups.jsx";
 import { GlobalPwPolicy } from "./lib/database/globalPwp.jsx";
@@ -49,6 +49,8 @@ const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
 const PWP_CONFIG = "pwpolicy";
 const LOCAL_PWP_CONFIG = "localpwpolicy";
+const BE_IMPL_BDB = "bdb";
+const BE_IMPL_MDB = "mdb";
 
 const _ = cockpit.gettext;
 
@@ -88,6 +90,7 @@ export class Database extends React.Component {
             chainingConfig: {},
             chainingUpdated: 0,
             chainingActiveKey: 0,
+            backendImplement: "mdb",
             // Chaining Link
             chainingLoading: false,
             // Suffix
@@ -240,55 +243,89 @@ export class Database extends React.Component {
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
-                    let db_cache_auto = false;
-                    let import_cache_auto = false;
-                    let dblocksMonitoring = false;
                     let dbhome = "";
+                    let dbimplement = "";
 
-                    if ('nsslapd-db-home-directory' in attrs) {
-                        dbhome = attrs['nsslapd-db-home-directory'][0];
-                    }
-                    if (attrs['nsslapd-cache-autosize'][0] !== "0") {
-                        db_cache_auto = true;
-                    }
-                    if (attrs['nsslapd-import-cache-autosize'][0] !== "0") {
-                        import_cache_auto = true;
-                    }
-                    if (attrs['nsslapd-db-locks-monitoring-enabled'][0] === "on") {
-                        dblocksMonitoring = true;
+                    if ('nsslapd-backend-implement' in attrs) {
+                        dbimplement = attrs['nsslapd-backend-implement'][0];
+                        this.setState({ backendImplement: dbimplement });
                     }
 
-                    this.setState(() => (
-                        {
-                            globalDBConfig:
-                                {
-                                    loading: false,
-                                    activeTab,
-                                    db_cache_auto,
-                                    import_cache_auto,
-                                    looklimit: attrs['nsslapd-lookthroughlimit'][0],
-                                    idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
-                                    pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
-                                    pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
-                                    rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
-                                    autosize: attrs['nsslapd-cache-autosize'][0],
-                                    autosizesplit: attrs['nsslapd-cache-autosize-split'][0],
-                                    dbcachesize: attrs['nsslapd-dbcachesize'][0],
-                                    txnlogdir: attrs['nsslapd-db-logdirectory'][0],
-                                    dbhomedir: dbhome,
-                                    dblocks: attrs['nsslapd-db-locks'][0],
-                                    dblocksMonitoring,
-                                    dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'][0],
-                                    dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'][0],
-                                    chxpoint: attrs['nsslapd-db-checkpoint-interval'][0],
-                                    compactinterval: attrs['nsslapd-db-compactdb-interval'][0],
-                                    compacttime: attrs['nsslapd-db-compactdb-time'][0],
-                                    importcacheauto: attrs['nsslapd-import-cache-autosize'][0],
-                                    importcachesize: attrs['nsslapd-import-cachesize'][0],
-                                },
-                            configUpdated: 1
-                        }), () => { this.loadNDN() });
-                })
+                    if (dbimplement === BE_IMPL_BDB) {
+                        let db_cache_auto = false;
+                        let import_cache_auto = false;
+                        let dblocksMonitoring = false;
+
+                        if ('nsslapd-db-home-directory' in attrs) {
+                            dbhome = attrs['nsslapd-db-home-directory'][0];
+                        }
+                        if (attrs['nsslapd-cache-autosize'][0] !== "0") {
+                            db_cache_auto = true;
+                        }
+                        if (attrs['nsslapd-import-cache-autosize'][0] !== "0") {
+                            import_cache_auto = true;
+                        }
+                        if (attrs['nsslapd-db-locks-monitoring-enabled'][0] === "on") {
+                            dblocksMonitoring = true;
+                        }
+
+                        this.setState(() => (
+                            {
+                                globalDBConfig:
+                                    {
+                                        loading: false,
+                                        activeTab,
+                                        db_cache_auto,
+                                        import_cache_auto,
+                                        looklimit: attrs['nsslapd-lookthroughlimit'][0],
+                                        idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
+                                        pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
+                                        pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
+                                        rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
+                                        autosize: attrs['nsslapd-cache-autosize'][0],
+                                        autosizesplit: attrs['nsslapd-cache-autosize-split'][0],
+                                        dbcachesize: attrs['nsslapd-dbcachesize'][0],
+                                        txnlogdir: attrs['nsslapd-db-logdirectory'][0],
+                                        dbhomedir: dbhome,
+                                        dblocks: attrs['nsslapd-db-locks'][0],
+                                        dblocksMonitoring,
+                                        dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'][0],
+                                        dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'][0],
+                                        chxpoint: attrs['nsslapd-db-checkpoint-interval'][0],
+                                        compactinterval: attrs['nsslapd-db-compactdb-interval'][0],
+                                        compacttime: attrs['nsslapd-db-compactdb-time'][0],
+                                        importcacheauto: attrs['nsslapd-import-cache-autosize'][0],
+                                        importcachesize: attrs['nsslapd-import-cachesize'][0],
+                                    },
+                                configUpdated: 1
+                            }), () => { this.loadNDN() });
+                    } else if (dbimplement === BE_IMPL_MDB) {
+                        if ('nsslapd-directory' in attrs) {
+                            dbhome = attrs['nsslapd-directory'][0];
+                        }
+
+                        this.setState(() => (
+                            {
+                                globalDBConfig:
+                                    {
+                                        loading: false,
+                                        activeTab,
+                                        looklimit: attrs['nsslapd-lookthroughlimit'][0],
+                                        idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
+                                        pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
+                                        pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
+                                        rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
+                                        mdbmaxsize: attrs['nsslapd-mdb-max-size'][0],
+                                        mdbmaxreaders: attrs['nsslapd-mdb-max-readers'][0],
+                                        mdbmaxdbs: attrs['nsslapd-mdb-max-dbs'][0],
+                                        dbhomedir: dbhome,
+                                        importcachesize: attrs['nsslapd-import-cachesize'][0],
+                                    },
+                                configUpdated: 1
+                            }), () => { this.loadNDN() });
+                    }
+                }
+                )
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
@@ -1217,16 +1254,29 @@ export class Database extends React.Component {
 
         if (this.state.loaded) {
             if (this.state.node_name === DB_CONFIG || this.state.node_name === "") {
-                db_element = (
-                    <GlobalDatabaseConfig
-                        serverId={this.props.serverId}
-                        addNotification={this.props.addNotification}
-                        reload={this.loadGlobalConfig}
-                        data={this.state.globalDBConfig}
-                        enableTree={this.enableTree}
-                        key={this.state.configUpdated}
-                    />
-                );
+                if (this.state.backendImplement === BE_IMPL_BDB) {
+                    db_element = (
+                        <GlobalDatabaseConfig
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            reload={this.loadGlobalConfig}
+                            data={this.state.globalDBConfig}
+                            enableTree={this.enableTree}
+                            key={this.state.configUpdated}
+                        />
+                    );
+                } else if (this.state.backendImplement === BE_IMPL_MDB) {
+                    db_element = (
+                        <GlobalDatabaseConfigMDB
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            reload={this.loadGlobalConfig}
+                            data={this.state.globalDBConfig}
+                            enableTree={this.enableTree}
+                            key={this.state.configUpdated}
+                        />
+                    );
+                }
             } else if (this.state.node_name === CHAINING_CONFIG) {
                 db_element = (
                     <ChainingDatabaseConfig

@@ -990,3 +990,580 @@ GlobalDatabaseConfig.defaultProps = {
     serverId: "",
     data: {},
 };
+
+export class GlobalDatabaseConfigMDB extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            saving: false,
+            saveBtnDisabled: true,
+            activeTabKey:  this.props.data.activeTab,
+            db_cache_auto: this.props.data.db_cache_auto,
+            import_cache_auto: this.props.data.import_cache_auto,
+            looklimit: this.props.data.looklimit,
+            idscanlimit: this.props.data.idscanlimit,
+            pagelooklimit: this.props.data.pagelooklimit,
+            pagescanlimit: this.props.data.pagescanlimit,
+            rangelooklimit: this.props.data.rangelooklimit,
+            dbhomedir: this.props.data.dbhomedir,
+            mdbmaxsize: this.props.data.mdbmaxsize,
+            mdbmaxreaders: this.props.data.mdbmaxreaders,
+            mdbmaxdbs: this.props.data.mdbmaxdbs,
+            importcachesize: this.props.data.importcachesize,
+            ndncachemaxsize: this.props.data.ndncachemaxsize,
+            // These variables store the original value (used for saving config)
+            _looklimit: this.props.data.looklimit,
+            _idscanlimit: this.props.data.idscanlimit,
+            _pagelooklimit: this.props.data.pagelooklimit,
+            _pagescanlimit: this.props.data.pagescanlimit,
+            _rangelooklimit: this.props.data.rangelooklimit,
+            _dbhomedir: this.props.data.dbhomedir,
+            _mdbmaxsize: this.props.data.mdbmaxsize,
+            _mdbmaxreaders: this.props.data.mdbmaxreaders,
+            _mdbmaxdbs: this.props.data.mdbmaxdbs,
+            _importcachesize: this.props.data.importcachesize,
+            _ndncachemaxsize: this.props.data.ndncachemaxsize,
+        };
+
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
+        this.handleChange = this.handleChange.bind(this);
+        this.handleTimeChange = this.handleTimeChange.bind(this);
+        this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
+
+        this.maxValue = 2147483647;
+        this.onMinusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onConfigChange = (event, id, min, max) => {
+            let maxValue = this.maxValue;
+            if (max !== 0) {
+                maxValue = max;
+            }
+            const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            this.setState({
+                [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+            }, () => { this.validateSaveBtn() });
+        };
+        this.onPlusConfig = (id) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn() });
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
+    validateSaveBtn() {
+        let saveBtnDisabled = true;
+        const check_attrs = [
+            "looklimit", "idscanlimit", "pagelooklimit", "pagescanlimit",
+            "rangelooklimit", "importcachesize", "ndncachemaxsize",
+            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs",
+        ];
+
+        // Check if a setting was changed, if so enable the save button
+        for (const config_attr of check_attrs) {
+            if (this.state[config_attr] !== this.state['_' + config_attr]) {
+                saveBtnDisabled = false;
+                break;
+            }
+        }
+        this.setState({
+            saveBtnDisabled,
+        });
+    }
+
+    handleChange(str, e) {
+        // Generic
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id;
+
+        this.setState({
+            [attr]: value,
+        }, () => { this.validateSaveBtn() });
+    }
+
+    handleTimeChange(value) {
+        this.setState({
+            compacttime: value,
+        }, () => { this.validateSaveBtn() });
+    }
+
+    save_ndn_cache(requireRestart) {
+        const msg = "Successfully updated database configuration";
+        if (this.state._ndncachemaxsize !== this.state.ndncachemaxsize) {
+            const cmd = [
+                'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+                'config', 'replace', 'nsslapd-ndn-cache-max-size=' + this.state.ndncachemaxsize
+            ];
+
+            log_cmd("save_ndn_cache", "Applying config change", cmd);
+            cockpit
+                    .spawn(cmd, { superuser: true, err: "message" })
+                    .done(content => {
+                        this.props.reload(this.state.activeTabKey);
+                        this.setState({
+                            saving: false
+                        });
+                        if (requireRestart) {
+                            this.props.addNotification(
+                                "warning",
+                                cockpit.format(_("$0. You must restart the Directory Server for these changes to take effect."), msg)
+                            );
+                        } else {
+                            this.props.addNotification(
+                                "success",
+                                msg
+                            );
+                        }
+                    })
+                    .fail(err => {
+                        const errMsg = JSON.parse(err);
+                        this.props.reload(this.state.activeTabKey);
+                        this.setState({
+                            saving: false
+                        });
+                        this.props.addNotification(
+                            "error",
+                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                        );
+                    });
+        } else {
+            this.props.reload(this.state.activeTabKey);
+            this.setState({
+                saving: false
+            });
+            if (requireRestart) {
+                this.props.addNotification(
+                    "warning",
+                    cockpit.format(_("$0. You must restart the Directory Server for these changes to take effect."), msg)
+                );
+            } else {
+                this.props.addNotification(
+                    "success",
+                    msg
+                );
+            }
+        }
+    }
+
+    handleSaveDBConfig() {
+        // Build up the command list
+        const cmd = [
+            'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
+            'backend', 'config', 'set'
+        ];
+        let requireRestart = false;
+
+        if (this.state._looklimit !== this.state.looklimit) {
+            cmd.push("--lookthroughlimit=" + this.state.looklimit);
+        }
+        if (this.state._idscanlimit !== this.state.idscanlimit) {
+            cmd.push("--idlistscanlimit=" + this.state.idscanlimit);
+        }
+        if (this.state._pagelooklimit !== this.state.pagelooklimit) {
+            cmd.push("--pagedlookthroughlimit=" + this.state.pagelooklimit);
+        }
+        if (this.state._pagescanlimit !== this.state.pagescanlimit) {
+            cmd.push("--pagedidlistscanlimit=" + this.state.pagescanlimit);
+        }
+        if (this.state._rangelooklimit !== this.state.rangelooklimit) {
+            cmd.push("--rangelookthroughlimit=" + this.state.rangelooklimit);
+        }
+        if (this.state._mdbmaxsize !== this.state.mdbmaxsize) {
+            cmd.push("--mdb-max-size=" + this.state.mdbmaxsize);
+            requireRestart = true;
+        }
+        if (this.state._mdbmaxreaders !== this.state.mdbmaxreaders) {
+            cmd.push("--mdb-max-readers=" + this.state.mdbmaxreaders);
+            requireRestart = true;
+        }
+        if (this.state._mdbmaxdbs !== this.state.mdbmaxdbs) {
+            cmd.push("--mdb-max-dbs=" + this.state.mdbmaxdbs);
+            requireRestart = true;
+        }
+        if (this.state._dbhomedir !== this.state.dbhomedir) {
+            cmd.push("--db-home-directory=" + this.state.dbhomedir);
+            requireRestart = true;
+        }
+        if (this.state._importcachesize !== this.state.importcachesize) {
+            cmd.push("--import-cachesize=" + this.state.importcachesize);
+        }
+        if (cmd.length > 6) {
+            this.setState({
+                saving: true
+            });
+            log_cmd("handleSaveDBConfig", "Applying config change", cmd);
+            cockpit
+                    .spawn(cmd, { superuser: true, err: "message" })
+                    .done(content => {
+                        // Continue with the next mod
+                        this.save_ndn_cache(requireRestart);
+                    })
+                    .fail(err => {
+                        const errMsg = JSON.parse(err);
+                        this.props.reload(this.state.activeTabKey);
+                        this.setState({
+                            saving: false
+                        });
+                        this.props.addNotification(
+                            "error",
+                            cockpit.format(_("Error updating configuration - $0"), errMsg.desc)
+                        );
+                    });
+        } else {
+            this.setState({
+                saving: true
+            }, () => { this.save_ndn_cache(requireRestart) });
+        }
+    }
+
+    render() {
+        let spinner = "";
+        if (this.state.loading) {
+            spinner = (
+                <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
+                    <TextContent>
+                        <Text component={TextVariants.h3}>
+                            Loading global database configuration ...
+                        </Text>
+                    </TextContent>
+                    <Spinner className="ds-margin-top" loading size="md" />
+                </div>
+            );
+        }
+
+        let saveBtnName = _("Save Config");
+        const extraPrimaryProps = {};
+        if (this.props.refreshing) {
+            saveBtnName = _("Saving config ...");
+            extraPrimaryProps.spinnerAriaValueText = _("Saving");
+        }
+
+        return (
+            <div className={this.state.saving ? "ds-disabled ds-margin-bottom-md" : "ds-margin-bottom-md"} id="db-global-page">
+                {spinner}
+                <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
+                    <TextContent>
+                        <Text className="ds-config-header" component={TextVariants.h2}>
+                            {_("Global Database Configuration")}
+                        </Text>
+                    </TextContent>
+
+                    <div className="ds-margin-top-lg">
+                        <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                            <Tab eventKey={0} title={<TabTitleText>{_("Database Size")}</TabTitleText>}>
+                                <div className="ds-left-indent-md">
+                                    <Grid
+                                        title={_("Database maximum size in bytes. The practical maximum size of an LMDB database is limited by the system’s addressable memory (nsslapd-mdb-max-size).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Database Maximum Size")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.mdbmaxsize}
+                                                min={1024}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("mdbmaxsize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize", 1, 0) }}
+                                                onPlus={() => { this.onPlusConfig("mdbmaxsize") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                </div>
+                            </Tab>
+                            <Tab eventKey={1} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
+                                <div className="ds-left-indent-md">
+                                    <Grid
+                                        title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Database Look Through Limit")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.looklimit}
+                                                min={-1}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("looklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "looklimit", -1, 0) }}
+                                                onPlus={() => { this.onPlusConfig("looklimit") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title={_("The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("ID List Scan Limit")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.idscanlimit}
+                                                min={100}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("idscanlimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "idscanlimit", 100, 0) }}
+                                                onPlus={() => { this.onPlusConfig("idscanlimit") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title={_("The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Paged Search Look Through Limit")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.pagelooklimit}
+                                                min={-1}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("pagelooklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagelooklimit", -1, 0) }}
+                                                onPlus={() => { this.onPlusConfig("pagelooklimit") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title={_("The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Paged Search ID List Scan Limit")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.pagescanlimit}
+                                                min={-1}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("pagescanlimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "pagescanlimit", -1, 0) }}
+                                                onPlus={() => { this.onPlusConfig("pagescanlimit") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Range Search Look Through Limit")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.rangelooklimit}
+                                                min={-1}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("rangelooklimit") }}
+                                                onChange={(e) => { this.onConfigChange(e, "rangelooklimit", -1, 0) }}
+                                                onPlus={() => { this.onPlusConfig("rangelooklimit") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                </div>
+                            </Tab>
+
+                            <Tab eventKey={3} title={<TabTitleText>{_("Import Cache")}</TabTitleText>}>
+                                <div className="ds-left-indent-md">
+                                    <Grid
+                                        title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        <GridItem className="ds-label" span={3}>
+                                            {_("Import Cache Size")}
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <NumberInput
+                                                value={this.state.importcachesize}
+                                                min={512000}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("importcachesize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "importcachesize", 512000, 0) }}
+                                                onPlus={() => { this.onPlusConfig("importcachesize") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                </div>
+                            </Tab>
+
+                            <Tab eventKey={4} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
+                                <div className="ds-left-indent-md">
+                                    <Grid
+                                        title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Normalized DN Cache Max Size")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.ndncachemaxsize}
+                                                min={1000000}
+                                                max={this.maxValue}
+                                                onMinus={() => { this.onMinusConfig("ndncachemaxsize") }}
+                                                onChange={(e) => { this.onConfigChange(e, "ndncachemaxsize", 1000000, 0) }}
+                                                onPlus={() => { this.onPlusConfig("ndncachemaxsize") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                </div>
+                            </Tab>
+
+                            <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
+                                <div className="ds-left-indent-md">
+                                    <Grid
+                                        title={_("Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Database Home Directory")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <TextInput
+                                                value={this.state.dbhomedir}
+                                                type="text"
+                                                id="dbhomedir"
+                                                aria-describedby="dbhomedir"
+                                                name="dbhomedir"
+                                                onChange={this.handleChange}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title={_("The maximun number of read transactions that can be opened simultaneously. A value of 0 means this value is computed by the server (nsslapd-mdb-max-readers).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Database Max Readers")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.mdbmaxreaders}
+                                                min={0}
+                                                max={200}
+                                                onMinus={() => { this.onMinusConfig("mdbmaxreaders") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxreaders", 1, 0) }}
+                                                onPlus={() => { this.onPlusConfig("mdbmaxreaders") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                    <Grid
+                                        title={_("The maximum number of named database instances that can be included within the memory mapped database file (nsslapd-mdb-max-dbs).")}
+                                        className="ds-margin-top"
+                                    >
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Database Max DBS")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <NumberInput
+                                                value={this.state.mdbmaxdbs}
+                                                min={36}
+                                                max={5000}
+                                                onMinus={() => { this.onMinusConfig("mdbmaxdbs") }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxdbs", 10, 0) }}
+                                                onPlus={() => { this.onPlusConfig("mdbmaxdbs") }}
+                                                inputName="input"
+                                                inputAriaLabel="number input"
+                                                minusBtnAriaLabel="minus"
+                                                plusBtnAriaLabel="plus"
+                                                widthChars={10}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                </div>
+                            </Tab>
+                        </Tabs>
+                    </div>
+                    <Button
+                        className="ds-margin-top-lg"
+                        onClick={this.handleSaveDBConfig}
+                        variant="primary"
+                        isLoading={this.state.saving}
+                        spinnerAriaValueText={this.state.saving ? _("Saving") : undefined}
+                        {...extraPrimaryProps}
+                        isDisabled={this.state.saveBtnDisabled || this.state.saving}
+                    >
+                        {saveBtnName}
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+}
+
+// Property types and defaults
+
+GlobalDatabaseConfigMDB.propTypes = {
+    serverId: PropTypes.string,
+    addNotification: PropTypes.func,
+    data: PropTypes.object,
+    reload: PropTypes.func,
+    enableTree: PropTypes.func,
+};
+
+GlobalDatabaseConfigMDB.defaultProps = {
+    serverId: "",
+    data: {},
+};
