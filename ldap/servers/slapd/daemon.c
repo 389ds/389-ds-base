@@ -829,8 +829,8 @@ accept_thread(void *vports)
     num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, &fds);
 
     while (!g_get_shutdown()) {
-        /* Do we need to accept new connections? */
-        int accept_new_connections = (ct->size > ct->conn_next_offset);
+        /* Do we need to accept new connections, account for ct->size including list heads. */
+        int accept_new_connections = ((ct->size - ct->list_num) > ct->conn_next_offset);
         if (!accept_new_connections) {
             if (last_accept_new_connections) {
                 slapi_log_err(SLAPI_LOG_ERR, "accept_thread",
@@ -2085,8 +2085,8 @@ unfurl_banners(Connection_Table *ct, daemon_ports_t *ports, PRFileDesc **n_tcps,
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     char addrbuf[256];
     int isfirsttime = 1;
-
-    if (ct->size > (slapdFrontendConfig->maxdescriptors - slapdFrontendConfig->reservedescriptors)) {
+    /* Take into account that ct->size includes a list head for each listener. */
+    if ((ct->size - ct->list_num) > (slapdFrontendConfig->maxdescriptors - slapdFrontendConfig->reservedescriptors)) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon",
                       "Not enough descriptors to accept any connections. "
                       "This may be because the maxdescriptors configuration "
