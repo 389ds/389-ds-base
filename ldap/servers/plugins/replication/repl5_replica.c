@@ -3640,7 +3640,7 @@ replica_log_ruv_elements_nolock(const Replica *r)
     r_info.repl_name = r->repl_name;
     r_info.repl_gen = repl_gen;
 
-    rc = ruv_enumerate_elements(ruv, replica_log_start_iteration, &r_info);
+    rc = ruv_enumerate_elements(ruv, replica_log_start_iteration, &r_info,  0 /* all_elements */);
 
     slapi_ch_free((void **)&repl_gen);
 

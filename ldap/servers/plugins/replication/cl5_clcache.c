@@ -704,7 +704,7 @@ static int
 clcache_refresh_local_maxcsns(CLC_Buffer *buf)
 {
 
-    return ruv_enumerate_elements(buf->buf_local_ruv, clcache_refresh_local_maxcsn, buf);
+    return ruv_enumerate_elements(buf->buf_local_ruv, clcache_refresh_local_maxcsn, buf, 0 /* all_elements */);
 }
 
 /*
