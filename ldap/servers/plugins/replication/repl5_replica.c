@@ -3683,7 +3683,7 @@ replica_log_ruv_elements_nolock(const Replica *r)
     /* we log it as a delete operation to have the least number of fields
            to set. the entry can be identified by a special target uniqueid and
            special target dn */
-    rc = ruv_enumerate_elements(ruv, replica_log_start_iteration, (void *)r);
+    rc = ruv_enumerate_elements(ruv, replica_log_start_iteration, (void *)r, 0 /* all_elements */);
     return rc;
 }
 
