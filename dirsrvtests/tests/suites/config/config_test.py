@@ -437,7 +437,7 @@ def test_ignore_virtual_attrs_after_restart(topo):
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
 def test_ndn_cache_enabled(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Check the behavior of the Normalized DN cache when enabled/disabled
 
     :id: 2caa3ec0-cd05-458e-9e21-3b73cf4697ff
     :setup: Standalone instance
@@ -499,7 +499,7 @@ def test_ndn_cache_enabled(topo):
 
 
 def test_require_index(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Validate that unindexed searches are rejected
 
     :id: fb6e31f2-acc2-4e75-a195-5c356faeb803
     :setup: Standalone instance
@@ -533,7 +533,7 @@ def test_require_index(topo):
 
 @pytest.mark.skipif(ds_is_older('1.4.2'), reason="The config setting only exists in 1.4.2 and higher")
 def test_require_internal_index(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Ensure internal operations require indexed attributes
 
     :id: 22b94f30-59e3-4f27-89a1-c4f4be036f7f
     :setup: Standalone instance
@@ -610,7 +610,7 @@ def check_number_of_threads(cfgnbthreads, monitor, pid):
         log.info('pstack is not installed ==> skipping pstack test.')
 
 def test_changing_threadnumber(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Validate thread number changes in the server configuration
 
     :id: 11bcf426-061c-11ee-8c22-482ae39447e5
     :setup: Standalone instance
@@ -700,14 +700,14 @@ def set_and_check(inst, db_config, dsconf_attr, ldap_attr, val):
 
 
 def test_lmdb_config(create_lmdb_instance):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Verify LMDB configuration settings in custom instance
 
     :id: bca28086-61cf-11ee-a064-482ae39447e5
     :setup: Custom instance named 'i_lmdb' having db_lib=mdb and lmdb_size=0.5
     :steps:
         1. Get dscreate create-template output
         2. Check that 'db_lib' is in output
-        3. Check that 'lmdb_size' is in output
+        3. Extract 'mdb_max_size' from output and verify it's correct
         4. Get the database config
         5. Check that nsslapd-backend-implement is mdb
         6. Check that nsslapd-mdb-max-size is 536870912 (i.e 0.5Gb)
@@ -730,7 +730,18 @@ def test_lmdb_config(create_lmdb_instance):
                          stderr=subprocess.STDOUT, encoding='utf-8')
     inst = create_lmdb_instance
     assert 'db_lib' in res.stdout
-    assert 'mdb_max_size' in res.stdout
+
+    # Extract the mdb_max_size value from the output
+    mdb_max_size_line = next(line for line in res.stdout.splitlines() if 'mdb_max_size =' in line)
+    mdb_max_size_value = mdb_max_size_line.split('=')[1].strip()
+
+    # Parse the mdb_max_size value to int and back
+    parsed_size = parse_size(mdb_max_size_value)
+    formatted_size = format_size(parsed_size)
+
+    # Assert the original value and the processed value are the same
+    assert mdb_max_size_value == formatted_size, f"Initial mdb_max_size value {mdb_max_size_value} does not match the formatted size {formatted_size}"
+
     db_config = DatabaseConfig(inst)
     cfg_vals = db_config.get()
     assert 'nsslapd-backend-implement' in cfg_vals
