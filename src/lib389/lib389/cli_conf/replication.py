@@ -815,6 +815,9 @@ def add_agmt(inst, basedn, log, args):
         raise ValueError(f"You need to set the bind dn (--bind-dn) and the password (--bind-passwd or -"
                          f"-bind-passwd-file or --bind-passwd-prompt) for bind method ({bind_method})")
 
+    if args.init:
+        properties['nsds5BeginReplicaRefresh'] = 'start'
+
     # Create the agmt
     try:
         agmts.create(properties=properties)
@@ -822,8 +825,6 @@ def add_agmt(inst, basedn, log, args):
         raise ValueError("A replication agreement with the same name already exists")
 
     log.info(f"Successfully created replication agreement \"{get_agmt_name(args)}\"")
-    if args.init:
-        init_agmt(inst, basedn, log, args)
 
 
 def delete_agmt(inst, basedn, log, args):
@@ -1015,6 +1016,9 @@ def add_winsync_agmt(inst, basedn, log, args):
     if passwd is None:
         raise ValueError("You need to provide a password (--bind-passwd, --bind-passwd-file, or --bind-passwd-prompt)")
 
+    if args.init:
+        properties['nsds5BeginReplicaRefresh'] = 'start'
+
     # Create the agmt
     try:
         agmts.create(properties=properties)
@@ -1022,8 +1026,6 @@ def add_winsync_agmt(inst, basedn, log, args):
         raise ValueError("A replication agreement with the same name already exists")
 
     log.info(f"Successfully created winsync replication agreement \"{get_agmt_name(args)}\"")
-    if args.init:
-        init_winsync_agmt(inst, basedn, log, args)
 
 
 def delete_winsync_agmt(inst, basedn, log, args):
