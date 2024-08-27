@@ -1769,7 +1769,7 @@ def get_default_mdb_max_size(paths):
         avail = statvfs.f_frsize * statvfs.f_bavail
         avail *= 0.8 # Reserve 20% as margin
         if size > avail:
-            mdb_max_size = str(avail)
+            mdb_max_size = format_size(avail)
     except (TimeoutError, InterruptedError) as e:
         raise e
     except OSError as e:
