@@ -556,6 +556,7 @@ def test_lint_backend_implementation_wrong_files(topology_st):
 
 
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not needed for mdb")
+@pytest.mark.skipif(ds_is_older("3.0.0"), reason="mdb and bdb are both supported")
 def test_lint_backend_implementation(topology_st):
     """Test the lint for backend implementation mismatch
 
