@@ -992,11 +992,13 @@ GlobalDatabaseConfig.defaultProps = {
 };
 
 export class GlobalDatabaseConfigMDB extends React.Component {
+    ismounted = false;
     constructor(props) {
         super(props);
         this.state = {
             saving: false,
             saveBtnDisabled: true,
+            availDbSizeBytes: 0,
             activeTabKey:  this.props.data.activeTab,
             db_cache_auto: this.props.data.db_cache_auto,
             import_cache_auto: this.props.data.import_cache_auto,
@@ -1009,7 +1011,6 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             mdbmaxsize: this.props.data.mdbmaxsize,
             mdbmaxreaders: this.props.data.mdbmaxreaders,
             mdbmaxdbs: this.props.data.mdbmaxdbs,
-            importcachesize: this.props.data.importcachesize,
             ndncachemaxsize: this.props.data.ndncachemaxsize,
             // These variables store the original value (used for saving config)
             _looklimit: this.props.data.looklimit,
@@ -1021,20 +1022,25 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             _mdbmaxsize: this.props.data.mdbmaxsize,
             _mdbmaxreaders: this.props.data.mdbmaxreaders,
             _mdbmaxdbs: this.props.data.mdbmaxdbs,
-            _importcachesize: this.props.data.importcachesize,
             _ndncachemaxsize: this.props.data.ndncachemaxsize,
         };
 
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
         this.handleChange = this.handleChange.bind(this);
-        this.handleTimeChange = this.handleTimeChange.bind(this);
         this.handleSaveDBConfig = this.handleSaveDBConfig.bind(this);
+        this.loadAvailableDiskSpace = this.loadAvailableDiskSpace.bind(this);
 
         this.maxValue = 2147483647;
         this.onMinusConfig = (id) => {
-            this.setState({
-                [id]: Number(this.state[id]) - 1
-            }, () => { this.validateSaveBtn() });
+            if (id === "mdbmaxsize") {
+                this.setState({
+                    [id]: Number(this.state[id]) - (1024 * 1024)
+                }, () => { this.validateSaveBtn() });
+            } else {
+                this.setState({
+                    [id]: Number(this.state[id]) - 1
+                }, () => { this.validateSaveBtn() });
+            }
         };
         this.onConfigChange = (event, id, min, max) => {
             let maxValue = this.maxValue;
@@ -1042,14 +1048,27 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 maxValue = max;
             }
             const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
-            this.setState({
-                [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
-            }, () => { this.validateSaveBtn() });
+            if (id === "mdbmaxsize") {
+                const newValueBytes = newValue * (1024 * 1024);
+                this.setState({
+                    [id]: (newValueBytes > max ? max : newValueBytes < min ? min : newValueBytes)
+                }, () => { this.validateSaveBtn() });
+            } else {
+                this.setState({
+                    [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+                }, () => { this.validateSaveBtn() });
+            }
         };
         this.onPlusConfig = (id) => {
-            this.setState({
-                [id]: Number(this.state[id]) + 1
-            }, () => { this.validateSaveBtn() });
+            if (id === "mdbmaxsize") {
+                this.setState({
+                    [id]: Number(this.state[id]) + (1024 * 1024)
+                }, () => { this.validateSaveBtn() });
+            } else {
+                this.setState({
+                    [id]: Number(this.state[id]) + 1
+                }, () => { this.validateSaveBtn() });
+            }
         };
 
         // Toggle currently active tab
@@ -1061,26 +1080,34 @@ export class GlobalDatabaseConfigMDB extends React.Component {
     }
 
     componentDidMount() {
+        this.ismounted = true;
         this.props.enableTree();
+        this.loadAvailableDiskSpace();
+    }
+
+    componentWillUnmount() {
+        this.ismounted = false;
     }
 
     validateSaveBtn() {
         let saveBtnDisabled = true;
         const check_attrs = [
-            "looklimit", "idscanlimit", "pagelooklimit", "pagescanlimit",
-            "rangelooklimit", "importcachesize", "ndncachemaxsize",
+            "looklimit", "idscanlimit", "pagelooklimit",
+            "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
             "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs",
         ];
 
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of check_attrs) {
             if (this.state[config_attr] !== this.state['_' + config_attr]) {
+                // jc console.log(config_attr);
                 saveBtnDisabled = false;
                 break;
             }
         }
+        // jc console.log(saveBtnDisabled);
         this.setState({
-            saveBtnDisabled,
+            saveBtnDisabled
         });
     }
 
@@ -1091,12 +1118,6 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
         this.setState({
             [attr]: value,
-        }, () => { this.validateSaveBtn() });
-    }
-
-    handleTimeChange(value) {
-        this.setState({
-            compacttime: value,
         }, () => { this.validateSaveBtn() });
     }
 
@@ -1193,13 +1214,6 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--mdb-max-dbs=" + this.state.mdbmaxdbs);
             requireRestart = true;
         }
-        if (this.state._dbhomedir !== this.state.dbhomedir) {
-            cmd.push("--db-home-directory=" + this.state.dbhomedir);
-            requireRestart = true;
-        }
-        if (this.state._importcachesize !== this.state.importcachesize) {
-            cmd.push("--import-cachesize=" + this.state.importcachesize);
-        }
         if (cmd.length > 6) {
             this.setState({
                 saving: true
@@ -1227,6 +1241,27 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 saving: true
             }, () => { this.save_ndn_cache(requireRestart) });
         }
+    }
+
+    loadAvailableDiskSpace() {
+        let available = 0;
+        const cmd = "df -B1 " + this.state.dbhomedir + " | awk '{print $4}'";
+        // log_cmd("loadAvailableDiskSpace", "Load available disk space", cmd);
+        cockpit
+                .script(cmd, [], { superuser: true, err: "message" })
+                .done(output => {
+                    available = output.split(/\s+/)[1];
+                    if (this.ismounted) {
+                        this.setState({
+                            availDbSizeBytes: available,
+                        });
+                    }
+                })
+                .fail(() => {
+                    this.setState({
+                        availDbSizeBytes: available,
+                    });
+                });
     }
 
     render() {
@@ -1267,23 +1302,24 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                 <div className="ds-left-indent-md">
                                     <Grid
                                         title={_("Database maximum size in bytes. The practical maximum size of an LMDB database is limited by the system’s addressable memory (nsslapd-mdb-max-size).")}
-                                        className="ds-margin-top"
+                                        className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
                                             {_("Database Maximum Size")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
-                                                value={this.state.mdbmaxsize}
-                                                min={1024}
-                                                max={this.maxValue}
+                                                value={Math.floor(this.state.mdbmaxsize / (1024 * 1024))}
+                                                min={104857600 / (1024 * 1024)}
+                                                max={Math.floor(this.state.availDbSizeBytes / (1024 * 1024))}
                                                 onMinus={() => { this.onMinusConfig("mdbmaxsize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize", 1, 0) }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxsize", 104857600, this.state.availDbSizeBytes) }}
                                                 onPlus={() => { this.onPlusConfig("mdbmaxsize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
+                                                unit="MB"
                                                 widthChars={10}
                                             />
                                         </GridItem>
@@ -1317,7 +1353,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                     </Grid>
                                     <Grid
                                         title={_("The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit).")}
-                                        className="ds-margin-top"
+                                        className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
                                             {_("ID List Scan Limit")}
@@ -1340,7 +1376,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                     </Grid>
                                     <Grid
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit).")}
-                                        className="ds-margin-top"
+                                        className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
                                             {_("Paged Search Look Through Limit")}
@@ -1363,7 +1399,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                     </Grid>
                                     <Grid
                                         title={_("The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit).")}
-                                        className="ds-margin-top"
+                                        className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
                                             {_("Paged Search ID List Scan Limit")}
@@ -1386,7 +1422,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                     </Grid>
                                     <Grid
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit).")}
-                                        className="ds-margin-top"
+                                        className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
                                             {_("Range Search Look Through Limit")}
@@ -1399,34 +1435,6 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 onMinus={() => { this.onMinusConfig("rangelooklimit") }}
                                                 onChange={(e) => { this.onConfigChange(e, "rangelooklimit", -1, 0) }}
                                                 onPlus={() => { this.onPlusConfig("rangelooklimit") }}
-                                                inputName="input"
-                                                inputAriaLabel="number input"
-                                                minusBtnAriaLabel="minus"
-                                                plusBtnAriaLabel="plus"
-                                                widthChars={10}
-                                            />
-                                        </GridItem>
-                                    </Grid>
-                                </div>
-                            </Tab>
-
-                            <Tab eventKey={3} title={<TabTitleText>{_("Import Cache")}</TabTitleText>}>
-                                <div className="ds-left-indent-md">
-                                    <Grid
-                                        title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
-                                        className="ds-margin-top-xlg"
-                                    >
-                                        <GridItem className="ds-label" span={3}>
-                                            {_("Import Cache Size")}
-                                        </GridItem>
-                                        <GridItem span={9}>
-                                            <NumberInput
-                                                value={this.state.importcachesize}
-                                                min={512000}
-                                                max={this.maxValue}
-                                                onMinus={() => { this.onMinusConfig("importcachesize") }}
-                                                onChange={(e) => { this.onConfigChange(e, "importcachesize", 512000, 0) }}
-                                                onPlus={() => { this.onPlusConfig("importcachesize") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
                                                 minusBtnAriaLabel="minus"
@@ -1469,8 +1477,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                             <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
-                                        title={_("Location for database memory mapped files.  You must specify a subdirectory of a tempfs type filesystem (nsslapd-db-home-directory).")}
-                                        className="ds-margin-top"
+                                        title={_("Location for database memory mapped files, this element is read only.")}
+                                            className="ds-margin-top"
                                     >
                                         <GridItem className="ds-label" span={4}>
                                             {_("Database Home Directory")}
@@ -1479,16 +1487,16 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                             <TextInput
                                                 value={this.state.dbhomedir}
                                                 type="text"
+                                                readOnlyVariant='plain'
                                                 id="dbhomedir"
                                                 aria-describedby="dbhomedir"
-                                                name="dbhomedir"
-                                                onChange={this.handleChange}
+                                                name="dbhomedir read only"
                                             />
                                         </GridItem>
                                     </Grid>
                                     <Grid
                                         title={_("The maximun number of read transactions that can be opened simultaneously. A value of 0 means this value is computed by the server (nsslapd-mdb-max-readers).")}
-                                        className="ds-margin-top"
+                                        className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
                                             {_("Database Max Readers")}
@@ -1499,7 +1507,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 min={0}
                                                 max={200}
                                                 onMinus={() => { this.onMinusConfig("mdbmaxreaders") }}
-                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxreaders", 1, 0) }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxreaders", 0, 200) }}
                                                 onPlus={() => { this.onPlusConfig("mdbmaxreaders") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"
@@ -1511,10 +1519,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                     </Grid>
                                     <Grid
                                         title={_("The maximum number of named database instances that can be included within the memory mapped database file (nsslapd-mdb-max-dbs).")}
-                                        className="ds-margin-top"
+                                        className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            {_("Database Max DBS")}
+                                            {_("Database Max DBs")}
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -1522,7 +1530,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 min={36}
                                                 max={5000}
                                                 onMinus={() => { this.onMinusConfig("mdbmaxdbs") }}
-                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxdbs", 10, 0) }}
+                                                onChange={(e) => { this.onConfigChange(e, "mdbmaxdbs", 36, 5000) }}
                                                 onPlus={() => { this.onPlusConfig("mdbmaxdbs") }}
                                                 inputName="input"
                                                 inputAriaLabel="number input"

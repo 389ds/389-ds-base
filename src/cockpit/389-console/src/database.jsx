@@ -85,12 +85,12 @@ export class Database extends React.Component {
             globalDBConfig: {
                 activeTab: 0,
             },
+            backendImplement: BE_IMPL_MDB,
             configUpdated: 0,
             // Chaining Config
             chainingConfig: {},
             chainingUpdated: 0,
             chainingActiveKey: 0,
-            backendImplement: "mdb",
             // Chaining Link
             chainingLoading: false,
             // Suffix
@@ -250,7 +250,6 @@ export class Database extends React.Component {
                         dbimplement = attrs['nsslapd-backend-implement'][0];
                         this.setState({ backendImplement: dbimplement });
                     }
-
                     if (dbimplement === BE_IMPL_BDB) {
                         let db_cache_auto = false;
                         let import_cache_auto = false;
@@ -319,7 +318,6 @@ export class Database extends React.Component {
                                         mdbmaxreaders: attrs['nsslapd-mdb-max-readers'][0],
                                         mdbmaxdbs: attrs['nsslapd-mdb-max-dbs'][0],
                                         dbhomedir: dbhome,
-                                        importcachesize: attrs['nsslapd-import-cachesize'][0],
                                     },
                                 configUpdated: 1
                             }), () => { this.loadNDN() });
