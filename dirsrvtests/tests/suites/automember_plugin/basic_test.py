@@ -12,6 +12,7 @@ Will test AutoMememer Plugin with AotoMember Task and Retro Changelog
 
 import os
 import pytest
+import time
 from lib389.topologies import topology_m1 as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
@@ -365,19 +366,23 @@ def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries
         7. Should success
     """
     instance1 = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance1)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     configure = Config(instance1)
     configure.replace('nsslapd-plugin-binddn-tracking', 'on')
     instance1.restart()
     assert configure.get_attr_val_utf8('nsslapd-plugin-binddn-tracking') == 'on'
     user = add_user(topo, "User_autoMembers_05", "ou=Employees,{}".format(TEST_BASE),
                     "19", "18", "Supervisor")
+    time.sleep(delay)
     # search the User DN name for the creatorsname in user entry
     assert user.get_attr_val_utf8('creatorsname') == 'cn=directory manager'
     # search the User DN name for the internalCreatorsname in user entry
     assert user.get_attr_val_utf8('internalCreatorsname') == \
            'cn=ldbm database,cn=plugins,cn=config'
-    # search the modifiersname in the user entry
-    assert user.get_attr_val_utf8('modifiersname') == 'cn=directory manager'
     # search the internalModifiersname in the user entry
     assert user.get_attr_val_utf8('internalModifiersname') == \
            'cn=MemberOf Plugin,cn=plugins,cn=config'
@@ -401,10 +406,18 @@ def test_posixaccount_objectclass_automemberdefaultgroup(topo, _create_all_entri
         2. Should success
     """
     test_id = "autoMembers_05"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "18", "Supervisor")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     user.delete()
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group, user.dn, "member")
 
@@ -430,13 +443,22 @@ def test_duplicated_member_attributes_added_when_the_entry_is_re_created(topo, _
         6. Should success
     """
     test_id = "autoMembers_06"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "16", "Supervisor")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     user.delete()
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group, user.dn, "member")
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "15", "Supervisor")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     user.delete()
 
@@ -458,13 +480,21 @@ def test_multi_valued_automemberdefaultgroup_for_hostgroups(topo, _create_all_en
         4. Should success
     """
     test_id = "autoMembers_07"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     default_group2 = "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE)
     default_group3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "TestEngr")
+    time.sleep(delay)
     for grp in [default_group1, default_group2, default_group3]:
         assert check_groups(topo, grp, user.dn, "member")
     user.delete()
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group1, user.dn, "member")
 
@@ -485,6 +515,12 @@ def test_plugin_creates_member_attributes_of_the_automemberdefaultgroup(topo, _c
         3. Should success
     """
     test_id = "autoMembers_08"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     default_group2 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
     default_group3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
@@ -495,6 +531,7 @@ def test_plugin_creates_member_attributes_of_the_automemberdefaultgroup(topo, _c
                     "cn=TestDef4,CN=testuserGroups,{}".format(TEST_BASE),
                     "uid=User_{},{}".format(test_id, AUTO_MEM_SCOPE_TEST), "member")
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "TestEngr")
+    time.sleep(delay)
     for grp in [default_group1, default_group2, default_group3]:
         assert check_groups(topo, grp, user.dn, "member")
     user.delete()
@@ -520,6 +557,11 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
     """
     test_id = "autoMembers_09"
     instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     auto = AutoMembershipPlugin(topo.ms["supplier1"])
     # Modify automember config entry to use uniquemember: cn=testuserGroups,PLUGIN_AUTO
     AutoMembershipDefinition(
@@ -570,11 +612,18 @@ def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
         5. Should success
     """
     test_id = "autoMembers_10"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     instance_of_group = Group(topo.ms["supplier1"], default_group)
     change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "20", "Invalid")
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, default_group,
                             "uid=User_{},{}".format(test_id, AUTO_MEM_SCOPE_TEST), "member")
@@ -600,6 +649,14 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
         5. Should success
     """
     test_id = "autoMembers_11"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        singleTXN = False
+        delay = 3
+    else:
+        singleTXN = True
+        delay = 0
     default_group_1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
     default_group_2 = "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE)
     default_group_3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
@@ -611,6 +668,7 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
         change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "24", "MixUsers")
+    time.sleep(delay)
     for grp in [default_group_1, default_group_2, default_group_3]:
         assert not check_groups(topo, grp, "cn=User_{},{}".format(test_id,
                                                                   AUTO_MEM_SCOPE_TEST), "member")
@@ -637,8 +695,15 @@ def test_add_regular_expressions_for_user_groups_and_check_for_member_attribute_
         2. Should success
     """
     test_id = "autoMembers_12"
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     default_group = f'cn=SuffDef1,ou=userGroups,{BASE_SUFF}'
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "19", "0", "HR")
+    time.sleep(delay)
     assert check_groups(topo, default_group, user.dn, "member")
     assert number_memberof(topo, user.dn, 5)
     user.delete()
@@ -675,6 +740,13 @@ def test_matching_gid_role_inclusive_regular_expression(topo, _create_all_entrie
     user1 = add_user(topo, "User_{}".format(testid), AUTO_MEM_SCOPE_BASE, uid, gid, role)
     user2 = add_user(topo, "SecondUser_{}".format(testid), AUTO_MEM_SCOPE_BASE,
                      uid2, gid2, role)
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
+    time.sleep(delay)
     for user_dn in [user1.dn, user2.dn]:
         assert check_groups(topo, contract_grp, user_dn, "member")
     assert number_memberof(topo, user1.dn, 1)
@@ -715,9 +787,16 @@ def test_gid_and_role_inclusive_exclusive_regular_expression(topo, _create_all_e
         3. Should success
         4. Should success
     """
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     contract_grp = f'cn={c_grp},ou=userGroups,{BASE_SUFF}'
     default_group = f'cn={m_grp},ou=userGroups,{BASE_SUFF}'
     user = add_user(topo, "User_{}".format(testid), AUTO_MEM_SCOPE_BASE, uid, gid, role)
+    time.sleep(delay)
     with pytest.raises(AssertionError):
         assert check_groups(topo, contract_grp, user.dn, "member")
     check_groups(topo, default_group, user.dn, "member")
@@ -755,7 +834,14 @@ def test_managers_contractors_exclusive_regex_rules_member_uid(topo, _create_all
     """
     default_group1 = f'cn={c_grp},{SUBSUFFIX}'
     default_group2 = f'cn={m_grp},{SUBSUFFIX}'
+    instance = topo.ms["supplier1"]
+    memberof = MemberOfPlugin(instance)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     user = add_user(topo, "User_{}".format(testid), AUTO_MEM_SCOPE_BASE, uid, gid, role)
+    time.sleep(delay)
     for group in [default_group1, default_group2]:
         assert check_groups(topo, group, user.dn, "memberuid")
     user.delete()

@@ -6598,3 +6598,24 @@ supplier_learn_new_definitions(struct berval **objectclasses, struct berval **at
     modify_schema_free_new_definitions(at_list);
     modify_schema_free_new_definitions(oc_list);
 }
+
+/*
+ * schema_get_objectclasses_by_attribute returns the name
+ *  of all objectclass containing the attribute)
+ */
+char **
+schema_get_objectclasses_by_attribute(const char *attribute)
+{
+    struct objclass *oc;
+    char **ocs = NULL;
+
+    schema_dse_lock_read();
+    for (oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next) {
+        if (charray_inlist(oc->oc_required, (char*) attribute) ||
+            charray_inlist(oc->oc_allowed, (char*) attribute)) {
+            charray_add(&ocs,slapi_ch_strdup(oc->oc_name));
+        }
+    }
+    schema_dse_unlock();
+    return ocs;
+}

@@ -85,6 +85,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     int is_tombstone_operation = 0;
     int is_fixup_operation = 0;
     int is_remove_from_cache = 0;
+    int is_internal = 0;
     int op_plugin_call = 1;
     int is_ruv = 0; /* True if the current entry is RUV */
     CSN *opcsn = NULL;
@@ -125,6 +126,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     is_remove_from_cache = operation_is_flag_set(operation, OP_FLAG_NEVER_CACHE);
+    is_internal = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     if (operation_is_flag_set(operation,OP_FLAG_NOOP)) op_plugin_call = 0;
 
     inst = (ldbm_instance *)be->be_instance_info;
@@ -1441,6 +1443,19 @@ common_return:
             ldap_result_code = LDAP_SUCCESS;
         }
         if (!result_sent) {
+            int deferred;
+            PRIntervalTime delay;
+
+            if (!is_internal) {
+                slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                if (deferred) {
+                    delay = PR_MillisecondsToInterval(100);
+                }
+                while (deferred) {
+                    DS_Sleep(delay);
+                    slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                }
+            }
             slapi_send_ldap_result(pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL);
         }
     }
