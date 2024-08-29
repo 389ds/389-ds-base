@@ -57,6 +57,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
     int is_ruv = 0; /* True if the current entry is RUV */
     int is_replicated_operation = 0;
     int is_tombstone_entry = 0;     /* True if the current entry is alreday a tombstone        */
+    int is_internal;
     int delete_tombstone_entry = 0; /* We must remove the given tombstone entry from the DB    */
     int create_tombstone_entry = 0; /* We perform a "regular" LDAP delete but since we use    */
                                     /* replication, we must create a new tombstone entry    */
@@ -141,6 +142,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
+    is_internal = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
     inst = (ldbm_instance *)be->be_instance_info;
     if (inst && inst->inst_ref_count) {
@@ -1521,6 +1523,19 @@ diskfull_return:
             ldap_result_code = LDAP_SUCCESS;
         }
         if (!result_sent) {
+            int deferred;
+            PRIntervalTime delay;
+
+            if (!is_internal) {
+                slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                if (deferred) {
+                    delay = PR_MillisecondsToInterval(100);
+                }
+                while (deferred) {
+                    DS_Sleep(delay);
+                    slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                }
+            }
             slapi_send_ldap_result(pb, ldap_result_code, NULL, ldap_result_message, 0, NULL);
         }
     }

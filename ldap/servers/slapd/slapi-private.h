@@ -758,6 +758,9 @@ char *slapi_schema_get_superior_name(const char *ocname_or_oid);
 
 CSN *dup_global_schema_csn(void);
 
+/* schema access for memberof plugin */
+char **schema_get_objectclasses_by_attribute(const char *attribute);
+
 /* misc function for the chaining backend */
 #define CHAIN_ROOT_UPDATE_REJECT   0
 #define CHAIN_ROOT_UPDATE_LOCAL    1

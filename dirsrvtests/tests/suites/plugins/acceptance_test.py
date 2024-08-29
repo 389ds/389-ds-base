@@ -888,6 +888,10 @@ def test_memberof(topo, args=None):
 
     # stop the plugin, and start it
     plugin = MemberOfPlugin(inst)
+    if (plugin.get_memberofdeferredupdate() and plugin.get_memberofdeferredupdate().lower() == "on"):
+        delay = 5
+    else:
+        delay = 0
     plugin.disable()
     plugin.enable()
 
@@ -922,6 +926,7 @@ def test_memberof(topo, args=None):
                                        'memberOfGroupAttr': 'member',
                                        'memberOfAttr': MEMBER_ATTR})
 
+    time.sleep(delay)
     # Check if the user now has a "memberOf" attribute
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert entries
@@ -929,6 +934,7 @@ def test_memberof(topo, args=None):
     # Remove "member" should remove "memberOf" from the entry
     group.remove_all('member')
 
+    time.sleep(delay)
     # Check that "memberOf" was removed
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert not entries
@@ -943,6 +949,7 @@ def test_memberof(topo, args=None):
     ############################################################################
     group.replace('uniquemember', user1.dn)
 
+    time.sleep(delay)
     # Check if the user now has a "memberOf" attribute
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert entries
@@ -950,6 +957,7 @@ def test_memberof(topo, args=None):
     # Remove "uniquemember" should remove "memberOf" from the entry
     group.remove_all('uniquemember')
 
+    time.sleep(delay)
     # Check that "memberOf" was removed
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert not entries
@@ -971,6 +979,7 @@ def test_memberof(topo, args=None):
                                       'member': user1.dn})
     group.add('objectclass', 'groupOfUniqueNames')
 
+    time.sleep(delay)
     # Test the shared config
     # Check if the user now has a "memberOf" attribute
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
@@ -978,6 +987,7 @@ def test_memberof(topo, args=None):
 
     group.remove_all('member')
 
+    time.sleep(delay)
     # Check that "memberOf" was removed
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert not entries
@@ -989,6 +999,7 @@ def test_memberof(topo, args=None):
 
     group.replace('uniquemember', user1.dn)
 
+    time.sleep(delay)
     # Check if the user now has a "memberOf" attribute
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert entries
@@ -996,6 +1007,7 @@ def test_memberof(topo, args=None):
     # Remove "uniquemember" should remove "memberOf" from the entry
     group.remove_all('uniquemember')
 
+    time.sleep(delay)
     # Check that "memberOf" was removed
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert not entries
@@ -1008,9 +1020,11 @@ def test_memberof(topo, args=None):
 
     # Remove shared config from plugin
     plugin.remove_configarea()
+    inst.restart()
 
     group.replace('member', user1.dn)
 
+    time.sleep(delay)
     # Check if the user now has a "memberOf" attribute
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert entries
@@ -1018,6 +1032,7 @@ def test_memberof(topo, args=None):
     # Remove "uniquemember" should remove "memberOf" from the entry
     group.remove_all('member')
 
+    time.sleep(delay)
     # Check that "memberOf" was removed
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert not entries
@@ -1037,6 +1052,7 @@ def test_memberof(topo, args=None):
     # Add uniquemember, should not update USER1
     group.replace('uniquemember', user1.dn)
 
+    time.sleep(delay)
     # Check for "memberOf"
     entries = inst.search_s(user1.dn, ldap.SCOPE_BASE, '({}=*)'.format(MEMBER_ATTR))
     assert not entries

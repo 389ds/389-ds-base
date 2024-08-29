@@ -855,6 +855,26 @@ class MemberOfPlugin(Plugin):
 
         self.set('memberofskipnested', 'off')
 
+    def get_memberofdeferredupdate(self):
+        """Get memberOfDeferredUpdate attribute"""
+
+        return self.get_attr_val_utf8_l('memberofdeferredupdate')
+
+    def get_memberofdeferredupdate_formatted(self):
+        """Display memberofdeferredupdate attribute"""
+
+        return self.display_attr('memberofdeferredupdate')
+
+    def set_memberofdeferredupdate(self, value):
+        """Set memberofdeferredupdate attribute"""
+
+        self.set('memberofdeferredupdate', value)
+
+    def remove_memberofdeferredupdate(self):
+        """Remove all memberofdeferredupdate attributes"""
+
+        self.remove_all('memberofdeferredupdate')
+
     def get_autoaddoc(self):
         """Get memberofautoaddoc attribute"""
 
