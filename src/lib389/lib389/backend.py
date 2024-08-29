@@ -14,7 +14,7 @@ from lib389._constants import DN_LDBM, DN_CHAIN, DN_PLUGIN, DEFAULT_BENAME
 from lib389.properties import BACKEND_OBJECTCLASS_VALUE, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_CHAIN_BIND_DN, \
                               BACKEND_CHAIN_BIND_PW, BACKEND_CHAIN_URLS, BACKEND_PROPNAME_TO_ATTRNAME, BACKEND_NAME, \
                               BACKEND_SUFFIX, BACKEND_SAMPLE_ENTRIES, TASK_WAIT
-from lib389.utils import normalizeDN, ensure_str, assert_c
+from lib389.utils import normalizeDN, ensure_str, assert_c, ds_is_newer
 from lib389 import Entry
 
 # Need to fix this ....
@@ -513,7 +513,7 @@ class Backend(DSLdapObject):
 
     def _lint_backend_implementation(self):
         backend_impl = self._instance.get_db_lib()
-        if backend_impl == 'bdb':
+        if backend_impl == 'bdb' and ds_is_newer('3.0.0', instance=self._instance):
             result = DSBLE0006
             result['items'] = [self.lint_uid()]
             yield result
