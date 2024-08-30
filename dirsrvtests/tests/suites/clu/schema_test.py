@@ -16,6 +16,39 @@ from lib389.schema import Schema, OBJECT_MODEL_PARAMS
 pytestmark = pytest.mark.tier0
 log = logging.getLogger(__name__)
 
+@pytest.fixture(scope="function")
+def create_attribute(request, topo):
+    schema = Schema(topo.standalone)
+    attr_name = request.param['name']
+    oid = request.param['oid']
+    desc = request.param.get('desc', 'Test attribute')
+    syntax = request.param.get('syntax', '1.3.6.1.4.1.1466.115.121.1.15')
+    x_origin = request.param.get('x_origin', None)
+    sup = request.param.get('sup', None)
+    substr = request.param.get('substr', None)
+
+    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
+    parameters.update({
+        'names': (attr_name,),
+        'oid': oid,
+        'desc': desc,
+        'syntax': syntax,
+    })
+    if x_origin:
+        parameters['x_origin'] = x_origin
+    if sup:
+        parameters['sup'] = sup
+    if substr:
+        parameters['substr'] = substr
+
+    schema.add_attributetype(parameters)
+
+    def fin():
+        schema.remove_attributetype(attr_name)
+
+    request.addfinalizer(fin)
+    return attr_name, schema
+
 
 def test_origins_with_extra_parenthesis(topo):
     """Test the custom schema with extra parenthesis in X-ORIGIN can be parsed
@@ -52,15 +85,18 @@ def test_origins_with_extra_parenthesis(topo):
     # Verify the x-origin value is correct
     assert attr_result['at']['x_origin'][0] == X_ORG_VAL
 
+    # Clean up
+    schema.remove_attributetype(ATTR_NAME)
+
 
 schema_params = [
-    ['attr1', '99999.1', None],
-    ['attr2', '99999.2', 'test-str'],
-    ['attr3', '99999.3', ['test-list']],
-    ['attr4', '99999.4', ('test-tuple')],
+    {'name': 'attr1', 'oid': '99999.1', 'x_origin': None},
+    {'name': 'attr2', 'oid': '99999.2', 'x_origin': 'test-str'},
+    {'name': 'attr3', 'oid': '99999.3', 'x_origin': ['test-list']},
+    {'name': 'attr4', 'oid': '99999.4', 'x_origin': ('test-tuple',)},
 ]
-@pytest.mark.parametrize("name, oid, xorg", schema_params)
-def test_origins(topo, name, oid, xorg):
+@pytest.mark.parametrize("create_attribute", schema_params, indirect=True)
+def test_origins(create_attribute):
     """Test the various possibilities of x-origin
 
     :id: 3229f6f8-67c1-4558-9be5-71434283086a
@@ -70,22 +106,13 @@ def test_origins(topo, name, oid, xorg):
     :expectedresults:
         1. Success
     """
-
-    schema = Schema(topo.standalone)
-
-    # Add new attribute
-    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
-    parameters.update({
-        'names': (name,),
-        'oid': oid,
-        'desc': 'Test X-ORIGIN',
-        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
-        'x_origin': xorg,
-    })
-    schema.add_attributetype(parameters)
+    attr_name, schema = create_attribute
+    attr_result = schema.query_attributetype(attr_name, json=True)
+    assert attr_result['at']['names'][0] == attr_name
 
 
-def test_mrs(topo):
+@pytest.mark.parametrize("create_attribute", [{'name': 'test-mr', 'oid': '99999999', 'desc': 'Test matching rule', 'substr': 'numericstringsubstringsmatch'}], indirect=True)
+def test_mrs(create_attribute):
     """Test an attribute can be added with a matching rule
 
     :id: e4eb06e0-7f80-41fe-8868-08c2bafc7590
@@ -95,21 +122,13 @@ def test_mrs(topo):
     :expectedresults:
         1. Success
     """
-    schema = Schema(topo.standalone)
-
-    # Add new attribute
-    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
-    parameters.update({
-        'names': ('test-mr',),
-        'oid': '99999999',
-        'desc': 'Test matching rule',
-        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
-        'substr': 'numericstringsubstringsmatch',
-    })
-    schema.add_attributetype(parameters)
+    attr_name, schema = create_attribute
+    attr_result = schema.query_attributetype(attr_name, json=True)
+    assert attr_result['at']['names'][0] == attr_name
 
 
-def test_edit_attributetype(topo):
+@pytest.mark.parametrize("create_attribute", [{'name': 'testEditAttr', 'oid': '1.2.3.4.5.6.7.8888', 'desc': 'Test edit attribute type'}], indirect=True)
+def test_edit_attributetype(create_attribute):
     """Test editing an attribute type in the schema
 
     :id: 07c98f6a-89f8-44e5-9cc1-353d1f7bccf4
@@ -123,19 +142,7 @@ def test_edit_attributetype(topo):
         2. Success
         3. Changes are reflected correctly
     """
-
-    schema = Schema(topo.standalone)
-
-    # Add new attribute type
-    attr_name = 'testEditAttr'
-    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
-    parameters.update({
-        'names': (attr_name,),
-        'oid': '1.2.3.4.5.6.7.8888',
-        'desc': 'Test edit attribute type',
-        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
-    })
-    schema.add_attributetype(parameters)
+    attr_name, schema = create_attribute
 
     # Edit the attribute type
     edit_parameters = {
@@ -143,13 +150,11 @@ def test_edit_attributetype(topo):
         'syntax': '1.3.6.1.4.1.1466.115.121.1.26',  # IA5String
     }
     schema.edit_attributetype(attr_name, edit_parameters)
+
     # Verify the changes
     edited_attr = schema.query_attributetype(attr_name, json=True)
     assert edited_attr['at']['desc'][0] == 'Updated description for test edit attribute type'
     assert edited_attr['at']['syntax'][0] == '1.3.6.1.4.1.1466.115.121.1.26'
-
-    # Clean up
-    schema.remove_attributetype(attr_name)
 
 
 def test_edit_objectclass(topo):
@@ -199,7 +204,8 @@ def test_edit_objectclass(topo):
     schema.remove_objectclass(oc_name)
 
 
-def test_edit_attributetype_remove_superior(topo):
+@pytest.mark.parametrize("create_attribute", [{'name': 'testEditAttrSup', 'oid': '1.2.3.4.5.6.7.7777', 'desc': 'Test edit attribute type with superior', 'sup': ('name',)}], indirect=True)
+def test_edit_attributetype_remove_superior(create_attribute):
     """Test editing an attribute type to remove a parameter from it
 
     :id: bd6ae89f-9617-4620-adc2-465884ca568b
@@ -213,20 +219,11 @@ def test_edit_attributetype_remove_superior(topo):
         2. Success
         3. Superior is removed and inherited matching rules are cleared
     """
+    attr_name, schema = create_attribute
 
-    schema = Schema(topo.standalone)
-
-    # Add new attribute type with a superior
-    attr_name = 'testEditAttrSup'
-    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
-    parameters.update({
-        'names': (attr_name,),
-        'oid': '1.2.3.4.5.6.7.7777',
-        'desc': 'Test edit attribute type with superior',
-        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',  # DirectoryString
-        'sup': ('name',),
-    })
-    schema.add_attributetype(parameters)
+    # Verify the attribute was created with a superior
+    initial_attr = schema.query_attributetype(attr_name, json=True)
+    assert 'sup' in initial_attr['at'] and initial_attr['at']['sup'][0] == 'name', "Superior not set correctly"
 
     # Edit the attribute type to remove the superior
     edit_parameters = {
@@ -236,16 +233,14 @@ def test_edit_attributetype_remove_superior(topo):
 
     # Verify the changes
     edited_attr = schema.query_attributetype(attr_name, json=True)
-    assert 'sup' not in edited_attr['at'] or not edited_attr['at']['sup']
-    assert 'equality' not in edited_attr['at'] or not edited_attr['at']['equality']
-    assert 'ordering' not in edited_attr['at'] or not edited_attr['at']['ordering']
-    assert 'substr' not in edited_attr['at'] or not edited_attr['at']['substr']
-
-    # Clean up
-    schema.remove_attributetype(attr_name)
+    assert 'sup' not in edited_attr['at'] or not edited_attr['at']['sup'], "Superior not removed"
+    assert 'equality' not in edited_attr['at'] or not edited_attr['at']['equality'], "Equality matching rule not cleared"
+    assert 'ordering' not in edited_attr['at'] or not edited_attr['at']['ordering'], "Ordering matching rule not cleared"
+    assert 'substr' not in edited_attr['at'] or not edited_attr['at']['substr'], "Substring matching rule not cleared"
 
 
-def test_edit_attribute_keep_custom_values(topo):
+@pytest.mark.parametrize("create_attribute", [{'name': 'testCustomAttr', 'oid': '1.2.3.4.5.6.7.8888', 'desc': 'Initial description for custom attribute'}], indirect=True)
+def test_edit_attribute_keep_custom_values(create_attribute):
     """Test editing a custom schema attribute keeps all custom values
 
     :id: 5b1e2e8b-28c2-4f77-9c03-07eff20f763d
@@ -263,22 +258,9 @@ def test_edit_attribute_keep_custom_values(topo):
         4. Success
         5. Both custom description and OID are preserved
     """
-
-    schema = Schema(topo.standalone)
-
-    # Create a custom attribute
-    attr_name = 'testCustomAttr'
+    attr_name, schema = create_attribute
     initial_oid = '1.2.3.4.5.6.7.8888'
     initial_desc = 'Initial description for custom attribute'
-    
-    parameters = OBJECT_MODEL_PARAMS[AttributeType].copy()
-    parameters.update({
-        'names': (attr_name,),
-        'oid': initial_oid,
-        'desc': initial_desc,
-        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',  # DirectoryString
-    })
-    schema.add_attributetype(parameters)
 
     # Verify the attribute was created correctly
     attr = schema.query_attributetype(attr_name, json=True)
@@ -311,9 +293,6 @@ def test_edit_attribute_keep_custom_values(topo):
 
     # Additional check: Ensure the attribute name wasn't used as the OID
     assert re_edited_attr['at']['oid'][0] != f"{attr_name}-oid", "OID was incorrectly set to '<ATTRIBUTE_NAME>-oid'"
-
-    # Clean up
-    schema.remove_attributetype(attr_name)
 
 
 if __name__ == '__main__':
