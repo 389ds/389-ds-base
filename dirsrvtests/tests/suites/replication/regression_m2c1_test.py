@@ -24,7 +24,7 @@ CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
 MAXAGE_ATTR = 'nsslapd-changelogmaxage'
 MAXAGE_VALUE = '5'
 TRIMINTERVAL = 'nsslapd-changelogtrim-interval'
-TRIMINTERVAL_VALUE = '300'
+TRIMINTERVAL_VALUE = '15'
 MAX_USERS = 10
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -64,7 +64,7 @@ def test_changelog_trimming(topo_m2c1):
     :id: c0b357ed-07a4-4000-bbe0-2fbbf90232c9
     :setup: 2 Suppliers, 1 Consumer
     :steps:
-        1. Configure changelog trimming (maxage=5 and interval=300)
+        1. Configure changelog trimming (maxage=5 and interval=15)
         2. Creates updates on S1 and S2 (that will be also replicated to C1)
         3. Wait for maxage so any previous updates is older than maxage
         4. Pause (disable) the replica agreement S1->S2
@@ -123,7 +123,7 @@ def test_changelog_trimming(topo_m2c1):
     test_user = users_s1.create(properties=test_user_properties)
 
     log.info("Wait for trimming thread to complete")
-    time.sleep(int(TRIMINTERVAL_VALUE) + 10)
+    time.sleep(int(TRIMINTERVAL_VALUE) + 5)
 
     log.info("Resume replica agreement S1->S2")
     S1.agreement.resume(agreement_s1_s2.dn)
