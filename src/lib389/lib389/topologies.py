@@ -506,6 +506,17 @@ def topology_m4(request):
 
 
 @pytest.fixture(scope="module")
+def topology_m2c1(request):
+    """Create Replication Deployment with two suppliers and one consumers"""
+
+    topology = create_topology({ReplicaRole.SUPPLIER: 2,
+                                ReplicaRole.CONSUMER: 1}, request=request)
+
+    topology.logcap = LogCapture()
+    return topology
+
+
+@pytest.fixture(scope="module")
 def topology_m2c2(request):
     """Create Replication Deployment with two suppliers and two consumers"""
 
