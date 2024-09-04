@@ -60,6 +60,8 @@ def test_haproxy_trust_ip_attribute(topo, setup_test):
 
     log.info("Check that nsslapd-haproxy-trusted-ip attribute is present")
     assert topo.standalone.config.present('nsslapd-haproxy-trusted-ip', '192.168.0.1')
+    # Check nsslapd-haproxy-trusted-ip attribute is present in schema
+    assert topo.standalone.schema.query_attributetype('nsslapd-haproxy-trusted-ip') is not None
 
     log.info("Delete nsslapd-haproxy-trusted-ip attribute")
     topo.standalone.config.remove_all('nsslapd-haproxy-trusted-ip')
