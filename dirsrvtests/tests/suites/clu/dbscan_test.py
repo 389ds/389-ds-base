@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 from lib389 import DirSrv
-from lib389._constants import PW_DM, DBSCAN
+from lib389._constants import DBSCAN
 from lib389.topologies import topology_m2 as topo_m2
 from difflib import context_diff
 
@@ -60,7 +60,7 @@ class DbscanPaths:
         pattern = r'^\s+(?:(-[^-,]+), +)?(--[^ ]+).*$'
         for match in re.finditer(pattern, usage, flags=re.MULTILINE):
             for idx in range(1,3):
-                if not match.group(idx) is None:
+                if match.group(idx) is not None:
                     options.append(match.group(idx))
         return options
 
@@ -95,7 +95,7 @@ def dbscan(args, inst=None, expected_rc=0):
     args.insert(0, prog)
     output = subprocess.run(args, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     log.debug(f'{args} result is {output.returncode} output is {output.stdout}')
-    if expected_rc != output.returncode and not expected_rc is None:
+    if expected_rc is not None and expected_rc != output.returncode:
         raise CalledProcessUnexpectedReturnCode(output, expected_rc)
     return output
 
@@ -114,7 +114,7 @@ def paths(topo_m2, request):
     if sys.version_info < (3,5):
         pytest.skip('requires python version >= 3.5')
     paths = DbscanPaths(inst)
-    if not '--do-it' in paths.options:
+    if '--do-it' not in paths.options:
        pytest.skip('Not supported with this dbscan version')
     inst.stop()
     return paths
@@ -169,7 +169,7 @@ def test_dbscan_destructive_actions(paths, request):
     def fin():
         if os.path.exists(export_cn):
             # Restore cn if it was exported successfully but does not exists any more
-            if exportok and not cndbi in DbscanPaths.list_instances(inst, dblib, paths.dbhome):
+            if exportok and cndbi not in DbscanPaths.list_instances(inst, dblib, paths.dbhome):
                     dbscan(['-D', dblib, '-f', cndbi, '-I', export_cn, '--do-it'], inst=inst)
             if not DEBUGGING:
                 os.remove(export_cn)
@@ -210,11 +210,11 @@ def test_dbscan_destructive_actions(paths, request):
                     inst=paths.inst, expected_rc=0)
 
     # Check the error message about missing --do-it
-    assert not expected_msg in result.stdout
+    assert expected_msg not in result.stdout
 
     # Check that cn instance is still present
     curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.dbhome)
-    assert not cndbi in curdbis
+    assert cndbi not in curdbis
 
     # Run dbscan -I import_file ... --do-it
     result = dbscan(['-D', paths.dblib, '-f', cndbi,
@@ -222,7 +222,7 @@ def test_dbscan_destructive_actions(paths, request):
                     inst=paths.inst, expected_rc=0)
 
     # Check the error message about missing --do-it
-    assert not expected_msg in result.stdout
+    assert expected_msg not in result.stdout
 
     # Check that cn instance is still present
     curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.dbhome)

@@ -411,7 +411,7 @@ get_li_directory(const char *fname)
     char *lid = slapi_ch_strdup(fname);
     struct stat sbuf = {0};
     char *pt = NULL;
-    for (int i=0; i<3; i++) {
+    for (int count=0; count<3; count++) {
         if (stat(lid, &sbuf) == 0) {
             if (S_ISDIR(sbuf.st_mode)) {
                 return lid;
@@ -419,7 +419,7 @@ get_li_directory(const char *fname)
             /* Non directory existing file could be regular
              * at the first iteration otherwise it is an error.
              */
-            if (i>0 || !S_ISREG(sbuf.st_mode)) {
+            if (count>0 || !S_ISREG(sbuf.st_mode)) {
                 break;
             }
         }

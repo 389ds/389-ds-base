@@ -144,7 +144,7 @@ enum {
     OPT_REMOVE,
 };
 
-static struct option options[] = {
+static const struct option options[] = {
     /* Options without shortcut */
     { "do-it", no_argument, 0, OPT_DO_IT },
     { "remove", no_argument, 0, OPT_REMOVE },
