@@ -284,19 +284,20 @@ SNMP Agent for the 389 Directory Server base package.
 %if %{with bundle_libdb}
 %package          bdb
 Summary:          Berkeley Database backend for 389 Directory Server
-%description      bdb
-Berkeley Database backend for 389 Directory Server
-Warning! This backend is deprecated in favor of lmdb and its support
-may be removed in future versions.
 
 Requires:         %{name} = %{version}-%{release}
+Requires:         %{name}-libs = %{version}-%{release}
 # Berkeley DB database libdb was marked as deprecated since F40:
 # https://fedoraproject.org/wiki/Changes/389_Directory_Server_3.0.0
 # because libdb was marked as deprecated since F33
 # https://fedoraproject.org/wiki/Changes/Libdb_deprecated
 Provides:         deprecated()
-%endif
 
+%description      bdb
+Berkeley Database backend for 389 Directory Server
+Warning! This backend is deprecated in favor of lmdb and its support
+may be removed in future versions.
+%endif
 
 %package -n python%{python3_pkgversion}-lib389
 Summary:  A library for accessing, testing, and configuring the 389 Directory Server
