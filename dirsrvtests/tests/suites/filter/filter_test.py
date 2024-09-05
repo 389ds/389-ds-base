@@ -10,12 +10,14 @@ import logging
 
 import pytest
 import time
+from ldap import SCOPE_SUBTREE
 from lib389.dirsrv_log import DirsrvAccessLog
 from lib389.tasks import *
 from lib389.backend import Backends, Backend
 from lib389.dbgen import dbgen_users, dbgen_groups
 from lib389.topologies import topology_st
 from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX, DN_CONFIG_LDBM
+from lib389.idm.user import UserAccount, UserAccounts
 from lib389.utils import *
 
 pytestmark = pytest.mark.tier1
@@ -431,6 +433,120 @@ def test_match_large_valueset(topology_st):
     log.info("Duration of the search from access log was %f", etime)
     assert len(entries) == groups_number
     assert (etime < 5)
+
+def test_filter_not_operator(topology_st, request):
+    """Test ldapsearch with scope one gives only single entry
+
+    :id: b3711e02-7e76-444d-82f3-495c6dadd97f
+    :setup: Standalone instance
+    :steps:
+         1. Creating user1..user9
+         2. Adding specific 'telephonenumber' to the users
+         3. Check returned set (5 users) with the first filter
+         4. Check returned set (4 users) with the second filter
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+         3. This should pass
+         4. This should pass
+    """
+
+    topology_st.standalone.start()
+    # Creating Users
+    log.info('Create users from user1 to user9')
+    users = UserAccounts(topology_st.standalone, "ou=people,%s" % DEFAULT_SUFFIX, rdn=None)
+
+    for user in ['user1',
+                 'user2',
+                 'user3',
+                 'user4',
+                 'user5',
+                 'user6',
+                 'user7',
+                 'user8',
+                 'user9']:
+        users.create(properties={
+            'mail': f'{user}@redhat.com',
+            'uid': user,
+            'givenName': user.title(),
+            'cn': f'bit {user}',
+            'sn': user.title(),
+            'manager': f'uid={user},{SUFFIX}',
+            'userpassword': PW_DM,
+            'homeDirectory': '/home/' + user,
+            'uidNumber': '1000',
+            'gidNumber': '2000',
+        })
+    # Adding specific values to the users
+    log.info('Adding telephonenumber values')
+    user = UserAccount(topology_st.standalone, 'uid=user1, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '2345'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user2, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '4567'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user3, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '4567'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user4, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user5, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['2345'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user6, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['3456'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user7, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['4567'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user8, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234'])
+
+    user = UserAccount(topology_st.standalone, 'uid=user9, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '4567'])
+
+    # Do a first test of filter containing a NOT
+    # and check the expected values are retrieved
+    log.info('Search with filter containing NOT')
+    log.info('expect user2, user3, user6, user8 and user9')
+    filter1 = "(|(telephoneNumber=3456)(&(telephoneNumber=1234)(!(|(uid=user1)(uid=user4)))))"
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, SCOPE_SUBTREE, filter1)
+    uids = []
+    for entry in entries:
+        assert entry.hasAttr('uid')
+        uids.append(entry.getValue('uid'))
+
+    assert len(uids) == 5
+    for uid in [b'user2', b'user3', b'user6', b'user8', b'user9']:
+        assert uid in uids
+
+    # Do a second test of filter containing a NOT
+    # and check the expected values are retrieved
+    log.info('Search with a second filter containing NOT')
+    log.info('expect user2, user3, user8 and user9')
+    filter1 = "(|(&(telephoneNumber=1234)(!(|(uid=user1)(uid=user4)))))"
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, SCOPE_SUBTREE, filter1)
+    uids = []
+    for entry in entries:
+        assert entry.hasAttr('uid')
+        uids.append(entry.getValue('uid'))
+
+    assert len(uids) == 4
+    for uid in [b'user2', b'user3', b'user8', b'user9']:
+        assert uid in uids
+
+    def fin():
+        """
+        Deletes entries after the test.
+        """
+        for user in users.list():
+            pass
+            user.delete()
+
+
+    request.addfinalizer(fin)
+
 
 if __name__ == '__main__':
     # Run isolated
