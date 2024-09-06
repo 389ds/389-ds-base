@@ -31,50 +31,94 @@ Scans a Directory Server database index file and dumps the contents.
 .\" respectively.
 .SH OPTIONS
 A summary of options is included below:
+.IP
+common options:
 .TP
-.B \fB\-f\fR <filename>
-specify db file
+.B \fB\-A, \-\-ascii\fR
+dump as ascii data
 .TP
-.B \fB\-R\fR
+.B \fB\-D, \-\-db\-type\fR <filename>
+specify db type: bdb or mdb
+.TP
+.B \fB\-f, \-\-dbi\fR <filename>
+specify db instance
+.TP
+.B \fB\-R, \-\-raw\fR
 dump as raw data
 .TP
-.B \fB\-t\fR <size>
+.B \fB\-t, \-\-truncate\-entry\fR <size>
 entry truncate size (bytes)
 .IP
 entry file options:
 .TP
-.B \fB\-K\fR <entry_id>
+.B \fB\-K, \-\-entry\-id\fR <entry_id>
 lookup only a specific entry id
+.IP
 index file options:
 .TP
-.B \fB\-k\fR <key>
+.B \fB\-G, \-\-id\-list\-min\-size\fR <n>
+only display index entries with more than <n> ids
+.TP
+.B \fB\-I, \-\-import\fR <file>
+Import database instance from file. Requires \-\-do\-it parameter
+WARNING! Only the id2entry and replication_changelog database instances
+may be imported by dbscan.
+.TP
+.B \fB\-k, \-\-key\fR <key>
 lookup only a specific key
 .TP
-.B \fB\-l\fR <size>
+.B \fB\-l, \-\-id\-list\-max\-size\fR <size>
 max length of dumped id list
 (default 4096; 40 bytes <= size <= 1048576 bytes)
 .TP
-.B \fB\-G\fR <n>
-only display index entries with more than <n> ids
-.TP
-.B \fB\-n\fR
+.B \fB\-n, \-\-show\-id\-list\-lenghts\fR
 display ID list lengths
 .TP
-.B \fB\-r\fR
+.B \fB\-\-remove\fR
+remove a db instance. Requires \-\-do\-it parameter
+.TP
+.B \fB\-r, \-\-show\-id\-list\fR
 display the contents of ID list
 .TP
-.B \fB\-s\fR
+.B \fB\-S, \-\-stats\fR
+display statistics
+.TP
+.B \fB\-X, \-\-export\fR <file>
+Export database instance to file
+.IP
+other options:
+.TP
+.B \fB\-s, \-\-summary\fR
 Summary of index counts
+.TP
+.B \fB\-L, \-\-list\fR
+List od database instances
+.TP
+.B \fB\-\-do\-it\fR
+confirmation required for actions that change the database contents
+.TP
+.B \fB\-h, \-\-help\-it\fR
+display the usage
 .IP
 .SH USAGE
 Sample usages:
+.TP
+List the database instances
+.B
+dbscan -L /var/lib/dirsrv/slapd-supplier1/db
 .TP
 Dump the entry file:
 .B
 dbscan \fB\-f\fR id2entry.db4
 .TP
 Display index keys in cn.db4:
-.B dbscan \fB\-f\fR cn.db4
+.B
+dbscan \fB\-f\fR cn.db4
+.TP
+Display index keys in cn on lmdb:
+.B
+dbscan \fB\-f\fR /var/lib/dirsrv/slapd\-supplier1/db/userroot/cn.db
+ (Note: Use \fBdbscan \-L db_home_dir\R to get the db instance path)
 .TP
 Display index keys and the count of entries having the key in mail.db4:
 .B
@@ -86,7 +130,7 @@ dbscan \fB\-r\fR \fB\-G\fR 20 \fB\-f\fR sn.db4
 .TP
 Display summary of objectclass.db4:
 .B
-dbscan \fB\-f\fR objectclass.db4
+dbscan \fB\-s \-f\fR objectclass.db4
 .br
 .SH AUTHOR
 dbscan was written by the 389 Project.
