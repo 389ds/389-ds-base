@@ -481,7 +481,10 @@ int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
         slapi_ch_free_string(&li->li_directory);
         slapi_ch_free((void**)&li->li_dblayer_private);
         slapi_ch_free((void**)&li->li_dblayer_config);
-        ldbm_config_destroy(li);
+        if (dblayer_is_lmdb(*be)) {
+            /* Generate use after free and double free in bdb case */
+            ldbm_config_destroy(li);
+        }
         slapi_ch_free((void**)&(*be)->be_database);
         slapi_ch_free((void**)&(*be)->be_instance_info);
         slapi_ch_free((void**)be);

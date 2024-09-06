@@ -199,6 +199,14 @@ def run_dbscan(args):
     return output
 
 
+def does_dbscan_need_do_it():
+    prefix = os.environ.get('PREFIX', "")
+    prog = f'{prefix}/bin/dbscan'
+    args = [ prog, '-h' ]
+    output = subprocess.run(args, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return '--do-it' in output.stdout
+
+
 def export_changelog(be, dblib):
     # Export backend changelog
     if not be['has_changelog']:
@@ -217,7 +225,10 @@ def import_changelog(be, dblib):
     try:
         cl5dbname = be['eccl5dbname'] if dblib == "bdb" else be['cl5dbname']
         _log.info(f"Importing changelog {cl5dbname} from {be['cl5name']}")
-        run_dbscan(['-D', dblib, '-f', cl5dbname, '--import', be['cl5name'], '--do-it'])
+        if does_dbscan_need_do_it():
+            run_dbscan(['-D', dblib, '-f', cl5dbname, '-I', be['cl5name'], '--do-it'])
+        else:
+            run_dbscan(['-D', dblib, '-f', cl5dbname, '-I', be['cl5name']])
         return True
     except subprocess.CalledProcessError as e:
         return False
