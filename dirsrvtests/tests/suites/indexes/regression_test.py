@@ -10,6 +10,9 @@ import time
 import os
 import pytest
 import ldap
+import logging
+import glob
+import re
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
 from lib389.backend import Backend, Backends, DatabaseConfig
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
@@ -31,6 +34,8 @@ SUFFIX2 = 'dc=example2,dc=com'
 BENAME2 = 'be2'
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
+logging.getLogger(__name__).setLevel(logging.INFO)
+log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="function")
@@ -83,6 +88,7 @@ def add_a_group_with_users(request, topo):
             'cn': USER_NAME,
             'uidNumber': f'{num}',
             'gidNumber': f'{num}',
+            'description': f'Description for {USER_NAME}',
             'homeDirectory': f'/home/{USER_NAME}'
         })
         users_list.append(user)
@@ -95,9 +101,10 @@ def add_a_group_with_users(request, topo):
         # If the server crashed, start it again to do the cleanup
         if not topo.standalone.status():
             topo.standalone.start()
-        for user in users_list:
-            user.delete()
-        group.delete()
+        if not DEBUGGING:
+            for user in users_list:
+                user.delete()
+            group.delete()
 
     request.addfinalizer(fin)
 
@@ -123,6 +130,38 @@ def set_small_idlistscanlimit(request, topo):
         topo.standalone.restart()
 
     request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="function")
+def set_description_index(request, topo, add_a_group_with_users):
+    """
+    Set some description values and description index without reindexing.
+    """
+    inst = topo.standalone
+    backends = Backends(inst)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+    attr = 'description'
+
+    def fin(always=False):
+        if always or not DEBUGGING:
+            try:
+                idx = indexes.get(attr)
+                idx.delete()
+            except ldap.NO_SUCH_OBJECT:
+                pass
+
+    request.addfinalizer(fin)
+    fin(always=True)
+    index = indexes.create(properties={
+        'cn': attr,
+        'nsSystemIndex': 'false',
+        'nsIndexType': ['eq', 'pres', 'sub']
+        })
+    # Restart needed with lmdb (to open the dbi handle)
+    inst.restart()
+    return (indexes, attr)
+
 
 #unstable or unstatus tests, skipped for now
 @pytest.mark.flaky(max_runs=2, min_passes=1)
@@ -345,6 +384,102 @@ def test_task_status(topo):
     assert reindex_task.status()
     # Bad attribute are skipped without setting error code
     assert reindex_task.get_exit_code() == 0
+
+
+def count_keys(inst, bename, attr, prefix=''):
+    indexfile = os.path.join(inst.dbdir, bename, attr + '.db')
+    # (bdb - we should also accept a version number for .db suffix)
+    for f in glob.glob(f'{indexfile}*'):
+        indexfile = f
+
+    inst.stop()
+    output = inst.dbscan(None, None, args=['-f', indexfile, '-A'], stopping=False).decode()
+    inst.start()
+    count = 0
+    regexp = f'^KEY: {re.escape(prefix)}'
+    for match in re.finditer(regexp, output, flags=re.MULTILINE):
+        count += 1
+    log.info(f"count_keys found {count} keys starting with '{prefix}' in {indexfile}")
+    return count
+
+
+def test_reindex_task_with_type(topo, set_description_index):
+    """Check that reindex task works as expected when index type is specified.
+
+    :id: 0c7f2fda-69f6-11ef-9eb8-083a88554478
+    :setup: Standalone instance
+             - with 100 users having description attribute
+             - with description:eq,pres,sub index entry but not yet reindexed
+    :steps:
+        1. Set description in suffix entry
+        2. Count number of equality keys in description index
+        3. Start a Reindex task on description:eq,pres and wait for completion
+        4. Check the task status and exit code
+        5. Count the equality, presence and substring keys in description index
+        6. Start a Reindex task on description and wait for completion
+        7. Check the task status and exit code
+        8. Count the equality, presence and substring keys in description index
+
+    :expectedresults:
+        1. Success
+        2. Should be either no key (bdb) or a single one (lmdb)
+        3. Success
+        4. Success
+        5. Should have: more equality keys than in step 2
+                        one presence key
+                        some substrings keys
+        6. Success
+        7. Success
+        8. Should have same counts than in step 5
+    """
+    (indexes, attr) = set_description_index
+    inst = topo.standalone
+    if not inst.is_dbi_supported():
+        pytest.skip('This test requires that dbscan supports -A option')
+    # modify indexed value
+    Domain(inst, DEFAULT_SUFFIX).replace(attr, f'test_before_reindex')
+
+    keys1 = count_keys(inst, DEFAULT_BENAME, attr, prefix='=')
+    assert keys1 <= 1
+
+    tasks = Tasks(topo.standalone)
+    # completed reindex tasks MUST have a status because freeipa check it.
+
+    # Reindex attr with eq,pres types
+    log.info(f'Reindex {attr} with eq,pres types')
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=f'{attr}:eq,pres',
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    assert reindex_task.get_exit_code() == 0
+
+    keys2e = count_keys(inst, DEFAULT_BENAME, attr, prefix='=')
+    keys2p = count_keys(inst, DEFAULT_BENAME, attr, prefix='+')
+    keys2s = count_keys(inst, DEFAULT_BENAME, attr, prefix='*')
+    assert keys2e > keys1
+    assert keys2p > 0
+    assert keys2s > 0
+
+    # Reindex attr without types
+    log.info(f'Reindex {attr} without types')
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname=attr,
+        args={TASK_WAIT: True}
+    )
+    reindex_task = Task(topo.standalone, tasks.dn)
+    assert reindex_task.status()
+    assert reindex_task.get_exit_code() == 0
+
+    keys3e = count_keys(inst, DEFAULT_BENAME, attr, prefix='=')
+    keys3p = count_keys(inst, DEFAULT_BENAME, attr, prefix='+')
+    keys3s = count_keys(inst, DEFAULT_BENAME, attr, prefix='*')
+    assert keys3e == keys2e
+    assert keys3p == keys2p
+    assert keys3s == keys2s
 
 
 def test_task_and_be(topo, add_backend_and_ldif_50K_users):

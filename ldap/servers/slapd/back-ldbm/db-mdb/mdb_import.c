@@ -1150,6 +1150,8 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
      * TBD
      */
     char **attrs = NULL;
+    char *attrname = NULL;
+    char *pt = NULL;
     int i;
 
     slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &attrs);
@@ -1157,7 +1159,13 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
     for (i = 0; attrs && attrs[i]; i++) {
         switch (attrs[i][0]) {
         case 't': /* attribute type to index */
-            slapi_ch_array_add(&ctx->indexAttrs, slapi_ch_strdup(attrs[i] + 1));
+            attrname = slapi_ch_strdup(attrs[i] + 1);
+            /* Strip index type */
+            pt = strchr(attrname, ':');
+            if (pt != NULL) {
+                *pt = '\0';
+            }
+            slapi_ch_array_add(&ctx->indexAttrs, attrname);
             break;
         case 'T': /* VLV Search to index */
             slapi_ch_array_add(&ctx->indexVlvs, get_vlv_dbname(attrs[i] + 1));
