@@ -5794,8 +5794,16 @@ bdb_import_file_name(ldbm_instance *inst)
 static char *
 bdb_restore_file_name(struct ldbminfo *li)
 {
-    char *fname = slapi_ch_smprintf("%s/../.restore", li->li_directory);
-
+    char *pt = strrchr(li->li_directory, '/');
+    char *fname =  NULL;
+    if (pt == NULL) {
+        fname = slapi_ch_strdup(".restore");
+    } else {
+        size_t len = pt-li->li_directory;
+        fname = slapi_ch_malloc(len+10);
+        strncpy(fname, li->li_directory, len);
+        strcpy(fname+len, "/.restore");
+    }
     return fname;
 }
 

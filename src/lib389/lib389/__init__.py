@@ -3050,14 +3050,17 @@ class DirSrv(SimpleLDAPObject, object):
             return self._dbisupport
         # check if -D and -L options are supported
         try:
-            cmd = ["%s/dbscan" % self.get_bin_dir(), "--help"]
+            cmd = ["%s/dbscan" % self.get_bin_dir(), "-h"]
             self.log.debug("DEBUG: checking dbscan supported options %s" % cmd)
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         except subprocess.CalledProcessError:
             pass
         output, stderr = p.communicate()
-        self.log.debug("is_dbi_supported output " + output.decode())
-        if "-D <dbimpl>" in output.decode() and "-L <dbhome>" in output.decode():
+        output = output.decode()
+        self.log.debug("is_dbi_supported output " + output)
+        if "-D <dbimpl>" in output and "-L <dbhome>" in output:
+            self._dbisupport = True
+        elif "--db-type" in output and "--list" in output:
             self._dbisupport = True
         else:
             self._dbisupport = False

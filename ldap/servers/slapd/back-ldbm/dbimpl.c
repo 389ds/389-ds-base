@@ -397,7 +397,48 @@ const char *dblayer_op2str(dbi_op_t op)
     return str[idx];
 }
 
-/* Open db env, db and db file privately */
+/* Get the li_directory directory from the database instance name -
+ * Caller should free the returned value
+ */
+static char *
+get_li_directory(const char *fname)
+{
+    /*
+     * li_directory is an existing directory.
+     * it can be fname or its parent or its greatparent
+     * in case of problem returns the provided name
+     */
+    char *lid = slapi_ch_strdup(fname);
+    struct stat sbuf = {0};
+    char *pt = NULL;
+    for (int count=0; count<3; count++) {
+        if (stat(lid, &sbuf) == 0) {
+            if (S_ISDIR(sbuf.st_mode)) {
+                return lid;
+            }
+            /* Non directory existing file could be regular
+             * at the first iteration otherwise it is an error.
+             */
+            if (count>0 || !S_ISREG(sbuf.st_mode)) {
+                break;
+            }
+        }
+        pt = strrchr(lid, '/');
+        if (pt == NULL) {
+            slapi_ch_free_string(&lid);
+            return slapi_ch_strdup(".");
+        }
+        *pt = '\0';
+    }
+    /*
+     * Error case. Returns a copy of the original string:
+     *  and let dblayer_private_open_fn fail to open the database
+     */
+    slapi_ch_free_string(&lid);
+    return slapi_ch_strdup(fname);
+}
+
+/* Open db env, db and db file privately (for dbscan) */
 int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
 {
     struct ldbminfo *li;
@@ -412,7 +453,7 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Sl
     li->li_plugin = (*be)->be_database;
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
-    li->li_directory = slapi_ch_strdup(dbfilename);
+    li->li_directory = get_li_directory(dbfilename);
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, plgname);
@@ -439,7 +480,10 @@ int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
         }
         slapi_ch_free((void**)&li->li_dblayer_private);
         slapi_ch_free((void**)&li->li_dblayer_config);
-        ldbm_config_destroy(li);
+        if (dblayer_is_lmdb(*be)) {
+            /* Generate use after free and double free in bdb case */
+            ldbm_config_destroy(li);
+        }
         slapi_ch_free((void**)&(*be)->be_database);
         slapi_ch_free((void**)&(*be)->be_instance_info);
         slapi_ch_free((void**)be);
