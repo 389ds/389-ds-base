@@ -16,6 +16,10 @@ from lib389.dseldif import DSEldif
 
 pytestmark = pytest.mark.tier1
 
+# set_db_type_and_state fixture parameters
+db_types_and_states = [('bdb,stopped'), ('mdb,stopped'), ('bdb,started'), ('mdb,started')]
+
+
 def test_config_compare(topology_i2):
     """
     Compare test between cn=config of two different Directory Server intance.
@@ -44,79 +48,52 @@ def test_config_compare(topology_i2):
     assert Config.compare(st1_config, st2_config)
 
 
-@pytest.fixture(scope="function")
-def save_dse(topology_i2, request):
+@pytest.fixture(scope="function", params=db_types_and_states)
+def set_db_type_and_state(topology_i2, request):
     """
     Stop standalone1 instance and save its dse.ldif then restore things at teardown.
     """
     inst = topology_i2.ins.get('standalone1')
+    dbtype,state = request.param.split(',')
     inst.stop()
+    becfgdn = 'cn=config,cn=ldbm database,cn=plugins,cn=config'
+    becfgattr = 'nsslapd-backend-implement'
+    save_dse_ldif = DSEldif(inst)
     dse_ldif = DSEldif(inst)
+    dse_ldif.replace(becfgdn, becfgattr, dbtype)
+    if state == 'started':
+        inst.start()
 
     def fin():
-        dse_ldif._update()
+        save_dse_ldif._update()
         inst.start()
 
     request.addfinalizer(fin)
+    return (dbtype,state)
 
 
-def get_db_lib(inst):
-    """
-    Clear cache and returns inst.get_db_lib()
-    """
-    with suppress(AttributeError):
-        del inst._db_lib
-    return inst.get_db_lib()
-
-
-def test_get_db_lib(topology_i2, save_dse):
+def test_get_db_lib(request, topology_i2, set_db_type_and_state):
     """
     Check that get_db_lib() returns the configured database type.
 
     :id: 04205590-6c70-11ef-bfae-083a88554478
 
-    :setup: two isolated directory servers. standalone1 is stopped.
+    :setup: two isolated directory servers. standalone1 is set with
+            a specified db type and instance state.
 
-    :steps: 1. Configure standalone1 with bdb
-            2. Check that test_get_db_lib() returns bdb 
-            3. Start standalone1 instance
-            4. Check that test_get_db_lib() returns bdb 
-            5. Stop standalone1 instance
-            6. Configure standalone1 with mdb
-            7. Check that test_get_db_lib() returns mdb 
-            8. Start standalone1 instance
-            9. Check that test_get_db_lib() returns mdb 
+    :steps: 1. Clear get_db_lib cache
+            2. Check that inst.get_db_lib() returns the expected db type
 
     :expectedresults: 1. Success
                       2. Success
-                      3. Success
-                      4. Success
-                      5. Success
-                      6. Success
-                      7. Success
-                      8. Success
-                      9. Success
     """
 
     inst = topology_i2.ins.get('standalone1')
-    dse_ldif = DSEldif(inst)
-    becfgdn = 'cn=config,cn=ldbm database,cn=plugins,cn=config'
-    becfgattr = 'nsslapd-backend-implement'
+    dbtype,state = set_db_type_and_state
 
-    # Set db type to: bdb
-    becfgval = 'bdb'
-    dse_ldif.replace(becfgdn, becfgattr, becfgval)
-    assert get_db_lib(inst) == becfgval
-    inst.start()
-    assert get_db_lib(inst) == becfgval
-    inst.stop()
-
-    # Set db type to: mdb
-    becfgval = 'mdb'
-    dse_ldif.replace(becfgdn, becfgattr, becfgval)
-    assert get_db_lib(inst) == becfgval
-    inst.start()
-    assert get_db_lib(inst) == becfgval
+    with suppress(AttributeError):
+        del inst._db_lib
+    assert inst.get_db_lib() == dbtype
 
 
 if __name__ == '__main__':
