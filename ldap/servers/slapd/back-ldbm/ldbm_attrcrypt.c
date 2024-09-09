@@ -658,6 +658,10 @@ log_bytes(char *format_string, unsigned char *bytes, size_t length)
     char *print_buffer = NULL;
     char *print_ptr = NULL;
 
+    if (bytes == NULL) {
+        return;
+    }
+
     print_buffer = (char *)slapi_ch_malloc((truncated_length * 3) + 1);
     print_ptr = print_buffer;
 

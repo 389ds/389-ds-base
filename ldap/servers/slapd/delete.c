@@ -381,6 +381,7 @@ free_and_return:
         slapi_entry_free(eparent);
         slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &coldn);
         slapi_ch_free_string(&coldn);
+        slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, NULL);
     }
 
     slapi_pblock_get(pb, SLAPI_DELETE_TARGET_SDN, &sdn);

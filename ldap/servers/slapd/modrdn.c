@@ -688,6 +688,7 @@ free_and_return_nolock : {
 
     slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &s);
     slapi_ch_free((void **)&s);
+    slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, NULL);
 }
 }
 
