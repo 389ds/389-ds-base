@@ -878,11 +878,11 @@ class DirSrv(SimpleLDAPObject, object):
         with suppress(AttributeError):
             return self._db_lib
         with suppress(Exception):
-            from backend import DatabaseConfig
+            from lib389.backend import DatabaseConfig
             self._db_lib = DatabaseConfig(self).get_db_lib()
             return self._db_lib
         with suppress(Exception):
-            dse_ldif = DSEldif(None, self)
+            dse_ldif = DSEldif(self)
             self._db_lib = dse_ldif.get(DN_CONFIG_LDBM, "nsslapd-backend-implement", single=True)
             return self._db_lib
         return get_default_db_lib()
