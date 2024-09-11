@@ -397,6 +397,7 @@ const char *dblayer_op2str(dbi_op_t op)
     return str[idx];
 }
 
+<<<<<<< HEAD
 /* Get the li_directory directory from the database instance name -
  * Caller should free the returned value
  */
@@ -439,6 +440,8 @@ get_li_directory(const char *fname)
 }
 
 /* Open db env, db and db file privately (for dbscan) */
+=======
+/* Open db env, db and db file privately (used by dbscan) */
 int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
 {
     struct ldbminfo *li;
@@ -454,6 +457,7 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Sl
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = get_li_directory(dbfilename);
+    li->li_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, plgname);
@@ -541,6 +545,10 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome)
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = slapi_ch_strdup(dbhome);
+    /* Set SLAPI_TASK_RUNNING_FROM_COMMANDLINE to tell that
+     * read-only bdb is usable with dbscan
+     */
+    li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, dbimpl_name);

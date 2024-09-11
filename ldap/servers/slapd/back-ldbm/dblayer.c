@@ -177,6 +177,19 @@ backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
         /* mdb ==> lets use default (libback-ldbm.so) */
         return li->li_plugin->plg_libpath;
     }
+    if (PR_FindSymbolAndLibrary("bdbro_getcb_vector", &lib)) {
+        /* read-only bdb is used ==> should be using dbscan or ns-slapd db2ldif
+         * bdb_init is within libback-ldbm.so ==> lets use default (libback-ldbm.so)
+         */
+        if ((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) == 0) {
+            slapi_log_error(SLAPI_LOG_FATAL, "dblayer_setup",
+                            "bdb implementation is no more supported."
+                            " Directory server cannot be started without migrating to lmdb first."
+                            " To migrate, please run: dsctl instanceName dblib bdb2mdb\n");
+            exit(1);
+        }
+        return li->li_plugin->plg_libpath;
+    }
     if (PR_FindSymbolAndLibrary("bdb_init", &lib)) {
         /* bdb_init is within libback-ldbm.so ==> lets use default (libback-ldbm.so) */
         return li->li_plugin->plg_libpath;
@@ -1462,9 +1475,9 @@ dblayer_is_lmdb(Slapi_Backend *be)
 }
 
 /*
- * Iterate on the provided curor starting at startingkey (or first key if 
+ * Iterate on the provided curor starting at startingkey (or first key if
  *  startingkey is NULL) and call action_cb for each records
- * 
+ *
  * action_cb callback returns:
  *     DBI_RC_SUCCESS to iterate on next entry
  *     DBI_RC_NOTFOUND to stop iteration with DBI_RC_SUCCESS code
