@@ -1,0 +1,8 @@
+
+The library code in 
+https://github.com/389ds/389-ds-base/lib/librobdb is derivated from RPM project 
+ https://github.com/rpm-software-management/rpm project
+As it is derivated from the RPM lib code, this code may be either distributed 
+under the terms of the GNU General Public License (GPL) or under the GNU
+Library General Public License (LGPL).
+The complete text of both licenses are in COPYING.RPM, the RPM license file
