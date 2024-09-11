@@ -1,5 +1,5 @@
 # BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -68,10 +68,37 @@ AC_ARG_WITH(db-lib, AS_HELP_STRING([--with-db-lib=PATH],[Berkeley DB library dir
 ],
 AC_MSG_RESULT(no))
 
+# check for --with-libbdb-ro
+AC_MSG_CHECKING(for --with-libbdb-ro)
+AC_ARG_WITH(libbdb-ro, AS_HELP_STRING([--with-libbdb-ro],[Use a read-only Berkeley Database shared library (default: use standard or bundled libbdb)]),
+[
+  if test "$withval" = "yes"; then
+    with_libbdb_ro=yes
+    AC_MSG_RESULT(yes)
+    AC_SUBST(with_libbdb_ro)
+  else
+    with_libbdb_ro=no
+    AC_MSG_RESULT(no)
+  fi
+],
+[
+    with_libbdb_ro=yes
+    AC_MSG_RESULT(yes)
+    AC_SUBST(with_libbdb_ro)
+])
+AM_CONDITIONAL([WITH_LIBBDB_RO],[test "$with_libbdb_ro" != no])
+
 dnl - check in system locations
+db_bdb_srcdir="ldap/servers/slapd/back-ldbm/db-bdb"
 if test -z "$db_inc"; then
   AC_MSG_CHECKING(for db.h)
-  if test -f "/usr/include/db4/db.h"; then
+  if test "$with_libbdb_ro" = yes; then
+    AC_MSG_RESULT([using lib/librobdb/lib/robdb.h])
+    db_incdir="lib/librobdb/lib"
+    db_inc="-Ilib/librobdb/lib"
+    db_libdir=""
+    db_lib="-lrobdb"
+  elif test -f "/usr/include/db4/db.h"; then
     AC_MSG_RESULT([using /usr/include/db4/db.h])
     db_incdir="/usr/include/db4"
     db_inc="-I/usr/include/db4"
@@ -96,9 +123,15 @@ if test -z "$db_inc"; then
 fi
 
 dnl figure out which version of db we're using from the header file
+if test "$with_libbdb_ro" = yes; then
+db_ver_maj=5
+db_ver_min=3
+db_ver_pat=0
+else
 db_ver_maj=`grep DB_VERSION_MAJOR $db_incdir/db.h | awk '{print $3}'`
 db_ver_min=`grep DB_VERSION_MINOR $db_incdir/db.h | awk '{print $3}'`
 db_ver_pat=`grep DB_VERSION_PATCH $db_incdir/db.h | awk '{print $3}'`
+fi
 
 dnl Ensure that we have libdb at least 4.7, older versions aren't supported
 if test ${db_ver_maj} -lt 4; then
@@ -111,12 +144,14 @@ dnl libname is libdb-maj.min e.g. libdb-4.2
 db_libver=${db_ver_maj}.${db_ver_min}
 dnl make sure the lib is available
 dnl use true so libdb won't be added to LIBS
+if test "$with_libbdb_ro" != yes; then
 save_ldflags="$LDFLAGS"
 LDFLAGS="$db_lib $LDFLAGS"
 AC_CHECK_LIB([db-$db_libver], [db_create], [true],
   [AC_MSG_ERROR([$db_incdir/db.h is version $db_libver but libdb-$db_libver not found])],
   [$LIBNSL])
 LDFLAGS="$save_ldflags"
+fi
 
 # if DB is not found yet, try pkg-config
 
@@ -133,7 +168,8 @@ else
   db_bindir=/usr/bin
 fi
 
-
+AC_SUBST(db_bdb_srcdir)
+AC_SUBST(db_bdbro_srcdir)
 AC_SUBST(db_inc)
 AC_SUBST(db_incdir)
 AC_SUBST(db_lib)

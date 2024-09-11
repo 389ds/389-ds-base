@@ -26,6 +26,8 @@
 %bcond repl_reports 1
 %endif
 
+%bcond libbdb_ro %{!defined rhel}
+
 # This is used in certain builds to help us know if it has extra features.
 %global variant base
 %global prerel __VERSION_PREREL__%{nil}
@@ -112,8 +114,10 @@ BuildRequires:    libtsan
 BuildRequires:    libubsan
 %endif
 %endif
+%if %{without libbdb_ro}
 %if %{without bundle_libdb}
 BuildRequires:    libdb-devel
+%endif
 %endif
 
 # The following are needed to build the snmp ldap-agent
@@ -173,15 +177,21 @@ Requires:         cyrus-sasl-md5
 # This is optionally supported by us, as we use it in our tests
 Requires:         cyrus-sasl-plain
 # this is needed for backldbm
+%if %{with libbdb_ro}
+Requires:         %{name}-robdb-libs-%{version}
+%else
 %if %{without bundle_libdb}
 Requires:         libdb
+%endif
 %endif
 Requires:         lmdb
 # This picks up libperl.so as a Requires, so we add this versioned one
 Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 # Needed by logconv.pl
+%if %{without libbdb_ro}
 %if %{without bundle_libdb}
 Requires:         perl-DB_File
+%endif
 %endif
 Requires:         perl-Archive-Tar
 %if 0%{?fedora} >= 33 || 0%{?rhel} >= 9
@@ -215,6 +225,17 @@ the LDAP server and command line utilities for server administration.
 WARNING! This build is linked to Address Sanitisation libraries. This probably
 isn't what you want. Please contact support immediately.
 Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
+%endif
+
+%if %{with libbdb_ro}
+%package        robdb-libs
+Summary:        Read-only Berkeley Database Library
+License:        GPL-2.0-or-later OR LGPL-2.1-or-later
+
+%description    robdb-libs
+The %{name}-robdb-lib package contains a library derived from rpm
+project (https://github.com/rpm-software-management/rpm) that provides
+some basic functions to search and read Berkeley Database records
 %endif
 
 
@@ -431,6 +452,9 @@ popd
 autoreconf -fiv
 
 %configure \
+%if %{with libbdb_ro}
+          --with-libbdb-ro \
+%endif
 %if %{with bundle_libdb}
            --with-bundle-libdb=%{_builddir}/%{libdb_base_version}/BUILD/%{libdb_base_dir}/dist/dist-tls \
 %endif
@@ -536,6 +560,24 @@ cp -pa $libdbbuilddir/dist/dist-tls/.libs/%{libdb_bundle_name} $RPM_BUILD_ROOT%{
 popd
 %endif
 
+%if %{with libbdb_ro}
+mkdir -p ../robdb
+pushd ../robdb
+tar -xjf %{_sourcedir}/%{name}-%{version}.tar.bz2 --transform "s,^%{name}-%{version}/lib/librobdb,.," %{name}-%{version}/lib/librobdb/*
+cp -pa COPYING COPYING.librobdb
+cp -pa COPYING %{_builddir}/%{name}-%{version}/COPYING.librobdb
+cp -pa COPYING.RPM %{_builddir}/%{name}-%{version}/COPYING.RPM
+install -m 0755 -d %{buildroot}/%{_libdir}
+install -m 0755 -d %{buildroot}/%{_docdir}/%{name}-robdb-libs
+install -m 0755 -d %{buildroot}/%{_licensedir}/%{name}
+install -m 0755 -d %{buildroot}/%{_licensedir}/%{name}-robdb-libs
+install -m 0644 $PWD/README.md %{buildroot}/%{_docdir}/%{name}-robdb-libs/README.md
+install -m 0644 $PWD/COPYING %{buildroot}/%{_licensedir}/%{name}-robdb-libs/COPYING
+install -m 0644 $PWD/COPYING.RPM %{buildroot}/%{_licensedir}/%{name}-robdb-libs/COPYING.RPM
+install -m 0644 $PWD/COPYING.librobdb %{buildroot}/%{_licensedir}/%{name}/COPYING.librobdb
+install -m 0644 $PWD/COPYING %{buildroot}/%{_licensedir}/%{name}/COPYING.RPM
+popd
+%endif
 
 %check
 # This checks the code, if it fails it prints why, then re-raises the fail to shortcircuit the rpm build.
@@ -551,11 +593,11 @@ if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; f
 
 %post
 if [ -n "$DEBUGPOSTTRANS" ] ; then
-    output=$DEBUGPOSTTRANS
-    output2=${DEBUGPOSTTRANS}.upgrade
+output=$DEBUGPOSTTRANS
+output2=${DEBUGPOSTTRANS}.upgrade
 else
-    output=/dev/null
-    output2=/dev/null
+output=/dev/null
+output2=/dev/null
 fi
 
 # reload to pick up any changes to systemd files
@@ -575,11 +617,11 @@ HOMEDIR="/usr/share/dirsrv"
 
 getent group $GROUPNAME >/dev/null || groupadd -f -g $ALLOCATED_GID -r $GROUPNAME
 if ! getent passwd $USERNAME >/dev/null ; then
-    if ! getent passwd $ALLOCATED_UID >/dev/null ; then
-      useradd -r -u $ALLOCATED_UID -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
-    else
-      useradd -r -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
-    fi
+if ! getent passwd $ALLOCATED_UID >/dev/null ; then
+useradd -r -u $ALLOCATED_UID -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
+else
+useradd -r -g $GROUPNAME -d $HOMEDIR -s /sbin/nologin -c "user for 389-ds-base" $USERNAME
+fi
 fi
 
 # Reload our sysctl before we restart (if we can)
@@ -589,46 +631,46 @@ sysctl --system &> $output; true
 instbase="%{_sysconfdir}/%{pkgname}"
 ninst=0
 for dir in $instbase/slapd-* ; do
-    echo dir = $dir >> $output 2>&1 || :
-    if [ ! -d "$dir" ] ; then continue ; fi
-    case "$dir" in *.removed) continue ;; esac
-    basename=`basename $dir`
-    inst="%{pkgname}@`echo $basename | sed -e 's/slapd-//g'`"
-    echo found instance $inst - getting status  >> $output 2>&1 || :
-    if /bin/systemctl -q is-active $inst ; then
-       echo instance $inst is running >> $output 2>&1 || :
-       instances="$instances $inst"
-    else
-       echo instance $inst is not running >> $output 2>&1 || :
-    fi
-    ninst=`expr $ninst + 1`
+echo dir = $dir >> $output 2>&1 || :
+if [ ! -d "$dir" ] ; then continue ; fi
+case "$dir" in *.removed) continue ;; esac
+basename=`basename $dir`
+inst="%{pkgname}@`echo $basename | sed -e 's/slapd-//g'`"
+echo found instance $inst - getting status  >> $output 2>&1 || :
+if /bin/systemctl -q is-active $inst ; then
+echo instance $inst is running >> $output 2>&1 || :
+instances="$instances $inst"
+else
+echo instance $inst is not running >> $output 2>&1 || :
+fi
+ninst=`expr $ninst + 1`
 done
 if [ $ninst -eq 0 ] ; then
-    echo no instances to upgrade >> $output 2>&1 || :
-    exit 0 # have no instances to upgrade - just skip the rest
+echo no instances to upgrade >> $output 2>&1 || :
+exit 0 # have no instances to upgrade - just skip the rest
 else
-    # restart running instances
-    echo shutting down all instances . . . >> $output 2>&1 || :
-    for inst in $instances ; do
-        echo stopping instance $inst >> $output 2>&1 || :
-        /bin/systemctl stop $inst >> $output 2>&1 || :
-    done
-    for inst in $instances ; do
-        echo starting instance $inst >> $output 2>&1 || :
-        /bin/systemctl start $inst >> $output 2>&1 || :
-    done
+# restart running instances
+echo shutting down all instances . . . >> $output 2>&1 || :
+for inst in $instances ; do
+echo stopping instance $inst >> $output 2>&1 || :
+/bin/systemctl stop $inst >> $output 2>&1 || :
+done
+for inst in $instances ; do
+echo starting instance $inst >> $output 2>&1 || :
+/bin/systemctl start $inst >> $output 2>&1 || :
+done
 fi
 
 
 %preun
 if [ $1 -eq 0 ]; then # Final removal
-    # remove instance specific service files/links
-    rm -rf %{_sysconfdir}/systemd/system/%{groupname}.wants/* > /dev/null 2>&1 || :
+# remove instance specific service files/links
+rm -rf %{_sysconfdir}/systemd/system/%{groupname}.wants/* > /dev/null 2>&1 || :
 fi
 
 %postun
 if [ $1 = 0 ]; then # Final removal
-    rm -rf /var/run/%{pkgname}
+rm -rf /var/run/%{pkgname}
 fi
 
 %post snmp
@@ -776,6 +818,16 @@ fi
 %files -n cockpit-389-ds -f cockpit.list
 %{_datarootdir}/metainfo/389-console/org.port389.cockpit_console.metainfo.xml
 %doc README.md
+%endif
+
+%if %{with libbdb_ro}
+%files robdb-libs
+%license COPYING.librobdb COPYING.RPM
+%doc %{_defaultdocdir}/%{name}-robdb-libs/README.md
+/usr/lib64/dirsrv/librobdb.so
+%{_licensedir}/%{name}-robdb-libs/COPYING
+%{_licensedir}/%{name}/COPYING.RPM
+%{_licensedir}/%{name}/COPYING.librobdb
 %endif
 
 %changelog
