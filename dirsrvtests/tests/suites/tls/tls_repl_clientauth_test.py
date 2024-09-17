@@ -107,12 +107,15 @@ def test_new_tls_context_error(topo_tls_ldapi):
     if not ca_files:
         pytest.skip("No Self-Signed-CA.pem files found. Skipping test.")
 
+    log.info(f'Found {len(ca_files)} Self-Signed-CA.pem files')
+    log.info(f'CA files are: {", ".join(ca_files)}')
+
     for ca_file in ca_files:
         try:
             os.remove(ca_file)
             log.info(f"Removed file: {ca_file}")
         except OSError as e:
-            log.warning(f"Error removing file {ca_file}: {e}")
+            log.info(f"Error removing file {ca_file}: {e}")
 
     log.info('Reinit agreement')
     replica_m1 = Replicas(m1).get(DEFAULT_SUFFIX)
@@ -124,7 +127,7 @@ def test_new_tls_context_error(topo_tls_ldapi):
     m1.restart()
 
     log.info('Check errors log for certificate verify failed message')
-    error_msg = "error:0A000086:SSL routines::certificate verify failed"
+    error_msg = "error:80000002:system library::No such file or directory"
     assert m1.searchErrorsLog(error_msg), f"Expected error message not found: {error_msg}"
 
     log.info('Test completed successfully')
