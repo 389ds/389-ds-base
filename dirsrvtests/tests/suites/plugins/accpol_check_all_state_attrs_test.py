@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -36,7 +36,6 @@ NEW_PASSWORD = 'password123'
 USER_SELF_MOD_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
 
-@pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/5998')
 def test_inactivty_and_expiration(topo):
     """Test account expiration works when we are checking all state attributes
 
@@ -61,12 +60,14 @@ def test_inactivty_and_expiration(topo):
         7. Success
     """
 
-    INACTIVITY_LIMIT = 60
+    # passwordMaxAge should be less than accountInactivityLimit divided by 2
+    INACTIVITY_LIMIT = 12
+    MAX_AGE = 2
 
     # Configure instance
     inst = topo.standalone
     inst.config.set('passwordexp', 'on')
-    inst.config.set('passwordmaxage', '2')
+    inst.config.set('passwordmaxage', str(MAX_AGE))
     inst.config.set('passwordGraceLimit', '5')
     inst.config.set('nsslapd-errorlog-level', str(LOG_PLUGIN + LOG_DEFAULT))
 
@@ -87,15 +88,6 @@ def test_inactivty_and_expiration(topo):
         'homeDirectory': '/home/test',
     })
 
-    # Reset test user password to reset passwordExpirationtime
-    conn = test_user.bind(PASSWORD)
-    test_user = UserAccount(conn, TEST_ENTRY_DN)
-    date_pw_is_set = datetime.now()
-    test_user.replace('userpassword', NEW_PASSWORD)
-
-    # Sleep a little bit, we'll sleep the remaining 10 seconds later
-    time.sleep(3)
-
     # Configure account policy plugin
     plugin = AccountPolicyPlugin(inst)
     plugin.enable()
@@ -110,20 +102,19 @@ def test_inactivty_and_expiration(topo):
     accp.set('checkAllStateAttrs', 'on')
     inst.restart()
 
-    # Bind as test user to reset lastLoginTime
-    conn = test_user.bind(NEW_PASSWORD)
+    # Reset test user password to reset passwordExpirationtime
+    conn = test_user.bind(PASSWORD)
     test_user = UserAccount(conn, TEST_ENTRY_DN)
+    test_user.reset_password(NEW_PASSWORD)
 
-    # Sleep to exceed passwordexprattiontime over INACTIVITY_LIMIT seconds, but less than
-    # INACTIVITY_LIMIT seconds for lastLoginTime
-    # Based on real time because inst.restart() time is unknown
-    limit = timedelta(seconds=INACTIVITY_LIMIT+1)
-    now = datetime.now()
-    if now - date_pw_is_set >= limit:
-         pytest.mark.skip(reason="instance restart time was greater than inactivity limit")
-         return
-    deltat = limit + date_pw_is_set - now
-    time.sleep(deltat.total_seconds())
+    # Sleep a little bit, we'll sleep the remaining time later
+    time.sleep(INACTIVITY_LIMIT / 2)
+
+    # Bind as test user to reset lastLoginTime
+    test_user.bind(NEW_PASSWORD)
+
+    # Sleep the remaining time plus extra double passwordMaxAge seconds
+    time.sleep(INACTIVITY_LIMIT / 2 + MAX_AGE * 2)
 
     # Try to bind, but password expiration should reject this as lastLogintTime
     # has not exceeded the inactivity limit
