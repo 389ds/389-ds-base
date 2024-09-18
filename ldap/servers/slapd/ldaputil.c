@@ -508,6 +508,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     int ssl_strength = 0;
     int rc = 0;
     const char *cacert = NULL;
+    char *errmsg = NULL;
 
     /* certdir is used to setup outgoing secure connection (openldap)
      * It refers to the place where PEM files have been extracted
@@ -526,19 +527,25 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         ssl_strength = LDAP_OPT_X_TLS_NEVER;
     }
 
-    if (ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength)) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength);
+    if (rc != LDAP_SUCCESS) {
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
+                      "failed: unable to set REQUIRE_CERT option to %d: %d (%s) %s\n", 
+                      ssl_strength, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+        slapi_ch_free_string(&errmsg);
     }
     if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
         cacert = slapi_get_cacertfile();
         if (cacert) {
             /* CA Cert PEM file exists.  Set the path to openldap option. */
             rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTFILE, cacert);
-            if (rc) {
+            if (rc != LDAP_SUCCESS) {
+                rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
                 slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                              "Could not set CA cert path [%s]: %d:%s\n",
-                              cacert, rc, ldap_err2string(rc));
+                              "Could not set CA cert path [%s]: %d (%s) %s\n",
+                              cacert, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+                slapi_ch_free_string(&errmsg);
             }
         }
     }
@@ -552,33 +559,46 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         }
         /* Sets the CRL evaluation strategy. */
         rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CRLCHECK, &crlcheck);
-        if (rc) {
+        if (rc != LDAP_SUCCESS) {
+            rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
             slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                    "Could not set CRLCHECK [%d]: %d:%s\n",
-                    crlcheck, rc, ldap_err2string(rc));
+                    "Could not set CRLCHECK [%d]: %d (%s) %s\n",
+                    crlcheck, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         }
     }
     /* tell it where our cert db/file is */
-    if (ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir)) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir);
+    if (rc != LDAP_SUCCESS) {
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set CACERTDIR option to %s\n", certdir);
+                      "failed: unable to set CACERTDIR option to %s: %d (%s) %s\n", 
+                      certdir, rc, ldap_err2string(rc), errmsg ? errmsg : "");
+        slapi_ch_free_string(&errmsg);
     }
     slapi_ch_free_string(&certdir);
 #if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
     getSSLVersionRangeOL(&optval, NULL);
-    if (ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval)) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval);
+    if (rc != LDAP_SUCCESS) {
         char *minstr = NULL;
         (void)getSSLVersionRange(&minstr, NULL);
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to set minimum TLS protocol level to %s\n", minstr);
+                      "failed: unable to set minimum TLS protocol level to %s: %d (%s) %s\n", 
+                      minstr, rc, ldap_err2string(rc), errmsg ? errmsg : "");
         slapi_ch_free_string(&minstr);
+        slapi_ch_free_string(&errmsg);
     }
 #endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
     if (clientauth) {
         rc = slapd_SSL_client_auth(ld);
-        if (rc) {
+        if (rc != LDAP_SUCCESS) {
+            rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
             slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication - %d\n", rc);
+                          "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication: %d (%s) %s\n", 
+                          rc, ldap_err2string(rc), errmsg ? errmsg : "");
+            slapi_ch_free_string(&errmsg);
         }
     }
 
@@ -586,9 +606,13 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
        all of the parameters set above into that TLS handle context - note
        that optval is zero, meaning create a context for a client */
     optval = 0;
-    if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
+    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval);
+    if (rc != LDAP_SUCCESS) {
+        rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
         slapi_log_err(SLAPI_LOG_ERR, "setup_ol_tls_conn",
-                      "failed: unable to create new TLS context - %d\n", rc);
+                      "failed: unable to create new TLS context: %d (%s) %s\n", 
+                      rc, ldap_err2string(rc), errmsg ? errmsg : "");
+        slapi_ch_free_string(&errmsg);
     }
 
     return rc;
