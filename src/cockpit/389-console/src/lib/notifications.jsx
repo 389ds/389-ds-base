@@ -97,6 +97,54 @@ export class DoubleConfirmModal extends React.Component {
     }
 }
 
+export class WarningModal extends React.Component {
+    render() {
+        const {
+            showModal,
+            closeHandler,
+            mTitle,
+            mMsg,
+        } = this.props;
+
+        return (
+            <Modal
+                variant={ModalVariant.small}
+                title={mTitle}
+                titleIconVariant="warning"
+                isOpen={showModal}
+                aria-labelledby="warning-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="ok" variant="primary" onClick={closeHandler}>
+                        {_("Okay")}
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal autoComplete="off">
+                    <TextContent>
+                        <Text className="ds-margin-top ds-margin-bottom" component={TextVariants.h3}>
+                            {mMsg}
+                        </Text>
+                    </TextContent>
+                </Form>
+            </Modal>
+        );
+    }
+}
+
+WarningModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    mTitle: PropTypes.string,
+    mMsg: PropTypes.string,
+};
+
+WarningModal.defaultProps = {
+    showModal: false,
+    mTitle: "",
+    mMsg: "",
+};
+
 DoubleConfirmModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
