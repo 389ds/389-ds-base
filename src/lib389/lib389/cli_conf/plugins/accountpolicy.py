@@ -12,7 +12,7 @@ from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, gen
 from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
-    'config_entry': 'nsslapd_pluginconfigarea'
+    'config_entry': 'nsslapd-pluginarg0'
 }
 
 arg_to_attr_config = {
@@ -41,8 +41,8 @@ def accountpolicy_add_config(inst, basedn, log, args):
         raise ValueError("Specified DN is not a valid DN")
     config = generic_object_add(AccountPolicyConfig, inst, log, args, arg_to_attr_config, dn=targetdn)
     plugin = AccountPolicyPlugin(inst)
-    plugin.replace('nsslapd_pluginConfigArea', config.dn)
-    log.info('Account Policy attribute nsslapd-pluginConfigArea (config_entry) '
+    plugin.set('nsslapd-pluginarg0', config.dn)
+    log.info('Account Policy attribute nsslapd-pluginarg0 (config_entry) '
              'was set in the main plugin config')
 
 
@@ -112,7 +112,7 @@ def create_parser(subparsers):
 
     edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=accountpolicy_edit)
-    edit.add_argument('--config-entry', help='Sets the nsslapd-pluginConfigArea attribute')
+    edit.add_argument('--config-entry', help='Sets the nsslapd-pluginarg0 attribute')
 
     config = subcommands.add_parser('config-entry', help='Manage the config entry', formatter_class=CustomHelpFormatter)
     config_subcommands = config.add_subparsers(help='action')
