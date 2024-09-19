@@ -445,30 +445,42 @@ export class DSInstance extends React.Component {
     loadBackups() {
         let cmd = ["dsctl", "-j", this.state.serverId, "backups"];
         log_cmd("loadBackups", "Load Backups", cmd);
-        cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
-            this.updateProgress(25);
-            const config = JSON.parse(content);
-            const rows = [];
-            for (const row of config.items) {
-                rows.push([row[0], row[1], row[2]]);
-            }
-            // Get the server version from the monitor
-            cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
-            log_cmd("loadBackups", "Get the server version", cmd);
-            cockpit
-                    .spawn(cmd, { superuser: true, err: "message" }).done(content => {
-                        const monitor = JSON.parse(content);
-                        this.setState({
-                            backupRows: rows,
-                            version: monitor.attrs.version[0],
-                        });
-                    })
-                    .fail(_ => {
-                        this.setState({
-                            backupRows: rows,
-                        });
+        cockpit.spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.updateProgress(25);
+                    const config = JSON.parse(content);
+                    const rows = [];
+                    for (const row of config.items) {
+                        rows.push([row[0], row[1], row[2]]);
+                    }
+                    // Get the server version from the monitor
+                    cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
+                    log_cmd("loadBackups", "Get the server version", cmd);
+                    cockpit
+                            .spawn(cmd, { superuser: true, err: "message" }).done(content => {
+                                const monitor = JSON.parse(content);
+                                this.setState({
+                                    backupRows: rows,
+                                    version: monitor.attrs.version[0],
+                                });
+                            })
+                            .fail(_ => {
+                                this.setState({
+                                    backupRows: rows,
+                                });
+                            });
+                })
+                .fail(err => {
+                    this.updateProgress(25);
+                    const errMsg = JSON.parse(err);
+                    this.addNotification(
+                        "error",
+                        cockpit.format(_("Load Backups operation failed - $0"), errMsg.desc)
+                    );
+                    this.setState({
+                        backupRows: [],
                     });
-        });
+                });
     }
 
     handleServerIdChange(e) {
