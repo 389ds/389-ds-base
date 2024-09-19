@@ -372,8 +372,8 @@ dbmdb_ctx_t_db_max_readers_set(void *arg, void *value, char *errorbuf __attribut
     if (apply) {
         conf->dsecfg.max_readers = val;
         if (CONFIG_PHASE_RUNNING == phase) {
-            slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_ctx_t_db_max_dbs_set",
-                "New nsslapd-mdb-max-dbs will not take affect until the server is restarted\n");
+            slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_ctx_t_db_max_readers_set",
+                "New nsslapd-mdb-max-readers will not take affect until the server is restarted\n");
         }
     }
 
