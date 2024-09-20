@@ -6991,6 +6991,7 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 #define SLAPI_BE_LASTMOD       137
 #define SLAPI_CONN_ID          139
 #define SLAPI_BACKEND_COUNT    860
+#define SLAPI_DEFERRED_MEMBEROF 861
 
 /* operation */
 #define SLAPI_OPINITIATED_TIME            140
@@ -7547,6 +7548,12 @@ void slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes);
 
 /* dbverify */
 #define SLAPI_DBVERIFY_DBDIR 1947
+
+/* task passed by memberof be_txn_post to the
+ * memberof be_post to be pushed in the list
+ * of memberof deferred updates
+ */
+#define SLAPI_MEMBEROF_DEFERRED_TASK  1951
 
 /* convenience macros for checking modify operation types */
 #define SLAPI_IS_MOD_ADD(x)     (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
