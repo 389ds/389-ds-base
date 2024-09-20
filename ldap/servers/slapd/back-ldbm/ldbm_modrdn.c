@@ -81,6 +81,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     int is_fixup_operation = 0;
     int is_resurect_operation = 0;
     int is_tombstone = 0;
+    int is_internal = 0;
     entry_address new_addr;
     entry_address *old_addr;
     entry_address oldparent_addr;
@@ -124,6 +125,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
     is_resurect_operation = operation_is_flag_set(operation, OP_FLAG_RESURECT_ENTRY);
     is_tombstone = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY); /* tombstone_to_glue on parent entry*/
+    is_internal = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
     if (NULL == sdn) {
@@ -1508,6 +1510,20 @@ common_return:
             ldap_result_code = LDAP_SUCCESS;
         }
         if (!result_sent) {
+            int deferred;
+            PRIntervalTime delay;
+
+            if (!is_internal) {
+                /* for direct operation, wait for members update */
+                slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                if (deferred) {
+                    delay = PR_MillisecondsToInterval(100);
+                }
+                while (deferred) {
+                    DS_Sleep(delay);
+                    slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                }
+            }
             slapi_send_ldap_result(pb, ldap_result_code, ldap_result_matcheddn,
                                    ldap_result_message, 0, NULL);
         }
