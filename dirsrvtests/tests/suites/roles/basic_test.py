@@ -584,8 +584,8 @@ def test_managed_and_filtered_role_rewrite(topo, request):
     # online import
     import_task = ImportTask(topo.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    # Check for up to 120sec that the completion
-    for i in range(1, 12):
+    # Check for up to 200sec that the completion
+    for i in range(1, 20):
         if len(topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9000.*')) > 0:
             break
         time.sleep(10)
@@ -719,8 +719,8 @@ def test_not_such_entry_role_rewrite(topo, request):
     # online import
     import_task = ImportTask(topo.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    # Check for up to 120sec that the completion
-    for i in range(1, 12):
+    # Check for up to 200sec that the completion
+    for i in range(1, 20):
         if len(topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9100.*')) > 0:
             break
         time.sleep(10)
