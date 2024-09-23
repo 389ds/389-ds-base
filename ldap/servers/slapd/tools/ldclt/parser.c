@@ -125,7 +125,7 @@ parseVariant(
    * Maybe a variable ?
    */
     if (variant[1] == '\0') {
-        if ((variant[0] < VAR_MIN) || (variant[0] > VAR_MAX)) {
+        if ((variant[0] <= VAR_MIN) || (variant[0] >= VAR_MAX)) {
             fprintf(stderr, "Error: bad variable in %s : \"%s\"\n", fname, line);
             fprintf(stderr, "Error: must be in [%c-%c]\n", VAR_MIN, VAR_MAX);
             return (-1);
@@ -141,7 +141,7 @@ parseVariant(
     if (variant[1] != '=')
         field->var = -1;
     else {
-        if ((variant[0] < VAR_MIN) || (variant[0] > VAR_MAX)) {
+        if ((variant[0] <= VAR_MIN) || (variant[0] >= VAR_MAX)) {
             fprintf(stderr, "Error: bad variable in %s : \"%s\"\n", fname, line);
             fprintf(stderr, "Error: must be in [%c-%c]\n", VAR_MIN, VAR_MAX);
             return (-1);
