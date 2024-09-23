@@ -940,6 +940,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Unable to hash \"userPassword\" attribute, "
                     "check value is utf8 string.\n", 0, NULL);
                 valuearray_free(&va);
+                slapi_pblock_set(pb, SLAPI_MODIFY_MODS, (void *)slapi_mods_get_ldapmods_passout(&smods));
                 goto free_and_return;
             }
 
