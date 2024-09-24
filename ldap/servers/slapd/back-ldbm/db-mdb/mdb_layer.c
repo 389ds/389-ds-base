@@ -2731,7 +2731,7 @@ dbmdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_
 
 
 int
-dbmdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
+dbmdb_public_private_close(struct ldbminfo *li, dbi_env_t **env, dbi_db_t **db)
 {
     if (*db)
         dbmdb_public_db_op(*db, NULL, DBI_OP_CLOSE, NULL, NULL);
