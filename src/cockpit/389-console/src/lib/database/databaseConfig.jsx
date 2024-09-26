@@ -1564,7 +1564,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title={_("The maximum number of named database instances that can be included within the memory mapped database file (nsslapd-mdb-max-dbs).")}
+                                        title={_("The maximum number of named database instances that can be included within the memory mapped database file. A value of 0 means this value is computed by the server (nsslapd-mdb-max-dbs).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
