@@ -290,7 +290,7 @@ spal_meminfo_get()
         } else if (cg_mem_hard > cg_mem_usage) {
             cg_mem_soft_avail = cg_mem_hard - cg_mem_usage;
         } else {
-            slapi_log_err(SLAPI_LOG_CRIT, "spal_meminfo_get", "Your cgroup memory usage exceeds your hard limit?");
+            slapi_log_err(SLAPI_LOG_CRIT, "spal_meminfo_get", "Your cgroup memory usage exceeds your hard limit?\n");
         }
     }
 

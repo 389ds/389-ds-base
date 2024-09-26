@@ -257,7 +257,7 @@ aclutil_print_err(int rv, const Slapi_DN *sdn, const struct berval *val, char **
         aclutil_str_append(errbuf, lineptr);
     }
 
-    slapi_log_err(SLAPI_LOG_ERR, plugin_name, "aclutil_print_err - %s", lineptr);
+    slapi_log_err(SLAPI_LOG_ERR, plugin_name, "aclutil_print_err - %s\n", lineptr);
     slapi_ch_free_string(&newline);
 }
 

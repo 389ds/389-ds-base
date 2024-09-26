@@ -58,7 +58,7 @@ whoami_exop(Slapi_PBlock *pb)
     /* Fetch the client dn */
 
     if (slapi_pblock_get(pb, SLAPI_CONN_DN, &client_dn) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get client_dn");
+        slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get client_dn\n");
         slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "Could not get client_dn\n", 0, NULL);
         return (SLAPI_PLUGIN_EXTENDED_SENT_RESULT);
     }
@@ -75,8 +75,8 @@ whoami_exop(Slapi_PBlock *pb)
     /* Set the return value in pblock */
 
     if (slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, NULL) != 0 || slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, &retbval) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not set return values");
-        slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "Could not set return values", 0, NULL);
+        slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not set return values\n");
+        slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "Could not set return values\n", 0, NULL);
         slapi_ch_free_string(&client_dn);
         slapi_ch_free_string(&fdn);
         return (SLAPI_PLUGIN_EXTENDED_SENT_RESULT);
