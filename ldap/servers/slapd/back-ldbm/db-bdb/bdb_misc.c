@@ -240,7 +240,7 @@ bdb_start_autotune(struct ldbminfo *li)
     issane = util_is_cachesize_sane(mi, &zone_size);
     if (issane == UTIL_CACHESIZE_REDUCED) {
         slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "Your autosized cache values have been reduced. Likely your nsslapd-cache-autosize percentage is too high.\n");
-        slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "%s\n", msg);
+        slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "%s", msg);
     }
     /* It's valid, lets divide it up and set according to user prefs */
     db_size = (autosize_db_percentage_split * zone_size) / 100;
@@ -382,7 +382,7 @@ bdb_start_autotune(struct ldbminfo *li)
         slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
         slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "Total entry cache size: %" PRIu64 " B; dbcache size: %" PRIu64 " B; available memory size: %" PRIu64 " B; \n",
                       total_cache_size, (uint64_t)li->li_dbcachesize, mi->system_available_bytes);
-        slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "%s\n", msg);
+        slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "%s", msg);
         /* WB 2016 - This should be UNCOMMENTED in a future release */
         /* return SLAPI_FAIL_GENERAL; */
     }
