@@ -6905,39 +6905,51 @@ bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t 
     int flags;
     int rc;
 
-    /* Either filename is an existing regular file
-     *  or the "home" directory where txn logs are
-     */
+    slapi_ch_free_string(&conf->bdb_dbhome_directory);
+    if (li->li_directory == NULL) {
+        /* Either filename is an existing regular file
+         *  or the "home" directory where txn logs are
+         */
 
-    PL_strncpyz(dbhome, db_filename, MAXPATHLEN);
-    if (stat(dbhome, &st) == 0) {
-        if (S_ISDIR(st.st_mode)) {
-            li->li_directory = slapi_ch_strdup(dbhome);
-        } else if (S_ISREG(st.st_mode)) {
-            getdir(dbhome, NULL);
-            li->li_directory = slapi_ch_strdup(db_filename);
-            getdir(dbhome, NULL);
+        PL_strncpyz(dbhome, db_filename, MAXPATHLEN);
+        if (stat(dbhome, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) {
+                li->li_directory = slapi_ch_strdup(dbhome);
+            } else if (S_ISREG(st.st_mode)) {
+                getdir(dbhome, NULL);
+                li->li_directory = slapi_ch_strdup(db_filename);
+                getdir(dbhome, NULL);
+            } else {
+                fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
+                return EINVAL;
+            }
         } else {
-            fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
-            return EINVAL;
+            getdir(dbhome, NULL);
+            li->li_directory = slapi_ch_strdup(dbhome);
+            getdir(dbhome, NULL);
+            if (stat(dbhome, &st) || ((st.st_mode & S_IFMT) != S_IFDIR)) {
+                fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
+                return EINVAL;
+            }
         }
+        conf->bdb_dbhome_directory = slapi_ch_strdup(dbhome);
     } else {
-        getdir(dbhome, NULL);
-        li->li_directory = slapi_ch_strdup(dbhome);
-        getdir(dbhome, NULL);
-        if (stat(dbhome, &st) || ((st.st_mode & S_IFMT) != S_IFDIR)) {
-            fprintf(stderr, "bdb_public_private_open: Unable to determine dbhome from %s\n", db_filename);
-            return EINVAL;
+        conf->bdb_dbhome_directory = slapi_ch_strdup(li->li_directory);
+        if (strcmp(li->li_directory, db_filename)) {
+            getdir(conf->bdb_dbhome_directory, NULL);
         }
     }
+
     li->li_config_mutex = PR_NewLock();
-    conf->bdb_dbhome_directory = slapi_ch_strdup(dbhome);
     if (rw) {
         /* Setup a fully transacted environment */
         priv->dblayer_env = NULL;
-        conf->bdb_enable_transactions = 0;
+        conf->bdb_enable_transactions = 1;
         conf->bdb_tx_max = 50;
         rc = bdb_start(li, DBLAYER_NORMAL_MODE);
+        if (rc == 0) {
+            bdb_env = ((struct bdb_db_env*)(priv->dblayer_env))->bdb_DB_ENV;
+        }
     } else {
         /* Setup minimal environment */
         rc = db_env_create(&bdb_env, 0);
@@ -6968,18 +6980,36 @@ bdb_public_private_open(backend *be, const char *db_filename, int rw, dbi_env_t 
 }
 
 int
-bdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
+bdb_public_private_close(struct ldbminfo *li, dbi_env_t **env, dbi_db_t **db)
 {
     DB_ENV *bdb_env = *env;
     DB *bdb_db = *db;
     int rc = 0;
+    int rw = 0;
+    dblayer_private *priv = li->li_dblayer_private;
+    bdb_config *conf = (bdb_config *)li->li_dblayer_config;
 
-    if (bdb_db) {
-        rc = bdb_db->close(bdb_db, 0);
+    if (priv) {
+        /* Detect if db is fully set up in read write mode */
+        bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
+        if (pEnv && pEnv->bdb_thread_count>0) {
+            rw = 1;
+        }
     }
-    if (bdb_env) {
-        rc = bdb_env->close(bdb_env, 0);
+    if (rw == 0) {
+        if (bdb_db) {
+            rc = bdb_db->close(bdb_db, 0);
+        }
+        if (bdb_env) {
+            rc = bdb_env->close(bdb_env, 0);
+        }
+    } else {
+        rc = bdb_close(li, DBLAYER_NORMAL_MODE);
     }
+    slapi_ch_free_string(&conf->bdb_dbhome_directory);
+    slapi_ch_free_string(&conf->bdb_home_directory);
+    slapi_ch_free_string(&conf->bdb_compactdb_time);
+    slapi_ch_free_string(&conf->bdb_log_directory);
     *db = NULL;
     *env = NULL;
     return bdb_map_error(__FUNCTION__, rc);
