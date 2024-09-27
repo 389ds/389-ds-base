@@ -11,11 +11,13 @@
 #
 
 import os
+import pwd
 import re
 import glob
 import shutil
+from pathlib import Path
 from lib389.dseldif import DSEldif
-from lib389._constants import DEFAULT_LMDB_SIZE
+from lib389._constants import DN_CONFIG, DEFAULT_LMDB_SIZE
 from lib389.cli_base import CustomHelpFormatter
 from lib389.utils import parse_size, format_size
 import subprocess
@@ -31,6 +33,8 @@ MDB_MAP = "data.mdb"
 MDB_LOCK = "lock.mdb"
 
 LDBM_DN = "cn=config,cn=ldbm database,cn=plugins,cn=config"
+
+CL5DB='replication_changelog.db'
 
 _log = None
 
@@ -65,6 +69,7 @@ def get_backends(log, dse, tmpdir):
     # Lets be sure to keep config backend info
     ic2ec['config'] = 'config'
     update_dse = []
+    dbis = None
     for entry in dse._contents:
         found = re.search(r'^nsslapd-backend: (.*)', entry)
         if found:
@@ -74,22 +79,28 @@ def get_backends(log, dse, tmpdir):
             dn = found[0][4:]
             bename = found[1].lower()
             if not bename in ic2ec:
-                # Not a mapping tree backend 
+                # Not a mapping tree backend
                 continue
             ecbename = ic2ec[bename]
             suffix = dse.get(dn, "nsslapd-suffix", True)
             dbdir = dse.get(dn, "nsslapd-directory", True)
             ecdbdir = dbdir
-            if dbdir is None and 'config' in res:
+            dblib = dse.get(dn, "nsslapd-backend-implement", True)
+            if dblib is None and 'config' in res:
+                dblib = res['config']['dblib']
+            if dbis is None:
+                dbis = get_mdb_dbis(dbdir) if dblib == 'mdb' else []
+            # in bdb case dbdir should be the database instance directory
+            # in mdb case it is the database map file directory
+            if 'config' in res and ( dbdir is None or dblib == 'mdb'):
                 dbdir = f"{res['config']['dbdir']}/{bename}"
                 ecdbdir = f"{res['config']['dbdir']}/{ecbename}"
                 # bdb requires nsslapd-directory so lets add it once reading is done.
                 update_dse.append((dn, ecdbdir))
-            dblib = dse.get(dn, "nsslapd-backend-implement", True)
             ldifname = f'{tmpdir}/{DBLIB_LDIF_PREFIX}{bename}.ldif'
             cl5name = f'{tmpdir}/{DBLIB_LDIF_PREFIX}{bename}.cl5.dbtxt'
-            cl5dbname = f'{dbdir}/replication_changelog.db'
-            eccl5dbname = f'{ecdbdir}/replication_changelog.db'
+            cl5dbname = f'{dbdir}/{CL5DB}'
+            eccl5dbname = f'{ecdbdir}/{CL5DB}'
             dbsize = 0
             entrysize = 0
             for f in glob.glob(f'{dbdir}/id2entry.db*'):
@@ -99,8 +110,14 @@ def get_backends(log, dse, tmpdir):
             indexes = dse.get_indexes(bename)
             # Let estimate the number of dbis: id2entry + 1 per regular index + 2 per vlv index
             dbi = 1 + len(indexes) + len([index for index in indexes if index.startswith("vlv#")])
+            if dblib == "bdb":
+                has_changelog = os.path.isfile(eccl5dbname)
+            elif bename in dbis:
+                has_changelog = CL5DB in dbis[bename]
+            else:
+                has_changelog = False
 
-            res[bename] = ({
+            res[bename] = {
                 'dn': dn,
                 'bename': bename,
                 'ecbename': ecbename,
@@ -116,13 +133,15 @@ def get_backends(log, dse, tmpdir):
                 'dbsize': dbsize,
                 'entrysize': entrysize,
                 'indexes': indexes,
+                'has_changelog': has_changelog,
                 'dbi': dbi
-            })
+            }
+
     # now that we finish reading the dse.ldif we may update it if needed.
     for dn, dir in update_dse:
         dse.replace(dn, 'nsslapd-directory', dir)
     log.debug(f'lib389.cli_ctl.dblib.get_backends returns: {str(res)}')
-    return res
+    return (res, dbis)
 
 
 def get_mdb_dbis(dbdir):
@@ -158,18 +177,13 @@ def run_dbscan(args):
     return output
 
 
-def does_dbscan_need_do_it():
-    prefix = os.environ.get('PREFIX', "")
-    prog = f'{prefix}/bin/dbscan'
-    args = [ prog, '-h' ]
-    output = subprocess.run(args, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    return '--do-it' in output.stdout
-
-
 def export_changelog(be, dblib):
     # Export backend changelog
+    if not be['has_changelog']:
+        return False
     try:
         cl5dbname = be['eccl5dbname'] if dblib == "bdb" else be['cl5dbname']
+        _log.info(f'Exporting changelog {cl5dbname} to {be['cl5name']}')
         run_dbscan(['-D', dblib, '-f', cl5dbname, '-X', be['cl5name']])
         return True
     except subprocess.CalledProcessError as e:
@@ -180,10 +194,8 @@ def import_changelog(be, dblib):
     # import backend changelog
     try:
         cl5dbname = be['eccl5dbname'] if dblib == "bdb" else be['cl5dbname']
-        if does_dbscan_need_do_it():
-            run_dbscan(['-D', dblib, '-f', cl5dbname, '-I', be['cl5name'], '--do-it'])
-        else:
-            run_dbscan(['-D', dblib, '-f', cl5dbname, '-I', be['cl5name']])
+        _log.info(f'Importing changelog {cl5dbname} from {be['cl5name']}')
+        run_dbscan(['-D', dblib, '-f', cl5dbname, '--import', be['cl5name'], '--do-it'])
         return True
     except subprocess.CalledProcessError as e:
         return False
@@ -198,6 +210,15 @@ def set_owner(list, uid, gid):
             os.chown(f, uid, gid)
         except OSError:
             pass
+
+
+def get_uid_gid_from_dse(dse):
+    # For some reason inst.get_user_uid() always returns dirsrv uid
+    # even for non root install.
+    # Lets looks directly in the dse.ldif intead
+    user = dse.get(DN_CONFIG, 'nsslapd-localuser', single=True)
+    pwent = pwd.getpwnam(user)
+    return ( pwent.pw_uid, pwent.pw_gid )
 
 
 def dblib_bdb2mdb(inst, log, args):
@@ -218,7 +239,8 @@ def dblib_bdb2mdb(inst, log, args):
 
     inst.stop()
     dse = DSEldif(inst)
-    backends = get_backends(log, dse, tmpdir)
+    uid, gid = get_uid_gid_from_dse(dse)
+    backends,dbis = get_backends(log, dse, tmpdir)
     dbmapdir = backends['config']['dbdir']
     dblib = backends['config']['dblib']
 
@@ -228,6 +250,8 @@ def dblib_bdb2mdb(inst, log, args):
 
     # Remove ldif files and mdb files
     dblib_cleanup(inst, log, args)
+
+    # Check if changelog is present in backends
 
     # Compute the needed space and the lmdb map configuration
     total_dbsize = 0
@@ -258,8 +282,6 @@ def dblib_bdb2mdb(inst, log, args):
     log.info(f"Required number of dbi is {nbdbis}")
 
     # Generate the info file (so dbscan could generate the map)
-    uid = inst.get_user_uid()
-    gid = inst.get_group_gid()
     with open(f'{dbmapdir}/{MDB_INFO}', 'w') as f:
         f.write('LIBVERSION=9025\n')
         f.write('DATAVERSION=0\n')
@@ -346,7 +368,7 @@ def dblib_bdb2mdb(inst, log, args):
     dbhome=backends["config"]["dbdir"]
     set_owner(glob.glob(f'{dbhome}/*.mdb'), uid, gid)
     log.info("Backends importation 100%")
-    inst.start()
+    inst.start(post_open=False)
     log.info("Migration from Berkeley database to lmdb is done.")
 
 
@@ -368,11 +390,11 @@ def dblib_mdb2bdb(inst, log, args):
 
     inst.stop()
     dse = DSEldif(inst)
-    backends = get_backends(log, dse, tmpdir)
+    uid, gid = get_uid_gid_from_dse(dse)
+    backends,dbis = get_backends(log, dse, tmpdir)
     dbmapdir = backends['config']['dbdir']
     dbhome = inst.ds_paths.db_home_dir
     dblib = backends['config']['dblib']
-    dbis = get_mdb_dbis(dbmapdir)
 
     if dblib == "bdb":
         log.error(f"Instance {inst.serverid} is already configured with bdb.")
@@ -421,8 +443,6 @@ def dblib_mdb2bdb(inst, log, args):
         if 'has_id2entry' not in be:
             continue
         total_dbsize += 1
-    uid = inst.get_user_uid()
-    gid = inst.get_group_gid()
     for bename, be in backends.items():
         # Keep only backend associated with a db
         if 'has_id2entry' not in be:
@@ -467,7 +487,7 @@ def dblib_mdb2bdb(inst, log, args):
     set_owner((f'{dbhome}/DBVERSION', f'{dbmapdir}/DBVERSION', f'{dbhome}/guardian', '{dbmapdir}/guardian'), uid, gid)
 
     log.info("Backends importation 100%")
-    inst.start()
+    inst.start(post_open=False)
     log.info("Migration from ldbm to Berkeley database is done.")
 
 
@@ -484,7 +504,7 @@ def dblib_cleanup(inst, log, args):
     _log = log
     tmpdir = get_ldif_dir(inst)
     dse = DSEldif(inst)
-    backends = get_backends(log, dse, tmpdir)
+    backends,dbis = get_backends(log, dse, tmpdir)
     dbmapdir = backends['config']['dbdir']
     dbhome = inst.ds_paths.db_home_dir
     dblib = backends['config']['dblib']
@@ -495,14 +515,19 @@ def dblib_cleanup(inst, log, args):
         # Keep only backend associated with a db
         if 'has_id2entry' not in be and be['dbsize'] == 0:
             continue
-        rm(be['ldifname'])
-        rm(be['cl5name'])
-        dbdir = be['dbdir']
-        if dblib == "mdb":
-            # remove db dir
-            for f in glob.glob(f'{dbdir}/*.db*'):
+        # rm(be['ldifname'])
+        # rm(be['cl5name'])
+
+    if dblib == "mdb":
+        # Looks for bdb database instance subdirectories
+        for id2entry in glob.glob(f'{dbmapdir}/*/id2entry.db*'):
+            dbdir = Path(id2entry).parent.absolute()
+            log.info(f"cleanup removing {dbdir}")
+            for f in glob.iglob(f'{dbdir}/*.db*'):
                 rm(f)
-            rm(f'{dbdir}/DBVERSION')
+            for f in [ 'guardian', 'DBVERSION' ]:
+                if os.path.isfile(f'{dbdir}/{f}'):
+                    rm(f'{dbdir}/{f}')
             os.rmdir(dbdir)
 
     if dblib == "bdb":
@@ -510,13 +535,13 @@ def dblib_cleanup(inst, log, args):
         rm(f'{dbmapdir}/data.mdb')
         rm(f'{dbmapdir}/lock.mdb')
     else:
-        for f in glob.glob(f'{dbhome}/__db.*'):
+        for f in glob.iglob(f'{dbhome}/__db.*'):
             rm(f)
-        for f in glob.glob(f'{dbmapdir}/__db.*'):
+        for f in glob.iglob(f'{dbmapdir}/__db.*'):
             rm(f)
-        for f in glob.glob(f'{dbhome}/log.*'):
+        for f in glob.iglob(f'{dbhome}/log.*'):
             rm(f)
-        for f in glob.glob(f'{dbmapdir}/log.*'):
+        for f in glob.iglob(f'{dbmapdir}/log.*'):
             rm(f)
         rm(f'{dbhome}/DBVERSION')
         rm(f'{dbmapdir}/DBVERSION')
