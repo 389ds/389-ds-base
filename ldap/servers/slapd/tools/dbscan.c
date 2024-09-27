@@ -1162,6 +1162,7 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
     dbi_db_t *db = NULL;
     int keyword = 0;
     int ret = 0;
+    int count = 0;
 
     if (dump_name == NULL) {
         printf("Error: dump_name can not be NULL\n");
@@ -1183,12 +1184,35 @@ importdb(const char *dbimpl_name, const char *filename, const char *dump_name)
         return 1;
     }
 
+    ret = dblayer_txn_begin(be, NULL, &txn);
+    if (ret != 0) {
+        printf("Error: failed to start the database txn. Error %d: %s\n", ret, dblayer_strerror(ret));
+    }
     while (ret == 0 &&
            !_read_line(dump, &keyword, &key) && keyword == 'k' &&
            !_read_line(dump, &keyword, &data) && keyword == 'v') {
         ret = dblayer_db_op(be, db, txn.txn, DBI_OP_PUT, &key, &data);
+        if (ret == 0  && count++ >= 1000) {
+            ret = dblayer_txn_commit(be, &txn);
+            if (ret != 0) {
+                printf("Error: failed to commit the database txn. Error %d: %s\n", ret, dblayer_strerror(ret));
+            } else {
+                count = 0;
+                ret = dblayer_txn_begin(be, NULL, &txn);
+                if (ret != 0) {
+                    printf("Error: failed to start the database txn. Error %d: %s\n", ret, dblayer_strerror(ret));
+                }
+            }
+        }
     }
-    if (ret !=0) {
+    if (ret == 0) {
+        ret = dblayer_txn_commit(be, &txn);
+        if (ret != 0) {
+            printf("Error: failed to commit the database txn. Error %d: %s\n", ret, dblayer_strerror(ret));
+        }
+    }
+    if (ret != 0) {
+        (void) dblayer_txn_abort(be, &txn);
         printf("Error: failed to write record in database. Error %d: %s\n", ret, dblayer_strerror(ret));
         dump_ascii_val("Failing record key", &key);
         dump_ascii_val("Failing record value", &data);
@@ -1331,7 +1355,7 @@ main(int argc, char **argv)
     /* Compute getopt short option string */
     {
         char *pt = optstring;
-        for (struct option *opt = options; opt->name; opt++) {
+        for (const struct option *opt = options; opt->name; opt++) {
             if (opt->val>0 && opt->val<OPT_FIRST) {
                 *pt++ = (char)(opt->val);
                 if (opt->has_arg == required_argument) {
