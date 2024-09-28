@@ -2568,7 +2568,7 @@ slapi_pwpolicy_make_response_control(Slapi_PBlock *pb, int seconds, int logins, 
         ber_bvfree(bvp);
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "slapi_pwpolicy_make_response_control", "<= (%d)", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "slapi_pwpolicy_make_response_control", "<= (%d)\n", rc);
 
     return (rc == -1 ? LDAP_OPERATIONS_ERROR : LDAP_SUCCESS);
 }
