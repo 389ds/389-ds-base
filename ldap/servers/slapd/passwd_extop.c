@@ -492,7 +492,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
      * connections using SASL privacy layers */
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     if (conn == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "conn is NULL");
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "conn is NULL\n");
         goto free_and_return;
     }
     if (slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
@@ -733,7 +733,7 @@ parse_req_done:
     Operation *pb_op = NULL;
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     if (pb_op == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL");
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL\n");
         goto free_and_return;
     }
 

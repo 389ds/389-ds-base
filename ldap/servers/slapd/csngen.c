@@ -443,7 +443,7 @@ csngen_test()
     int rc;
     CSNGen *gen = csngen_new(255, NULL);
 
-    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "staring csn generator test ...");
+    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "staring csn generator test ...\n");
     csngen_dump_state(gen, SLAPI_LOG_INFO);
 
     rc = _csngen_start_test_threads(gen);
@@ -455,7 +455,7 @@ csngen_test()
 
     _csngen_stop_test_threads();
     csngen_dump_state(gen, SLAPI_LOG_INFO);
-    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "csn generator test is complete...");
+    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "csn generator test is complete...\n");
 }
 
 /*

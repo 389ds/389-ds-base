@@ -2032,7 +2032,7 @@ memberof_postop_modify(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
         if (entry) {
             if (SLAPI_DSE_CALLBACK_ERROR == memberof_apply_config(pb, NULL, entry, &result, returntext, NULL)) {
-                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "%s", returntext);
+                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "%s\n", returntext);
                 ret = SLAPI_PLUGIN_FAILURE;
                 goto done;
             }

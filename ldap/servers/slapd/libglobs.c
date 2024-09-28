@@ -9273,7 +9273,7 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be != NULL; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create backend dn string");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create backend dn string\n");
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9296,7 +9296,7 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create index dn string");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create index dn string\n");
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9322,7 +9322,7 @@ validate_num_config_reservedescriptors(void)
     /* If replication is enabled add replication descriptor constant, plus the number of enabled repl agmts */
     mt_str = slapi_get_mapping_tree_config_root();
     if (NULL == mt_str) {
-        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to get mapping tree config string");
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to get mapping tree config string\n");
         return -1;
     }
     search_pb = slapi_pblock_new();
@@ -9345,7 +9345,7 @@ validate_num_config_reservedescriptors(void)
     /* Get the operation connection limit from the default instance config */
     entry_str = slapi_create_dn_string("cn=default instance config,cn=chaining database,cn=plugins,cn=config");
     if (NULL == entry_str) {
-        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create default chaining config dn string");
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create default chaining config dn string\n");
         return -1;
     }
     slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9361,7 +9361,7 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=%s,cn=chaining database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create chaining be dn string");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create chaining be dn string\n");
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9383,7 +9383,7 @@ validate_num_config_reservedescriptors(void)
     /* If PTA is enabled add the pass through auth descriptor constant */
     entry_str = slapi_create_dn_string("cn=Pass Through Authentication,cn=plugins,cn=config");
     if (NULL == entry_str) {
-        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create PTA dn string");
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create PTA dn string\n");
         return -1;
     }
     slapi_sdn_init_dn_byref(&sdn, entry_str);

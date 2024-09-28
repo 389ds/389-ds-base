@@ -185,7 +185,7 @@ do_bind(Slapi_PBlock *pb)
             static char *kmsg =
                 "LDAPv2-style kerberos authentication received "
                 "on LDAPv3 connection.";
-            slapi_log_err(SLAPI_LOG_ERR, "do_bind", "%s", kmsg);
+            slapi_log_err(SLAPI_LOG_ERR, "do_bind", "%s\n", kmsg);
             log_bind_access(pb, dn ? dn : "empty", method, version, saslmech, kmsg);
             send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL,
                              kmsg, 0, NULL);
