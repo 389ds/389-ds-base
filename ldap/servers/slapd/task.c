@@ -1120,7 +1120,7 @@ task_export_thread(void *arg)
 
     if (!ldif_file) {
         slapi_task_log_notice(task, "export failed (NULL ldif_file).");
-        slapi_log_err(SLAPI_LOG_ERR, "task_export_thread", "Export failed (NULL ldif_file).");
+        slapi_log_err(SLAPI_LOG_ERR, "task_export_thread", "Export failed (NULL ldif_file).\n");
         return;
     }
 

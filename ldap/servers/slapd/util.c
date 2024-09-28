@@ -1474,7 +1474,7 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
 {
     /* Check we have a valid meminfo struct */
     if (mi->system_available_bytes == 0) {
-        slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid system memory info, can not proceed.");
+        slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid system memory info, can not proceed.\n");
         return UTIL_CACHESIZE_ERROR;
     }
 
