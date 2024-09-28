@@ -550,6 +550,70 @@ def test_import_wrong_file_path(topo):
     assert "The LDIF file does not exist" in str(e.value)
 
 
+def test_online_import_under_load(topo):
+    """Perform an online import while the server is under load
+
+    :id: 56f7ac6f-4285-4bc4-8822-5ae9b502eee3
+    :setup: Standalone Instance
+    :steps:
+        1. Create and import LDIF for ldclt load
+        2. Start ldclt
+        3. Start online import
+        4. Wait a bit and kill the ldclt load
+        5. Check import task successfully completed
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topo.standalone
+
+    # Create and import ldif to use with ldclt
+    ldif_dir = inst.get_ldif_dir()
+    import_ldif = ldif_dir + '/stress_import.ldif'
+    dbgen_users(inst, 1000, import_ldif, generic=True, suffix=DEFAULT_SUFFIX)
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif,
+                                        suffix=DEFAULT_SUFFIX)
+    import_task.wait()
+    assert import_task.get_exit_code() == 0
+
+    # Start ldclt load
+    ldclt_cmd = [
+        '%s/ldclt' % inst.get_bin_dir(),
+        '-h', inst.host, '-p', str(inst.port),
+        '-f', '(uid=userXXXX)', '-e', 'esearch,random',
+        '-r1', '-R999', '-Q'
+    ]
+    p = subprocess.Popen(ldclt_cmd, start_new_session=True,
+                         stdout=subprocess.PIPE)
+    time.sleep(1)
+
+    # Start online import
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif,
+                                        suffix=DEFAULT_SUFFIX)
+
+    # Wait a bit till the task is created and available for searching
+    for x in range(10):
+        if import_task.present('nstaskcreated'):
+            break
+        time.sleep(0.5)
+    assert import_task.present('nstaskcreated')
+
+    # Stop the load
+    time.sleep(3)
+    cmd = ['kill', '-9', str(p.pid)]
+    subprocess.Popen(cmd, stdout=subprocess.PIPE)
+
+    # import should finish
+    import_task.wait()
+    assert import_task.get_exit_code() == 0
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
