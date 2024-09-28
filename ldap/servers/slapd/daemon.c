@@ -2330,7 +2330,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr, int secure __attrib
     if (local) { /* ldapi */
         if (chmod((*listenaddr)->local.path,
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)) {
-            slapi_log_err(SLAPI_LOG_ERR, logname, "err: %d", errno);
+            slapi_log_err(SLAPI_LOG_ERR, logname, "err: %d\n", errno);
         }
     }
 #endif /* ENABLE_LDAPI */
