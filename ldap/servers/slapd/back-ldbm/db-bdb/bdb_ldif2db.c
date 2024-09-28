@@ -272,25 +272,11 @@ bdb_ldif2db(Slapi_PBlock *pb)
         slapi_task_log_notice(task,
                 "Backend instance '%s' already in the middle of  another task",
                 inst->inst_name);
-        slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db", "ldbm: '%s' is already in the middle of "
-                                                            "another task and cannot be disturbed.\n",
-                      inst->inst_name);
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db",
+                "ldbm: '%s' is already in the middle of another task "
+                "and cannot be disturbed.\n",
+                inst->inst_name);
         return -1;
-    } else {
-        uint64_t refcnt;
-        refcnt = slapi_counter_get_value(inst->inst_ref_count);
-        if (refcnt > 0) {
-            slapi_task_log_notice(task,
-                    "Backend instance '%s': there are %" PRIu64 " pending operation(s)."
-                    " Import can not proceed until they are completed.\n",
-                    inst->inst_name, refcnt);
-            slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db",
-                    "ldbm: '%s' there are %" PRIu64 " pending operation(s)."
-                     " Import can not proceed until they are completed.\n",
-                    inst->inst_name, refcnt);
-            instance_set_not_busy(inst);
-            return -1;
-        }
     }
 
     if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
@@ -308,10 +294,27 @@ bdb_ldif2db(Slapi_PBlock *pb)
     /***** prepare & init libdb and dblayer *****/
 
     if (!(task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
+        uint64_t refcnt;
+
         /* shutdown this instance of the db */
         slapi_log_err(SLAPI_LOG_INFO, "bdb_ldif2db", "Bringing %s offline...\n",
                       instance_name);
         slapi_mtn_be_disable(inst->inst_be);
+
+        /* Wait a little for pending operations to complete */
+        if((refcnt = wait_for_ref_count(inst->inst_ref_count)) != 0 ) {
+            slapi_task_log_notice(task,
+                    "Backend instance '%s': there are %" PRIu64 " pending "
+                    "operation(s). Import can not proceed until they are "
+                    "completed.\n",
+                    inst->inst_name, refcnt);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_ldif2db",
+                    "ldbm: '%s' there are %" PRIu64 " pending operation(s). "
+                    "Import can not proceed until they are completed.\n",
+                    inst->inst_name, refcnt);
+            instance_set_not_busy(inst);
+            return -1;
+        }
 
         cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
         if (entryrdn_get_switch()) {
