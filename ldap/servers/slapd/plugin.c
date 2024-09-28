@@ -3636,7 +3636,7 @@ plugin_invoke_plugin_pb(struct slapdplugin *plugin, int operation, Slapi_PBlock 
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     if (pb_op == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "plugin_invoke_plugin_pb", "pb_op is NULL");
+        slapi_log_err(SLAPI_LOG_ERR, "plugin_invoke_plugin_pb", "pb_op is NULL\n");
         PR_ASSERT(0);
         return PR_FALSE;
     }

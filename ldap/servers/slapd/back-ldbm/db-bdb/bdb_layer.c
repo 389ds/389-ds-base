@@ -1039,7 +1039,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
     slapi_pal_meminfo *mi = spal_meminfo_get();
     util_cachesize_result result = util_is_cachesize_sane(mi, &(conf->bdb_cachesize));
     if (result == UTIL_CACHESIZE_ERROR) {
-        slapi_log_err(SLAPI_LOG_CRIT, "bdb_start", "Unable to determine if cachesize was valid!!!");
+        slapi_log_err(SLAPI_LOG_CRIT, "bdb_start", "Unable to determine if cachesize was valid!!!\n");
     } else if (result == UTIL_CACHESIZE_REDUCED) {
         /* In some cases we saw this go to 0, prevent this. */
         if (conf->bdb_cachesize < MINCACHESIZE) {

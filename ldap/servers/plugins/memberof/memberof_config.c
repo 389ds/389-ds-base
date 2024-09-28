@@ -1008,7 +1008,7 @@ bail:
     if (ret) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, returntext);
-        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate - %s/n",
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate - %s\n",
                       returntext);
     }
     slapi_sdn_free(&config_sdn);
