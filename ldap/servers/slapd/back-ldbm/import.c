@@ -198,3 +198,31 @@ factory_destructor(void *extension, void *object __attribute__((unused)), void *
     /* extension object is free'd by bdb_import_main */
     return;
 }
+
+/*
+ * Wait 10 seconds for a reference counter to get to zero, otherwise return
+ * the reference count.
+ */
+uint64_t
+wait_for_ref_count(Slapi_Counter *inst_ref_count)
+{
+    uint64_t refcnt = 0;
+    PRBool logged_msg = PR_FALSE;
+
+    for (size_t i = 0; i < 20; i++) {
+        refcnt = slapi_counter_get_value(inst_ref_count);
+        if (refcnt == 0) {
+            return 0;
+        }
+        if(!logged_msg) {
+            slapi_log_err(SLAPI_LOG_INFO, "db2ldif",
+                          "waiting for pending operations to complete ...\n");
+            logged_msg = PR_TRUE;
+        }
+
+        DS_Sleep(PR_MillisecondsToInterval(500));
+    }
+
+    /* Done waiting, return the current ref count */
+    return slapi_counter_get_value(inst_ref_count);
+}
