@@ -1299,7 +1299,7 @@ dbmdb_import_producer(void *param)
                 continue;
             case DNRC_ERROR:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_producer",
-                                  "Import is arborted because a LMDB database error was detected. Please check the error log for more details.");
+                                  "Import is aborted because a LMDB database error was detected. Please check the error log for more details.");
                 slapi_ch_free_string(&wqelmt.dn);
                 slapi_ch_free(&wqelmt.data);
                 thread_abort(info);
@@ -1772,7 +1772,7 @@ dbmdb_index_producer(void *param)
                 continue;
             case DNRC_ERROR:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_index_producer",
-                                  "Reindex is arborted because a LMDB database error was detected. Please check the error log for more details.");
+                                  "Reindex is aborted because a LMDB database error was detected. Please check the error log for more details.");
                 thread_abort(info);
                 continue;
             case DNRC_WAIT:
@@ -2263,7 +2263,7 @@ dbmdb_upgrade_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
                                                   inst->inst_name, dn_id);
                         }
                         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                                      "%s: Error: failed to write a line \"%s\"",
+                                      "%s: Error: failed to write a line \"%s\"\n",
                                       inst->inst_name, dn_id);
                         slapi_ch_free_string(&dn_id);
                         goto error;
@@ -3689,7 +3689,7 @@ dbmdb_read_ldif_entries(struct ldbminfo *li, char *src_dir, char *file_name)
         slapi_ch_free_string(&estr);
         if (!e) {
             slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_read_ldif_entries",
-                          "Skipping bad LDIF entry ending line %d of file \"%s\"",
+                          "Skipping bad LDIF entry ending line %d of file \"%s\"\n",
                           curr_lineno, filename);
             continue;
         }
@@ -3701,7 +3701,7 @@ dbmdb_read_ldif_entries(struct ldbminfo *li, char *src_dir, char *file_name)
     }
     if (!backup_entries) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_read_ldif_entries",
-                      "No entry found in backup config file \"%s\"",
+                      "No entry found in backup config file \"%s\"\n",
                       filename);
         goto out;
     }
@@ -4114,7 +4114,7 @@ dbmdb_bulk_producer(void *param)
                 continue;
             case DNRC_ERROR:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
-                                  "Reindex is arborted because a LMDB database error was detected. Please check the error log for more details.");
+                                  "Reindex is aborted because a LMDB database error was detected. Please check the error log for more details.");
                 thread_abort(info);
                 continue;
             case DNRC_WAIT:
