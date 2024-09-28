@@ -1475,7 +1475,7 @@ dbmdb_privdb_handle_cursor(mdb_privdb_t *db, int dbi_index)
         db->wcount = 0;
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to commit dndb transaction. Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to commit dndb transaction. Error is %d: %s.\n", rc, mdb_strerror(rc));
             TXN_ABORT(db->txn);
             return -1;
         }
@@ -1484,13 +1484,13 @@ dbmdb_privdb_handle_cursor(mdb_privdb_t *db, int dbi_index)
         rc = TXN_BEGIN(db->env, NULL, 0, &db->txn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to begin dndb transaction. Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to begin dndb transaction. Error is %d: %s.\n", rc, mdb_strerror(rc));
             return -1;
         }
         rc = MDB_CURSOR_OPEN(db->txn, db->dbis[dbi_index].dbi, &db->cursor);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to open dndb cursor. Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to open dndb cursor. Error is %d: %s.\n", rc, mdb_strerror(rc));
             dbmdb_privdb_discard_cursor(db);
             return -1;
         }
@@ -1530,7 +1530,7 @@ dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
         rc = MDB_CURSOR_GET(db->cursor, key, data, MDB_SET_KEY);
         if (rc && rc != MDB_NOTFOUND) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to get key from dndb cursor Error is %d: %s.\n", rc, mdb_strerror(rc));
         }
     }
     return rc;
@@ -1544,7 +1544,7 @@ dbmdb_privdb_put(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
         rc = MDB_CURSOR_PUT(db->cursor, key, data, MDB_NOOVERWRITE);
         if (rc && rc != MDB_KEYEXIST) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to get key from dndb cursor Error is %d: %s.\n", rc, mdb_strerror(rc));
         }
     }
     if (!rc) {

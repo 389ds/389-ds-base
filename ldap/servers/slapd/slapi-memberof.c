@@ -1254,7 +1254,7 @@ slapi_memberof(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_MemberO
              */
             rc = sm_entry_get_groups(config, member_sdn, groupvals, nsuniqueidvals);
         } else {
-            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "memberof plugin is not enabled, with MEMBEROF_REUSE_ONLY return empty result");
+            slapi_log_err(SLAPI_LOG_ERR, "slapi_memberof", "memberof plugin is not enabled, with MEMBEROF_REUSE_ONLY return empty result\n");
         }
     } else if ((config->flag == MEMBEROF_REUSE_IF_POSSIBLE) &&
                sm_compare_memberof_config(config->memberof_attr,
