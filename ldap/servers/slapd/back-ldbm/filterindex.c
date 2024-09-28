@@ -382,7 +382,7 @@ presence_candidates(
     int unindexed = 0;
     back_txn txn = {NULL};
 
-    slapi_log_err(SLAPI_LOG_TRACE, "presence_candidates", "=> n");
+    slapi_log_err(SLAPI_LOG_TRACE, "presence_candidates", "=> \n");
 
     if (slapi_filter_get_type(f, &type) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "presence_candidates", "slapi_filter_get_type failed\n");
