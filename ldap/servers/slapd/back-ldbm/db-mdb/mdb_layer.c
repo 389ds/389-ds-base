@@ -2384,6 +2384,7 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
         rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_SET_RANGE);
     }
     while (rc == 0 && recno > rce->recno) {
+        DBG_LOG(DBGMDB_LEVEL_VLV, "Current record index is %d Target is %d\n", rce->recno, recno);
         rce->recno++;
         rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
     }
@@ -2393,7 +2394,10 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     }
     if (rc == 0 && dbmdb_data->mv_size == rce->data.mv_size) {
         /* Should always be the case */
+        DBG_LOG(DBGMDB_LEVEL_VLV, "SUCCESS\n");
         memcpy(dbmdb_data->mv_data , rce->data.mv_data, dbmdb_data->mv_size);
+    } else {
+        DBG_LOG(DBGMDB_LEVEL_VLV, "FAILURE: rc=%d dbmdb_data->mv_size=%d rce->data.mv_size=%d\n", rc, dbmdb_data->mv_size, rce->data.mv_size);
     }
 
     slapi_ch_free((void**)&rce);

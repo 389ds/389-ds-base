@@ -185,6 +185,7 @@ static flagsdesc_t mdb_loglvl_desc[] = {
     { "TXN", DBGMDB_LEVEL_TXN },
     { "IMPORT", DBGMDB_LEVEL_IMPORT },
     { "BULKOP", DBGMDB_LEVEL_BULKOP },
+    { "VLV", DBGMDB_LEVEL_VLV },
     { "DBGMDB", DBGMDB_LEVEL_OTHER },
     { 0 }
 };
