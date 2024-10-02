@@ -22,7 +22,6 @@ from errno import ENOSPC
 from lib389.cli_base import CustomHelpFormatter
 from lib389._constants import DEFAULT_LMDB_SIZE, BDB_IMPL_STATUS, DN_CONFIG
 from lib389.dseldif import DSEldif
-from lib389.paths import Paths
 from lib389.utils import parse_size, format_size
 from pathlib import Path
 
@@ -39,13 +38,9 @@ LDBM_DN = "cn=config,cn=ldbm database,cn=plugins,cn=config"
 BDB_BUNDLED_RPM = '389-ds-base-bdb'
 BDB_RPM = 'libdb'
 TESTED_PACKAGES = ( BDB_BUNDLED_RPM, BDB_RPM )
-RPM_TOOL = '/usr/bin/rpm'
-PLUGIN_PATHS = ( '/usr/lib64/dirsrv/plugins/', '/usr/lib/dirsrv/plugins/' )
 BDBRO_SYMBOL = 'bdbro_getcb_vector'
 BDB_SYMBOL = 'bdb_start'
 TESTED_SYMBOLS = ( BDB_SYMBOL, BDBRO_SYMBOL )
-
-OBJDUMP_TOOL = '/usr/bin/objdump'
 
 
 CL5DB='replication_changelog.db'
@@ -63,34 +58,8 @@ class FakeArgs(dict):
 
 
 def get_bdb_impl_status():
-    # Check installed rpms
-    try:
-        from rpm import TransactionSet
-        ts = TransactionSet()
-        pkgs = { pkgname:(len ([ pkg for pkg in ts.dbMatch( 'name', \
-                 pkgname ) ]) > 0) for pkgname in TESTED_PACKAGES}
-        ts.closeDB()
-    except ImportError:
-        if os.path.isfile(RPM_TOOL):
-            pkgs = { pkgname:( subprocess.run([RPM_TOOL, '-q', pkgname], \
-                     stdin=subprocess.DEVNULL,stderr=subprocess.DEVNULL \
-                     ).returncode  == 0 ) for pkgname in TESTED_PACKAGES }
-        else:
-            pkgs = { pkg:None for pkg in TESTED_PACKAGES}
-
-    # Check libback-ldbm plugin content
-    p = Paths()
-    plugin = None
-    BDB_IMPL_STATUS
-    for pdir in PLUGIN_PATHS:
-        for ppath in glob.glob(f'{pdir}/libback-ldbm.*'):
-            plugin = ppath
-    if plugin and os.path.isfile(OBJDUMP_TOOL):
-        rc = subprocess.run(['objdump', '-R', plugin], text=True, capture_output=True)
-        symbs = { symb: symb in rc.stdout for symb in TESTED_SYMBOLS }
-    else:
-        symbs = { symb: None for symb in TESTED_SYMBOLS }
-
+    pkgs = check_installed_packages(TESTED_PACKAGES)
+    symbs = check_plugin_symbols('libback-ldbm', TESTED_SYMBOLS)
     if pkgs[BDB_BUNDLED_RPM] is True:
         return BDB_IMPL_STATUS.BUNDLED
     if symbs[BDBRO_SYMBOL] is True:
@@ -100,7 +69,6 @@ def get_bdb_impl_status():
     if symbs[BDB_SYMBOL] is False and pkgs[BDB_BUNDLED_RPM] is False:
         return BDB_IMPL_STATUS.NONE
     return BDB_IMPL_STATUS.UNKNOWN
-
 
 
 def get_ldif_dir(instance):
@@ -289,24 +257,12 @@ def dblib_bdb2mdb(inst, log, args):
         log.error(f"Failed trying to create the directory {tmpdir} needed to store the ldif files, error: {str(e)}")
         return
 
-
     status = get_bdb_impl_status()
     if status is BDB_IMPL_STATUS.UNKNOWN:
         log.warning('Unable to determine if Berkeley Database library is available. If it is not the case, the migration will fail.')
     elif status is BDB_IMPL_STATUS.NONE:
         log.error('Berkeley Database library is not available. Maybe 389-ds-base-bdb rpm should be installed.')
         raise RuntimeError('Berkeley Database library is not available')
-
-if pkgs[BDB_BUNDLED_RPM] is True:
-        return BDB_IMPL_STATUS.BUNDLED
-    if symbs[BDBRO_SYMBOL] is True:
-        return BDB_IMPL_STATUS.READ_ONLY
-    if pkgs[BDB_RPM] is not False and symbs[BDB_SYMBOL] is True:
-        return BDB_IMPL_STATUS.RPM
-    if symbs[BDB_SYMBOL] is False and pkgs[BDB_BUNDLED_RPM] is False:
-        return BDB_IMPL_STATUS.NONE
-    return BDB_IMPL_STATUS.UNKNOWN
-
 
     # Cannot use Backends(inst).list() because it requires a connection.
     # lets use directlt the dse.ldif after having stopped the instance

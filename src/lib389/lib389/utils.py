@@ -27,6 +27,7 @@ except ImportError:
 import json
 import re
 import os
+import glob
 import logging
 import shutil
 import ldap
@@ -186,6 +187,9 @@ _chars = {
 #
 SIZE_UNITS = { 't': 2**40, 'g': 2**30, 'm': 2**20, 'k': 2**10, '': 1, }
 SIZE_PATTERN = r'\s*(\d*\.?\d*)\s*([tgmk]?)b?\s*'
+
+RPM_TOOL = '/usr/bin/rpm'
+OBJDUMP_TOOL = '/usr/bin/objdump'
 
 #
 # Utilities
@@ -1984,3 +1988,40 @@ def get_passwd_from_file(passwd_file):
             passwd = f.readline().strip()
             return passwd
     raise ValueError(f"The password file '{passwd_file}' does not exist, or can not be read.")
+
+
+def check_installed_packages(tested_packages):
+    """
+    Returns a dict mapping each tested rpm package to True, False or None
+    """
+    try:
+        from rpm import TransactionSet
+        ts = TransactionSet()
+        pkgs = { pkgname:(len ([ pkg for pkg in ts.dbMatch( 'name', \
+                 pkgname ) ]) > 0) for pkgname in tested_packages}
+        ts.closeDB()
+        return pkgs
+    except ImportError:
+        if os.path.isfile(RPM_TOOL):
+            pkgs = { pkgname:( subprocess.run([RPM_TOOL, '-q', pkgname], \
+                     stdin=subprocess.DEVNULL,stderr=subprocess.DEVNULL \
+                     ).returncode  == 0 ) for pkgname in tested_packages }
+        else:
+            pkgs = { pkg:None for pkg in tested_packages}
+    return pkgs
+
+
+def check_plugin_symbols(plugin_name, tested_symbols):
+    """
+    Returns a dict mapping each tested symbol to True, False or None
+    """
+    p = Paths()
+    plugin = None
+    for ppath in glob.glob(f'{p.plugin_dir}/{plugin_name}.*'):
+        plugin = ppath
+    if plugin and os.path.isfile(OBJDUMP_TOOL):
+        rc = subprocess.run(['objdump', '-R', plugin], text=True, capture_output=True)
+        return { symb: symb in rc.stdout for symb in tested_symbols }
+    else:
+        return { symb: None for symb in tested_symbols }
+
