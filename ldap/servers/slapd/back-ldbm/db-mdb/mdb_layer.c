@@ -2387,6 +2387,10 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
         rce->recno++;
         rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
     }
+    if (rc == MDB_NOTFOUND) {
+        /* Stay on last record if there are no more records */
+        rc = 0;
+    }
     if (rc == 0 && dbmdb_data->mv_size == rce->data.mv_size) {
         /* Should always be the case */
         memcpy(dbmdb_data->mv_data , rce->data.mv_data, dbmdb_data->mv_size);
