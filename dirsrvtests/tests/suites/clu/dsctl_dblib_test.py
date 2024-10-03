@@ -17,7 +17,7 @@ from lib389.cli_ctl.dblib import (FakeArgs, dblib_bdb2mdb, dblib_mdb2bdb, dblib_
 from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager
 from lib389.topologies import topology_m2 as topo_m2, topology_st as topo_st
-from lib389.utils import check_installed_packages, check_plugin_symbols
+from lib389.utils import check_plugin_strings
 
 
 log = logging.getLogger(__name__)
@@ -137,14 +137,14 @@ def test_dblib_migration(init_user):
             repl.test_replication_topology([s1, s2])
 
 
-def test_check_installed_packages():
+def test_check_plugin_strings():
     """
-    Check that lib389.utils check_installed_packages is working properly
+    Check that lib389.utils check_plugin_strings is working properly
 
     :id: 5194e88a-80c6-11ef-a2ee-482ae39447e5
     :setup: None
     :steps:
-        1. Call check_installed_packages
+        1. Call check_plugin_strings
         2. Check that an installed rpm is detected
         3. Check that a non installed rpm is not detected
     :expectedresults:
@@ -152,29 +152,7 @@ def test_check_installed_packages():
         2. Success
         3. Success
     """
-    res = check_installed_packages(('389-ds-base', 'Dummyrpm'))
-    log.info(f'check_installed_packages returned {res}')
-    assert res['389-ds-base'] is True
-    assert res['Dummyrpm'] is False
-
-
-def test_check_plugin_symbols():
-    """
-    Check that lib389.utils check_installed_packages is working properly
-
-    :id: 1cb19ebe-80c7-11ef-9516-482ae39447e5
-    :setup: None
-    :steps:
-        1. Call check_plugin_symbols
-        2. Check that an existing symbol is found
-        3. Check that a not existing symbol is not found
-    :expectedresults:
-        1. Success
-        2. Success
-        3. Success
-    """
-    res = check_plugin_symbols('libback-ldbm', ('ldbm_back_search', 'DummySymbol'))
-    log.info(f'check_plugin_symbols returned {res}')
+    res = check_plugin_strings('libback-ldbm', ('ldbm_back_search', 'DummyString'))
+    log.info(f'check_plugin_strings returned {res}')
     assert res['ldbm_back_search'] is True
-    assert res['DummySymbol'] is False
-
+    assert res['DummyString'] is False

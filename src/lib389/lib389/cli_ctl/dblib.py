@@ -22,7 +22,7 @@ from errno import ENOSPC
 from lib389.cli_base import CustomHelpFormatter
 from lib389._constants import DEFAULT_LMDB_SIZE, BDB_IMPL_STATUS, DN_CONFIG
 from lib389.dseldif import DSEldif
-from lib389.utils import parse_size, format_size
+from lib389.utils import parse_size, format_size, check_plugin_strings, find_plugin_path
 from pathlib import Path
 
 
@@ -35,14 +35,6 @@ MDB_MAP = "data.mdb"
 MDB_LOCK = "lock.mdb"
 
 LDBM_DN = "cn=config,cn=ldbm database,cn=plugins,cn=config"
-BDB_BUNDLED_RPM = '389-ds-base-bdb'
-BDB_RPM = 'libdb'
-TESTED_PACKAGES = ( BDB_BUNDLED_RPM, BDB_RPM )
-BDBRO_SYMBOL = 'bdbro_getcb_vector'
-BDB_SYMBOL = 'bdb_start'
-TESTED_SYMBOLS = ( BDB_SYMBOL, BDBRO_SYMBOL )
-
-
 CL5DB='replication_changelog.db'
 
 _log = None
@@ -58,16 +50,23 @@ class FakeArgs(dict):
 
 
 def get_bdb_impl_status():
-    pkgs = check_installed_packages(TESTED_PACKAGES)
-    symbs = check_plugin_symbols('libback-ldbm', TESTED_SYMBOLS)
-    if pkgs[BDB_BUNDLED_RPM] is True:
-        return BDB_IMPL_STATUS.BUNDLED
-    if symbs[BDBRO_SYMBOL] is True:
-        return BDB_IMPL_STATUS.READ_ONLY
-    if pkgs[BDB_RPM] is not False and symbs[BDB_SYMBOL] is True:
-        return BDB_IMPL_STATUS.RPM
-    if symbs[BDB_SYMBOL] is False and pkgs[BDB_BUNDLED_RPM] is False:
+    backldbm = 'libback-ldbm'
+    bundledbdb_plugin = 'libback-bdb'
+    robdb_symbol = 'bdbro_getcb_vector'
+    libdb = 'libdb-'
+    plgstrs = check_plugin_strings(backldbm, [bundledbdb_plugin, robdb_symbol, libdb])
+    if plgstrs[bundledbdb_plugin] is True:
+        # bundled bdb build
+        if find_plugin_path(bundledbdb_plugin):
+            return BDB_IMPL_STATUS.BUNDLED
         return BDB_IMPL_STATUS.NONE
+    if plgstrs[robdb_symbol] is True:
+        # read-only bdb build
+        return BDB_IMPL_STATUS.READ_ONLY
+    if plgstrs[libdb] is True:
+        # standard bdb package build
+        return BDB_IMPL_STATUS.STABDARD
+    # Unable to find libback-ldbm plugin
     return BDB_IMPL_STATUS.UNKNOWN
 
 
