@@ -884,6 +884,11 @@ perform_needed_fixup()
     memberof_rlock_config();
     memberof_copy_config(&config, memberof_get_config());
     memberof_unlock_config();
+    if (config.memberof_attr == NULL) {
+        slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
+                      "Failed to perform memberof fixup task: The memberof attribute is not configured.\n");
+        return -1;
+    }
     slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "Memberof plugin started the global fixup task for attribute %s\n", config.memberof_attr);
     /* Compute the filter for entries that may contains the attribute */
@@ -922,6 +927,7 @@ perform_needed_fixup()
         }
         be = slapi_get_next_backend(cookie);
     }
+    slapi_ch_free_string(&cookie);
     slapi_ch_free_string(&td.bind_dn);
     slapi_ch_free_string(&td.filter_str);
     slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
