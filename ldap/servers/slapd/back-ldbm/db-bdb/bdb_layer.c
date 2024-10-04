@@ -6999,11 +6999,13 @@ bdb_public_private_close(struct ldbminfo *li, dbi_env_t **env, dbi_db_t **db)
     if (priv) {
         /* Detect if db is fully set up in read write mode */
         bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
-        pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
-        if (pEnv && pEnv->bdb_thread_count>0) {
-            rw = 1;
+        if (pEnv) {
+            pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
+            if (pEnv->bdb_thread_count > 0) {
+                rw = 1;
+            }
+            pthread_mutex_unlock(&pEnv->bdb_thread_count_lock);
         }
-        pthread_mutex_unlock(&pEnv->bdb_thread_count_lock);
     }
     if (rw == 0) {
         if (bdb_db) {
