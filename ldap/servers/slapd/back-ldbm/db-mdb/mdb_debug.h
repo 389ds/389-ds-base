@@ -10,12 +10,13 @@
 void dbmdb_format_dbslist_info(char *info, dbmdb_dbi_t *dbi);
 
 #define DBGMDB_LEVEL_MDBAPI 1
-#define DBGMDB_LEVEL_TXN 2
+#define DBGMDB_LEVEL_TXN    2
 #define DBGMDB_LEVEL_IMPORT 4
 #define DBGMDB_LEVEL_BULKOP 8
-#define DBGMDB_LEVEL_OTHER 0x20
-#define DBGMDB_LEVEL_REPL 0x1000
-#define DBGMDB_LEVEL_FORCE 0x10000
+#define DBGMDB_LEVEL_VLV    0x10
+#define DBGMDB_LEVEL_OTHER  0x20
+#define DBGMDB_LEVEL_REPL   0x1000
+#define DBGMDB_LEVEL_FORCE  0x10000
 
 #define DBGMDB_LEVEL_PRINTABLE 0xfff
 
@@ -28,7 +29,8 @@ void dbmdb_dbg_set_dbi_slots(dbmdb_dbi_t *slots);
 void dbi_str(MDB_cursor *cursor, int dbi, char dbistr[DBISTRMAXSIZE]);
 
 /* #define DBMDB_DEBUG 1 */
-#define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_TXN+DBGMDB_LEVEL_IMPORT+DBGMDB_LEVEL_BULKOP+DBGMDB_LEVEL_OTHER
+#define DBGMDB_LEVEL_DEFAULT DBGMDB_LEVEL_MDBAPI+DBGMDB_LEVEL_TXN+DBGMDB_LEVEL_IMPORT+ \
+                             DBGMDB_LEVEL_BULKOP+DBGMDB_LEVEL_OTHER+DBGMDB_LEVEL_VLV
 
 /* Define the wrapper associated with each log level */
 #ifdef DBMDB_DEBUG
@@ -53,6 +55,8 @@ void dbi_str(MDB_cursor *cursor, int dbi, char dbistr[DBISTRMAXSIZE]);
 #define TXN_RENEW(txn) dbg_txn_renew(__FILE__,__LINE__,__FUNCTION__, txn)
 #define TXN_LOG(msg,txn) dbg_log(__FILE__,__LINE__,__FUNCTION__,DBGMDB_LEVEL_TXN, msg, (ulong)(txn))
 #define pthread_gettid() syscall(__NR_gettid)
+
+#define DBG_LOG(...) dbg_log(__FILE__,__LINE__,__FUNCTION__, __VA_ARGS__)
 
 
 int dbg_mdb_cursor_open(const char *file, int lineno, const char *funcname, MDB_txn *txn, MDB_dbi dbi, MDB_cursor **cursor);
@@ -99,5 +103,7 @@ void dbmdb_log_dbi_set_fn(const char *file, int lineno, const char *funcname, co
 #define TXN_RENEW(txn) mdb_txn_renew(txn)
 #define TXN_LOG(msg,txn)
 #define pthread_gettid() 0
+
+#define DBG_LOG(...)
 
 #endif /* DBMDB_DEBUG */

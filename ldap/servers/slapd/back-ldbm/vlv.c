@@ -1852,53 +1852,37 @@ vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp)
 void
 vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo)
 {
-#define VLV_LOG_BS (21 * 6 + 4 + 5) /* space for 20-digit values for all parameters + 'VLV ' + status */
-    char stack_buffer[VLV_LOG_BS];
-    char *buffer = stack_buffer;
-    char *p;
+    #define NUMLEN 10 /* 32 bit integer maximum lenght (i.e minus + up to 9 digits) */
+    char resp_status[3*NUMLEN+5];
+    char buffer[4+NUMLEN*3+4+sizeof resp_status];
 
-    if (vlvi->value.bv_len > 20) {
-        buffer = slapi_ch_malloc(VLV_LOG_BS + vlvi->value.bv_len);
+    if (vlvo == NULL) {
+        strcpy(resp_status, "None");
+    } else {
+        sprintf(resp_status, "%d:%d (%d)",
+                vlvo->targetPosition,
+                vlvo->contentCount,
+                vlvo->result);
     }
-    p = buffer;
-    p += sprintf(p, "VLV ");
     if (0 == vlvi->tag) {
-        /* By Index case */
-        p += sprintf(p, "%d:%d:%d:%d",
+        PR_snprintf(buffer, (sizeof buffer), "VLV %d:%d:%d:%d %s",
                      vlvi->beforeCount,
                      vlvi->afterCount,
                      vlvi->index,
-                     vlvi->contentCount);
+                     vlvi->contentCount,
+                     resp_status);
+        ldbm_log_access_message(pb, buffer);
     } else {
-/* By value case */
-#define VLV_LOG_SS 32
-        char stack_string[VLV_LOG_SS];
-        char *string = stack_string;
-
-        if (vlvi->value.bv_len >= VLV_LOG_SS) {
-            string = slapi_ch_malloc(vlvi->value.bv_len + 1);
-        }
-        strncpy(string, vlvi->value.bv_val, vlvi->value.bv_len);
-        string[vlvi->value.bv_len] = '\0';
-        p += sprintf(p, "%d:%d:%s",
-                     vlvi->beforeCount,
-                     vlvi->afterCount,
-                     string);
-        if (string != stack_string) {
-            slapi_ch_free((void **)&string);
-        }
-    }
-    /* Now the response info */
-    p += sprintf(p, " %d:%d (%d)",
-                 vlvo->targetPosition,
-                 vlvo->contentCount,
-                 vlvo->result);
-
-
-    ldbm_log_access_message(pb, buffer);
-
-    if (buffer != stack_buffer) {
-        slapi_ch_free((void **)&buffer);
+        char fmt[18+NUMLEN];
+        char *msg = NULL;
+        PR_snprintf(fmt, (sizeof fmt), "VLV %%d:%%d:%%.%ds %%s", vlvi->value.bv_len);
+        msg = slapi_ch_smprintf(fmt,
+                                vlvi->beforeCount,
+                                vlvi->afterCount,
+                                vlvi->value.bv_val,
+                                resp_status);
+        ldbm_log_access_message(pb, msg);
+        slapi_ch_free_string(&msg);
     }
 }
 

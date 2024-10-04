@@ -117,19 +117,31 @@ class DirsrvLog(DSLint):
                             results.append(line)
         return results
 
-    def match(self, pattern):
+    def match(self, pattern, after_pattern=None):
         """Search the current log file for the pattern
         @param pattern - a regex pattern
+        @param after_pattern - None or a regex pattern
+               if set only matches found seeing last occurance
+               of after_pattern are returned
         @return - results of the pattern matching
         """
         results = []
         prog = re.compile(pattern)
+        if after_pattern:
+            aprog = re.compile(after_pattern)
+            aprog_hit = False
+        else:
+            aprog_hit = True
         self.lpath = self._get_log_path()
         if self.lpath is not None:
             with open(self.lpath, 'r') as lf:
                 for line in lf:
+                    if after_pattern is not None:
+                        if aprog.match(line):
+                            aprog_hit = True
+                            results.clear()
                     mres = prog.match(line)
-                    if mres:
+                    if aprog_hit and mres:
                         results.append(line)
         return results
 
