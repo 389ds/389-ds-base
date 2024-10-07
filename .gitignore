@@ -240,3 +240,4 @@ vendor.tar.gz
 /rust-nsslapd-private.h
 /rust-slapi-private.h
 /src/lib389/setup.py
+/.devcontainer/overrides.env
