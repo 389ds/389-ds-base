@@ -2882,7 +2882,7 @@ dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
     ok.mv_size = 2;
     rc = dbmdb_open_dbi_from_filename(&rcdbi, be, rcdbname, NULL, 0);
     if (rc == 0) {
-        rc = MDB_DEL(TXN(txn), rcdbi->dbi, &ok, &ok);
+        rc = MDB_DEL(TXN(txn), rcdbi->dbi, &ok, NULL);
     }
     slapi_ch_free_string(&rcdbname);
     return rc;
