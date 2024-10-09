@@ -3413,6 +3413,7 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
         }
     }
 
+    DBG_LOG(DBGMDB_LEVEL_OTHER,"Calling dbmdb_open_dbi_from_filename for %s flags = 0x%x", mii->name, dbi_flags);
     dbmdb_open_dbi_from_filename(&mii->dbi, job->inst->inst_be, mii->name, mii->ai, dbi_flags);
     avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
 }
