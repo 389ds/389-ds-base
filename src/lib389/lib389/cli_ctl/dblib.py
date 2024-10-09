@@ -51,7 +51,7 @@ class FakeArgs(dict):
 
 def get_bdb_impl_status():
     backldbm = 'libback-ldbm'
-    bundledbdb_plugin = 'libback-bdb'
+    bundledbdb_plugin = 'libback-ldbm'
     robdb_symbol = 'bdbro_getcb_vector'
     libdb = 'libdb-'
     plgstrs = check_plugin_strings(backldbm, [bundledbdb_plugin, robdb_symbol, libdb])
