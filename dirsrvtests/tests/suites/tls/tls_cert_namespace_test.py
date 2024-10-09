@@ -10,7 +10,7 @@ import time
 import subprocess
 import pytest
 
-from glob import glob
+import glob
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.paths import Paths
@@ -60,7 +60,7 @@ def test_pem_cert_in_private_namespace(topology_st):
     assert PRIVATE_TMP in ensure_str(result)
 
     log.info('Check files in private /tmp')
-    cert_path = glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
+    cert_path = glob.glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
                                                                                        standalone.serverid))
     assert os.path.exists(cert_path[0])
     for item in PEM_CHECK:
@@ -105,9 +105,9 @@ def test_cert_category_authority(topology_st):
 
     log.info('Get certificate path')
     if ds_is_older('1.4.3'):
-        cert_path = glob('/etc/dirsrv/slapd-{}/'.format(standalone.serverid))
+        cert_path = glob.glob('/etc/dirsrv/slapd-{}/'.format(standalone.serverid))
     else:
-        cert_path = glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
+        cert_path = glob.glob('/tmp/systemd-private-*-dirsrv@{}.service-*/tmp/slapd-{}/'.format(standalone.serverid,
                                                                                            standalone.serverid))
     log.info('Check that {} is present'.format(PEM_FILE))
     signed_cert = cert_path[0] + PEM_FILE
