@@ -10,18 +10,20 @@
 # This module handles dsconf libdb sub-commands
 #
 
+import sys
 import os
+import glob
 import pwd
 import re
-import glob
 import shutil
-from pathlib import Path
-from lib389.dseldif import DSEldif
-from lib389._constants import DN_CONFIG, DEFAULT_LMDB_SIZE
-from lib389.cli_base import CustomHelpFormatter
-from lib389.utils import parse_size, format_size
 import subprocess
+from enum import Enum
 from errno import ENOSPC
+from lib389.cli_base import CustomHelpFormatter
+from lib389._constants import DEFAULT_LMDB_SIZE, BDB_IMPL_STATUS, DN_CONFIG
+from lib389.dseldif import DSEldif
+from lib389.utils import parse_size, format_size, check_plugin_strings, find_plugin_path
+from pathlib import Path
 
 
 DBLIB_LDIF_PREFIX = "__dblib-"
@@ -33,7 +35,6 @@ MDB_MAP = "data.mdb"
 MDB_LOCK = "lock.mdb"
 
 LDBM_DN = "cn=config,cn=ldbm database,cn=plugins,cn=config"
-
 CL5DB='replication_changelog.db'
 
 _log = None
@@ -46,6 +47,27 @@ class FakeArgs(dict):
     def __init__(self, *args, **kwargs):
         super(FakeArgs, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
+
+def get_bdb_impl_status():
+    backldbm = 'libback-ldbm'
+    bundledbdb_plugin = 'libback-ldbm'
+    robdb_symbol = 'bdbro_getcb_vector'
+    libdb = 'libdb-'
+    plgstrs = check_plugin_strings(backldbm, [bundledbdb_plugin, robdb_symbol, libdb])
+    if plgstrs[bundledbdb_plugin] is True:
+        # bundled bdb build
+        if find_plugin_path(bundledbdb_plugin):
+            return BDB_IMPL_STATUS.BUNDLED
+        return BDB_IMPL_STATUS.NONE
+    if plgstrs[robdb_symbol] is True:
+        # read-only bdb build
+        return BDB_IMPL_STATUS.READ_ONLY
+    if plgstrs[libdb] is True:
+        # standard bdb package build
+        return BDB_IMPL_STATUS.STANDARD
+    # Unable to find libback-ldbm plugin
+    return BDB_IMPL_STATUS.UNKNOWN
 
 
 def get_ldif_dir(instance):
@@ -234,6 +256,13 @@ def dblib_bdb2mdb(inst, log, args):
         log.error(f"Failed trying to create the directory {tmpdir} needed to store the ldif files, error: {str(e)}")
         return
 
+    status = get_bdb_impl_status()
+    if status is BDB_IMPL_STATUS.UNKNOWN:
+        log.warning('Unable to determine if Berkeley Database library is available. If it is not the case, the migration will fail.')
+    elif status is BDB_IMPL_STATUS.NONE:
+        log.error('Berkeley Database library is not available. Maybe 389-ds-base-bdb rpm should be installed.')
+        raise RuntimeError('Berkeley Database library is not available')
+
     # Cannot use Backends(inst).list() because it requires a connection.
     # lets use directlt the dse.ldif after having stopped the instance
 
@@ -384,6 +413,16 @@ def dblib_mdb2bdb(inst, log, args):
     except OSError as e:
         log.error(f"Failed trying to create the directory {tmpdir} needed to store the ldif files, error: {str(e)}")
         return
+
+    status = get_bdb_impl_status()
+    if status is BDB_IMPL_STATUS.UNKNOWN:
+        log.warning('Unable to determine if Berkeley Database library is available. If it is not the case, the migration will fail.')
+    elif status is BDB_IMPL_STATUS.READ_ONLY:
+        log.error('It is not possible to migrate to read-only Berkeley Database library.')
+        raise RuntimeError('Berkeley Database library is read-only')
+    elif status is BDB_IMPL_STATUS.NONE:
+        log.error('Berkeley Database library is not available. Maybe 389-ds-base-bdb rpm should be installed.')
+        raise RuntimeError('Berkeley Database library is not available')
 
     # Cannot use Backends(inst).list() because it requires a connection.
     # lets use directlt the dse.ldif after having stopped the instance

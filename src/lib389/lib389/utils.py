@@ -27,9 +27,11 @@ except ImportError:
 import json
 import re
 import os
+import glob
 import logging
 import shutil
 import ldap
+import mmap
 import socket
 import time
 import stat
@@ -186,6 +188,10 @@ _chars = {
 #
 SIZE_UNITS = { 't': 2**40, 'g': 2**30, 'm': 2**20, 'k': 2**10, '': 1, }
 SIZE_PATTERN = r'\s*(\d*\.?\d*)\s*([tgmk]?)b?\s*'
+
+RPM_TOOL = '/usr/bin/rpm'
+LDD_TOOL = '/usr/bin/ldd'
+OBJDUMP_TOOL = '/usr/bin/objdump'
 
 #
 # Utilities
@@ -1759,7 +1765,7 @@ def get_default_mdb_max_size(paths):
     # otherwise decrease the value
     dbdir = paths.db_dir
     # dbdir may not exists because:
-    #  - paths instance name has not been expanded 
+    #  - paths instance name has not been expanded
     #  - dscreate has not yet created it.
     # so let use the first existing parent in that case.
     while not os.path.exists(dbdir):
@@ -1984,3 +1990,26 @@ def get_passwd_from_file(passwd_file):
             passwd = f.readline().strip()
             return passwd
     raise ValueError(f"The password file '{passwd_file}' does not exist, or can not be read.")
+
+
+def find_plugin_path(plugin_name):
+    p = Paths()
+    plugin = None
+    for ppath in glob.glob(f'{p.plugin_dir}/{plugin_name}.*'):
+        if not ppath.endswith('.la'):
+            plugin = ppath
+    return plugin
+
+
+def check_plugin_strings(plugin_name, tested_strings):
+    """
+    Returns a dict mapping each tested symbol to True, False or None
+    """
+    plugin = find_plugin_path(plugin_name)
+    if plugin:
+        # Otherwise looks directly for the string in the plugin
+        with open(plugin, "rb") as f:
+            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                return { astring:(mm.find(astring.encode()) >=0) for astring in tested_strings }
+    return { astring:None for astring in tested_strings }
+
