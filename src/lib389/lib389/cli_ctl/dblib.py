@@ -65,7 +65,7 @@ def get_bdb_impl_status():
         return BDB_IMPL_STATUS.READ_ONLY
     if plgstrs[libdb] is True:
         # standard bdb package build
-        return BDB_IMPL_STATUS.STABDARD
+        return BDB_IMPL_STATUS.STANDARD
     # Unable to find libback-ldbm plugin
     return BDB_IMPL_STATUS.UNKNOWN
 

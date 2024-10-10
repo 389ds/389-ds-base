@@ -379,7 +379,7 @@ CONTAINER_TLS_PWDFILE = '/data/config/pwdfile.txt'
 # Describe what kind of Berkeley Database library is available
 BDB_IMPL_STATUS = Enum('BDB_IMPL_STATUS', [
                        'UNKNOWN',   # Unable to discover
-                       'RPM',       # os libdb rpm is installed
+                       'STANDARD',  # os libdb rpm is installed
                        'BUNDLED',   # lib389 bundled rpm is installed
                        'READ_ONLY', # Read-only version is available
                        'NONE' ])    # bdb is not usasable
