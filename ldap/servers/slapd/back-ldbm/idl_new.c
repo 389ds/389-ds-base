@@ -939,7 +939,6 @@ error:
     /* Close the cursor */
     if (0 == idl_range_ctx.flag_err) {
         idl_range_ctx.flag_err = ret;
-slapi_log_err(SLAPI_LOG_INFO, "idl_lmdb_range_fetch", "flag_err=%d\n", idl_range_ctx.flag_err);
     }
     ret = dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
     if (ret) {
@@ -955,7 +954,6 @@ slapi_log_err(SLAPI_LOG_INFO, "idl_lmdb_range_fetch", "flag_err=%d\n", idl_range
     }
     if (0 == idl_range_ctx.flag_err) {
         idl_range_ctx.flag_err = ret;
-slapi_log_err(SLAPI_LOG_INFO, "idl_lmdb_range_fetch", "flag_err=%d\n", idl_range_ctx.flag_err);
     }
 
     /* sort idl */

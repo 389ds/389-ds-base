@@ -2105,6 +2105,7 @@ void *dbmdb_recno_cache_build(void *arg)
     int len = 0;
     int rc = 0;
 
+    DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_build(%s)", rcctx->rcdbname);
     /* Open/creat cache dbi */
     rc = dbmdb_open_dbi_from_filename(&rcctx->rcdbi, rcctx->cursor->be, rcctx->rcdbname, NULL, MDB_CREATE);
     slapi_ch_free_string(&rcctx->rcdbname);
@@ -2128,63 +2129,46 @@ void *dbmdb_recno_cache_build(void *arg)
             txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
         }
     }
+    if (rc == 0) {
+        rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_FIRST);
+        recno = 1;
+    }
     while (rc == 0) {
         slapi_log_err(SLAPI_LOG_DEBUG, "dbmdb_recno_cache_build", "recno=%d\n", recno);
-        if (recno % RECNO_CACHE_INTERVAL != 1) {
-            recno++;
-            rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_NEXT);
-            continue;
-        }
-        /* close the txn from time to time to avoid locking all dbi page */
-        rc = dbmdb_end_recno_cache_txn(&txn_ctx, 0);
-        rc |= dbmdb_begin_recno_cache_txn(rcctx, &txn_ctx, rcctx->dbi->dbi);
-        if (rc) {
-            break;
-        }
-        /* Reset to new cursor to the old position */
-        if (recno == 1) {
-            rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_FIRST);
-        } else {
-            rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_SET);
-            if (rc == MDB_NOTFOUND) {
-                rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_SET_RANGE);
-            }
-        }
-        if (rc) {
-            break;
-        }
-        /* Prepare the cache data */
-        len = sizeof(*rce) + data.mv_size + key.mv_size;
-        rce = (dbmdb_recno_cache_elmt_t*)slapi_ch_malloc(len);
-        rce->len = len;
-        rce->recno = recno;
-        rce->key.mv_size = key.mv_size;
-        rce->key.mv_data = &rce[1];
-        rce->data.mv_size = data.mv_size;
-        rce->data.mv_data = ((char*)&rce[1])+rce->key.mv_size;
-        memcpy(rce->key.mv_data, key.mv_data, key.mv_size);
-        memcpy(rce->data.mv_data, data.mv_data, data.mv_size);
-        rcdata.mv_data = rce;
-        rcdata.mv_size = len;
-        dbmdb_generate_recno_cache_key_by_recno(&rckey, recno);
-        rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
-        slapi_ch_free(&rckey.mv_data);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build",
-                          "Failed to write record in db %s, key=%s error: %s\n",
-                          rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
-        } else {
-            dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
+        if (recno % RECNO_CACHE_INTERVAL == 1) {
+            /* Prepare the cache data */
+            len = sizeof(*rce) + data.mv_size + key.mv_size;
+            rce = (dbmdb_recno_cache_elmt_t*)slapi_ch_malloc(len);
+            rce->len = len;
+            rce->recno = recno;
+            rce->key.mv_size = key.mv_size;
+            rce->key.mv_data = &rce[1];
+            rce->data.mv_size = data.mv_size;
+            rce->data.mv_data = ((char*)&rce[1])+rce->key.mv_size;
+            memcpy(rce->key.mv_data, key.mv_data, key.mv_size);
+            memcpy(rce->data.mv_data, data.mv_data, data.mv_size);
+            rcdata.mv_data = rce;
+            rcdata.mv_size = len;
+            dbmdb_generate_recno_cache_key_by_recno(&rckey, recno);
             rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
             slapi_ch_free(&rckey.mv_data);
-            txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build",
                               "Failed to write record in db %s, key=%s error: %s\n",
                               rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
+            } else {
+                dbmdb_generate_recno_cache_key_by_data(&rckey, &key, &data);
+                rc = MDB_PUT(txn_ctx.txn, rcctx->rcdbi->dbi, &rckey, &rcdata, 0);
+                slapi_ch_free(&rckey.mv_data);
+                txn_ctx.flags |= DBMDB_TXNCTX_NEED_COMMIT;
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_recno_cache_build",
+                                  "Failed to write record in db %s, key=%s error: %s\n",
+                                  rcctx->rcdbi->dbname, (char*)(key.mv_data), mdb_strerror(rc));
+                }
             }
+            slapi_ch_free(&rcdata.mv_data);
         }
-        slapi_ch_free(&rcdata.mv_data);
         rc = MDB_CURSOR_GET(txn_ctx.cursor, &key, &data, MDB_NEXT);
         recno++;
     }
@@ -2375,18 +2359,27 @@ int dbmdb_cursor_set_recno(dbi_cursor_t *cursor, MDB_val *dbmdb_key, MDB_val *db
     }
 
     memcpy(&recno, dbmdb_key->mv_data, sizeof (dbi_recno_t));
+#ifdef DBMDB_DEBUG
+    char dbistr[DBISTRMAXSIZE];
+    dbi_str(cursor->cur, 0, dbistr);
+    DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_cursor_set_recno: recno=%d dbi=%s", recno, dbistr);
+#endif
     dbmdb_generate_recno_cache_key_by_recno(&cache_key, recno);
     rc = dbmdb_recno_cache_lookup(cursor, &cache_key, &rce);
     if (rc ==0) {
         rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_SET_RANGE);
     }
     while (rc == 0 && recno > rce->recno) {
+        DBG_LOG(DBGMDB_LEVEL_VLV, "Current record index is %d Target is %d", rce->recno, recno);
         rce->recno++;
         rc = MDB_CURSOR_GET(cursor->cur, &rce->key, &rce->data, MDB_NEXT);
     }
     if (rc == 0 && dbmdb_data->mv_size == rce->data.mv_size) {
         /* Should always be the case */
+        DBG_LOG(DBGMDB_LEVEL_VLV, "SUCCESS");
         memcpy(dbmdb_data->mv_data , rce->data.mv_data, dbmdb_data->mv_size);
+    } else {
+        DBG_LOG(DBGMDB_LEVEL_VLV, "FAILURE: rc=%d dbmdb_data->mv_size=%d rce->data.mv_size=%d", rc, dbmdb_data->mv_size, rce->data.mv_size);
     }
 
     slapi_ch_free((void**)&rce);
@@ -2867,6 +2860,7 @@ dbmdb_public_clear_vlv_cache(Slapi_Backend *be, dbi_txn_t *txn, dbi_db_t *db)
     MDB_val ok = { 0 };
     int rc = 0;
 
+    DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_public_clear_vlv_cache(%s)", rcdbname);
     ok.mv_data = "OK";
     ok.mv_size = 2;
     rc = dbmdb_open_dbi_from_filename(&rcdbi, be, rcdbname, NULL, 0);

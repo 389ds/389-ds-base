@@ -1231,6 +1231,8 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
     dbi_open_ctx_t octx = {0};
     dbi_txn_t *txn = NULL;
     int rc = 0;
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "dbmdb_open_dbi_from_filename: filename=%s flags=0x%x", filename, flags);
+
 
     if (ctx->readonly || (flags&MDB_RDONLY)) {
         flags &= ~MDB_CREATE;
@@ -1278,19 +1280,24 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
         }
     }
     if (rc) {
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "returning %d", rc);
         return rc;
     }
     if (!*dbi) {
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "returning MDB_NOTFOUND");
         return MDB_NOTFOUND;
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "So far rc = %d", rc);
     if (ai && ai->ai_key_cmp_fn != (*dbi)->cmp_fn) {
         if (! (*dbi)->cmp_fn) {
             rc = dbmdb_update_dbi_cmp_fn(ctx, *dbi, ai->ai_key_cmp_fn, NULL);
         }
         (*dbi)->cmp_fn = ai->ai_key_cmp_fn;
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "So far rc = %d", rc);
 
     if (((*dbi)->state.state & DBIST_DIRTY) && !(flags & MDB_OPEN_DIRTY_DBI)) {
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "returning MDB_NOTFOUND");
         return MDB_NOTFOUND;
     }
     if (!rc && !((*dbi)->state.state & DBIST_DIRTY) && (flags & MDB_MARK_DIRTY_DBI)) {
@@ -1298,12 +1305,15 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
            st.state |= DBIST_DIRTY;
            rc = dbmdb_update_dbi_state(ctx, *dbi, &st, NULL, PR_FALSE);
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "So far rc = %d", rc);
     if (!rc && (flags & MDB_TRUNCATE_DBI)) {
         octx.ctx = ctx;
         octx.dbi = *dbi;
         octx.deletion_flags = 0;
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "truncating db");
         rc = dbi_remove(&octx);
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "returning rc=%d", rc);
     return rc;
 }
 
@@ -1388,13 +1398,16 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
         rcctx->key.mv_data = "OK";
         rcctx->key.mv_size = 2;
         rc = MDB_GET(txn, rcctx->rcdbi->dbi, &rcctx->key, &rcctx->data);
-        if (rc) {
-            rcctx->mode = RCMODE_UNKNOWN;
+        if (rc == MDB_SUCCESS) {
+            rcctx->mode = RCMODE_USE_CURSOR_TXN;
+            DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_USE_CURSOR_TXN rc=0", rcdbname);
+            return rc;
         }
         if (rc != MDB_NOTFOUND) {
             /* There was an error or cache is valid.
              * Im both cases there is no need to rebuilt the cache.
              */
+            DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_UNKNOWN rc=%d", rcdbname, rc);
             return rc;
         }
     }
@@ -1404,7 +1417,9 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
         TXN_ABORT(txn);
         txn = NULL;
         rcctx->mode = RCMODE_USE_SUBTXN;
+        DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_USE_SUBTXN rc=0", rcdbname);
     } else if (rc == EINVAL) {
+        DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_USE_NEW_THREAD rc=0", rcdbname);
         rcctx->mode = RCMODE_USE_NEW_THREAD;
         rc = 0;
     }
