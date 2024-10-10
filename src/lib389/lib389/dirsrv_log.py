@@ -11,10 +11,10 @@
 
 import copy
 import json
+import glob
 import re
 import gzip
 from dateutil.parser import parse as dt_parse
-from glob import glob
 from lib389.utils import ensure_bytes
 from lib389._mapped_object_lint import DSLint
 from lib389.lint import (
@@ -60,7 +60,7 @@ class DirsrvLog(DSLint):
 
     def _get_all_log_paths(self):
         """Return all the log paths"""
-        return glob("%s.*-*" % self._get_log_path()) + [self._get_log_path()]
+        return glob.glob("%s.*-*" % self._get_log_path()) + [self._get_log_path()]
 
     def readlines_archive(self):
         """

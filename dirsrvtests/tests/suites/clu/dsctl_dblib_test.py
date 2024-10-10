@@ -17,6 +17,7 @@ from lib389.cli_ctl.dblib import (FakeArgs, dblib_bdb2mdb, dblib_mdb2bdb, dblib_
 from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager
 from lib389.topologies import topology_m2 as topo_m2, topology_st as topo_st
+from lib389.utils import check_plugin_strings
 
 
 log = logging.getLogger(__name__)
@@ -134,3 +135,24 @@ def test_dblib_migration(init_user):
         _check_db(s1, log, 'mdb')
         if s2 is not None:
             repl.test_replication_topology([s1, s2])
+
+
+def test_check_plugin_strings():
+    """
+    Check that lib389.utils check_plugin_strings is working properly
+
+    :id: 5194e88a-80c6-11ef-a2ee-482ae39447e5
+    :setup: None
+    :steps:
+        1. Call check_plugin_strings
+        2. Check that an installed rpm is detected
+        3. Check that a non installed rpm is not detected
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    res = check_plugin_strings('libback-ldbm', ('ldbm_back_search', 'DummyString'))
+    log.info(f'check_plugin_strings returned {res}')
+    assert res['ldbm_back_search'] is True
+    assert res['DummyString'] is False
