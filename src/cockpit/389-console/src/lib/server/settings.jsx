@@ -120,6 +120,7 @@ export class ServerSettings extends React.Component {
         ];
 
         this.validatePaths = this.validatePaths.bind(this);
+        this.validateAllTabs = this.validateAllTabs.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
@@ -159,6 +160,7 @@ export class ServerSettings extends React.Component {
         if (!this.state.loaded) {
             this.loadConfig();
         } else {
+            this.validateAllTabs();
             this.props.enableTree();
         }
     }
@@ -307,6 +309,30 @@ export class ServerSettings extends React.Component {
         }, () => { this.validateSaveBtn(nav_tab, attr, value) } );
     }
 
+    validateAllTabs() {
+        const tabs = ['config', 'rootdn', 'diskmon', 'adv'];
+        tabs.forEach(tab => {
+            let attrs;
+            switch (tab) {
+            case 'config':
+                attrs = general_attrs;
+                break;
+            case 'rootdn':
+                attrs = rootdn_attrs;
+                break;
+            case 'diskmon':
+                attrs = disk_attrs;
+                break;
+            case 'adv':
+                attrs = adv_attrs;
+                break;
+            }
+            attrs.forEach(attr => {
+                this.validateSaveBtn(tab, attr, this.state[attr]);
+            });
+        });
+    }
+
     loadConfig() {
         const attrs = this.state.attrs;
         // Handle the checkbox values
@@ -429,7 +455,10 @@ export class ServerSettings extends React.Component {
             '_nsslapd-entryusn-global': usnGlobal,
             '_nsslapd-ignore-time-skew': ignoreSkew,
             '_nsslapd-readonly': readOnly,
-        }, this.props.enableTree);
+        }, () => {
+            this.validateAllTabs();
+            this.props.enableTree();
+        });
     }
 
     saveRootDN() {
