@@ -146,11 +146,11 @@ def replace_license(spec_file: str, license_string: str):
         for line in contents:
             if line.startswith("License: "):
                 if args.fix_it:
-                    result.append(f"License:          GPL-3.0-or-later AND {license_string}\n")
+                    result.append(f"License:          GPL-3.0-or-later AND WITH GPL-3.0-389-ds-base-exception {license_string}\n")
                 else:
                     result.append("# IMPORTANT - Check if it looks right. Additionally, "
                                   "compare with the original line. Then, remove this comment and # FIXME - part.\n")
-                    result.append(f"# FIXME - License:          GPL-3.0-or-later AND {license_string}\n")
+                    result.append(f"# FIXME - License:          GPL-3.0-or-later AND WITH GPL-3.0-389-ds-base-exception {license_string}\n")
             else:
                 result.append(line)
     with open(spec_file, "w") as file:
