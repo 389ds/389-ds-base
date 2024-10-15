@@ -67,7 +67,7 @@ Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          __VERSION__%{?prerel}
 Release:          %{autorelease -n %{?with_asan:-e asan}}%{?dist}
-License:          GPLv3+ and (ASL 2.0 or MIT)
+License:          GPL-3.0-or-later WITH GPL-3.0-389-ds-base-exception AND (0BSD OR Apache-2.0 OR MIT) AND (Apache-2.0 OR Apache-2.0 WITH LLVM-exception OR MIT) AND (Apache-2.0 OR BSL-1.0) AND (Apache-2.0 OR MIT OR Zlib) AND (Apache-2.0 OR MIT) AND (CC-BY-4.0 AND MIT) AND (MIT OR Apache-2.0) AND Unicode-DFS-2016 AND (MIT OR CC0-1.0) AND (MIT OR Unlicense) AND 0BSD AND Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND MIT AND ISC AND MPL-2.0 AND PSF-2.0
 URL:              https://www.port389.org/
 Obsoletes:        %{name} <= 1.4.0.9
 Obsoletes:        %{name}-legacy-tools < 1.4.4.6
