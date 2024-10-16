@@ -1161,6 +1161,7 @@ cleanup:
     compute_terminate();
     SSL_ShutdownServerSessionIDCache();
     SSL_ClearSessionCache();
+    slapd_ssl_destroy();
     ndn_cache_destroy();
     NSS_Shutdown();
     dse_destroy_backup_lock();
