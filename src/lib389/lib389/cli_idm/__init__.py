@@ -52,8 +52,8 @@ def _get_args(args, kws):
     return kwargs
 
 
-def _get_basedn_arg(inst, args, log, msg=None):
-    basedn_arg = _get_dn_arg(args.basedn, msg="Enter basedn")
+def _get_basedn_arg(inst, args, basedn, log, msg=None):
+    basedn_arg = _get_dn_arg(basedn, msg="Enter basedn")
     if not DSLdapObject(inst, basedn_arg).exists():
         raise ValueError(f'The base DN "{basedn_arg}" does not exist.')
 

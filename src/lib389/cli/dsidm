@@ -128,7 +128,7 @@ if __name__ == '__main__':
     result = False
     try:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
-        basedn = _get_basedn_arg(inst, args, log, msg="Enter basedn")
+        basedn = _get_basedn_arg(inst, args,  dsrc_inst['basedn'], log, msg="Enter basedn")
         if basedn is None:
             errmsg = "Must provide a basedn!"
             if args.json:
