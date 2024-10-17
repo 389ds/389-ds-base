@@ -75,6 +75,10 @@ static int stimeout;
 static char *ciphers = NULL;
 static char *configDN = "cn=encryption,cn=config";
 
+/* The paths of extracted key and certs if any. */
+static char *key_extract_file = NULL;
+static char *cert_extract_file = NULL;
+
 
 /* Copied from libadmin/libadmin.h public/nsapi.h */
 #define SERVER_KEY_NAME "Server-Key"
@@ -1341,6 +1345,13 @@ slapd_ssl_init()
     return 0;
 }
 
+void
+slapd_ssl_destroy(void)
+{
+    slapi_ch_free_string(&key_extract_file);
+    slapi_ch_free_string(&cert_extract_file);
+}
+
 /*
  * val:   sslVersionMin/Max value set in cn=encryption,cn=config (INPUT)
  * rval:  Corresponding value to set SSLVersionRange (OUTPUT)
@@ -2063,8 +2074,6 @@ slapd_SSL_client_auth(LDAP *ld)
     SVRCOREStdPinObj *StdPinObj;
     SVRCOREError err = SVRCORE_Success;
     char *finalpersonality = NULL;
-    char *CertExtractFile = NULL;
-    char *KeyExtractFile = NULL;
 
     if ((family_list = getChildren(configDN))) {
         char **family;
@@ -2169,11 +2178,6 @@ slapd_SSL_client_auth(LDAP *ld)
             slapi_ch_free_string(&finalpersonality);
             finalpersonality = personality;
             slapi_ch_free_string(&cipher);
-            /* Get ServerCert/KeyExtractFile from given entry if any. */
-            slapi_ch_free_string(&CertExtractFile);
-            CertExtractFile = slapi_entry_attr_get_charptr(entry, "ServerCertExtractFile");
-            slapi_ch_free_string(&KeyExtractFile);
-            KeyExtractFile = slapi_entry_attr_get_charptr(entry, "ServerKeyExtractFile");
             freeConfigEntry(&entry);
         } /* end of for */
 
@@ -2191,37 +2195,12 @@ slapd_SSL_client_auth(LDAP *ld)
                            "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                            errorCode, slapd_pr_strerror(errorCode));
         } else {
-            if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
-                char *certdir;
-                char *keyfile = NULL;
-                char *certfile = NULL;
+            if (slapi_client_uses_non_nss(ld)  && key_extract_file && cert_extract_file) {
+                char *keyfile = slapi_ch_strdup(key_extract_file);
+                char *certfile = slapi_ch_strdup(cert_extract_file);
                 /* If a private tmp namespace exists
                  * it is the place where PEM files will be extracted
                  */
-                if ((certdir = check_private_certdir()) == NULL) {
-                    certdir = config_get_certdir();
-                }
-                if (KeyExtractFile) {
-                    if ('/' == *KeyExtractFile) {
-                        keyfile = KeyExtractFile;
-                    } else {
-                        keyfile = slapi_ch_smprintf("%s/%s", certdir, KeyExtractFile);
-                        slapi_ch_free_string(&KeyExtractFile);
-                    }
-                } else {
-                    keyfile = slapi_ch_smprintf("%s/%s-Key%s", certdir, finalpersonality, PEMEXT);
-                }
-                if (CertExtractFile) {
-                    if ('/' == *CertExtractFile) {
-                        certfile = CertExtractFile;
-                    } else {
-                        certfile = slapi_ch_smprintf("%s/%s", certdir, CertExtractFile);
-                        slapi_ch_free_string(&CertExtractFile);
-                    }
-                } else {
-                    certfile = slapi_ch_smprintf("%s/%s%s", certdir, finalpersonality, PEMEXT);
-                }
-                slapi_ch_free_string(&certdir);
                 if (PR_SUCCESS != PR_Access(keyfile, PR_ACCESS_EXISTS)) {
                     slapi_ch_free_string(&keyfile);
                     slapd_SSL_warn("SSL key file (%s) for client authentication does not exist. "
@@ -2254,6 +2233,10 @@ slapd_SSL_client_auth(LDAP *ld)
                     slapi_ch_free_string(&certfile);
                 }
             } else {
+                if (config_get_extract_pem() && (key_extract_file == NULL || cert_extract_file == NULL)) {
+                    slapd_SSL_warn("SSL key or certificate file were not extracted during initialisation.");
+                }
+
                 rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, SERVER_KEY_NAME);
                 if (rc) {
                     slapd_SSL_warn("SSL client authentication cannot be used "
@@ -2659,6 +2642,10 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
         }
     }
     rv = SECSuccess;
+
+    slapi_ch_free_string(&cert_extract_file);
+    cert_extract_file = slapi_ch_strdup(certfile);
+
 bail:
     CERT_DestroyCertList(list);
     slapi_ch_free_string(&CertExtractFile);
@@ -3012,6 +2999,10 @@ slapd_extract_key(Slapi_Entry *entry, char *token __attribute__((unused)), PK11S
     PR_fprintf(outFile, "\n%s\n", KEY_TRAILER);
 #endif
     rv = SECSuccess;
+
+    slapi_ch_free_string(&key_extract_file);
+    key_extract_file = slapi_ch_strdup(keyfile);
+
 bail:
     slapi_ch_free_string(&certdir);
     slapi_ch_free_string(&KeyExtractFile);
