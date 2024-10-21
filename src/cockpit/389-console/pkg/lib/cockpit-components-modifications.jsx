@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import PropTypes from 'prop-types';
@@ -37,80 +37,77 @@ const _ = cockpit.gettext;
  * Enables showing shell and ansible script. Shell one is mandatory and ansible one can be omitted.
  *
  */
-class ModificationsExportDialog extends React.Component {
-    constructor(props) {
-        super(props);
+export const ModificationsExportDialog = ({ show, onClose, shell, ansible }) => {
+    const [active_tab, setActiveTab] = React.useState("ansible");
+    const [copied, setCopied] = React.useState(false);
+    const [timeoutId, setTimeoutId] = React.useState(null);
 
-        this.state = {
-            active_tab: "shell",
-            copied: false
-        };
+    const handleSelect = (_event, active_tab) => {
+        setCopied(false);
+        setActiveTab(active_tab);
+        if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            setTimeoutId(null);
+        }
+    };
 
-        this.handleSelect = this.handleSelect.bind(this);
-        this.copyToClipboard = this.copyToClipboard.bind(this);
-    }
-
-    handleSelect(event, active_tab) {
-        this.setState({ active_tab });
-    }
-
-    copyToClipboard() {
+    const copyToClipboard = () => {
         try {
-            navigator.clipboard.writeText(this.props[this.state.active_tab].trim())
+            navigator.clipboard.writeText((active_tab === "ansible" ? ansible : shell).trim())
                     .then(() => {
-                        this.setState({ copied: true });
-                        setTimeout(() => {
-                            this.setState({ copied: false });
-                        }, 3000);
+                        setCopied(true);
+                        setTimeoutId(setTimeout(() => {
+                            setCopied(false);
+                            setTimeoutId(null);
+                        }, 3000));
                     })
                     .catch(e => console.error('Text could not be copied: ', e ? e.toString() : ""));
         } catch (error) {
             console.error('Text could not be copied: ', error.toString());
         }
-    }
+    };
 
-    render() {
-        const footer = (
-            <>
-                <Button variant='secondary' className="btn-clipboard" onClick={this.copyToClipboard} icon={this.state.copied ? <CheckIcon className="green-icon" /> : <CopyIcon />}>
-                    { _("Copy to clipboard") }
-                </Button>
-                <Button variant='secondary' className='btn-cancel' onClick={this.props.onClose}>
-                    { _("Close") }
-                </Button>
-            </>
-        );
-        return (
-            <Modal isOpen={this.props.show} className="automation-script-modal"
-                   position="top" variant="medium"
-                   onClose={this.props.onClose}
-                   footer={footer}
-                   title={_("Automation script") }>
-                <Tabs activeKey={this.state.active_tab} onSelect={this.handleSelect}>
-                    <Tab eventKey="shell" title={_("Shell script")}>
-                        <TextArea resizeOrientation='vertical' isReadOnly defaultValue={this.props.shell.trim()} />
-                    </Tab>
-                    <Tab eventKey="ansible" title={_("Ansible")}>
-                        <TextArea resizeOrientation='vertical' isReadOnly defaultValue={this.props.ansible.trim()} />
-                        <div className="ansible-docs-link">
-                            <OutlinedQuestionCircleIcon />
-                            { _("Create new task file with this content.") }
-                            <Button variant="link" component="a" href="https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html"
-                                    target="_blank" rel="noopener noreferrer"
-                                    icon={<ExternalLinkAltIcon />}>
-                                { _("Ansible roles documentation") }
-                            </Button>
-                        </div>
-                    </Tab>
-                </Tabs>
-            </Modal>
-        );
-    }
-}
+    const footer = (
+        <>
+            <Button variant='secondary' className="btn-clipboard" onClick={copyToClipboard} icon={copied ? <CheckIcon className="green-icon" /> : <CopyIcon />}>
+                { _("Copy to clipboard") }
+            </Button>
+            <Button variant='secondary' className='btn-cancel' onClick={onClose}>
+                { _("Close") }
+            </Button>
+        </>
+    );
+
+    return (
+        <Modal isOpen={show} className="automation-script-modal"
+               position="top" variant="medium"
+               onClose={onClose}
+               footer={footer}
+               title={_("Automation script") }>
+            <Tabs activeKey={active_tab} onSelect={handleSelect}>
+                <Tab eventKey="ansible" title={_("Ansible")}>
+                    <TextArea resizeOrientation='vertical' readOnlyVariant="default" defaultValue={ansible.trim()} />
+                    <div className="ansible-docs-link">
+                        <OutlinedQuestionCircleIcon />
+                        { _("Create new task file with this content.") }
+                        <Button variant="link" component="a" href="https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html"
+                                target="_blank" rel="noopener noreferrer"
+                                icon={<ExternalLinkAltIcon />}>
+                            { _("Ansible roles documentation") }
+                        </Button>
+                    </div>
+                </Tab>
+                <Tab eventKey="shell" title={_("Shell script")}>
+                    <TextArea resizeOrientation='vertical' readOnlyVariant="default" defaultValue={shell.trim()} />
+                </Tab>
+            </Tabs>
+        </Modal>
+    );
+};
 
 ModificationsExportDialog.propTypes = {
     shell: PropTypes.string.isRequired,
-    ansible: PropTypes.string,
+    ansible: PropTypes.string.isRequired,
     show: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
 };
@@ -125,67 +122,61 @@ ModificationsExportDialog.propTypes = {
  * Pass string `shell` and `ansible` with scripts.
  *
  */
-export class Modifications extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            showDialog: false,
-        };
+export const Modifications = ({ entries, failed, permitted, title, shell, ansible }) => {
+    const [showDialog, setShowDialog] = React.useState(false);
+
+    let emptyRow = null;
+    let fail_message = permitted ? _("No system modifications") : _("The logged in user is not permitted to view system modifications");
+    fail_message = failed || fail_message;
+    if (entries === null) {
+        emptyRow = <DataListItem>
+            <DataListItemRow>
+                <DataListItemCells dataListCells={[<DataListCell key="loading">{_("Loading system modifications...")}</DataListCell>]} />
+            </DataListItemRow>
+        </DataListItem>;
+    }
+    if (entries?.length === 0) {
+        emptyRow = <DataListItem>
+            <DataListItemRow>
+                <DataListItemCells dataListCells={[<DataListCell key={fail_message}>{fail_message}</DataListCell>]} />
+            </DataListItemRow>
+        </DataListItem>;
     }
 
-    render() {
-        let emptyRow = null;
-        let fail_message = this.props.permitted ? _("No system modifications") : _("The logged in user is not permitted to view system modifications");
-        fail_message = this.props.failed ? _("Error running semanage to discover system modifications") : fail_message;
-        if (this.props.entries === null) {
-            emptyRow = <DataListItem>
-                <DataListItemRow>
-                    <DataListItemCells dataListCells={[<DataListCell key="loading">{_("Loading system modifications...")}</DataListCell>]} />
-                </DataListItemRow>
-            </DataListItem>;
-        }
-        if (this.props.entries?.length === 0) {
-            emptyRow = <DataListItem>
-                <DataListItemRow>
-                    <DataListItemCells dataListCells={[<DataListCell key={fail_message}>{fail_message}</DataListCell>]} />
-                </DataListItemRow>
-            </DataListItem>;
-        }
-
-        return (
-            <>
-                <ModificationsExportDialog show={this.state.showDialog} shell={this.props.shell} ansible={this.props.ansible} onClose={ () => this.setState({ showDialog: false }) } />
-                <Card className="modifications-table">
-                    <CardHeader>
-                        <CardTitle component="h2">{this.props.title}</CardTitle>
-                        { !emptyRow &&
-                            <Button variant="secondary" onClick={() => this.setState({ showDialog: true }) }>
-                                {_("View automation script")}
-                            </Button>
+    return (
+        <>
+            <ModificationsExportDialog show={showDialog} shell={shell} ansible={ansible} onClose={() => setShowDialog(false)} />
+            <Card className="modifications-table">
+                <CardHeader>
+                    <CardTitle component="h2">{title}</CardTitle>
+                    { !emptyRow &&
+                        <Button variant="secondary" onClick={() => setShowDialog(true)}>
+                            {_("View automation script")}
+                        </Button>
+                    }
+                </CardHeader>
+                <CardBody className="contains-list">
+                    <DataList aria-label={title} isCompact>
+                        { emptyRow ||
+                            entries.map(entry => <DataListItem key={entry}>
+                                <DataListItemRow>
+                                    <DataListItemCells dataListCells={[<DataListCell key={entry}>{entry}</DataListCell>]} />
+                                </DataListItemRow>
+                            </DataListItem>
+                            )
                         }
-                    </CardHeader>
-                    <CardBody className="contains-list">
-                        <DataList aria-label={this.props.title} isCompact>
-                            { emptyRow ||
-                                this.props.entries.map(entry => <DataListItem key={entry}>
-                                    <DataListItemRow>
-                                        <DataListItemCells dataListCells={[<DataListCell key={entry}>{entry}</DataListCell>]} />
-                                    </DataListItemRow>
-                                </DataListItem>
-                                )
-                            }
-                        </DataList>
-                    </CardBody>
-                </Card>
-            </>
-        );
-    }
-}
+                    </DataList>
+                </CardBody>
+            </Card>
+        </>
+    );
+};
 
 Modifications.propTypes = {
+    failed: PropTypes.string,
     title: PropTypes.string.isRequired,
     permitted: PropTypes.bool.isRequired,
     entries: PropTypes.arrayOf(PropTypes.string),
     shell: PropTypes.string.isRequired,
-    ansible: PropTypes.string,
+    ansible: PropTypes.string.isRequired,
 };
