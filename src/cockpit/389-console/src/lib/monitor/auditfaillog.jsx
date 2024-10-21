@@ -2,6 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
+    Button,
     Checkbox,
     FormSelect,
     FormSelectOption,
@@ -13,11 +14,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -109,13 +106,13 @@ export class AuditFailLogMonitor extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Audit Failure Log")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh audit failure log")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh audit failure log")}
                                     onClick={this.handleRefreshAuditFailLog}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -129,7 +126,7 @@ export class AuditFailLogMonitor extends React.Component {
                         <FormSelect
                             id="auditfailLines"
                             value={this.state.auditfailLines}
-                            onChange={(value, event) => {
+                            onChange={(event, value) => {
                                 this.handleAuditFailChange(event);
                             }}
                             aria-label="FormSelect Input"
@@ -152,7 +149,7 @@ export class AuditFailLogMonitor extends React.Component {
                             <Checkbox
                                 id="auditfailRefreshing"
                                 isChecked={this.state.auditfailRefreshing}
-                                onChange={(checked, e) => { this.auditFailRefreshCont(e) }}
+                                onChange={(e, checked) => { this.auditFailRefreshCont(e) }}
                                 label={_("Continuously Refresh")}
                             />
                         </div>

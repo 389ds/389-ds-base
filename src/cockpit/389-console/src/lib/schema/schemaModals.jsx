@@ -1,21 +1,23 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TextInput,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -116,7 +118,7 @@ class ObjectClassModal extends React.Component {
                                     id="ocName"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="ocName"
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     validated={error.ocName ? ValidatedOptions.error : ValidatedOptions.default}
                                     isDisabled={!newOcEntry}
                                 />
@@ -133,7 +135,7 @@ class ObjectClassModal extends React.Component {
                                     id="ocDesc"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="ocDesc"
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     validated={error.ocDesc ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                             </GridItem>
@@ -150,7 +152,7 @@ class ObjectClassModal extends React.Component {
                                     aria-describedby="horizontal-form-name-helper"
                                     name="ocOID"
                                     isDisabled={ocModalViewOnly}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                 />
                             </GridItem>
                         </Grid>
@@ -163,7 +165,7 @@ class ObjectClassModal extends React.Component {
                                     id="ocParent"
                                     value={ocParent}
                                     isDisabled={ocModalViewOnly}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     {objectclasses.map((obj, index) => (
@@ -181,7 +183,7 @@ class ObjectClassModal extends React.Component {
                                     id="ocKind"
                                     value={ocKind}
                                     isDisabled={ocModalViewOnly}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     <FormSelectOption key={0} value="STRUCTURAL" label="STRUCTURAL" />
@@ -409,7 +411,7 @@ class AttributeTypeModal extends React.Component {
                                     aria-describedby="horizontal-form-name-helper"
                                     name="atName"
                                     isDisabled={!newAtEntry}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     validated={error.atName ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                             </GridItem>
@@ -426,7 +428,7 @@ class AttributeTypeModal extends React.Component {
                                     aria-describedby="horizontal-form-name-helper"
                                     name="atDesc"
                                     isDisabled={atModalViewOnly}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     validated={error.atDesc ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                             </GridItem>
@@ -443,7 +445,7 @@ class AttributeTypeModal extends React.Component {
                                     aria-describedby="horizontal-form-name-helper"
                                     name="atOID"
                                     isDisabled={atModalViewOnly}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                 />
                             </GridItem>
                         </Grid>
@@ -482,7 +484,7 @@ class AttributeTypeModal extends React.Component {
                                     id="atSyntax"
                                     value={atSyntax}
                                     isDisabled={atModalViewOnly}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     {syntaxes.map((syntax, index) => (
@@ -500,7 +502,7 @@ class AttributeTypeModal extends React.Component {
                                     id="atUsage"
                                     value={atUsage}
                                     isDisabled={atModalViewOnly}
-                                    onChange={(str, e) => { handleFieldChange(e) }}
+                                    onChange={(e, str) => { handleFieldChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     <FormSelectOption key={0} value="userApplications" label="userApplications" />
@@ -519,7 +521,7 @@ class AttributeTypeModal extends React.Component {
                                     id="atMultivalued"
                                     isChecked={atMultivalued}
                                     title={_("If attribute can have a multiple values")}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         handleFieldChange(e);
                                     }}
                                     isDisabled={atModalViewOnly}
@@ -535,7 +537,7 @@ class AttributeTypeModal extends React.Component {
                                     id="atNoUserMod"
                                     isChecked={atNoUserMod}
                                     title={_("If attribute is not modifiable by a client application")}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         handleFieldChange(e);
                                     }}
                                     isDisabled={atModalViewOnly}

@@ -4,24 +4,26 @@ import { DoubleConfirmModal } from "../notifications.jsx";
 import { VLVTable } from "./databaseTables.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -397,7 +399,7 @@ export class VLVIndexes extends React.Component {
                 });
     }
 
-    handleSelectToggle = (isExpanded, toggleId) => {
+    handleSelectToggle = (_event, isExpanded, toggleId) => {
         this.setState({
             [toggleId]: isExpanded
         });
@@ -510,7 +512,7 @@ class AddVLVIndexModal extends React.Component {
         };
 
         // VLV Sort indexes
-        this.handleVLVSortToggle = isVLVSortOpen => {
+        this.handleVLVSortToggle = (_event, isVLVSortOpen) => {
             this.setState({
                 isVLVSortOpen
             });
@@ -593,7 +595,7 @@ class AddVLVIndexModal extends React.Component {
                             variant={SelectVariant.typeaheadMulti}
                             typeAheadAriaLabel={_("Type an attribute names to create a sort index")}
                             className="ds-margin-top-lg"
-                            onToggle={this.handleVLVSortToggle}
+                            onToggle={(event, isOpen) => this.handleVLVSortToggle(event, isOpen)}
                             onClear={this.handleVLVSortClear}
                             onSelect={this.handleTypeaheadChange}
                             maxHeight={1000}
@@ -614,7 +616,7 @@ class AddVLVIndexModal extends React.Component {
                             <Checkbox
                                 id="reindexVLV"
                                 isChecked={this.props.reindexVLV}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 label={_("Reindex After Saving")}
@@ -681,7 +683,7 @@ class AddVLVModal extends React.Component {
                                 id="vlvName"
                                 aria-describedby="vlvName"
                                 name="vlvName"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.vlvName ? ValidatedOptions.error : ValidatedOptions.default}
@@ -699,7 +701,7 @@ class AddVLVModal extends React.Component {
                                 id="vlvBase"
                                 aria-describedby="vlvBase"
                                 name="vlvBase"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.vlvBase ? ValidatedOptions.error : ValidatedOptions.default}
@@ -716,7 +718,7 @@ class AddVLVModal extends React.Component {
                                 id="vlvFilter"
                                 aria-describedby="vlvFilter"
                                 name="vlvFilter"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 value={this.props.filter}
@@ -731,7 +733,7 @@ class AddVLVModal extends React.Component {
                         <GridItem span={10}>
                             <FormSelect
                                 value={this.props.vlvScope}
-                                onChange={(value, event) => {
+                                onChange={(event, value) => {
                                     handleChange(event);
                                 }}
                                 id="vlvScope"

@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import cockpit from "cockpit";
@@ -34,7 +34,7 @@ export class FileAutoComplete extends React.Component {
             isOpen: false,
             value: this.props.value || null,
         };
-        this.updateFiles(props.value || '/');
+
         this.typeaheadInputValue = "";
         this.allowFilesUpdate = true;
         this.updateFiles = this.updateFiles.bind(this);
@@ -43,7 +43,7 @@ export class FileAutoComplete extends React.Component {
         this.clearSelection = this.clearSelection.bind(this);
         this.onCreateOption = this.onCreateOption.bind(this);
 
-        this.debouncedChange = debounce(300, (value) => {
+        this.onPathChange = (value) => {
             if (!value) {
                 this.clearSelection();
                 return;
@@ -80,7 +80,9 @@ export class FileAutoComplete extends React.Component {
                     return this.updateFiles(parentDir + '/');
                 }
             }
-        });
+        };
+        this.debouncedChange = debounce(300, this.onPathChange);
+        this.onPathChange(this.state.value);
     }
 
     componentWillUnmount() {
@@ -115,7 +117,8 @@ export class FileAutoComplete extends React.Component {
 
         channel.addEventListener("message", (ev, data) => {
             const item = JSON.parse(data);
-            if (item && item.path && item.event == 'present') {
+            if (item && item.path && item.event == 'present' &&
+                (!this.props.onlyDirectories || item.type == 'directory')) {
                 item.path = item.path + (item.type == 'directory' ? '/' : '');
                 results.push(item);
             }
@@ -140,7 +143,7 @@ export class FileAutoComplete extends React.Component {
         }
 
         if (error || !this.state.value)
-            this.props.onChange('');
+            this.props.onChange('', error);
 
         if (!error)
             this.setState({ displayFiles: listItems, directory });
@@ -160,7 +163,7 @@ export class FileAutoComplete extends React.Component {
             value: null,
             isOpen: false
         });
-        this.props.onChange('');
+        this.props.onChange('', null);
     }
 
     render() {
@@ -182,7 +185,7 @@ export class FileAutoComplete extends React.Component {
                 onSelect={(_, value) => {
                     this.setState({ value, isOpen: false });
                     this.debouncedChange(value);
-                    this.props.onChange(value || '');
+                    this.props.onChange(value || '', null);
                 }}
                 onToggle={this.onToggle}
                 onClear={this.clearSelection}
@@ -201,10 +204,12 @@ FileAutoComplete.propTypes = {
     placeholder: PropTypes.string,
     superuser: PropTypes.string,
     isOptionCreatable: PropTypes.bool,
+    onlyDirectories: PropTypes.bool,
     onChange: PropTypes.func,
     value: PropTypes.string,
 };
 FileAutoComplete.defaultProps = {
     isOptionCreatable: false,
+    onlyDirectories: false,
     onChange: () => '',
 };

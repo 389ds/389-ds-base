@@ -2,6 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
+    Button,
     Form,
     Grid,
     GridItem,
@@ -9,12 +10,10 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faLink,
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+    SyncAltIcon,
+    LinkIcon
+} from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -29,13 +28,15 @@ export class ChainingMonitor extends React.Component {
                 <Form isHorizontal>
                     <TextContent>
                         <Text component={TextVariants.h2}>
-                            <FontAwesomeIcon size="sm" icon={faLink} /> {this.props.suffix} (<b>{this.props.bename}</b>)
-                            <FontAwesomeIcon
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title={_("Refresh chaining monitor")}
+                            <LinkIcon />
+                            &nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
+                            <Button 
+                                variant="plain"
+                                aria-label={_("Refresh chaining monitor")}
                                 onClick={() => this.props.reload(this.props.suffix)}
-                            />
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
                     <Grid className="ds-margin-top-lg">

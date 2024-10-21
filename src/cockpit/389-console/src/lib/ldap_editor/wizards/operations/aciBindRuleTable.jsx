@@ -2,9 +2,12 @@ import cockpit from "cockpit";
 import React from 'react';
 import {
     Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td,
+    ActionsColumn
 } from '@patternfly/react-table';
 
 const _ = cockpit.gettext;
@@ -12,24 +15,25 @@ const _ = cockpit.gettext;
 class AciBindRuleTable extends React.Component {
     constructor(props) {
         super(props);
-
         this.state = {
-            columns: [_("Bind Rule"), _("Comparator"), _("LDAP URLs")],
-            actions: [
-                {
-                    title: _("Remove Bind Rule"),
-                    onClick: (event, rowId, rowData, extra) => this.props.removeRow(rowId)
-                }
-            ],
-            rows: [],
-        };
+                columns: [
+                    { title: _("Bind Rule") },
+                    { title: _("Comparator") },
+                    { title: _("LDAP URLs") }
+                ],
+                rows: [],
+            };
     }
 
-    componentDidMount () {
-        let columns = [_("Bind Rule"), _("Comparator"), _("LDAP URLs")];
+    componentDidMount() {
+        let columns = [
+            { title: _("Bind Rule") },
+            { title: _("Comparator") },
+            { title: _("LDAP URLs") }
+        ];
         let rows = [...this.props.rows];
         if (this.props.rows.length === 0) {
-            columns = [_("Bind Rules")];
+            columns = [{ title: _("Bind Rules") }];
             rows = [{ cells: [_("No bind rules")] }];
         }
         this.setState({
@@ -38,20 +42,55 @@ class AciBindRuleTable extends React.Component {
         });
     }
 
+    getActions = (rowIndex) => [
+        {
+            title: _("Remove Bind Rule"),
+            onClick: () => this.props.removeRow(rowIndex)
+        }
+    ];
+
     render() {
-        const { columns, rows, actions } = this.state;
+        const { columns, rows } = this.state;
+        const hasRows = this.props.rows.length !== 0;
 
         return (
             <Table
                 className="ds-margin-top-lg"
-                actions={this.props.rows.length !== 0 ? actions : null}
                 aria-label="bind rule Table"
-                variant={TableVariant.compact}
-                cells={columns}
-                rows={rows}
+                variant="compact"
             >
-                <TableHeader />
-                <TableBody />
+                <Thead>
+                    <Tr>
+                        {columns.map((column, columnIndex) => (
+                            <Th key={columnIndex}>{column.title}</Th>
+                        ))}
+                        {hasRows && <Th screenReaderText="Actions" />}
+                    </Tr>
+                </Thead>
+                <Tbody>
+                    {rows.map((row, rowIndex) => (
+                        <Tr key={rowIndex}>
+                            {Array.isArray(row) ? (
+                                // Handle array-type rows
+                                row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))
+                            ) : (
+                                // Handle object-type rows (for the "No bind rules" case)
+                                row.cells && row.cells.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))
+                            )}
+                            {hasRows && (
+                                <Td isActionCell>
+                                    <ActionsColumn
+                                        items={this.getActions(rowIndex)}
+                                    />
+                                </Td>
+                            )}
+                        </Tr>
+                    ))}
+                </Tbody>
             </Table>
         );
     }

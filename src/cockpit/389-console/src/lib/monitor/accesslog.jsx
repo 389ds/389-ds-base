@@ -2,6 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
+    Button,
     Checkbox,
     FormSelect,
     FormSelectOption,
@@ -13,11 +14,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -102,7 +99,7 @@ export class AccessLogMonitor extends React.Component {
         if (this.state.accessReloading) {
             spinner = (
                 <div>
-                    <Spinner isSVG size="sm" />
+                    <Spinner  size="sm" />
                     {_("Reloading access log...")}
                 </div>
             );
@@ -115,13 +112,13 @@ export class AccessLogMonitor extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Access Log")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh access log")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh access log")}
                                     onClick={this.handleRefreshAccessLog}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -134,7 +131,7 @@ export class AccessLogMonitor extends React.Component {
                         <FormSelect
                             id="accessLines"
                             value={this.state.accessLines}
-                            onChange={(value, event) => {
+                            onChange={(event, value) => {
                                 this.handleAccessChange(event);
                             }}
                             aria-label="FormSelect Input"
@@ -157,7 +154,7 @@ export class AccessLogMonitor extends React.Component {
                             <Checkbox
                                 id="accessRefreshing"
                                 isChecked={this.state.accessRefreshing}
-                                onChange={(checked, e) => { this.accessRefreshCont(e) }}
+                                onChange={(e, checked) => { this.accessRefreshCont(e) }}
                                 label={_("Continuously Refresh")}
                             />
                         </div>

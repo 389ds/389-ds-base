@@ -12,15 +12,18 @@ import {
     TextVariants,
 } from '@patternfly/react-core';
 import {
-    cellWidth,
-    expandable,
-    Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    sortable,
-    SortByDirection,
-    info,
+	expandable,
+	TableVariant,
+	sortable,
+	SortByDirection,
+	Table,
+	Thead,
+	Tr,
+	Th,
+	Tbody,
+	Td,
+	ExpandableRowContent,
+    ActionsColumn
 } from '@patternfly/react-table';
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 import PropTypes from "prop-types";
@@ -39,11 +42,11 @@ class AbortCleanALLRUVTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Task"), transforms: [sortable], cellFormatters: [expandable] },
-                { title: _("Created"), transforms: [sortable] },
-                { title: _("Replica ID"), transforms: [sortable] },
-                { title: _("Status"), transforms: [sortable] },
-                { title: '' },
+                { title: _("Task"), sortable: true },
+                { title: _("Created"), sortable: true },
+                { title: _("Replica ID"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Actions")}
             ],
         };
 
@@ -63,23 +66,30 @@ class AbortCleanALLRUVTable extends React.Component {
         this.handleSort = this.handleSort.bind(this);
         this.handleCollapse = this.handleCollapse.bind(this);
         this.getLog = this.getLog.bind(this);
+        this.createRows = this.createRows.bind(this);
     }
 
     getLog(log) {
         return (
             <TextContent>
-                <Text component={TextVariants.h5}>
+                <Text 
+                    component={TextVariants.pre}
+                    style={{ 
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                    }}
+                >
                     {log}
                 </Text>
             </TextContent>
         );
     }
 
-    componentDidMount() {
+    createRows(tasks) {
         let rows = [];
         let columns = [...this.state.columns];
-        let count = 0;
-        for (const task of this.props.tasks) {
+        
+        for (const task of tasks) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -87,40 +97,45 @@ class AbortCleanALLRUVTable extends React.Component {
                     get_date_string(task.attrs.nstaskcreated[0]),
                     task.attrs['replica-id'][0],
                     task.attrs.nstaskstatus[0],
-                ]
+                ],
+                originalData: task
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getLog(task.attrs.nstasklog[0]) }]
-            });
-            count += 2;
         }
+        
         if (rows.length === 0) {
             rows = [{ cells: [_("No Tasks")] }];
             columns = [{ title: _("Abort CleanAllRUV Tasks") }];
         }
-        this.setState({
-            rows,
-            columns
-        });
+        
+        return { rows, columns };
     }
 
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
+    componentDidMount() {
+        const { rows, columns } = this.createRows(this.props.tasks);
+        this.setState({ rows, columns });
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.tasks !== this.props.tasks) {
+            const { rows, columns } = this.createRows(this.props.tasks);
+            this.setState({
+                rows,
+                columns,
+                page: 1
+            });
+        }
+    }
+
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
     }
 
     handleSort(_event, index, direction) {
         const sorted_tasks = [];
         const rows = [];
-        let count = 0;
 
-        // Convert the conns into a sortable array based on the column indexes
         for (const task of this.props.tasks) {
             sorted_tasks.push({
                 task,
@@ -131,7 +146,6 @@ class AbortCleanALLRUVTable extends React.Component {
             });
         }
 
-        // Sort the connections and build the new rows
         sorted_tasks.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             sorted_tasks.reverse();
@@ -145,14 +159,9 @@ class AbortCleanALLRUVTable extends React.Component {
                     get_date_string(task.attrs.nstaskcreated[0]),
                     task.attrs['replica-id'][0],
                     task.attrs.nstaskstatus[0],
-                ]
+                ],
+                originalData: task
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getLog(task.attrs.nstasklog[0]) }]
-            });
-            count += 2;
         }
         this.setState({
             sortBy: {
@@ -166,35 +175,73 @@ class AbortCleanALLRUVTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        const origRows = [...rows];
-        const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoTasks = rows.length === 1 && rows[0].cells.length === 1;
 
         return (
             <div className="ds-margin-top-xlg">
                 <Table
-                    className="ds-margin-top"
                     aria-label="Expandable table"
-                    cells={columns}
-                    rows={tableRows}
-                    onCollapse={this.handleCollapse}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    variant='compact'
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {!hasNoTasks && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoTasks && (
+                                        <Td 
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {this.getLog(row.originalData.attrs.nstasklog[0])}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.tasks.length}
                     widgetId="pagination-options-menu-bottom"
-                    perPage={this.state.perPage}
-                    page={this.state.page}
-                    variant={PaginationVariant.bottom}
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -214,11 +261,11 @@ class CleanALLRUVTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Task"), transforms: [sortable], cellFormatters: [expandable] },
-                { title: _("Created"), transforms: [sortable] },
-                { title: _("Replica ID"), transforms: [sortable] },
-                { title: _("Status"), transforms: [sortable] },
-                { title: '' },
+                { title: _("Task"), sortable: true },
+                { title: _("Created"), sortable: true },
+                { title: _("Replica ID"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Actions")}
             ],
         };
 
@@ -238,23 +285,30 @@ class CleanALLRUVTable extends React.Component {
         this.handleSort = this.handleSort.bind(this);
         this.handleCollapse = this.handleCollapse.bind(this);
         this.getLog = this.getLog.bind(this);
+        this.createRows = this.createRows.bind(this);
     }
 
     getLog(log) {
         return (
             <TextContent>
-                <Text component={TextVariants.h5}>
+                <Text 
+                    component={TextVariants.pre}
+                    style={{ 
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                    }}
+                >
                     {log}
                 </Text>
             </TextContent>
         );
     }
 
-    componentDidMount() {
+    createRows(tasks) {
         let rows = [];
         let columns = [...this.state.columns];
-        let count = 0;
-        for (const task of this.props.tasks) {
+        
+        for (const task of tasks) {
             rows.push({
                 isOpen: false,
                 cells: [
@@ -262,40 +316,45 @@ class CleanALLRUVTable extends React.Component {
                     get_date_string(task.attrs.nstaskcreated[0]),
                     task.attrs['replica-id'][0],
                     task.attrs.nstaskstatus[0],
-                ]
+                ],
+                originalData: task
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getLog(task.attrs.nstasklog[0]) }]
-            });
-            count += 2;
         }
+        
         if (rows.length === 0) {
             rows = [{ cells: [_("No Tasks")] }];
             columns = [{ title: _("CleanAllRUV Tasks") }];
         }
-        this.setState({
-            rows,
-            columns
-        });
+        
+        return { rows, columns };
     }
 
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
+    componentDidMount() {
+        const { rows, columns } = this.createRows(this.props.tasks);
+        this.setState({ rows, columns });
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.tasks !== this.props.tasks) {
+            const { rows, columns } = this.createRows(this.props.tasks);
+            this.setState({
+                rows,
+                columns,
+                page: 1 // Reset to first page when data changes
+            });
+        }
+    }
+
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
     }
 
     handleSort(_event, index, direction) {
         const sorted_tasks = [];
         const rows = [];
-        let count = 0;
 
-        // Convert the conns into a sortable array based on the column indexes
         for (const task of this.props.tasks) {
             sorted_tasks.push({
                 task,
@@ -306,7 +365,6 @@ class CleanALLRUVTable extends React.Component {
             });
         }
 
-        // Sort the connections and build the new rows
         sorted_tasks.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             sorted_tasks.reverse();
@@ -320,14 +378,9 @@ class CleanALLRUVTable extends React.Component {
                     get_date_string(task.attrs.nstaskcreated[0]),
                     task.attrs['replica-id'][0],
                     task.attrs.nstaskstatus[0],
-                ]
+                ],
+                originalData: task
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getLog(task.attrs.nstasklog[0]) }]
-            });
-            count += 2;
         }
         this.setState({
             sortBy: {
@@ -341,35 +394,73 @@ class CleanALLRUVTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        const origRows = [...rows];
-        const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoTasks = rows.length === 1 && rows[0].cells.length === 1;
 
         return (
             <div className="ds-margin-top-xlg">
                 <Table
-                    className="ds-margin-top"
                     aria-label="Expandable table"
-                    cells={columns}
-                    rows={tableRows}
-                    onCollapse={this.handleCollapse}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    variant='compact'
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {!hasNoTasks && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoTasks && (
+                                        <Td 
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {this.getLog(row.originalData.attrs.nstasklog[0])}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.tasks.length}
                     widgetId="pagination-options-menu-bottom"
-                    perPage={this.state.perPage}
-                    page={this.state.page}
-                    variant={PaginationVariant.bottom}
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -389,10 +480,10 @@ class WinsyncAgmtTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Agreement"), transforms: [sortable], cellFormatters: [expandable] },
-                { title: _("Replica"), transforms: [sortable] },
-                { title: _("Enabled"), transforms: [sortable] },
-                { title: '' },
+                { title: _("Agreement"), sortable: true },
+                { title: _("Replica"), sortable: true },
+                { title: _("Enabled"), sortable: true },
+                { title: _("Poke"), sortable: false },
             ],
         };
 
@@ -416,26 +507,28 @@ class WinsyncAgmtTable extends React.Component {
 
     getExpandedRow(agmt) {
         return (
-            <Grid className="ds-indent">
-                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
-                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
-                <hr />
-                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
-                <hr />
-                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
-            </Grid>
+            <ExpandableRowContent>
+                <Grid className="ds-indent">
+                    <GridItem span={3}>{_("Session In Progress:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
+                    <GridItem span={3}>{_("Changes Sent:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Init Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
+                </Grid>
+            </ExpandableRowContent>
         );
     }
 
@@ -446,7 +539,7 @@ class WinsyncAgmtTable extends React.Component {
                 variant="primary"
                 onClick={this.props.handlePokeAgmt}
                 title={_("Awaken the winsync replication agreement")}
-                isSmall
+                size="sm"
             >
                 {_("Poke")}
             </Button>
@@ -457,6 +550,7 @@ class WinsyncAgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
+        
         for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
@@ -465,40 +559,33 @@ class WinsyncAgmtTable extends React.Component {
                     agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
-                ]
+                ],
+                originalData: agmt
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getExpandedRow(agmt) }]
-            });
-            count += 2;
+            count += 1;
         }
+        
         if (rows.length === 0) {
             rows = [{ cells: [_("No Agreements")] }];
             columns = [{ title: _("Winsync Agreements") }];
         }
+        
         this.setState({
             rows,
             columns
         });
     }
 
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
     }
 
     handleSort(_event, index, direction) {
         const sorted_agmts = [];
         const rows = [];
-        let count = 0;
 
-        // Convert the conns into a sortable array based on the column indexes
         for (const agmt of this.props.agmts) {
             sorted_agmts.push({
                 agmt,
@@ -508,11 +595,11 @@ class WinsyncAgmtTable extends React.Component {
             });
         }
 
-        // Sort the connections and build the new rows
         sorted_agmts.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             sorted_agmts.reverse();
         }
+        
         for (let agmt of sorted_agmts) {
             agmt = agmt.agmt;
             rows.push({
@@ -522,15 +609,11 @@ class WinsyncAgmtTable extends React.Component {
                     agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
-                ]
+                ],
+                originalData: agmt
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getExpandedRow(agmt) }]
-            });
-            count += 2;
         }
+        
         this.setState({
             sortBy: {
                 index,
@@ -543,41 +626,71 @@ class WinsyncAgmtTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-
-        // We are using an expandable list, so every row has a child row with an
-        // index that points back to the parent.  So when we splice the rows for
-        // pagination we have to treat each connection as two rows, and we need
-        // to rewrite the child's parent index to point to the correct location
-        // in the new spliced array
-        const origRows = [...rows];
-        const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoAgreements = rows.length === 1 && rows[0].cells.length === 1;
 
         return (
             <div className="ds-margin-top-xlg">
                 <Table
-                    className="ds-margin-top"
-                    aria-label="Expandable table"
-                    cells={columns}
-                    rows={tableRows}
-                    onCollapse={this.handleCollapse}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    aria-label="Winsync agreements table"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoAgreements && (
+                                        <Td 
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell.title || cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            {this.getExpandedRow(row.originalData)}
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.agmts.length}
                     widgetId="pagination-options-menu-bottom"
-                    perPage={this.state.perPage}
-                    page={this.state.page}
-                    variant={PaginationVariant.bottom}
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -597,10 +710,10 @@ class AgmtTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Agreement"), transforms: [sortable], cellFormatters: [expandable] },
-                { title: _("Replica"), transforms: [sortable] },
-                { title: _("Enabled"), transforms: [sortable] },
-                { title: '' },
+                { title: _("Agreement"), sortable: true },
+                { title: _("Replica"), sortable: true },
+                { title: _("Enabled"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Poke the agreement") },
             ],
         };
 
@@ -624,30 +737,32 @@ class AgmtTable extends React.Component {
 
     getExpandedRow(agmt) {
         return (
-            <Grid className="ds-indent">
-                <GridItem span={3}>{_("Session In Progress:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
-                <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
-                <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
-                <GridItem span={3}>{_("Reap Active:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
-                <hr />
-                <GridItem span={3}>{_("Last Init Started:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Init Status:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
-                <hr />
-                <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
-                <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
-                <GridItem span={3}>{_("Last Update Status:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
-            </Grid>
+            <ExpandableRowContent>
+                <Grid className="ds-indent">
+                    <GridItem span={3}>{_("Session In Progress:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
+                    <GridItem span={3}>{_("Changes Sent:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                    <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
+                    <GridItem span={3}>{_("Reap Active:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Init Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-init-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Init Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-init-status'][0] }</b></GridItem>
+                    <hr />
+                    <GridItem span={3}>{_("Last Updated Started:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-start'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Ended:")}</GridItem>
+                    <GridItem span={9}><b>{ get_date_string(agmt['last-update-end'][0]) }</b></GridItem>
+                    <GridItem span={3}>{_("Last Update Status:")}</GridItem>
+                    <GridItem span={9}><b>{ agmt['last-update-status'][0] }</b></GridItem>
+                </Grid>
+            </ExpandableRowContent>
         );
     }
 
@@ -658,7 +773,7 @@ class AgmtTable extends React.Component {
                 variant="primary"
                 onClick={this.props.handlePokeAgmt}
                 title={_("Awaken the replication agreement")}
-                isSmall
+                size="sm"
             >
                 {_("Poke")}
             </Button>
@@ -669,6 +784,7 @@ class AgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
+        
         for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
@@ -677,40 +793,33 @@ class AgmtTable extends React.Component {
                     agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
-                ]
+                ],
+                originalData: agmt
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getExpandedRow(agmt) }]
-            });
-            count += 2;
+            count += 1;
         }
+        
         if (rows.length === 0) {
             rows = [{ cells: [_("No Agreements")] }];
             columns = [{ title: _("Replication Agreements") }];
         }
+        
         this.setState({
             rows,
             columns
         });
     }
 
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
     }
 
     handleSort(_event, index, direction) {
         const sorted_agmts = [];
         const rows = [];
-        let count = 0;
 
-        // Convert the conns into a sortable array based on the column indexes
         for (const agmt of this.props.agmts) {
             sorted_agmts.push({
                 agmt,
@@ -720,11 +829,11 @@ class AgmtTable extends React.Component {
             });
         }
 
-        // Sort the connections and build the new rows
         sorted_agmts.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             sorted_agmts.reverse();
         }
+        
         for (let agmt of sorted_agmts) {
             agmt = agmt.agmt;
             rows.push({
@@ -734,15 +843,11 @@ class AgmtTable extends React.Component {
                     agmt.replica[0],
                     agmt['replica-enabled'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
-                ]
+                ],
+                originalData: agmt
             });
-            rows.push({
-                parent: count,
-                fullWidth: true,
-                cells: [{ title: this.getExpandedRow(agmt) }]
-            });
-            count += 2;
         }
+        
         this.setState({
             sortBy: {
                 index,
@@ -754,37 +859,73 @@ class AgmtTable extends React.Component {
     }
 
     render() {
-        // This is an expandable list
         const { columns, rows, perPage, page, sortBy } = this.state;
-        const origRows = [...rows];
-        const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasNoAgreements = rows.length === 1 && rows[0].cells.length === 1;
 
         return (
             <div className="ds-margin-top-xlg">
                 <Table
-                    className="ds-margin-top"
-                    aria-label="Expandable table"
-                    cells={columns}
-                    rows={tableRows}
-                    onCollapse={this.handleCollapse}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    aria-label="Agreements table"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!hasNoAgreements && (
+                                        <Td 
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell.title || cell}</Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            {this.getExpandedRow(row.originalData)}
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.agmts.length}
                     widgetId="pagination-options-menu-bottom"
-                    perPage={this.state.perPage}
-                    page={this.state.page}
-                    variant={PaginationVariant.bottom}
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -806,20 +947,17 @@ class ConnectionTable extends React.Component {
             columns: [
                 {
                     title: _("Connection Opened"),
-                    cellFormatters: [expandable],
-                    transforms: [sortable]
+                    sortable: true
                 },
-                { title: _("IP Address"), transforms: [sortable] },
-                { title: _("Conn ID"), transforms: [sortable] },
-                { title: _("Bind DN"), transforms: [sortable] },
+                { title: _("IP Address"), sortable: true },
+                { title: _("Conn ID"), sortable: true },
+                { title: _("Bind DN"), sortable: true },
                 {
                     title: _("Max Threads"),
-                    transforms: [
-                        info({
-                            tooltip: _("If connection is currently at \"Max Threads\" then it will block new operations")
-                        }),
-                        sortable
-                    ]
+                    sortable: true,
+                    info: {
+                        tooltip: _("If connection is currently at \"Max Threads\" then it will block new operations")
+                    }
                 },
             ],
         };
@@ -922,7 +1060,7 @@ class ConnectionTable extends React.Component {
 
     handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        const index = (perPage * (page - 1) * 2) + rowKey;
         rows[index].isOpen = isOpen;
         this.setState({
             rows
@@ -1040,7 +1178,6 @@ class ConnectionTable extends React.Component {
         const startIdx = ((perPage * page) - perPage) * 2;
         const tableRows = origRows.splice(startIdx, perPage * 2);
         for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
             tableRows[idx].parent = count;
         }
 
@@ -1059,24 +1196,76 @@ class ConnectionTable extends React.Component {
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
                 <Table
-                    className="ds-margin-top"
                     aria-label="Expandable table"
-                    cells={columns}
-                    rows={tableRows}
-                    onCollapse={this.handleCollapse}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    variant='compact'
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Row expansion" />
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: columnIndex + 1
+                                    } : undefined}
+                                    info={column.info}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => {
+                            if (row.parent !== undefined) {
+                                // This is an expanded row
+                                return (
+                                    <Tr 
+                                        key={rowIndex}
+                                        isExpanded={tableRows[row.parent].isOpen}
+                                    >
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {/* Render the expanded content directly */}
+                                                {row.cells[0].title}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                );
+                            }
+                            // This is a regular row
+                            return (
+                                <Tr key={rowIndex}>
+                                    <Td 
+                                        expand={{
+                                            rowIndex,
+                                            isExpanded: row.isOpen,
+                                            onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                        }}
+                                    />
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {/* Ensure we're rendering a string or valid React element */}
+                                            {typeof cell === 'object' ? cell.title : cell}
+                                        </Td>
+                                    ))}
+                                </Tr>
+                            );
+                        })}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.conns.length}
                     widgetId="pagination-options-menu-bottom"
-                    perPage={this.state.perPage}
-                    page={this.state.page}
-                    variant={PaginationVariant.bottom}
+                    perPage={perPage}
+                    page={page}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -1095,11 +1284,10 @@ class GlueTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
-            dropdownIsOpen: false,
             columns: [
-                { title: _("Glue Entry"), transforms: [sortable, cellWidth(12)] },
-                { title: _("Description"), transforms: [sortable] },
-                { title: _("Created"), transforms: [sortable] },
+                { title: _("Glue Entry"), sortable: true },
+                { title: _("Description"), sortable: true },
+                { title: _("Created"), sortable: true },
             ],
         };
 
@@ -1121,54 +1309,27 @@ class GlueTable extends React.Component {
 
     componentDidMount() {
         const rows = [];
-        const columns = this.state.columns;
         for (const glue of this.props.glues) {
-            rows.push({
-                cells: [
-                    glue.dn, glue.attrs.nsds5replconflict[0], get_date_string(glue.attrs.createtimestamp[0])
-                ]
-            });
+            rows.push([
+                glue.dn,
+                glue.attrs.nsds5replconflict[0],
+                get_date_string(glue.attrs.createtimestamp[0])
+            ]);
         }
-        this.setState({
-            rows,
-            columns
-        });
-    }
-
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
+        this.setState({ rows });
     }
 
     handleSort(_event, index, direction) {
-        const sorted_glues = [];
-        const rows = [];
+        const sortedGlues = [...this.state.rows];
+        
+        sortedGlues.sort((a, b) => {
+            const aValue = a[index];
+            const bValue = b[index];
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        });
 
-        // Convert the conns into a sortable array
-        for (const glue of this.props.glues) {
-            sorted_glues.push({
-                1: glue.dn,
-                2: glue.attrs.nsds5replconflict[0],
-                3: get_date_string(glue.attrs.createtimestamp[0]),
-            });
-        }
-
-        // Sort the connections and build the new rows
-        sorted_glues.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
-            sorted_glues.reverse();
-        }
-        for (const glue of sorted_glues) {
-            rows.push({
-                isOpen: false,
-                cells: [
-                    glue['1'], glue['2'], glue['3']
-                ]
-            });
+            sortedGlues.reverse();
         }
 
         this.setState({
@@ -1176,35 +1337,36 @@ class GlueTable extends React.Component {
                 index,
                 direction
             },
-            rows,
+            rows: sortedGlues,
             page: 1,
         });
     }
 
-    actions() {
+    getActions(rowData) {
         return [
             {
                 title: _("Convert Glue Entry"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.convertGlue(rowData.cells[0])
+                onClick: () => this.props.convertGlue(rowData[0])
             },
             {
                 title: _("Delete Glue Entry"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.deleteGlue(rowData.cells[0])
+                onClick: () => this.props.deleteGlue(rowData[0])
             }
         ];
     }
 
     render() {
-        const { perPage, page, sortBy } = this.state;
-        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
-        let columns = this.state.columns;
-        let has_rows = true;
-        if (rows.length === 0) {
-            has_rows = false;
-            rows = [{ cells: [_("No Glue Entries")] }];
-            columns = [{ title: _("Replication Conflict Glue Entries") }];
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        const hasRows = this.props.glues.length > 0;
+        
+        // Calculate pagination
+        const startIdx = (perPage * page) - perPage;
+        let tableRows = [...rows].splice(startIdx, perPage);
+        let displayColumns = [...columns];
+
+        if (!hasRows) {
+            tableRows = [[_("No Glue Entries")]];
+            displayColumns = [{ title: _("Replication Conflict Glue Entries") }];
         }
 
         return (
@@ -1212,24 +1374,48 @@ class GlueTable extends React.Component {
                 <Table
                     className="ds-margin-top"
                     aria-label="glue table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    actions={has_rows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {displayColumns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={hasRows && column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.glues.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -1249,10 +1435,10 @@ class ConflictTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Conflict DN"), transforms: [sortable] },
-                { title: _("Description"), transforms: [sortable] },
-                { title: _("Created"), transforms: [sortable] },
-                { title: '' }
+                { title: _("Conflict DN"), sortable: true },
+                { title: _("Description"), sortable: true },
+                { title: _("Created"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Resolve the conflict") },
             ],
         };
 
@@ -1277,7 +1463,7 @@ class ConflictTable extends React.Component {
             <Button
                 id={name}
                 variant="primary"
-                isSmall
+                size="sm"
                 onClick={() => {
                     this.props.resolveConflict(name);
                 }}
@@ -1291,16 +1477,15 @@ class ConflictTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const conflict of this.props.conflicts) {
-            rows.push({
-                isOpen: false,
-                cells: [
-                    conflict.dn, conflict.attrs.nsds5replconflict[0], get_date_string(conflict.attrs.createtimestamp[0]),
-                    { title: this.getResolveButton(conflict.dn) }
-                ]
-            });
+            rows.push([
+                conflict.dn,
+                conflict.attrs.nsds5replconflict[0],
+                get_date_string(conflict.attrs.createtimestamp[0]),
+                this.getResolveButton(conflict.dn)
+            ]);
         }
         if (rows.length === 0) {
-            rows = [{ cells: [_("No Conflict Entries")] }];
+            rows = [[_("No Conflict Entries")]];
             columns = [{ title: _("Replication Conflict Entries") }];
         }
         this.setState({
@@ -1310,31 +1495,19 @@ class ConflictTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sorted_conflicts = [];
-        const rows = [];
+        const sortedConflicts = [...this.state.rows];
+        
+        sortedConflicts.sort((a, b) => {
+            const aValue = a[index];
+            const bValue = b[index];
+            if (typeof aValue === 'string') {
+                return aValue.localeCompare(bValue);
+            }
+            return 0;
+        });
 
-        // Convert the conns into a sortable array
-        for (const conflict of this.props.conflicts) {
-            sorted_conflicts.push({
-                1: conflict.dn,
-                2: conflict.attrs.nsds5replconflict[0],
-                3: get_date_string(conflict.attrs.createtimestamp[0]),
-            });
-        }
-
-        // Sort the connections and build the new rows
-        sorted_conflicts.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
-            sorted_conflicts.reverse();
-        }
-        for (const conflict of sorted_conflicts) {
-            rows.push({
-                isOpen: false,
-                cells: [
-                    conflict['1'], conflict['2'], conflict['3'],
-                    { title: this.getResolveButton(conflict['1']) }
-                ]
-            });
+            sortedConflicts.reverse();
         }
 
         this.setState({
@@ -1342,34 +1515,60 @@ class ConflictTable extends React.Component {
                 index,
                 direction
             },
-            rows,
+            rows: sortedConflicts,
             page: 1,
         });
     }
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
+        
+        // Calculate pagination
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = [...rows].splice(startIdx, perPage);
 
         return (
             <div className="ds-margin-top-lg">
                 <Table
                     className="ds-margin-top"
                     aria-label="conflict table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
-                    itemCount={this.props.conflicts.length}
+                    itemCount={rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -1385,20 +1584,23 @@ class DiskTable extends React.Component {
         this.state = {
             sortBy: {},
             columns: [
-                { title: _("Disk Partition"), transforms: [sortable] },
-                { title: _("Disk Size"), transforms: [sortable] },
-                { title: _("Used Space"), transforms: [sortable] },
-                { title: _("Available Space"), transforms: [sortable] },
+                { title: _("Disk Partition"), sortable: true },
+                { title: _("Disk Size"), sortable: true },
+                { title: _("Used Space"), sortable: true },
+                { title: _("Available Space"), sortable: true },
             ],
         };
         this.handleSort = this.handleSort.bind(this);
     }
 
-    handleSort(_event, index, direction) {
-        const sortedRows = this.props.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+    handleSort(_event, columnIndex, direction) {
+        const sortedRows = [...this.props.rows].sort((a, b) => (
+            a[columnIndex] < b[columnIndex] ? -1 : a[columnIndex] > b[columnIndex] ? 1 : 0
+        ));
+
         this.setState({
             sortBy: {
-                index,
+                index: columnIndex,
                 direction
             },
             rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
@@ -1410,9 +1612,32 @@ class DiskTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <Table aria-label="Sortable Table" sortBy={sortBy} onSort={this.handleSort} cells={columns} rows={this.props.rows}>
-                    <TableHeader />
-                    <TableBody />
+                <Table aria-label="Sortable Table" variant="compact">
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {this.props.rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </div>
         );
@@ -1424,25 +1649,22 @@ class ReportAliasesTable extends React.Component {
         super(props);
         this.state = {
             sortBy: {},
-            dropdownIsOpen: false,
             columns: [
-                { title: _("Alias"), transforms: [sortable] },
-                { title: _("Connection Data"), transforms: [sortable] },
+                { title: _("Alias"), sortable: true },
+                { title: _("Connection Data"), sortable: true },
             ],
         };
     }
 
-    actions() {
+    getActions(rowData) {
         return [
             {
                 title: _("Edit Alias"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.editConfig(rowData[0], rowData[1])
+                onClick: () => this.props.editConfig(rowData[0], rowData[1])
             },
             {
                 title: _("Delete Alias"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.deleteConfig(rowData[0])
+                onClick: () => this.props.deleteConfig(rowData[0])
             }
         ];
     }
@@ -1450,30 +1672,61 @@ class ReportAliasesTable extends React.Component {
     render() {
         let columns = this.state.columns;
         let rows = JSON.parse(JSON.stringify(this.props.rows)); // Deep copy
-        let has_rows = true;
-        if (rows.length === 0) {
-            has_rows = false;
-            rows = [{ cells: [_("No Aliases")] }];
+        const hasRows = rows.length > 0;
+        
+        if (!hasRows) {
+            rows = [[_("No Aliases")]];
             columns = [{ title: _("Instance Aliases") }];
         }
 
         return (
             <div className="ds-margin-top-xlg">
                 <TextContent>
-                    <Text className="ds-center ds-margin-bottom" component={TextVariants.h4}>
+                    <Text className="ds-center ds-margin-bottom" component="h4">
                         {_("Replica Naming Aliases")}
                     </Text>
                 </TextContent>
                 <Table
-                    variant={TableVariant.compact} aria-label="Sortable Table"
-                    sortBy={this.props.sortBy} onSort={this.props.handleSort} cells={columns}
-                    rows={rows}
-                    actions={has_rows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    variant="compact"
+                    aria-label="Sortable Table"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={hasRows && column.sortable ? {
+                                        sortBy: this.props.sortBy,
+                                        onSort: this.props.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? 
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                    :
+                                    <Td>{row.cells[0]}</Td>
+                                }
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </div>
         );
@@ -1485,61 +1738,59 @@ class ReportCredentialsTable extends React.Component {
         super(props);
 
         this.state = {
-            dropdownIsOpen: false,
             columns: [
-                { title: _("Connection Data"), transforms: [sortable] }, // connData
-                { title: _("Bind DN"), transforms: [sortable] }, // credsBinddn
-                { title: _("Password"), transforms: [sortable] }, // credsBindpw
+                { title: _("Connection Data"), sortable: true },
+                { title: _("Bind DN"), sortable: true },
+                { title: _("Password"), sortable: true },
             ],
         };
     }
 
-    actions() {
+    getActions(rowData) {
         return [
             {
                 title: _("Edit Connection"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.editConfig(rowData.cells[0], rowData.cells[1], rowData.credsBindpw, rowData.pwInteractive)
+                onClick: () => this.props.editConfig(rowData[0], rowData[1], rowData.credsBindpw, rowData.pwInteractive)
             },
             {
                 title: _("Delete Connection"),
-                onClick: (event, rowId, rowData, extra) => this.props.deleteConfig(rowData.cells[0])
+                onClick: () => this.props.deleteConfig(rowData[0])
             }
         ];
     }
 
     render() {
-        let columns = this.state.columns;
-        let rows = [];
-        let has_rows = true;
-        if (this.props.rows.length === 0) {
-            has_rows = false;
-            rows = [{ cells: [_("No Credentials")] }];
-            columns = [{ title: _("Credentials Table") }];
+        const { columns } = this.state;
+        let tableRows = [];
+        let displayColumns = [...columns];
+        const hasRows = this.props.rows.length > 0;
+
+        if (!hasRows) {
+            tableRows = [[_("No Credentials")]];
+            displayColumns = [{ title: _("Credentials Table") }];
         } else {
-            for (let row of this.props.rows) {
-                row = JSON.parse(JSON.stringify(row)); // Deep copy
-                const pwInteractive = row.pwInputInterractive;
+            tableRows = this.props.rows.map(row => {
+                const rowCopy = JSON.parse(JSON.stringify(row)); // Deep copy
+                const pwInteractive = rowCopy.pwInputInterractive;
                 let pwField = <i>{_("Interactive Input is set")}</i>;
+                
                 if (!pwInteractive) {
-                    if (row.credsBindpw === "") {
+                    if (rowCopy.credsBindpw === "") {
                         pwField = <i>{_("Both Password or Interactive Input flag are not set")}</i>;
                     } else {
                         pwField = "********";
                     }
                 }
-                rows.push(
-                    {
-                        cells: [
-                            row.connData,
-                            row.credsBinddn,
-                            { title: pwField },
-                        ],
-                        credsBindpw: row.credsBindpw,
-                        pwInteractive,
-                    }
-                );
-            }
+
+                const cells = [
+                    rowCopy.connData,
+                    rowCopy.credsBinddn,
+                    pwField
+                ];
+                cells.credsBindpw = rowCopy.credsBindpw;
+                cells.pwInteractive = pwInteractive;
+                return cells;
+            });
         }
 
         return (
@@ -1550,15 +1801,46 @@ class ReportCredentialsTable extends React.Component {
                     </Text>
                 </TextContent>
                 <Table
-                    variant={TableVariant.compact} aria-label="Cred Table"
-                    sortBy={this.props.sortBy} onSort={this.props.handleSort} cells={columns}
-                    rows={rows}
-                    actions={has_rows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    aria-label="Cred Table"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {displayColumns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={hasRows && column.sortable ? {
+                                        sortBy: this.props.sortBy,
+                                        onSort: this.props.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? 
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                    :
+                                    <Td>{row}</Td>
+                                }
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </div>
         );
@@ -1574,10 +1856,13 @@ class ReportSingleTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Supplier"), transforms: [sortable], cellFormatters: [expandable] },
-                { title: _("Agreement"), transforms: [sortable] },
-                { title: _("Status"), transforms: [sortable] },
-                { title: _("Lag"), transforms: [sortable] },
+                { 
+                    title: _("Supplier"), 
+                    sortable: true
+                },
+                { title: _("Agreement"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Lag"), sortable: true },
             ],
         };
 
@@ -1703,7 +1988,6 @@ class ReportSingleTable extends React.Component {
 
     handleCollapse(event, rowKey, isOpen) {
         const { rows } = this.state;
-        // const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[rowKey].isOpen = isOpen;
         this.setState({
             rows
@@ -1771,22 +2055,70 @@ class ReportSingleTable extends React.Component {
     }
 
     render() {
-        // This is an expandable list
         const { columns, rows, sortBy } = this.state;
         return (
             <div className="ds-margin-top-xlg">
                 <Table
-                    className="ds-margin-top"
                     aria-label="Expandable table"
-                    cells={columns}
-                    rows={rows}
-                    onCollapse={this.handleCollapse}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    variant='compact'
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Row expansion" />
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: columnIndex + 1
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => {
+                            if (row.parent !== undefined) {
+                                // Expanded row
+                                return (
+                                    <Tr 
+                                        key={rowIndex}
+                                        isExpanded={rows[row.parent].isOpen}
+                                    >
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {row.cells[0].title}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                );
+                            }
+                            // Regular row
+                            return (
+                                <Tr key={rowIndex}>
+                                    <Td 
+                                        expand={{
+                                            rowIndex,
+                                            isExpanded: row.isOpen,
+                                            onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                        }}
+                                    />
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {typeof cell === 'object' ? cell.title : cell}
+                                        </Td>
+                                    ))}
+                                </Tr>
+                            );
+                        })}
+                    </Tbody>
                 </Table>
             </div>
         );
@@ -1800,10 +2132,10 @@ class ReportConsumersTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Agreement Name"), transforms: [sortable], cellFormatters: [expandable] },
-                { title: _("Enabled"), transforms: [sortable] },
-                { title: _("Status"), transforms: [sortable] },
-                { title: _("Lag"), transforms: [sortable] },
+                { title: _("Agreement Name"), sortable: true },
+                { title: _("Enabled"), sortable: true },
+                { title: _("Status"), sortable: true },
+                { title: _("Lag"), sortable: true },
             ],
         };
 
@@ -1926,7 +2258,6 @@ class ReportConsumersTable extends React.Component {
 
     handleCollapse(event, rowKey, isOpen) {
         const { rows } = this.state;
-        // const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
         rows[rowKey].isOpen = isOpen;
         this.setState({
             rows
@@ -1993,22 +2324,69 @@ class ReportConsumersTable extends React.Component {
     }
 
     render() {
-        // This is an expandable list
         const { columns, rows, sortBy } = this.state;
         return (
             <div className="ds-margin-top">
                 <Table
                     className="ds-margin-top"
                     aria-label="Expandable consumer table"
-                    cells={columns}
-                    rows={rows}
-                    onCollapse={this.handleCollapse}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Row expansion" />
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: columnIndex + 1
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => {
+                            if (row.parent !== undefined) {
+                                return (
+                                    <Tr 
+                                        key={rowIndex}
+                                        isExpanded={rows[row.parent].isOpen}
+                                    >
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {row.cells[0].title}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                );
+                            }
+                            return (
+                                <Tr key={rowIndex}>
+                                    <Td 
+                                        expand={{
+                                            rowIndex,
+                                            isExpanded: row.isOpen,
+                                            onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                        }}
+                                    />
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {typeof cell === 'object' ? cell.title : cell}
+                                        </Td>
+                                    ))}
+                                </Tr>
+                            );
+                        })}
+                    </Tbody>
                 </Table>
             </div>
         );
@@ -2022,11 +2400,11 @@ class ReplDSRCTable extends React.Component {
         this.state = {
             sortBy: {},
             columns: [
-                { title: _("Name"), transforms: [sortable] },
-                { title: _("Connection Data"), transforms: [sortable] },
-                { title: _("Bind DN"), transforms: [sortable] },
-                { title: _("Password"), transforms: [sortable] },
-                { title: '' },
+                { title: _("Name"), sortable: true },
+                { title: _("Connection Data"), sortable: true },
+                { title: _("Bind DN"), sortable: true },
+                { title: _("Password"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Delete Button") }
             ],
             rows: [],
         };
@@ -2041,18 +2419,20 @@ class ReplDSRCTable extends React.Component {
             let cred = conn[4];
             if (conn[4] === "*") {
                 const desc = <i>Prompt</i>;
-                cred = { title: desc };
+                cred = desc;
             } else if (!conn[4].startsWith("[")) {
                 cred = "**********";
             }
-            rows.push({
-                cells: [
-                    conn[0], conn[1] + ":" + conn[2], conn[3], cred, { props: { textCenter: true }, title: this.props.getDeleteButton(conn[0]) }
-                ]
-            });
+            rows.push([
+                conn[0],
+                `${conn[1]}:${conn[2]}`,
+                conn[3],
+                cred,
+                <div className="pf-v5-u-text-align-center">{this.props.getDeleteButton(conn[0])}</div>
+            ]);
         }
         if (this.props.rows.length === 0) {
-            rows = [{ cells: [_("There is no saved replication monitor connections")] }];
+            rows = [[_("There is no saved replication monitor connections")]];
             columns = [{ title: _("Replication Connections") }];
         }
         this.setState({
@@ -2061,12 +2441,14 @@ class ReplDSRCTable extends React.Component {
         });
     }
 
-    handleSort(_event, index, direction) {
-        const rows = [...this.state.rows];
-        const sortedRows = rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+    handleSort(_event, columnIndex, direction) {
+        const sortedRows = [...this.state.rows].sort((a, b) => (
+            a[columnIndex] < b[columnIndex] ? -1 : a[columnIndex] > b[columnIndex] ? 1 : 0
+        ));
+
         this.setState({
             sortBy: {
-                index,
+                index: columnIndex,
                 direction
             },
             rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
@@ -2078,16 +2460,36 @@ class ReplDSRCTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <Table
+                <Table 
                     aria-label="Sortable DSRC Table"
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </div>
         );
@@ -2101,9 +2503,9 @@ class ReplDSRCAliasTable extends React.Component {
         this.state = {
             sortBy: {},
             columns: [
-                { title: _("Alias"), transforms: [sortable] },
-                { title: _("Connection Data"), transforms: [sortable] },
-                { title: '' }
+                { title: _("Alias"), sortable: true },
+                { title: _("Connection Data"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Delete Button") }
             ],
             rows: [],
         };
@@ -2115,14 +2517,14 @@ class ReplDSRCAliasTable extends React.Component {
         let rows = [];
 
         for (const alias of this.props.rows) {
-            rows.push({
-                cells: [
-                    alias[0], alias[1] + ":" + alias[2], { props: { textCenter: true }, title: this.props.getDeleteButton(alias[0]) }
-                ]
-            });
+            rows.push([
+                alias[0],
+                alias[1] + ":" + alias[2],
+                <div className="pf-v5-u-text-align-center">{this.props.getDeleteButton(alias[0])}</div>
+            ]);
         }
         if (this.props.rows.length === 0) {
-            rows = [{ cells: [_("There are no saved replication monitor aliases")] }];
+            rows = [[_("There are no saved replication monitor aliases")]];
             columns = [{ title: _("Replication Monitoring Aliases") }];
         }
         this.setState({
@@ -2131,12 +2533,14 @@ class ReplDSRCAliasTable extends React.Component {
         });
     }
 
-    handleSort(_event, index, direction) {
-        const rows = [...this.state.rows];
-        const sortedRows = rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+    handleSort(_event, columnIndex, direction) {
+        const sortedRows = [...this.state.rows].sort((a, b) => (
+            a[columnIndex] < b[columnIndex] ? -1 : a[columnIndex] > b[columnIndex] ? 1 : 0
+        ));
+
         this.setState({
             sortBy: {
-                index,
+                index: columnIndex,
                 direction
             },
             rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
@@ -2148,16 +2552,36 @@ class ReplDSRCAliasTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <Table
+                <Table 
                     aria-label="Sortable DSRC Table"
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </div>
         );

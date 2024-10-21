@@ -3,27 +3,25 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd, listsEqual } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    Grid,
-    GridItem,
-    Select,
-    SelectVariant,
-    SelectOption,
-    Spinner,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	Grid,
+	GridItem,
+	Spinner,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from "@patternfly/react-icons";
 
 const _ = cockpit.gettext;
 
@@ -62,7 +60,7 @@ export class ServerSASL extends React.Component {
             isAllowedMechOpen: false,
         };
         // Allowed SASL Mechanisms
-        this.handleOnAllowedMechToggle = isAllowedMechOpen => {
+        this.handleOnAllowedMechToggle = (_event, isAllowedMechOpen) => {
             this.setState({
                 isAllowedMechOpen,
             });
@@ -626,13 +624,13 @@ export class ServerSASL extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("SASL Settings")}
-                                    <FontAwesomeIcon
-                                        size="lg"
-                                        className="ds-left-margin ds-refresh"
-                                        icon={faSyncAlt}
-                                        title={_("Refresh SASL settings")}
+                                    <Button 
+                                        variant="plain"
+                                        aria-label={_("Refresh SASL settings")}
                                         onClick={this.handleLoadConfig}
-                                    />
+                                    >
+                                        <SyncAltIcon />
+                                    </Button>
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -649,7 +647,7 @@ export class ServerSASL extends React.Component {
                                     id="maxBufSize"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="maxBufSize"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e);
                                     }}
                                 />
@@ -665,7 +663,7 @@ export class ServerSASL extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type SASL mechanism to allow"
-                                    onToggle={this.handleOnAllowedMechToggle}
+                                    onToggle={(event, isOpen) => this.handleOnAllowedMechToggle(event, isOpen)}
                                     onSelect={this.handleOnSelect}
                                     onClear={this.handleOnAllowedMechClear}
                                     selections={this.state.allowedMechs}
@@ -689,7 +687,7 @@ export class ServerSASL extends React.Component {
                             <Checkbox
                                 isChecked={this.state.mappingFallback}
                                 id="mappingFallback"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleChange(e);
                                 }}
                                 label={_("Allow SASL Mapping Fallback")}
