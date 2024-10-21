@@ -14,13 +14,12 @@
 # Lesser General Public License for more details.
 #
 # You should have received a copy of the GNU Lesser General Public License
-# along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+# along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import ctypes
+import os
 import struct
 import sys
-
 
 IN_CLOSE_WRITE = 0x00000008
 IN_MOVED_FROM = 0x00000040
@@ -62,7 +61,7 @@ class Inotify:
         buf = os.read(self.fd, 4096)
         pos = 0
         while pos < len(buf):
-            (wd, mask, cookie, name_len) = struct.unpack('iIII', buf[pos:pos + 16])
+            (wd, mask, _cookie, name_len) = struct.unpack('iIII', buf[pos:pos + 16])
             pos += 16
             (name,) = struct.unpack('%ds' % name_len, buf[pos:pos + name_len])
             pos += name_len

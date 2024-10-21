@@ -14,8 +14,10 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
+
+import cockpit from 'cockpit';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -28,8 +30,10 @@ import { Text, TextContent, TextVariants } from "@patternfly/react-core/dist/esm
 
 import './cockpit-components-table.scss';
 
+const _ = cockpit.gettext;
+
 /* This is a wrapper around PF Table component
- * See https://www.patternfly.org/v4/components/table/
+ * See https://www.patternfly.org/components/table/
  * Properties (all optional unless specified otherwise):
  * - caption
  * - id: optional identifier
@@ -188,7 +192,7 @@ export const ListingTable = ({
     const rowsComponents = (isSortable ? (sortMethod ? sortMethod(rows, activeSortDirection, activeSortIndex) : sortRows()) : rows).map((row, rowIndex) => {
         const rowProps = row.props || {};
         if (onRowClick) {
-            rowProps.isHoverable = true;
+            rowProps.isClickable = true;
             rowProps.onRowClick = (event) => onRowClick(event, row);
         }
 
@@ -197,6 +201,7 @@ export const ListingTable = ({
 
         const rowKey = rowProps.key || rowIndex;
         const isExpanded = expanded[rowKey] === undefined ? !!row.initiallyExpanded : expanded[rowKey];
+        let columnSpanCnt = 0;
         const rowPair = (
             <React.Fragment key={rowKey + "-inner-row"}>
                 <Tr {...rowProps}>
@@ -224,11 +229,15 @@ export const ListingTable = ({
                             }
                         }} />
                     }
-                    {row.columns.map((cell, cellIndex) => {
+                    {row.columns.map(cell => {
                         const { key, ...cellProps } = cell.props || {};
-                        const dataLabel = typeof cells[cellIndex] == 'object' ? cells[cellIndex].title : cells[cellIndex];
-                        const colKey = dataLabel || cellIndex;
-                        if (cells[cellIndex]?.header)
+                        const headerCell = cells[columnSpanCnt];
+                        const dataLabel = typeof headerCell == 'object' ? headerCell.title : headerCell;
+                        const colKey = dataLabel || columnSpanCnt;
+
+                        columnSpanCnt += cellProps.colSpan || 1;
+
+                        if (headerCell?.header)
                             return (
                                 <Th key={key || `row_${rowKey}_cell_${colKey}`} dataLabel={dataLabel} {...cellProps}>
                                     {typeof cell == 'object' ? cell.title : cell}
@@ -250,10 +259,7 @@ export const ListingTable = ({
             </React.Fragment>
         );
 
-        if (row.expandedContent)
-            return <Tbody key={rowKey} isExpanded={isExpanded}>{rowPair}</Tbody>;
-        else
-            return rowPair;
+        return <Tbody key={rowKey} isExpanded={row.expandedContent && isExpanded}>{rowPair}</Tbody>;
     });
 
     return (
@@ -262,9 +268,13 @@ export const ListingTable = ({
             <Table {...extraProps} {...tableProps}>
                 {showHeader && <Thead>
                     <Tr>
-                        {isExpandable && <Th />}
-                        {!onHeaderSelect && onSelect && <Th />}
-                        {onHeaderSelect && onSelect && <Th select={{
+                        {/* HACK - https://github.com/patternfly/patternfly/issues/6643
+                            We should probably be using screenReaderText instead of aria-label
+                            for the first two here, but that will change the table layout.
+                          */}
+                        {isExpandable && <Th aria-label={_("Row expansion")} />}
+                        {!onHeaderSelect && onSelect && <Th aria-label={_("Row select")} />}
+                        {onHeaderSelect && onSelect && <Th aria-label={_("Row select")} select={{
                             onSelect: onHeaderSelect,
                             isSelected: rows.every(r => r.selected)
                         }} />}
@@ -293,7 +303,7 @@ export const ListingTable = ({
                         })}
                     </Tr>
                 </Thead>}
-                {!isExpandable ? <Tbody>{rowsComponents}</Tbody> : rowsComponents}
+                {rowsComponents}
             </Table>
         </>
     );

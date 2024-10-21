@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import cockpit from "cockpit";
@@ -25,7 +25,6 @@ import { Alert } from "@patternfly/react-core/dist/esm/components/Alert/index.js
 import { Button } from "@patternfly/react-core/dist/esm/components/Button/index.js";
 import { Modal } from "@patternfly/react-core/dist/esm/components/Modal/index.js";
 import { Popover } from "@patternfly/react-core/dist/esm/components/Popover/index.js";
-import { Spinner } from "@patternfly/react-core/dist/esm/components/Spinner/index.js";
 import { Stack, StackItem } from "@patternfly/react-core/dist/esm/layouts/Stack/index.js";
 import { HelpIcon, ExternalLinkAltIcon } from '@patternfly/react-icons';
 
@@ -44,7 +43,7 @@ const _ = cockpit.gettext;
  *  - list of actions, each an object with:
  *      - clicked
  *         Callback function that is expected to return a promise.
- *         parameter: callback to set the progress text (will be displayed next to spinner)
+ *         parameter: callback to set the progress text
  *      - caption optional, defaults to 'Ok'
  *      - disabled optional, defaults to false
  *      - style defaults to 'secondary', other options: 'primary', 'danger'
@@ -70,10 +69,11 @@ class DialogFooter extends React.Component {
         this.setState({ action_progress_message: msg, action_progress_cancel: cancel });
     }
 
-    action_click(handler, e) {
+    action_click(handler, caption, e) {
         this.setState({
             action_progress_message: '',
             action_in_progress: true,
+            action_caption_in_progress: caption,
             action_canceled: false,
         });
 
@@ -144,7 +144,6 @@ class DialogFooter extends React.Component {
                 cancel_disabled = true;
             wait_element = <div className="dialog-wait-ct">
                 <span>{ this.state.action_progress_message }</span>
-                <Spinner className="dialog-wait-ct-spinner" size="md" />
             </div>;
         } else if (this.props.idle_message) {
             wait_element = <div className="dialog-wait-ct">
@@ -167,8 +166,9 @@ class DialogFooter extends React.Component {
                 key={ caption }
                 className="apply"
                 variant={ variant }
+                isLoading={ this.state.action_in_progress && this.state.action_caption_in_progress == caption }
                 isDanger={ action.danger }
-                onClick={ this.action_click.bind(this, action.clicked) }
+                onClick={ this.action_click.bind(this, action.clicked, caption) }
                 isDisabled={ actions_disabled || action.disabled }
             >{ caption }</Button>
             );
@@ -209,12 +209,22 @@ DialogFooter.propTypes = {
  *  - id optional, id that is assigned to the top level dialog node, but not the backdrop
  *  - variant: See PF4 Modal component's 'variant' property
  *  - titleIconVariant: See PF4 Modal component's 'titleIconVariant' property
+ *  - showClose optional, specifies if 'X' button for closing the dialog is present
  */
 class Dialog extends React.Component {
     componentDidMount() {
+        // For the scenario that cockpit-storage is used inside anaconda Web UI
+        // We need to know if there is an open dialog in order to create the backdrop effect
+        // on the parent window
+        window.sessionStorage.setItem("cockpit_has_modal", true);
+
         // if we used a button to open this, make sure it's not focused anymore
         if (document.activeElement)
             document.activeElement.blur();
+    }
+
+    componentWillUnmount() {
+        window.sessionStorage.setItem("cockpit_has_modal", false);
     }
 
     render() {
@@ -234,14 +244,13 @@ class Dialog extends React.Component {
             </Popover>;
 
         const error = this.props.error || this.props.static_error;
-        const error_alert = error &&
-            <Alert variant='danger' isInline title={React.isValidElement(error) ? error : error.toString() }>{error.details}</Alert>;
+        const error_alert = error && <Alert variant='danger' isInline title={error} />;
 
         return (
             <Modal position="top" variant={this.props.variant || "medium"}
                    titleIconVariant={this.props.titleIconVariant}
                    onEscapePress={() => undefined}
-                   showClose={false}
+                   showClose={!!this.props.showClose}
                    id={this.props.id}
                    isOpen
                    help={help}
@@ -261,9 +270,10 @@ Dialog.propTypes = {
     title: PropTypes.string, // is effectively required, but show_modal_dialog() provides initially no props and resets them later.
     body: PropTypes.element, // is effectively required, see above
     static_error: PropTypes.string,
+    error: PropTypes.string,
     footer: PropTypes.element, // is effectively required, see above
     id: PropTypes.string,
-    error: PropTypes.object,
+    showClose: PropTypes.bool,
 };
 
 /* Create and show a dialog
