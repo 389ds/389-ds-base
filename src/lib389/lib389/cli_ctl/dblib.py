@@ -205,7 +205,7 @@ def export_changelog(be, dblib):
         return False
     try:
         cl5dbname = be['eccl5dbname'] if dblib == "bdb" else be['cl5dbname']
-        _log.info(f'Exporting changelog {cl5dbname} to {be['cl5name']}')
+        _log.info(f"Exporting changelog {cl5dbname} to {be['cl5name']}")
         run_dbscan(['-D', dblib, '-f', cl5dbname, '-X', be['cl5name']])
         return True
     except subprocess.CalledProcessError as e:
@@ -216,7 +216,7 @@ def import_changelog(be, dblib):
     # import backend changelog
     try:
         cl5dbname = be['eccl5dbname'] if dblib == "bdb" else be['cl5dbname']
-        _log.info(f'Importing changelog {cl5dbname} from {be['cl5name']}')
+        _log.info(f"Importing changelog {cl5dbname} from {be['cl5name']}")
         run_dbscan(['-D', dblib, '-f', cl5dbname, '--import', be['cl5name'], '--do-it'])
         return True
     except subprocess.CalledProcessError as e:
