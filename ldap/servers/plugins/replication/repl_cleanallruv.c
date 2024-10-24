@@ -1777,7 +1777,6 @@ replica_execute_cleanruv_task(Replica *replica, ReplicaId rid, char *returntext 
 {
     Object *RUVObj;
     RUV *local_ruv = NULL;
-    cleanruv_purge_data *purge_data;
     int rc = 0;
     PR_ASSERT(replica);
 
@@ -1794,10 +1793,14 @@ replica_execute_cleanruv_task(Replica *replica, ReplicaId rid, char *returntext 
         (ruv_replica_count(local_ruv) <= 1)) {
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    rc = ruv_delete_replica(local_ruv, rid);
-    if (replica_write_ruv(replica)) {
+    if ((rc = ruv_delete_replica(local_ruv, rid))) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "cleanAllRUV_task - "
+                "Failed to remove rid from RUV (%d)\n", rc);
+        return LDAP_OPERATIONS_ERROR;
+    }
+    if ((rc = replica_write_ruv(replica))) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "cleanAllRUV_task - Could not write RUV\n");
+                      "cleanAllRUV_task - Could not write RUV (%d)\n", rc);
     }
     object_release(RUVObj);
 
@@ -1809,19 +1812,6 @@ replica_execute_cleanruv_task(Replica *replica, ReplicaId rid, char *returntext 
      */
     cl5CleanRUV(rid, replica);
 
-    /*
-     * Now purge the changelog.  The purging thread will free the purge_data
-     */
-    purge_data = (cleanruv_purge_data *)slapi_ch_calloc(1, sizeof(cleanruv_purge_data));
-    purge_data->cleaned_rid = rid;
-    purge_data->suffix_sdn = replica_get_root(replica);
-    purge_data->replica = replica;
-    trigger_cl_purging(purge_data);
-
-    if (rc != RUV_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "cleanAllRUV_task - Task failed(%d)\n", rc);
-        return LDAP_OPERATIONS_ERROR;
-    }
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_task - Finished successfully\n");
     return LDAP_SUCCESS;
 }
@@ -2097,6 +2087,7 @@ static void
 replica_cleanallruv_thread(void *arg)
 {
     cleanruv_data *data = arg;
+    cleanruv_purge_data *purge_data = NULL;
     Object *agmt_obj = NULL;
     Object *ruv_obj = NULL;
     Repl_Agmt *agmt = NULL;
@@ -2377,7 +2368,20 @@ done:
                          "Propagated task does not delete Keep alive entry (%d).", data->rid);
         }
         clean_agmts(data);
-        remove_cleaned_rid(data->rid);
+
+        /*
+         * Now purge the changelog.  The purging thread will free the
+         * purge_data and update the cleaned rid list
+         */
+        purge_data = (cleanruv_purge_data *)slapi_ch_calloc(1, sizeof(cleanruv_purge_data));
+        purge_data->cleaned_rid = data->rid;
+        purge_data->replica = data->replica;
+        purge_data->task = data->task;
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO,
+                     "Triggering changelog purge thread. This might complete "
+                     "after the cleaning task finishes.");
+        trigger_cl_purging(purge_data);
+
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO,
                      "Successfully cleaned rid(%d)", data->rid);
     } else {
@@ -2436,7 +2440,8 @@ clean_agmts(cleanruv_data *data)
             agmt_obj = agmtlist_get_next_agreement_for_replica(data->replica, agmt_obj);
             continue;
         }
-        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Cleaning agmt...");
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO,
+                     "Cleaning agmt (%s) ...", agmt_get_long_name(agmt));
         agmt_stop(agmt);
         agmt_update_consumer_ruv(agmt);
         agmt_start(agmt);
