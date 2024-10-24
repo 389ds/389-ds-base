@@ -830,8 +830,8 @@ typedef struct _cleanruv_data
 typedef struct _cleanruv_purge_data
 {
     int cleaned_rid;
-    const Slapi_DN *suffix_sdn;
     Replica *replica;
+    Slapi_Task *task;
 } cleanruv_purge_data;
 
 typedef struct _csngen_test_data
