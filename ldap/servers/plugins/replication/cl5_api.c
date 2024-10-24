@@ -246,7 +246,7 @@ static int _cl5CheckMissingCSN(const CSN *minCsn, const RUV *supplierRUV, cldb_H
 static int cldb_IsTrimmingEnabled(cldb_Handle *cldb);
 static int _cl5TrimMain(void *param);
 void _cl5TrimReplica(Replica *r);
-void _cl5PurgeRID(cldb_Handle *cldb,  ReplicaId cleaned_rid);
+void _cl5PurgeRID(cleanruv_purge_data *data, cldb_Handle *cldb);
 static PRBool _cl5CanTrim(time_t time, long *numToTrim, Replica *replica, CL5Config *dbTrim);
 int _cl5ConstructRUVs (cldb_Handle *cldb);
 int _cl5ReadRUVs(cldb_Handle *cldb);
@@ -984,7 +984,7 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
     pthread_mutex_unlock(&(cldb->stLock));
 
     /* iterate through the ruv in csn order to find first supplier for which
-       we can replay changes */		
+       we can replay changes */
     rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, iterator, NULL);
 
     if (rc != CL5_SUCCESS) {
@@ -1874,8 +1874,8 @@ _cl5Iterate(cldb_Handle *cldb, dbi_iterate_cb_t *action_cb, DBLCI_CTX *dblcictx,
                 continue;
             }
         } else {
-            /* read-only opertion on bdb are transactionless, so no reason to abort txn 
-             * after having seen some number of records 
+            /* read-only opertion on bdb are transactionless, so no reason to abort txn
+             * after having seen some number of records
              */
             dblcictx->seen.nbmax = 0;
         }
@@ -2552,21 +2552,19 @@ _cl5TrimMain(void *param)
 static void
 _cl5DoPurging(cleanruv_purge_data *purge_data)
 {
-    ReplicaId rid = purge_data->cleaned_rid;
-    const Slapi_DN *suffix_sdn = purge_data->suffix_sdn;
     cldb_Handle *cldb = replica_get_cl_info(purge_data->replica);
-
     if (cldb == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "_cl5DoPurging - Changelog info was NULL - is your replication configuration valid?\n");
         return;
     }
+
     pthread_mutex_lock(&(cldb->clLock));
-    _cl5PurgeRID (cldb, rid);
-    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                  "_cl5DoPurging - Purged rid (%d) from suffix (%s)\n",
-                  rid, slapi_sdn_get_dn(suffix_sdn));
+
+    _cl5PurgeRID(purge_data, cldb);
+
     pthread_mutex_unlock(&(cldb->clLock));
+
     return;
 }
 
@@ -2653,7 +2651,7 @@ _cl5PurgeRidOnEntry(dbi_val_t *key, dbi_val_t *data, void *ctx)
 }
 
 /*
- *  _cl5PurgeRID(Object *obj,  ReplicaId cleaned_rid)
+ *  _cl5PurgeRID(cleanruv_purge_data, cleaned_rid)
  *
  *  Clean the entire changelog of updates from the "cleaned rid" via CLEANALLRUV
  *  Delete entries in batches so we don't consume too many db locks, and we don't
@@ -2662,18 +2660,30 @@ _cl5PurgeRidOnEntry(dbi_val_t *key, dbi_val_t *data, void *ctx)
  *  beginning for each new iteration.
  */
 void
-_cl5PurgeRID(cldb_Handle *cldb, ReplicaId cleaned_rid)
+_cl5PurgeRID(cleanruv_purge_data *data, cldb_Handle *cldb)
 {
     DBLCI_CTX dblcictx = {0};
+    int32_t rc = 0;
 
     dblcictx.seen.nbmax = CL5_PURGE_MAX_LOOKUP_PER_TRANSACTION;
     dblcictx.changed.nbmax = CL5_PURGE_MAX_PER_TRANSACTION;
-    dblcictx.rid2purge = cleaned_rid;
-    _cl5Iterate(cldb, _cl5PurgeRidOnEntry, &dblcictx, PR_FALSE);
+    dblcictx.rid2purge = data->cleaned_rid;
 
-    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                  "_cl5PurgeRID - Removed (%ld entries) that originated from rid (%d)\n",
-                  dblcictx.changed.tot, cleaned_rid);
+    rc = _cl5Iterate(cldb, _cl5PurgeRidOnEntry, &dblcictx, PR_FALSE);
+    if (rc != CL5_SUCCESS && rc != CL5_NOTFOUND) {
+        cleanruv_log(data->task, data->cleaned_rid, CLEANALLRUV_ID,
+                     SLAPI_LOG_ERR,
+                     "Purging failed to iterate through the entire changelog "
+                     "(error %d). There is a chance the rid was not fully "
+                     "removed, and you may have to run the cleanAllRUV task "
+                     "again.",
+                     rc);
+    } else {
+        cleanruv_log(data->task, data->cleaned_rid, CLEANALLRUV_ID,
+                     SLAPI_LOG_INFO,
+                     "Purged %ld records from the changelog",
+                     dblcictx.changed.tot);
+    }
 }
 
 /*
@@ -4496,11 +4506,10 @@ trigger_cl_purging_thread(void *arg)
     /* Purge the changelog */
     _cl5DoPurging(purge_data);
 
-    slapi_counter_decrement(cldb->clThreads);
+    /* Remove the rid from the internal list */
+    remove_cleaned_rid(purge_data->cleaned_rid);
 
-    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                  "trigger_cl_purging_thread - purged changelog for (%s) rid (%d)\n",
-                  slapi_sdn_get_dn(purge_data->suffix_sdn), purge_data->cleaned_rid);
+    slapi_counter_decrement(cldb->clThreads);
 
 free_and_return:
     pthread_mutex_unlock(&(cldb->stLock));
