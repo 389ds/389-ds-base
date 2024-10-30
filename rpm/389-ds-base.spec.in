@@ -405,7 +405,7 @@ pushd ../%{jemalloc_name}-%{jemalloc_ver}
         --libdir=%{_libdir}/%{pkgname}/lib \
         --bindir=%{_libdir}/%{pkgname}/bin \
         --enable-prof %{lg_page} %{lg_hugepage}
-make %{?_smp_mflags}
+%make_build
 popd
 %endif
 
@@ -458,7 +458,7 @@ sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dscreat
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS
 
-make %{?_smp_mflags}
+%make_build
 
 %install
 
@@ -466,7 +466,7 @@ mkdir -p %{buildroot}%{_datadir}/gdb/auto-load%{_sbindir}
 %if %{with cockpit}
 mkdir -p %{buildroot}%{_datadir}/cockpit
 %endif
-make DESTDIR="$RPM_BUILD_ROOT" install
+%make_install
 
 %if %{with cockpit}
 find %{buildroot}%{_datadir}/cockpit/389-console -type d | sed -e "s@%{buildroot}@@" | sed -e 's/^/\%dir /' > cockpit.list
