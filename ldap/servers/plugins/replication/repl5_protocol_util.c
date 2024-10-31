@@ -361,7 +361,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
                         /* remote replica detected a duplicate ReplicaID */
                         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                                       "acquire_replica - "
-                                      "%s: Unable to aquire replica: the replica "
+                                      "%s: Unable to acquire replica: the replica "
                                       "has the same Replica ID as this one. "
                                       "Replication is aborting.\n",
                                       agmt_get_long_name(prp->agmt));
