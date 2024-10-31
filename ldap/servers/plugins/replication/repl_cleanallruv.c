@@ -41,7 +41,7 @@ static int replica_cleanallruv_send_abort_extop(Repl_Agmt *ra, Slapi_Task *task,
 static int replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *basedn, char *rid_text, char *maxcsn, Slapi_Task *task);
 static int replica_cleanallruv_replica_alive(Repl_Agmt *agmt);
 static int replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *ra, char *rid_text, Slapi_Task *task, char *force);
-static void delete_cleaned_rid_config(cleanruv_data *data);
+
 static int replica_cleanallruv_is_finished(Repl_Agmt *agmt, char *filter, Slapi_Task *task);
 static void check_replicas_are_done_cleaning(cleanruv_data *data);
 static void check_replicas_are_done_aborting(cleanruv_data *data);
@@ -791,7 +791,7 @@ delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, char *certify_all
 /*
  *  Just remove the dse.ldif config, but we need to keep the cleaned rids in memory until we know we are done
  */
-static void
+void
 delete_cleaned_rid_config(cleanruv_data *clean_data)
 {
     Slapi_PBlock *pb, *modpb;
@@ -2087,7 +2087,6 @@ static void
 replica_cleanallruv_thread(void *arg)
 {
     cleanruv_data *data = arg;
-    cleanruv_purge_data *purge_data = NULL;
     Object *agmt_obj = NULL;
     Object *ruv_obj = NULL;
     Repl_Agmt *agmt = NULL;
@@ -2351,13 +2350,11 @@ done:
         /*
          * Success - the rid has been cleaned!
          *
-         * Delete the cleaned rid config.
          * Make sure all the replicas have been "pre_cleaned"
          * Remove the keep alive entry if present
          * Clean the agreements' RUV
-         * Remove the rid from the internal clean list
+         * Purge the changelog
          */
-        delete_cleaned_rid_config(data);
         check_replicas_are_done_cleaning(data);
         if (data->original_task) {
             cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO,
@@ -2369,21 +2366,14 @@ done:
         }
         clean_agmts(data);
 
-        /*
-         * Now purge the changelog.  The purging thread will free the
-         * purge_data and update the cleaned rid list
-         */
-        purge_data = (cleanruv_purge_data *)slapi_ch_calloc(1, sizeof(cleanruv_purge_data));
-        purge_data->cleaned_rid = data->rid;
-        purge_data->replica = data->replica;
-        purge_data->task = data->task;
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO,
-                     "Triggering changelog purge thread. This might complete "
-                     "after the cleaning task finishes.");
-        trigger_cl_purging(purge_data);
-
-        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO,
-                     "Successfully cleaned rid(%d)", data->rid);
+                     "Purging changelog...");
+        if (cldb_purge_rid(data) == LDAP_SUCCESS) {
+            delete_cleaned_rid_config(data);
+            remove_cleaned_rid(data->rid);
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO,
+                         "Successfully cleaned rid(%d)", data->rid);
+        }
     } else {
         /*
          *  Shutdown or abort
