@@ -81,26 +81,27 @@ typedef enum {
 /* error codes */
 enum
 {
-    CL5_SUCCESS,       /* successful operation */
-    CL5_BAD_DATA,      /* invalid parameter passed to the function */
-    CL5_BAD_FORMAT,    /* db data has unexpected format */
-    CL5_BAD_STATE,     /* changelog is in an incorrect state for attempted operation */
-    CL5_BAD_DBVERSION, /* changelog has invalid dbversion */
-    CL5_DB_ERROR,      /* database error */
-    CL5_NOTFOUND,      /* requested entry or value was not found */
-    CL5_MEMORY_ERROR,  /* memory allocation failed */
-    CL5_SYSTEM_ERROR,  /* NSPR error occured, use PR_Error for furhter info */
-    CL5_CSN_ERROR,     /* CSN API failed */
-    CL5_RUV_ERROR,     /* RUV API failed */
-    CL5_OBJSET_ERROR,  /* namedobjset api failed */
-    CL5_DB_LOCK_ERROR, /* bdb returns error 12 when the db runs out of locks,
+    CL5_SUCCESS,        /* successful operation */
+    CL5_BAD_DATA,       /* invalid parameter passed to the function */
+    CL5_BAD_FORMAT,     /* db data has unexpected format */
+    CL5_BAD_STATE,      /* changelog is in an incorrect state for attempted operation */
+    CL5_BAD_DBVERSION,  /* changelog has invalid dbversion */
+    CL5_DB_ERROR,       /* database error */
+    CL5_NOTFOUND,       /* requested entry or value was not found */
+    CL5_MEMORY_ERROR,   /* memory allocation failed */
+    CL5_SYSTEM_ERROR,   /* NSPR error occured, use PR_Error for furhter info */
+    CL5_CSN_ERROR,      /* CSN API failed */
+    CL5_RUV_ERROR,      /* RUV API failed */
+    CL5_OBJSET_ERROR,   /* namedobjset api failed */
+    CL5_DB_LOCK_ERROR,  /* bdb returns error 12 when the db runs out of locks,
                            this var needs to be in slot 12 of the list.
                            Do not re-order enum above! */
-    CL5_PURGED_DATA,   /* requested data has been purged */
-    CL5_MISSING_DATA,  /* data should be in the changelog, but is missing */
-    CL5_UNKNOWN_ERROR, /* unclassified error */
-    CL5_IGNORE_OP,     /* ignore this updated - used by CLEANALLRUV task */
-    CL5_DB_RETRY,      /* Retryable database error  */
+    CL5_PURGED_DATA,    /* requested data has been purged */
+    CL5_MISSING_DATA,   /* data should be in the changelog, but is missing */
+    CL5_UNKNOWN_ERROR,  /* unclassified error */
+    CL5_IGNORE_OP,      /* ignore this updated - used by CLEANALLRUV task */
+    CL5_DB_RETRY,       /* Retryable database error  */
+    CL5_SHUTDOWN,       /* server shutdown during changelog iteration */
     CL5_LAST_ERROR_CODE /* Should always be last in this enum */
 };
 
@@ -140,7 +141,7 @@ int cl5Open(void);
 int cl5Close(void);
 
 /* Name:        cldb_RemoveReplicaDB
-   Description: Clear the cldb information from the replica 
+   Description: Clear the cldb information from the replica
                 and delete the database file
 */
 int cldb_RemoveReplicaDB(Replica *replica);
@@ -328,7 +329,7 @@ int cl5NotifyRUVChange(Replica *replica);
 
 void cl5CleanRUV(ReplicaId rid, Replica *replica);
 void cl5NotifyCleanup(int rid);
-void trigger_cl_purging(cleanruv_purge_data *purge_data);
+int32_t cldb_purge_rid(cleanruv_data *purge_data);
 int cldb_SetReplicaDB(Replica *replica, void *arg);
 int cldb_UnSetReplicaDB(Replica *replica, void *arg);
 int cldb_StartTrimming(Replica *replica);
