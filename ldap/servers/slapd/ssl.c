@@ -1325,7 +1325,8 @@ slapd_ssl_init()
                 slapi_ch_free((void **)&token);
                 return -1;
             }
-            if (config_get_extract_pem()) {
+            /* Only extract the keys/cert *once* */
+            if (config_get_extract_pem() && _security_library_initialized == 0) {
                 /* Get Server{Key,Cert}ExtractFile from cn=Cipher,cn=encryption entry if any. */
                 slapd_extract_cert(entry, PR_FALSE);
                 slapd_extract_key(entry, isinternal ? internalTokenName : token, slot);
@@ -2195,7 +2196,7 @@ slapd_SSL_client_auth(LDAP *ld)
                            "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                            errorCode, slapd_pr_strerror(errorCode));
         } else {
-            if (slapi_client_uses_non_nss(ld)  && key_extract_file && cert_extract_file) {
+            if (slapi_client_uses_non_nss(ld)  && key_extract_file != NULL && cert_extract_file != NULL) {
                 char *keyfile = slapi_ch_strdup(key_extract_file);
                 char *certfile = slapi_ch_strdup(cert_extract_file);
                 /* If a private tmp namespace exists
