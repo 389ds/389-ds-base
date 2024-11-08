@@ -868,8 +868,8 @@ bail:
 }
 
 /* Perform fixup (similar as fixup task) on all backends */
-int
-perform_needed_fixup()
+static int
+perform_needed_fixup(void)
 {
     task_data td = {0};
     MemberOfConfig config = {0};
@@ -1348,13 +1348,11 @@ memberof_postop_del(Slapi_PBlock *pb)
         struct slapi_entry *e = NULL;
         Slapi_DN *copied_sdn;
         PRBool deferred_update;
-        MemberofDeferredList* deferred_list;
 
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
         deferred_update = mainConfig->deferred_update;
-        deferred_list = mainConfig->deferred_list;
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -1734,13 +1732,11 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
         Slapi_DN *origin_sdn;
         Slapi_DN *copied_sdn;
         PRBool deferred_update;
-        MemberofDeferredList* deferred_list;
 
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
         deferred_update = mainConfig->deferred_update;
-        deferred_list = mainConfig->deferred_list;
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -2054,13 +2050,11 @@ memberof_postop_modify(Slapi_PBlock *pb)
         MemberOfConfig *mainConfig = 0;
         MemberOfConfig configCopy = {0};
         PRBool deferred_update;
-        MemberofDeferredList* deferred_list;
 
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
         deferred_update = mainConfig->deferred_update;
-        deferred_list = mainConfig->deferred_list;
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -2316,13 +2310,11 @@ memberof_postop_add(Slapi_PBlock *pb)
         MemberOfConfig *mainConfig;
         Slapi_DN *copied_sdn;
         PRBool deferred_update;
-        MemberofDeferredList* deferred_list;
 
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
         deferred_update = mainConfig->deferred_update;
-        deferred_list = mainConfig->deferred_list;
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -4160,14 +4152,14 @@ static memberof_cached_value *
 ancestors_cache_lookup(MemberOfConfig *config, const char *ndn)
 {
     memberof_cached_value *e;
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     long int start;
     struct timespec tsnow;
 #endif
 
     cache_stat.total_lookup++;
 
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
         start = 0;
     } else {
@@ -4177,7 +4169,7 @@ ancestors_cache_lookup(MemberOfConfig *config, const char *ndn)
 
     e = (memberof_cached_value *) PL_HashTableLookupConst(config->ancestors_cache, (const void *) ndn);
 
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     if (start) {
         if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
             cache_stat.cumul_duration_lookup += (tsnow.tv_nsec - start);
@@ -4193,14 +4185,14 @@ static PRBool
 ancestors_cache_remove(MemberOfConfig *config, const char *ndn)
 {
     PRBool rc;
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     long int start;
     struct timespec tsnow;
 #endif
 
     cache_stat.total_remove++;
 
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
         start = 0;
     } else {
@@ -4211,7 +4203,7 @@ ancestors_cache_remove(MemberOfConfig *config, const char *ndn)
 
     rc = PL_HashTableRemove(config->ancestors_cache, (const void *)ndn);
 
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     if (start) {
         if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
             cache_stat.cumul_duration_remove += (tsnow.tv_nsec - start);
@@ -4225,13 +4217,13 @@ static PLHashEntry *
 ancestors_cache_add(MemberOfConfig *config, const void *key, void *value)
 {
     PLHashEntry *e;
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     long int start;
     struct timespec tsnow;
 #endif
     cache_stat.total_add++;
 
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
         start = 0;
     } else {
@@ -4241,7 +4233,7 @@ ancestors_cache_add(MemberOfConfig *config, const void *key, void *value)
 
     e = PL_HashTableAdd(config->ancestors_cache, key, value);
 
-#if defined(DEBUG) && defined(HAVE_CLOCK_GETTIME)
+#if defined(DEBUG)
     if (start) {
         if (clock_gettime(CLOCK_REALTIME, &tsnow) == 0) {
             cache_stat.cumul_duration_add += (tsnow.tv_nsec - start);

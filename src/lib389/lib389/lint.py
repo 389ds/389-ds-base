@@ -87,28 +87,6 @@ DSBLE0006 = {
 }
 
 # Config checks
-DSCLE0001 = {
-    'dsle': 'DSCLE0001',
-    'severity': 'LOW',
-    'description': 'Different log timestamp format.',
-    'items': ['cn=config', ],
-    'detail': """nsslapd-logging-hr-timestamps-enabled changes the log format in directory server from
-
-[07/Jun/2017:17:15:58 +1000]
-
-to
-
-[07/Jun/2017:17:15:58.716117312 +1000]
-
-This actually provides a performance improvement. Additionally, this setting will be
-removed in a future release.
-""",
-    'fix': """Set nsslapd-logging-hr-timestamps-enabled to on.
-You can use 'dsconf' to set this attribute.  Here is an example:
-
-    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-logging-hr-timestamps-enabled=on"""
-}
-
 DSCLE0002 = {
     'dsle': 'DSCLE0002',
     'severity': 'HIGH',

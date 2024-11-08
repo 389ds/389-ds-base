@@ -197,7 +197,6 @@ slapi_onoff_t init_auditlogbuffering;
 slapi_onoff_t init_auditlog_logging_hide_unhashed_pw;
 slapi_onoff_t init_auditfaillog_logging_enabled;
 slapi_onoff_t init_auditfaillog_logging_hide_unhashed_pw;
-slapi_onoff_t init_logging_hr_timestamps;
 slapi_onoff_t init_csnlogging;
 slapi_onoff_t init_pw_unlock;
 slapi_onoff_t init_pw_must_change;
@@ -1381,13 +1380,6 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securitylog,
      CONFIG_STRING_OR_EMPTY, NULL, "", NULL /* prevents deletion when null */},
-/* warning: initialization makes pointer from integer without a cast [enabled by default]. Why do we get this? */
-#ifdef HAVE_CLOCK_GETTIME
-    {CONFIG_LOGGING_HR_TIMESTAMPS, config_set_logging_hr_timestamps,
-     NULL, 0,
-     (void **)&global_slapdFrontendConfig.logging_hr_timestamps,
-     CONFIG_ON_OFF, NULL, &init_logging_hr_timestamps, NULL},
-#endif
     {CONFIG_EXTRACT_PEM, config_set_extract_pem,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.extract_pem,
@@ -1947,11 +1939,6 @@ FrontendConfig_init(void)
     init_auditfaillog_logging_hide_unhashed_pw =
         cfg->auditfaillog_logging_hide_unhashed_pw = LDAP_ON;
     init_auditfaillog_compress_enabled = cfg->auditfaillog_compress = LDAP_OFF;
-
-#ifdef HAVE_CLOCK_GETTIME
-    init_logging_hr_timestamps =
-        cfg->logging_hr_timestamps = LDAP_ON;
-#endif
     init_entryusn_global = cfg->entryusn_global = LDAP_OFF;
     cfg->entryusn_import_init = slapi_ch_strdup(SLAPD_ENTRYUSN_IMPORT_INIT);
     cfg->default_naming_context = NULL; /* store normalized dn */
@@ -2237,26 +2224,6 @@ config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *err
     }
     return retVal;
 }
-
-#ifdef HAVE_CLOCK_GETTIME
-int32_t
-config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int32_t retVal = LDAP_SUCCESS;
-
-    retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->logging_hr_timestamps),
-                              errorbuf, apply);
-    if (apply && retVal == LDAP_SUCCESS) {
-        if (strcasecmp(value, "on") == 0) {
-            log_enable_hr_timestamps();
-        } else {
-            log_disable_hr_timestamps();
-        }
-    }
-    return retVal;
-}
-#endif
 
 /*
  * Utility function called by many of the config_set_XXX() functions.
