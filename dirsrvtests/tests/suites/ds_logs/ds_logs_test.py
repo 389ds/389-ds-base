@@ -1489,8 +1489,46 @@ def test_missing_backend_suffix(topology_st, request):
         log.info('Restore dse.ldif')
         topology_st.standalone.stop()
         shutil.copy(dse_ldif + '.correct', dse_ldif)
+        topology_st.standalone.start()
 
     request.addfinalizer(fin)
+
+
+def test_errorlog_buffering(topology_st, request):
+    """Test log buffering works as expected when on or off
+
+    :id: 324ec5ed-c8ec-49fe-ab20-8c8cbfedca41
+    :setup: Standalone Instance
+    :steps:
+        1. Set buffering on
+        2. Reset logs and restart the server
+        3. Check for logging that should be buffered (not found)
+        4. Disable buffering
+        5. Reset logs and restart the server
+        6. Check for logging that should be found
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    # Configure instance
+    inst = topology_st.standalone
+    inst.config.replace('nsslapd-errorlog-logbuffering', 'on')
+    inst.deleteErrorLogs(restart=True)
+
+    time.sleep(1)
+    assert not inst.ds_error_log.match(".*slapd_daemon - slapd started.*")
+
+    inst.config.replace('nsslapd-errorlog-logbuffering', 'off')
+    inst.deleteErrorLogs(restart=True)
+
+    time.sleep(1)
+    assert inst.ds_error_log.match(".*slapd_daemon - slapd started.*")
+
 
 if __name__ == '__main__':
     # Run isolated
