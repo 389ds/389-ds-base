@@ -31,11 +31,6 @@ def test_hc_encryption(topology_st):
     assert result == DSELE0001
 
 def test_hc_config(topology_st):
-    # Check the HR timestamp
-    topology_st.standalone.config.set('nsslapd-logging-hr-timestamps-enabled', 'off')
-    result = topology_st.standalone.config._lint_hr_timestamp()
-    assert result == DSCLE0001
-
     # Check the password scheme check.
     topology_st.standalone.config.set('passwordStorageScheme', 'SSHA')
     result = topology_st.standalone.config._lint_passwordscheme()

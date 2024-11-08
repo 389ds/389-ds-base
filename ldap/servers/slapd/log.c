@@ -47,7 +47,6 @@ PRUintn logbuf_tsdindex;
 struct logbufinfo *logbuf_accum;
 static struct logging_opts loginfo;
 static int detached = 0;
-static int logging_hr_timestamps_enabled = 1;
 
 //extern int slapd_ldap_debug;
 
@@ -2236,24 +2235,6 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
     return rv;
 }
 
-/*
- * Enables HR timestamps in logs.
- */
-void
-log_enable_hr_timestamps()
-{
-    logging_hr_timestamps_enabled = 1;
-}
-
-/*
- * Disables HR timestamps in logs.
- */
-void
-log_disable_hr_timestamps()
-{
-    logging_hr_timestamps_enabled = 0;
-}
-
 /******************************************************************************
  * Write title line in log file
  *****************************************************************************/
@@ -2739,29 +2720,20 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     char tbuf[TBUFSIZE];
     char buffer[SLAPI_LOG_BUFSIZ];
     int size = TBUFSIZE;
+    struct timespec tsnow;
 
-#ifdef HAVE_CLOCK_GETTIME
-    if (logging_hr_timestamps_enabled == 1) {
-        struct timespec tsnow;
-        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to determine system time for message :: %s\n", msg);
-            return;
-        }
-        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s\n", msg);
-            return;
-        }
-    } else {
-#endif
-        time_t tnl;
-        tnl = slapi_current_utc_time();
-        if (format_localTime_log(tnl, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s\n", msg);
-            return;
-        }
-#ifdef HAVE_CLOCK_GETTIME
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        syslog(LOG_EMERG,
+               "vslapd_log_emergency_error, Unable to determine system time for message :: %s\n",
+               msg);
+        return;
     }
-#endif
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(tbuf), tbuf, &size) != 0) {
+        syslog(LOG_EMERG,
+               "vslapd_log_emergency_error, Unable to format system time for message :: %s\n",
+               msg);
+        return;
+    }
 
     PR_snprintf(buffer, sizeof(buffer), "%s- EMERG - %s\n", tbuf, msg);
     size = strlen(buffer);
@@ -2814,6 +2786,7 @@ vslapd_log_error(
     int locked)
 {
     char buffer[SLAPI_LOG_BUFSIZ];
+    struct timespec tsnow;
     char sev_name[10];
     int blen = TBUFSIZE;
     char *vbuf = NULL;
@@ -2825,32 +2798,21 @@ vslapd_log_error(
         return -1;
     }
 
-#ifdef HAVE_CLOCK_GETTIME
-    if (logging_hr_timestamps_enabled == 1) {
-        struct timespec tsnow;
-        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to determine system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, locked);
-            return -1;
-        }
-        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
-            /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, locked);
-            return -1;
-        }
-    } else {
-#endif
-        time_t tnl;
-        tnl = slapi_current_utc_time();
-        if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, locked);
-            return -1;
-        }
-#ifdef HAVE_CLOCK_GETTIME
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_error, Unable to determine system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, locked);
+        return -1;
     }
-#endif
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+        /* MSG may be truncated */
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_error, Unable to format system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, locked);
+        return -1;
+    }
 
     /* Bug 561525: to be able to remove timestamp to not over pollute syslog, we may need
         to skip the timestamp part of the message.
@@ -3033,6 +2995,7 @@ vslapd_log_access(const char *fmt, va_list ap)
     int32_t blen = TBUFSIZE;
     int32_t vlen;
     int32_t rc = LDAP_SUCCESS;
+    struct timespec tsnow;
     time_t tnl;
 
 #ifdef SYSTEMTAP
@@ -3045,34 +3008,23 @@ vslapd_log_access(const char *fmt, va_list ap)
         return -1;
     }
 
-#ifdef HAVE_CLOCK_GETTIME
-    if (logging_hr_timestamps_enabled == 1) {
-        struct timespec tsnow;
-        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            /* Make an error */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to determine system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, 0);
-            return -1;
-        }
-        tnl = tsnow.tv_sec;
-        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
-            /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, 0);
-            return -1;
-        }
-    } else {
-#endif
-        tnl = slapi_current_utc_time();
-        if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
-            /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, 0);
-            return -1;
-        }
-#ifdef HAVE_CLOCK_GETTIME
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        /* Make an error */
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_access, Unable to determine system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, 0);
+        return -1;
     }
-#endif
+    tnl = tsnow.tv_sec;
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+        /* MSG may be truncated */
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_access, Unable to format system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, 0);
+        return -1;
+    }
 
     if (SLAPI_LOG_BUFSIZ - blen < vlen) {
         /* We won't be able to fit the message in! Uh-oh! */

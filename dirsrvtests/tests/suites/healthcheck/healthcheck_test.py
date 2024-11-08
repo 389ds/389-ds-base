@@ -146,8 +146,7 @@ def test_healthcheck_list_checks(topology_st):
         3. Success
     """
 
-    output_list = ['config:hr_timestamp',
-                   'config:passwordscheme',
+    output_list = ['config:passwordscheme',
                    'backends:userroot:cl_trimming',
                    'backends:userroot:mappingtree',
                    'backends:userroot:search',
@@ -194,7 +193,6 @@ def test_healthcheck_list_errors(topology_st):
                    'DSBLE0006 :: BDB is still used as a backend',
                    'DSCERTLE0001 :: Certificate about to expire',
                    'DSCERTLE0002 :: Certificate expired',
-                   'DSCLE0001 :: Different log timestamp format',
                    'DSCLE0002 :: Weak passwordStorageScheme',
                    'DSCLE0003 :: Unauthorized Binds Allowed',
                    'DSCLE0004 :: Access Log buffering disabled',
@@ -240,8 +238,7 @@ def test_healthcheck_check_option(topology_st):
         3. Success
     """
 
-    output_list = ['config:hr_timestamp',
-                   'config:passwordscheme',
+    output_list = ['config:passwordscheme',
                    # 'config:accesslog_buffering',  Skip test access log buffering is disabled
                    'config:securitylog_buffering',
                    'config:unauth_binds',

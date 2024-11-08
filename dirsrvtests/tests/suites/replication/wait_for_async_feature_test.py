@@ -153,15 +153,13 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
         None, '2000', '0', '-5'
     :steps:
         1. Set Replication Debugging loglevel for the errorlog
-        2. Set nsslapd-logging-hr-timestamps-enabled to 'off' on both suppliers
-        3. Gather all sync attempts,  group by timestamp
-        4. Take the most common timestamp and assert it has appeared
+        2. Gather all sync attempts,  group by timestamp
+        3. Take the most common timestamp and assert it has appeared
            in the set range
     :expectedresults:
         1. Replication Debugging loglevel should be set
-        2. nsslapd-logging-hr-timestamps-enabled  should be set
-        3. Operation should be successful
-        4. Errors log should have all timestamp appear
+        2. Operation should be successful
+        3. Errors log should have all timestamp appear
     """
 
     supplier1 = topology_m2.ms["supplier1"]

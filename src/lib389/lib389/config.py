@@ -23,7 +23,7 @@ from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
 from lib389.lint import (
-    DSCLE0001, DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSELE0001
+    DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSELE0001
 )
 
 class Config(DSLdapObject):
@@ -202,14 +202,6 @@ class Config(DSLdapObject):
     @classmethod
     def lint_uid(cls):
         return 'config'
-
-    def _lint_hr_timestamp(self):
-        hr_timestamp = self.get_attr_val('nsslapd-logging-hr-timestamps-enabled')
-        if ensure_bytes('on') != hr_timestamp:
-            report = copy.deepcopy(DSCLE0001)
-            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-            report['check'] = "config:hr_timestamp"
-            yield report
 
     def _lint_passwordscheme(self):
         allowed_schemes = ['PBKDF2-SHA512', 'PBKDF2_SHA256', 'PBKDF2_SHA512', 'GOST_YESCRYPT']
