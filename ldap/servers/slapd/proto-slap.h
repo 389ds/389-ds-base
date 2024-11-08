@@ -423,12 +423,6 @@ int config_set_maxsimplepaged_per_conn(const char *attrname, char *value, char *
 int log_external_libs_debug_set_log_fn(void);
 int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
 
-#ifdef HAVE_CLOCK_GETTIME
-int config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply);
-void log_enable_hr_timestamps(void);
-void log_disable_hr_timestamps(void);
-#endif
-
 int config_get_SSLclientAuth(void);
 int config_get_ssl_check_hostname(void);
 tls_check_crl_t config_get_tls_check_crl(void);
