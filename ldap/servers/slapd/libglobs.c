@@ -186,6 +186,7 @@ slapi_onoff_t init_securitylog_compress_enabled;
 slapi_onoff_t init_auditlog_compress_enabled;
 slapi_onoff_t init_auditfaillog_compress_enabled;
 slapi_onoff_t init_errorlog_compress_enabled;
+slapi_onoff_t init_errorlogbuffering;
 slapi_onoff_t init_accesslog_logging_enabled;
 slapi_onoff_t init_accesslogbuffering;
 slapi_onoff_t init_securitylog_logging_enabled;
@@ -848,6 +849,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securitylogbuffering,
      CONFIG_ON_OFF, NULL, &init_securitylogbuffering, NULL},
+    {CONFIG_ERRORLOG_BUFFERING_ATTRIBUTE, config_set_errorlogbuffering,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.errorlogbuffering,
+     CONFIG_ON_OFF, NULL, &init_errorlogbuffering, NULL},
     {CONFIG_CSNLOGGING_ATTRIBUTE, config_set_csnlogging,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.csnlogging,
@@ -1910,6 +1915,7 @@ FrontendConfig_init(void)
     cfg->errorlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->errorloglevel = SLAPD_DEFAULT_FE_ERRORLOG_LEVEL;
     init_errorlog_compress_enabled = cfg->errorlog_compress = LDAP_OFF;
+    init_errorlogbuffering = cfg->errorlogbuffering = LDAP_OFF;
 
     init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
     cfg->auditlog_log_format = slapi_ch_strdup(SLAPD_INIT_AUDITLOG_LOG_FORMAT);
@@ -7846,6 +7852,21 @@ config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf,
     retVal = config_set_onoff(attrname,
                               value,
                               &(slapdFrontendConfig->accesslogbuffering),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_errorlogbuffering(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->errorlogbuffering),
                               errorbuf,
                               apply);
 
