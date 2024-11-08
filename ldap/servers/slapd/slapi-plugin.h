@@ -6778,7 +6778,7 @@ time_t slapi_current_time(void) __attribute__((deprecated));
  * and should NOT be used for timer information.
  */
 int32_t slapi_clock_gettime(struct timespec *tp);
-/* 
+/*
  * slapi_clock_gettime should have better been called
  * slapi_clock_utc_gettime but sice the function pre-existed
  * we are just adding an alias (to avoid risking to break
@@ -8321,8 +8321,6 @@ int slapi_is_special_rdn(const char *rdn, int flag);
  */
 void DS_Sleep(PRIntervalTime ticks);
 
-
-#ifdef HAVE_CLOCK_GETTIME
 /**
  * Diffs two timespects a - b into *diff. This is useful with
  * clock_monotonic to find time taken to perform operations.
@@ -8373,7 +8371,6 @@ void slapi_operation_workq_time_elapsed(Slapi_Operation *o, struct timespec *ela
  * \param Slapi_Operation o - the operation which is inprogress
  */
 void slapi_operation_set_time_started(Slapi_Operation *o);
-#endif
 
 /**
  * Store a 32bit integral value atomicly

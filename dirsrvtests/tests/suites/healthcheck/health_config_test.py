@@ -59,6 +59,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
         log.info('Use healthcheck without --json option')
         args.json = json
         health_check_run(instance, topology.logcap.log, args)
+
         assert topology.logcap.contains(searched_code)
         log.info('Healthcheck returned searched code: %s' % searched_code)
 
@@ -83,48 +84,6 @@ def setup_ldif(topology_st, request):
         os.remove(import_ldif)
 
     request.addfinalizer(fin)
-
-
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
-def test_healthcheck_logging_format_should_be_revised(topology_st):
-    """Check if HealthCheck returns DSCLE0001 code
-
-    :id: 277d7980-123b-481b-acba-d90921b9f5ac
-    :setup: Standalone instance
-    :steps:
-        1. Create DS instance
-        2. Set nsslapd-logging-hr-timestamps-enabled to 'off'
-        3. Use HealthCheck without --json option
-        4. Use HealthCheck with --json option
-        5. Set nsslapd-logging-hr-timestamps-enabled to 'on'
-        6. Use HealthCheck without --json option
-        7. Use HealthCheck with --json option
-    :expectedresults:
-        1. Success
-        2. Success
-        3. Healthcheck reports DSCLE0001 code and related details
-        4. Healthcheck reports DSCLE0001 code and related details
-        5. Success
-        6. Healthcheck reports no issue found
-        7. Healthcheck reports no issue found
-    """
-
-    RET_CODE = 'DSCLE0001'
-
-    standalone = topology_st.standalone
-
-    log.info('Set nsslapd-logging-hr-timestamps-enabled to off')
-    standalone.config.set('nsslapd-logging-hr-timestamps-enabled', 'off')
-    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
-
-    log.info('Set nsslapd-logging-hr-timestamps-enabled to off')
-    standalone.config.set('nsslapd-logging-hr-timestamps-enabled', 'on')
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
@@ -156,6 +115,8 @@ def test_healthcheck_RI_plugin_is_misconfigured(topology_st):
     RET_CODE = 'DSRILE0001'
 
     standalone = topology_st.standalone
+
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     plugin = ReferentialIntegrityPlugin(standalone)
     plugin.disable()
@@ -408,7 +369,6 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     db_cfg = DatabaseConfig(standalone)
     db_cfg.set([('nsslapd-idlistscanlimit', '100')])
 
-
     log.info('Stopping the server and running offline import...')
     standalone.stop()
     assert standalone.ldif2db(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], encrypt=None, excludeSuffixes=None,
@@ -477,6 +437,7 @@ def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
+
 def test_healthcheck_unauth_binds(topology_st):
     """Check if HealthCheck returns DSCLE0003 code when unauthorized binds are
     allowed
@@ -508,6 +469,7 @@ def test_healthcheck_unauth_binds(topology_st):
     # reset setting
     log.info('Reset nsslapd-allow-unauthenticated-binds to off')
     inst.config.set("nsslapd-allow-unauthenticated-binds", "off")
+
 
 def test_healthcheck_accesslog_buffering(topology_st):
     """Check if HealthCheck returns DSCLE0004 code when acccess log buffering
@@ -541,6 +503,7 @@ def test_healthcheck_accesslog_buffering(topology_st):
     log.info('Reset nsslapd-accesslog-logbuffering to on')
     inst.config.set("nsslapd-accesslog-logbuffering", "on")
 
+
 def test_healthcheck_securitylog_buffering(topology_st):
     """Check if HealthCheck returns DSCLE0005 code when security log buffering
     is disabled
@@ -572,6 +535,7 @@ def test_healthcheck_securitylog_buffering(topology_st):
     # reset setting
     log.info('Reset nnsslapd-securitylog-logbuffering to on')
     inst.config.set("nsslapd-securitylog-logbuffering", "on")
+
 
 def test_healthcheck_auditlog_buffering(topology_st):
     """Check if HealthCheck returns DSCLE0006 code when audit log buffering
