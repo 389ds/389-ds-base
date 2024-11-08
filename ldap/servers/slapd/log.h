@@ -183,7 +183,8 @@ struct logging_opts
     time_t log_error_ctime;             /* log creation time */
     LogFileInfo *log_error_logchain;    /* all the logs info */
     char *log_errorinfo_file;           /* error log rotation info file */
-    Slapi_RWLock *log_error_rwlock;     /* lock on error*/
+    Slapi_RWLock *log_error_rwlock;     /* lock on error */
+    LogBufferInfo *log_error_buffer;    /* buffer for error log */
 
     /* These are audit log specific */
     int log_audit_state;
