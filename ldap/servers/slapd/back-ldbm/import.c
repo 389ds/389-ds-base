@@ -27,7 +27,8 @@
 #define NEED_DN_NORM_SP -25
 #define NEED_DN_NORM_BT -26
 
-pthread_mutex_t import_ctx_mutex = PTHREAD_MUTEX_INITIALIZER; /* Protect agains import context destruction */
+/* Protect against import context destruction */
+static pthread_mutex_t import_ctx_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 /********** routines to manipulate the entry fifo **********/

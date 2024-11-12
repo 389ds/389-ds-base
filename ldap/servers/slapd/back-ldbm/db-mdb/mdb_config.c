@@ -99,7 +99,7 @@ dbmdb_compute_limits(struct ldbminfo *li)
      *  But some tunable may be autotuned.
      */
     if (dbmdb_count_config_entries("(objectClass=nsMappingTree)", &nbsuffixes) ||
-        dbmdb_count_config_entries("(objectClass=nsIndex)", &nbsuffixes) ||
+        dbmdb_count_config_entries("(objectClass=nsIndex)", &nbindexes) ||
         dbmdb_count_config_entries("(objectClass=vlvIndex)", &nbvlvs) ||
         dbmdb_count_config_entries("(objectClass=nsds5replicationagreement)", &nbagmt)) {
         /* error message is already logged */
