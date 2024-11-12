@@ -17,6 +17,7 @@ from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389._mapped_object import DSLdapObjects
+from lib389.agreement import Agreements
 from lib389.cli_base import FakeArgs
 from lib389.cli_conf.backend import db_config_set
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
@@ -27,6 +28,8 @@ from lib389.cos import CosPointerDefinitions, CosTemplates
 from lib389.backend import Backends, DatabaseConfig
 from lib389.monitor import MonitorLDBM, Monitor
 from lib389.plugins import ReferentialIntegrityPlugin
+from lib389.replica import BootstrapReplicationManager, Replicas
+from lib389.passwd import password_generate
 
 pytestmark = pytest.mark.tier0
 
@@ -35,6 +38,8 @@ PSTACK_CMD = '/usr/bin/pstack'
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 
 @pytest.fixture(scope="module")
 def big_file():
@@ -811,6 +816,87 @@ def test_numlisteners_limit(topo):
     # Check the value of nsslapd-numlisteners in dse.ldif is set to 4
     numlisteners = dse_ldif.get(DN_CONFIG, 'nsslapd-numlisteners')
     assert numlisteners[0] == '4'
+
+
+def bootstrap_replication(inst_from, inst_to, creds):
+    manager = BootstrapReplicationManager(inst_to)
+    rdn_val = 'replication manager'
+    if  manager.exists():
+        manager.delete()
+    manager.create(properties={
+        'cn': rdn_val,
+        'uid': rdn_val,
+        'userPassword': creds
+    })
+    for replica in Replicas(inst_to).list():
+        replica.remove_all('nsDS5ReplicaBindDNGroup')
+        replica.replace('nsDS5ReplicaBindDN', manager.dn)
+    for agmt in Agreements(inst_from).list():
+        agmt.replace('nsDS5ReplicaBindDN', manager.dn)
+        agmt.replace('nsDS5ReplicaCredentials', creds)
+
+
+@pytest.mark.skipif(get_default_db_lib() != "mdb", reason="This test requires lmdb")
+def test_lmdb_autotuned_maxdbs(topology_m2, request):
+    """Verify that after restart, nsslapd-mdb-max-dbs is large enough to add a new backend.
+
+    :id: 0272d432-9080-11ef-8f40-482ae39447e5
+    :setup: Two suppliers configuration
+    :steps:
+        1. loop 20 times
+        3. In 1 loop: restart instance
+        3. In 1 loop: add a new backend
+        4. In 1 loop: check that instance is still alive
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    s1 = topology_m2.ms["supplier1"]
+    s2 = topology_m2.ms["supplier2"]
+
+    backends = Backends(s1)
+    db_config = DatabaseConfig(s1)
+    # Generate the teardown finalizer
+    belist = []
+    creds=password_generate()
+    bootstrap_replication(s2, s1, creds)
+    bootstrap_replication(s1, s2, creds)
+
+    def fin():
+        s1.start()
+        for be in belist:
+            be.delete()
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    # 1. Set autotuning (off-line to be able to decrease the value)
+    s1.stop()
+    dse_ldif = DSEldif(s1)
+    dse_ldif.replace(db_config.dn, 'nsslapd-mdb-max-dbs', '0')
+    os.remove(f'{s1.dbdir}/data.mdb')
+    s1.start()
+
+    # 2. Reinitialize the db:
+    log.info("Bulk import...")
+    agmt = Agreements(s2).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    log.info(f'Bulk importresult is ({done}, {error})')
+    assert done is True
+    assert error is False
+
+    # 3. loop 20 times
+    for idx in range(20):
+        s1.restart()
+        log.info(f'Adding backend test{idx}')
+        belist.append(backends.create(properties={'cn': f'test{idx}',
+                                     'nsslapd-suffix': f'dc=test{idx}'}))
+        assert s1.status()
+
 
 
 if __name__ == '__main__':

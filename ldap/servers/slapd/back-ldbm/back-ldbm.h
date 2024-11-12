@@ -896,4 +896,6 @@ typedef struct _back_search_result_set
     ((L)->size == (R)->size && !memcmp((L)->data, (R)->data, (L)->size))
 
 typedef int backend_implement_init_fn(struct ldbminfo *li, config_info *config_array);
+
+pthread_mutex_t *get_import_ctx_mutex();
 #endif /* _back_ldbm_h_ */

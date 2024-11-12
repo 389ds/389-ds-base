@@ -27,6 +27,8 @@
 #define NEED_DN_NORM_SP -25
 #define NEED_DN_NORM_BT -26
 
+pthread_mutex_t import_ctx_mutex = PTHREAD_MUTEX_INITIALIZER; /* Protect agains import context destruction */
+
 
 /********** routines to manipulate the entry fifo **********/
 
@@ -143,6 +145,14 @@ ldbm_back_wire_import(Slapi_PBlock *pb)
 
 /* Threads management */
 
+/* Return the mutex that protects against import context destruction */
+pthread_mutex_t *
+get_import_ctx_mutex()
+{
+    return &import_ctx_mutex;
+}
+
+
 /* tell all the threads to abort */
 void
 import_abort_all(ImportJob *job, int wait_for_them)
@@ -151,7 +161,7 @@ import_abort_all(ImportJob *job, int wait_for_them)
 
     /* tell all the worker threads to abort */
     job->flags |= FLAG_ABORT;
-
+    pthread_mutex_lock(&import_ctx_mutex);
     for (worker = job->worker_list; worker; worker = worker->next)
         worker->command = ABORT;
 
@@ -167,6 +177,7 @@ import_abort_all(ImportJob *job, int wait_for_them)
             }
         }
     }
+    pthread_mutex_unlock(&import_ctx_mutex);
 }
 
 
