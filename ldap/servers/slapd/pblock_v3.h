@@ -161,6 +161,9 @@ typedef struct _slapi_pblock_intop
     /* For password policy control */
     int pb_pwpolicy_ctrl;
 
+    /* For Session Tracking control */
+    char *pb_session_tracking_id;
+
     int pb_paged_results_index;  /* stash SLAPI_PAGED_RESULTS_INDEX */
     int pb_paged_results_cookie; /* stash SLAPI_PAGED_RESULTS_COOKIE */
     int32_t pb_usn_tombstone_incremented; /* stash SLAPI_PAGED_RESULTS_COOKIE */

@@ -218,6 +218,7 @@ pblock_done(Slapi_PBlock *pb)
     if (pb->pb_intop != NULL) {
         delete_passwdPolicy(&pb->pb_intop->pwdpolicy);
         slapi_ch_free((void **)&(pb->pb_intop->pb_result_text));
+        slapi_ch_free_string(&pb->pb_intop->pb_session_tracking_id);
     }
     slapi_ch_free((void **)&(pb->pb_intop));
     if (pb->pb_intplugin != NULL) {
@@ -1550,6 +1551,13 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(int *)value) = pblock->pb_intop->pb_managedsait;
         } else {
             (*(int *)value) = 0;
+        }
+        break;
+    case SLAPI_SESSION_TRACKING:
+        if (pblock->pb_intop != NULL) {
+            (*(char **)value) = pblock->pb_intop->pb_session_tracking_id;
+        } else {
+            (*(char **)value) = 0;
         }
         break;
     case SLAPI_PWPOLICY:
@@ -3483,6 +3491,10 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_MANAGEDSAIT:
         _pblock_assert_pb_intop(pblock);
         pblock->pb_intop->pb_managedsait = *((int *)value);
+        break;
+    case SLAPI_SESSION_TRACKING:
+        _pblock_assert_pb_intop(pblock);
+        pblock->pb_intop->pb_session_tracking_id = (char *)value;
         break;
     case SLAPI_PWPOLICY:
         _pblock_assert_pb_intop(pblock);

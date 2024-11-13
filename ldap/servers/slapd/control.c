@@ -91,6 +91,10 @@ init_controls(void)
     /* LDAP_CONTROL_PAGEDRESULTS is shared by request and response */
     slapi_register_supported_control(LDAP_CONTROL_PAGEDRESULTS,
                                      SLAPI_OPERATION_SEARCH);
+
+    /* LDAP_CONTROL_X_SESSION_TRACKING only supported by request */
+    slapi_register_supported_control(LDAP_CONTROL_X_SESSION_TRACKING,
+                                     SLAPI_OPERATION_BIND | SLAPI_OPERATION_UNBIND | SLAPI_OPERATION_ABANDON | SLAPI_OPERATION_EXTENDED | SLAPI_OPERATION_SEARCH | SLAPI_OPERATION_COMPARE | SLAPI_OPERATION_ADD | SLAPI_OPERATION_DELETE | SLAPI_OPERATION_MODIFY | SLAPI_OPERATION_MODDN);
 }
 
 
@@ -160,6 +164,97 @@ slapi_get_supported_controls_copy(char ***ctrloidsp, unsigned long **ctrlopsp)
     }
     slapi_rwlock_unlock(supported_controls_lock);
     return (0);
+}
+
+/* Parse the Session Tracking control
+ * see https://datatracker.ietf.org/doc/html/draft-wahl-ldap-session-03
+ *    LDAPString ::= OCTET STRING -- UTF-8 encoded
+ *    LDAPOID ::= OCTET STRING -- Constrained to numericoid
+ *
+ *      SessionIdentifierControlValue ::= SEQUENCE {
+ *            sessionSourceIp                 LDAPString,
+ *            sessionSourceName               LDAPString,
+ *            formatOID                       LDAPOID,
+ *            sessionTrackingIdentifier       LDAPString
+ *       }
+ *
+ * design https://www.port389.org/docs/389ds/design/session-identifier-in-logs.html
+ *
+ * It ignores sessionSourceIp, sessionSourceName and formatOID.
+ * It extracts the 15 first chars from sessionTrackingIdentifier (escaped)
+ * and return them in session_tracking_id (allocated buffer)
+ * The caller is responsible of the free of session_tracking_id
+ */
+static int
+parse_sessiontracking_ctrl(struct berval *session_tracking_spec, char **session_tracking_id)
+{
+    BerElement *ber = NULL;
+    ber_tag_t ber_rc;
+    struct berval sessionTrackingIdentifier = {0};
+#define SESSION_ID_STR_SZ 15
+#define NB_DOTS            3
+    char buf_sid_orig[SESSION_ID_STR_SZ + 2] = {0};
+    int32_t sid_orig_sz; /* size of the original sid that we retain */
+    const char *buf_sid_escaped;
+    int32_t sid_escaped_sz; /* size of the escaped sid that we retain */
+    char buf[BUFSIZ];
+    char *sid;
+    int rc = LDAP_SUCCESS;
+
+    if (!BV_HAS_DATA(session_tracking_spec)) {
+        return LDAP_PROTOCOL_ERROR;
+    }
+    ber = ber_init(session_tracking_spec);
+    if ((ber == NULL) || (session_tracking_id == NULL)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    *session_tracking_id = NULL;
+
+    /* Discard sessionSourceIp, sessionSourceName and formatOID
+     * Then only get sessionTrackingIdentifier and truncate it if needed */
+    ber_rc = ber_scanf(ber, "{xxxo}", &sessionTrackingIdentifier);
+    if ((ber_rc == LBER_ERROR) || (sessionTrackingIdentifier.bv_len > 65536)) {
+        rc = LDAP_PROTOCOL_ERROR;
+        goto free_and_return;
+    }
+
+    /* Make sure the interesting part of the provided SID is escaped */
+    if (sessionTrackingIdentifier.bv_len > SESSION_ID_STR_SZ) {
+        sid_orig_sz = SESSION_ID_STR_SZ + 1;
+    } else {
+        sid_orig_sz = sessionTrackingIdentifier.bv_len;
+        memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, sessionTrackingIdentifier.bv_len);
+    }
+    memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, sid_orig_sz);
+    buf_sid_escaped = escape_string(buf_sid_orig, buf);
+
+    /* Allocate the buffer that contains the heading portion
+     * of the escaped SID
+     */
+    sid_escaped_sz = strlen(buf_sid_escaped);
+    if (sid_escaped_sz > SESSION_ID_STR_SZ) {
+        /* Take only a portion of it plus some '.' */
+        sid_escaped_sz = SESSION_ID_STR_SZ + NB_DOTS;
+    }
+    sid = (char *) slapi_ch_calloc(1, sid_escaped_sz + 1);
+
+    /* Lets copy the escaped SID into the buffer */
+    if (sid_escaped_sz > SESSION_ID_STR_SZ) {
+        memcpy(sid, buf_sid_escaped, SESSION_ID_STR_SZ);
+        memset(sid + SESSION_ID_STR_SZ, '.', NB_DOTS); /* ending the string with "..." */
+    } else {
+        memcpy(sid, buf_sid_escaped, sid_escaped_sz);
+    }
+    sid[sid_escaped_sz] = '\0';
+
+    *session_tracking_id = sid;
+    return rc;
+
+free_and_return:
+    slapi_ch_free_string(&sessionTrackingIdentifier.bv_val);
+
+    return rc;
 }
 
 /*
@@ -346,9 +441,16 @@ get_ldapmessage_controls_ext(
         slapi_pblock_set(pb, SLAPI_REQCONTROLS, NULL);
         slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &ctrl_not_found);
         slapi_pblock_set(pb, SLAPI_PWPOLICY, &ctrl_not_found);
+        slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, NULL);
         slapi_log_err(SLAPI_LOG_CONNS, "get_ldapmessage_controls_ext", "Warning: conn=%" PRIu64 " op=%d contains an empty list of controls\n",
                       pb_conn ? pb_conn->c_connid : -1, pb_op ? pb_op->o_opid : -1);
     } else {
+        struct berval *session_tracking_spec = NULL;
+        int iscritical = 0;
+        char *session_tracking_id = NULL;
+        char *old_sid;
+        int parse_rc = 0;
+
         /* len, ber_len_t is uint, not int, cannot be != -1, may be better to remove this check.  */
         if ((tag != LBER_END_OF_SEQORSET) && (len != -1)) {
             goto free_and_return;
@@ -358,6 +460,31 @@ get_ldapmessage_controls_ext(
         managedsait = slapi_control_present(ctrls,
                                             LDAP_CONTROL_MANAGEDSAIT, NULL, NULL);
         slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &managedsait);
+        if (slapi_control_present(ctrls,
+                                  LDAP_CONTROL_X_SESSION_TRACKING, &session_tracking_spec, &iscritical)) {
+            Operation *pb_op = NULL;
+            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+
+            if (iscritical) {
+                /* It must not be critical */
+                slapi_log_err(SLAPI_LOG_ERR, "get_ldapmessage_controls_ext", "conn=%" PRIu64 " op=%d SessionTracking critical flag must be unset\n",
+                              pb_conn ? pb_conn->c_connid : -1, pb_op ? pb_op->o_opid : -1);
+                rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+                goto free_and_return;
+            }
+            parse_rc = parse_sessiontracking_ctrl(session_tracking_spec, &session_tracking_id);
+            if (parse_rc != LDAP_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_WARNING, "get_ldapmessage_controls_ext", "Warning: conn=%" PRIu64 " op=%d failed to parse SessionTracking control (%d)\n",
+                              pb_conn ? pb_conn->c_connid : -1, pb_op ? pb_op->o_opid : -1, parse_rc);
+                slapi_ch_free_string(&session_tracking_id);
+            } else {
+                /* now replace the sid (if any) in the pblock */
+                slapi_pblock_get(pb, SLAPI_SESSION_TRACKING, &old_sid);
+                slapi_ch_free_string(&old_sid);
+                slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, session_tracking_id);
+            }
+        }
+        slapi_pblock_set(pb, SLAPI_SESSION_TRACKING, session_tracking_id);
         pwpolicy_ctrl = slapi_control_present(ctrls,
                                               LDAP_X_CONTROL_PWPOLICY_REQUEST, NULL, NULL);
         slapi_pblock_set(pb, SLAPI_PWPOLICY, &pwpolicy_ctrl);
