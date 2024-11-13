@@ -416,7 +416,7 @@ int make_sort_response_control(Slapi_PBlock *pb, int code, char *error_type);
 int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps);
 struct berval *attr_value_lowest(struct berval **values, value_compare_fn_type compare_fn);
 int sort_attr_compare(struct berval **value_a, struct berval **value_b, value_compare_fn_type compare_fn);
-void sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates);
+const char *sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates, PRBool just_copy);
 
 /*
  * dbsize.c
@@ -496,7 +496,7 @@ int vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec *
 int vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct vlv_request *vlvp);
 int vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp);
 void vlv_getindices(IFP callback_fn, void *param, backend *be);
-void vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo);
+void vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo, sort_spec_thing *sort_control);
 void vlv_grok_new_import_entry(const struct backentry *e, backend *be, int *seen_them_all);
 IDList *vlv_find_index_by_filter(struct backend *be, const char *base, Slapi_Filter *f);
 IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base, Slapi_Filter *f, back_txn *txn);

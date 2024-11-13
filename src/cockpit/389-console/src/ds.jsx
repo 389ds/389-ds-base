@@ -46,7 +46,8 @@ const staticStates = {
     noPackage: (
         <TextContent>
             <Text className="ds-margin-top-xlg" component={TextVariants.h2}>
-                {_("There is no <b>389-ds-base</b> package installed on this system. Sorry there is nothing to manage...")}
+                {_("There is no ")}<b>{_("389-ds-base")}</b>
+                {_(" package installed on this system. Sorry there is nothing to manage...")}
             </Text>
         </TextContent>
     ),
@@ -60,7 +61,9 @@ const staticStates = {
     notRunning: (
         <TextContent>
             <Text className="ds-margin-top-xlg ds-indent-md" component={TextVariants.h2}>
-                {_("This server instance is not running, either start it from the <b>Actions</b> dropdown menu, or choose a different instance")}
+                {_("This server instance is not running, either start it from the ")}
+                <b>{_("Actions")}</b>
+                {_(" dropdown menu, or choose a different instance")}
             </Text>
         </TextContent>
     ),

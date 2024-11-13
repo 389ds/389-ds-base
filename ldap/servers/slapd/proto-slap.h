@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2021-2024 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -13,6 +13,7 @@
 
 #ifndef _PROTO_SLAP
 #define _PROTO_SLAP
+
 
 /*
  * Forward structure declarations
@@ -402,6 +403,8 @@ int config_set_auditlog_log_format(const char *attrname, char *value, char *erro
 int config_set_auditlog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_auditlog_display_attrs(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_accesslog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_accesslog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
@@ -524,6 +527,8 @@ int config_get_auditfaillog_logging_enabled(void);
 char *config_get_auditlog_display_attrs(void);
 int config_get_auditlog_log_format(void);
 char *config_get_auditlog_time_format(void);
+int config_get_accesslog_log_format(void);
+char *config_get_accesslog_time_format(void);
 char *config_get_referral_mode(void);
 int config_get_num_listeners(void);
 int config_check_referral_mode(void);
@@ -668,6 +673,7 @@ int get_ldapmessage_controls(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***c
 int get_ldapmessage_controls_ext(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***controls, int ignore_criticality);
 int write_controls(BerElement *ber, LDAPControl **ctrls);
 void add_control(LDAPControl ***ctrlsp, LDAPControl *newctrl);
+void slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, PRBool *isCritical);
 
 /*
  * daemon.c
@@ -899,11 +905,11 @@ int check_log_max_size(
     char *returntext,
     int logtype);
 
-
 void g_set_accesslog_level(int val);
 void g_set_statlog_level(int val);
 void g_set_securitylog_level(int val);
 void log__delete_rotated_logs(void);
+void slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock *pb);
 
 /*
  * util.c
@@ -967,7 +973,8 @@ void operation_set_target_spec_str(Slapi_Operation *op, const char *target_spec)
 unsigned long operation_get_abandoned_op(const Slapi_Operation *op);
 void operation_set_abandoned_op(Slapi_Operation *op, unsigned long abndoned_op);
 void operation_set_type(Slapi_Operation *op, unsigned long type);
-
+LDAPControl **operation_get_req_controls(const Operation *o);
+LDAPControl **operation_get_result_controls(const Operation *o);
 
 /*
  * plugin.c
