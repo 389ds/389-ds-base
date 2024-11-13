@@ -15,8 +15,10 @@
     "build": "./build.js",
     "eslint": "eslint --ext .js --ext .jsx src/",
     "eslint:fix": "eslint --fix --ext .js --ext .jsx src/",
-    "stylelint": "stylelint src/*{.css,scss}",
-    "stylelint:fix": "stylelint --fix src/*{.css,scss}"
+    "stylelint": "stylelint src/css/*{.css,scss}",
+    "stylelint:fix": "stylelint --fix src/css/*{.css,scss}",
+    "prettier": "prettier --check src/",
+    "prettier:fix": "prettier --write src/"
   },
   "devDependencies": {
     "argparse": "^2.0.1",
@@ -59,6 +61,7 @@
     "@patternfly/react-table": "^4.50.1",
     "eslint-plugin-react-hooks": "^4.2.0",
     "gettext-parser": "^2.0.0",
+    "prettier": "^3.3.3",
     "prop-types": "^15.7.2",
     "react": "17.0.2",
     "react-dom": "17.0.2"
