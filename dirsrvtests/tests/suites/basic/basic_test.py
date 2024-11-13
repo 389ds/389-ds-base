@@ -64,11 +64,7 @@ ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
 # (should have more connections with lmdb)
 MAX_FDS = 150
 
-
-
 default_paths = Paths()
-
-
 
 log = logging.getLogger(__name__)
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -84,7 +80,7 @@ class CustomSetup():
     DEFAULT_SLAPD = { 'root_password': PW_DM,
                       'defaults': INSTALL_LATEST_CONFIG,
                     }
-    DEFAULT_BACKENDS = [ { 
+    DEFAULT_BACKENDS = [ {
                             'cn': 'userroot',
                             'nsslapd-suffix': DEFAULT_SUFFIX,
                             'sample_entries': 'yes',
@@ -93,7 +89,7 @@ class CustomSetup():
 
     WRAPPER_FORMAT = '''#!/bin/sh
 {wrapper_options}
-exec {nsslapd} -D {cfgdir} -i {pidfile} 
+exec {nsslapd} -D {cfgdir} -i {pidfile}
 '''
 
 
@@ -101,14 +97,14 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
         def __init__(self, verbose=False, external_log=log):
             super().__init__(verbose=verbose, external_log=external_log)
             self.wrapper = None       # placeholder for the wrapper file name
-            
+
         def _reset_systemd(self):
             self.systemd_override = False
-    
+
         def status(self):
             self._reset_systemd()
             return super().status()
-    
+
         def start(self, timeout=120, *args):
             if self.status():
                 return
@@ -129,13 +125,12 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
                     return
                 time.sleep(1)
             raise TimeoutException('Failed to start ns-slpad')
-    
+
         def stop(self, timeout=120):
             self._reset_systemd()
             super().stop(timeout=timeout)
-    
 
-    def _search_be(belist, beinfo):
+    def _search_be(self, belist, beinfo):
         for be in belist:
             if be['cn'] == beinfo['cn']:
                 return be
@@ -163,7 +158,7 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
                     general_options.set(key,val)
         log.debug('[general]: %s' % general_options._options)
         self.general = general_options
-        
+
         slapd_options = Slapd2Base(self.log)
         slapd_options.set('instance_name', serverid)
         for d in (CustomSetup.DEFAULT_SLAPD, slapd):
@@ -196,7 +191,7 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
         args["SER_SECURE_PORT"] = slapd['secure_port']
         args["SER_SERVERID_PROP"] = self.serverid
         return args
-	
+
     def create_instance(self):
         sds = SetupDs(verbose=self.verbose, dryrun=False, log=self.log)
         self.general.verify()
@@ -256,7 +251,7 @@ def _reset_attr(request, topology_st):
             dm_conn.config.replace('nsslapd-close-on-failed-bind', 'off')
             assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'off'
         except ldap.LDAPError as e:
-            log.error('Failure reseting attr')
+            log.error('Failure reseting attr: ' + str(e))
             assert False
         topology_st.standalone.restart()
 
@@ -542,7 +537,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
 
     # Wait a bit till the task is created and available for searching
-    time.sleep(0.5)
+    time.sleep(1)
 
     # Good as place as any to quick test the task has some expected attributes
     if ds_is_newer('1.4.1.2'):
@@ -2372,7 +2367,7 @@ def dscreate_custom_instance(request):
 
     request.addfinalizer(fin)
     topo.create_instance()
-    # Return CustomSetup object associated with 
+    # Return CustomSetup object associated with
     #  a stopped instance named "custom"
     return topo
 

@@ -1232,6 +1232,7 @@ struct slapi_td_log_op_state_t {
     int32_t op_nest_count;
     slapi_log_nest_state op_nest_state;
     int64_t conn_id;
+    time_t conn_starttime;
 };
 
 int slapi_td_init(void);
@@ -1244,7 +1245,7 @@ int slapi_td_set_plugin_unlocked(void);
 struct slapi_td_log_op_state_t * slapi_td_get_log_op_state(void);
 void slapi_td_internal_op_start(void);
 void slapi_td_internal_op_finish(void);
-void slapi_td_reset_internal_logging(uint64_t conn_id, int32_t op_id);
+void slapi_td_reset_internal_logging(uint64_t conn_id, int32_t op_id, time_t start_time);
 
 /*  Thread Local Storage Index Types - thread_data.c */
 
@@ -1254,7 +1255,7 @@ const char *escape_string(const char *str, char buf[BUFSIZ]);
 const char *escape_string_with_punctuation(const char *str, char buf[BUFSIZ]);
 const char *escape_string_for_filename(const char *str, char buf[BUFSIZ]);
 void strcpy_unescape_value(char *d, const char *s);
-void get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id, int32_t *op_nested_count);
+void get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id, int32_t *op_nested_count, time_t *start_time);
 char *slapi_berval_get_string_copy(const struct berval *bval);
 char get_sep(char *path);
 int mkdir_p(char *dir, unsigned int mode);
@@ -1522,6 +1523,119 @@ void slapi_pblock_set_task_warning(Slapi_PBlock *pb, task_warning warning);
 int slapi_exists_or_add_internal(Slapi_DN *dn, const char *filter, const char *entry, const char *modifier_name);
 
 void slapi_log_backtrace(int loglevel);
+
+/*
+ * accesslog.c
+ */
+typedef struct slapd_log_pblock {
+    int32_t log_format;
+    Slapi_PBlock *pb;
+    /* Connection */
+    time_t conn_time;
+    uint64_t conn_id;
+    int32_t fd;
+    int32_t slot;
+    int32_t local_ssf;
+    int32_t ssl_ssf;
+    int32_t sasl_ssf;
+    char *client_ip;
+    char *server_ip;
+    char *haproxy_ip;
+    char *haproxy_destip;
+    PRBool using_tls;
+    PRBool hapoxied;
+    const char *bind_dn;
+    /* Close connection */
+    const char *close_error;
+    const char *close_reason;
+    /* General operation */
+    int32_t op_id;
+    int32_t op_internal_id;
+    int32_t op_nested_count;
+    char *authzid;
+    const char *target_dn;
+    const char *op_type; /* generic access log error event: SRCH, MOD, etc */
+    /* Abandon*/
+    int32_t msgid;
+    const char *target_op;
+    int64_t tv_sec; /* for abandom etime*/
+    int64_t tv_nsec; /* for abandom etime*/
+    /* Bind */
+    const char *mech;
+    const char* method;
+    int32_t version;
+    /* Compare */
+    const char *cmp_attr;
+    /* Modrdn */
+    const char *newrdn;
+    const char *newsup;
+    PRBool deletoldrdn;
+    /* Search */
+    const char *base_dn;
+    int32_t scope;
+    char *filter;
+    char **attrs;
+    PRBool psearch;
+    /* Stat */
+    const char *stat_attr;
+    const char *stat_key;
+    const char *stat_value;
+    int32_t stat_count;
+    /*
+     * VLV request:
+     *   - VLV %d:%d:%d:%d (response status)
+     *   - VLV %d:%d:%s (response status)
+     */
+    int32_t vlv_req_before_count;
+    int32_t vlv_req_after_count;
+    int32_t vlv_req_index;
+    int32_t vlv_req_content_count;
+    char *vlv_req_value;
+    int64_t vlv_req_value_len;
+    const char *vlv_sort_str;
+    /* VLV response status:  %d:%d (%d) */
+    int32_t vlv_res_target_position;
+    int32_t vlv_res_content_count;
+    int32_t vlv_res_result;
+    /* Result */
+    int32_t err;
+    int32_t nentries;
+    char *wtime;
+    char *optime;
+    char *etime;
+    char *sid;
+    uint32_t notes;
+    CSN *csn;
+    int32_t pr_idx;
+    int32_t pr_cookie;
+    /* Misc */
+    const char *oid;
+    const char *msg;
+    LDAPControl **request_controls;
+    LDAPControl **result_controls;
+} slapd_log_pblock;
+
+int32_t slapd_log_access_abandon(slapd_log_pblock *logpb);
+int32_t slapd_log_access_add(slapd_log_pblock *logpb);
+int32_t slapd_log_access_autobind(slapd_log_pblock *logpb);
+int32_t slapd_log_access_bind(slapd_log_pblock *logpb);
+int32_t slapd_log_access_unbind(slapd_log_pblock *logpb);
+int32_t slapd_log_access_close(slapd_log_pblock *logpb);
+int32_t slapd_log_access_cmp(slapd_log_pblock *logpb);
+int32_t slapd_log_access_conn(slapd_log_pblock *logpb);
+int32_t slapd_log_access_haproxy(slapd_log_pblock *logpb);
+int32_t slapd_log_access_delete(slapd_log_pblock *logpb);
+int32_t slapd_log_access_mod(slapd_log_pblock *logpb);
+int32_t slapd_log_access_modrdn(slapd_log_pblock *logpb);
+int32_t slapd_log_access_result(slapd_log_pblock *logpb);
+int32_t slapd_log_access_search(slapd_log_pblock *logpb);
+int32_t slapd_log_access_stat(slapd_log_pblock *logpb);
+int32_t slapd_log_access_error(slapd_log_pblock *logpb);
+int32_t slapd_log_access_ssf_error(slapd_log_pblock *logpb);
+int32_t slapd_log_access_vlv(slapd_log_pblock *logpb);
+int32_t slapd_log_access_entry(slapd_log_pblock *logpb);
+int32_t slapd_log_access_referral(slapd_log_pblock *logpb);
+int32_t slapd_log_access_extop(slapd_log_pblock *logpb);
 
 #ifdef __cplusplus
 }

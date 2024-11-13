@@ -1844,39 +1844,68 @@ vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp)
  * Generate a logging string for the vlv request and response
  */
 void
-vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo)
+vlv_print_access_log(Slapi_PBlock *pb,
+                     struct vlv_request *vlvi,
+                     struct vlv_response *vlvo,
+                     sort_spec_thing *sort_control)
 {
     #define NUMLEN 10 /* 32 bit integer maximum lenght (i.e minus + up to 9 digits) */
     char resp_status[3*NUMLEN+5];
     char buffer[4+NUMLEN*3+4+sizeof resp_status];
+    int32_t log_format = config_get_accesslog_log_format();
 
-    if (vlvo == NULL) {
-        strcpy(resp_status, "None");
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock logpb = {0};
+
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.vlv_req_before_count = vlvi->beforeCount;
+        logpb.vlv_req_after_count = vlvi->afterCount;
+        logpb.vlv_req_content_count = vlvi->contentCount;
+        logpb.vlv_req_index = vlvi->index;
+        logpb.vlv_req_value = vlvi->value.bv_val;
+        logpb.vlv_req_value_len = vlvi->value.bv_len;
+        logpb.vlv_sort_str = sort_log_access(pb, sort_control, NULL, PR_TRUE);
+        if (vlvo) {
+            logpb.vlv_res_target_position = vlvo->targetPosition;
+            logpb.vlv_res_content_count = vlvo->contentCount;
+            logpb.vlv_res_result = vlvo->result;
+        }
+        slapd_log_access_vlv(&logpb);
+        slapi_ch_free_string((char **)&logpb.vlv_sort_str);
     } else {
-        sprintf(resp_status, "%d:%d (%d)",
-                vlvo->targetPosition,
-                vlvo->contentCount,
-                vlvo->result);
-    }
-    if (0 == vlvi->tag) {
-        PR_snprintf(buffer, (sizeof buffer), "VLV %d:%d:%d:%d %s",
-                     vlvi->beforeCount,
-                     vlvi->afterCount,
-                     vlvi->index,
-                     vlvi->contentCount,
-                     resp_status);
-        ldbm_log_access_message(pb, buffer);
-    } else {
-        char fmt[18+NUMLEN];
-        char *msg = NULL;
-        PR_snprintf(fmt, (sizeof fmt), "VLV %%d:%%d:%%.%lds %%s", vlvi->value.bv_len);
-        msg = slapi_ch_smprintf(fmt,
-                                vlvi->beforeCount,
-                                vlvi->afterCount,
-                                vlvi->value.bv_val,
-                                resp_status);
-        ldbm_log_access_message(pb, msg);
-        slapi_ch_free_string(&msg);
+        /* Prepare VLV response */
+        if (vlvo == NULL) {
+            strcpy(resp_status, "None");
+        } else {
+            sprintf(resp_status, "%d:%d (%d)",
+                    vlvo->targetPosition,
+                    vlvo->contentCount,
+                    vlvo->result);
+        }
+
+        /* Prepare VLV result + response*/
+        if (0 == vlvi->tag) {
+            PR_snprintf(buffer, (sizeof buffer), "VLV %d:%d:%d:%d %s",
+                        vlvi->beforeCount,
+                        vlvi->afterCount,
+                        vlvi->index,
+                        vlvi->contentCount,
+                        resp_status);
+            ldbm_log_access_message(pb, buffer);
+        } else {
+            char fmt[18+NUMLEN];
+            char *msg = NULL;
+            PR_snprintf(fmt, (sizeof fmt), "VLV %%d:%%d:%%.%lds %%s", vlvi->value.bv_len);
+
+            msg = slapi_ch_smprintf(fmt,
+                                    vlvi->beforeCount,
+                                    vlvi->afterCount,
+                                    vlvi->value.bv_val,
+                                    resp_status);
+            ldbm_log_access_message(pb, msg);
+            slapi_ch_free_string(&msg);
+        }
+        sort_log_access(pb, sort_control, NULL, PR_FALSE);
     }
 }
 

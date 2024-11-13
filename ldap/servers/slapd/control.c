@@ -644,3 +644,14 @@ slapi_build_control_from_berval(char *oid, struct berval *bvp, char iscritical, 
 
     return return_value;
 }
+
+/*
+ * Parse an LDAP control into its parts
+ */
+void
+slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, PRBool *isCritical)
+{
+    *isCritical = ctrl->ldctl_iscritical;
+    *value = ctrl->ldctl_value.bv_val;
+    *oid = ctrl->ldctl_oid;
+}

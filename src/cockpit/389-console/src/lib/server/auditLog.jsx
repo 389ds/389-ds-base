@@ -525,6 +525,12 @@ export class ServerAuditLog extends React.Component {
         }
         rotationTime = hour + ":" + min;
 
+        const time_format_title = (
+            <>
+                {_("Time Format")} <font size="1">({_("JSON only")})</font>
+            </>
+        );
+
         let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
@@ -557,9 +563,9 @@ export class ServerAuditLog extends React.Component {
                                 />
                             </FormGroup>
                             <FormGroup
-                                label="Time Format"
+                                label={time_format_title}
                                 fieldId="nsslapd-auditlog-time-format"
-                                title="Time format using strftime formatting (nsslapd-auditlog-time-format)."
+                                title={_("Time format using strftime formatting (nsslapd-auditlog-time-format). This only applies to the JSON log format")}
                             >
                                 <TextInput
                                     value={this.state['nsslapd-auditlog-time-format']}
@@ -573,9 +579,9 @@ export class ServerAuditLog extends React.Component {
                                 />
                             </FormGroup>
                             <FormGroup
-                                label="Log Format"
+                                label={_("Log Format")}
                                 fieldId="nsslapd-auditlog-log-format"
-                                title="Choose the log format (nsslapd-auditlog-log-format)."
+                                title={_("Choose the log format (nsslapd-auditlog-log-format).")}
                             >
                                 <FormSelect
                                     id="nsslapd-auditlog-log-format"

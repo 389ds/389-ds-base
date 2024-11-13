@@ -326,8 +326,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_INIT_AUDITLOG_ROTATIONUNIT     "week"
 #define SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT "week"
 #define SLAPD_INIT_LOG_EXPTIMEUNIT           "month"
-#define SLAPD_INIT_AUDITLOG_TIME_FORMAT "%FT%TZ"
-#define SLAPD_INIT_AUDITLOG_LOG_FORMAT "default"
+#define SLAPD_INIT_LOG_TIME_FORMAT           "%FT%TZ"
+#define SLAPD_INIT_LOG_FORMAT                "default"
 #define LOG_FORMAT_DEFAULT 1
 #define LOG_FORMAT_JSON 0
 #define LOG_FORMAT_JSON_PRETTY JSON_C_TO_STRING_PRETTY
@@ -1602,6 +1602,7 @@ typedef struct op
     int o_ssf;                     /* ssf for this operation (highest between SASL and TLS/SSL) */
     int o_opid;                    /* id of this operation */
     PRUint64 o_connid;             /* id of conn initiating this op; for logging only */
+    time_t o_conn_starttime;       /* the time the orignal connection was started, for logging only */
     void *o_handler_data;
     result_handler o_result_handler;
     search_entry_handler o_search_entry_handler;
@@ -1716,6 +1717,7 @@ typedef struct conn
     int c_flags;                     /* Misc flags used only for SSL status currently */
     int c_needpw;                    /* need new password           */
     int c_haproxyheader_read;        /* 0 if HAProxy header has not been read, 1 if it has been read */
+    PRBool c_hapoxied;               /* True if the connection is from a haproxied IP address */
     CERTCertificate *c_client_cert;  /* Client's Cert          */
     PRFileDesc *c_prfd;              /* NSPR 2.1 FileDesc          */
     int c_ci;                        /* An index into the Connection array. For printing. */
@@ -2210,6 +2212,8 @@ typedef struct _slapdEntryPoints
 #define CONFIG_ERRORLOG_COMPRESS_ENABLED_ATTRIBUTE "nsslapd-errorlog-compress"
 #define CONFIG_AUDITLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-auditlog-log-format"
 #define CONFIG_AUDITLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-auditlog-time-format"
+#define CONFIG_ACCESSLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-accesslog-log-format"
+#define CONFIG_ACCESSLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-accesslog-time-format"
 #define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
@@ -2538,6 +2542,8 @@ typedef struct _slapdFrontendConfig
     int accesslog_exptime;
     char *accesslog_exptimeunit;
     int accessloglevel;
+    char *accesslog_log_format;
+    char *accesslog_time_format;
     slapi_onoff_t accesslogbuffering;
     slapi_onoff_t csnlogging;
     slapi_onoff_t accesslog_compress;

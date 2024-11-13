@@ -824,11 +824,11 @@ static struct config_get_and_set
     {CONFIG_AUDITLOG_LOG_FORMAT_ATTRIBUTE, config_set_auditlog_log_format,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_log_format,
-     CONFIG_STRING, NULL, SLAPD_INIT_AUDITLOG_LOG_FORMAT, NULL},
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_FORMAT, NULL},
     {CONFIG_AUDITLOG_TIME_FORMAT_ATTRIBUTE, config_set_auditlog_time_format,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_time_format,
-     CONFIG_STRING, NULL, SLAPD_INIT_AUDITLOG_TIME_FORMAT, NULL},
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_TIME_FORMAT, NULL},
     {CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW, config_set_auditlog_unhashed_pw,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_logging_hide_unhashed_pw,
@@ -837,6 +837,14 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_display_attrs,
      CONFIG_STRING, NULL, &config_get_auditlog_display_attrs, NULL},
+    {CONFIG_ACCESSLOG_LOG_FORMAT_ATTRIBUTE, config_set_accesslog_log_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.accesslog_log_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_FORMAT, NULL},
+    {CONFIG_ACCESSLOG_TIME_FORMAT_ATTRIBUTE, config_set_accesslog_time_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.accesslog_time_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_TIME_FORMAT, NULL},
     {CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE, config_set_accesslogbuffering,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslogbuffering,
@@ -1875,6 +1883,8 @@ FrontendConfig_init(void)
     cfg->accesslog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
     cfg->accesslog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->accessloglevel = SLAPD_DEFAULT_ACCESSLOG_LEVEL;
+    cfg->accesslog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
+    cfg->accesslog_time_format = slapi_ch_strdup(SLAPD_INIT_LOG_TIME_FORMAT);
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
     init_accesslog_compress_enabled = cfg->accesslog_compress = LDAP_OFF;
@@ -1918,8 +1928,8 @@ FrontendConfig_init(void)
     init_errorlogbuffering = cfg->errorlogbuffering = LDAP_OFF;
 
     init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
-    cfg->auditlog_log_format = slapi_ch_strdup(SLAPD_INIT_AUDITLOG_LOG_FORMAT);
-    cfg->auditlog_time_format = slapi_ch_strdup(SLAPD_INIT_AUDITLOG_TIME_FORMAT);
+    cfg->auditlog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
+    cfg->auditlog_time_format = slapi_ch_strdup(SLAPD_INIT_LOG_TIME_FORMAT);
     cfg->auditlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
     cfg->auditlog_maxnumlogs = SLAPD_DEFAULT_LOG_MAXNUMLOGS;
     cfg->auditlog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
@@ -2277,7 +2287,6 @@ config_set_auditlog_log_format(const char *attrname, char *value, char *errorbuf
         return LDAP_UNWILLING_TO_PERFORM;
     }
 
-
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&slapdFrontendConfig->auditlog_log_format);
@@ -2292,10 +2301,27 @@ int32_t
 config_set_auditlog_time_format(const char *attrname, char *value, char *errorbuf, int apply)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    time_t curtime;
+    char local_time[75] = "";
+    struct tm tms;
     int32_t retVal = LDAP_SUCCESS;
 
     if (config_value_is_null(attrname, value, errorbuf, 0)) {
         retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    /* validate the value */
+    curtime = slapi_current_utc_time();
+    (void)localtime_r(&curtime, &tms);
+    if (strftime(local_time, 75, value, &tms) == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is not a valid string format for strftime",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
     }
 
     if (apply) {
@@ -2336,6 +2362,66 @@ config_get_auditlog_display_attrs()
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapi_ch_strdup(slapdFrontendConfig->auditlog_display_attrs);
     CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_accesslog_log_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strcasecmp(value, "default") && strcasecmp(value, "json") && strcasecmp(value, "json-pretty")) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is invalid, the acceptable values "
+                              "are \"default\", \"json\", and \"json-pretty\"",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->accesslog_log_format);
+        slapdFrontendConfig->accesslog_log_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return LDAP_SUCCESS;
+}
+
+int32_t
+config_set_accesslog_time_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    time_t curtime;
+    char local_time[75] = "";
+    struct tm tms;
+    int32_t retVal = LDAP_SUCCESS;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    /* validate the value */
+    curtime = slapi_current_utc_time();
+    (void)localtime_r(&curtime, &tms);
+    if (strftime(local_time, 75, value, &tms) == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is not a valid string format for strftime",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->accesslog_time_format);
+        slapdFrontendConfig->accesslog_time_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
 
     return retVal;
 }
@@ -2383,7 +2469,6 @@ config_set_disk_threshold_readonly(const char *attrname, char *value, char *erro
                               errorbuf, apply);
     return retVal;
 }
-
 
 int
 config_set_disk_threshold(const char *attrname, char *value, char *errorbuf, int apply)
@@ -7013,6 +7098,41 @@ config_get_auditlog_time_format(void)
 
     CFG_LOCK_READ(slapdFrontendConfig);
     ret = config_copy_strval(slapdFrontendConfig->auditlog_time_format);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return ret;
+}
+
+int
+config_get_accesslog_log_format()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *value;
+    int retVal;
+
+    /* map string value to int to avoid excessive freeing and duping */
+    CFG_LOCK_READ(slapdFrontendConfig);
+    value = slapdFrontendConfig->accesslog_log_format;
+    if (strcasecmp(value, "default") == 0) {
+        retVal = LOG_FORMAT_DEFAULT;
+    } else if (strcasecmp(value, "json") == 0) {
+        retVal = LOG_FORMAT_JSON;
+    } else {
+        retVal = LOG_FORMAT_JSON_PRETTY;
+    }
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+char *
+config_get_accesslog_time_format(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *ret;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    ret = config_copy_strval(slapdFrontendConfig->accesslog_time_format);
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return ret;

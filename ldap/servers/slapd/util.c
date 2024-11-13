@@ -482,7 +482,7 @@ replace_char(char *str, char c, char c2)
 
 /*
 ** Break a string at the delimiter
-** If the delimiter is not found, the string is not modified. 
+** If the delimiter is not found, the string is not modified.
 ** The position immediately following the delimiter is returned.
 */
 char *split_string_at_delim(char *str, char delim) {
@@ -1621,7 +1621,12 @@ slapi_create_errormsg(
 }
 
 void
-get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id, int32_t *op_nested_count) {
+get_internal_conn_op (uint64_t *connid,
+                      int32_t *op_id,
+                      int32_t *op_internal_id,
+                      int32_t *op_nested_count,
+                      time_t *start_time)
+{
     struct slapi_td_log_op_state_t *op_state = slapi_td_get_log_op_state();
 
     if (op_state != NULL) {
@@ -1629,12 +1634,13 @@ get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id,
         *op_id = op_state->op_id;
         *op_internal_id = op_state->op_int_id;
         *op_nested_count = op_state->op_nest_count;
-
+        *start_time = op_state->conn_starttime;
     } else {
         *connid = 0;
         *op_id = 0;
         *op_internal_id = 0;
         *op_nested_count = 0;
+        *start_time = 0;
     }
 }
 

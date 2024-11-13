@@ -235,7 +235,7 @@ endif #end hpux
 #    If the library source code has changed at all since the last update, then increment revision (‘c:r:a’ becomes ‘c:r+1:a’).
 #    If any interfaces have been added, removed, or changed since the last update, increment current, and set revision to 0.
 #    If any interfaces have been added since the last public release, then increment age.
-#    If any interfaces have been removed or changed since the last public release, then set age to 0. 
+#    If any interfaces have been removed or changed since the last public release, then set age to 0.
 
 SLAPD_LDFLAGS = -version-info 1:0:1
 
@@ -1073,6 +1073,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/attr.c \
 	ldap/servers/slapd/attrlist.c \
 	ldap/servers/slapd/attrsyntax.c \
+	ldap/servers/slapd/accesslog.c \
 	ldap/servers/slapd/auditlog.c \
 	ldap/servers/slapd/ava.c \
 	ldap/servers/slapd/backend.c \
@@ -1435,7 +1436,7 @@ libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
 	ldap/servers/plugins/chainingdb/cb_temp.c \
 	ldap/servers/plugins/chainingdb/cb_test.c \
 	ldap/servers/plugins/chainingdb/cb_unbind.c \
-	ldap/servers/plugins/chainingdb/cb_utils.c 
+	ldap/servers/plugins/chainingdb/cb_utils.c
 
 libchainingdb_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 libchainingdb_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)

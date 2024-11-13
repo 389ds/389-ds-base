@@ -38,6 +38,8 @@ do_abandon(Slapi_PBlock *pb)
     Connection *pb_conn = NULL;
     Operation *pb_op = NULL;
     Operation *o;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
     /* Keep a copy of some data because o may vanish once conn is unlocked */
     struct {
         struct timespec hr_time_end;
@@ -141,23 +143,62 @@ do_abandon(Slapi_PBlock *pb)
     }
 
     pthread_mutex_unlock(&(pb_conn->c_mutex));
+
+    /* Prep the log block */
+    slapd_log_pblock_init(&logpb, log_format, pb);
+    logpb.msgid = id;
+    logpb.nentries = -1;
+    logpb.tv_sec = -1;
+    logpb.tv_nsec = -1;
+
     if (0 == pagedresults_free_one_msgid(pb_conn, id, pageresult_lock_get_addr(pb_conn))) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64
-                                           " op=%d ABANDON targetop=Simple Paged Results msgid=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, id);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.target_op = "Simple Paged Results";
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64
+                             " op=%d ABANDON targetop=Simple Paged Results msgid=%d\n",
+                             pb_conn->c_connid, pb_op->o_opid, id);
+        }
     } else if (NULL == o) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
-                                           " targetop=NOTFOUND msgid=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, id);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.target_op = "NOTFOUND";
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
+                             " targetop=NOTFOUND msgid=%d\n",
+                             pb_conn->c_connid, pb_op->o_opid, id);
+        }
     } else if (suppressed_by_plugin) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
-                                           " targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, id);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.target_op = "SUPPRESSED-BY-PLUGIN";
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
+                             " targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
+                             pb_conn->c_connid, pb_op->o_opid, id);
+        }
     } else {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
-                                           " targetop=%d msgid=%d nentries=%d etime=%" PRId64 ".%010" PRId64 "\n",
-                         pb_conn->c_connid, pb_op->o_opid, o_copy.opid, id,
-                         o_copy.nentries, (int64_t)o_copy.hr_time_end.tv_sec, (int64_t)o_copy.hr_time_end.tv_nsec);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            char targetop[11] = {0};
+
+            PR_snprintf(targetop, sizeof(targetop), "%d", o_copy.opid);
+            logpb.target_op = targetop;
+            logpb.nentries = o_copy.nentries;
+            logpb.tv_sec = (int64_t)o_copy.hr_time_end.tv_sec;
+            logpb.tv_nsec = (int64_t)o_copy.hr_time_end.tv_nsec;
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
+                             " targetop=%d msgid=%d nentries=%d etime=%" PRId64 ".%010" PRId64 "\n",
+                             pb_conn->c_connid, pb_op->o_opid, o_copy.opid, id,
+                             o_copy.nentries, (int64_t)o_copy.hr_time_end.tv_sec,
+                             (int64_t)o_copy.hr_time_end.tv_nsec);
+        }
     }
     /*
      * Wake up the persistent searches, so they

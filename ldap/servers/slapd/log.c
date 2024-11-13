@@ -123,8 +123,8 @@ static int vslapd_log_security(const char *log_data);
 static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
-static void log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
 static void log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
+static void log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
 static void log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, int locked);
@@ -2778,7 +2778,7 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
         return;
     }
 
-    PR_snprintf(buffer, sizeof(buffer), "%s- EMERG - %s\n", tbuf, msg);
+    PR_snprintf(buffer, sizeof(buffer), "%s - EMERG - %s\n", tbuf, msg);
     size = strlen(buffer);
 
     if (!locked) {
@@ -7051,7 +7051,35 @@ check_log_max_size(char *maxdiskspace_str,
     return rc;
 }
 
+void
+slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock *pb)
+{
+    Slapi_Operation *op = NULL;
+    Connection *conn = NULL;;
 
-/************************************************************************************/
-/*                                 E    N    D                                      */
-/************************************************************************************/
+    if (pb) {
+        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    }
+
+    logpb->log_format = log_format;
+    logpb->pb = pb;
+    logpb->op_internal_id = -1;
+    logpb->op_nested_count = -1;
+
+    if (conn) {
+        logpb->conn_time = conn->c_starttime;
+        logpb->conn_id = conn->c_connid;
+    } else if (op) {
+        logpb->conn_time = op->o_conn_starttime;
+        logpb->conn_id = op->o_connid;
+    } else {
+        logpb->conn_time = slapi_current_utc_time();
+    }
+
+    if (op) {
+        logpb->op_id = op->o_opid;
+        logpb->request_controls = operation_get_req_controls(op);
+        logpb->result_controls = operation_get_result_controls(op);
+    }
+}

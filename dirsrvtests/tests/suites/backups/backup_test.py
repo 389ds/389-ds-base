@@ -7,9 +7,9 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import logging
-import pytest
 import os
 import shutil
+import pytest
 from datetime import datetime
 from lib389._constants import DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
@@ -105,6 +105,7 @@ def test_db_home_dir_online_backup(topo):
         topo.standalone.start()
         topo.standalone.tasks.db2bak(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
         assert topo.standalone.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
+
 
 def test_replication(topo_m2):
     """Test that if the dbhome directory is set causing an online backup to fail,

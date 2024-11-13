@@ -8427,7 +8427,7 @@ msgid "Exclude Init Attributes"
 msgstr "初期化から除外する属性"
 
 #: src/lib/replication/replModals.jsx:1353
-msgid "Attributes to strip from a replicatio<Selectn update"
+msgid "Attributes to strip from a replication update"
 msgstr "レプリケーションの更新から削除する属性を設定します。"
 
 #: src/lib/replication/replModals.jsx:1355

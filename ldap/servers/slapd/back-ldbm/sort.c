@@ -77,8 +77,8 @@ sort_spec_thing_new(char *type, char *matchrule, int reverse)
     return s;
 }
 
-void
-sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates)
+const char *
+sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates, PRBool just_copy)
 {
 #define SORT_LOG_BSZ 64
 #define SORT_LOG_PAD 22 /* space for the number of candidates */
@@ -90,6 +90,7 @@ sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates)
     int prefix_size = strlen(prefix);
     char candidate_buffer[32]; /* store u_long value; max 20 digits */
     int candidate_size = 0;
+    char *buffer_copy = NULL;
 
     buffer = stack_buffer;
     size -= PR_snprintf(buffer, sizeof(stack_buffer), "%s", prefix);
@@ -115,11 +116,18 @@ sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates)
     if (0 == ret && candidates) {
         sprintf(buffer + size + prefix_size, "%s", candidate_buffer);
     }
-    /* Now output it */
-    ldbm_log_access_message(pb, buffer);
+
+    if (just_copy) {
+        /* For JSON logging - just get a copy and do not log it */
+        buffer_copy = slapi_ch_strdup(buffer);
+    } else {
+        /* Log it */
+        ldbm_log_access_message(pb, buffer);
+    }
     if (buffer != stack_buffer) {
         slapi_ch_free_string(&buffer);
     }
+    return buffer_copy;
 }
 
 /* Fix for bug # 394184, SD, 20 Jul 00 */

@@ -1355,7 +1355,7 @@ export class ReplAgmtModal extends React.Component {
                                         </Select>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title={_("Attributes to strip from a replicatio<Selectn update")}>
+                                <Grid className="ds-margin-top" title={_("Attributes to strip from a replication update")}>
                                     <GridItem className="ds-label" span={3}>
                                         {_("Strip Attributes")}
                                     </GridItem>
