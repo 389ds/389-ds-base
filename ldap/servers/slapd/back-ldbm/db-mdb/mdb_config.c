@@ -83,7 +83,7 @@ dbmdb_compute_limits(struct ldbminfo *li)
     uint64_t total_space = 0;
     uint64_t avail_space = 0;
     uint64_t cur_dbsize = 0;
-    int nbchangelogs = 0;
+    int nbvlvs = 0;
     int nbsuffixes = 0;
     int nbindexes = 0;
     int nbagmt = 0;
@@ -99,8 +99,8 @@ dbmdb_compute_limits(struct ldbminfo *li)
      *  But some tunable may be autotuned.
      */
     if (dbmdb_count_config_entries("(objectClass=nsMappingTree)", &nbsuffixes) ||
-        dbmdb_count_config_entries("(objectClass=nsIndex)", &nbsuffixes) ||
-        dbmdb_count_config_entries("(&(objectClass=nsds5Replica)(nsDS5Flags=1))", &nbchangelogs) ||
+        dbmdb_count_config_entries("(objectClass=nsIndex)", &nbindexes) ||
+        dbmdb_count_config_entries("(objectClass=vlvIndex)", &nbvlvs) ||
         dbmdb_count_config_entries("(objectClass=nsds5replicationagreement)", &nbagmt)) {
         /* error message is already logged */
         return 1;
@@ -120,8 +120,15 @@ dbmdb_compute_limits(struct ldbminfo *li)
 
     info->pagesize = sysconf(_SC_PAGE_SIZE);
     limits->min_readers = config_get_threadnumber() + nbagmt + DBMDB_READERS_MARGIN;
-    /* Default indexes are counted in "nbindexes" so we should always have enough resource to add 1 new suffix */
-    limits->min_dbs = nbsuffixes + nbindexes + nbchangelogs + DBMDB_DBS_MARGIN;
+    /*
+     * For each suffix there are 4 databases instances:
+     *  long-entryrdn, replication_changelog, id2entry and ancestorid
+     * then the indexes and the vlv and vlv cache
+     *
+     * Default indexes are counted in "nbindexes" so we should always have enough
+     *  resource to add 1 new suffix
+     */
+    limits->min_dbs = 4*nbsuffixes + nbindexes + 2*nbvlvs + DBMDB_DBS_MARGIN;
 
     total_space = ((uint64_t)(buf.f_blocks)) * ((uint64_t)(buf.f_bsize));
     avail_space = ((uint64_t)(buf.f_bavail)) * ((uint64_t)(buf.f_bsize));
