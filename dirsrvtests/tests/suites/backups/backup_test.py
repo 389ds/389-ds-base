@@ -7,12 +7,13 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import logging
-import pytest
 import os
 import shutil
 import time
 import glob
 import subprocess
+import pytest
+import ldap
 from datetime import datetime
 from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
@@ -34,7 +35,6 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
-
 
 
 BESTRUCT = [
@@ -75,8 +75,8 @@ def mytopo(topo, request):
     def fin():
         for be in bes:
             be.delete()
-        for dir in glob.glob(f'{inst.ds_paths.backup_dir}/*'):
-            shutil.rmtree(dir)
+        for bak_dir in glob.glob(f'{inst.ds_paths.backup_dir}/*'):
+            shutil.rmtree(bak_dir)
 
     if not DEBUGGING:
         request.addfinalizer(fin)
@@ -185,6 +185,7 @@ def test_db_home_dir_online_backup(topo):
             backup_dir = str(dbhome_dir)
             inst.tasks.db2bak(backup_dir=backup_dir, args={TASK_WAIT: True})
             assert inst.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
+
 
 
 def test_replication(topo_m2):

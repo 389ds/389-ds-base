@@ -263,7 +263,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     int sent_result = 0;
     unsigned int pr_stat = 0;
     Connection *pb_conn;
-
     ber_int_t pagesize = -1;
     ber_int_t estimate = 0; /* estimated search result set size */
     int curr_search_count = 0;
@@ -273,6 +272,8 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     Slapi_DN *orig_sdn = NULL;
     int free_sdn = 0;
     pthread_mutex_t *pagedresults_mutex = NULL;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     be_list[0] = NULL;
     referral_list[0] = NULL;
@@ -316,7 +317,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         rc = -1;
         goto free_and_return_nolock;
     }
-    
+
     /* Set the time we actually started the operation */
     slapi_operation_set_time_started(operation);
 
@@ -333,10 +334,12 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         int32_t op_id;
         int32_t op_internal_id;
         int32_t op_nested_count;
+        time_t start_time;
 
         PR_ASSERT(fstr);
-        if (internal_op) {
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
+
+        if (proxydn) {
+            proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
         if (NULL == attrs) {
@@ -345,10 +348,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             strarray2str(attrs, attrlistbuf, sizeof(attrlistbuf),
                          1 /* include quotes */);
             attrliststr = attrlistbuf;
-        }
-
-        if (proxydn) {
-            proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
 #define SLAPD_SEARCH_FMTSTR_CONN_OP "conn=%" PRIu64 " op=%d"
@@ -371,6 +370,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         if (!internal_op) {
             strcpy(fmtstr, SLAPD_SEARCH_FMTSTR_CONN_OP);
         } else {
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
             if (connid == 0) {
                 strcpy(fmtstr, SLAPD_SEARCH_FMTSTR_CONN_OP_INT_INT);
             } else {
@@ -382,24 +382,48 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         strcat(fmtstr, LOG_ACCESS_FORMAT_ATTR_BUFSIZ(attrliststr, "\" attrs=", SLAPD_SEARCH_BUFPART));
         strcat(fmtstr, SLAPD_SEARCH_FMTSTR_REMAINDER);
 
+        /* Prep log pblock */
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.authzid = proxydn;
+        logpb.base_dn = normbase;
+        logpb.scope = scope;
+        logpb.filter = fstr;
+        logpb.attrs = attrs;
+        logpb.psearch = flag_psearch ? PR_TRUE : PR_FALSE;
+
         if (!internal_op) {
-            slapi_log_access(LDAP_DEBUG_STATS, fmtstr,
-                             pb_conn->c_connid,
-                             operation->o_opid,
-                             normbase,
-                             scope, fstr, attrliststr,
-                             flag_psearch ? " options=persistent" : "",
-                             proxystr ? proxystr : "");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_access_search(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS, fmtstr,
+                                 pb_conn->c_connid,
+                                 operation->o_opid,
+                                 normbase,
+                                 scope, fstr, attrliststr,
+                                 flag_psearch ? " options=persistent" : "",
+                                 proxystr ? proxystr : "");
+            }
+
         } else {
-            slapi_log_access(LDAP_DEBUG_ARGS, fmtstr,
-                             connid,
-                             op_id,
-                             op_internal_id,
-                             op_nested_count,
-                             normbase,
-                             scope, fstr, attrliststr,
-                             flag_psearch ? " options=persistent" : "",
-                             proxystr ? proxystr : "");
+            /* Internal op */
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
+                logpb.op_internal_id = op_internal_id;
+                logpb.op_nested_count = op_nested_count;
+                slapd_log_access_search(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_ARGS, fmtstr,
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 normbase,
+                                 scope, fstr, attrliststr,
+                                 flag_psearch ? " options=persistent" : "",
+                                 proxystr ? proxystr : "");
+            }
         }
     }
 
@@ -1598,21 +1622,34 @@ op_shared_log_error_access(Slapi_PBlock *pb, const char *type, const char *dn, c
     char *proxystr = NULL;
     Slapi_Operation *operation;
     Connection *pb_conn;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-    if ((proxyauth_get_dn(pb, &proxydn, NULL) == LDAP_SUCCESS)) {
+    if ((proxyauth_get_dn(pb, &proxydn, NULL) == LDAP_SUCCESS &&
+        log_format == LOG_FORMAT_DEFAULT))
+    {
         proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
     }
 
-    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s dn=\"%s\"%s, %s\n",
-                     (pb_conn ? pb_conn->c_connid : 0),
-                     (operation ? operation->o_opid : 0),
-                     type,
-                     dn,
-                     proxystr ? proxystr : "",
-                     msg ? msg : "");
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.authzid = proxydn;
+        logpb.target_dn = dn;
+        logpb.msg = msg;
+        logpb.op_type = type;
+        slapd_log_access_error(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s dn=\"%s\"%s, %s\n",
+                         pb_conn ? pb_conn->c_connid : 0,
+                         operation ? operation->o_opid : 0,
+                         type,
+                         dn,
+                         proxystr ? proxystr : "",
+                         msg ? msg : "");
+    }
 
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);

@@ -266,6 +266,8 @@ do_extended(Slapi_PBlock *pb)
     const char *name;
     Operation *pb_op = NULL;
     Connection *pb_conn = NULL;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "->\n");
 
@@ -319,15 +321,27 @@ do_extended(Slapi_PBlock *pb)
     if (NULL == (name = extended_op_oid2string(extoid))) {
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s)\n", extoid);
 
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d EXT oid=\"%s\"\n",
-                         pb_conn->c_connid, pb_op->o_opid, extoid);
+        if (log_format == LOG_FORMAT_DEFAULT) {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d EXT oid=\"%s\"\n",
+                             pb_conn->c_connid, pb_op->o_opid, extoid);
+        } else {
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.oid = extoid;
+            slapd_log_access_extop(&logpb);
+        }
     } else {
         slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s-%s)\n",
                       extoid, name);
-
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
-                         pb_conn->c_connid, pb_op->o_opid, extoid, name);
+        if (log_format == LOG_FORMAT_DEFAULT) {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
+                             pb_conn->c_connid, pb_op->o_opid, extoid, name);
+        } else {
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.oid = extoid;
+            logpb.msg = name;
+            slapd_log_access_extop(&logpb);
+        }
     }
 
     /* during a bulk import, only BULK_IMPORT_DONE is allowed!

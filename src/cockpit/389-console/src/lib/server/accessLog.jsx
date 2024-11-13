@@ -39,6 +39,8 @@ const settings_attrs = [
     'nsslapd-accesslog-level',
     'nsslapd-accesslog-logbuffering',
     'nsslapd-accesslog-logging-enabled',
+    'nsslapd-accesslog-log-format',
+    'nsslapd-accesslog-time-format',
 ];
 
 const rotation_attrs = [
@@ -379,6 +381,8 @@ export class ServerAccessLog extends React.Component {
                         'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
                         'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
                         'nsslapd-accesslog-compress': compress,
+                        'nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
+                        'nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
                         rows,
                         // Record original values
                         _rows:  JSON.parse(JSON.stringify(rows)),
@@ -398,6 +402,8 @@ export class ServerAccessLog extends React.Component {
                         '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
                         '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
                         '_nsslapd-accesslog-compress': compress,
+                        '_nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
+                        '_nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
                     });
                 })
                 .fail(err => {
@@ -460,6 +466,8 @@ export class ServerAccessLog extends React.Component {
             'nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
             'nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
             'nsslapd-accesslog-compress': compress,
+            'nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
+            'nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
             rows,
             // Record original values
             _rows: JSON.parse(JSON.stringify(rows)),
@@ -479,6 +487,8 @@ export class ServerAccessLog extends React.Component {
             '_nsslapd-accesslog-maxlogsize': attrs['nsslapd-accesslog-maxlogsize'][0],
             '_nsslapd-accesslog-maxlogsperdir': attrs['nsslapd-accesslog-maxlogsperdir'][0],
             '_nsslapd-accesslog-compress': compress,
+            '_nsslapd-accesslog-log-format': attrs['nsslapd-accesslog-log-format'][0],
+            '_nsslapd-accesslog-time-format': attrs['nsslapd-accesslog-time-format'][0],
         }, this.props.enableTree);
     }
 
@@ -540,6 +550,12 @@ export class ServerAccessLog extends React.Component {
         }
         rotationTime = hour + ":" + min;
 
+        const time_format_title = (
+            <>
+                {_("Time Format")} <font size="1">({_("JSON only")})</font>
+            </>
+        );
+
         let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
@@ -570,6 +586,40 @@ export class ServerAccessLog extends React.Component {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
+                            </FormGroup>
+                            <FormGroup
+                                label={time_format_title}
+                                fieldId="nsslapd-accesslog-time-format"
+                                title={_("Time format using strftime formatting (nsslapd-accesslog-time-format). This only applies to the JSON log format")}
+                            >
+                                <TextInput
+                                    value={this.state['nsslapd-accesslog-time-format']}
+                                    type="text"
+                                    id="nsslapd-accesslog-time-format"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="nsslapd-accesslog-time-format"
+                                    onChange={(str, e) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                />
+                            </FormGroup>
+                            <FormGroup
+                                label={_("Log Format")}
+                                fieldId="nsslapd-accesslog-log-format"
+                                title={_("Choose the log format (nsslapd-accesslog-log-format).")}
+                            >
+                                <FormSelect
+                                    id="nsslapd-accesslog-log-format"
+                                    value={this.state['nsslapd-accesslog-log-format']}
+                                    onChange={(str, e) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key="0" value="default" label="Default" />
+                                    <FormSelectOption key="1" value="json" label="JSON" />
+                                    <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
+                                </FormSelect>
                             </FormGroup>
                         </Form>
                         <Checkbox

@@ -384,7 +384,7 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
                       "(%ld) using format (%s), trying default format...\n",
                       curtime, time_format);
         /* Got an error, use default format and try again */
-        if (strftime(local_time, JBUFSIZE, SLAPD_INIT_AUDITLOG_TIME_FORMAT, &tms) == 0) {
+        if (strftime(local_time, JBUFSIZE, SLAPD_INIT_LOG_TIME_FORMAT, &tms) == 0) {
             slapi_log_err(SLAPI_LOG_ERR, "write_audit_file_json",
                       "Unable to format time (%ld)\n", curtime);
             return;
