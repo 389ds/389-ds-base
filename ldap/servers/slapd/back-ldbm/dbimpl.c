@@ -463,7 +463,7 @@ int dblayer_show_statistics(const char *dbimpl_name, const char *dbhome, FILE *f
     li->li_plugin = be->be_database;
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
-    li->li_directory = (char*)dbhome;
+    li->li_directory = get_li_directory(dbhome);
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, dbimpl_name);

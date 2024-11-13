@@ -287,6 +287,13 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
         slapi_ch_free((void**)&treekey.dbname);
         return octx->rc;
     }
+    if (treekey.dbi >= ctx->dsecfg.max_dbs) {
+        octx->rc = MDB_DBS_FULL;
+        slapi_log_err(SLAPI_LOG_ERR, "add_dbi", "Failed to open database instance %s slots: %d/%d. Error is %d: %s.\n",
+                      treekey.dbname, treekey.dbi, ctx->dsecfg.max_dbs, octx->rc, mdb_strerror(octx->rc));
+        slapi_ch_free((void**)&treekey.dbname);
+        return octx->rc;
+    }
     if (octx->ai && octx->ai->ai_key_cmp_fn) {
 		octx->rc = dbmdb_update_dbi_cmp_fn(ctx, &treekey, octx->ai->ai_key_cmp_fn, octx->txn);
         if (octx->rc) {
@@ -689,6 +696,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
         rc = dbmdb_write_infofile(ctx);
     } else {
         /* No Config ==> read it from info file */
+        ctx->dsecfg = ctx->startcfg;
     }
     if (rc) {
         return rc;
