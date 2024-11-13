@@ -4314,9 +4314,12 @@ dbmdb_import_init_writer(ImportJob *job, ImportRole_t role)
 void
 dbmdb_free_import_ctx(ImportJob *job)
 {
-    if (job->writer_ctx) {
-        ImportCtx_t *ctx = job->writer_ctx;
-        job->writer_ctx = NULL;
+    ImportCtx_t *ctx = NULL;
+    pthread_mutex_lock(get_import_ctx_mutex());
+    ctx = job->writer_ctx;
+    job->writer_ctx = NULL;
+    pthread_mutex_unlock(get_import_ctx_mutex());
+    if (ctx) {
         pthread_mutex_destroy(&ctx->workerq.mutex);
         pthread_cond_destroy(&ctx->workerq.cv);
         slapi_ch_free((void**)&ctx->workerq.slots);
