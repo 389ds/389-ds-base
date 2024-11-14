@@ -12,8 +12,9 @@ import os
 import shutil
 import time
 import glob
+import subprocess
 from datetime import datetime
-from lib389._constants import DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
+from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
 from lib389.topologies import topology_st as topo, topology_m2 as topo_m2
 from lib389.backend import Backends, Backend
@@ -219,6 +220,51 @@ def test_replication(topo_m2):
         # To help to diagnose test failure, you may want to look first at:
         # grep -E 'Database RUV|replica_reload_ruv|task_restore_thread|_cl5ConstructRUVs' /var/log/dirsrv/slapd-supplier1/errors
         repl.wait_for_replication(S1, S2)
+
+
+def test_after_db_log_rotation(topo):
+    """Test that off line backup restore works as expected.
+
+    :id: 8a091d92-a1cf-11ef-823a-482ae39447e5
+    :setup: One standalone instance
+    :steps:
+        1. Stop instance
+        2. Perform off line backup on instance
+        3. Start instance
+        4. Perform modify operation until db log file rotates
+        5. Stop instance
+        6. Restore instance from backup
+        7. Start instance
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+    """
+    inst = topo.standalone
+    with tempfile.TemporaryDirectory(dir=inst.ds_paths.backup_dir) as backup_dir:
+        # repl.wait_for_replication perform some changes and wait until they get replicated
+        inst.stop()
+        assert inst.db2bak(backup_dir)
+        inst.start()
+        cmd = [ 'ldclt', '-h', 'localhost', '-b', DEFAULT_SUFFIX,
+                '-p', str(inst.port), '-t', '60', '-N', '2',
+                '-D', DN_DM, '-w', PASSWORD, '-f', "ou=People",
+                '-e', 'attreplace=description:XXXXXX' ]
+        log.info(f'Running {cmd}')
+        # Perform modify operations until log file rolls 
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        log.info(f'STDOUT: {result.stdout}')
+        log.info(f'STDERR: {result.stderr}')
+        if get_default_db_lib() == 'bdb':
+            while os.path.isfile(f'{inst.ds_paths.db_dir}/log.0000000001'):
+                subprocess.run(cmd, capture_output=True, text=True, check=True)
+        inst.stop()
+        assert inst.bak2db(backup_dir)
+        inst.start()
 
 
 def test_backup_task_after_failure(mytopo):
