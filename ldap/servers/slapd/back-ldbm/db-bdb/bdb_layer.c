@@ -5591,6 +5591,28 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     /* Otherwise use the src_dir from the caller */
     real_src_dir = src_dir;
 
+    /* Lets remove existing log files before copying the new ones (See issue #6386) */
+    prefix = BDB_CONFIG(li)->bdb_log_directory;
+    if (prefix == NULL) {
+        prefix = home_dir;
+    }
+    dirhandle = PR_OpenDir(prefix);
+    if (NULL != dirhandle) {
+        while (NULL !=
+               (direntry = PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
+            if (NULL == direntry->name) {
+                /* NSPR doesn't behave like the docs say it should */
+                break;
+            }
+            if (bdb_is_logfilename(direntry->name)) {
+                PR_snprintf(filename1, sizeof(filename2), "%s/%s",
+                            prefix, direntry->name);
+                unlink(filename1);
+            }
+        }
+    }
+    PR_CloseDir(dirhandle);
+
     /* We copy the files over from the staging area */
     /* We want to treat the logfiles specially: if there's
      * a log file directory configured, copy the logfiles there
