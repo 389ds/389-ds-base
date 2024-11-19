@@ -26,6 +26,8 @@ from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.backend import Backends
 from lib389._mapped_object import DSLdapObject
 
+from time import sleep
+
 pytestmark = pytest.mark.tier1
 
 DEBUGGING = os.getenv('DEBUGGING', False)
@@ -215,7 +217,7 @@ def change_conf_attr(topology_st, suffix, attr_name, attr_value):
     return attr_value_bck
 
 
-def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist, abandon_rate=0):
+def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist, abandon_rate=0, avoid_race_con=False):
     """Search at the DEFAULT_SUFFIX with ldap.SCOPE_SUBTREE
     using Simple Paged Control(should the first item in the
     list controls.
@@ -237,6 +239,10 @@ def paged_search(conn, suffix, controls, search_flt, searchreq_attrlist, abandon
     msgid = conn.search_ext(suffix, ldap.SCOPE_SUBTREE, search_flt, searchreq_attrlist, serverctrls=controls)
     log.info('Getting page %d' % (pages,))
     while True:
+        if avoid_race_con:
+            # This should only be true when calling from test_multi_suffix_search() to avoid a race condition
+            # with multiple queries.
+            sleep(1)
         try:
             rtype, rdata, rmsgid, rctrls = conn.result3(msgid, timeout=0.001)
         except ldap.TIMEOUT:
@@ -1117,7 +1123,7 @@ def test_multi_suffix_search(topology_st, create_user, new_suffixes):
     try:
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
-        all_results = paged_search(topology_st.standalone, NEW_SUFFIX_1, [req_ctrl], search_flt, searchreq_attrlist)
+        all_results = paged_search(topology_st.standalone, NEW_SUFFIX_1, [req_ctrl], search_flt, searchreq_attrlist, 0, True)
 
         log.info('{} results'.format(len(all_results)))
         assert len(all_results) == users_num
