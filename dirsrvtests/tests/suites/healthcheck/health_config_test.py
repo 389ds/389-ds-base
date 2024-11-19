@@ -24,6 +24,8 @@ from lib389.topologies import topology_st
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
+from time import sleep
+
 pytestmark = pytest.mark.tier1
 
 CMD_OUTPUT = 'No issues found.'
@@ -418,6 +420,7 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     log.info('Use filters to reproduce "notes=A" in access log')
     accounts = Accounts(standalone, DEFAULT_SUFFIX)
     accounts.filter('(uid=test*)')
+    sleep(1)
 
     log.info('Check that access log contains "notes=A"')
     assert standalone.ds_access_log.match(r'.*notes=A.*')
@@ -467,6 +470,7 @@ def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     log.info('Use filters to reproduce "notes=F" in access log')
     accounts = Accounts(standalone, DEFAULT_SUFFIX)
     accounts.filter('(unknown=test)')
+    sleep(1)
 
     log.info('Check that access log contains "notes=F"')
     assert standalone.ds_access_log.match(r'.*notes=F.*')
