@@ -1123,7 +1123,7 @@ def test_multi_suffix_search(topology_st, create_user, new_suffixes):
     try:
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
-        all_results = paged_search(topology_st.standalone, NEW_SUFFIX_1, [req_ctrl], search_flt, searchreq_attrlist, 0, True)
+        all_results = paged_search(topology_st.standalone, NEW_SUFFIX_1, [req_ctrl], search_flt, searchreq_attrlist, avoid_race_con=True)
 
         log.info('{} results'.format(len(all_results)))
         assert len(all_results) == users_num
