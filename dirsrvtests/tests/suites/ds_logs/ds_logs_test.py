@@ -1285,7 +1285,6 @@ def test_referral_check(topology_st, request):
 
     request.addfinalizer(fin)
 
-<<<<<<< HEAD
 def test_referral_subsuffix(topology_st, request):
     """Test the results of an inverted parent suffix definition in the configuration.
 
