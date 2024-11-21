@@ -1327,8 +1327,11 @@ slapd_daemon(daemon_ports_t *ports)
             slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "Failed to remove pid file %s\n", get_pid_file());
         }
     }
-}
 
+    /* final cleanup for ASAN and other analyzers */
+    PR_JoinThread(accept_thread_p);
+    free_worker_thread_indexes();
+}
 
 void
 ct_thread_cleanup(void)
@@ -1647,7 +1650,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                 continue;
             }
 
-            /* Try to get connection mutex, if not available just skip the connection and 
+            /* Try to get connection mutex, if not available just skip the connection and
              * process other connections events. May generates cpu load for listening thread
              * if connection mutex is held for a long time
              */

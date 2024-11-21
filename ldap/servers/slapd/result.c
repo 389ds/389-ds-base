@@ -1392,9 +1392,8 @@ exit:
     if (NULL != typelist) {
         slapi_vattr_attrs_free(&typelist, typelist_flags);
     }
-    if (NULL != default_attrs) {
-        slapi_ch_free((void **)&default_attrs);
-    }
+    slapi_ch_array_free(default_attrs);
+
     return rc;
 }
 
