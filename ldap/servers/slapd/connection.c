@@ -40,20 +40,22 @@ static void log_ber_too_big_error(const Connection *conn,
 
 static PRStack *op_stack;     /* stack of Slapi_Operation * objects so we don't have to malloc/free every time */
 static PRInt32 op_stack_size; /* size of op_stack */
-
 struct Slapi_op_stack
 {
     PRStackElem stackelem; /* must be first in struct for PRStack to work */
     Slapi_Operation *op;
 };
 
-static void add_work_q(work_q_item *, struct Slapi_op_stack *);
-static work_q_item *get_work_q(struct Slapi_op_stack **);
+/* worker threads */
+static int32_t max_threads = 0;
+static int32_t *threads_indexes = NULL;
 
 /*
  * We maintain a global work queue of items that have not yet
  * been handed off to an operation thread.
  */
+static void add_work_q(work_q_item *, struct Slapi_op_stack *);
+static work_q_item *get_work_q(struct Slapi_op_stack **);
 struct Slapi_work_q
 {
     PRStackElem stackelem; /* must be first in struct for PRStack to work */
@@ -430,9 +432,7 @@ void
 init_op_threads()
 {
     pthread_condattr_t condAttr;
-    int32_t max_threads = config_get_threadnumber();
     int32_t rc;
-    int32_t *threads_indexes;
 
     /* Initialize the locks and cv */
     if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
@@ -463,13 +463,13 @@ init_op_threads()
     op_stack = PR_CreateStack("connection_operation");
     alloc_per_thread_snmp_vars(max_threads);
     init_thread_private_snmp_vars();
-    
 
+    max_threads = config_get_threadnumber();
     threads_indexes = (int32_t *) slapi_ch_calloc(max_threads, sizeof(int32_t));
     for (size_t i = 0; i < max_threads; i++) {
         threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
     }
-    
+
     /* start the operation threads */
     for (size_t i = 0; i < max_threads; i++) {
         PR_SetConcurrency(4);
@@ -486,10 +486,14 @@ init_op_threads()
             g_incr_active_threadcnt();
         }
     }
-    /* Here we should free thread_indexes, but because of the dynamic of the new
-     * threads (connection_threadmain) we are not sure when it can be freed.
-     * Let's accept that unique initialization leak (typically 32 to 64 bytes)
-     */
+    /* We will free threads_indexes at the very end of slapd_daemon() */
+}
+
+/* Called at shutdown to silence ASAN and friends */
+void
+free_worker_thread_indexes()
+{
+    slapi_ch_free((void **)&threads_indexes);
 }
 
 static void
@@ -1227,7 +1231,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
             /* Process HAProxy header */
             if (conn->c_haproxyheader_read == 0) {
                 conn->c_haproxyheader_read = 1;
-                /* 
+                /*
                 * We only check for HAProxy header if nsslapd-haproxy-trusted-ip is configured.
                 * If it is we proceed with the connection only if it's comming from trusted
                 * proxy server with correct and complete header.
@@ -1253,7 +1257,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         /* Now, reset RC and set it to 0 only if a match is found */
                         haproxy_rc = -1;
 
-                        /* 
+                        /*
                          * We need to allow a configuration where DS instance and HAProxy are on the same machine.
                          * In this case, we need to check if
                          * the HAProxy client IP (which will be a loopback address) matches one of the the trusted IP addresses,

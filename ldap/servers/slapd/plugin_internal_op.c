@@ -249,6 +249,12 @@ slapi_search_internal_set_pb(Slapi_PBlock *pb, const char *base, int scope, cons
         return;
     }
 
+    /* Free op just in case this pb is being reused */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    operation_free(&op, NULL);
+    slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
+    slapi_ch_array_free(tmp_attrs);
+
     op = internal_operation_new(SLAPI_OPERATION_SEARCH, operation_flags);
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
     slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET_DN, (void *)base);
@@ -275,6 +281,12 @@ slapi_search_internal_set_pb_ext(Slapi_PBlock *pb, Slapi_DN *sdn, int scope, con
                       "NULL parameter\n");
         return;
     }
+
+    /* Free op/attrs just in case this pb is being reused */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    operation_free(&op, NULL);
+    slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
+    slapi_ch_array_free(tmp_attrs);
 
     op = internal_operation_new(SLAPI_OPERATION_SEARCH, operation_flags);
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
@@ -304,6 +316,12 @@ slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *base, int type, char *attrname
                       "NULL parameter\n");
         return;
     }
+
+    /* Free op/attrs just in case this pb is being reused */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    operation_free(&op, NULL);
+    slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
+    slapi_ch_array_free(tmp_attrs);
 
     op = internal_operation_new(SLAPI_OPERATION_SEARCH, operation_flags);
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
