@@ -966,9 +966,12 @@ check_private_certdir()
 
     if (!tmp_private) {
         /* tmp is not a private name space */
-        slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization",
+        if (_security_library_initialized == 0) {
+            /* only alert about this the first time around */
+            slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization",
                 "%s is not a private namespace. pem files not exported there\n",
                 private_mountpoint);
+        }
         return NULL;
     }
 
