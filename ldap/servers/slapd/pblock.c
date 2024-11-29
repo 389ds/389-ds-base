@@ -215,6 +215,7 @@ pblock_done(Slapi_PBlock *pb)
     if (pb->pb_intop != NULL) {
         delete_passwdPolicy(&pb->pb_intop->pwdpolicy);
         slapi_ch_free((void **)&(pb->pb_intop->pb_result_text));
+        slapi_ch_free_string(&pb->pb_intop->pb_session_tracking_id);
     }
     slapi_ch_free((void **)&(pb->pb_intop));
     if (pb->pb_intplugin != NULL) {
@@ -2116,6 +2117,17 @@ slapi_pblock_get_pwpolicy(Slapi_PBlock *pblock, void *value)
         (*(int *)value) = pblock->pb_intop->pb_pwpolicy_ctrl;
     } else {
         (*(int *)value) = 0;
+    }
+    return 0;
+}
+
+static int32_t
+slapi_pblock_get_session_tracking(Slapi_PBlock *pblock, void *value)
+{
+    if (pblock->pb_intop != NULL) {
+        (*(char **)value) = pblock->pb_intop->pb_session_tracking_id;
+    } else {
+        (*(char **)value) = 0;
     }
     return 0;
 }
@@ -5201,6 +5213,14 @@ slapi_pblock_set_pwpolicy(Slapi_PBlock *pblock, void *value)
 }
 
 static int32_t
+slapi_pblock_set_session_tracking(Slapi_PBlock *pblock, void *value)
+{
+    _pblock_assert_pb_intop(pblock);
+    pblock->pb_intop->pb_session_tracking_id = (char *) value;
+    return 0;
+}
+
+static int32_t
 slapi_pblock_set_add_entry(Slapi_PBlock *pblock, void *value)
 {
     if (pblock->pb_op != NULL) {
@@ -7716,7 +7736,7 @@ static int32_t (*get_cbtable[])(Slapi_PBlock *, void *) = {
     NULL, /* slot 999 available */
     slapi_pblock_get_managedsait,
     slapi_pblock_get_pwpolicy,
-    NULL, /* slot 1002 available */
+    slapi_pblock_get_session_tracking,
     NULL, /* slot 1003 available */
     NULL, /* slot 1004 available */
     NULL, /* slot 1005 available */
@@ -9691,7 +9711,7 @@ static int32_t (*set_cbtable[])(Slapi_PBlock *, void *) = {
     NULL, /* slot 999 available */
     slapi_pblock_set_managedsait,
     slapi_pblock_set_pwpolicy,
-    NULL, /* slot 1002 available */
+    slapi_pblock_set_session_tracking,
     NULL, /* slot 1003 available */
     NULL, /* slot 1004 available */
     NULL, /* slot 1005 available */

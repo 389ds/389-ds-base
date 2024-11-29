@@ -7284,6 +7284,7 @@ typedef struct slapi_plugindesc
 /* controls we know about */
 #define SLAPI_MANAGEDSAIT 1000
 #define SLAPI_PWPOLICY    1001
+#define SLAPI_SESSION_TRACKING       1002
 
 /* arguments that are common to all operation */
 #define SLAPI_TARGET_SDN      47 /* target sdn of the operation */
