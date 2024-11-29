@@ -849,7 +849,7 @@ fi
 
 PKG_CHECK_MODULES([SASL], [libsasl2])
 
-PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2])
+PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2 icu-uc >= 60.2])
 
 m4_include(m4/netsnmp.m4)
 
