@@ -43,6 +43,30 @@ BESTRUCT = [
     { "bename" : "be3", "suffix": "dc=be3", "nbusers": 1000 },
 ]
 
+class DseConfigContextManager:
+    """Change a config parameter is dse.ldif and restore it afterwards."""
+
+    def __init__(self, inst, dn, attr, value):
+        self.inst = inst
+        self.dn = dn
+        self.attr = attr
+        self.value = value
+        self.oldvalue = None
+        self.dseldif = DSEldif(inst)
+
+    def __enter__(self):
+        self.inst.stop()
+        self.oldvalue = self.dseldif.get(self.dn, self.attr, single=True)
+        self.dseldif.replace(self.dn, self.attr, self.value)
+        log.info(f"Switching {self.dn}:{self.attr} to {self.value}")
+        self.inst.start()
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.inst.stop()
+        log.info(f"Switching {self.dn}:{self.attr} to {self.oldvalue}")
+        self.dseldif.replace(self.dn, self.attr, self.oldvalue)
+        self.inst.start()
+
 
 @pytest.fixture(scope="function")
 def mytopo(topo, request):
@@ -153,14 +177,15 @@ def test_db_home_dir_online_backup(topo):
         2. Failure
         3. Success
     """
-    bdb_ldbmconfig = BDB_LDBMConfig(topo.standalone)
-    dseldif = DSEldif(topo.standalone)
-    topo.standalone.stop()
-    with tempfile.TemporaryDirectory() as backup_dir:
-        dseldif.replace(bdb_ldbmconfig.dn, 'nsslapd-db-home-directory', f'{backup_dir}')
-        topo.standalone.start()
-        topo.standalone.tasks.db2bak(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
-        assert topo.standalone.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
+    inst = topo.standalone
+    dn = BDB_LDBMConfig(inst).dn
+    attr = 'nsslapd-db-home-directory'
+    with tempfile.TemporaryDirectory() as dbhome_dir:
+        with DseConfigContextManager(inst, dn, attr, dbhome_dir):
+            backup_dir = str(dbhome_dir)
+            inst.tasks.db2bak(backup_dir=backup_dir, args={TASK_WAIT: True})
+            assert inst.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
+
 
 def test_replication(topo_m2):
     """Test that if the dbhome directory is set causing an online backup to fail,
@@ -255,7 +280,7 @@ def test_after_db_log_rotation(topo):
                 '-D', DN_DM, '-w', PASSWORD, '-f', "ou=People",
                 '-e', 'attreplace=description:XXXXXX' ]
         log.info(f'Running {cmd}')
-        # Perform modify operations until log file rolls 
+        # Perform modify operations until log file rolls
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         log.info(f'STDOUT: {result.stdout}')
         log.info(f'STDERR: {result.stderr}')
