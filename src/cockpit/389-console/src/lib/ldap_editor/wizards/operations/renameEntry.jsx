@@ -1,27 +1,29 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    Card,
-    CardBody,
-    CardTitle,
-    Checkbox,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Label,
-    LabelGroup,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Text,
-    TextContent,
-    TextInput,
-    TextVariants,
-    ValidatedOptions,
-    Wizard
+	Alert,
+	Card,
+	CardBody,
+	CardTitle,
+	Checkbox,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Label,
+	LabelGroup,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextInput,
+	TextVariants,
+	ValidatedOptions
 } from '@patternfly/react-core';
+import {
+	Wizard
+} from '@patternfly/react-core/deprecated';
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
 import {
     getBaseLevelEntryAttributes,
@@ -116,7 +118,7 @@ class RenameEntry extends React.Component {
             });
         };
 
-        this.handleDelRdnChange = (checked) => {
+        this.handleDelRdnChange = (_event, checked) => {
             this.setState({
                 deleteOldRdn: checked
             });
@@ -220,7 +222,7 @@ class RenameEntry extends React.Component {
                         <FormSelect
                             id="naming-attr"
                             value={newRdnAttr}
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 this.handleRdnAttrChange(str);
                             }}
                             aria-label="FormSelect Input"
@@ -242,7 +244,7 @@ class RenameEntry extends React.Component {
                             id="naming-val"
                             aria-describedby="horizontal-form-name-helper"
                             name="rdnVal"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 this.handleRdnValChange(str);
                             }}
                             validated={newRdnVal === "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -253,7 +255,7 @@ class RenameEntry extends React.Component {
                             className="ds-margin-top-lg"
                             id="deleteoldrdn"
                             isChecked={this.state.deleteOldRdn}
-                            onChange={this.handleDelRdnChange}
+                            onChange={(event, isChecked) => this.handleDelRdnChange(event, isChecked)}
                             label={_("Delete the old RDN attribute from the entry")}
                         />
                     </div>

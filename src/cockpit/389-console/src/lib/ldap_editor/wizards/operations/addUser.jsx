@@ -1,27 +1,44 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    BadgeToggle,
-    Card, CardBody, CardTitle,
-    Dropdown, DropdownItem, DropdownPosition,
-    Form,
-    Grid, GridItem,
-    Label,
-    Pagination,
-    SearchInput,
-    Select, SelectOption, SelectVariant,
-    SimpleList, SimpleListItem,
-    Spinner,
-    Text, TextContent, TextVariants,
-    Wizard,
+	Alert,
+	Card,
+	CardBody,
+	CardTitle,
+	Form,
+	Grid,
+	GridItem,
+	Label,
+	Pagination,
+	SearchInput,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextVariants
 } from '@patternfly/react-core';
+import {
+	BadgeToggle,
+	Dropdown,
+	DropdownItem,
+	DropdownPosition,
+	Select,
+	SelectOption,
+	SelectVariant,
+	Wizard
+} from '@patternfly/react-core/deprecated';
 import {
     InfoCircleIcon,
 } from '@patternfly/react-icons';
 import {
-    Table, TableHeader, TableBody, TableVariant,
-    headerCol,
+    Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+	headerCol
 } from '@patternfly/react-table';
 import EditableTable from '../../lib/editableTable.jsx';
 import {
@@ -212,7 +229,7 @@ class AddUser extends React.Component {
             }
         };
 
-        this.handleToggleType = isOpenType => {
+        this.handleToggleType = (_event, isOpenType) => {
             this.setState({
                 isOpenType
             });
@@ -493,7 +510,7 @@ class AddUser extends React.Component {
                 onSelect={this.handleAttrDropDownSelect}
                 position={DropdownPosition.left}
                 toggle={
-                    <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
+                    <BadgeToggle id="toggle-attr-select" onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}>
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
@@ -583,12 +600,19 @@ class AddUser extends React.Component {
                 </div>
                 <div className="ds-indent">
                     <Select
-                        variant={SelectVariant.single}
-                        className="ds-margin-top-lg"
+                        id="user-type-select"
                         aria-label="Select user type"
-                        onToggle={this.handleToggleType}
+                        toggle={(toggleRef) => (
+                            <SelectToggle
+                                ref={toggleRef}
+                                onToggle={(event, isOpen) => this.handleToggleType(event, isOpen)}
+                                isExpanded={this.state.isOpenType}
+                            >
+                                {this.state.accountType}
+                            </SelectToggle>
+                        )}
                         onSelect={this.handleSelectType}
-                        selections={this.state.accountType}
+                        selected={this.state.accountType}
                         isOpen={this.state.isOpenType}
                     >
                         <SelectOption key="user" value="Basic Account" />
@@ -619,7 +643,27 @@ class AddUser extends React.Component {
                             {_("Select Entry Attributes")}
                         </Text>
                     </TextContent>
-                    {this.buildAttrDropdown()}
+                    <Dropdown
+                        className="ds-dropdown-padding"
+                        position="left"
+                        onSelect={this.handleAttrDropDownSelect}
+                        toggle={
+                            <BadgeToggle 
+                                id="toggle-attr-select"
+                                badgeProps={{
+                                    className: this.state.selectedAttributes.length > 0 ? "ds-badge-bgcolor" : undefined,
+                                    isRead: this.state.selectedAttributes.length === 0
+                                }}
+                                onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}
+                            >
+                                {`${this.state.selectedAttributes.length} ${_("selected")}`}
+                            </BadgeToggle>
+                        }
+                        isOpen={this.state.isAttrDropDownOpen}
+                        dropdownItems={this.state.selectedAttributes.map((attr) =>
+                            <DropdownItem key={attr}>{attr}</DropdownItem>
+                        )}
+                    />
                 </div>
                 <Grid className="ds-margin-top-lg">
                     <GridItem span={5}>
@@ -627,15 +671,15 @@ class AddUser extends React.Component {
                             className="ds-font-size-md"
                             placeholder={_("Search Attributes")}
                             value={this.state.searchValue}
-                            onChange={(evt, val) => this.handleAttrSearchChange(val)}
+                            onChange={(_event, value) => this.handleAttrSearchChange(value)}
                             onClear={() => this.handleAttrSearchChange('')}
                         />
                     </GridItem>
                     <GridItem span={7}>
                         <Pagination
-                            itemCount={itemCountAddUser}
-                            page={pageAddUser}
-                            perPage={perPageAddUser}
+                            itemCount={this.state.itemCountAddUser}
+                            page={this.state.pageAddUser}
+                            perPage={this.state.perPageAddUser}
                             onSetPage={this.handleSetPageAddUser}
                             widgetId="pagination-options-menu-add-user"
                             onPerPageSelect={this.handlePerPageSelectAddUser}
@@ -643,16 +687,39 @@ class AddUser extends React.Component {
                         />
                     </GridItem>
                 </Grid>
-                <Table
-                    cells={columnsUser}
-                    rows={pagedRowsUser}
-                    onSelect={this.handleSelect}
-                    variant={TableVariant.compact}
-                    aria-label="Pagination User Attributes"
-                    canSelectAll={false}
-                >
-                    <TableHeader />
-                    <TableBody />
+                <Table aria-label="User Attributes Table" variant="compact">
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Select Attributes" />
+                            {this.state.columnsUser.map((column, columnIndex) => (
+                                <Th key={columnIndex}>
+                                    {typeof column === 'object' ? column.title : column}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {this.state.pagedRowsUser.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td
+                                    select={{
+                                        rowIndex,
+                                        onSelect: this.handleSelect,
+                                        isSelected: row.selected,
+                                        isDisabled: row.disableCheckbox
+                                    }}
+                                />
+                                {row.cells.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={`${rowIndex}_${cellIndex}`}
+                                        dataLabel={this.state.columnsUser[cellIndex]?.title || this.state.columnsUser[cellIndex]}
+                                    >
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </>
         );

@@ -1,20 +1,22 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Form,
-    FormHelperText,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TextInput,
-    NumberInput,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Form,
+	FormHelperText,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	NumberInput,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { listsEqual, log_cmd, valid_dn, file_is_path } from "../tools.jsx";
@@ -108,7 +110,7 @@ class ReferentialIntegrity extends React.Component {
                 );
             }
         };
-        this.handleConfigMembershipAttrToggle = isConfigMembershipAttrOpen => {
+        this.handleConfigMembershipAttrToggle = (_event, isConfigMembershipAttrOpen) => {
             this.setState({
                 isConfigMembershipAttrOpen
             });
@@ -139,7 +141,7 @@ class ReferentialIntegrity extends React.Component {
                 );
             }
         };
-        this.handleMembershipAttrToggle = isMembershipAttrOpen => {
+        this.handleMembershipAttrToggle = (_event, isMembershipAttrOpen) => {
             this.setState({
                 isMembershipAttrOpen
             });
@@ -865,11 +867,11 @@ class ReferentialIntegrity extends React.Component {
                                     id="configDN"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configDN"
-                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
                                     isDisabled={!newEntry}
                                 />
-                                <FormHelperText isError isHidden={!errorModal.configDN}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -882,7 +884,7 @@ class ReferentialIntegrity extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
-                                    onToggle={this.handleConfigMembershipAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleConfigMembershipAttrToggle(event, isOpen)}
                                     onSelect={this.handleConfigMembershipAttrSelect}
                                     onClear={this.handleConfigMembershipAttrClear}
                                     selections={configMembershipAttr}
@@ -899,7 +901,7 @@ class ReferentialIntegrity extends React.Component {
                                         />
                                     ))}
                                 </Select>
-                                <FormHelperText isError isHidden={!errorModal.configMembershipAttr}>
+                                <FormHelperText  >
                                     {_("At least one attribute must be specified")}
                                 </FormHelperText>
                             </GridItem>
@@ -915,11 +917,11 @@ class ReferentialIntegrity extends React.Component {
                                     id="configEntryScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configEntryScope"
-                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configEntryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                             </GridItem>
-                            <FormHelperText isError isHidden={!errorModal.configEntryScope}>
+                            <FormHelperText  >
                                 {_("Value must be a valid DN")}
                             </FormHelperText>
                         </Grid>
@@ -934,10 +936,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="configExcludeEntryScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configExcludeEntryScope"
-                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configExcludeEntryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!errorModal.configExcludeEntryScope}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -953,10 +955,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="configContainerScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configContainerScope"
-                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configContainerScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!errorModal.configContainerScope}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -976,10 +978,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="configLogFile"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configLogFile"
-                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configLogFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!errorModal.configLogFile}>
+                                <FormHelperText  >
                                     {_("Invalid log file name")}
                                 </FormHelperText>
                             </GridItem>
@@ -1029,7 +1031,7 @@ class ReferentialIntegrity extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
-                                    onToggle={this.handleMembershipAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleMembershipAttrToggle(event, isOpen)}
                                     onSelect={this.handleMembershipAttrSelect}
                                     onClear={this.handleMembershipAttrClear}
                                     selections={membershipAttr}
@@ -1046,7 +1048,7 @@ class ReferentialIntegrity extends React.Component {
                                         />
                                     ))}
                                 </Select>
-                                <FormHelperText isError isHidden={!error.membershipAttr}>
+                                <FormHelperText  >
                                     {_("At least one attribute needs to be specified")}
                                 </FormHelperText>
                             </GridItem>
@@ -1062,10 +1064,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="entryScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="entryScope"
-                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, str) => { this.handleFieldChange(e) }}
                                     validated={error.entryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.entryScope}>
+                                <FormHelperText  >
                                     {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -1081,10 +1083,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="excludeEntryScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="excludeEntryScope"
-                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, str) => { this.handleFieldChange(e) }}
                                     validated={error.excludeEntryScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.excludeEntryScope}>
+                                <FormHelperText  >
                                     {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -1100,10 +1102,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="containerScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="containerScope"
-                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, str) => { this.handleFieldChange(e) }}
                                     validated={error.containerScope ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.containerScope}>
+                                <FormHelperText  >
                                     {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -1122,10 +1124,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="logFile"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="logFile"
-                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, str) => { this.handleFieldChange(e) }}
                                     validated={error.logFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.logFile}>
+                                <FormHelperText  >
                                     {_("Invalid log nameN")}
                                 </FormHelperText>
                             </GridItem>
@@ -1162,10 +1164,10 @@ class ReferentialIntegrity extends React.Component {
                                     id="referintConfigEntry"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="referintConfigEntry"
-                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, str) => { this.handleFieldChange(e) }}
                                     validated={error.referintConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.referintConfigEntry}>
+                                <FormHelperText  >
                                     {_("The value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>

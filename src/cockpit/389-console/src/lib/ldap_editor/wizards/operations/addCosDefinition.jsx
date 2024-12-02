@@ -1,37 +1,39 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    BadgeToggle,
-    Bullseye,
-    Button,
-    Card,
-    CardBody,
-    CardTitle,
-    Checkbox,
-    Dropdown,
-    DropdownItem,
-    DropdownPosition,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Radio,
-    SearchInput,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Text,
-    TextContent,
-    TextInput,
-    TextVariants,
-    Tooltip,
-    ValidatedOptions,
-    Wizard,
+	Alert,
+	Bullseye,
+	Button,
+	Card,
+	CardBody,
+	CardTitle,
+	Checkbox,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	Radio,
+	SearchInput,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextInput,
+	TextVariants,
+	Tooltip,
+	ValidatedOptions
 } from '@patternfly/react-core';
+import {
+	BadgeToggle,
+	Dropdown,
+	DropdownItem,
+	DropdownPosition,
+	Wizard
+} from '@patternfly/react-core/deprecated';
 import {
     headerCol,
     sortable,
@@ -312,7 +314,7 @@ class AddCosDefinition extends React.Component {
             return noDuplicates;
         };
 
-        this.handleRadioChange = (_, event) => {
+        this.handleRadioChange = (event, _) => {
             this.setState({
                 cosType: event.currentTarget.id,
             });
@@ -655,7 +657,7 @@ class AddCosDefinition extends React.Component {
                 onSelect={this.handleAttrDropDownSelect}
                 position={DropdownPosition.left}
                 toggle={
-                    <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
+                    <BadgeToggle id="toggle-attr-select" onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}>
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
@@ -832,7 +834,7 @@ class AddCosDefinition extends React.Component {
                                 id="namingVal"
                                 aria-describedby="namingVal"
                                 name="namingVal"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e);
                                 }}
                                 validated={this.state.namingVal === '' ? ValidatedOptions.error : ValidatedOptions.default}
@@ -848,7 +850,7 @@ class AddCosDefinition extends React.Component {
                                 id="cosDescription"
                                 aria-describedby="cosDescription"
                                 name="cosDescription"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e);
                                 }}
                             />
@@ -867,7 +869,7 @@ class AddCosDefinition extends React.Component {
                             value="pointer"
                             label={_("Pointer")}
                             isChecked={this.state.cosType === 'pointer'}
-                            onChange={this.handleRadioChange}
+                            onChange={(event, str) => this.handleRadioChange(event, str)}
                             description={_("Identifies the template entry using the template DN only.")}
                         />
                         <Radio
@@ -876,7 +878,7 @@ class AddCosDefinition extends React.Component {
                             value="indirect"
                             label={_("Indirect")}
                             isChecked={this.state.cosType === 'indirect'}
-                            onChange={this.handleRadioChange}
+                            onChange={(event, str) => this.handleRadioChange(event, str)}
                             description={_("Identifies the template entry using the value of one of the target entry's attributes.")}
                             className="ds-margin-top"
                         />
@@ -886,7 +888,7 @@ class AddCosDefinition extends React.Component {
                             value="classic"
                             label={_("Classic")}
                             isChecked={this.state.cosType === 'classic'}
-                            onChange={this.handleRadioChange}
+                            onChange={(event, str) => this.handleRadioChange(event, str)}
                             description={_("Identifies the template entry using a combination of the template entry's base DN and the value of one of the target entry's attributes.")}
                             className="ds-margin-top"
                         />
@@ -982,7 +984,7 @@ class AddCosDefinition extends React.Component {
                                 </Button>
                             ]}
                         >
-                            <Card isHoverable className="ds-indent ds-margin-bottom-md">
+                            <Card  className="ds-indent ds-margin-bottom-md">
                                 <CardBody>
                                     <LdapNavigator
                                         treeItems={[...this.props.treeViewRootSuffixes]}
@@ -1024,7 +1026,7 @@ class AddCosDefinition extends React.Component {
                                 </Button>,
                             ]}
                         >
-                            <Card isHoverable className="ds-indent ds-margin-bottom-md">
+                            <Card  className="ds-indent ds-margin-bottom-md">
                                 <CardBody>
                                     <LdapNavigator
                                         treeItems={[...this.props.treeViewRootSuffixes]}
@@ -1131,7 +1133,7 @@ class AddCosDefinition extends React.Component {
                                 id="def"
                                 label={_("Default")}
                                 isChecked={def}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleCheckboxChange(e, name, "def");
                                 }}
                             />
@@ -1141,7 +1143,7 @@ class AddCosDefinition extends React.Component {
                                 id="override"
                                 label={_("Override")}
                                 isChecked={override}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleCheckboxChange(e, name, "override");
                                 }}
                             />
@@ -1151,7 +1153,7 @@ class AddCosDefinition extends React.Component {
                                 id="operational"
                                 label={_("Operational")}
                                 isChecked={operational}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleCheckboxChange(e, name, "operational");
                                 }}
                             />
@@ -1162,7 +1164,7 @@ class AddCosDefinition extends React.Component {
                                 id="opdefault"
                                 label={_("Operational-Default")}
                                 isChecked={opdefault}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleCheckboxChange(e, name, "opdefault");
                                 }}
                             />
@@ -1172,7 +1174,7 @@ class AddCosDefinition extends React.Component {
                                 id="mergeschemes"
                                 label={_("Merge-Schemes")}
                                 isChecked={mergeschemes}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleCheckboxChange(e, name, "mergeschemes");
                                 }}
                             />
@@ -1210,7 +1212,7 @@ class AddCosDefinition extends React.Component {
                         </TextContent>
                     </GridItem>
                     <GridItem span={5} className="ds-left-margin">
-                        <FormSelect id="cosspecAttr" value={this.state.cosspecAttr} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                        <FormSelect id="cosspecAttr" value={this.state.cosspecAttr} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                             <FormSelectOption value="" label={_("Select an attribute")} isPlaceholder />
                             {this.state.attributeList.map((attr, index) => (
                                 <FormSelectOption key={attr} value={attr} label={attr} />
@@ -1234,7 +1236,7 @@ class AddCosDefinition extends React.Component {
                     isInline
                     title={_("LDIF Content for CoS Creation")}
                 />
-                <Card isHoverable>
+                <Card >
                     <CardBody>
                         {(ldifListItems.length > 0) &&
                             <SimpleList aria-label="LDIF data User">
@@ -1265,7 +1267,7 @@ class AddCosDefinition extends React.Component {
                         </div>}
                 </Alert>
                 {resultVariant === 'danger' &&
-                    <Card isHoverable>
+                    <Card >
                         <CardTitle>
                             {_("LDIF Data")}
                         </CardTitle>

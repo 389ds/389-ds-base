@@ -7,13 +7,6 @@ import { SuffixReferrals } from "./referrals.jsx";
 import { SuffixIndexes } from "./indexes.jsx";
 import { VLVIndexes } from "./vlvIndexes.jsx";
 import { log_cmd, bad_file_name } from "../tools.jsx";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faLeaf,
-    faTree,
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
 import {
     ImportModal,
     ExportModal,
@@ -21,17 +14,25 @@ import {
     CreateLinkModal,
 } from "./databaseModal.jsx";
 import {
-    Dropdown,
-    DropdownToggle,
-    DropdownItem,
-    DropdownPosition,
-    DropdownSeparator,
-    Grid,
-    GridItem,
-    Tab,
-    Tabs,
-    TabTitleText,
-} from "@patternfly/react-core";
+    Button,
+	Grid,
+	GridItem,
+	Tab,
+	Tabs,
+	TabTitleText
+} from '@patternfly/react-core';
+import {
+    FolderIcon,
+    LeafIcon,
+    SyncAltIcon
+} from '@patternfly/react-icons';
+import {
+	Dropdown,
+	DropdownToggle,
+	DropdownItem,
+	DropdownPosition,
+	DropdownSeparator
+} from '@patternfly/react-core/deprecated';
 
 import PropTypes from "prop-types";
 
@@ -110,7 +111,7 @@ export class Suffix extends React.Component {
         // config.autoAddCss = false;
 
         // Dropdown tasks
-        this.handleToggle = dropdownIsOpen => {
+        this.handleToggle = (_event, dropdownIsOpen) => {
             this.setState({
                 dropdownIsOpen
             });
@@ -849,9 +850,9 @@ export class Suffix extends React.Component {
     // Render the component
     //
     render () {
-        let suffixIcon = faTree;
+        let SuffixIcon = FolderIcon;
         if (this.props.dbtype === "subsuffix") {
-            suffixIcon = faLeaf;
+            SuffixIcon = LeafIcon;
         }
         const { dropdownIsOpen, activeTabKey } = this.state;
 
@@ -881,13 +882,15 @@ export class Suffix extends React.Component {
             <div id="suffix-page">
                 <Grid>
                     <GridItem className="ds-suffix-header" span={9}>
-                        <FontAwesomeIcon size="sm" icon={suffixIcon} />&nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
-                        <FontAwesomeIcon
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title={_("Refresh suffix")}
+                        <SuffixIcon />
+                        &nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
+                        <Button 
+                            variant="plain"
+                            aria-label={_("Refresh suffix")}
                             onClick={() => this.props.reload(this.props.suffix)}
-                        />
+                        >
+                            <SyncAltIcon />
+                        </Button>
                     </GridItem>
                     <GridItem span={3}>
                         <Dropdown
@@ -895,7 +898,7 @@ export class Suffix extends React.Component {
                             position={DropdownPosition.right}
                             onSelect={this.handleSelect}
                             toggle={
-                                <DropdownToggle id="suffix-dropdown" isPrimary onToggle={this.handleToggle}>
+                                <DropdownToggle id="suffix-dropdown" onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}>
                                     {_("Suffix Tasks")}
                                 </DropdownToggle>
                             }

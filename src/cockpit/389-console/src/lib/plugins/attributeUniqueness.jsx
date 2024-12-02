@@ -1,22 +1,24 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TextInput,
-    Switch,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	Switch,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -105,7 +107,7 @@ class AttributeUniqueness extends React.Component {
                 );
             }
         };
-        this.handleAttributeNameToggle = isAttributeNameOpen => {
+        this.handleAttributeNameToggle = (_event, isAttributeNameOpen) => {
             this.setState({
                 isAttributeNameOpen
             }, () => { this.validateConfig() });
@@ -135,7 +137,7 @@ class AttributeUniqueness extends React.Component {
                 );
             }
         };
-        this.handleSubtreesToggle = isSubtreesOpen => {
+        this.handleSubtreesToggle = (_event, isSubtreesOpen) => {
             this.setState({
                 isSubtreesOpen
             }, () => { this.validateConfig() });
@@ -653,7 +655,7 @@ class AttributeUniqueness extends React.Component {
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configName"
                                     isDisabled={!newEntry}
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={this.state.error.configName || this.state.configName === "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -668,7 +670,7 @@ class AttributeUniqueness extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
-                                    onToggle={this.handleAttributeNameToggle}
+                                    onToggle={(event, isOpen) => this.handleAttributeNameToggle(event, isOpen)}
                                     onSelect={this.handleAttributeNameSelect}
                                     onClear={this.handleAttributeNameClear}
                                     selections={attrNames}
@@ -695,7 +697,7 @@ class AttributeUniqueness extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={this.handleSubtreesToggle}
+                                    onToggle={(event, isOpen) => this.handleSubtreesToggle(event, isOpen)}
                                     onSelect={this.handleSubtreesSelect}
                                     onClear={this.handleSubtreesClear}
                                     selections={subtrees}
@@ -724,7 +726,7 @@ class AttributeUniqueness extends React.Component {
                                 <FormSelect
                                     id="topEntryOc"
                                     value={topEntryOc}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -741,7 +743,7 @@ class AttributeUniqueness extends React.Component {
                                     className="ds-left-margin"
                                     isChecked={acrossAllSubtrees}
                                     title={_("If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)")}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     label={_("Across All Subtrees")}
                                 />
                             </GridItem>
@@ -754,7 +756,7 @@ class AttributeUniqueness extends React.Component {
                                 <FormSelect
                                     id="subtreeEnriesOc"
                                     value={subtreeEnriesOc}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -776,7 +778,7 @@ class AttributeUniqueness extends React.Component {
                                     label={_("Configuration is enabled")}
                                     labelOff={_("Configuration is disabled")}
                                     isChecked={configEnabled}
-                                    onChange={this.handleSwitchChange}
+                                    onChange={(_event, value) => this.handleSwitchChange(value)}
                                 />
                             </GridItem>
                         </Grid>

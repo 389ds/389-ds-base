@@ -25,15 +25,13 @@ import {
 } from "@patternfly/react-core";
 import {
     Table,
-    TableHeader,
-    TableBody,
-    TableVariant
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
 } from '@patternfly/react-table';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const settings_attrs = [
@@ -109,7 +107,7 @@ export class ServerAccessLog extends React.Component {
             });
         };
 
-        this.handleOnToggle = isExpanded => {
+        this.handleOnToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -566,7 +564,7 @@ export class ServerAccessLog extends React.Component {
                             className="ds-margin-top-xlg"
                             id="nsslapd-accesslog-logging-enabled"
                             isChecked={this.state['nsslapd-accesslog-logging-enabled']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Enable access logging (nsslapd-accesslog-logging-enabled).")}
@@ -584,7 +582,7 @@ export class ServerAccessLog extends React.Component {
                                     id="nsslapd-accesslog"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-accesslog"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
@@ -628,7 +626,7 @@ export class ServerAccessLog extends React.Component {
                             className="ds-left-margin-md ds-margin-top-lg"
                             id="nsslapd-accesslog-logbuffering"
                             isChecked={this.state['nsslapd-accesslog-logbuffering']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Disable access log buffering for faster troubleshooting, but this will impact server performance (nsslapd-accesslog-logbuffering).")}
@@ -641,17 +639,30 @@ export class ServerAccessLog extends React.Component {
                             onToggle={this.handleOnToggle}
                             isExpanded={this.state.isExpanded}
                         >
-                            <Table
-                                className="ds-left-margin"
-                                onSelect={this.handleOnSelect}
-                                canSelectAll={this.state.canSelectAll}
-                                variant={TableVariant.compact}
-                                aria-label="Selectable Table"
-                                cells={this.state.columns}
-                                rows={this.state.rows}
-                            >
-                                <TableHeader />
-                                <TableBody />
+                            <Table aria-label="Selectable Table" variant="compact">
+                                <Thead>
+                                    <Tr>
+                                        <Th screenReaderText="Checkboxes" />
+                                        <Th>{this.state.columns[0].title}</Th>
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                    {this.state.rows.map((row, rowIndex) => (
+                                        <Tr key={rowIndex}>
+                                            <Td
+                                                select={{
+                                                    rowIndex,
+                                                    onSelect: (_event, isSelecting) => 
+                                                        this.handleOnSelect(_event, isSelecting, rowIndex),
+                                                    isSelected: row.selected
+                                                }}
+                                            />
+                                            <Td>
+                                                {row.cells[0].title}
+                                            </Td>
+                                        </Tr>
+                                    ))}
+                                </Tbody>
                             </Table>
                         </ExpandableSection>
 
@@ -739,7 +750,7 @@ export class ServerAccessLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-accesslog-logrotationtimeunit"
                                                 value={this.state['nsslapd-accesslog-logrotationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rotation");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -774,7 +785,7 @@ export class ServerAccessLog extends React.Component {
                                     <Switch
                                         id="nsslapd-accesslog-compress"
                                         isChecked={this.state['nsslapd-accesslog-compress']}
-                                        onChange={this.handleSwitchChange}
+                                        onChange={(_event, value) => this.handleSwitchChange(value)}
                                         aria-label="nsslapd-accesslog-compress"
                                     />
                                 </GridItem>
@@ -868,7 +879,7 @@ export class ServerAccessLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-accesslog-logexpirationtimeunit"
                                                 value={this.state['nsslapd-accesslog-logexpirationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "exp");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -919,15 +930,15 @@ export class ServerAccessLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Access Log Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh log settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

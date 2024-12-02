@@ -15,15 +15,15 @@
   Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public License
-  along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+  along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
 -->
 <html>
 <head>
     <meta charset="utf-8" />
     <title><%= title %></title>
-    <link rel="stylesheet" href="<%= title %>.css" type="text/css" />
-    <script src="<%= builddir %>dist/base1/cockpit.js"></script>
-    <script src="<%= script %>"></script>
+    <link rel="stylesheet" href="%title%.css" type="text/css" />
+    <script src="%builddir%dist/base1/cockpit.js"></script>
+    <script src="%script%"></script>
 </head>
 <body class="pf-v5-m-tabular-nums">
     <h1 id="qunit-header"><%= title %></h1>

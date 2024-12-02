@@ -1,16 +1,24 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    BadgeToggle,
-    Grid,
-    GridItem,
-    Dropdown, DropdownItem, DropdownPosition,
-    Pagination,
-    SearchInput,
+	Grid,
+	GridItem,
+	Pagination,
+	SearchInput
 } from '@patternfly/react-core';
 import {
-    Table, TableHeader, TableBody, TableVariant,
-    SortByDirection
+	BadgeToggle,
+	Dropdown,
+	DropdownItem,
+	DropdownPosition
+} from '@patternfly/react-core/deprecated';
+import {
+    Table,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td
 } from '@patternfly/react-table';
 
 const _ = cockpit.gettext;
@@ -27,27 +35,10 @@ class GenericPagination extends React.Component {
             pagedRows: [],
             searchValue: "",
             selectedAttrs: [],
-            // sortedRows: this.props.enableSorting ? [...this.props.rows] : null,
             sortBy: {},
             isDropDownOpen: false,
             rows: [...this.props.rows],
             allRows: [...this.props.rows],
-        };
-
-        this.onSort = (_event, index, direction) => {
-            const mySortedRows = this.state.rows
-                    .sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
-            this.setState({
-                sortBy: {
-                    index,
-                    direction
-                },
-                rows: direction === SortByDirection.asc
-                    ? mySortedRows
-                    : mySortedRows.reverse()
-            }, () => this.setState({ // Need to update this.state.rows prior to run getRowsToShow().
-                pagedRows: this.getRowsToShow(this.state.page, this.state.perPage)
-            }));
         };
 
         this.handleSearchChange = (event, value) => {
@@ -98,52 +89,47 @@ class GenericPagination extends React.Component {
         };
     }
 
-    componentDidMount () {
-        const selectedAttrs = this.props.rows.filter(row => (row.selected)).map(attr => attr.cells[0]);
-        this.setState({
-            rows: [...this.props.rows],
-            allRows: [...this.props.rows],
-            selectedAttrs
-        }, () => this.setState({
-            // pagedRows: this.getRowsToShow(this.state.page, this.state.perPage),
-            pagedRows: this.getRowsToShow(1, this.state.perPage),
-            page: 1,
-            itemCount: this.props.rows.length
-        }));
-    }
+    componentDidMount() {
+        if (this.props.rows && this.props.rows.length > 0) {
+            const selectedAttrs = this.props.rows
+                .filter(row => row.selected)
+                .map(attr => attr.cells[0]);
 
-    componentDidUpdate (prevProps) {
-        if (this.props.tableModificationTime !== prevProps.tableModificationTime) {
             this.setState({
                 rows: [...this.props.rows],
                 allRows: [...this.props.rows],
-            }, () => this.setState({
-                // pagedRows: this.getRowsToShow(this.state.page, this.state.perPage),
+                selectedAttrs,
                 pagedRows: this.getRowsToShow(1, this.state.perPage),
                 page: 1,
                 itemCount: this.props.rows.length
+            });
+        }
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.tableModificationTime !== prevProps.tableModificationTime) {
+            this.setState({
+                rows: [...this.props.rows] || [],
+                allRows: [...this.props.rows] || [],
+            }, () => this.setState({
+                pagedRows: this.getRowsToShow(1, this.state.perPage),
+                page: 1,
+                itemCount: ([...this.props.rows] || []).length
             }));
         }
     }
 
-    onSelectRow = (_event, isSelected, rowId) => {
-        // const rows = [...this.state.pagedRows];
-        // rows[rowId].selected = isSelected;
-
-        // Find the row in the full array and set 'selected' property accordingly
-        // The rowId cannot be used since it changes with the pagination.
-        // TODO: Need to make sure the column used has unique values for each row.
-        // TODO: Pass the colum to use as a property.
-        const cellValue = this.state.pagedRows[rowId].cells[0];
+    onSelectRow = (event, isSelected, rowIndex) => {
+        const cellValue = this.state.pagedRows[rowIndex].cells[0];
         const allItems = [...this.state.rows];
         let index = allItems.findIndex(item => item.cells[0] === cellValue);
         allItems[index].selected = isSelected;
 
-        // Update all rows so our selected attributes stay accurate as "search" could mess rows
         const allRows = [...this.state.allRows];
         index = allRows.findIndex(item => item.cells[0] === cellValue);
         allRows[index].selected = isSelected;
         const selectedAttrs = allRows.filter(row => (row.selected)).map(attr => attr.cells[0]);
+        
         this.setState({
             rows: allItems,
             allRows,
@@ -210,7 +196,7 @@ class GenericPagination extends React.Component {
                 position={DropdownPosition.left}
                 onSelect={this.handleDropDownSelect}
                 toggle={
-                    <BadgeToggle id="toggle-attr-select" badgeProps={badgeProps} onToggle={this.handleDropDownToggle}>
+                    <BadgeToggle id="toggle-attr-select" badgeProps={badgeProps} onToggle={(_event, isOpen) => this.handleDropDownToggle(isOpen)}>
                         {numSelected > 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
@@ -220,21 +206,54 @@ class GenericPagination extends React.Component {
         );
     };
 
-    render () {
-        const {
-            itemCount, page, perPage, pagedRows,
-        } = this.state;
+    onSort = (_event, columnIndex, sortDirection) => {
+        const mySortedRows = this.state.rows
+            .sort((a, b) => {
+                const aValue = a.cells[columnIndex]?.title || a.cells[columnIndex];
+                const bValue = b.cells[columnIndex]?.title || b.cells[columnIndex];
+                return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+            });
+        this.setState({
+            sortBy: {
+                index: columnIndex,
+                direction: sortDirection
+            },
+            rows: sortDirection === 'asc' ? mySortedRows : mySortedRows.reverse()
+        }, () => this.setState({
+            pagedRows: this.getRowsToShow(this.state.page, this.state.perPage)
+        }));
+    };
 
-        // Enable pagination if the number of rows is higher than 10.
+    renderCellContent = (cell) => {
+        if (cell === null || cell === undefined) {
+            return '';
+        }
+        if (React.isValidElement(cell)) {
+            return cell;
+        }
+        if (typeof cell === 'object') {
+            if (cell.title) {
+                return React.isValidElement(cell.title) 
+                    ? cell.title 
+                    : <span>{String(cell.title)}</span>;
+            }
+            return '';
+        }
+        // Handle string valuess(like " o=redhat")
+        return String(cell).trim();
+    };
+
+    render() {
+        const { itemCount, page, perPage, pagedRows } = this.state;
+        const { columns = [], isSelectable = false, isSearchable = false, enableSorting = false } = this.props;
         const showPagination = itemCount > 10;
 
         return (
             <Grid>
-                {this.props.isSelectable &&
-                    this.buildAttrDropdown()}
-                <GridItem span={12} className={this.props.isSelectable ? "ds-margin-top" : ""}>
+                {isSelectable && this.buildAttrDropdown()}
+                <GridItem span={12} className={isSelectable ? "ds-margin-top" : ""}>
                     <Grid>
-                        { this.props.isSearchable &&
+                        {isSearchable && (
                             <GridItem span={5}>
                                 <SearchInput
                                     className="ds-font-size-md"
@@ -243,9 +262,10 @@ class GenericPagination extends React.Component {
                                     onChange={this.handleSearchChange}
                                     onClear={(evt) => this.handleSearchChange(evt, '')}
                                 />
-                            </GridItem>}
-                        <GridItem span={this.props.isSearchable ? 7 : 12}>
-                            { showPagination &&
+                            </GridItem>
+                        )}
+                        <GridItem span={isSearchable ? 7 : 12}>
+                            {showPagination && (
                                 <Pagination
                                     itemCount={itemCount}
                                     page={page}
@@ -254,30 +274,68 @@ class GenericPagination extends React.Component {
                                     onPerPageSelect={this.handlePerPageSelect}
                                     isCompact
                                     widgetId="pagination-options-menu-generic"
-                                />}
+                                />
+                            )}
                         </GridItem>
                     </Grid>
                 </GridItem>
                 <GridItem span={12}>
-                    <Table
-                        variant={TableVariant.compact}
-                        rows={pagedRows}
-                        cells={this.props.columns}
-                        actions={this.props.actions}
-                        aria-label="generic table"
-                        caption={this.props.caption}
-                        sortBy={this.props.enableSorting ? this.state.sortBy : null}
-                        onSort={this.props.enableSorting ? this.onSort : null}
-                        canSelectAll={this.props.canSelectAll}
-                        onSelect={this.props.isSelectable ? this.onSelectRow : null}
-                    >
-                        <TableHeader />
-                        <TableBody />
+                    <Table aria-label={this.props.ariaLabel || "generic table"} variant="compact">
+                        <Thead>
+                            <Tr>{isSelectable && <Th/>}{columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={enableSorting ? {
+                                        sortBy: this.state.sortBy,
+                                        onSort: (_evt, index, direction) => this.onSort(_evt, columnIndex, direction),
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {typeof column === 'object' ? column.title : column}
+                                </Th>
+                            ))}</Tr>
+                        </Thead>
+                        <Tbody>
+                            {(pagedRows || []).map((row, rowIndex) => {
+                                const rowCells = Array.isArray(row) ? row : row.cells || [];
+                                return (
+                                    <Tr key={rowIndex}>
+                                        {isSelectable && (
+                                            <Td
+                                                select={{
+                                                    rowIndex,
+                                                    onSelect: this.onSelectRow,
+                                                    isSelected: row.selected
+                                                }}
+                                            />
+                                        )}
+                                        {rowCells.map((cell, cellIndex) => (
+                                            <Td
+                                                key={`${rowIndex}_${cellIndex}`}
+                                                dataLabel={columns[cellIndex]?.title || columns[cellIndex]}
+                                            >
+                                                {this.renderCellContent(cell)}
+                                            </Td>
+                                        ))}
+                                    </Tr>
+                                );
+                            })}
+                        </Tbody>
                     </Table>
                 </GridItem>
             </Grid>
         );
     }
 }
+
+GenericPagination.defaultProps = {
+    rows: [],
+    columns: [],
+    isSelectable: false,
+    isSearchable: false,
+    enableSorting: false,
+    handleSelectedAttrs: () => {},
+    ariaLabel: "generic table"
+};
 
 export default GenericPagination;

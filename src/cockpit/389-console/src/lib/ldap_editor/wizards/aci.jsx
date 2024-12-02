@@ -7,13 +7,17 @@ import {
     Pagination, PaginationVariant,
 } from '@patternfly/react-core';
 import {
-    expandable,
+	expandable,
+	sortable,
+	SortByDirection,
+	ExpandableRowContent,
+    ActionsColumn,
     Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    sortable,
-    SortByDirection,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td
 } from '@patternfly/react-table';
 import {
     retrieveAllAcis, modifyLdapEntry
@@ -378,22 +382,59 @@ class AciWizard extends React.Component {
         });
     };
 
-    render () {
-        // We are using an expandable list, so every row has a child row with an
-        // index that points back to the parent.  So when we splice the rows for
-        // pagination we have to treat each connection as two rows, and we need
-        // to rewrite the child's parent index to point to the correct location
-        // in the new spliced array
+    getActionsForRow = (rowData) => {
+        // Return empty array if it's the "No ACI's" row
+        if (rowData.cells.length === 1 && rowData.cells[0] === _("No ACI's")) {
+            return [];
+        }
+        
+        // Only return actions for parent rows (not expanded rows)
+        if (!rowData.cells || rowData.parent !== undefined) {
+            return [];
+        }
+        
+        return [
+            {
+                title: _("Edit ACI"),
+                onClick: () => this.showEditAci(rowData)
+            },
+            {
+                isSeparator: true
+            },
+            {
+                title: _("Remove ACI"),
+                onClick: () => this.showDeleteConfirm(rowData)
+            }
+        ];
+    };
+
+    prepareTableRows(tableRows) {
+        const parentRows = [];
+        const expandedContentMap = new Map();
+        
+        for (let i = 0; i < tableRows.length; i += 2) {
+            const currentRow = tableRows[i];
+            if (currentRow) {
+                parentRows.push(currentRow);
+                if (tableRows[i + 1]) {
+                    expandedContentMap.set(i, tableRows[i + 1]);
+                }
+            }
+        }
+        
+        return { parentRows, expandedContentMap };
+    }
+
+
+    render() {
         const { columns, rows, perPage, page, sortBy, showModal, actions, modalSpinning } = this.state;
         const origRows = [...rows];
         const startIdx = ((perPage * page) - perPage) * 2;
         let tableRows = origRows.splice(startIdx, perPage * 2);
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
 
-        // Edit modal
+        // Prepare rows without using hooks
+        const { parentRows, expandedContentMap } = this.prepareTableRows(tableRows);
+
         let btnName = _("Save ACI");
         const extraPrimaryProps = {};
         if (modalSpinning) {
@@ -403,12 +444,15 @@ class AciWizard extends React.Component {
 
         const title = _("Manage ACI's For ") + this.props.wizardEntryDn;
 
-        // Handle table state
         let cols = columns;
         if (rows.length === 0) {
             tableRows = [{ cells: [_("No ACI's")] }];
             cols = [{ title: _("Access Control Instructions") }];
         }
+
+        // Determine if we should show the actions column
+        const showActions = rows.length > 0 && !(rows.length === 1 && rows[0].cells.length === 1 && rows[0].cells[0] === _("No ACI's"));
+        const isEmptyTable = !showActions;
 
         return (
             <>
@@ -438,31 +482,89 @@ class AciWizard extends React.Component {
                         </Button>
                     ]}
                 >
-                    <Table
-                        className="ds=margin-top-lg"
-                        aria-label="Expandable table"
-                        cells={cols}
-                        rows={tableRows}
-                        actions={rows.length > 0 ? actions : null}
-                        onCollapse={this.handleCollpase}
-                        variant={TableVariant.compact}
-                        sortBy={sortBy}
-                        onSort={this.handleSort}
-                        key={tableRows}
+                    <Table 
+                        aria-label="Expandable ACI table"
+                        variant='compact'
                     >
-                        <TableHeader />
-                        <TableBody />
+                        <Thead>
+                            <Tr>
+                                {!isEmptyTable && (
+                                    <Th 
+                                        screenReaderText={_("Expand/Collapse Row")}
+                                    />
+                                )}
+                                {cols.map((column, columnIndex) => (
+                                    <Th 
+                                        key={columnIndex}
+                                        sort={column.transforms?.includes(sortable) ? {
+                                            sortBy,
+                                            onSort: (_evt, index, direction) => this.handleSort(index, direction),
+                                            columnIndex
+                                        } : undefined}
+                                    >
+                                        {column.title}
+                                    </Th>
+                                ))}
+                                {showActions && (
+                                    <Th 
+                                        screenReaderText={_("Actions")}
+                                    />
+                                )}
+                            </Tr>
+                        </Thead>
+                        <Tbody>
+                            {isEmptyTable ? (
+                                <Tr>
+                                    <Td>{tableRows[0].cells[0]}</Td>
+                                </Tr>
+                            ) : (
+                                parentRows.map((row, rowIndex) => (
+                                    <React.Fragment key={rowIndex}>
+                                        <Tr>
+                                            <Td
+                                                expand={{
+                                                    rowIndex,
+                                                    isExpanded: row.isOpen,
+                                                    onToggle: () => this.handleCollpase(null, rowIndex * 2, !row.isOpen)
+                                                }}
+                                            />
+                                            {row.cells.map((cell, cellIndex) => (
+                                                <Td key={cellIndex}>{cell}</Td>
+                                            ))}
+                                            <Td isActionCell>
+                                                <ActionsColumn 
+                                                    items={this.getActionsForRow(row)}
+                                                />
+                                            </Td>
+                                        </Tr>
+                                        {row.isOpen && expandedContentMap.has(rowIndex * 2) && (
+                                            <Tr isExpanded={true}>
+                                                <Td 
+                                                    colSpan={cols.length + 2}
+                                                    noPadding
+                                                >
+                                                    <ExpandableRowContent>
+                                                        {expandedContentMap.get(rowIndex * 2).cells[0]}
+                                                    </ExpandableRowContent>
+                                                </Td>
+                                            </Tr>
+                                        )}
+                                    </React.Fragment>
+                                ))
+                            )}
+                        </Tbody>
                     </Table>
-                    {rows.length > 0 &&
+                    {!isEmptyTable && (
                         <Pagination
                             itemCount={rows.length / 2}
                             widgetId="pagination-options-menu-bottom"
                             perPage={perPage}
                             page={page}
-                            variant={PaginationVariant.bottom}
-                            onSetPage={this.handleSetPage}
-                            onPerPageSelect={this.handlePerPageSelect}
-                        />}
+                            variant="bottom"
+                            onSetPage={(_evt, value) => this.handleSetPage(value)}
+                            onPerPageSelect={(_evt, value) => this.handlePerPageSelect(value)}
+                        />
+                    )}
                     <div className="ds-margin-top-xlg" />
                     {this.state.isWizardOpen &&
                         <AddNewAci
@@ -516,7 +618,7 @@ class AciWizard extends React.Component {
                         className="ds-textarea"
                         id="aciTextNew"
                         value={this.state.aciTextNew}
-                        onChange={(str, e) => { this.onChange(e) }}
+                        onChange={(e, str) => { this.onChange(e) }}
                         aria-label="aci text edit area"
                         autoResize
                         resizeOrientation="vertical"
@@ -527,7 +629,7 @@ class AciWizard extends React.Component {
                         variant="secondary"
                         onClick={this.handleResetACIText}
                         isDisabled={this.state.aciText === this.state.aciTextNew}
-                        isSmall
+                        size="sm"
                     >
                         {_("Reset ACI")}
                     </Button>
@@ -558,7 +660,7 @@ class AciWizard extends React.Component {
                         className="ds-textarea"
                         id="aciTextNew"
                         value={this.state.aciTextNew}
-                        onChange={(str, e) => { this.onChange(e) }}
+                        onChange={(e, str) => { this.onChange(e) }}
                         aria-label="aci text edit area"
                         autoResize
                         resizeOrientation="vertical"

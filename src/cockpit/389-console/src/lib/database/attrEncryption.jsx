@@ -3,13 +3,15 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { EncryptedAttrTable } from "./databaseTables.jsx";
 import {
-    Button,
-    Grid,
-    GridItem,
-    Select,
-    SelectVariant,
-    SelectOption,
-} from "@patternfly/react-core";
+	Button,
+	Grid,
+	GridItem
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
 
@@ -191,7 +193,7 @@ export class AttrEncryption extends React.Component {
                     <GridItem span={6}>
                         <Select
                             variant={SelectVariant.typeahead}
-                            onToggle={this.handleSelectToggle}
+                            onToggle={(_event, isSelectOpen) => this.handleSelectToggle(isSelectOpen)}
                             onSelect={this.handleSelect}
                             onClear={this.handleSelectClear}
                             selections={addAttr}

@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import React from "react";
@@ -24,7 +24,7 @@ import { EmptyStateActions, EmptyState, EmptyStateBody, EmptyStateFooter, EmptyS
 import { Spinner } from "@patternfly/react-core/dist/esm/components/Spinner/index.js";
 import "./cockpit-components-empty-state.css";
 
-export const EmptyStatePanel = ({ title, paragraph, loading, icon, action, isActionInProgress, onAction, secondary, headingLevel, titleSize }) => {
+export const EmptyStatePanel = ({ title, paragraph, loading = false, icon, action, isActionInProgress = false, onAction, actionVariant = "primary", secondary, headingLevel = "h1" }) => {
     const slimType = title || paragraph ? "" : "slim";
     return (
         <EmptyState variant={EmptyStateVariant.full}>
@@ -34,7 +34,7 @@ export const EmptyStatePanel = ({ title, paragraph, loading, icon, action, isAct
             </EmptyStateBody>
             {(action || secondary) && <EmptyStateFooter>
                 { action && (typeof action == "string"
-                    ? <Button variant="primary" className={slimType}
+                    ? <Button variant={actionVariant} className={slimType}
                           isLoading={isActionInProgress}
                           isDisabled={isActionInProgress}
                           onClick={onAction}>{action}</Button>
@@ -47,17 +47,12 @@ export const EmptyStatePanel = ({ title, paragraph, loading, icon, action, isAct
 
 EmptyStatePanel.propTypes = {
     loading: PropTypes.bool,
-    icon: PropTypes.oneOfType([PropTypes.string, PropTypes.func]),
+    icon: PropTypes.oneOfType([PropTypes.string, PropTypes.object, PropTypes.func]),
     title: PropTypes.string,
     paragraph: PropTypes.node,
     action: PropTypes.node,
+    actionVariant: PropTypes.string,
     isActionInProgress: PropTypes.bool,
     onAction: PropTypes.func,
     secondary: PropTypes.node,
-};
-
-EmptyStatePanel.defaultProps = {
-    headingLevel: "h1",
-    titleSize: "lg",
-    isActionInProgress: false,
 };

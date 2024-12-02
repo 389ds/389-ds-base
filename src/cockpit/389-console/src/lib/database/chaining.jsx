@@ -3,34 +3,35 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd, callCmdStreamPassword } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    ExpandableSection,
-    Form,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectOption,
-    SelectVariant,
-    SimpleList,
-    SimpleListItem,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions,
-} from "@patternfly/react-core";
-import PropTypes from "prop-types";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	ExpandableSection,
+	Form,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	SimpleList,
+	SimpleListItem,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
 import {
-    faLink,
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
+import PropTypes from "prop-types";
+import {
+    SyncAltIcon,
+    LinkIcon
+} from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -100,7 +101,7 @@ export class ChainingDatabaseConfig extends React.Component {
             _defUseStartTLS: this.props.data.defUseStartTLS,
         };
 
-        this.handleToggle = (isExpanded) => {
+        this.handleToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -582,7 +583,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defSizeLimit"
                                         aria-describedby="defSizeLimit"
                                         name="defSizeLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -602,7 +603,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defConcurOpLimit"
                                         aria-describedby="defConcurOpLimit"
                                         name="defConcurOpLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -622,7 +623,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defTimeLimit"
                                         aria-describedby="defTimeLimit"
                                         name="defTimeLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -642,7 +643,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defConnLife"
                                         aria-describedby="defConnLife"
                                         name="defConnLife"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -662,7 +663,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defBindConnLimit"
                                         aria-describedby="defBindConnLimit"
                                         name="defBindConnLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -682,7 +683,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defOpConnLimit"
                                         aria-describedby="defOpConnLimit"
                                         name="defOpConnLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -702,7 +703,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defSearchCheck"
                                         aria-describedby="defSearchCheck"
                                         name="defSearchCheck"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -722,7 +723,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defConcurLimit"
                                         aria-describedby="defConcurLimit"
                                         name="defConcurLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -742,7 +743,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defHopLimit"
                                         aria-describedby="defHopLimit"
                                         name="defHopLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -762,7 +763,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defBindTimeout"
                                         aria-describedby="defBindTimeout"
                                         name="defBindTimeout"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -782,7 +783,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         id="defBindRetryLimit"
                                         aria-describedby="defBindRetryLimit"
                                         name="defBindRetryLimit"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -797,7 +798,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         label={_("Check Local ACIs")}
                                         id="defCheckAci"
                                         isChecked={this.state.defCheckAci}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                         aria-label="check aci"
@@ -813,7 +814,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         label={_("Send Referral On Scoped Search")}
                                         id="defRefOnScoped"
                                         isChecked={this.state.defRefOnScoped}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                         aria-label="send ref"
@@ -829,7 +830,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         label={_("Allow Proxied Authentication")}
                                         id="defProxy"
                                         isChecked={this.state.defProxy}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                         aria-label="prox auth"
@@ -845,7 +846,7 @@ export class ChainingDatabaseConfig extends React.Component {
                                         label={_("Use StartTLS")}
                                         id="defUseStartTLS"
                                         isChecked={this.state.defUseStartTLS}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                         aria-label="startTLS"
@@ -1054,7 +1055,7 @@ export class ChainingConfig extends React.Component {
             };
         }
 
-        this.handleSelectToggle = isOpen => {
+        this.handleSelectToggle = (_event, isOpen) => {
             this.setState({
                 isOpen
             });
@@ -1357,14 +1358,15 @@ export class ChainingConfig extends React.Component {
                     <GridItem span={10} className="ds-word-wrap">
                         <TextContent>
                             <Text className="ds-suffix-header" component={TextVariants.h3}>
-                                <FontAwesomeIcon size="sm" icon={faLink} /> {this.props.suffix} (<i><font size="3">{this.props.bename}</font></i>)
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh database link")}
+                                <LinkIcon />
+                                &nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh database link")}
                                     onClick={() => this.props.reload(this.props.suffix)}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -1393,7 +1395,7 @@ export class ChainingConfig extends React.Component {
                             id="nsfarmserverurl"
                             aria-describedby="nsfarmserverurl"
                             name="nsfarmserverurl"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 this.onChange(e);
                             }}
                         />
@@ -1413,7 +1415,7 @@ export class ChainingConfig extends React.Component {
                             id="nsmultiplexorbinddn"
                             aria-describedby="nsmultiplexorbinddn"
                             name="nsmultiplexorbinddn"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 this.onChange(e);
                             }}
                         />
@@ -1433,7 +1435,7 @@ export class ChainingConfig extends React.Component {
                             id="nsmultiplexorcredentials"
                             aria-describedby="nsmultiplexorcredentials"
                             name="nsmultiplexorcredentials"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 this.onChange(e);
                             }}
                             validated={(error.nsmultiplexorcredentials || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1454,7 +1456,7 @@ export class ChainingConfig extends React.Component {
                             id="nsmultiplexorcredentials_confirm"
                             aria-describedby="nsmultiplexorcredentials_confirm"
                             name="nsmultiplexorcredentials_confirm"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 this.onChange(e);
                             }}
                             validated={(error.nsmultiplexorcredentials_confirm || !this.state.linkPwdMatch) ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1472,7 +1474,7 @@ export class ChainingConfig extends React.Component {
                         <Select
                             variant={SelectVariant.single}
                             aria-label="Select Input"
-                            onToggle={this.handleSelectToggle}
+                            onToggle={(event, isOpen) => this.handleSelectToggle(event, isOpen)}
                             onSelect={this.handleSelect}
                             selections={this.state.nsbindmechanism}
                             isOpen={this.state.isOpen}
@@ -1493,7 +1495,7 @@ export class ChainingConfig extends React.Component {
                             label={_("Use StartTLS")}
                             id="nsusestarttls"
                             isChecked={this.state.nsusestarttls}
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 this.onChange(e);
                             }}
                             aria-label="check startTLS"
@@ -1504,7 +1506,7 @@ export class ChainingConfig extends React.Component {
                 <ExpandableSection
                     className="ds-margin-top-xlg"
                     toggleText={this.state.isExpanded ? _("Hide Advanced Settings") : _("Show Advanced Settings")}
-                    onToggle={this.handleToggle}
+                    onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}
                     isExpanded={this.state.isExpanded}
                 >
                     <div className="ds-margin-top ds-margin-left">
@@ -1522,7 +1524,7 @@ export class ChainingConfig extends React.Component {
                                     id="sizelimit"
                                     aria-describedby="sizelimit"
                                     name="sizelimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1542,7 +1544,7 @@ export class ChainingConfig extends React.Component {
                                     id="timelimit"
                                     aria-describedby="timelimit"
                                     name="timelimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1562,7 +1564,7 @@ export class ChainingConfig extends React.Component {
                                     id="bindconnlimit"
                                     aria-describedby="bindconnlimit"
                                     name="bindconnlimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1582,7 +1584,7 @@ export class ChainingConfig extends React.Component {
                                     id="opconnlimit"
                                     aria-describedby="opconnlimit"
                                     name="opconnlimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1602,7 +1604,7 @@ export class ChainingConfig extends React.Component {
                                     id="concurrbindlimit"
                                     aria-describedby="concurrbindlimit"
                                     name="concurrbindlimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1622,7 +1624,7 @@ export class ChainingConfig extends React.Component {
                                     id="bindtimeout"
                                     aria-describedby="bindtimeout"
                                     name="bindtimeout"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1642,7 +1644,7 @@ export class ChainingConfig extends React.Component {
                                     id="bindretrylimit"
                                     aria-describedby="bindretrylimit"
                                     name="bindretrylimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1662,7 +1664,7 @@ export class ChainingConfig extends React.Component {
                                     id="concurroplimit"
                                     aria-describedby="concurroplimit"
                                     name="concurroplimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1682,7 +1684,7 @@ export class ChainingConfig extends React.Component {
                                     id="connlifetime"
                                     aria-describedby="connlifetime"
                                     name="connlifetime"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1702,7 +1704,7 @@ export class ChainingConfig extends React.Component {
                                     id="searchcheckinterval"
                                     aria-describedby="searchcheckinterval"
                                     name="searchcheckinterval"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1722,7 +1724,7 @@ export class ChainingConfig extends React.Component {
                                     id="hoplimit"
                                     aria-describedby="hoplimit"
                                     name="hoplimit"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                 />
@@ -1737,7 +1739,7 @@ export class ChainingConfig extends React.Component {
                                     label={_("Allow Proxied Authentication")}
                                     id="nsproxiedauthorization"
                                     isChecked={this.state.nsproxiedauthorization}
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                     aria-label="send ref"
@@ -1753,7 +1755,7 @@ export class ChainingConfig extends React.Component {
                                     label={_("Check Local ACIs")}
                                     id="nschecklocalaci"
                                     isChecked={this.state.nschecklocalaci}
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                     aria-label="send ref"
@@ -1769,7 +1771,7 @@ export class ChainingConfig extends React.Component {
                                     label={_("Send Referral On Scoped Search")}
                                     id="nsreferralonscopedsearch"
                                     isChecked={this.state.nsreferralonscopedsearch}
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onChange(e);
                                     }}
                                     aria-label="send ref"

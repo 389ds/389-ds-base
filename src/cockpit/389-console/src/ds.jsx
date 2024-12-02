@@ -11,30 +11,33 @@ import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./ds
 import { LDAPEditor } from "./LDAPEditor.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import {
-    Alert,
-    AlertGroup,
-    AlertActionCloseButton,
-    AlertVariant,
-    Button,
-    Dropdown,
-    DropdownToggle,
-    DropdownItem,
-    DropdownPosition,
-    DropdownSeparator,
-    Grid, GridItem,
-    FormSelect,
-    FormSelectOption,
-    PageSectionVariants,
-    Progress,
-    ProgressMeasureLocation,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    Text,
-    TextContent,
-    TextVariants
-} from "@patternfly/react-core";
+	Alert,
+	AlertGroup,
+	AlertActionCloseButton,
+	AlertVariant,
+	Button,
+	Grid,
+	GridItem,
+	FormSelect,
+	FormSelectOption,
+	PageSectionVariants,
+	Progress,
+	ProgressMeasureLocation,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
+import {
+	Dropdown,
+	DropdownToggle,
+	DropdownItem,
+	DropdownPosition,
+	DropdownSeparator
+} from '@patternfly/react-core/deprecated';
 import { CaretDownIcon } from '@patternfly/react-icons/dist/esm/icons/caret-down-icon';
 
 const _ = cockpit.gettext;
@@ -112,7 +115,7 @@ export class DSInstance extends React.Component {
         };
 
         // Dropdown tasks
-        this.handleToggle = dropdownIsOpen => {
+        this.handleToggle = (_event, dropdownIsOpen) => {
             this.setState({
                 dropdownIsOpen
             });
@@ -486,7 +489,7 @@ export class DSInstance extends React.Component {
                 });
     }
 
-    handleServerIdChange(e) {
+    handleServerIdChange(_event, e) {
         this.setState({
             pageLoadingState: { state: "loading", jsx: "" },
             progressValue: 25
@@ -694,7 +697,12 @@ export class DSInstance extends React.Component {
                             <span className="spinner spinner-lg spinner-inline" />
                         </p>
                         <div className="ds-margin-top-lg">
-                            <Progress value={progressValue} label={`${progressValue}%`} measureLocation={ProgressMeasureLocation.inside} />
+                            <Progress 
+                                value={progressValue} 
+                                label={`${progressValue}%`} 
+                                measureLocation={ProgressMeasureLocation.inside}
+                                aria-label="Directory Server Configuration loading progress"
+                            />
                         </div>
                     </div>
                 </div>
@@ -767,7 +775,12 @@ export class DSInstance extends React.Component {
                             position={DropdownPosition.right}
                             onSelect={this.handleDropdown}
                             toggle={
-                                <DropdownToggle onToggle={this.handleToggle} toggleIndicator={CaretDownIcon} isPrimary id="ds-dropdown">
+                                <DropdownToggle 
+                                    onToggle={(event, isOpen) => this.handleToggle(event, isOpen)} 
+                                    toggleIndicator={CaretDownIcon}
+                                    variant="primary"
+                                    id="ds-dropdown"
+                                >
                                     {_("Actions")}
                                 </DropdownToggle>
                             }
