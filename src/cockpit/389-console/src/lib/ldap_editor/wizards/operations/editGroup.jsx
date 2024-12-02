@@ -170,7 +170,7 @@ class EditGroup extends React.Component {
             });
         };
 
-        this.handleUsersOnListChange = (newAvailableOptions, newChosenOptions) => {
+        this.handleUsersOnListChange = (_event, newAvailableOptions, newChosenOptions) => {
             const newNewAvailOptions = [...newAvailableOptions];
             const newNewChosenOptions = [];
 
@@ -512,7 +512,7 @@ class EditGroup extends React.Component {
                                             chosenOptions={usersChosenOptions}
                                             availableOptionsTitle={_("Available Members")}
                                             chosenOptionsTitle={_("Chosen Members")}
-                                            onListChange={this.handleUsersOnListChange}
+                                            onListChange={(event, newAvailableOptions, newChosenOptions) => this.handleUsersOnListChange(event, newAvailableOptions, newChosenOptions)}
                                             id="usersSelector"
                                         />
                                         <Button

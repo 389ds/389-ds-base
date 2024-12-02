@@ -19,16 +19,13 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faBook,
-} from '@fortawesome/free-solid-svg-icons';
 import {
     CatalogIcon,
     CogIcon,
     KeyIcon,
     TachometerAltIcon,
     LockIcon,
+    BookIcon,
     RouteIcon
 } from '@patternfly/react-icons';
 
@@ -194,27 +191,27 @@ export class Server extends React.Component {
                 children: [
                     {
                         name: _("Access Log"),
-                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                        icon: <BookIcon size="sm" />,
                         id: "access-log-config",
                     },
                     {
                         name: _("Audit Log"),
-                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                        icon: <BookIcon size="sm" />,
                         id: "audit-log-config",
                     },
                     {
                         name: _("Audit Failure Log"),
-                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                        icon: <BookIcon size="sm" />,
                         id: "auditfail-log-config",
                     },
                     {
                         name: _("Errors Log"),
-                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                        icon: <BookIcon size="sm" />,
                         id: "error-log-config",
                     },
                     {
                         name: _("Security Log"),
-                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                        icon: <BookIcon size="sm" />,
                         id: "security-log-config",
                     }
                 ],

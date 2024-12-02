@@ -2,6 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
+    Button,
     Checkbox,
     FormSelect,
     FormSelectOption,
@@ -13,11 +14,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -169,13 +166,13 @@ export class ErrorLogMonitor extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Errors Log")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh error log")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh error log")}
                                     onClick={this.handleRefreshErrorLog}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -188,7 +185,7 @@ export class ErrorLogMonitor extends React.Component {
                         <FormSelect
                             id="errorLines"
                             value={this.state.errorLines}
-                            onChange={(value, event) => {
+                            onChange={(event, value) => {
                                 this.handleErrorChange(event);
                             }}
                             aria-label="FormSelect Input"
@@ -214,7 +211,7 @@ export class ErrorLogMonitor extends React.Component {
                             <FormSelect
                                 className="ds-left-margin"
                                 value={this.state.errorSevLevel}
-                                onChange={(value, event) => {
+                                onChange={(event, value) => {
                                     this.handleSevChange(event);
                                 }}
                                 aria-label="FormSelect Input"
@@ -238,7 +235,7 @@ export class ErrorLogMonitor extends React.Component {
                             <Checkbox
                                 id="errorRefreshing"
                                 isChecked={this.state.errorRefreshing}
-                                onChange={(checked, e) => { this.errorRefreshCont(e) }}
+                                onChange={(e, checked) => { this.errorRefreshCont(e) }}
                                 label={_("Continuously Refresh")}
                             />
                         </div>

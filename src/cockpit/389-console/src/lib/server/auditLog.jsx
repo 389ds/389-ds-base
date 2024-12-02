@@ -2,34 +2,32 @@ import cockpit from "cockpit";
 import React from "react";
 import { listsEqual, log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormGroup,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    NumberInput,
-    Select,
-    SelectVariant,
-    SelectOption,
-    Spinner,
-    Switch,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    TimePicker,
-} from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	Form,
+	FormGroup,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	NumberInput,
+	Spinner,
+	Switch,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	TimePicker
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const settings_attrs = [
@@ -108,7 +106,7 @@ export class ServerAuditLog extends React.Component {
                 );
             }
         };
-        this.handleOnDisplayAttrToggle = isDisplayAttrOpen => {
+        this.handleOnDisplayAttrToggle = (_event, isDisplayAttrOpen) => {
             this.setState({
                 isDisplayAttrOpen
             });
@@ -523,7 +521,7 @@ export class ServerAuditLog extends React.Component {
                             className="ds-margin-top-xlg"
                             id="nsslapd-auditlog-logging-enabled"
                             isChecked={this.state['nsslapd-auditlog-logging-enabled']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Enable audit logging (nsslapd-auditlog-logging-enabled).")}
@@ -541,7 +539,7 @@ export class ServerAuditLog extends React.Component {
                                     id="nsslapd-auditlog"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-auditlog"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
@@ -567,7 +565,7 @@ export class ServerAuditLog extends React.Component {
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
-                                        onToggle={this.handleOnDisplayAttrToggle}
+                                        onToggle={(event, isOpen) => this.handleOnDisplayAttrToggle(event, isOpen)}
                                         onSelect={this.handleOnDisplayAttrSelect}
                                         onClear={this.handleOnDisplayAttrClear}
                                         selections={this.state.displayAttrs}
@@ -588,7 +586,7 @@ export class ServerAuditLog extends React.Component {
                                     className="ds-lower-field-md"
                                     id="displayAllAttrs"
                                     isChecked={this.state.displayAllAttrs}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.handleChange(e, "settings");
                                     }}
                                     title={_("Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
@@ -680,7 +678,7 @@ export class ServerAuditLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-auditlog-logrotationtimeunit"
                                                 value={this.state['nsslapd-auditlog-logrotationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rotation");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -715,7 +713,7 @@ export class ServerAuditLog extends React.Component {
                                     <Switch
                                         id="nsslapd-auditlog-compress"
                                         isChecked={this.state['nsslapd-auditlog-compress']}
-                                        onChange={this.handleSwitchChange}
+                                        onChange={(_event, value) => this.handleSwitchChange(value)}
                                         aria-label="nsslapd-auditlog-compress"
                                     />`
                                 </GridItem>
@@ -809,7 +807,7 @@ export class ServerAuditLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-auditlog-logexpirationtimeunit"
                                                 value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "exp");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -860,15 +858,15 @@ export class ServerAuditLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Audit Log Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh log settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

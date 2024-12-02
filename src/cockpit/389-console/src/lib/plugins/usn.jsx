@@ -275,7 +275,7 @@ class USNPlugin extends React.Component {
                                 <FormSelect
                                     id="configAutoAddOC"
                                     value={cleanupSuffix}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -339,6 +339,8 @@ class USNPlugin extends React.Component {
                             <GridItem span={9}>
                                 <Switch
                                     id="globalMode"
+                                    label={_("Configuration is enabled")}
+                                    labelOff={_("Configuration is disabled")}
                                     isChecked={globalMode}
                                     onChange={() => this.handleSwitchChange(globalMode)}
                                     isDisabled={disableSwitch}

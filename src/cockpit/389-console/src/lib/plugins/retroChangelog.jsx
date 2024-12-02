@@ -1,20 +1,22 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Select,
-    SelectVariant,
-    SelectOption,
-    NumberInput,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	NumberInput,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
@@ -115,7 +117,7 @@ class RetroChangelog extends React.Component {
                 );
             }
         };
-        this.handleExcludeAttrToggle = isExcludeAttrOpen => {
+        this.handleExcludeAttrToggle = (_event, isExcludeAttrOpen) => {
             this.setState({
                 isExcludeAttrOpen
             });
@@ -144,7 +146,7 @@ class RetroChangelog extends React.Component {
                 );
             }
         };
-        this.handleExcludeSuffixToggle = isExcludeSuffixOpen => {
+        this.handleExcludeSuffixToggle = (_event, isExcludeSuffixOpen) => {
             this.setState({
                 isExcludeSuffixOpen
             }, () => { this.validate() });
@@ -382,7 +384,7 @@ class RetroChangelog extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a suffix"
-                                    onToggle={this.handleExcludeSuffixToggle}
+                                    onToggle={(event, isOpen) => this.handleExcludeSuffixToggle(event, isOpen)}
                                     onSelect={this.handleExcludeSuffixSelect}
                                     onClear={this.handleExcludeSuffixClear}
                                     selections={excludeSuffix}
@@ -401,7 +403,7 @@ class RetroChangelog extends React.Component {
                                         />
                                     ))}
                                 </Select>
-                                <FormHelperText isError isHidden={!error.excludeSuffix}>
+                                <FormHelperText  >
                                     {_("Values must be valid DN !")}
                                 </FormHelperText>
                             </GridItem>
@@ -409,7 +411,7 @@ class RetroChangelog extends React.Component {
                                 <Checkbox
                                     id="isReplicated"
                                     isChecked={isReplicated}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     title={_("Sets a flag to indicate on a change in the changelog whether the change is newly made on that server or whether it was replicated over from another server (isReplicated)")}
                                     label={_("Is Replicated")}
                                 />
@@ -423,7 +425,7 @@ class RetroChangelog extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
-                                    onToggle={this.handleExcludeAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleExcludeAttrToggle(event, isOpen)}
                                     onSelect={this.handleExcludeAttrSelect}
                                     onClear={this.handleExcludeAttrClear}
                                     selections={excludeAttrs}
@@ -466,7 +468,7 @@ class RetroChangelog extends React.Component {
                                     className="ds-margin-left"
                                     id="maxAgeUnit"
                                     value={maxAgeUnit}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"

@@ -5,17 +5,18 @@ import {
     Grid,
     GridItem,
     Pagination,
-    PaginationVariant,
     SearchInput,
 } from '@patternfly/react-core';
 import {
-    expandable,
-    Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    sortable,
-    SortByDirection,
+	Table,
+	Thead,
+	Tr,
+	Th,
+	Tbody,
+	Td,
+	ActionsColumn,
+	ExpandableRowContent,
+	SortByDirection
 } from '@patternfly/react-table';
 import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import { ArrowRightIcon } from '@patternfly/react-icons/dist/js/icons/arrow-right-icon';
@@ -34,8 +35,8 @@ class ReferralTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Referral"), transforms: [sortable] },
-                { props: { textCenter: true }, title: _("Delete Referral") },
+                { title: _("Referral"), sortable: true },
+                { title: _("Delete Referral") },
             ],
         };
 
@@ -73,12 +74,10 @@ class ReferralTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const refRow of this.props.rows) {
-            rows.push({
-                cells: [refRow, { props: { textCenter: true }, title: this.getDeleteButton(refRow) }]
-            });
+            rows.push([refRow, this.getDeleteButton(refRow)]);
         }
         if (rows.length === 0) {
-            rows = [{ cells: [_("No Referrals")] }];
+            rows = [[_("No Referrals")]];
             columns = [{ title: _("Referrals") }];
         }
         this.setState({
@@ -88,17 +87,17 @@ class ReferralTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const rows = [];
         const sortedRefs = [...this.props.rows];
-
-        // Sort the referrals and build the new rows
+        
         sortedRefs.sort();
-        if (direction !== SortByDirection.asc) {
+        if (direction !== 'asc') {
             sortedRefs.reverse();
         }
-        for (const refRow of sortedRefs) {
-            rows.push({ cells: [refRow, { props: { textCenter: true }, title: this.getDeleteButton(refRow) }] });
-        }
+        
+        const rows = sortedRefs.map(refRow => [
+            refRow,
+            this.getDeleteButton(refRow)
+        ]);
 
         this.setState({
             sortBy: {
@@ -112,27 +111,52 @@ class ReferralTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const displayRows = rows.slice(startIdx, startIdx + perPage);
 
         return (
             <div className="ds-margin-top-lg">
                 <Table
-                    className="ds-margin-top"
                     aria-label="referral table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {displayRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={cellIndex}
+                                        textCenter={cellIndex === 1}
+                                    >
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -152,9 +176,9 @@ class IndexTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Attribute"), transforms: [sortable] }, // name
-                { title: _("Indexing Types"), transforms: [sortable] }, // types
-                { title: _("Matching Rules"), transforms: [sortable] }, // matchingrules
+                { title: _("Attribute"), sortable: true },
+                { title: _("Indexing Types"), sortable: true },
+                { title: _("Matching Rules"), sortable: true }
             ],
         };
 
@@ -174,36 +198,15 @@ class IndexTable extends React.Component {
         this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    componentDidMount () {
-        // Copy the rows so we can handle sorting and searching
+    componentDidMount() {
         this.setState({ rows: [...this.props.rows] });
     }
 
-    actions() {
-        return [
-            {
-                title: _("Edit Index"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.editIndex(rowData)
-            },
-            {
-                title: _("Reindex"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.reindexIndex(rowData[0])
-            },
-            {
-                isSeparator: true
-            },
-            {
-                title: _("Delete Index"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.deleteIndex(rowData[0], rowData)
-            }
-        ];
-    }
-
     handleSort(_event, index, direction) {
-        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        const sortedRows = [...this.state.rows].sort((a, b) => 
+            (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
+        );
+        
         this.setState({
             sortBy: {
                 index,
@@ -216,20 +219,19 @@ class IndexTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        for (const row of this.props.rows) {
-            if (val !== "" &&
-                row[0].indexOf(val) === -1 &&
-                row[1].indexOf(val) === -1 &&
-                row[2].indexOf(val) === -1) {
-                // Not a match, skip it
-                continue;
-            }
-            rows.push([row[0], row[1], row[2]]);
-        }
+        
         if (val === "") {
-            // reset rows
             rows = [...this.props.rows];
+        } else {
+            for (const row of this.props.rows) {
+                if (row[0].toLowerCase().includes(val) ||
+                    row[1].toLowerCase().includes(val) ||
+                    row[2].toLowerCase().includes(val)) {
+                    rows.push([row[0], row[1], row[2]]);
+                }
+            }
         }
+
         this.setState({
             rows,
             value,
@@ -242,6 +244,25 @@ class IndexTable extends React.Component {
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
+
+        const getActionsForRow = (rowData) => [
+            {
+                title: _("Edit Index"),
+                onClick: () => this.props.editIndex(rowData)
+            },
+            {
+                title: _("Reindex"),
+                onClick: () => this.props.reindexIndex(rowData[0])
+            },
+            {
+                isSeparator: true
+            },
+            {
+                title: _("Delete Index"),
+                onClick: () => this.props.deleteIndex(rowData[0], rowData)
+            }
+        ];
+
         if (rows.length === 0) {
             has_rows = false;
             columns = [{ title: _("Indexes") }];
@@ -250,6 +271,7 @@ class IndexTable extends React.Component {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
+
         return (
             <div className="ds-margin-top-xlg">
                 <SearchInput
@@ -257,29 +279,65 @@ class IndexTable extends React.Component {
                     placeholder={_("Search indexes")}
                     value={this.state.value}
                     onChange={this.handleSearchChange}
-                    onClear={(evt, val) => this.handleSearchChange(evt, '')}
+                    onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table
-                    className="ds-margin-top"
-                    aria-label="glue table"
-                    cells={columns}
-                    rows={tableRows}
-                    variant={TableVariant.compact}
-                    sortBy={this.state.sortBy}
-                    onSort={this.handleSort}
-                    actions={has_rows && this.props.editable ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                <Table 
+                    aria-label="index table"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th 
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy: this.state.sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {has_rows && this.props.editable && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? (
+                                    // Handle array-type rows
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {Array.isArray(cell) && cell.length === 0 ? 
+                                                '' : // Handle empty arrays
+                                                String(cell) // Convert any value to string
+                                            }
+                                        </Td>
+                                    ))
+                                ) : (
+                                    // Handle object-type rows (for the "No Indexes" case)
+                                    row.cells && row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                )}
+                                {has_rows && this.props.editable && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={getActionsForRow(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={this.state.perPage}
                     page={this.state.page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -299,8 +357,8 @@ class EncryptedAttrTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Encrypted Attribute"), transforms: [sortable] },
-                { props: { textCenter: true }, title: _("Delete Attribute") },
+                { title: _("Encrypted Attribute"), sortable: true },
+                { title: _("Delete Attribute") },
             ],
         };
 
@@ -338,12 +396,10 @@ class EncryptedAttrTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const attrRow of this.props.rows) {
-            rows.push({
-                cells: [attrRow, { props: { textCenter: true }, title: this.getDeleteButton(attrRow) }]
-            });
+            rows.push([attrRow, this.getDeleteButton(attrRow)]);
         }
         if (rows.length === 0) {
-            rows = [{ cells: [_("No Attributes")] }];
+            rows = [[_("No Attributes")]];
             columns = [{ title: _("Encrypted Attribute") }];
         }
         this.setState({
@@ -353,17 +409,17 @@ class EncryptedAttrTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const rows = [];
         const sortedAttrs = [...this.props.rows];
 
-        // Sort the referrals and build the new rows
         sortedAttrs.sort();
-        if (direction !== SortByDirection.asc) {
+        if (direction !== 'asc') {
             sortedAttrs.reverse();
         }
-        for (const attrRow of sortedAttrs) {
-            rows.push({ cells: [attrRow, { props: { textCenter: true }, title: this.getDeleteButton(attrRow) }] });
-        }
+        
+        const rows = sortedAttrs.map(attrRow => [
+            attrRow,
+            this.getDeleteButton(attrRow)
+        ]);
 
         this.setState({
             sortBy: {
@@ -377,27 +433,52 @@ class EncryptedAttrTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const displayRows = rows.slice(startIdx, startIdx + perPage);
 
         return (
             <div className="ds-margin-top-lg">
                 <Table
-                    className="ds-margin-top"
-                    aria-label="referral table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
+                    aria-label="encrypted attributes table"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {displayRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={cellIndex}
+                                        textCenter={cellIndex === 1}
+                                    >
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -417,10 +498,10 @@ class LDIFTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("LDIF File"), transforms: [sortable] },
-                { title: _("Creation Date"), transforms: [sortable] },
-                { title: _("File Size"), transforms: [sortable] },
-                { title: '' }
+                { title: _("LDIF File"), sortable: true },
+                { title: _("Creation Date"), sortable: true },
+                { title: _("File Size"), sortable: true },
+                { title: _("Actions"), screenReaderText: _("LDIF file actions") }
             ],
         };
 
@@ -458,14 +539,10 @@ class LDIFTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const ldifRow of this.props.rows) {
-            rows.push({
-                cells: [
-                    ldifRow[0], ldifRow[1], ldifRow[2]
-                ]
-            });
+            rows.push(ldifRow);
         }
         if (rows.length === 0) {
-            rows = [{ cells: [_("No LDIF files")] }];
+            rows = [[_("No LDIF files")]];
             columns = [{ title: _("LDIF File") }];
         }
         this.setState({
@@ -475,69 +552,84 @@ class LDIFTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const rows = [];
-        const sortedLDIF = [...this.props.rows];
-
-        // Sort the referrals and build the new rows
-        sortedLDIF.sort();
-        if (direction !== SortByDirection.asc) {
-            sortedLDIF.reverse();
-        }
-        for (const ldifRow of sortedLDIF) {
-            rows.push({
-                cells:
-                [
-                    ldifRow[0], ldifRow[1], ldifRow[2]
-                ]
-            });
-        }
-
+        const sortedRows = [...this.state.rows].sort((a, b) => 
+            (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
+        );
+        
         this.setState({
             sortBy: {
                 index,
                 direction
             },
-            rows,
+            rows: direction === 'asc' ? sortedRows : sortedRows.reverse(),
             page: 1,
         });
     }
 
-    actions() {
-        return [
-            {
-                title: _("Import LDIF File"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.confirmImport(rowData.cells[0])
-            },
-        ];
-    }
+    getActionsForRow = (rowData) => [
+        {
+            title: _("Import LDIF File"),
+            onClick: () => this.props.confirmImport(rowData[0])
+        }
+    ];
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
+        const hasRows = this.props.rows.length > 0;
 
         return (
             <div className="ds-margin-top-lg">
                 <Table
-                    className="ds-margin-top"
                     aria-label="ldif table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    actions={this.props.rows.length > 0 ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={hasRows && column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? (
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                ) : (
+                                    <Td>{row}</Td>
+                                )}
+                                {/* Only render the action column if we have rows */}
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActionsForRow(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
-                    itemCount={this.props.rows.length}
+                    itemCount={rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -557,10 +649,10 @@ class LDIFManageTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("LDIF File"), transforms: [sortable] },
-                { title: _("Suffix"), transforms: [sortable] },
-                { title: _("Creation Date"), transforms: [sortable] },
-                { title: _("File Size"), transforms: [sortable] },
+                { title: _("LDIF File"), sortable: true },
+                { title: _("Suffix"), sortable: true },
+                { title: _("Creation Date"), sortable: true },
+                { title: _("File Size"), sortable: true },
             ],
         };
 
@@ -583,9 +675,7 @@ class LDIFManageTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const ldifRow of this.props.rows) {
-            rows.push({
-                cells: [ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]
-            });
+            rows.push([ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]);
         }
         if (rows.length === 0) {
             rows = [{ cells: [_("No LDIF files")] }];
@@ -598,18 +688,16 @@ class LDIFManageTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const rows = [];
-        const sortedLDIF = [...this.props.rows];
+        const sortedLDIF = [...this.state.rows];
+        
+        sortedLDIF.sort((a, b) => {
+            const aValue = Array.isArray(a) ? a[index] : a.cells[index];
+            const bValue = Array.isArray(b) ? b[index] : b.cells[index];
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        });
 
-        // Sort the referrals and build the new rows
-        sortedLDIF.sort();
         if (direction !== SortByDirection.asc) {
             sortedLDIF.reverse();
-        }
-        for (const ldifRow of sortedLDIF) {
-            rows.push({
-                cells: [ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]
-            });
         }
 
         this.setState({
@@ -617,55 +705,85 @@ class LDIFManageTable extends React.Component {
                 index,
                 direction
             },
-            rows,
+            rows: sortedLDIF,
             page: 1,
         });
     }
 
-    actions() {
+    getActions(rowData) {
         return [
             {
                 title: _("Import LDIF"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.confirmImport(rowData.cells[0], rowData.cells[1])
+                onClick: () => this.props.confirmImport(rowData[0], rowData[1])
             },
             {
                 title: _("Delete LDIF"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.confirmDelete(rowData.cells[0])
+                onClick: () => this.props.confirmDelete(rowData[0])
             },
         ];
     }
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        let hasRows = true;
-        if (this.props.rows.length === 0) {
-            hasRows = false;
-        }
+        const hasRows = this.props.rows.length > 0;
+        
+        // Calculate pagination
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = [...rows].splice(startIdx, perPage);
+
         return (
             <div className="ds-margin-top-lg">
                 <Table
                     className="ds-margin-top"
                     aria-label="manage ldif table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    actions={hasRows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? (
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                ) : (
+                                    row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                )}
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -685,9 +803,9 @@ class BackupTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Backup"), transforms: [sortable] },
-                { title: _("Creation Date"), transforms: [sortable] },
-                { title: _("Size"), transforms: [sortable] },
+                { title: _("Backup"), sortable: true },
+                { title: _("Creation Date"), sortable: true },
+                { title: _("Size"), sortable: true },
             ],
         };
 
@@ -710,12 +828,10 @@ class BackupTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const bakRow of this.props.rows) {
-            rows.push({
-                cells: [bakRow[0], bakRow[1], bakRow[2]]
-            });
+            rows.push([bakRow[0], bakRow[1], bakRow[2]]);
         }
         if (rows.length === 0) {
-            rows = [{ cells: [_("No Backups")] }];
+            rows = [[_("No Backups")]];
             columns = [{ title: _("Backups") }];
         }
         this.setState({
@@ -725,18 +841,16 @@ class BackupTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const rows = [];
-        const sortedBaks = [...this.props.rows];
+        const sortedBaks = [...this.state.rows];
+        
+        sortedBaks.sort((a, b) => {
+            const aValue = Array.isArray(a) ? a[index] : a[0];
+            const bValue = Array.isArray(b) ? b[index] : b[0];
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        });
 
-        // Sort the referrals and build the new rows
-        sortedBaks.sort();
-        if (direction !== SortByDirection.asc) {
+        if (direction !== 'asc') {
             sortedBaks.reverse();
-        }
-        for (const bakRow of sortedBaks) {
-            rows.push({
-                cells: [bakRow[0], bakRow[1], bakRow[2]]
-            });
         }
 
         this.setState({
@@ -744,55 +858,85 @@ class BackupTable extends React.Component {
                 index,
                 direction
             },
-            rows,
+            rows: sortedBaks,
             page: 1,
         });
     }
 
-    actions() {
+    getActions(rowData) {
         return [
             {
                 title: _("Restore Backup"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.confirmRestore(rowData.cells[0])
+                onClick: () => this.props.confirmRestore(rowData[0])
             },
             {
                 title: _("Delete Backup"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.confirmDelete(rowData.cells[0])
+                onClick: () => this.props.confirmDelete(rowData[0])
             },
         ];
     }
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        let hasRows = true;
-        if (this.props.rows.length === 0) {
-            hasRows = false;
-        }
+        const hasRows = this.props.rows.length > 0;
+        
+        // Calculate pagination
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = [...rows].splice(startIdx, perPage);
+
         return (
             <div className="ds-margin-top-lg">
                 <Table
                     className="ds-margin-top"
                     aria-label="backup table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    actions={hasRows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="up"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? (
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                ) : (
+                                    row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                )}
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -812,9 +956,9 @@ class PwpTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Target DN"), transforms: [sortable] },
-                { title: _("Policy Type"), transforms: [sortable] },
-                { title: _("Database Suffix"), transforms: [sortable] },
+                { title: _("Target DN"), sortable: true },
+                { title: _("Policy Type"), sortable: true },
+                { title: _("Database Suffix"), sortable: true },
             ],
         };
 
@@ -837,9 +981,7 @@ class PwpTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const pwpRow of this.props.rows) {
-            rows.push({
-                cells: [pwpRow[0], pwpRow[1], pwpRow[2]]
-            });
+            rows.push([pwpRow[0], pwpRow[1], pwpRow[2]]);
         }
         if (rows.length === 0) {
             rows = [{ cells: [_("No Local Policies")] }];
@@ -852,18 +994,16 @@ class PwpTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const rows = [];
-        const sortedPwp = [...this.props.rows];
+        const sortedPwp = [...this.state.rows];
+        
+        sortedPwp.sort((a, b) => {
+            const aValue = Array.isArray(a) ? a[index] : a.cells[index];
+            const bValue = Array.isArray(b) ? b[index] : b.cells[index];
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        });
 
-        // Sort the referrals and build the new rows
-        sortedPwp.sort();
         if (direction !== SortByDirection.asc) {
             sortedPwp.reverse();
-        }
-        for (const pwpRow of sortedPwp) {
-            rows.push({
-                cells: [pwpRow[0], pwpRow[1], pwpRow[2]]
-            });
         }
 
         this.setState({
@@ -871,55 +1011,85 @@ class PwpTable extends React.Component {
                 index,
                 direction
             },
-            rows,
+            rows: sortedPwp,
             page: 1,
         });
     }
 
-    actions() {
+    getActions(rowData) {
         return [
             {
                 title: _("Edit Policy"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.editPolicy(rowData.cells[0])
+                onClick: () => this.props.editPolicy(rowData[0])
             },
             {
                 title: _("Delete policy"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.deletePolicy(rowData.cells[0])
+                onClick: () => this.props.deletePolicy(rowData[0])
             },
         ];
     }
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        let hasRows = true;
-        if (this.props.rows.length === 0) {
-            hasRows = false;
-        }
+        const hasRows = this.props.rows.length > 0;
+        
+        // Calculate pagination
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = [...rows].splice(startIdx, perPage);
+
         return (
             <div className="ds-margin-top-lg">
                 <Table
                     className="ds-margin-top"
                     aria-label="pwp table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    actions={hasRows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {hasRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? (
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                ) : (
+                                    row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                )}
+                                {hasRows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActions(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -942,12 +1112,11 @@ class VLVTable extends React.Component {
             columns: [
                 {
                     title: _("Name"),
-                    transforms: [sortable],
-                    cellFormatters: [expandable]
+                    sortable: true,
                 },
                 {
                     title: _("Search Base"),
-                    transforms: [sortable],
+                    sortable: true,
                 },
             ],
         };
@@ -1093,97 +1262,126 @@ class VLVTable extends React.Component {
 
     componentDidMount() {
         let rows = [];
-        let columns = this.state.columns;
-        let count = 0;
         let noRows = true;
 
         for (const row of this.props.rows) {
-            rows.push(
-                {
-                    isOpen: false,
-                    cells: [row.attrs.cn[0], row.attrs.vlvbase[0]],
-                },
-                {
-                    parent: count,
-                    fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(row) }]
-                },
-            );
-            count += 2;
+            rows.push({
+                isOpen: false,
+                cells: [row.attrs.cn[0], row.attrs.vlvbase[0]],
+                originalData: row // Store original data for expanded content
+            });
         }
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No VLV Indexes")] }];
-            columns = [{ title: _("VLV Indexes") }];
+            this.setState({
+                columns: [{ title: _("VLV Indexes") }]
+            });
         } else {
             noRows = false;
         }
+
         this.setState({
             rows,
-            columns,
             noRows,
         });
     }
 
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        rows[rowIndex].isOpen = isExpanding;
+        this.setState({ rows });
     }
 
-    actions() {
+    getActions(rowData) {
         return [
             {
                 title: _("Reindex VLV"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.reindexFunc(rowData.cells[0])
+                onClick: () => this.props.reindexFunc(rowData.cells[0])
             },
             {
                 title: _("Delete VLV"),
-                onClick: (event, rowId, rowData, extra) => {
-                    this.props.deleteFunc(rowData.cells[0]);
-                }
+                onClick: () => this.props.deleteFunc(rowData.cells[0])
             }
         ];
     }
 
     render() {
-        const { perPage, page, sortBy, rows, columns } = this.state;
-        const origRows = [...rows];
-        const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
-
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        const { perPage, page, sortBy, rows, columns, noRows } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, perPage);
 
         return (
             <div className={(this.props.saving || this.props.updating) ? "ds-margin-top-lg ds-disabled" : "ds-margin-top-lg"}>
-                <Table
-                    className="ds-margin-top"
+                <Table 
                     aria-label="vlv table"
-                    cells={columns}
-                    rows={tableRows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    onCollapse={this.handleCollapse}
-                    actions={!this.state.noRows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    variant='compact'
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {!noRows && <Th screenReaderText="Row expansion" />}
+                            {columns.map((column, columnIndex) => (
+                                <Th 
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {!noRows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    {!noRows && (
+                                        <Td 
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                    )}
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))}
+                                    {!noRows && (
+                                        <Td isActionCell>
+                                            <ActionsColumn 
+                                                items={this.getActions(row)}
+                                            />
+                                        </Td>
+                                    )}
+                                </Tr>
+                                {row.isOpen && row.originalData && (
+                                    <Tr isExpanded={true}>
+                                        <Td />
+                                        <Td 
+                                            colSpan={columns.length + 1}
+                                            noPadding
+                                        >
+                                            <ExpandableRowContent>
+                                                {this.getExpandedRow(row.originalData)}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
-                    itemCount={this.state.rows.length / 2}
+                    itemCount={rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />

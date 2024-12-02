@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import cockpit from "cockpit";
@@ -31,7 +31,7 @@ import { DatePicker } from "@patternfly/react-core/dist/esm/components/DatePicke
 import { TimePicker } from "@patternfly/react-core/dist/esm/components/TimePicker/index.js";
 
 import { ServerTime } from 'serverTime.js';
-import * as timeformat from "timeformat.js";
+import * as timeformat from "timeformat";
 import { DialogsContext } from "dialogs.jsx";
 import { FormHelper } from "cockpit-components-form-helper";
 
@@ -71,9 +71,9 @@ export class ShutdownModal extends React.Component {
         this.server_time.wait()
                 .then(() => {
                     const dateObject = this.server_time.utc_fake_now;
-                    const date = timeformat.dateShort(dateObject);
-                    const hour = this.server_time.utc_fake_now.getUTCHours();
-                    const minute = this.server_time.utc_fake_now.getUTCMinutes();
+                    const date = dateObject.toISOString().split("T")[0];
+                    const hour = dateObject.getUTCHours();
+                    const minute = dateObject.getUTCMinutes();
                     this.setState({
                         dateObject,
                         date,
@@ -143,7 +143,7 @@ export class ShutdownModal extends React.Component {
         this.date_spawn.catch(e => {
             if (e.problem == "cancelled")
                 return;
-            this.setState({ error: e.message });
+            this.setState({ error: e.toString() });
         });
         this.date_spawn.finally(() => { this.date_spawn = null });
     }
@@ -154,9 +154,9 @@ export class ShutdownModal extends React.Component {
         if (!this.props.shutdown)
             cockpit.hint("restart");
 
-        cockpit.spawn(["shutdown", arg, this.state.when, this.state.message], { superuser: true, err: "message" })
+        cockpit.spawn(["shutdown", arg, this.state.when, this.state.message], { superuser: "require", err: "message" })
                 .then(this.props.onClose || Dialogs.close)
-                .catch(e => this.setState({ error: e }));
+                .catch(e => this.setState({ error: e.toString() }));
 
         event.preventDefault();
         return false;
@@ -196,7 +196,7 @@ export class ShutdownModal extends React.Component {
                 <>
                     <Form isHorizontal onSubmit={this.onSubmit}>
                         <FormGroup fieldId="message" label={_("Message to logged in users")}>
-                            <TextArea id="message" resizeOrientation="vertical" value={this.state.message} onChange={v => this.setState({ message: v })} />
+                            <TextArea id="message" resizeOrientation="vertical" value={this.state.message} onChange={(_, v) => this.setState({ message: v })} />
                         </FormGroup>
                         <FormGroup fieldId="delay" label={_("Delay")}>
                             <Flex className="shutdown-delay-group" alignItems={{ default: 'alignItemsCenter' }}>
@@ -211,15 +211,12 @@ export class ShutdownModal extends React.Component {
                                     <DatePicker aria-label={_("Pick date")}
                                                 buttonAriaLabel={_("Toggle date picker")}
                                                 className='shutdown-date-picker'
-                                                dateFormat={timeformat.dateShort}
-                                                dateParse={timeformat.parseShortDate}
                                                 invalidFormatText=""
                                                 isDisabled={!this.state.formFilled}
                                                 locale={timeformat.dateFormatLang()}
                                                 weekStart={timeformat.firstDayOfWeek()}
                                                 onBlur={this.calculate}
                                                 onChange={(_, d, ds) => this.updateDate(d, ds)}
-                                                placeholder={timeformat.dateShortFormat()}
                                                 validators={[this.dateRangeValidator]}
                                                 value={this.state.date}
                                                 appendTo={() => document.body} />
