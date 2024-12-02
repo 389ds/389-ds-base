@@ -1220,7 +1220,16 @@ entryrdn_lookup_dn(backend *be,
                     }
                     goto bail;
                 }
-                maybesuffix = 1;
+                if (workid == 1) {
+                    /* The loop (workid) iterates from the starting 'id'
+                     * up to the suffix ID (i.e. '1').
+                     * A corner case (#6417) is if an entry, on the path
+                     * 'id' -> suffix, has the same RDN than the suffix.
+                     * In order to erroneously believe the loop hits the suffix
+                     * we need to check that 'workid' is '1' (suffix)
+                     */
+                    maybesuffix = 1;
+                }
             } else {
                 _entryrdn_cursor_print_error("entryrdn_lookup_dn",
                                              key.data, data.size, data.ulen, rc);
