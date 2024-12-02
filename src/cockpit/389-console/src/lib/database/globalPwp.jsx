@@ -721,7 +721,7 @@ export class GlobalPwPolicy extends React.Component {
                     'nsslapd-pwdpbkdf2numiterations': '',
                     '_nsslapd-pwdpbkdf2numiterations': ''
                 };
-                
+
                 if (!skipLoading) {
                     stateUpdates["loading"] = false
                 }
