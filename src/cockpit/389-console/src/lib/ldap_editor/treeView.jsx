@@ -1,23 +1,42 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert, AlertGroup, AlertActionCloseButton, AlertVariant,
-    Button,
-    Bullseye,
-    Card, CardBody, CardFooter, CardTitle,
-    CardHeaderMain, CardHeader, CardActions,
-    Divider,
-    DropdownItem, Dropdown, DropdownSeparator,
-    EmptyState, EmptyStateIcon, EmptyStateBody, EmptyStateVariant,
-    Grid, GridItem,
-    KebabToggle,
-    Label,
-    Spinner,
-    Title,
-    TextContent, Text, TextVariants, TextList,
-    TextListVariants, TextListItem, TextListItemVariants,
-    Tooltip
+	Alert,
+	AlertGroup,
+	AlertActionCloseButton,
+	AlertVariant,
+	Button,
+	Bullseye,
+	Card,
+	CardBody,
+	CardFooter,
+	CardTitle,
+	CardHeader,
+	Divider,
+	EmptyState,
+	EmptyStateIcon,
+	EmptyStateBody,
+	EmptyStateVariant,
+	Grid,
+	GridItem,
+	Label,
+	Spinner,
+	Title,
+	TextContent,
+	Text,
+	TextVariants,
+	TextList,
+	TextListVariants,
+	TextListItem,
+	TextListItemVariants,
+	Tooltip, EmptyStateHeader
 } from '@patternfly/react-core';
+import {
+	DropdownItem,
+	Dropdown,
+	DropdownSeparator,
+	KebabToggle
+} from '@patternfly/react-core/deprecated';
 import {
     ArrowRightIcon,
     CatalogIcon,
@@ -63,11 +82,8 @@ class EditorTreeView extends React.Component {
                 props: { colSpan: 8 },
                 title: (
                     <Bullseye>
-                        <EmptyState variant={EmptyStateVariant.small}>
-                            <EmptyStateIcon icon={ResourcesEmptyIcon} />
-                            <Title headingLevel="h2" size="lg">
-                                {_("No entry is selected")}
-                            </Title>
+                        <EmptyState variant={EmptyStateVariant.sm}>
+                            <EmptyStateHeader titleText={<>{_("No entry is selected")}</>} icon={<EmptyStateIcon icon={ResourcesEmptyIcon} />} headingLevel="h2" />
                             <EmptyStateBody>
                                 {_("Select an entry to see its details.")}
                             </EmptyStateBody>
@@ -715,10 +731,8 @@ class EditorTreeView extends React.Component {
                             { searching && loadingEntryComponent }
 
                             { firstClickOnTree && !loading && !searching && isValidData &&
-                                <Card isSelectable>
-                                    <CardHeader>
-                                        <CardActions>
-                                            <Dropdown
+                                <Card isSelectable isClickable>
+                                    <CardHeader actions={{ actions: <><Dropdown
                                                 onSelect={this.props.onSelectEntryOptions}
                                                 toggle={
                                                     <KebabToggle
@@ -730,13 +744,10 @@ class EditorTreeView extends React.Component {
                                                 isPlain
                                                 dropdownItems={dropdownItems}
                                                 position="right"
-                                            />
-                                        </CardActions>
-                                        <CardHeaderMain>
-                                            {entryIcon}
-                                        </CardHeaderMain>
+                                            /></>, hasNoOffset: false, className: undefined}} >
+                                        
                                         <Title headingLevel="h6" size="md">
-                                            <span>&ensp;{entryDn} </span>
+                                            {entryIcon}<span>&ensp;{entryDn} </span>
                                             {(entryState !== "") && (entryStateIcon !== "") && (entryState !== "activated")
                                                 ? (
                                                     <Tooltip
@@ -769,11 +780,8 @@ class EditorTreeView extends React.Component {
                                         />
 
                                         { isEmptySuffix &&
-                                            <EmptyState variant={EmptyStateVariant.small}>
-                                                <EmptyStateIcon icon={ResourcesEmptyIcon} />
-                                                <Title headingLevel="h2" size="lg">
-                                                    {_("Empty suffix!")}
-                                                </Title>
+                                            <EmptyState variant={EmptyStateVariant.sm}>
+                                                <EmptyStateHeader titleText={<>{_("Empty suffix!")}</>} icon={<EmptyStateIcon icon={ResourcesEmptyIcon} />} headingLevel="h2" />
                                                 <EmptyStateBody>
                                                     <Label variant="outline" color="orange" icon={<InfoCircleIcon />}>
                                                         {_("The suffix is configured, but it has no entries.")}

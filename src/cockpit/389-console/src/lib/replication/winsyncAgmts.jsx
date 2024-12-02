@@ -75,7 +75,7 @@ export class WinsyncAgmts extends React.Component {
         };
 
         // Create - Exclude Attributes
-        this.handleExcludeAttrCreateToggle = isExcludeAttrCreateOpen => {
+        this.handleExcludeAttrCreateToggle = (_event, isExcludeAttrCreateOpen) => {
             this.setState({
                 isExcludeAttrCreateOpen
             });
@@ -88,7 +88,7 @@ export class WinsyncAgmts extends React.Component {
         };
 
         // Edit - Exclude Attributes
-        this.handleExcludeAttrEditToggle = isExcludeAttrEditOpen => {
+        this.handleExcludeAttrEditToggle = (_event, isExcludeAttrEditOpen) => {
             this.setState({
                 isExcludeAttrEditOpen
             });

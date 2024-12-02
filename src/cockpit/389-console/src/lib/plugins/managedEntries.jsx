@@ -1,29 +1,37 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Form,
-    FormGroup,
-    FormSelect,
-    FormSelectOption,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectOption,
-    SelectVariant,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    Tooltip,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Form,
+	FormGroup,
+	FormSelect,
+	FormSelectOption,
+	FormHelperText,
+	HelperText,
+	HelperTextItem,
+	Modal,
+	ModalVariant,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	Tooltip,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
+import {
+    ExclamationCircleIcon,
+} from '@patternfly/react-icons';
 
 import { ManagedDefinitionTable, ManagedTemplateTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -108,7 +116,7 @@ class ManagedEntries extends React.Component {
                 isRDNOpen: false
             });
         };
-        this.handleRDNToggle = isRDNOpen => {
+        this.handleRDNToggle = (_event, isRDNOpen) => {
             this.setState({
                 isRDNOpen
             });
@@ -128,7 +136,7 @@ class ManagedEntries extends React.Component {
             });
         };
 
-        this.handleStaticToggle = isStaticOpen => {
+        this.handleStaticToggle = (_event, isStaticOpen) => {
             this.setState({
                 isStaticOpen
             });
@@ -155,7 +163,7 @@ class ManagedEntries extends React.Component {
             });
         };
 
-        this.handleMappedToggle = isMappedOpen => {
+        this.handleMappedToggle = (_event, isMappedOpen) => {
             this.setState({
                 isMappedOpen
             });
@@ -976,6 +984,11 @@ class ManagedEntries extends React.Component {
             templateAddMappedShow,
         } = this.state;
 
+        const isOriginScopeValidated = originScope !== "" && !valid_dn(originScope);
+        const isManagedBaseValidated = managedBase !== "" && !valid_dn(managedBase);
+        const isConfigAreaValidated = configArea !== "" && !valid_dn(configArea);
+        const isTemplateDNValidated = templateDN !== "" && !valid_dn(templateDN);
+
         const specificPluginCMD = [
             "dsconf",
             "-j",
@@ -1027,7 +1040,7 @@ class ManagedEntries extends React.Component {
                                 id="configName"
                                 aria-describedby="configName"
                                 name="configName"
-                                onChange={this.handleFieldChange}
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
                                 isDisabled={!newDefEntry}
                                 isRequired
                             />
@@ -1035,12 +1048,6 @@ class ManagedEntries extends React.Component {
                         <FormGroup
                             label={_("Subtree Scope")}
                             fieldId="originScope"
-                            helperTextInvalid={_("A valid DN must be provided")}
-                            validated={
-                                originScope !== "" && !valid_dn(originScope)
-                                    ? ValidatedOptions.error
-                                    : ValidatedOptions.default
-                            }
                             title={_("Sets the search base DN to use to find candidate entries (originScope)")}
                             isRequired
                         >
@@ -1050,14 +1057,20 @@ class ManagedEntries extends React.Component {
                                 id="originScope"
                                 aria-describedby="originScope"
                                 name="originScope"
-                                onChange={this.handleFieldChange}
-                                validated={
-                                    originScope !== "" && !valid_dn(originScope)
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
+                                validated={isOriginScopeValidated 
                                         ? ValidatedOptions.error
                                         : ValidatedOptions.default
                                 }
                                 isRequired
                             />
+                            <FormHelperText>
+                                    <HelperText>
+                                    <HelperTextItem icon={<ExclamationCircleIcon />} variant={isOriginScopeValidated ? 'error' : 'default'}>
+                                        {isOriginScopeValidated ? 'A valid DN must be provided' : 'Enter DN'}
+                                    </HelperTextItem>
+                                    </HelperText>
+                            </FormHelperText>
                         </FormGroup>
                         <FormGroup
                             label={_("Filter")}
@@ -1071,19 +1084,13 @@ class ManagedEntries extends React.Component {
                                 id="originFilter"
                                 aria-describedby="originFilter"
                                 name="originFilter"
-                                onChange={this.handleFieldChange}
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
                                 isRequired
                             />
                         </FormGroup>
                         <FormGroup
                             label={_("Managed Base")}
                             fieldId="managedBase"
-                            helperTextInvalid={_("A valid DN must be provided")}
-                            validated={
-                                managedBase !== "" && !valid_dn(managedBase)
-                                    ? ValidatedOptions.error
-                                    : ValidatedOptions.default
-                            }
                             title={_("Sets the subtree where the managed entries are created (managedBase)")}
                             isRequired
                         >
@@ -1093,14 +1100,20 @@ class ManagedEntries extends React.Component {
                                 id="managedBase"
                                 aria-describedby="managedBase"
                                 name="managedBase"
-                                onChange={this.handleFieldChange}
-                                validated={
-                                    managedBase !== "" && !valid_dn(managedBase)
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
+                                validated={isManagedBaseValidated 
                                         ? ValidatedOptions.error
                                         : ValidatedOptions.default
                                 }
                                 isRequired
                             />
+                            <FormHelperText>
+                                    <HelperText>
+                                    <HelperTextItem icon={<ExclamationCircleIcon />} variant={isManagedBaseValidated ? 'error' : 'default'}>
+                                        {isManagedBaseValidated ? 'A valid DN must be provided' : 'Enter DN'}
+                                    </HelperTextItem>
+                                    </HelperText>
+                            </FormHelperText>
                         </FormGroup>
                         <FormGroup
                             label={_("Template")}
@@ -1111,7 +1124,7 @@ class ManagedEntries extends React.Component {
                             <FormSelect
                                 id="managedTemplate"
                                 value={managedTemplate}
-                                onChange={this.handleFieldChange}
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
                                 aria-label="FormSelect Input"
                             >
                                 {templateOptions.map((option, index) => (
@@ -1146,12 +1159,6 @@ class ManagedEntries extends React.Component {
                         <FormGroup
                             label={_("Template DN")}
                             fieldId="templateDN"
-                            helperTextInvalid={_("The template DN must be set to a valid DN")}
-                            validated={
-                                templateDN !== "" && !valid_dn(templateDN)
-                                    ? ValidatedOptions.error
-                                    : ValidatedOptions.default
-                            }
                             title={_("DN of the template entry")}
                             isRequired
                         >
@@ -1161,14 +1168,20 @@ class ManagedEntries extends React.Component {
                                 id="templateDN"
                                 aria-describedby="templateDN"
                                 name="templateDN"
-                                onChange={this.handleFieldChange}
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
                                 isDisabled={!newTemplateEntry}
-                                validated={
-                                    templateDN !== "" && !valid_dn(templateDN)
+                                validated={isTemplateDNValidated 
                                         ? ValidatedOptions.error
                                         : ValidatedOptions.default
                                 }
                             />
+                            <FormHelperText>
+                                    <HelperText>
+                                    <HelperTextItem icon={<ExclamationCircleIcon />} variant={isTemplateDNValidated ? 'error' : 'default'}>
+                                        {isTemplateDNValidated ? 'The template DN must be set to a valid DN' : 'Enter DN'}
+                                    </HelperTextItem>
+                                    </HelperText>
+                            </FormHelperText>
                         </FormGroup>
                         <FormGroup
                             label={_("RDN Attribute")}
@@ -1179,7 +1192,7 @@ class ManagedEntries extends React.Component {
                             <Select
                                 variant={SelectVariant.typeahead}
                                 typeAheadAriaLabel="Type an attribute"
-                                onToggle={this.handleRDNToggle}
+                                onToggle={(event, isOpen) => this.handleRDNToggle(event, isOpen)}
                                 onSelect={this.handleRDNSelect}
                                 onClear={this.handleClearRDNSelection}
                                 selections={templateRDNAttr}
@@ -1313,7 +1326,7 @@ class ManagedEntries extends React.Component {
                             <Select
                                 variant={SelectVariant.typeahead}
                                 typeAheadAriaLabel="Type an attribute"
-                                onToggle={this.handleStaticToggle}
+                                onToggle={(event, isOpen) => this.handleStaticToggle(event, isOpen)}
                                 onSelect={this.handleStaticSelect}
                                 onClear={this.handleClearStaticSelection}
                                 selections={this.state.staticAttr}
@@ -1341,7 +1354,7 @@ class ManagedEntries extends React.Component {
                                 id="staticValue"
                                 aria-describedby="staticValue"
                                 name="staticValue"
-                                onChange={this.handleFieldChange}
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
                                 isRequired
                             />
                         </FormGroup>
@@ -1378,7 +1391,7 @@ class ManagedEntries extends React.Component {
                             <Select
                                 variant={SelectVariant.typeahead}
                                 typeAheadAriaLabel="Type an attribute"
-                                onToggle={this.handleMappedToggle}
+                                onToggle={(event, isOpen) => this.handleMappedToggle(event, isOpen)}
                                 onSelect={this.handleMappedSelect}
                                 onClear={this.handleClearMappedSelection}
                                 selections={this.state.mappedAttr}
@@ -1406,7 +1419,7 @@ class ManagedEntries extends React.Component {
                                 id="mappedValue"
                                 aria-describedby="mappedValue"
                                 name="mappedValue"
-                                onChange={this.handleFieldChange}
+                                onChange={(e, str) => this.handleFieldChange(str, e)}
                             />
                         </FormGroup>
                         <hr />
@@ -1509,12 +1522,6 @@ class ManagedEntries extends React.Component {
                                 <FormGroup
                                     label={_("Shared Config Area")}
                                     fieldId="configArea"
-                                    helperTextInvalid={_("The DN for the shared conifig area is invalid")}
-                                    validated={
-                                        configArea !== "" && !valid_dn(configArea)
-                                            ? ValidatedOptions.error
-                                            : ValidatedOptions.default
-                                    }
                                 >
                                     <TextInput
                                         value={configArea}
@@ -1522,8 +1529,18 @@ class ManagedEntries extends React.Component {
                                         id="configArea"
                                         aria-describedby="configArea"
                                         name="configArea"
-                                        onChange={this.handleFieldChange}
+                                        onChange={(e, str) => this.handleFieldChange(str, e)}
+                                        validated={isConfigAreaValidated 
+                                                ? ValidatedOptions.error
+                                                : ValidatedOptions.default}
                                     />
+                                    <FormHelperText>
+                                            <HelperText>
+                                            <HelperTextItem icon={<ExclamationCircleIcon />} variant={isManagedBaseValidated ? 'error' : 'default'}>
+                                                {isConfigAreaValidated ? 'The DN for the shared conifig area is invalid' : 'Enter DN'}
+                                            </HelperTextItem>
+                                            </HelperText>
+                                    </FormHelperText>
                                 </FormGroup>
                             </Form>
                         </div>

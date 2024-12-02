@@ -1,21 +1,29 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    Card,
-    CardBody,
-    CardTitle,
-    Pagination,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Text,
-    TextContent,
-    TextVariants,
-    Wizard,
+	Alert,
+	Card,
+	CardBody,
+	CardTitle,
+	Pagination,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextVariants
 } from '@patternfly/react-core';
 import {
-    Table, TableHeader, TableBody, TableVariant, headerCol
+	Wizard
+} from '@patternfly/react-core/deprecated';
+import {
+    Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+	headerCol
 } from '@patternfly/react-table';
 import EditableTable from '../../lib/editableTable.jsx';
 import {
@@ -519,15 +527,43 @@ class GenericUpdate extends React.Component {
                     onPerPageSelect={this.handlePerPageSelect}
                     isCompact
                 />
-                <Table
-                    cells={columnsAttrs}
-                    rows={pagedRowsAttrs}
-                    onSelect={this.handleSelect}
-                    variant={TableVariant.compact}
-                    aria-label="Pagination Attributes"
+                {/* Updated Table structure for Patternfly 5 */}
+                <Table 
+                    aria-label="Attributes Table"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Select Attributes" />
+                            {columnsAttrs.map((column, columnIndex) => (
+                                <Th key={columnIndex}>
+                                    {typeof column === 'object' ? column.title : column}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {pagedRowsAttrs.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td
+                                    select={{
+                                        rowIndex,
+                                        onSelect: this.handleSelect,
+                                        isSelected: row.selected,
+                                        isDisabled: row.disableSelection
+                                    }}
+                                />
+                                {row.cells.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={`${rowIndex}_${cellIndex}`}
+                                        dataLabel={columnsAttrs[cellIndex]?.title || columnsAttrs[cellIndex]}
+                                    >
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </div>
         );

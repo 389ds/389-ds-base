@@ -14,1004 +14,26 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 /* eslint-disable indent,no-empty */
 
-let url_root;
-
-const meta_url_root = document.head.querySelector("meta[name='url-root']");
-if (meta_url_root) {
-    url_root = meta_url_root.content.replace(/^\/+|\/+$/g, '');
-} else {
-    // fallback for cockpit-ws < 272
-    try {
-        // Sometimes this throws a SecurityError such as during testing
-        url_root = window.localStorage.getItem('url-root');
-    } catch (e) { }
-}
-
-/* injected by tests */
-var mock = mock || { }; // eslint-disable-line no-use-before-define, no-var
-
-const cockpit = { };
-event_mixin(cockpit, { });
-
-/*
- * The debugging property is a global that is used
- * by various parts of the code to show/hide debug
- * messages in the javascript console.
- *
- * We support using storage to get/set that property
- * so that it carries across the various frames or
- * alternatively persists across refreshes.
- */
-if (typeof window.debugging === "undefined") {
-    try {
-        // Sometimes this throws a SecurityError such as during testing
-        Object.defineProperty(window, "debugging", {
-            get: function() { return window.sessionStorage.debugging || window.localStorage.debugging },
-            set: function(x) { window.sessionStorage.debugging = x }
-        });
-    } catch (e) { }
-}
-
-function in_array(array, val) {
-    const length = array.length;
-    for (let i = 0; i < length; i++) {
-        if (val === array[i])
-            return true;
-    }
-    return false;
-}
-
-function is_function(x) {
-    return typeof x === 'function';
-}
-
-function is_object(x) {
-    return x !== null && typeof x === 'object';
-}
-
-function is_plain_object(x) {
-    return is_object(x) && Object.prototype.toString.call(x) === '[object Object]';
-}
-
-/* Also works for negative zero */
-function is_negative(n) {
-    return ((n = +n) || 1 / n) < 0;
-}
-
-function invoke_functions(functions, self, args) {
-    const length = functions?.length ?? 0;
-    for (let i = 0; i < length; i++) {
-        if (functions[i])
-            functions[i].apply(self, args);
-    }
-}
-
-function iterate_data(data, callback, batch) {
-    let binary = false;
-    let len = 0;
-
-    if (!batch)
-        batch = 64 * 1024;
-
-    if (data) {
-         if (data.byteLength) {
-             len = data.byteLength;
-             binary = true;
-         } else if (data.length) {
-             len = data.length;
-         }
-    }
-
-    for (let i = 0; i < len; i += batch) {
-        const n = Math.min(len - i, batch);
-        if (binary)
-            callback(new window.Uint8Array(data.buffer, i, n));
-        else
-            callback(data.substr(i, n));
-    }
-}
-
-/* -------------------------------------------------------------------------
- * Channels
- *
- * Public: https://cockpit-project.org/guide/latest/api-base1.html
- */
-
-let default_transport = null;
-let public_transport = null;
-let reload_after_disconnect = false;
-let expect_disconnect = false;
-let init_callback = null;
-let default_host = null;
-let process_hints = null;
-let incoming_filters = null;
-let outgoing_filters = null;
-
-let transport_origin = window.location.origin;
-
-if (!transport_origin) {
-    transport_origin = window.location.protocol + "//" + window.location.hostname +
-        (window.location.port ? ':' + window.location.port : '');
-}
-
-function array_from_raw_string(str, constructor) {
-    const length = str.length;
-    const data = new (constructor || Array)(length);
-    for (let i = 0; i < length; i++)
-        data[i] = str.charCodeAt(i) & 0xFF;
-    return data;
-}
-
-function array_to_raw_string(data) {
-    const length = data.length;
-    let str = "";
-    for (let i = 0; i < length; i++)
-        str += String.fromCharCode(data[i]);
-    return str;
-}
-
-/*
- * These are the polyfills from Mozilla. It's pretty nasty that
- * these weren't in the typed array standardization.
- *
- * https://developer.mozilla.org/en-US/docs/Glossary/Base64
- */
-
-function uint6_to_b64 (x) {
-    return x < 26 ? x + 65 : x < 52 ? x + 71 : x < 62 ? x - 4 : x === 62 ? 43 : x === 63 ? 47 : 65;
-}
-
-function base64_encode(data) {
-    if (typeof data === "string")
-        return window.btoa(data);
-    /* For when the caller has chosen to use ArrayBuffer */
-    if (data instanceof window.ArrayBuffer)
-        data = new window.Uint8Array(data);
-    const length = data.length;
-    let mod3 = 2;
-    let str = "";
-    for (let uint24 = 0, i = 0; i < length; i++) {
-        mod3 = i % 3;
-        uint24 |= data[i] << (16 >>> mod3 & 24);
-        if (mod3 === 2 || length - i === 1) {
-            str += String.fromCharCode(uint6_to_b64(uint24 >>> 18 & 63),
-                                       uint6_to_b64(uint24 >>> 12 & 63),
-                                       uint6_to_b64(uint24 >>> 6 & 63),
-                                       uint6_to_b64(uint24 & 63));
-            uint24 = 0;
-        }
-    }
-
-    return str.substr(0, str.length - 2 + mod3) + (mod3 === 2 ? '' : mod3 === 1 ? '=' : '==');
-}
-
-function b64_to_uint6 (x) {
-    return x > 64 && x < 91
-        ? x - 65
-        : x > 96 && x < 123
-        ? x - 71
-        : x > 47 && x < 58 ? x + 4 : x === 43 ? 62 : x === 47 ? 63 : 0;
-}
-
-function base64_decode(str, constructor) {
-    if (constructor === String)
-        return window.atob(str);
-    const ilen = str.length;
-    let eq;
-    for (eq = 0; eq < 3; eq++) {
-        if (str[ilen - (eq + 1)] != '=')
-            break;
-    }
-    const olen = (ilen * 3 + 1 >> 2) - eq;
-    const data = new (constructor || Array)(olen);
-    for (let mod3, mod4, uint24 = 0, oi = 0, ii = 0; ii < ilen; ii++) {
-        mod4 = ii & 3;
-        uint24 |= b64_to_uint6(str.charCodeAt(ii)) << 18 - 6 * mod4;
-        if (mod4 === 3 || ilen - ii === 1) {
-            for (mod3 = 0; mod3 < 3 && oi < olen; mod3++, oi++)
-                data[oi] = uint24 >>> (16 >>> mod3 & 24) & 255;
-            uint24 = 0;
-        }
-    }
-    return data;
-}
-
-window.addEventListener('beforeunload', function() {
-    expect_disconnect = true;
-}, false);
-
-function transport_debug() {
-    if (window.debugging == "all" || window.debugging?.includes("channel"))
-        console.debug.apply(console, arguments);
-}
-
-/*
- * Extends an object to have the standard DOM style addEventListener
- * removeEventListener and dispatchEvent methods. The dispatchEvent
- * method has the additional capability to create a new event from a type
- * string and arguments.
- */
-function event_mixin(obj, handlers) {
-    Object.defineProperties(obj, {
-        addEventListener: {
-            enumerable: false,
-            value: function addEventListener(type, handler) {
-                if (handlers[type] === undefined)
-                    handlers[type] = [];
-                handlers[type].push(handler);
-            }
-        },
-        removeEventListener: {
-            enumerable: false,
-            value: function removeEventListener(type, handler) {
-                const length = handlers[type] ? handlers[type].length : 0;
-                for (let i = 0; i < length; i++) {
-                    if (handlers[type][i] === handler) {
-                        handlers[type][i] = null;
-                        break;
-                    }
-                }
-            }
-        },
-        dispatchEvent: {
-            enumerable: false,
-            value: function dispatchEvent(event) {
-                let type, args;
-                if (typeof event === "string") {
-                    type = event;
-                    args = Array.prototype.slice.call(arguments, 1);
-
-                    let detail = null;
-                    if (arguments.length == 2)
-                        detail = arguments[1];
-                    else if (arguments.length > 2)
-                        detail = args;
-
-                    event = new CustomEvent(type, {
-                        bubbles: false,
-                        cancelable: false,
-                        detail
-                    });
-
-                    args.unshift(event);
-                } else {
-                    type = event.type;
-                    args = arguments;
-                }
-                if (is_function(obj['on' + type]))
-                    obj['on' + type].apply(obj, args);
-                invoke_functions(handlers[type], obj, args);
-            }
-        }
-    });
-}
-
-function calculate_application() {
-    let path = window.location.pathname || "/";
-    let _url_root = url_root;
-    if (window.mock?.pathname)
-        path = window.mock.pathname;
-    if (window.mock?.url_root)
-        _url_root = window.mock.url_root;
-
-    if (_url_root && path.indexOf('/' + _url_root) === 0)
-        path = path.replace('/' + _url_root, '') || '/';
-
-    if (path.indexOf("/cockpit/") !== 0 && path.indexOf("/cockpit+") !== 0) {
-        if (path.indexOf("/=") === 0)
-            path = "/cockpit+" + path.split("/")[1];
-        else
-            path = "/cockpit";
-    }
-
-    return path.split("/")[1];
-}
-
-function calculate_url(suffix) {
-    if (!suffix)
-        suffix = "socket";
-    const window_loc = window.location.toString();
-    /* this is not set by anything right now, just a client-side stub; see
-     * https://github.com/cockpit-project/cockpit/pull/17473 for the server-side and complete solution */
-    const meta_websocket_root = document.head.querySelector("meta[name='websocket-root']");
-    let _url_root = meta_websocket_root ? meta_websocket_root.content.replace(/^\/+|\/+$/g, '') : url_root;
-
-    if (window.mock?.url)
-        return window.mock.url;
-    if (window.mock?.url_root)
-        _url_root = window.mock.url_root;
-
-    let prefix = calculate_application();
-    if (_url_root)
-        prefix = _url_root + "/" + prefix;
-
-    if (window_loc.indexOf('http:') === 0) {
-        return "ws://" + window.location.host + "/" + prefix + "/" + suffix;
-    } else if (window_loc.indexOf('https:') === 0) {
-        return "wss://" + window.location.host + "/" + prefix + "/" + suffix;
-    } else {
-        transport_debug("Cockpit must be used over http or https");
-        return null;
-    }
-}
-
-function join_data(buffers, binary) {
-    if (!binary)
-        return buffers.join("");
-
-    let total = 0;
-    const length = buffers.length;
-    for (let i = 0; i < length; i++)
-        total += buffers[i].length;
-
-    const data = window.Uint8Array ? new window.Uint8Array(total) : new Array(total);
-
-    if (data.set) {
-        for (let j = 0, i = 0; i < length; i++) {
-            data.set(buffers[i], j);
-            j += buffers[i].length;
-        }
-    } else {
-        for (let j = 0, i = 0; i < length; i++) {
-            for (let k = 0; k < buffers[i].length; k++)
-                data[i + j] = buffers[i][k];
-            j += buffers[i].length;
-        }
-    }
-
-    return data;
-}
-
-/*
- * A WebSocket that connects to parent frame. The mechanism
- * for doing this will eventually be documented publicly,
- * but for now:
- *
- *  * Forward raw cockpit1 string protocol messages via window.postMessage
- *  * Listen for cockpit1 string protocol messages via window.onmessage
- *  * Never accept or send messages to another origin
- *  * An empty string message means "close" (not completely used yet)
- */
-function ParentWebSocket(parent) {
-    const self = this;
-    self.readyState = 0;
-
-    window.addEventListener("message", function receive(event) {
-        if (event.origin !== transport_origin || event.source !== parent)
-            return;
-        const data = event.data;
-        if (data === undefined || (data.length === undefined && data.byteLength === undefined))
-            return;
-        if (data.length === 0) {
-            self.readyState = 3;
-            self.onclose();
-        } else {
-            self.onmessage(event);
-        }
-    }, false);
-
-    self.send = function send(message) {
-        parent.postMessage(message, transport_origin);
-    };
-
-    self.close = function close() {
-        self.readyState = 3;
-        parent.postMessage("", transport_origin);
-        self.onclose();
-    };
-
-    window.setTimeout(function() {
-        self.readyState = 1;
-        self.onopen();
-    }, 0);
-}
-
-function parse_channel(data) {
-    let channel;
-
-    /* A binary message, split out the channel */
-    if (data instanceof window.ArrayBuffer) {
-        const binary = new window.Uint8Array(data);
-        const length = binary.length;
-        let pos;
-        for (pos = 0; pos < length; pos++) {
-            if (binary[pos] == 10) /* new line */
-                break;
-        }
-        if (pos === length) {
-            console.warn("binary message without channel");
-            return null;
-        } else if (pos === 0) {
-            console.warn("binary control message");
-            return null;
-        } else {
-            channel = String.fromCharCode.apply(null, binary.subarray(0, pos));
-        }
-
-    /* A textual message */
-    } else {
-        const pos = data.indexOf('\n');
-        if (pos === -1) {
-            console.warn("text message without channel");
-            return null;
-        }
-        channel = data.substring(0, pos);
-    }
-
-    return channel;
-}
-
-/* Private Transport class */
-function Transport() {
-    const self = this;
-    self.application = calculate_application();
-
-    /* We can trigger events */
-    event_mixin(self, { });
-
-    let last_channel = 0;
-    let channel_seed = "";
-
-    if (window.mock)
-        window.mock.last_transport = self;
-
-    let ws;
-    let ignore_health_check = false;
-    let got_message = false;
-
-    /* See if we should communicate via parent */
-    if (window.parent !== window && window.name.indexOf("cockpit1:") === 0)
-        ws = new ParentWebSocket(window.parent);
-
-    let check_health_timer;
-
-    /* HACK: Compatibility if we're hosted by older Cockpit versions */
-    try {
-           /* See if we should communicate via parent */
-           if (!ws && window.parent !== window && window.parent.options &&
-                window.parent.options.protocol == "cockpit1") {
-               ws = new ParentWebSocket(window.parent);
-            }
-    } catch (ex) {
-       /* permission access errors */
-    }
-
-    if (!ws) {
-        const ws_loc = calculate_url();
-        transport_debug("connecting to " + ws_loc);
-
-        if (ws_loc) {
-            if ("WebSocket" in window) {
-                ws = new window.WebSocket(ws_loc, "cockpit1");
-            } else {
-                console.error("WebSocket not supported, application will not work!");
-            }
-        }
-
-        check_health_timer = window.setInterval(function () {
-            if (self.ready)
-                ws.send("\n{ \"command\": \"ping\" }");
-            if (!got_message) {
-                if (ignore_health_check) {
-                    console.log("health check failure ignored");
-                } else {
-                    console.log("health check failed");
-                    self.close({ problem: "timeout" });
-                }
-            }
-            got_message = false;
-        }, 30000);
-    }
-
-    if (!ws) {
-        ws = { close: function() { } };
-        window.setTimeout(function() {
-            self.close({ problem: "no-cockpit" });
-        }, 50);
-    }
-
-    const control_cbs = { };
-    const message_cbs = { };
-    let waiting_for_init = true;
-    self.ready = false;
-
-    /* Called when ready for channels to interact */
-    function ready_for_channels() {
-        if (!self.ready) {
-            self.ready = true;
-            self.dispatchEvent("ready");
-        }
-    }
-
-    ws.onopen = function() {
-        if (ws) {
-            if (typeof ws.binaryType !== "undefined")
-                ws.binaryType = "arraybuffer";
-            ws.send("\n{ \"command\": \"init\", \"version\": 1 }");
-        }
-    };
-
-    ws.onclose = function() {
-        transport_debug("WebSocket onclose");
-        ws = null;
-        if (reload_after_disconnect) {
-            expect_disconnect = true;
-            window.location.reload(true);
-        }
-        self.close();
-    };
-
-    ws.onmessage = self.dispatch_data = function(arg) {
-        got_message = true;
-
-        /* The first line of a message is the channel */
-        const message = arg.data;
-
-        const channel = parse_channel(message);
-        if (channel === null)
-            return false;
-
-        const payload = message instanceof window.ArrayBuffer
-            ? new window.Uint8Array(message, channel.length + 1)
-            : message.substring(channel.length + 1);
-        let control;
-
-        /* A control message, always string */
-        if (!channel) {
-            transport_debug("recv control:", payload);
-            control = JSON.parse(payload);
-        } else {
-            transport_debug("recv " + channel + ":", payload);
-        }
-
-        const length = incoming_filters ? incoming_filters.length : 0;
-        for (let i = 0; i < length; i++) {
-            if (incoming_filters[i](message, channel, control) === false)
-                return false;
-        }
-
-        if (!channel)
-            process_control(control);
-        else
-            process_message(channel, payload);
-
-        return true;
-    };
-
-    self.close = function close(options) {
-        if (!options)
-            options = { problem: "disconnected" };
-        options.command = "close";
-        window.clearInterval(check_health_timer);
-        const ows = ws;
-        ws = null;
-        if (ows)
-            ows.close();
-        if (expect_disconnect)
-            return;
-        ready_for_channels(); /* ready to fail */
-
-        /* Broadcast to everyone */
-        for (const chan in control_cbs)
-            control_cbs[chan].apply(null, [options]);
-    };
-
-    self.next_channel = function next_channel() {
-        last_channel++;
-        return channel_seed + String(last_channel);
-    };
-
-    function process_init(options) {
-        if (options.problem) {
-            self.close({ problem: options.problem });
-            return;
-        }
-
-        if (options.version !== 1) {
-            console.error("received unsupported version in init message: " + options.version);
-            self.close({ problem: "not-supported" });
-            return;
-        }
-
-        if (options["channel-seed"])
-            channel_seed = String(options["channel-seed"]);
-        if (options.host)
-            default_host = options.host;
-
-        if (public_transport) {
-            public_transport.options = options;
-            public_transport.csrf_token = options["csrf-token"];
-            public_transport.host = default_host;
-        }
-
-        if (init_callback)
-            init_callback(options);
-
-        if (waiting_for_init) {
-            waiting_for_init = false;
-            ready_for_channels();
-        }
-    }
-
-    function process_control(data) {
-        const channel = data.channel;
-
-        /* Init message received */
-        if (data.command == "init") {
-            process_init(data);
-        } else if (waiting_for_init) {
-            waiting_for_init = false;
-            if (data.command != "close" || channel) {
-                console.error("received message before init: ", data.command);
-                data = { problem: "protocol-error" };
-            }
-            self.close(data);
-
-        /* Any pings get sent back as pongs */
-        } else if (data.command == "ping") {
-            data.command = "pong";
-            self.send_control(data);
-        } else if (data.command == "pong") {
-            /* Any pong commands are ignored */
-
-        } else if (data.command == "hint") {
-            if (process_hints)
-                process_hints(data);
-        } else if (channel !== undefined) {
-            const func = control_cbs[channel];
-            if (func)
-                func(data);
-        }
-    }
-
-    function process_message(channel, payload) {
-        const func = message_cbs[channel];
-        if (func)
-            func(payload);
-    }
-
-    /* The channel/control arguments is used by filters, and auto-populated if necessary */
-    self.send_data = function send_data(data, channel, control) {
-        if (!ws) {
-            return false;
-        }
-
-        const length = outgoing_filters ? outgoing_filters.length : 0;
-        for (let i = 0; i < length; i++) {
-            if (channel === undefined)
-                channel = parse_channel(data);
-            if (!channel && control === undefined)
-                control = JSON.parse(data);
-            if (outgoing_filters[i](data, channel, control) === false)
-                return false;
-        }
-
-        ws.send(data);
-        return true;
-    };
-
-    /* The control arguments is used by filters, and auto populated if necessary */
-    self.send_message = function send_message(payload, channel, control) {
-        if (channel)
-            transport_debug("send " + channel, payload);
-        else
-            transport_debug("send control:", payload);
-
-        /* A binary message */
-        if (payload.byteLength || Array.isArray(payload)) {
-            if (payload instanceof window.ArrayBuffer)
-                payload = new window.Uint8Array(payload);
-            const output = join_data([array_from_raw_string(channel), [10], payload], true);
-            return self.send_data(output.buffer, channel, control);
-
-        /* A string message */
-        } else {
-            return self.send_data(channel.toString() + "\n" + payload, channel, control);
-        }
-    };
-
-    self.send_control = function send_control(data) {
-        if (!ws && (data.command == "close" || data.command == "kill"))
-            return; /* don't complain if closed and closing */
-        if (check_health_timer &&
-            data.command == "hint" && data.hint == "ignore_transport_health_check") {
-            /* This is for us, process it directly. */
-            ignore_health_check = data.data;
-            return;
-        }
-        return self.send_message(JSON.stringify(data), "", data);
-    };
-
-    self.register = function register(channel, control_cb, message_cb) {
-        control_cbs[channel] = control_cb;
-        message_cbs[channel] = message_cb;
-    };
-
-    self.unregister = function unregister(channel) {
-        delete control_cbs[channel];
-        delete message_cbs[channel];
-    };
-}
-
-function ensure_transport(callback) {
-    if (!default_transport)
-        default_transport = new Transport();
-    const transport = default_transport;
-    if (transport.ready) {
-        callback(transport);
-    } else {
-        transport.addEventListener("ready", function() {
-            callback(transport);
-        });
-    }
-}
-
-/* Always close the transport explicitly: allows parent windows to track us */
-window.addEventListener("unload", function() {
-    if (default_transport)
-        default_transport.close();
-});
-
-function Channel(options) {
-    const self = this;
-
-    /* We can trigger events */
-    event_mixin(self, { });
-
-    let transport;
-    let ready = null;
-    let closed = null;
-    let waiting = null;
-    let received_done = false;
-    let sent_done = false;
-    let id = null;
-    const binary = (options.binary === true);
-
-    /*
-     * Queue while waiting for transport, items are tuples:
-     * [is_control ? true : false, payload]
-     */
-    const queue = [];
-
-    /* Handy for callers, but not used by us */
-    self.valid = true;
-    self.options = options;
-    self.binary = binary;
-    self.id = id;
-
-    function on_message(payload) {
-        if (received_done) {
-            console.warn("received message after done");
-            self.close("protocol-error");
-        } else {
-            self.dispatchEvent("message", payload);
-        }
-    }
-
-    function on_close(data) {
-        closed = data;
-        self.valid = false;
-        if (transport && id)
-            transport.unregister(id);
-        if (closed.message && !options.err)
-            console.warn(closed.message);
-        self.dispatchEvent("close", closed);
-        if (waiting)
-            waiting.resolve(closed);
-    }
-
-    function on_ready(data) {
-        ready = data;
-        self.dispatchEvent("ready", ready);
-    }
-
-    function on_control(data) {
-        if (data.command == "close") {
-            on_close(data);
-            return;
-        } else if (data.command == "ready") {
-            on_ready(data);
-        }
-
-        const done = data.command === "done";
-        if (done && received_done) {
-            console.warn("received two done commands on channel");
-            self.close("protocol-error");
-        } else {
-            if (done)
-                received_done = true;
-            self.dispatchEvent("control", data);
-        }
-    }
-
-    function send_payload(payload) {
-        if (!binary) {
-            if (typeof payload !== "string")
-                payload = String(payload);
-        }
-        transport.send_message(payload, id);
-    }
-
-    ensure_transport(function(trans) {
-        transport = trans;
-        if (closed)
-            return;
-
-        id = transport.next_channel();
-        self.id = id;
-
-        /* Register channel handlers */
-        transport.register(id, on_control, on_message);
-
-        /* Now open the channel */
-        const command = { };
-        for (const i in options)
-            command[i] = options[i];
-        command.command = "open";
-        command.channel = id;
-
-        if (!command.host) {
-            if (default_host)
-                command.host = default_host;
-        }
-
-        if (binary)
-            command.binary = "raw";
-        else
-            delete command.binary;
-
-        command["flow-control"] = true;
-        transport.send_control(command);
-
-        /* Now drain the queue */
-        while (queue.length > 0) {
-            const item = queue.shift();
-            if (item[0]) {
-                item[1].channel = id;
-                transport.send_control(item[1]);
-            } else {
-                send_payload(item[1]);
-            }
-        }
-    });
-
-    self.send = function send(message) {
-        if (closed)
-            console.warn("sending message on closed channel");
-        else if (sent_done)
-            console.warn("sending message after done");
-        else if (!transport)
-            queue.push([false, message]);
-        else
-            send_payload(message);
-    };
-
-    self.control = function control(options) {
-        options = options || { };
-        if (!options.command)
-            options.command = "options";
-        if (options.command === "done")
-            sent_done = true;
-        options.channel = id;
-        if (!transport)
-            queue.push([true, options]);
-        else
-            transport.send_control(options);
-    };
-
-    self.wait = function wait(callback) {
-        if (!waiting) {
-            waiting = cockpit.defer();
-            if (closed) {
-                waiting.reject(closed);
-            } else if (ready) {
-                waiting.resolve(ready);
-            } else {
-                self.addEventListener("ready", function(event, data) {
-                    waiting.resolve(data);
-                });
-                self.addEventListener("close", function(event, data) {
-                    waiting.reject(data);
-                });
-            }
-        }
-        const promise = waiting.promise;
-        if (callback)
-            promise.then(callback, callback);
-        return promise;
-    };
-
-    self.close = function close(options) {
-        if (closed)
-            return;
-
-        if (!options)
-            options = { };
-        else if (typeof options == "string")
-            options = { problem: options };
-        options.command = "close";
-        options.channel = id;
-
-        if (!transport)
-            queue.push([true, options]);
-        else
-            transport.send_control(options);
-        on_close(options);
-    };
-
-    self.buffer = function buffer(callback) {
-        const buffers = [];
-        buffers.callback = callback;
-        buffers.squash = function squash() {
-            return join_data(buffers, binary);
-        };
-
-        function on_message(event, data) {
-            buffers.push(data);
-            if (buffers.callback) {
-                const block = join_data(buffers, binary);
-                if (block.length > 0) {
-                    const consumed = buffers.callback.call(self, block);
-                    if (typeof consumed !== "number" || consumed === block.length) {
-                        buffers.length = 0;
-                    } else if (consumed === 0) {
-                        buffers.length = 1;
-                        buffers[0] = block;
-                    } else if (consumed !== 0) {
-                        buffers.length = 1;
-                        if (block.subarray)
-                            buffers[0] = block.subarray(consumed);
-                        else if (block.substring)
-                            buffers[0] = block.substring(consumed);
-                        else
-                            buffers[0] = block.slice(consumed);
-                    }
-                }
-            }
-        }
-
-        function on_close() {
-            self.removeEventListener("message", on_message);
-            self.removeEventListener("close", on_close);
-        }
-
-        self.addEventListener("message", on_message);
-        self.addEventListener("close", on_close);
-
-        return buffers;
-    };
-
-    self.toString = function toString() {
-        const host = options.host || "localhost";
-        return "[Channel " + (self.valid ? id : "<invalid>") + " -> " + host + "]";
-    };
-}
-
-/* Resolve dots and double dots */
-function resolve_path_dots(parts) {
-    const out = [];
-    const length = parts.length;
-    for (let i = 0; i < length; i++) {
-        const part = parts[i];
-        if (part === "" || part == ".") {
-            continue;
-        } else if (part == "..") {
-            if (out.length === 0)
-                return null;
-            out.pop();
-        } else {
-            out.push(part);
-        }
-    }
-    return out;
-}
+import { base64_encode, base64_decode } from './cockpit/_internal/base64';
+import { Channel } from './cockpit/_internal/channel';
+import {
+    in_array, is_function, is_object, is_plain_object, invoke_functions, iterate_data, join_data
+} from './cockpit/_internal/common';
+import { Deferred, later_invoke } from './cockpit/_internal/deferred';
+import { event_mixin } from './cockpit/_internal/event-mixin';
+import { url_root, transport_origin, calculate_application, calculate_url } from './cockpit/_internal/location';
+import { ensure_transport, transport_globals } from './cockpit/_internal/transport';
+import { FsInfoClient } from "./cockpit/fsinfo";
 
 function factory() {
+    const cockpit = { };
+    event_mixin(cockpit, { });
+
     cockpit.channel = function channel(options) {
         return new Channel(options);
     };
@@ -1031,95 +53,6 @@ function factory() {
      * Text Encoding
      */
 
-    function Utf8TextEncoder(constructor) {
-        const self = this;
-        self.encoding = "utf-8";
-
-        self.encode = function encode(string, options) {
-            const data = window.unescape(encodeURIComponent(string));
-            if (constructor === String)
-                return data;
-            return array_from_raw_string(data, constructor);
-        };
-    }
-
-    function Utf8TextDecoder(fatal) {
-        const self = this;
-        let buffer = null;
-        self.encoding = "utf-8";
-
-        self.decode = function decode(data, options) {
-            const stream = options?.stream;
-
-            if (data === null || data === undefined)
-                data = "";
-            if (typeof data !== "string")
-                data = array_to_raw_string(data);
-            if (buffer) {
-                data = buffer + data;
-                buffer = null;
-            }
-
-            /* We have to scan to do non-fatal and streaming */
-            const len = data.length;
-            let beg = 0;
-            let i = 0;
-            let str = "";
-
-            while (i < len) {
-                const p = data.charCodeAt(i);
-                const x = p == 255
-                    ? 0
-                    : p > 251 && p < 254
-                    ? 6
-                    : p > 247 && p < 252
-                    ? 5
-                    : p > 239 && p < 248
-                    ? 4
-                    : p > 223 && p < 240
-                    ? 3
-                    : p > 191 && p < 224
-                    ? 2
-                    : p < 128 ? 1 : 0;
-
-                let ok = (i + x <= len);
-                if (!ok && stream) {
-                    buffer = data.substring(i);
-                    break;
-                }
-                if (x === 0)
-                    ok = false;
-                for (let j = 1; ok && j < x; j++)
-                    ok = (data.charCodeAt(i + j) & 0x80) !== 0;
-
-                if (!ok) {
-                    if (fatal) {
-                        i = len;
-                        break;
-                    }
-
-                    str += decodeURIComponent(window.escape(data.substring(beg, i)));
-                    str += "\ufffd";
-                    i++;
-                    beg = i;
-                } else {
-                    i += x;
-                }
-            }
-
-            str += decodeURIComponent(window.escape(data.substring(beg, i)));
-            return str;
-        };
-    }
-
-    cockpit.utf8_encoder = function utf8_encoder(constructor) {
-        return new Utf8TextEncoder(constructor);
-    };
-
-    cockpit.utf8_decoder = function utf8_decoder(fatal) {
-        return new Utf8TextDecoder(!!fatal);
-    };
-
     cockpit.base64_encode = base64_encode;
     cockpit.base64_decode = base64_decode;
 
@@ -1134,41 +67,37 @@ function factory() {
 
     /* Not public API ... yet? */
     cockpit.hint = function hint(name, options) {
-        if (!default_transport)
+        if (!transport_globals.default_transport)
             return;
         if (!options)
-            options = default_host;
+            options = transport_globals.default_host;
         if (typeof options == "string")
             options = { host: options };
         options.hint = name;
         cockpit.transport.control("hint", options);
     };
 
-    cockpit.transport = public_transport = {
+    cockpit.transport = {
         wait: ensure_transport,
         inject: function inject(message, out) {
-            if (!default_transport)
+            if (!transport_globals.default_transport)
                 return false;
             if (out === undefined || out)
-                return default_transport.send_data(message);
+                return transport_globals.default_transport.send_data(message);
             else
-                return default_transport.dispatch_data({ data: message });
+                return transport_globals.default_transport.dispatch_data({ data: message });
         },
         filter: function filter(callback, out) {
             if (out) {
-                if (!outgoing_filters)
-                    outgoing_filters = [];
-                outgoing_filters.push(callback);
+                console.error("'out' filters are no longer supported");
             } else {
-                if (!incoming_filters)
-                    incoming_filters = [];
-                incoming_filters.push(callback);
+                transport_globals.incoming_filters.push(callback);
             }
         },
         close: function close(problem) {
-            if (default_transport)
-                default_transport.close(problem ? { problem } : undefined);
-            default_transport = null;
+            if (transport_globals.default_transport)
+                transport_globals.default_transport.close(problem ? { problem } : undefined);
+            transport_globals.default_transport = null;
             this.options = { };
         },
         origin: transport_origin,
@@ -1181,247 +110,11 @@ function factory() {
             });
         },
         application: function () {
-            if (!default_transport || window.mock)
+            if (!transport_globals.default_transport || window.mock)
                 return calculate_application();
-            return default_transport.application;
+            return transport_globals.default_transport.application;
         },
     };
-
-    /* ------------------------------------------------------------------------------------
-     * An ordered queue of functions that should be called later.
-     */
-
-    let later_queue = [];
-    let later_timeout = null;
-
-    function later_drain() {
-        const queue = later_queue;
-        later_timeout = null;
-        later_queue = [];
-        for (;;) {
-            const func = queue.shift();
-            if (!func)
-                break;
-            func();
-        }
-    }
-
-    function later_invoke(func) {
-        if (func)
-            later_queue.push(func);
-        if (later_timeout === null)
-            later_timeout = window.setTimeout(later_drain, 0);
-    }
-
-    /* ------------------------------------------------------------------------------------
-     * Promises.
-     * Based on Q and angular promises, with some jQuery compatibility. See the angular
-     * license in COPYING.node for license lineage. There are some key differences with
-     * both Q and jQuery.
-     *
-     *  * Exceptions thrown in handlers are not treated as rejections or failures.
-     *    Exceptions remain actual exceptions.
-     *  * Unlike jQuery callbacks added to an already completed promise don't execute
-     *    immediately. Wait until control is returned to the browser.
-     */
-
-    function promise_then(state, fulfilled, rejected, updated) {
-        if (fulfilled === undefined && rejected === undefined && updated === undefined)
-            return null;
-        const result = new Deferred();
-        state.pending = state.pending || [];
-        state.pending.push([result, fulfilled, rejected, updated]);
-        if (state.status > 0)
-            schedule_process_queue(state);
-        return result.promise;
-    }
-
-    function create_promise(state) {
-        /* Like jQuery the promise object is callable */
-        const self = function Promise(target) {
-            if (target) {
-                Object.assign(target, self);
-                return target;
-            }
-            return self;
-        };
-
-        state.status = 0;
-
-        self.then = function then(fulfilled, rejected, updated) {
-            return promise_then(state, fulfilled, rejected, updated) || self;
-        };
-
-        self.catch = function catch_(callback) {
-            return promise_then(state, null, callback) || self;
-        };
-
-        self.finally = function finally_(callback, updated) {
-            return promise_then(state, function() {
-                return handle_callback(arguments, true, callback);
-            }, function() {
-                return handle_callback(arguments, false, callback);
-            }, updated) || self;
-        };
-
-        /* Basic jQuery Promise compatibility */
-        self.done = function done(fulfilled) {
-            promise_then(state, fulfilled);
-            return self;
-        };
-
-        self.fail = function fail(rejected) {
-            promise_then(state, null, rejected);
-            return self;
-        };
-
-        self.always = function always(callback) {
-            promise_then(state, callback, callback);
-            return self;
-        };
-
-        self.progress = function progress(updated) {
-            promise_then(state, null, null, updated);
-            return self;
-        };
-
-        self.state = function state_() {
-            if (state.status == 1)
-                return "resolved";
-            if (state.status == 2)
-                return "rejected";
-            return "pending";
-        };
-
-        /* Promises are recursive like jQuery */
-        self.promise = self;
-
-        return self;
-    }
-
-    function process_queue(state) {
-        const pending = state.pending;
-        state.process_scheduled = false;
-        state.pending = undefined;
-        for (let i = 0, ii = pending.length; i < ii; ++i) {
-            state.pur = true;
-            const deferred = pending[i][0];
-            const fn = pending[i][state.status];
-            if (is_function(fn)) {
-                deferred.resolve(fn.apply(state.promise, state.values));
-            } else if (state.status === 1) {
-                deferred.resolve.apply(deferred.resolve, state.values);
-            } else {
-                deferred.reject.apply(deferred.reject, state.values);
-            }
-        }
-    }
-
-    function schedule_process_queue(state) {
-        if (state.process_scheduled || !state.pending)
-            return;
-        state.process_scheduled = true;
-        later_invoke(function() { process_queue(state) });
-    }
-
-    function deferred_resolve(state, values) {
-        let then;
-        let done = false;
-        if (is_object(values[0]) || is_function(values[0]))
-            then = values[0]?.then;
-        if (is_function(then)) {
-            state.status = -1;
-            then.call(values[0], function(/* ... */) {
-                if (done)
-                    return;
-                done = true;
-                deferred_resolve(state, arguments);
-            }, function(/* ... */) {
-                if (done)
-                    return;
-                done = true;
-                deferred_reject(state, arguments);
-            }, function(/* ... */) {
-                deferred_notify(state, arguments);
-            });
-        } else {
-            state.values = values;
-            state.status = 1;
-            schedule_process_queue(state);
-        }
-    }
-
-    function deferred_reject(state, values) {
-        state.values = values;
-        state.status = 2;
-        schedule_process_queue(state);
-    }
-
-    function deferred_notify(state, values) {
-        const callbacks = state.pending;
-        if ((state.status <= 0) && callbacks?.length) {
-            later_invoke(function() {
-                for (let i = 0, ii = callbacks.length; i < ii; i++) {
-                    const result = callbacks[i][0];
-                    const callback = callbacks[i][3];
-                    if (is_function(callback))
-                        result.notify(callback.apply(state.promise, values));
-                    else
-                        result.notify.apply(result, values);
-                }
-            });
-        }
-    }
-
-    function Deferred() {
-        const self = this;
-        const state = { };
-        self.promise = state.promise = create_promise(state);
-
-        self.resolve = function resolve(/* ... */) {
-            if (arguments[0] === state.promise)
-                throw new Error("Expected promise to be resolved with other value than itself");
-            if (!state.status)
-                deferred_resolve(state, arguments);
-            return self;
-        };
-
-        self.reject = function reject(/* ... */) {
-            if (state.status)
-                return;
-            deferred_reject(state, arguments);
-            return self;
-        };
-
-        self.notify = function notify(/* ... */) {
-            deferred_notify(state, arguments);
-            return self;
-        };
-    }
-
-    function prep_promise(values, resolved) {
-        const result = cockpit.defer();
-        if (resolved)
-            result.resolve.apply(result, values);
-        else
-            result.reject.apply(result, values);
-        return result.promise;
-    }
-
-    function handle_callback(values, is_resolved, callback) {
-        let callback_output = null;
-        if (is_function(callback))
-            callback_output = callback();
-        if (callback_output && is_function(callback_output.then)) {
-            return callback_output.then(function() {
-                return prep_promise(values, is_resolved);
-            }, function() {
-                return prep_promise(arguments, false);
-            });
-        } else {
-            return prep_promise(values, is_resolved);
-        }
-    }
 
     cockpit.when = function when(value, fulfilled, rejected, updated) {
         const result = cockpit.defer();
@@ -1497,10 +190,24 @@ function factory() {
             });
     };
 
-    function format_units(number, suffixes, factor, options) {
-        // backwards compat: "options" argument position used to be a boolean flag "separate"
-        if (!is_object(options))
-            options = { separate: options };
+    let deprecated_format_warned = false;
+    function format_units(suffixes, number, second_arg, third_arg) {
+        let options = second_arg;
+        let factor = options?.base2 ? 1024 : 1000;
+
+        // compat API: we used to accept 'factor' as a separate second arg
+        if (third_arg || (second_arg && !is_object(second_arg))) {
+            if (!deprecated_format_warned) {
+                console.warn(`cockpit.format_{bytes,bits}[_per_sec](..., ${second_arg}, ${third_arg}) is deprecated.`);
+                deprecated_format_warned = true;
+            }
+
+            factor = second_arg || 1000;
+            options = third_arg;
+            // double backwards compat: "options" argument position used to be a boolean flag "separate"
+            if (!is_object(options))
+                options = { separate: options };
+        }
 
         let suffix = null;
 
@@ -1539,7 +246,7 @@ function factory() {
             }
         }
 
-        const string_representation = cockpit.format_number(number, options.precision);
+        const string_representation = cockpit.format_number(number, options?.precision);
         let ret;
 
         if (string_representation && suffix)
@@ -1547,47 +254,19 @@ function factory() {
         else
             ret = [string_representation];
 
-        if (!options.separate)
+        if (!options?.separate)
             ret = ret.join(" ");
 
         return ret;
     }
 
     const byte_suffixes = {
-        1000: [null, "KB", "MB", "GB", "TB", "PB", "EB", "ZB"],
-        1024: [null, "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"]
+        1000: ["B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB"],
+        1024: ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"]
     };
 
-    cockpit.format_bytes = function format_bytes(number, factor, options) {
-        if (factor === undefined)
-            factor = 1000;
-        return format_units(number, byte_suffixes, factor, options);
-    };
-
-    cockpit.get_byte_units = function get_byte_units(guide_value, factor) {
-        if (factor === undefined || !(factor in byte_suffixes))
-            factor = 1000;
-
-        function unit(index) {
-            return {
- name: byte_suffixes[factor][index],
-                     factor: Math.pow(factor, index)
-                   };
-        }
-
-        const units = [unit(2), unit(3), unit(4)];
-
-        // The default unit is the largest one that gives us at least
-        // two decimal digits in front of the comma.
-
-        for (let i = units.length - 1; i >= 0; i--) {
-            if (i === 0 || (guide_value / units[i].factor) >= 10) {
-                units[i].selected = true;
-                break;
-            }
-        }
-
-        return units;
+    cockpit.format_bytes = function format_bytes(number, ...args) {
+        return format_units(byte_suffixes, number, ...args);
     };
 
     const byte_sec_suffixes = {
@@ -1595,20 +274,16 @@ function factory() {
         1024: ["B/s", "KiB/s", "MiB/s", "GiB/s", "TiB/s", "PiB/s", "EiB/s", "ZiB/s"]
     };
 
-    cockpit.format_bytes_per_sec = function format_bytes_per_sec(number, factor, options) {
-        if (factor === undefined)
-            factor = 1000;
-        return format_units(number, byte_sec_suffixes, factor, options);
+    cockpit.format_bytes_per_sec = function format_bytes_per_sec(number, ...args) {
+        return format_units(byte_sec_suffixes, number, ...args);
     };
 
     const bit_suffixes = {
         1000: ["bps", "Kbps", "Mbps", "Gbps", "Tbps", "Pbps", "Ebps", "Zbps"]
     };
 
-    cockpit.format_bits_per_sec = function format_bits_per_sec(number, factor, options) {
-        if (factor === undefined)
-            factor = 1000;
-        return format_units(number, bit_suffixes, factor, options);
+    cockpit.format_bits_per_sec = function format_bits_per_sec(number, ...args) {
+        return format_units(bit_suffixes, number, ...args);
     };
 
     /* ---------------------------------------------------------------------
@@ -2285,6 +960,10 @@ function factory() {
             offset = null;
         }
 
+        function is_negative(n) {
+            return ((n = +n) || 1 / n) < 0;
+        }
+
         self.move = function move(beg, end) {
             stop_walking();
             /* Some code paths use now twice.
@@ -2372,10 +1051,10 @@ function factory() {
         cockpit.localStorage.clear(false);
 
         if (reload !== false)
-            reload_after_disconnect = true;
+            transport_globals.reload_after_disconnect = true;
         ensure_transport(function(transport) {
             if (!transport.send_control({ command: "logout", disconnect: true }))
-                window.location.reload(reload_after_disconnect);
+                window.location.reload(transport_globals.reload_after_disconnect);
         });
         window.sessionStorage.setItem("logout-intent", "explicit");
         if (reason)
@@ -2396,38 +1075,39 @@ function factory() {
     cockpit.info = { };
     event_mixin(cockpit.info, { });
 
-    init_callback = function(options) {
+    transport_globals.init_callback = function(options) {
         if (options.system)
             Object.assign(cockpit.info, options.system);
         if (options.system)
             cockpit.info.dispatchEvent("changed");
+
+        cockpit.transport.options = options;
+        cockpit.transport.csrf_token = options["csrf-token"];
+        cockpit.transport.host = transport_globals.default_host;
     };
 
     let the_user = null;
     cockpit.user = function () {
-        const dfd = cockpit.defer();
-        if (!the_user) {
-            const dbus = cockpit.dbus(null, { bus: "internal" });
-            dbus.call("/user", "org.freedesktop.DBus.Properties", "GetAll",
-                      ["cockpit.User"], { type: "s" })
-                .then(([user]) => {
-                    the_user = {
-                        id: user.Id.v,
-                        name: user.Name.v,
-                        full_name: user.Full.v,
-                        groups: user.Groups.v,
-                        home: user.Home.v,
-                        shell: user.Shell.v
-                    };
-                    dfd.resolve(the_user);
-                })
-                .catch(ex => dfd.reject(ex))
-                .finally(() => dbus.close());
-        } else {
-            dfd.resolve(the_user);
-        }
-
-        return dfd.promise;
+            if (!the_user) {
+                const dbus = cockpit.dbus(null, { bus: "internal" });
+                return dbus.call("/user", "org.freedesktop.DBus.Properties", "GetAll",
+                          ["cockpit.User"], { type: "s" })
+                    .then(([user]) => {
+                        the_user = {
+                            id: user.Id.v,
+                            gid: user.Gid?.v,
+                            name: user.Name.v,
+                            full_name: user.Full.v,
+                            groups: user.Groups.v,
+                            home: user.Home.v,
+                            shell: user.Shell.v
+                        };
+                        return the_user;
+                    })
+                    .finally(() => dbus.close());
+            } else {
+                return Promise.resolve(the_user);
+            }
     };
 
     /* ------------------------------------------------------------------------
@@ -2472,6 +1152,25 @@ function factory() {
         const href = get_window_location_hash();
         const options = { };
         self.path = decode(href, options);
+
+        /* Resolve dots and double dots */
+        function resolve_path_dots(parts) {
+            const out = [];
+            const length = parts.length;
+            for (let i = 0; i < length; i++) {
+                const part = parts[i];
+                if (part === "" || part == ".") {
+                    continue;
+                } else if (part == "..") {
+                    if (out.length === 0)
+                        return null;
+                    out.pop();
+                } else {
+                    out.push(part);
+                }
+            }
+            return out;
+        }
 
         function decode_path(input) {
             const parts = input.split('/').map(decodeURIComponent);
@@ -2659,13 +1358,10 @@ function factory() {
      */
 
     (function() {
-        let hiddenProp;
         let hiddenHint = false;
 
         function visibility_change() {
-            let value = document[hiddenProp];
-            if (!hiddenProp || typeof value === "undefined")
-                value = false;
+            let value = document.hidden;
             if (value === false)
                 value = hiddenHint;
             if (cockpit.hidden !== value) {
@@ -2674,26 +1370,14 @@ function factory() {
             }
         }
 
-        if (typeof document.hidden !== "undefined") {
-            hiddenProp = "hidden";
-            document.addEventListener("visibilitychange", visibility_change);
-        } else if (typeof document.mozHidden !== "undefined") {
-            hiddenProp = "mozHidden";
-            document.addEventListener("mozvisibilitychange", visibility_change);
-        } else if (typeof document.msHidden !== "undefined") {
-            hiddenProp = "msHidden";
-            document.addEventListener("msvisibilitychange", visibility_change);
-        } else if (typeof document.webkitHidden !== "undefined") {
-            hiddenProp = "webkitHidden";
-            document.addEventListener("webkitvisibilitychange", visibility_change);
-        }
+        document.addEventListener("visibilitychange", visibility_change);
 
         /*
          * Wait for changes in visibility of just our iframe. These are delivered
          * via a hint message from the parent. For now we are the only handler of
          * hint messages, so this is implemented rather simply on purpose.
          */
-        process_hints = function(data) {
+        transport_globals.process_hints = function(data) {
             if ("hidden" in data) {
                 hiddenHint = data.hidden;
                 visibility_change();
@@ -2754,6 +1438,8 @@ function factory() {
         }
         if (options !== undefined)
             Object.assign(args, options);
+
+        spawn_debug("process spawn:", JSON.stringify(args.spawn));
 
         const name = args.spawn[0] || "process";
         const channel = cockpit.channel(args);
@@ -3591,9 +2277,20 @@ function factory() {
                 }
             });
 
-            iterate_data(file_content, function(data) {
-                replace_channel.send(data);
-            });
+            // null means 'erase this file', which is what will happen if
+            // we send no data. the empty string means "write an empty
+            // file", and in order to do that, we need to explicitly send
+            // an empty frame (or we'll delete the file). iterate_data()
+            // doesn't call us if the string is empty, so we handle it.
+            if (file_content !== null) {
+                if (file_content.length === 0 || file_content.byteLength === 0) {
+                    replace_channel.send(file_content);
+                } else {
+                    iterate_data(file_content, data => {
+                        replace_channel.send(data);
+                    });
+                }
+            }
 
             replace_channel.control({ command: "done" });
             return dfd.promise;
@@ -3645,24 +2342,53 @@ function factory() {
                 if (watch_channel)
                     return;
 
-                const opts = {
-                    payload: "fswatch1",
-                    path,
-                    superuser: base_channel_options.superuser,
-                };
-                watch_channel = cockpit.channel(opts);
-                watch_channel.addEventListener("message", function (event, message_string) {
-                    let message;
-                    try {
-                        message = JSON.parse(message_string);
-                    } catch (e) {
-                        message = null;
+                watch_channel = new FsInfoClient(path, ["tag"], { superuser: base_channel_options.superuser });
+                watch_channel.on('change', (state) => {
+                    if (state.error) {
+                        // Behave like fsread1, not-found is not a fatal error
+                        if (state.error.problem === "not-found") {
+                            fire_watch_callbacks(null, "-");
+                        } else {
+                            const error = new BasicError(state.error.problem, state.error.message);
+                            fire_watch_callbacks(null, null, error);
+                        }
+                    } else if (state.info && state.info.tag) {
+                        // otherwise, the file is present with the given tag
+                        if (state.info.tag !== watch_tag) {
+                            // cockpit.file.watch() defaults to reading
+                            if (options?.read === false)
+                                fire_watch_callbacks(null, state.info.tag);
+                            else
+                                read();
+                        }
                     }
-                    if (message && message.path == path && message.tag && message.tag != watch_tag) {
-                        if (options && options.read !== undefined && !options.read)
-                            fire_watch_callbacks(null, message.tag);
-                        else
-                            read();
+                });
+
+                // fallback when running against bridge < 310
+                watch_channel.on('close', ex => {
+                    if (ex.problem === 'not-supported') {
+                        const opts = {
+                            payload: "fswatch1",
+                            path,
+                            superuser: base_channel_options.superuser,
+                        };
+                        watch_channel = cockpit.channel(opts);
+                        watch_channel.addEventListener("message", (event, message_string) => {
+                            let message;
+                            try {
+                                message = JSON.parse(message_string);
+                            } catch (e) {
+                                message = null;
+                            }
+                            if (message && message.path == path && message.tag && message.tag != watch_tag) {
+                                if (options && options.read !== undefined && !options.read)
+                                    fire_watch_callbacks(null, message.tag);
+                                else
+                                    read();
+                            }
+                        });
+                        // trigger initial watch event
+                        read();
                     }
                 });
             } else {
@@ -3685,7 +2411,6 @@ function factory() {
             ensure_watch_channel(options);
 
             watch_tag = null;
-            read();
 
             return {
                 remove: function () {
@@ -3706,7 +2431,7 @@ function factory() {
             if (replace_channel)
                 replace_channel.close("cancelled");
             if (watch_channel)
-                watch_channel.close("cancelled");
+                watch_channel.close();
         }
 
         return self;
@@ -3721,6 +2446,7 @@ function factory() {
 
     cockpit.language = "en";
     cockpit.language_direction = "ltr";
+    const test_l10n = window.localStorage.test_l10n;
 
     cockpit.locale = function locale(po) {
         let lang = cockpit.language;
@@ -3808,8 +2534,12 @@ function factory() {
         if (po_data) {
             const translated = po_data[key];
             if (translated?.[1])
-                return translated[1];
+                string = translated[1];
         }
+
+        if (test_l10n === 'true')
+            return "»" + string + "«";
+
         return string;
     };
 
@@ -4036,7 +2766,7 @@ function factory() {
 
                 if (options.problem) {
                     http_debug("http problem: ", options.problem);
-                    dfd.reject(new BasicError(options.problem));
+                    dfd.reject(new BasicError(options.problem, options.message));
                 } else {
                     const body = buffer.squash();
 
@@ -4441,11 +3171,18 @@ function factory() {
         return false;
     };
 
+    cockpit.assert = (predicate, message) => {
+        if (!predicate) {
+            throw new Error(`Assertion failed: ${message}`);
+        }
+    };
+
     return cockpit;
 }
 
+const cockpit = factory();
+export default cockpit;
+
 // Register cockpit object as global, so that it can be used without ES6 modules
 // we need to do that here instead of in pkg/base1/cockpit.js, so that po.js can access cockpit already
-window.cockpit = factory();
-
-export default window.cockpit;
+window.cockpit = cockpit;

@@ -4,7 +4,6 @@ import { log_cmd } from "../tools.jsx";
 import {
     Button,
     Checkbox,
-    ExpandableSection,
     Form,
     FormGroup,
     FormSelect,
@@ -23,24 +22,13 @@ import {
     TextVariants,
     TimePicker,
 } from "@patternfly/react-core";
-import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableVariant
-} from '@patternfly/react-table';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
 
 const settings_attrs = [
     'nsslapd-securitylog',
-    'nsslapd-securitylog-level',
     'nsslapd-securitylog-logbuffering',
     'nsslapd-securitylog-logging-enabled',
 ];
@@ -83,16 +71,6 @@ export class ServerSecurityLog extends React.Component {
             saveRotationDisabled: true,
             saveExpDisabled: true,
             attrs: this.props.attrs,
-            canSelectAll: false,
-            isExpanded: false,
-            rows: [
-                { cells: ['Default Logging'], level: 256, selected: true },
-                { cells: ['Internal Operations'], level: 4, selected: false },
-                { cells: ['Entry Security and Referrals'], level: 512, selected: false }
-            ],
-            columns: [
-                { title: _("Logging Level") },
-            ],
         };
 
         // Toggle currently active tab
@@ -102,19 +80,12 @@ export class ServerSecurityLog extends React.Component {
             });
         };
 
-        this.handleOnToggle = isExpanded => {
-            this.setState({
-                isExpanded
-            });
-        };
-
         this.handleChange = this.handleChange.bind(this);
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTimeChange = this.handleTimeChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.refreshConfig = this.refreshConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
-        this.handleOnSelect = this.handleOnSelect.bind(this);
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
                 [id]: Number(this.state[id]) - 1
@@ -155,17 +126,6 @@ export class ServerSecurityLog extends React.Component {
         if (nav_tab === "settings") {
             config_attrs = settings_attrs;
             disableBtnName = "saveSettingsDisabled";
-            // Handle the table contents check now
-            for (const row of this.state.rows) {
-                for (const orig_row of this.state._rows) {
-                    if (orig_row.cells[0] === row.cells[0]) {
-                        if (orig_row.selected !== row.selected) {
-                            disableSaveBtn = false;
-                            break;
-                        }
-                    }
-                }
-            }
         } else if (nav_tab === "rotation") {
             disableBtnName = "saveRotationDisabled";
             config_attrs = rotation_attrs;
@@ -245,7 +205,6 @@ export class ServerSecurityLog extends React.Component {
     }
 
     saveConfig(nav_tab) {
-        let new_level = 0;
         this.setState({
             loading: true
         });
@@ -276,18 +235,6 @@ export class ServerSecurityLog extends React.Component {
                 }
                 cmd.push(attr + "=" + val);
             }
-        }
-
-        for (const row of this.state.rows) {
-            if (row.selected) {
-                new_level += row.level;
-            }
-        }
-        if (new_level.toString() !== this.state['_nsslapd-securitylog-level']) {
-            if (new_level === 0) {
-                new_level = 256; // default
-            }
-            cmd.push("nsslapd-securitylog-level" + "=" + new_level.toString());
         }
 
         if (cmd.length === 5) {
@@ -334,8 +281,6 @@ export class ServerSecurityLog extends React.Component {
                     let enabled = false;
                     let buffering = false;
                     let compress = false;
-                    const level_val = parseInt(attrs['nsslapd-securitylog-level'][0]);
-                    const rows = [...this.state.rows];
 
                     if (attrs['nsslapd-securitylog-logging-enabled'][0] === "on") {
                         enabled = true;
@@ -346,13 +291,6 @@ export class ServerSecurityLog extends React.Component {
                     if (attrs['nsslapd-securitylog-compress'][0] === "on") {
                         compress = true;
                     }
-                    for (const row in rows) {
-                        if (rows[row].level & level_val) {
-                            rows[row].selected = true;
-                        } else {
-                            rows[row].selected = false;
-                        }
-                    }
 
                     this.setState({
                         loading: false,
@@ -361,7 +299,6 @@ export class ServerSecurityLog extends React.Component {
                         saveRotationDisabled: true,
                         saveExpDisabled: true,
                         'nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
-                        'nsslapd-securitylog-level': attrs['nsslapd-securitylog-level'][0],
                         'nsslapd-securitylog-logbuffering': buffering,
                         'nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
                         'nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
@@ -376,11 +313,8 @@ export class ServerSecurityLog extends React.Component {
                         'nsslapd-securitylog-maxlogsize': attrs['nsslapd-securitylog-maxlogsize'][0],
                         'nsslapd-securitylog-maxlogsperdir': attrs['nsslapd-securitylog-maxlogsperdir'][0],
                         'nsslapd-securitylog-compress': compress,
-                        rows,
                         // Record original values
-                        _rows:  JSON.parse(JSON.stringify(rows)),
                         '_nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
-                        '_nsslapd-securitylog-level': attrs['nsslapd-securitylog-level'][0],
                         '_nsslapd-securitylog-logbuffering': buffering,
                         '_nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
                         '_nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
@@ -415,8 +349,6 @@ export class ServerSecurityLog extends React.Component {
         let enabled = false;
         let buffering = false;
         let compress = false;
-        const level_val = parseInt(attrs['nsslapd-securitylog-level'][0]);
-        const rows = [...this.state.rows];
 
         if (attrs['nsslapd-securitylog-logging-enabled'][0] === "on") {
             enabled = true;
@@ -427,13 +359,6 @@ export class ServerSecurityLog extends React.Component {
         if (attrs['nsslapd-securitylog-compress'][0] === "on") {
             compress = true;
         }
-        for (const row in rows) {
-            if (rows[row].level & level_val) {
-                rows[row].selected = true;
-            } else {
-                rows[row].selected = false;
-            }
-        }
 
         this.setState({
             loading: false,
@@ -442,7 +367,6 @@ export class ServerSecurityLog extends React.Component {
             saveRotationDisabled: true,
             saveExpDisabled: true,
             'nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
-            'nsslapd-securitylog-level': attrs['nsslapd-securitylog-level'][0],
             'nsslapd-securitylog-logbuffering': buffering,
             'nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
             'nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
@@ -457,11 +381,8 @@ export class ServerSecurityLog extends React.Component {
             'nsslapd-securitylog-maxlogsize': attrs['nsslapd-securitylog-maxlogsize'][0],
             'nsslapd-securitylog-maxlogsperdir': attrs['nsslapd-securitylog-maxlogsperdir'][0],
             'nsslapd-securitylog-compress': compress,
-            rows,
             // Record original values
-            _rows: JSON.parse(JSON.stringify(rows)),
             '_nsslapd-securitylog': attrs['nsslapd-securitylog'][0],
-            '_nsslapd-securitylog-level': attrs['nsslapd-securitylog-level'][0],
             '_nsslapd-securitylog-logbuffering': buffering,
             '_nsslapd-securitylog-logexpirationtime': attrs['nsslapd-securitylog-logexpirationtime'][0],
             '_nsslapd-securitylog-logexpirationtimeunit': attrs['nsslapd-securitylog-logexpirationtimeunit'][0],
@@ -477,39 +398,6 @@ export class ServerSecurityLog extends React.Component {
             '_nsslapd-securitylog-maxlogsperdir': attrs['nsslapd-securitylog-maxlogsperdir'][0],
             '_nsslapd-securitylog-compress': compress,
         }, this.props.enableTree);
-    }
-
-    handleOnSelect(event, isSelected, rowId) {
-        let disableSaveBtn = true;
-        const rows = JSON.parse(JSON.stringify(this.state.rows));
-
-        // Update the row
-        rows[rowId].selected = isSelected;
-
-        // Handle "save button" state, first check the other config settings
-        for (const config_attr of settings_attrs) {
-            if (this.state['_' + config_attr] !== this.state[config_attr]) {
-                disableSaveBtn = false;
-                break;
-            }
-        }
-
-        // Handle the table contents
-        for (const row of rows) {
-            for (const orig_row of this.state._rows) {
-                if (orig_row.cells[0] === row.cells[0]) {
-                    if (orig_row.selected !== row.selected) {
-                        disableSaveBtn = false;
-                        break;
-                    }
-                }
-            }
-        }
-
-        this.setState({
-            rows,
-            saveSettingsDisabled: disableSaveBtn,
-        });
     }
 
     render() {
@@ -545,7 +433,7 @@ export class ServerSecurityLog extends React.Component {
                             className="ds-margin-top-xlg"
                             id="nsslapd-securitylog-logging-enabled"
                             isChecked={this.state['nsslapd-securitylog-logging-enabled']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Enable security logging (nsslapd-securitylog-logging-enabled).")}
@@ -563,7 +451,7 @@ export class ServerSecurityLog extends React.Component {
                                     id="nsslapd-securitylog"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-securitylog"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
@@ -573,32 +461,12 @@ export class ServerSecurityLog extends React.Component {
                             className="ds-left-margin-md ds-margin-top-lg"
                             id="nsslapd-securitylog-logbuffering"
                             isChecked={this.state['nsslapd-securitylog-logbuffering']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Disable security log buffering for faster troubleshooting, but this will impact server performance (nsslapd-securitylog-logbuffering).")}
                             label={_("Security Log Buffering Enabled")}
                         />
-
-                        <ExpandableSection
-                            className="ds-hidden ds-left-margin-md ds-margin-top-lg ds-font-size-md"
-                            toggleText={this.state.isExpanded ? _("Hide Logging Levels") : _("Show Logging Levels")}
-                            onToggle={this.handleOnToggle}
-                            isExpanded={this.state.isExpanded}
-                        >
-                            <Table
-                                className="ds-left-margin"
-                                onSelect={this.handleOnSelect}
-                                canSelectAll={this.state.canSelectAll}
-                                variant={TableVariant.compact}
-                                aria-label="Selectable Table"
-                                cells={this.state.columns}
-                                rows={this.state.rows}
-                            >
-                                <TableHeader />
-                                <TableBody />
-                            </Table>
-                        </ExpandableSection>
 
                         <Button
                             key="save settings"
@@ -684,7 +552,7 @@ export class ServerSecurityLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-securitylog-logrotationtimeunit"
                                                 value={this.state['nsslapd-securitylog-logrotationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rotation");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -719,7 +587,8 @@ export class ServerSecurityLog extends React.Component {
                                     <Switch
                                         id="nsslapd-securitylog-compress"
                                         isChecked={this.state['nsslapd-securitylog-compress']}
-                                        onChange={this.handleSwitchChange}
+                                        onChange={(_event, value) => this.handleSwitchChange(value)}
+                                        aria-label="nsslapd-securitylog-compress"
                                     />
                                 </GridItem>
                             </Grid>
@@ -812,7 +681,7 @@ export class ServerSecurityLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-securitylog-logexpirationtimeunit"
                                                 value={this.state['nsslapd-securitylog-logexpirationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "exp");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -863,15 +732,15 @@ export class ServerSecurityLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Security Log Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh log settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

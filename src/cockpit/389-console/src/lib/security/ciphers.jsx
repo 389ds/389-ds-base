@@ -1,23 +1,25 @@
 import React from "react";
 import cockpit from "cockpit";
 import {
-    Button,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    FormHelperText,
-    Grid,
-    GridItem,
-    Select,
-    SelectVariant,
-    SelectOption,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Text,
-    TextContent,
-    TextVariants,
-} from "@patternfly/react-core";
+	Button,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	FormHelperText,
+	Grid,
+	GridItem,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import { log_cmd } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
 
@@ -40,7 +42,7 @@ export class Ciphers extends React.Component {
         };
 
         // Allow Ciphers
-        this.handleAllowCipherToggle = isAllowCipherOpen => {
+        this.handleAllowCipherToggle = (_event, isAllowCipherOpen) => {
             this.setState({
                 isAllowCipherOpen
             });
@@ -52,7 +54,7 @@ export class Ciphers extends React.Component {
             });
         };
 
-        this.handleDenyCipherToggle = isDenyCipherOpen => {
+        this.handleDenyCipherToggle = (_event, isDenyCipherOpen) => {
             this.setState({
                 isDenyCipherOpen
             });
@@ -408,14 +410,14 @@ export class Ciphers extends React.Component {
                                 <FormSelect
                                     id="cipherPref"
                                     value={this.state.cipherPref}
-                                    onChange={this.handlePrefChange}
+                                    onChange={(_event, val) => this.handlePrefChange(val)}
                                     aria-label="pref select"
                                 >
                                     <FormSelectOption key="1" value="default" label={_("Default Ciphers")} />
                                     <FormSelectOption key="2" value="+all" label={_("All Ciphers")} />
                                     <FormSelectOption key="3" value="-all" label={_("No Ciphers")} />
                                 </FormSelect>
-                                <FormHelperText isHidden={this.state.cipherPref !== "default"}>
+                                <FormHelperText >
                                     {_("Default cipher suite is chosen. It enables the default ciphers advertised by NSS except weak ciphers.")}{(this.state.allowCiphers.length !== 0 || this.state.denyCiphers.length !== 0) ? _(" Any data in the 'Allow Specific Ciphers' and 'Deny Specific Ciphers' fields will be cleaned after the restart.") : ""}
                                 </FormHelperText>
                             </GridItem>
@@ -429,7 +431,7 @@ export class Ciphers extends React.Component {
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel={_("Type a cipher")}
                                     isDisabled={this.state.cipherPref === "default"}
-                                    onToggle={this.handleAllowCipherToggle}
+                                    onToggle={(event, isOpen) => this.handleAllowCipherToggle(event, isOpen)}
                                     onSelect={this.handleAllowCipherChange}
                                     onClear={this.handleAllowCipherClear}
                                     selections={this.state.allowCiphers}
@@ -457,7 +459,7 @@ export class Ciphers extends React.Component {
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel={_("Type a cipher")}
                                     isDisabled={this.state.cipherPref === "default"}
-                                    onToggle={this.handleDenyCipherToggle}
+                                    onToggle={(event, isOpen) => this.handleDenyCipherToggle(event, isOpen)}
                                     onSelect={this.handleDenyCipherChange}
                                     onClear={this.handleDenyCipherClear}
                                     selections={this.state.denyCiphers}

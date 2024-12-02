@@ -23,13 +23,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faBook,
-    faLeaf,
-    faLink,
-    faTree,
-} from '@fortawesome/free-solid-svg-icons';
+import { BookIcon, TreeIcon, LeafIcon, LinkIcon } from '@patternfly/react-icons';
 import {
     CatalogIcon,
     ClusterIcon,
@@ -132,11 +126,11 @@ export class Monitor extends React.Component {
     processTree(suffixData) {
         for (const suffix of suffixData) {
             if (suffix.type === "suffix") {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+                suffix.icon = <TreeIcon size="sm" />;
             } else if (suffix.type === "subsuffix") {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+                suffix.icon = <LeafIcon size="sm" />;
             } else {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faLink} />;
+                suffix.icon = <LinkIcon size="sm" />;
             }
             if (suffix.children.length === 0) {
                 delete suffix.children;
@@ -150,7 +144,7 @@ export class Monitor extends React.Component {
         for (const suffix of this.state.replicatedSuffixes) {
             suffixTree.push({
                 name: suffix,
-                icon: <FontAwesomeIcon size="sm" icon={faTree} />,
+                icon: <TreeIcon size="sm" />,
                 id: "replication-suffix-" + suffix,
                 type: "replication-suffix",
                 defaultExpanded: false,
@@ -242,31 +236,31 @@ export class Monitor extends React.Component {
                             children: [
                                 {
                                     name: _("Access Log"),
-                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                                    icon: <BookIcon size="sm" />,
                                     id: "access-log-monitor",
                                     type: "log",
                                 },
                                 {
                                     name: _("Audit Log"),
-                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                                    icon: <BookIcon size="sm" />,
                                     id: "audit-log-monitor",
                                     type: "log",
                                 },
                                 {
                                     name: _("Audit Failure Log"),
-                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                                    icon: <BookIcon size="sm" />,
                                     id: "auditfail-log-monitor",
                                     type: "log",
                                 },
                                 {
                                     name: _("Errors Log"),
-                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                                    icon: <BookIcon size="sm" />,
                                     id: "error-log-monitor",
                                     type: "log",
                                 },
                                 {
                                     name: _("Security Log"),
-                                    icon: <FontAwesomeIcon size="sm" icon={faBook} />,
+                                    icon: <BookIcon size="sm" />,
                                     id: "security-log-monitor",
                                     type: "log",
                                 },
@@ -1061,7 +1055,7 @@ export class Monitor extends React.Component {
                                     addNotification={this.props.addNotification}
                                     reloadAgmts={this.reloadReplAgmts}
                                     enableTree={this.enableTree}
-                                    handelReload={this.onHandleLoadMonitorReplication}
+                                    handleReload={this.onHandleLoadMonitorReplication}
                                     key={this.state.node_name}
                                 />
                             </div>

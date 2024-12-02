@@ -65,7 +65,7 @@ export class ReplConfig extends React.Component {
             _nsds5replicakeepaliveupdateinterval: Number(this.props.data.nsds5replicakeepaliveupdateinterval) === 0 ? 3600 : Number(this.props.data.nsds5replicakeepaliveupdateinterval),
         };
 
-        this.handleToggle = (isExpanded) => {
+        this.handleToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -604,7 +604,7 @@ export class ReplConfig extends React.Component {
                         </Grid>
                         <ExpandableSection
                             toggleText={this.state.isExpanded ? _("Hide Advanced Settings") : _("Show Advanced Settings")}
-                            onToggle={this.handleToggle}
+                            onToggle={(event, isExpanded) => this.handleToggle(event, isExpanded)}
                             isExpanded={this.state.isExpanded}
                         >
                             <div className="ds-margin-top ds-margin-left ds-margin-bottom-md">
@@ -622,7 +622,7 @@ export class ReplConfig extends React.Component {
                                             id="nsds5replicabinddngroup"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="nsds5replicabinddngroup"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.handleChange(e);
                                             }}
                                             validated={this.state.errObj.nsds5replicabinddngroup && this.state.nsds5replicabinddngroup !== "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -824,7 +824,7 @@ export class ReplConfig extends React.Component {
                                         <Checkbox
                                             id="nsds5replicaprecisetombstonepurging"
                                             isChecked={this.state.nsds5replicaprecisetombstonepurging}
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.handleChange(e);
                                             }}
                                         />
