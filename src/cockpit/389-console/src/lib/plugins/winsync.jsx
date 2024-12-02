@@ -339,12 +339,12 @@ class WinSync extends React.Component {
                                     id="fixupDN"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="fixupDN"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleModalChange(e);
                                     }}
                                     validated={error.fixupDN ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.fixupDN}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -360,12 +360,12 @@ class WinSync extends React.Component {
                                     id="fixupFilter"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="fixupFilter"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleModalChange(e);
                                     }}
                                     validated={error.fixupFilter ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.fixupDN}>
+                                <FormHelperText  >
                                     {_("Enter an LDAP search filter")}
                                 </FormHelperText>
                             </GridItem>
@@ -389,7 +389,7 @@ class WinSync extends React.Component {
                                 <Checkbox
                                     id="posixWinsyncCreateMemberOfTask"
                                     isChecked={posixWinsyncCreateMemberOfTask}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     label={_("Create MemberOf Task")}
                                 />
                             </GridItem>
@@ -399,7 +399,7 @@ class WinSync extends React.Component {
                                 <Checkbox
                                     id="posixWinsyncLowerCaseUID"
                                     isChecked={posixWinsyncLowerCaseUID}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     label={_("Lower Case UID")}
                                 />
                             </GridItem>
@@ -409,7 +409,7 @@ class WinSync extends React.Component {
                                 <Checkbox
                                     id="posixWinsyncMapMemberUID"
                                     isChecked={posixWinsyncMapMemberUID}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     label={_("Map Member UID")}
                                 />
                             </GridItem>
@@ -419,7 +419,7 @@ class WinSync extends React.Component {
                                 <Checkbox
                                     id="posixWinsyncMapNestedGrouping"
                                     isChecked={posixWinsyncMapNestedGrouping}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     label={_("Map Nested Grouping")}
                                 />
                             </GridItem>
@@ -429,7 +429,7 @@ class WinSync extends React.Component {
                                 <Checkbox
                                     id="posixWinsyncMsSFUSchema"
                                     isChecked={posixWinsyncMsSFUSchema}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     label={_("Microsoft System Services for Unix 3.0 (msSFU30) schema")}
                                 />
                             </GridItem>

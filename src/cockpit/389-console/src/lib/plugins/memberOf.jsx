@@ -1,25 +1,27 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -126,7 +128,7 @@ class MemberOf extends React.Component {
                 }, () => { this.validateModal() });
             }
         };
-        this.handleConfigAttrToggle = isConfigAttrOpen => {
+        this.handleConfigAttrToggle = (_event, isConfigAttrOpen) => {
             this.setState({
                 isConfigAttrOpen
             });
@@ -156,7 +158,7 @@ class MemberOf extends React.Component {
                 );
             }
         };
-        this.handleConfigGroupAttrToggle = isConfigGroupAttrOpen => {
+        this.handleConfigGroupAttrToggle = (_event, isConfigGroupAttrOpen) => {
             this.setState({
                 isConfigGroupAttrOpen
             });
@@ -179,7 +181,7 @@ class MemberOf extends React.Component {
                 }, () => { this.validateModal() });
             }
         };
-        this.handleMemberOfAttrToggle = isMemberOfAttrOpen => {
+        this.handleMemberOfAttrToggle = (_event, isMemberOfAttrOpen) => {
             this.setState({
                 isMemberOfAttrOpen
             });
@@ -209,7 +211,7 @@ class MemberOf extends React.Component {
                 );
             }
         };
-        this.handleMemberOfGroupAttrToggle = isMemberOfGroupAttrOpen => {
+        this.handleMemberOfGroupAttrToggle = (_event, isMemberOfGroupAttrOpen) => {
             this.setState({
                 isMemberOfGroupAttrOpen
             });
@@ -239,7 +241,7 @@ class MemberOf extends React.Component {
                 );
             }
         };
-        this.handleSubtreeScopeToggle = isSubtreeScopeOpen => {
+        this.handleSubtreeScopeToggle = (_event, isSubtreeScopeOpen) => {
             this.setState({
                 isSubtreeScopeOpen
             }, () => { this.validateConfig() });
@@ -277,7 +279,7 @@ class MemberOf extends React.Component {
                 );
             }
         };
-        this.handleExcludeScopeToggle = isExcludeScopeOpen => {
+        this.handleExcludeScopeToggle = (_event, isExcludeScopeOpen) => {
             this.setState({
                 isExcludeScopeOpen
             }, () => { this.validateConfig() });
@@ -316,7 +318,7 @@ class MemberOf extends React.Component {
                 );
             }
         };
-        this.handleConfigScopeToggle = isConfigSubtreeScopeOpen => {
+        this.handleConfigScopeToggle = (_event, isConfigSubtreeScopeOpen) => {
             this.setState({
                 isConfigSubtreeScopeOpen
             }, () => { this.validateModal() });
@@ -354,7 +356,7 @@ class MemberOf extends React.Component {
                 );
             }
         };
-        this.handleConfigExcludeScopeToggle = isConfigExcludeScopeOpen => {
+        this.handleConfigExcludeScopeToggle = (_event, isConfigExcludeScopeOpen) => {
             this.setState({
                 isConfigExcludeScopeOpen
             }, () => { this.validateModal() });
@@ -1226,10 +1228,10 @@ class MemberOf extends React.Component {
                                             id="fixupDN"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="fixupDN"
-                                            onChange={(str, e) => { this.handleFieldChange(e) }}
+                                            onChange={(e, str) => { this.handleFieldChange(e) }}
                                             validated={!valid_dn(fixupDN) ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={valid_dn(fixupDN)}>
+                                        <FormHelperText  >
                                             {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
@@ -1245,7 +1247,7 @@ class MemberOf extends React.Component {
                                             id="fixupFilter"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="fixupFilter"
-                                            onChange={(str, e) => { this.handleFieldChange(e) }}
+                                            onChange={(e, str) => { this.handleFieldChange(e) }}
                                         />
                                     </GridItem>
                                 </Grid>
@@ -1273,11 +1275,11 @@ class MemberOf extends React.Component {
                                     id="configDN"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configDN"
-                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
                                     isDisabled={newEntry}
                                 />
-                                <FormHelperText isError isHidden={!errorModal.configDN}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -1290,7 +1292,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel="Type a member attribute"
-                                    onToggle={this.handleConfigAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleConfigAttrToggle(event, isOpen)}
                                     onSelect={this.handleConfigAttrSelect}
                                     onClear={this.handleConfigAttrClear}
                                     selections={configAttr}
@@ -1317,7 +1319,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a member group attribute"
-                                    onToggle={this.handleConfigGroupAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleConfigGroupAttrToggle(event, isOpen)}
                                     onSelect={this.handleConfigGroupAttrSelect}
                                     onClear={this.handleConfigGroupAttrClear}
                                     selections={configGroupAttr}
@@ -1344,7 +1346,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={this.handleConfigScopeToggle}
+                                    onToggle={(event, isOpen) => this.handleConfigScopeToggle(event, isOpen)}
                                     onSelect={this.handleConfigScopeSelect}
                                     onClear={this.handleConfigScopeClear}
                                     selections={configEntryScope}
@@ -1363,7 +1365,7 @@ class MemberOf extends React.Component {
                                         />
                                     ))}
                                 </Select>
-                                <FormHelperText isError isHidden={!errorModal.configEntryScope}>
+                                <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
@@ -1371,7 +1373,7 @@ class MemberOf extends React.Component {
                                 <Checkbox
                                     id="configAllBackends"
                                     isChecked={configAllBackends}
-                                    onChange={(checked, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, checked) => { this.handleModalChange(e) }}
                                     title={_("Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)")}
                                     label={_("All Backends")}
                                 />
@@ -1385,7 +1387,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={this.handleConfigExcludeScopeToggle}
+                                    onToggle={(event, isOpen) => this.handleConfigExcludeScopeToggle(event, isOpen)}
                                     onSelect={this.handleConfigExcludeScopeSelect}
                                     onClear={this.handleConfigExcludeScopeClear}
                                     selections={configEntryScopeExcludeSubtree}
@@ -1404,7 +1406,7 @@ class MemberOf extends React.Component {
                                         />
                                     ))}
                                 </Select>
-                                <FormHelperText isError isHidden={!errorModal.configEntryScopeExcludeSubtree}>
+                                <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
@@ -1412,7 +1414,7 @@ class MemberOf extends React.Component {
                                 <Checkbox
                                     id="configSkipNested"
                                     isChecked={configSkipNested}
-                                    onChange={(checked, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, checked) => { this.handleModalChange(e) }}
                                     title={_("Specifies wherher to skip nested groups or not (memberOfSkipNested)")}
                                     label={_("Skip Nested")}
                                 />
@@ -1426,7 +1428,7 @@ class MemberOf extends React.Component {
                                 <FormSelect
                                     id="configAutoAddOC"
                                     value={configAutoAddOC}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -1460,7 +1462,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel="Type a member attribute"
-                                    onToggle={this.handleMemberOfAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleMemberOfAttrToggle(event, isOpen)}
                                     onSelect={this.handleMemberOfAttrSelect}
                                     onClear={this.handleMemberOfAttrClear}
                                     selections={memberOfAttr}
@@ -1487,7 +1489,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a member group attribute"
-                                    onToggle={this.handleMemberOfGroupAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleMemberOfGroupAttrToggle(event, isOpen)}
                                     onSelect={this.handleMemberOfGroupAttrSelect}
                                     onClear={this.handleMemberOfGroupAttrClear}
                                     selections={memberOfGroupAttr}
@@ -1514,7 +1516,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={this.handleSubtreeScopeToggle}
+                                    onToggle={(event, isOpen) => this.handleSubtreeScopeToggle(event, isOpen)}
                                     onSelect={this.handleSubtreeScopeSelect}
                                     onClear={this.handleSubtreeScopeClear}
                                     selections={memberOfEntryScope}
@@ -1533,7 +1535,7 @@ class MemberOf extends React.Component {
                                         />
                                     ))}
                                 </Select>
-                                <FormHelperText isError isHidden={!error.memberOfEntryScope}>
+                                <FormHelperText  >
                                     {_("A subtree is required, and values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
@@ -1541,7 +1543,7 @@ class MemberOf extends React.Component {
                                 <Checkbox
                                     id="memberOfAllBackends"
                                     isChecked={memberOfAllBackends}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     title={_("Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)")}
                                     label={_("All Backends")}
                                 />
@@ -1555,7 +1557,7 @@ class MemberOf extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={this.handleExcludeScopeToggle}
+                                    onToggle={(event, isOpen) => this.handleExcludeScopeToggle(event, isOpen)}
                                     onSelect={this.handleExcludeScopeSelect}
                                     onClear={this.handleExcludeScopeClear}
                                     selections={memberOfEntryScopeExcludeSubtree}
@@ -1574,7 +1576,7 @@ class MemberOf extends React.Component {
                                         />
                                     ))}
                                 </Select>
-                                <FormHelperText isError isHidden={!error.memberOfEntryScopeExcludeSubtree}>
+                                <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
                             </GridItem>
@@ -1582,7 +1584,7 @@ class MemberOf extends React.Component {
                                 <Checkbox
                                     id="memberOfSkipNested"
                                     isChecked={memberOfSkipNested}
-                                    onChange={(checked, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, checked) => { this.handleFieldChange(e) }}
                                     title={_("Specifies wherher to skip nested groups or not (memberOfSkipNested)")}
                                     label={_("Skip Nested")}
                                 />
@@ -1599,10 +1601,10 @@ class MemberOf extends React.Component {
                                     id="memberOfConfigEntry"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="memberOfConfigEntry"
-                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, str) => { this.handleFieldChange(e) }}
                                     validated={error.memberOfConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.memberOfConfigEntry}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -1624,7 +1626,7 @@ class MemberOf extends React.Component {
                                 <FormSelect
                                     id="memberOfAutoAddOC"
                                     value={memberOfAutoAddOC}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"

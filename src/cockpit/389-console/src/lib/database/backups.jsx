@@ -830,7 +830,7 @@ class ExportModal extends React.Component {
                             {_("Select Suffix")}
                         </GridItem>
                         <GridItem span={9}>
-                            <FormSelect id="ldifSuffix" value={ldifSuffix} onChange={(value, event) => { handleChange(event) }} aria-label="FormSelect Input">
+                            <FormSelect id="ldifSuffix" value={ldifSuffix} onChange={(event, value) => { handleChange(event) }} aria-label="FormSelect Input">
                                 {suffixList}
                             </FormSelect>
                         </GridItem>
@@ -848,7 +848,7 @@ class ExportModal extends React.Component {
                                 aria-describedby="horizontal-form-name-helper"
                                 name="ldifName"
                                 value={ldifName}
-                                onChange={(value, event) => { handleChange(event) }}
+                                onChange={(event, value) => { handleChange(event) }}
                                 validated={error.ldifName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
@@ -861,7 +861,7 @@ class ExportModal extends React.Component {
                                 id="includeReplData"
                                 className="ds-indent ds-margin-top"
                                 isChecked={this.props.includeReplData}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 title={_("Include the replication metadata needed to restore or initialize another replica.")}
@@ -939,7 +939,7 @@ export class BackupModal extends React.Component {
                                 id="backupName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="ldifName"
-                                onChange={(value, event) => { handleChange(event) }}
+                                onChange={(event, value) => { handleChange(event) }}
                                 validated={error.backupName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>

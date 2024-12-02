@@ -2,25 +2,23 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    Grid,
-    GridItem,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Spinner,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-} from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	Form,
+	Grid,
+	GridItem,
+	Spinner,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
+import { SyncAltIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
 
 const ldapi_attrs = [
@@ -46,7 +44,7 @@ export class ServerLDAPI extends React.Component {
             isGIDOpen: false,
         };
 
-        this.handleUIDToggle = isUIDOpen => {
+        this.handleUIDToggle = (_event, isUIDOpen) => {
             this.setState({
                 isUIDOpen
             });
@@ -59,7 +57,7 @@ export class ServerLDAPI extends React.Component {
             }, () => { this.validateSaveBtn() });
         };
 
-        this.handleGIDToggle = isGIDOpen => {
+        this.handleGIDToggle = (_event, isGIDOpen) => {
             this.setState({
                 isGIDOpen
             });
@@ -272,7 +270,7 @@ export class ServerLDAPI extends React.Component {
                             <Select
                                 variant={SelectVariant.single}
                                 aria-label="Select UID Input"
-                                onToggle={this.handleUIDToggle}
+                                onToggle={(event, isOpen) => this.handleUIDToggle(event, isOpen)}
                                 onSelect={this.handleUIDSelect}
                                 selections={this.state['nsslapd-ldapiuidnumbertype']}
                                 isOpen={this.state.isUIDOpen}
@@ -293,7 +291,7 @@ export class ServerLDAPI extends React.Component {
                             <Select
                                 variant={SelectVariant.single}
                                 aria-label="Select GID Input"
-                                onToggle={this.handleGIDToggle}
+                                onToggle={(event, isOpen) => this.handleGIDToggle(event, isOpen)}
                                 onSelect={this.handleGIDSelect}
                                 selections={this.state['nsslapd-ldapigidnumbertype']}
                                 isOpen={this.state.isGIDOpen}
@@ -316,7 +314,7 @@ export class ServerLDAPI extends React.Component {
                                 type="text"
                                 id="nsslapd-ldapientrysearchbase"
                                 aria-describedby="horizontal-form-name-helper"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e);
                                 }}
                             />
@@ -365,7 +363,7 @@ export class ServerLDAPI extends React.Component {
                             <Checkbox
                                 id="nsslapd-ldapimaptoentries"
                                 isChecked={this.state['nsslapd-ldapimaptoentries']}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleChange(e);
                                 }}
                                 aria-label="uncontrolled checkbox example"
@@ -407,13 +405,13 @@ export class ServerLDAPI extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("LDAPI & AutoBind Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh LDAPI settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh LDAPI settings")}
                                     onClick={this.handleLoadConfig}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

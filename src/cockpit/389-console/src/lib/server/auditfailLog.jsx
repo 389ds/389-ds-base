@@ -20,11 +20,7 @@ import {
     TextVariants,
     TimePicker,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const settings_attrs = [
@@ -402,7 +398,7 @@ export class ServerAuditFailLog extends React.Component {
                             className="ds-margin-top-xlg"
                             id="nsslapd-auditfaillog-logging-enabled"
                             isChecked={this.state['nsslapd-auditfaillog-logging-enabled']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Enable audit fail logging (nsslapd-auditfaillog-logging-enabled).")}
@@ -419,7 +415,7 @@ export class ServerAuditFailLog extends React.Component {
                                     id="nsslapd-auditfaillog"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-auditfaillog"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
@@ -509,7 +505,7 @@ export class ServerAuditFailLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-auditfaillog-logrotationtimeunit"
                                                 value={this.state['nsslapd-auditfaillog-logrotationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rotation");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -625,7 +621,7 @@ export class ServerAuditFailLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-auditfaillog-logexpirationtimeunit"
                                                 value={this.state['nsslapd-auditfaillog-logexpirationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "exp");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -676,15 +672,15 @@ export class ServerAuditFailLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Audit Fail Log Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh log settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

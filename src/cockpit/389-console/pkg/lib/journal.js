@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import cockpit from "cockpit";
@@ -200,6 +200,7 @@ journal.journalctl = function journalctl(/* ... */) {
     };
     promise.stop = function stop() {
         streamers = [];
+        promise.stopped = true;
         proc.close("cancelled");
     };
     return promise;

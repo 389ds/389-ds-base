@@ -84,7 +84,7 @@ export class ReplAgmts extends React.Component {
         };
 
         // Create - Exclude Attributes
-        this.handleExcludeAttrsCreateToggle = isExcludeAttrsCreateOpen => {
+        this.handleExcludeAttrsCreateToggle = (_event, isExcludeAttrsCreateOpen) => {
             this.setState({
                 isExcludeAttrsCreateOpen
             });
@@ -97,7 +97,7 @@ export class ReplAgmts extends React.Component {
         };
 
         // Create - Exclude Init Attributes
-        this.handleExcludeAttrsInitCreateToggle = isExcludeInitAttrsCreateOpen => {
+        this.handleExcludeAttrsInitCreateToggle = (_event, isExcludeInitAttrsCreateOpen) => {
             this.setState({
                 isExcludeInitAttrsCreateOpen
             });
@@ -110,7 +110,7 @@ export class ReplAgmts extends React.Component {
         };
 
         // Create - Skip Attributes
-        this.onStripAttrsCreateToggle = isStripAttrsCreateOpen => {
+        this.onStripAttrsCreateToggle = (_event, isStripAttrsCreateOpen) => {
             this.setState({
                 isStripAttrsCreateOpen
             });
@@ -123,7 +123,7 @@ export class ReplAgmts extends React.Component {
         };
 
         // Edit - Exclude Attributes
-        this.handleExcludeAttrsEditToggle = isExcludeAttrsEditOpen => {
+        this.handleExcludeAttrsEditToggle = (_event, isExcludeAttrsEditOpen) => {
             this.setState({
                 isExcludeAttrsEditOpen
             });
@@ -136,7 +136,7 @@ export class ReplAgmts extends React.Component {
         };
 
         // Edit - Exclude Init Attributes
-        this.handleExcludeAttrsInitEditToggle = isExcludeInitAttrsEditOpen => {
+        this.handleExcludeAttrsInitEditToggle = (_event, isExcludeInitAttrsEditOpen) => {
             this.setState({
                 isExcludeInitAttrsEditOpen
             });
@@ -149,7 +149,7 @@ export class ReplAgmts extends React.Component {
         };
 
         // Edit - Skip Attributes
-        this.onStripAttrsEditToggle = isStripAttrsEditOpen => {
+        this.onStripAttrsEditToggle = (_event, isStripAttrsEditOpen) => {
             this.setState({
                 isStripAttrsEditOpen
             });
@@ -823,7 +823,7 @@ export class ReplAgmts extends React.Component {
         this.handleTASelectChange(e);
     }
 
-    onSelectToggle = (isExpanded, toggleId) => {
+    onSelectToggle = (_event, isExpanded, toggleId) => {
         this.setState({
             [toggleId]: isExpanded
         });

@@ -4,23 +4,25 @@ import { DoubleConfirmModal } from "../notifications.jsx";
 import { IndexTable } from "./databaseTables.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    Tab,
-    Tabs,
-    TabTitleText,
-    Text,
-    TextContent,
-    TextVariants,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	Tab,
+	Tabs,
+	TabTitleText,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -88,7 +90,7 @@ export class SuffixIndexes extends React.Component {
                 );
             }
         };
-        this.handleAttributeToggle = isAttributeOpen => {
+        this.handleAttributeToggle = (_event, isAttributeOpen) => {
             this.setState({
                 isAttributeOpen
             });
@@ -100,7 +102,7 @@ export class SuffixIndexes extends React.Component {
             });
         };
 
-        this.handleMatchingruleAddToggle = isMatchingruleOpen => {
+        this.handleMatchingruleAddToggle = (_event, isMatchingruleOpen) => {
             this.setState({
                 isMatchingruleOpen
             });
@@ -112,7 +114,7 @@ export class SuffixIndexes extends React.Component {
             });
         };
 
-        this.handleMatchingruleEditToggle = isMatchingruleOpen => {
+        this.handleMatchingruleEditToggle = (_event, isMatchingruleOpen) => {
             this.setState({
                 isMatchingruleOpen
             });
@@ -629,7 +631,7 @@ export class SuffixIndexes extends React.Component {
                 });
     }
 
-    onSelectToggle = (isExpanded, toggleId) => {
+    onSelectToggle = (_event, isExpanded, toggleId) => {
         this.setState({
             [toggleId]: isExpanded
         });
@@ -868,7 +870,7 @@ class AddIndexModal extends React.Component {
                                 <Checkbox
                                     id="indexTypeEq"
                                     isChecked={this.props.indexTypeEq}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         handleChange(e);
                                     }}
                                     label={_("Equailty Indexing")}
@@ -880,7 +882,7 @@ class AddIndexModal extends React.Component {
                                 <Checkbox
                                     id="indexTypePres"
                                     isChecked={this.props.indexTypePres}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         handleChange(e);
                                     }}
                                     label={_("Presence Indexing")}
@@ -892,7 +894,7 @@ class AddIndexModal extends React.Component {
                                 <Checkbox
                                     id="indexTypeSub"
                                     isChecked={this.props.indexTypeSub}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         handleChange(e);
                                     }}
                                     label={_("Substring Indexing")}
@@ -904,7 +906,7 @@ class AddIndexModal extends React.Component {
                                 <Checkbox
                                     id="indexTypeApprox"
                                     isChecked={this.props.indexTypeApprox}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         handleChange(e);
                                     }}
                                     label={_("Approximate Indexing")}
@@ -948,7 +950,7 @@ class AddIndexModal extends React.Component {
                             <Checkbox
                                 id="reindexOnAdd"
                                 isChecked={this.props.reindexOnAdd}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 label={_("Index attribute after creation")}
@@ -1009,7 +1011,7 @@ class EditIndexModal extends React.Component {
                 <Checkbox
                 id="indexTypeEq"
                 isChecked={this.props.indexTypeEq}
-                onChange={(checked, e) => {
+                onChange={(e, checked) => {
                     handleChange(e);
                 }}
                 label={_("Equailty Indexing")}
@@ -1021,7 +1023,7 @@ class EditIndexModal extends React.Component {
                 <Checkbox
                 id="indexTypePres"
                 isChecked={this.props.indexTypePres}
-                onChange={(checked, e) => {
+                onChange={(e, checked) => {
                     handleChange(e);
                 }}
                 label={_("Presence Indexing")}
@@ -1033,7 +1035,7 @@ class EditIndexModal extends React.Component {
                 <Checkbox
                 id="indexTypeSub"
                 isChecked={this.props.indexTypeSub}
-                onChange={(checked, e) => {
+                onChange={(e, checked) => {
                     handleChange(e);
                 }}
                 label={_("Substring Indexing")}
@@ -1045,7 +1047,7 @@ class EditIndexModal extends React.Component {
                 <Checkbox
                 id="indexTypeApprox"
                 isChecked={this.props.indexTypeApprox}
-                onChange={(checked, e) => {
+                onChange={(e, checked) => {
                     handleChange(e);
                 }}
                 label={_("Approximate Indexing")}
@@ -1059,7 +1061,7 @@ class EditIndexModal extends React.Component {
                     <Checkbox
                     id="indexTypeEq"
                     isChecked={this.props.indexTypeEq}
-                    onChange={(checked, e) => {
+                    onChange={(e, checked) => {
                         handleChange(e);
                     }}
                     label={_("Equality Indexing")}
@@ -1073,7 +1075,7 @@ class EditIndexModal extends React.Component {
                     <Checkbox
                     id="indexTypePres"
                     isChecked={this.props.indexTypePres}
-                    onChange={(checked, e) => {
+                    onChange={(e, checked) => {
                         handleChange(e);
                     }}
                     label={_("Presence Indexing")}
@@ -1087,7 +1089,7 @@ class EditIndexModal extends React.Component {
                     <Checkbox
                     id="indexTypeSub"
                     isChecked={this.props.indexTypeSub}
-                    onChange={(checked, e) => {
+                    onChange={(e, checked) => {
                         handleChange(e);
                     }}
                     label={_("Substring Indexing")}
@@ -1101,7 +1103,7 @@ class EditIndexModal extends React.Component {
                     <Checkbox
                     id="indexTypeApprox"
                     isChecked={this.props.indexTypeApprox}
-                    onChange={(checked, e) => {
+                    onChange={(e, checked) => {
                         handleChange(e);
                     }}
                     label={_("Approximate Indexing")}
@@ -1199,7 +1201,7 @@ class EditIndexModal extends React.Component {
                             <Checkbox
                                 id="reindexOnAdd"
                                 isChecked={this.props.reindexOnAdd}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 label={_("Reindex Attribute After Saving")}

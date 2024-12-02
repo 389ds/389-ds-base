@@ -31,8 +31,7 @@ import {
     SortByDirection,
 } from '@patternfly/react-table';
 import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { SyncAltIcon } from "@patternfly/react-icons";
 import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
@@ -106,7 +105,7 @@ export class ReplMonitor extends React.Component {
             aliasSortBy: {},
         };
 
-        this.handleToggle = (isExpanded) => {
+        this.handleToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -1382,7 +1381,7 @@ export class ReplMonitor extends React.Component {
                     <Tab eventKey={1} id="prepare-new-report" title={<TabTitleText>{_("Prepare New Report")}</TabTitleText>}>
                         <ExpandableSection
                             toggleText={this.state.isExpanded ? _("Hide Help") : _("Show Help")}
-                            onToggle={this.handleToggle}
+                            onToggle={(event, isExpanded) => this.handleToggle(event, isExpanded)}
                             isExpanded={this.state.isExpanded}
                             className="ds-margin-top-lg ds-left-margin"
                         >
@@ -1517,13 +1516,13 @@ export class ReplMonitor extends React.Component {
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {_("Synchronization Report")}
-                            <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title={_("Refresh replication monitor")}
+                            <Button 
+                                variant="plain"
+                                aria-label={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
-                            />
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
                 </div>

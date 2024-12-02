@@ -2,33 +2,31 @@ import cockpit from "cockpit";
 import React from "react";
 import { listsEqual, log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormGroup,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    NumberInput,
-    Select,
-    SelectVariant,
-    SelectOption,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    TimePicker,
-} from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	Form,
+	FormGroup,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	NumberInput,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	TimePicker
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const settings_attrs = [
@@ -105,7 +103,7 @@ export class ServerAuditLog extends React.Component {
                 );
             }
         };
-        this.handleOnDisplayAttrToggle = isDisplayAttrOpen => {
+        this.handleOnDisplayAttrToggle = (_event, isDisplayAttrOpen) => {
             this.setState({
                 isDisplayAttrOpen
             });
@@ -498,7 +496,7 @@ l
                             className="ds-margin-top-xlg"
                             id="nsslapd-auditlog-logging-enabled"
                             isChecked={this.state['nsslapd-auditlog-logging-enabled']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Enable audit logging (nsslapd-auditlog-logging-enabled).")}
@@ -516,7 +514,7 @@ l
                                     id="nsslapd-auditlog"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-auditlog"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
@@ -542,7 +540,7 @@ l
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
-                                        onToggle={this.handleOnDisplayAttrToggle}
+                                        onToggle={(event, isOpen) => this.handleOnDisplayAttrToggle(event, isOpen)}
                                         onSelect={this.handleOnDisplayAttrSelect}
                                         onClear={this.handleOnDisplayAttrClear}
                                         selections={this.state.displayAttrs}
@@ -563,7 +561,7 @@ l
                                     className="ds-lower-field-md"
                                     id="displayAllAttrs"
                                     isChecked={this.state.displayAllAttrs}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.handleChange(e, "settings");
                                     }}
                                     title={_("Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
@@ -655,7 +653,7 @@ l
                                             <FormSelect
                                                 id="nsslapd-auditlog-logrotationtimeunit"
                                                 value={this.state['nsslapd-auditlog-logrotationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rotation");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -771,7 +769,7 @@ l
                                             <FormSelect
                                                 id="nsslapd-auditlog-logexpirationtimeunit"
                                                 value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "exp");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -822,15 +820,15 @@ l
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Audit Log Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh log settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

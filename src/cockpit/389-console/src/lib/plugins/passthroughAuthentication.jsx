@@ -500,7 +500,7 @@ class PassthroughAuthentication extends React.Component {
                                 <FormSelect
                                     id="urlConnType"
                                     value={urlConnType}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handlePassthruChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -522,7 +522,7 @@ class PassthroughAuthentication extends React.Component {
                                         id={content.id}
                                         aria-describedby="horizontal-form-name-helper"
                                         name={content.name}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handlePassthruChange(e);
                                         }}
                                         validated={error[content.id] ? ValidatedOptions.error : ValidatedOptions.default}
@@ -564,7 +564,7 @@ class PassthroughAuthentication extends React.Component {
                                 <FormSelect
                                     id="urlLDVer"
                                     value={urlLDVer}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handlePassthruChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -579,7 +579,7 @@ class PassthroughAuthentication extends React.Component {
                                 <Checkbox
                                     id="urlStartTLS"
                                     isChecked={urlStartTLS}
-                                    onChange={(checked, e) => { this.handlePassthruChange(e) }}
+                                    onChange={(e, checked) => { this.handlePassthruChange(e) }}
                                     title={_("A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.")}
                                     label={_("Enable StartTLS")}
                                 />

@@ -287,7 +287,7 @@ export class Changelog extends React.Component {
                                     className="ds-margin-left"
                                     id="clMaxAgeUnit"
                                     value={this.state.clMaxAgeUnit}
-                                    onChange={this.handleChange}
+                                    onChange={(e, str) => this.handleChange(str, e)}
                                     aria-label="FormSelect Input"
                                     isDisabled={this.state.clMaxAge < 1}
                                 >
@@ -342,7 +342,7 @@ export class Changelog extends React.Component {
                                 <Checkbox
                                     id="clEncrypt"
                                     isChecked={this.state.clEncrypt}
-                                    onChange={this.handleChange}
+                                    onChange={(e, str) => this.handleChange(str, e)}
                                 />
                             </GridItem>
                         </Grid>

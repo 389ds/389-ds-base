@@ -6,30 +6,28 @@ import { CertificateManagement } from "./lib/security/certificateManagement.jsx"
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
 import { Ciphers } from "./lib/security/ciphers.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    Grid,
-    GridItem,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Spinner,
-    Switch,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-} from "@patternfly/react-core";
-import PropTypes from "prop-types";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	Form,
+	Grid,
+	GridItem,
+	Spinner,
+	Switch,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
+import PropTypes from "prop-types";
+import { SyncAltIcon } from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -121,10 +119,10 @@ export class Security extends React.Component {
                 disableSaveBtn,
             });
         };
-        this.handleServerCertToggle = isServerCertOpen => {
-            this.setState({
-                isServerCertOpen
-            });
+        this.handleServerCertToggle = (_event, isServerCertOpen) => {
+        this.setState({
+            isServerCertOpen
+        });
         };
         this.handleServerCertClear = () => {
             this.setState({
@@ -151,7 +149,7 @@ export class Security extends React.Component {
             return false;
         };
 
-        this.handleMinSSLToggle = isMinSSLOpen => {
+        this.handleMinSSLToggle = (_event, isMinSSLOpen) => {
             this.setState({
                 isMinSSLOpen
             });
@@ -170,7 +168,7 @@ export class Security extends React.Component {
             });
         };
 
-        this.handleMaxSSLToggle = isMaxSSLOpen => {
+        this.handleMaxSSLToggle = (_event, isMaxSSLOpen) => {
             this.setState({
                 isMaxSSLOpen
             });
@@ -189,7 +187,7 @@ export class Security extends React.Component {
             });
         };
 
-        this.handleClientAuthToggle = isClientAuthOpen => {
+        this.handleClientAuthToggle = (_event, isClientAuthOpen) => {
             this.setState({
                 isClientAuthOpen
             });
@@ -209,7 +207,7 @@ export class Security extends React.Component {
             });
         };
 
-        this.handleValidateCertToggle = isValidateCertOpen => {
+        this.handleValidateCertToggle = (_event, isValidateCertOpen) => {
             this.setState({
                 isValidateCertOpen
             });
@@ -970,7 +968,7 @@ export class Security extends React.Component {
         });
     }
 
-    onSelectToggle = (isExpanded, toggleId) => {
+    onSelectToggle = (_event, isExpanded, toggleId) => {
         this.setState({
             [toggleId]: isExpanded
         });
@@ -1009,7 +1007,7 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.typeahead}
                                         typeAheadAriaLabel="Type a server certificate nickname"
-                                        onToggle={this.handleServerCertToggle}
+                                        onToggle={(event, isOpen) => this.handleServerCertToggle(event, isOpen)}
                                         onSelect={this.handleServerCertSelect}
                                         onClear={this.handleServerCertClear}
                                         selections={serverCert}
@@ -1037,7 +1035,7 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.handleMinSSLToggle}
+                                        onToggle={(event, isOpen) => this.handleMinSSLToggle(event, isOpen)}
                                         onSelect={this.handleMinSSLSelect}
                                         selections={this.state.sslVersionMin}
                                         isOpen={this.state.isMinSSLOpen}
@@ -1061,7 +1059,7 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.handleMaxSSLToggle}
+                                        onToggle={(event, isOpen) => this.handleMaxSSLToggle(event, isOpen)}
                                         onSelect={this.handleMaxSSLSelect}
                                         selections={this.state.sslVersionMax}
                                         isOpen={this.state.isMaxSSLOpen}
@@ -1085,7 +1083,7 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.handleClientAuthToggle}
+                                        onToggle={(event, isOpen) => this.handleClientAuthToggle(event, isOpen)}
                                         onSelect={this.handleClientAuthSelect}
                                         selections={this.state.clientAuth}
                                         isOpen={this.state.isClientAuthOpen}
@@ -1107,7 +1105,7 @@ export class Security extends React.Component {
                                     <Select
                                         variant={SelectVariant.single}
                                         aria-label="Select Input"
-                                        onToggle={this.handleValidateCertToggle}
+                                        onToggle={(event, isOpen) => this.handleValidateCertToggle(event, isOpen)}
                                         onSelect={this.handleValidateCertSelect}
                                         selections={this.state.validateCert}
                                         isOpen={this.state.isValidateCertOpen}
@@ -1132,7 +1130,7 @@ export class Security extends React.Component {
                                         id="secureListenhost"
                                         aria-describedby="horizontal-form-name-helper"
                                         name="server-hostname"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e);
                                         }}
                                     />
@@ -1145,7 +1143,7 @@ export class Security extends React.Component {
                                     <Checkbox
                                         id="requireSecureBinds"
                                         isChecked={this.state.requireSecureBinds}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.handleChange(e);
                                         }}
                                         label={_("Require Secure Connections")}
@@ -1159,7 +1157,7 @@ export class Security extends React.Component {
                                     <Checkbox
                                         id="checkHostname"
                                         isChecked={this.state.checkHostname}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.handleChange(e);
                                         }}
                                         label={_("Verify Certificate Subject Hostname")}
@@ -1173,7 +1171,7 @@ export class Security extends React.Component {
                                     <Checkbox
                                         id="allowWeakCipher"
                                         isChecked={this.state.allowWeakCipher}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.handleChange(e);
                                         }}
                                         title={_("Allow weak ciphers (allowWeakCipher).")}
@@ -1188,7 +1186,7 @@ export class Security extends React.Component {
                                     <Checkbox
                                         id="nstlsallowclientrenegotiation"
                                         isChecked={this.state.nstlsallowclientrenegotiation}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.handleChange(e);
                                         }}
                                         title={_("Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation).")}
@@ -1221,13 +1219,13 @@ export class Security extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Security Settings")}
-                                    <FontAwesomeIcon
-                                        size="lg"
-                                        className="ds-left-margin ds-refresh"
-                                        icon={faSyncAlt}
-                                        title={_("Refresh settings")}
+                                    <Button 
+                                        variant="plain"
+                                        aria-label={_("Refresh settings")}
                                         onClick={this.handleReloadConfig}
-                                    />
+                                    >
+                                        <SyncAltIcon size="lg" />
+                                    </Button>
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -1242,7 +1240,7 @@ export class Security extends React.Component {
                                             label={_("Security Enabled")}
                                             labelOff="Security Disabled"
                                             isChecked={this.state.securityEnabled}
-                                            onChange={this.handleSwitchChange}
+                                            onChange={(_event, value) => this.handleSwitchChange(value)}
                                         />
                                     </GridItem>
                                     <hr />

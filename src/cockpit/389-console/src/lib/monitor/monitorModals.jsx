@@ -273,7 +273,7 @@ class ConflictCompareModal extends React.Component {
                             </p>
                         </GridItem>
                         <GridItem span={12}>
-                            <TextArea id="conflictValid" resizeOrientation="vertical" className="ds-conflict" value={valid} isReadOnly />
+                            <TextArea id="conflictValid" resizeOrientation="vertical" className="ds-conflict" value={valid}  readOnlyVariant="default" />
                         </GridItem>
                         <GridItem className="ds-margin-top-lg" span={6}>
                             <TextContent>
@@ -288,7 +288,7 @@ class ConflictCompareModal extends React.Component {
                             </p>
                         </GridItem>
                         <GridItem span={12}>
-                            <TextArea id="conflictConflict" resizeOrientation="vertical" className="ds-conflict" value={conflict} isReadOnly />
+                            <TextArea id="conflictConflict" resizeOrientation="vertical" className="ds-conflict" value={conflict}  readOnlyVariant="default" />
                         </GridItem>
                         <hr />
                         <div className="ds-container">
@@ -429,7 +429,7 @@ class ReportCredentialsModal extends React.Component {
                                         id="credsHostname"
                                         aria-describedby="cachememsize"
                                         name="credsHostname"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -466,7 +466,7 @@ class ReportCredentialsModal extends React.Component {
                                         id="credsBinddn"
                                         aria-describedby="cachememsize"
                                         name="credsBinddn"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -484,7 +484,7 @@ class ReportCredentialsModal extends React.Component {
                                         aria-describedby="cachememsize"
                                         name="credsBindpw"
                                         isDisabled={pwInputInterractive}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -498,7 +498,7 @@ class ReportCredentialsModal extends React.Component {
                                     <Checkbox
                                         isChecked={pwInputInterractive}
                                         id="pwInputInterractive"
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -567,7 +567,7 @@ class ReportConnectionModal extends React.Component {
                                         id="connName"
                                         aria-describedby="connName"
                                         name="connName"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -584,7 +584,7 @@ class ReportConnectionModal extends React.Component {
                                         id="connHostname"
                                         aria-describedby="connHostname"
                                         name="connHostname"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -621,7 +621,7 @@ class ReportConnectionModal extends React.Component {
                                         id="connBindDN"
                                         aria-describedby="connBindDN"
                                         name="connBindDN"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -639,7 +639,7 @@ class ReportConnectionModal extends React.Component {
                                         aria-describedby="connCred"
                                         name="connCred"
                                         isDisabled={pwInputInterractive}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -653,7 +653,7 @@ class ReportConnectionModal extends React.Component {
                                     <Checkbox
                                         isChecked={pwInputInterractive}
                                         id="pwInputInterractive"
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -721,7 +721,7 @@ class ReportAliasesModal extends React.Component {
                                         id="aliasName"
                                         aria-describedby="aliasName"
                                         name="aliasName"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -738,7 +738,7 @@ class ReportAliasesModal extends React.Component {
                                         id="aliasHostname"
                                         aria-describedby="aliasHostname"
                                         name="aliasHostname"
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
                                     />
@@ -831,7 +831,7 @@ class ReportLoginModal extends React.Component {
                                 aria-describedby="loginBinddn"
                                 name="loginBinddn"
                                 isDisabled={disableBinddn}
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -848,7 +848,7 @@ class ReportLoginModal extends React.Component {
                                 id="loginBindpw"
                                 aria-describedby="loginBindpw"
                                 name="loginBindpw"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -923,7 +923,7 @@ class FullReportContent extends React.Component {
                                     title={_("Display all agreements including the disabled ones and the ones we failed to connect to")}
                                     isChecked={this.state.showDisabledAgreements}
                                     id="showDisabledAgreements"
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.handleSwitchChange(e);
                                     }}
                                     label={_("Show Disabled Agreements")}
@@ -942,7 +942,7 @@ class FullReportContent extends React.Component {
                             <GridItem span={12}>
                                 <Checkbox
                                     isChecked={this.state.oneTableReport}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.handleSwitchChange(e);
                                     }}
                                     id="oneTableReport"

@@ -55,7 +55,7 @@ variant="info" isInline
                             </CardBody>
                             <CardBody>
                                 <Alert
-variant="default" isInline
+variant="custom" isInline
                                     title={cockpit.format(_("The root entry to create is $0"), this.props.entryParentDn)}
                                 >
                                     {_("Make sure to select an <strong>ObjectClass</strong>that allows or requires the attribute")}
@@ -78,7 +78,7 @@ variant="default" isInline
                         <Radio
                             value="User"
                             isChecked={this.state.getStartedStepRadio === 'User'}
-                            onChange={this.handleOnChange}
+                            onChange={(event, _) => this.handleOnChange(_, event)}
                             label={_("Create a new User")}
                             description={_("Add a new User (inetOrgPerson objectClass)")}
                             name="radio-new-step-start"
@@ -88,7 +88,7 @@ variant="default" isInline
                             className="ds-margin-top-lg"
                             value="Group"
                             isChecked={this.state.getStartedStepRadio === 'Group'}
-                            onChange={this.handleOnChange}
+                            onChange={(event, _) => this.handleOnChange(_, event)}
                             label={_("Create a new Group")}
                             description={_("Add a new Group (GroupOfNames/GroupOfUniqueNames objectClass)")}
                             name="group"
@@ -98,7 +98,7 @@ variant="default" isInline
                             className="ds-margin-top-lg"
                             value="OrganizationalUnit"
                             isChecked={this.state.getStartedStepRadio === 'OrganizationalUnit'}
-                            onChange={this.handleOnChange}
+                            onChange={(event, _) => this.handleOnChange(_, event)}
                             label={_("Create a new Organizational Unit")}
                             description={_("Add a new Organizational Unit")}
                             name="radio-new-step-start"
@@ -108,7 +108,7 @@ variant="default" isInline
                           className="ds-margin-top-lg"
                           value="Role"
                           isChecked={this.state.getStartedStepRadio === 'Role'}
-                          onChange={this.handleOnChange}
+                          onChange={(event, _) => this.handleOnChange(_, event)}
                           label={_("Create a new Role")}
                           description={_("Add a new Role (Filtered / Managed / Nested)")}
                           name="radio-new-step-start"
@@ -118,7 +118,7 @@ variant="default" isInline
                             className="ds-margin-top-lg"
                             value="Other"
                             isChecked={this.state.getStartedStepRadio === 'Other'}
-                            onChange={this.handleOnChange}
+                            onChange={(event, _) => this.handleOnChange(_, event)}
                             label={_("Create a new custom Entry")}
                             description={_("Add a new entry by selecting ObjectClasses and Attributes")}
                             name="radio-new-step-start"
