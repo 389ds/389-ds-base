@@ -91,9 +91,9 @@ export class Plugins extends React.Component {
             currentPluginPrecedence: ""
         };
 
-        this.handleSelect = result => {
+        this.handleSelect = (_event, item) => {
             this.setState({
-                activePlugin: result.itemId
+                activePlugin: item.itemId
             });
         };
 
@@ -677,7 +677,7 @@ export class Plugins extends React.Component {
                 <div hidden={this.state.firstLoad} className={this.state.loading ? "ds-disabled" : ""}>
                     <Grid className="ds-margin-top-xlg" hasGutter>
                         <GridItem span={3} className="ds-vert-scroll">
-                            <Nav key={this.state.pluginTableKey} theme="light" onSelect={this.handleSelect}>
+                            <Nav key={this.state.pluginTableKey} theme="light" onSelect={(event, item) => this.handleSelect(event, item)}>
                                 <NavList>
                                     {Object.entries(selectPlugins).map(([id, item]) => (
                                         <NavItem key={item.name} itemId={item.name} isActive={this.state.activePlugin === item.name}>

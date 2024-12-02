@@ -1,42 +1,49 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    BadgeToggle,
-    Bullseye,
-    Button,
-    Card,
-    CardBody,
-    CardTitle,
-    Dropdown,
-    DropdownItem,
-    DropdownPosition,
-    Form,
-    Grid,
-    GridItem,
-    NumberInput,
-    Modal,
-    ModalVariant,
-    Pagination,
-    SearchInput,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Text,
-    TextContent,
-    TextInput,
-    TextList,
-    TextListItem,
-    TextVariants,
-    Title,
-    Tooltip,
-    ValidatedOptions,
-    Wizard,
+	Alert,
+	Bullseye,
+	Button,
+	Card,
+	CardBody,
+	CardTitle,
+	Form,
+	Grid,
+	GridItem,
+	NumberInput,
+	Modal,
+	ModalVariant,
+	Pagination,
+	SearchInput,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextInput,
+	TextList,
+	TextListItem,
+	TextVariants,
+	Title,
+	Tooltip,
+	ValidatedOptions
 } from '@patternfly/react-core';
 import {
-    Table, TableHeader, TableBody, TableVariant,
-    breakWord,
-    headerCol,
+	BadgeToggle,
+	Dropdown,
+	DropdownItem,
+	DropdownPosition,
+	Wizard
+} from '@patternfly/react-core/deprecated';
+import {
+	breakWord,
+	headerCol,
+    Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
 } from '@patternfly/react-table';
 import {
     createLdapEntry,
@@ -741,7 +748,7 @@ class AddCosTemplate extends React.Component {
                 onSelect={this.handleOCDropDownSelect}
                 position={DropdownPosition.left}
                 toggle={
-                    <BadgeToggle id="toggle-oc-select" onToggle={this.handleOCDropDownToggle}>
+                    <BadgeToggle id="toggle-oc-select" onToggle={(_event, isOpen) => this.handleOCDropDownToggle(isOpen)}>
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
@@ -776,7 +783,7 @@ class AddCosTemplate extends React.Component {
                 onSelect={this.handleAttrDropDownSelect}
                 position={DropdownPosition.left}
                 toggle={
-                    <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
+                    <BadgeToggle id="toggle-attr-select" onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}>
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
@@ -827,7 +834,8 @@ class AddCosTemplate extends React.Component {
             itemCountAttr, pageAttr, perPageAttr, columnsAttr, pagedRowsAttr,
             commandOutput, namingAttr, namingVal, cospriority, stepIdReached,
             ldifArray, resultVariant, editableTableData, validMods, cleanLdifArray,
-            selectedAttributes, selectedObjectClasses, goBackToCoSDefinition, createTemplateEnd
+            selectedAttributes, selectedObjectClasses, goBackToCoSDefinition, createTemplateEnd,
+            isOCDropDownOpen, isAttrDropDownOpen
         } = this.state;
 
         if (createTemplateEnd) {
@@ -920,7 +928,7 @@ class AddCosTemplate extends React.Component {
                                 id="namingVal"
                                 aria-describedby="namingVal"
                                 name="namingVal"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e);
                                 }}
                                 validated={this.state.namingVal === '' ? ValidatedOptions.error : ValidatedOptions.default}
@@ -974,54 +982,97 @@ class AddCosTemplate extends React.Component {
                             {_("Select ObjectClasses")}
                         </Text>
                     </TextContent>
-                    {this.buildOCDropdown()}
+                    <Dropdown
+                        className="ds-dropdown-padding"
+                        position="left"
+                        onSelect={this.handleOCDropDownSelect}
+                        toggle={
+                            <BadgeToggle 
+                                id="toggle-oc-select" 
+                                badgeProps={{
+                                    className: selectedObjectClasses.length > 0 ? "ds-badge-bgcolor" : undefined,
+                                    isRead: selectedObjectClasses.length === 0
+                                }}
+                                onToggle={(_event, isOpen) => this.handleOCDropDownToggle(isOpen)}
+                            >
+                                {selectedObjectClasses.length > 0 ? 
+                                    `${selectedObjectClasses.length} ${_("selected")}` : 
+                                    `0 ${_("selected")}`}
+                            </BadgeToggle>
+                        }
+                        isOpen={isOCDropDownOpen}
+                        dropdownItems={selectedObjectClasses.map((oc) =>
+                            <DropdownItem key={oc.cells[0]}>{oc.cells[0]}</DropdownItem>
+                        )}
+                    />
                 </div>
-                { loading &&
+                { loading ? (
+                    <Bullseye className="ds-margin-top-xlg">
+                        <Title headingLevel="h3" size="lg">
+                            {_("Loading ObjectClasses ...")}
+                        </Title>
+                        <Spinner className="ds-center" size="lg" />
+                    </Bullseye>
+                ) : (
                     <div>
-                        <Bullseye className="ds-margin-top-xlg" key="add-entry-bulleye">
-                            <Title headingLevel="h3" size="lg" key="loading-title">
-                                {_("Loading ObjectClasses ...")}
-                            </Title>
-                        </Bullseye>
-                        <Spinner className="ds-center" size="lg" key="loading-spinner" />
-                    </div>}
-                <div className={loading ? "ds-hidden" : ""}>
-                    <Grid className="ds-margin-top-lg">
-                        <GridItem span={5}>
-                            <SearchInput
-                                className="ds-font-size-md"
-                                placeholder={_("Search Objectclasses")}
-                                value={this.state.searchValue}
-                                onChange={this.handleOCSearchChange}
-                                onClear={(evt, val) => this.handleOCSearchChange(evt, '')}
-                            />
-                        </GridItem>
-                        <GridItem span={7}>
-                            <Pagination
-                                value="ObjectClassTable"
-                                itemCount={itemCountOc}
-                                page={pageOc}
-                                perPage={perPageOc}
-                                onSetPage={this.handleSetPageOc}
-                                widgetId="pagination-step-objectclass"
-                                onPerPageSelect={this.handlePerPageSelectOc}
-                                variant="top"
-                                isCompact
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Table
-                        cells={columnsOc}
-                        rows={pagedRowsOc}
-                        canSelectAll={false}
-                        onSelect={this.handleSelectOc}
-                        variant={TableVariant.compact}
-                        aria-label="Pagination All ObjectClasses"
-                    >
-                        <TableHeader />
-                        <TableBody />
-                    </Table>
-                </div>
+                        <Grid className="ds-margin-top-lg">
+                            <GridItem span={5}>
+                                <SearchInput
+                                    className="ds-font-size-md"
+                                    placeholder={_("Search Objectclasses")}
+                                    value={this.state.searchValue}
+                                    onChange={this.handleOCSearchChange}
+                                    onClear={(evt) => this.handleOCSearchChange(evt, '')}
+                                />
+                            </GridItem>
+                            <GridItem span={7}>
+                                <Pagination
+                                    itemCount={itemCountOc}
+                                    page={pageOc}
+                                    perPage={perPageOc}
+                                    onSetPage={this.handleSetPageOc}
+                                    widgetId="pagination-step-objectclass"
+                                    onPerPageSelect={this.handlePerPageSelectOc}
+                                    isCompact
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Table aria-label="Objectclasses Table" variant="compact">
+                            <Thead>
+                                <Tr>
+                                    <Th screenReaderText="Selection column" />
+                                    {columnsOc.map((column, columnIndex) => (
+                                        <Th key={columnIndex}>
+                                            {typeof column === 'object' ? column.title : column}
+                                        </Th>
+                                    ))}
+                                </Tr>
+                            </Thead>
+                            <Tbody>
+                                {pagedRowsOc.map((row, rowIndex) => (
+                                    <Tr key={rowIndex}>
+                                        <Td
+                                            select={{
+                                                rowIndex,
+                                                onSelect: this.handleSelectOc,
+                                                isSelected: row.selected,
+                                                isDisabled: row.disableSelection
+                                            }}
+                                        />
+                                        {row.cells.map((cell, cellIndex) => (
+                                            <Td 
+                                                key={`${rowIndex}_${cellIndex}`}
+                                                dataLabel={columnsOc[cellIndex]?.title || columnsOc[cellIndex]}
+                                            >
+                                                {typeof cell === 'object' ? cell.title : cell}
+                                            </Td>
+                                        ))}
+                                    </Tr>
+                                ))}
+                            </Tbody>
+                        </Table>
+                    </div>
+                )}
             </>
         );
 
@@ -1033,7 +1084,29 @@ class AddCosTemplate extends React.Component {
                             {_("Select Attributes")}
                         </Text>
                     </TextContent>
-                    {this.buildAttrDropdown()}
+                    <Dropdown
+                        className="ds-dropdown-padding"
+                        position="left"
+                        onSelect={this.handleAttrDropDownSelect}
+                        toggle={
+                            <BadgeToggle 
+                                id="toggle-attr-select" 
+                                badgeProps={{
+                                    className: selectedAttributes.length > 0 ? "ds-badge-bgcolor" : undefined,
+                                    isRead: selectedAttributes.length === 0
+                                }}
+                                onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}
+                            >
+                                {selectedAttributes.length > 0 ? 
+                                    `${selectedAttributes.length} ${_("selected")}` : 
+                                    `0 ${_("selected")}`}
+                            </BadgeToggle>
+                        }
+                        isOpen={isAttrDropDownOpen}
+                        dropdownItems={selectedAttributes.map((attr) =>
+                            <DropdownItem key={attr[0]}>{attr[0]}</DropdownItem>
+                        )}
+                    />
                 </div>
                 <Grid className="ds-margin-top-lg">
                     <GridItem span={5}>
@@ -1042,7 +1115,7 @@ class AddCosTemplate extends React.Component {
                             placeholder={_("Search Attributes")}
                             value={this.state.searchAttrValue}
                             onChange={this.handleAttrSearchChange}
-                            onClear={(evt, val) => this.handleAttrSearchChange(evt, '')}
+                            onClear={(evt) => this.handleAttrSearchChange(evt, '')}
                         />
                     </GridItem>
                     <GridItem span={7}>
@@ -1053,25 +1126,44 @@ class AddCosTemplate extends React.Component {
                             onSetPage={this.handleSetPageAttr}
                             widgetId="pagination-step-attributes"
                             onPerPageSelect={this.handlePerPageSelectAttr}
-                            dropDirection="up"
                             isCompact
                         />
                     </GridItem>
                 </Grid>
-
-                <Table
-                    className="ds-margin-top"
-                    cells={columnsAttr}
-                    rows={pagedRowsAttr}
-                    onSelect={this.handleSelectAttr}
-                    variant={TableVariant.compact}
-                    aria-label="Pagination Attributes"
-                    canSelectAll={false}
-                >
-                    <TableHeader />
-                    <TableBody />
+                <Table aria-label="Attributes Table" variant="compact">
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Selection column" />
+                            {columnsAttr.map((column, columnIndex) => (
+                                <Th key={columnIndex}>
+                                    {typeof column === 'object' ? column.title : column}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {pagedRowsAttr.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td
+                                    select={{
+                                        rowIndex,
+                                        onSelect: this.handleSelectAttr,
+                                        isSelected: row.selected,
+                                        isDisabled: row.disableCheckbox
+                                    }}
+                                />
+                                {row.cells.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={`${rowIndex}_${cellIndex}`}
+                                        dataLabel={columnsAttr[cellIndex]?.title || columnsAttr[cellIndex]}
+                                    >
+                                        {typeof cell === 'object' ? cell.title : cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
-
             </>
         );
 

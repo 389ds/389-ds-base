@@ -2,6 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
+    Button,
     Checkbox,
     FormSelect,
     FormSelectOption,
@@ -13,11 +14,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -102,7 +99,7 @@ export class SecurityLogMonitor extends React.Component {
         if (this.state.securityReloading) {
             spinner = (
                 <div>
-                    <Spinner isSVG size="sm" />
+                    <Spinner  size="sm" />
                     {_("Reloading security log...")}
                 </div>
             );
@@ -115,13 +112,13 @@ export class SecurityLogMonitor extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Security Log")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh security log")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh security log")}
                                     onClick={this.handleRefreshSecurityLog}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -134,7 +131,7 @@ export class SecurityLogMonitor extends React.Component {
                         <FormSelect
                             id="securityLines"
                             value={this.state.securityLines}
-                            onChange={(value, event) => {
+                            onChange={(event, value) => {
                                 this.handleSecurityChange(event);
                             }}
                             aria-label="FormSelect Input"
@@ -157,7 +154,7 @@ export class SecurityLogMonitor extends React.Component {
                             <Checkbox
                                 id="securityRefreshing"
                                 isChecked={this.state.securityRefreshing}
-                                onChange={(checked, e) => { this.securityRefreshCont(e) }}
+                                onChange={(e, checked) => { this.securityRefreshCont(e) }}
                                 label={_("Continuously Refresh")}
                             />
                         </div>

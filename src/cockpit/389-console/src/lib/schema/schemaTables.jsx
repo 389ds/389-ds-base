@@ -4,7 +4,6 @@ import {
     Grid,
     GridItem,
     Pagination,
-    PaginationVariant,
     SearchInput,
     Spinner,
     Text,
@@ -12,14 +11,15 @@ import {
     TextVariants,
 } from '@patternfly/react-core';
 import {
-    // cellWidth,
-    expandable,
-    Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    sortable,
-    SortByDirection,
+	Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+    ExpandableRowContent,
+    ActionsColumn,
+	SortByDirection
 } from '@patternfly/react-table';
 import PropTypes from "prop-types";
 
@@ -35,14 +35,15 @@ class ObjectClassesTable extends React.Component {
             value: '',
             sortBy: {},
             rows: [],
-            noRows: true,
             columns: [
                 {
                     title: _("Objectclass Name"),
-                    transforms: [sortable],
-                    cellFormatters: [expandable]
+                    sortable: true
                 },
-                { title: _("OID"), transforms: [sortable] },
+                { 
+                    title: _("OID"), 
+                    sortable: true 
+                },
             ],
         };
 
@@ -64,45 +65,63 @@ class ObjectClassesTable extends React.Component {
         this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    handleSort(_event, index, direction) {
-        const sorted_rows = [];
-        const rows = [];
-        let count = 0;
-
-        // Convert the rows pairings into a sortable array based on the column indexes
-        for (let idx = 0; idx < this.state.rows.length; idx += 2) {
-            sorted_rows.push({
-                expandedRow: this.state.rows[idx + 1],
-                1: this.state.rows[idx].cells[0],
-                2: this.state.rows[idx].cells[1],
-                not_user_defined: this.state.rows[idx].disableActions
-            });
-        }
-
-        // Sort the rows and build the new rows
-        sorted_rows.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+    handleSort(_event, columnIndex, direction) {
+        const rows = [...this.state.rows];
+        
+        rows.sort((a, b) => (a.cells[columnIndex].content > b.cells[columnIndex].content) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
-            sorted_rows.reverse();
-        }
-        for (const srow of sorted_rows) {
-            rows.push({
-                isOpen: false,
-                cells: [
-                    srow[1], srow[2]
-                ],
-                disableActions: srow.not_user_defined
-            });
-            srow.expandedRow.parent = count; // reset parent idx
-            rows.push(srow.expandedRow);
-            count += 2;
+            rows.reverse();
         }
 
         this.setState({
             sortBy: {
-                index,
+                index: columnIndex,
                 direction
             },
             rows,
+            page: 1,
+        });
+    }
+
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        const index = (this.state.perPage * (this.state.page - 1)) + rowIndex;
+        rows[index].isOpen = isExpanding;
+        this.setState({ rows });
+    }
+
+    handleSearchChange(event, value) {
+        const rows = [];
+        const val = value.toLowerCase();
+
+        for (const row of this.props.rows) {
+            // Check for matches of all the parts
+            if (val !== "" && 
+                row.name[0].toLowerCase().indexOf(val) === -1 &&
+                row.oid[0].toLowerCase().indexOf(val) === -1) {
+                continue;
+            }
+
+            let user_defined = false;
+            if (row.x_origin.length > 0 &&
+                row.x_origin.indexOf("user defined") !== -1) {
+                user_defined = true;
+            }
+
+            rows.push({
+                isOpen: false,
+                cells: [
+                    { content: row.name[0] },
+                    { content: row.oid[0] }
+                ],
+                disableActions: !user_defined,
+                originalData: row
+            });
+        }
+
+        this.setState({
+            rows,
+            value,
             page: 1,
         });
     }
@@ -131,118 +150,49 @@ class ObjectClassesTable extends React.Component {
     }
 
     componentDidMount() {
-        let rows = [];
-        let columns = this.state.columns;
-        let count = 0;
-        let noRows = false;
-
-        for (const row of this.props.rows) {
-            let user_defined = false;
-            if (row.x_origin.length > 0 &&
-                row.x_origin.indexOf("user defined") !== -1) {
-                user_defined = true;
-            }
-            rows.push(
-                {
-                    isOpen: false,
-                    cells: [row.name[0], row.oid[0]],
-                    disableActions: !user_defined,
-                },
-                {
-                    parent: count,
-                    fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(row) }]
-                },
-            );
-            count += 2;
-        }
-        if (rows.length === 0) {
-            noRows = true;
-            rows = [{ cells: [_("No Objectclasses")] }];
-            columns = [{ title: _("Objectclasses") }];
-        }
-        this.setState({
-            rows,
-            columns,
-            noRows,
-        });
-    }
-
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
-    }
-
-    handleSearchChange(event, value) {
         const rows = [];
-        let count = 0;
 
         for (const row of this.props.rows) {
             let user_defined = false;
-            const val = value.toLowerCase();
-
-            // Check for matches of all the parts
-            if (val !== "" && row.name[0].toLowerCase().indexOf(val) === -1 &&
-                row.oid[0].toLowerCase().indexOf(val) === -1) {
-                // Not a match
-                continue;
-            }
-
             if (row.x_origin.length > 0 &&
                 row.x_origin.indexOf("user defined") !== -1) {
                 user_defined = true;
             }
-            rows.push(
-                {
-                    isOpen: false,
-                    cells: [row.name[0], row.oid[0]],
-                    disableActions: !user_defined
-                },
-                {
-                    parent: count,
-                    fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(row) }]
-                },
-            );
-            count += 2;
+
+            rows.push({
+                isOpen: false,
+                cells: [
+                    { content: row.name[0] },
+                    { content: row.oid[0] }
+                ],
+                disableActions: !user_defined,
+                originalData: row
+            });
         }
 
         this.setState({
             rows,
-            value,
-            page: 1,
         });
     }
 
-    actions() {
-        return [
-            {
-                title: _("Edit Objectclass"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.editModalHandler(rowData.cells[0])
-            },
-            {
-                title: _("Delete Objectclass"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.deleteHandler(rowData.cells[0])
-            }
-        ];
-    }
+    getActionsForRow = (rowData) => [
+        {
+            title: _("Edit Objectclass"),
+            onClick: () => this.props.editModalHandler(rowData.cells[0].content)
+        },
+        {
+            isSeparator: true
+        },
+        {
+            title: _("Delete Objectclass"),
+            onClick: () => this.props.deleteHandler(rowData.cells[0].content)
+        }
+    ];
 
     render() {
-        const { perPage, page, sortBy, rows, noRows, columns } = this.state;
-        const origRows = [...rows];
-        const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
-
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        const { perPage, page, sortBy, rows, columns } = this.state;
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
 
         let content = (
             <div className="ds-center ds-margin-top-xlg">
@@ -268,28 +218,70 @@ class ObjectClassesTable extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Table
-                        className="ds-margin-top"
-                        aria-label="oc table"
-                        cells={columns}
-                        rows={tableRows}
-                        variant={TableVariant.compact}
-                        sortBy={sortBy}
-                        onSort={this.handleSort}
-                        onCollapse={this.handleCollapse}
-                        actions={noRows ? null : this.actions()}
-                        dropdownPosition="right"
-                        dropdownDirection="bottom"
+                    <Table 
+                        aria-label="objectclasses table"
+                        variant='compact'
                     >
-                        <TableHeader />
-                        <TableBody />
+                        <Thead>
+                            <Tr>
+                                <Th screenReaderText="Row expansion" />
+                                {columns.map((column, columnIndex) => (
+                                    <Th
+                                        key={columnIndex}
+                                        sort={column.sortable ? {
+                                            sortBy,
+                                            onSort: this.handleSort,
+                                            columnIndex
+                                        } : undefined}
+                                    >
+                                        {column.title}
+                                    </Th>
+                                ))}
+                                <Th screenReaderText="Actions" />
+                            </Tr>
+                        </Thead>
+                        <Tbody>
+                            {tableRows.map((row, rowIndex) => (
+                                <React.Fragment key={rowIndex}>
+                                    <Tr>
+                                        <Td
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                        {row.cells.map((cell, cellIndex) => (
+                                            <Td key={cellIndex}>
+                                                {cell.content}
+                                            </Td>
+                                        ))}
+                                        <Td isActionCell>
+                                            <ActionsColumn 
+                                                items={this.getActionsForRow(row)}
+                                                isDisabled={row.disableActions}
+                                            />
+                                        </Td>
+                                    </Tr>
+                                    {row.isOpen && (
+                                        <Tr isExpanded={true}>
+                                            <Td colSpan={columns.length + 2}>
+                                                <ExpandableRowContent>
+                                                    {this.getExpandedRow(row.originalData)}
+                                                </ExpandableRowContent>
+                                            </Td>
+                                        </Tr>
+                                    )}
+                                </React.Fragment>
+                            ))}
+                        </Tbody>
                     </Table>
                     <Pagination
-                        itemCount={this.state.rows.length / 2}
+                        itemCount={rows.length}
                         widgetId="pagination-options-menu-bottom"
                         perPage={perPage}
                         page={page}
-                        variant={PaginationVariant.bottom}
+                        variant="bottom"
                         onSetPage={this.handleSetPage}
                         onPerPageSelect={this.handlePerPageSelect}
                     />
@@ -329,11 +321,10 @@ class AttributesTable extends React.Component {
             columns: [
                 {
                     title: _("Attribute Name"),
-                    transforms: [sortable],
-                    cellFormatters: [expandable]
+                    sortable: true
                 },
-                { title: _("OID"), transforms: [sortable] },
-                { title: _("Syntax"), transforms: [sortable] },
+                { title: _("OID"), sortable: true },
+                { title: _("Syntax"), sortable: true },
             ],
         };
 
@@ -355,24 +346,24 @@ class AttributesTable extends React.Component {
         this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    handleSort(_event, index, direction) {
+    handleSort(_event, columnIndex, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
 
-        // Convert the rows pairings into a sortable array based on the column indexes
+        // Convert the rows pairings into a sortable array
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
                 expandedRow: this.state.rows[idx + 1],
-                1: this.state.rows[idx].cells[0],
-                2: this.state.rows[idx].cells[1],
-                3: this.state.rows[idx].cells[2],
+                1: this.state.rows[idx].cells[0].content,
+                2: this.state.rows[idx].cells[1].content,
+                3: this.state.rows[idx].cells[2].content,
                 not_user_defined: this.state.rows[idx].disableActions
             });
         }
 
-        // Sort the rows and build the new rows
-        sorted_rows.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        // Sort and rebuild rows
+        sorted_rows.sort((a, b) => (a[columnIndex + 1] > b[columnIndex + 1]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
@@ -380,18 +371,20 @@ class AttributesTable extends React.Component {
             rows.push({
                 isOpen: false,
                 cells: [
-                    srow[1], srow[2], srow[2]
+                    { content: srow[1] },
+                    { content: srow[2] },
+                    { content: srow[3] }
                 ],
                 disableActions: srow.not_user_defined
             });
-            srow.expandedRow.parent = count; // reset parent idx
+            srow.expandedRow.parent = count;
             rows.push(srow.expandedRow);
             count += 2;
         }
 
         this.setState({
             sortBy: {
-                index,
+                index: columnIndex,
                 direction
             },
             rows,
@@ -432,34 +425,28 @@ class AttributesTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
-        let count = 0;
         let noRows = false;
 
         for (const row of this.props.rows) {
-            let user_defined = false;
-            if (row.x_origin.length > 0 &&
-                row.x_origin.indexOf("user defined") !== -1) {
-                user_defined = true;
-            }
-            rows.push(
-                {
-                    isOpen: false,
-                    cells: [row.name[0], row.oid[0], row.syntax[0]],
-                    disableActions: !user_defined,
-                },
-                {
-                    parent: count,
-                    fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(row) }]
-                },
-            );
-            count += 2;
+            let user_defined = row.x_origin.includes("user defined");
+            rows.push({
+                isOpen: false,
+                cells: [
+                    { content: row.name[0] },
+                    { content: row.oid[0] },
+                    { content: row.syntax[0] }
+                ],
+                disableActions: !user_defined,
+                originalData: row
+            });
         }
+
         if (rows.length === 0) {
             noRows = true;
-            rows = [{ cells: [_("No Attributes")] }];
+            rows = [{ cells: [{ content: _("No Attributes") }] }];
             columns = [{ title: _("Attributes") }];
         }
+
         this.setState({
             rows,
             columns,
@@ -518,31 +505,21 @@ class AttributesTable extends React.Component {
         });
     }
 
-    actions() {
-        return [
-            {
-                title: _("Edit Attribute"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.editModalHandler(rowData.cells[0])
-            },
-            {
-                title: _("Delete Attribute"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.deleteHandler(rowData.cells[0])
-            }
-        ];
-    }
+    getActionsForRow = (rowData) => [
+        {
+            title: _("Edit Attribute"),
+            onClick: () => this.props.editModalHandler(rowData.cells[0].content)
+        },
+        {
+            title: _("Delete Attribute"),
+            onClick: () => this.props.deleteHandler(rowData.cells[0].content)
+        }
+    ];
 
     render() {
         const { perPage, page, sortBy, rows, noRows, columns } = this.state;
-        const origRows = [...rows];
-        const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
-
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        const startIdx = (perPage * page) - perPage;
+        const tableRows = rows.slice(startIdx, startIdx + perPage);
 
         let content = (
             <div className="ds-center ds-margin-top-xlg">
@@ -568,28 +545,70 @@ class AttributesTable extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Table
-                        className="ds-margin-top"
-                        aria-label="attr table"
-                        cells={columns}
-                        rows={tableRows}
-                        variant={TableVariant.compact}
-                        sortBy={sortBy}
-                        onSort={this.handleSort}
-                        onCollapse={this.handleCollapse}
-                        actions={noRows ? null : this.actions()}
-                        dropdownPosition="right"
-                        dropdownDirection="bottom"
+                    <Table 
+                        aria-label="attributes table"
+                        variant='compact'
                     >
-                        <TableHeader />
-                        <TableBody />
+                        <Thead>
+                            <Tr>
+                                <Th screenReaderText="Row expansion" />
+                                {columns.map((column, columnIndex) => (
+                                    <Th
+                                        key={columnIndex}
+                                        sort={column.sortable ? {
+                                            sortBy,
+                                            onSort: this.handleSort,
+                                            columnIndex
+                                        } : undefined}
+                                    >
+                                        {column.title}
+                                    </Th>
+                                ))}
+                                <Th screenReaderText="Actions" />
+                            </Tr>
+                        </Thead>
+                        <Tbody>
+                            {tableRows.map((row, rowIndex) => (
+                                <React.Fragment key={rowIndex}>
+                                    <Tr>
+                                        <Td
+                                            expand={{
+                                                rowIndex,
+                                                isExpanded: row.isOpen,
+                                                onToggle: () => this.handleCollapse(null, rowIndex, !row.isOpen)
+                                            }}
+                                        />
+                                        {row.cells.map((cell, cellIndex) => (
+                                            <Td key={cellIndex}>
+                                                {cell.content}
+                                            </Td>
+                                        ))}
+                                        <Td isActionCell>
+                                            <ActionsColumn 
+                                                items={this.getActionsForRow(row)}
+                                                isDisabled={row.disableActions}
+                                            />
+                                        </Td>
+                                    </Tr>
+                                    {row.isOpen && (
+                                        <Tr isExpanded={true}>
+                                            <Td colSpan={columns.length + 2}>
+                                                <ExpandableRowContent>
+                                                    {this.getExpandedRow(row.originalData)}
+                                                </ExpandableRowContent>
+                                            </Td>
+                                        </Tr>
+                                    )}
+                                </React.Fragment>
+                            ))}
+                        </Tbody>
                     </Table>
                     <Pagination
-                        itemCount={this.state.rows.length / 2}
+                        itemCount={rows.length}
                         widgetId="pagination-options-menu-bottom"
                         perPage={perPage}
                         page={page}
-                        variant={PaginationVariant.bottom}
+                        variant="bottom"
                         onSetPage={this.handleSetPage}
                         onPerPageSelect={this.handlePerPageSelect}
                     />
@@ -629,13 +648,9 @@ class MatchingRulesTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                {
-                    title: _("Matching Rule"),
-                    transforms: [sortable],
-                    cellFormatters: [expandable]
-                },
-                { title: _("OID"), transforms: [sortable] },
-                { title: _("Syntax"), transforms: [sortable] },
+                { title: _("Matching Rule"), sortable: true },
+                { title: _("OID"), sortable: true },
+                { title: _("Syntax"), sortable: true },
             ],
         };
 
@@ -648,7 +663,7 @@ class MatchingRulesTable extends React.Component {
         this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
                 perPage,
-                page: 1 // reset page back to 1
+                page: 1
             });
         };
 
@@ -657,41 +672,45 @@ class MatchingRulesTable extends React.Component {
         this.handleSearchChange = this.handleSearchChange.bind(this);
     }
 
-    handleSort(_event, index, direction) {
+    handleSort(_event, columnIndex, direction) {
         const sorted_rows = [];
         const rows = [];
         let count = 0;
 
-        // Convert the rows pairings into a sortable array based on the column indexes
+        // Convert the rows pairings into a sortable array
         for (let idx = 0; idx < this.state.rows.length; idx += 2) {
             sorted_rows.push({
                 expandedRow: this.state.rows[idx + 1],
-                1: this.state.rows[idx].cells[0],
-                2: this.state.rows[idx].cells[1],
-                3: this.state.rows[idx].cells[2],
+                1: this.state.rows[idx].cells[0].content,
+                2: this.state.rows[idx].cells[1].content,
+                3: this.state.rows[idx].cells[2].content,
             });
         }
 
-        // Sort the rows and build the new rows
-        sorted_rows.sort((a, b) => (a[index] > b[index]) ? 1 : -1);
+        sorted_rows.sort((a, b) => (a[columnIndex + 1] > b[columnIndex + 1]) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             sorted_rows.reverse();
         }
+
         for (const srow of sorted_rows) {
             rows.push({
                 isOpen: false,
                 cells: [
-                    srow[1], srow[2], srow[2]
+                    { content: srow[1] },
+                    { content: srow[2] },
+                    { content: srow[3] }
                 ],
             });
-            srow.expandedRow.parent = count; // reset parent idx
-            rows.push(srow.expandedRow);
+            rows.push({
+                ...srow.expandedRow,
+                parent: count
+            });
             count += 2;
         }
 
         this.setState({
             sortBy: {
-                index,
+                index: columnIndex,
                 direction
             },
             rows,
@@ -713,42 +732,42 @@ class MatchingRulesTable extends React.Component {
         );
     }
 
+    handleCollapse(_event, rowIndex, isExpanding) {
+        const rows = [...this.state.rows];
+        const index = (this.state.perPage * (this.state.page - 1) * 2) + rowIndex;
+        rows[index].isOpen = isExpanding;
+        this.setState({ rows });
+    }
+
     componentDidMount() {
         let rows = [];
-        let columns = this.state.columns;
         let count = 0;
 
         for (const row of this.props.rows) {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [{ title: row.name[0] }, row.oid[0], row.syntax[0]],
+                    cells: [
+                        { content: row.name[0] },
+                        { content: row.oid[0] },
+                        { content: row.syntax[0] }
+                    ],
                 },
                 {
                     parent: count,
                     fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(row) }]
+                    cells: [{ content: this.getExpandedRow(row) }]
                 },
             );
             count += 2;
         }
         if (rows.length === 0) {
-            rows = [{ cells: ['No Matching Rules'] }];
-            columns = [{ title: 'Matching Rules' }];
+            rows = [{ cells: [{ content: 'No Matching Rules' }] }];
+            this.setState({
+                columns: [{ title: 'Matching Rules' }]
+            });
         }
-        this.setState({
-            rows,
-            columns
-        });
-    }
-
-    handleCollapse(event, rowKey, isOpen) {
-        const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
-        rows[index].isOpen = isOpen;
-        this.setState({
-            rows
-        });
+        this.setState({ rows });
     }
 
     handleSearchChange(event, value) {
@@ -759,24 +778,28 @@ class MatchingRulesTable extends React.Component {
             const val = value.toLowerCase();
             let name = "";
             // Check for matches of all the parts
-            if (row.names.length > 0) {
+            if (row.names && row.names.length > 0) {
                 name = row.name[0];
             }
-            if (val !== "" && name.indexOf(val) === -1 &&
-                row.oid[0].indexOf(val) === -1 &&
-                row.syntax[0].indexOf(val) === -1) {
+            if (name.toLowerCase().indexOf(val) === -1 &&
+                row.oid[0].toLowerCase().indexOf(val) === -1 &&
+                row.syntax[0].toLowerCase().indexOf(val) === -1) {
                 // Not a match
                 continue;
             }
             rows.push(
                 {
                     isOpen: false,
-                    cells: [{ title: name === "" ? <i>&lt;{_("No Name")}&gt;</i> : name }, row.oid[0], row.syntax[0]],
+                    cells: [
+                        { content: name || <i>&lt;{_("No Name")}&gt;</i> },
+                        { content: row.oid[0] },
+                        { content: row.syntax[0] }
+                    ],
                 },
                 {
                     parent: count,
                     fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(row) }]
+                    cells: [{ content: this.getExpandedRow(row) }]
                 },
             );
             count += 2;
@@ -791,14 +814,12 @@ class MatchingRulesTable extends React.Component {
 
     render() {
         const { perPage, page, sortBy, rows, columns } = this.state;
-        const origRows = [...rows];
         const startIdx = ((perPage * page) - perPage) * 2;
-        const tableRows = origRows.splice(startIdx, perPage * 2);
+        const tableRows = rows.slice(startIdx, startIdx + (perPage * 2));
 
-        for (let idx = 1, count = 0; idx < tableRows.length; idx += 2, count += 2) {
-            // Rewrite parent index to match new spliced array
-            tableRows[idx].parent = count;
-        }
+        // Filter out the expanded rows for the main table display
+        const displayRows = tableRows.filter((row, index) => index % 2 === 0);
+        const expandedContent = tableRows.filter((row, index) => index % 2 === 1);
 
         return (
             <div>
@@ -814,23 +835,62 @@ class MatchingRulesTable extends React.Component {
                 </Grid>
                 <Table
                     className="ds-margin-top"
-                    aria-label="attr table"
-                    cells={columns}
-                    rows={tableRows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    onCollapse={this.handleCollapse}
+                    aria-label="matching rules table"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Row expansion" />
+                            {columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {displayRows.map((row, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                <Tr>
+                                    <Td
+                                        expand={{
+                                            rowIndex,
+                                            isExpanded: row.isOpen,
+                                            onToggle: () => this.handleCollapse(null, rowIndex * 2, !row.isOpen)
+                                        }}
+                                    />
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>
+                                            {cell.content}
+                                        </Td>
+                                    ))}
+                                </Tr>
+                                {row.isOpen && (
+                                    <Tr isExpanded={true}>
+                                        <Td colSpan={columns.length + 1}>
+                                            <ExpandableRowContent>
+                                                {expandedContent[rowIndex].cells[0].content}
+                                            </ExpandableRowContent>
+                                        </Td>
+                                    </Tr>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
-                    itemCount={this.state.rows.length / 2}
+                    itemCount={rows.length / 2}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />

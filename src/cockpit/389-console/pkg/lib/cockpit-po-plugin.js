@@ -1,9 +1,10 @@
-import fs from "fs";
-import glob from "glob";
-import path from "path";
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
 
-import Jed from "jed";
 import gettext_parser from "gettext-parser";
+import { glob } from "glob";
+import Jed from "jed";
 
 const config = {};
 
@@ -27,6 +28,11 @@ function get_po_files() {
 }
 
 function get_plural_expr(statement) {
+    if (statement === undefined) {
+        console.error("Plural-Forms header is missing in the PO file");
+        return "'(n) => n != 1'"; // Default plural expression for English
+    }
+
     try {
         /* Check that the plural forms isn't being sneaky since we build a function here */
         Jed.PF.parse(statement);
@@ -44,23 +50,25 @@ function get_plural_expr(statement) {
     return expr;
 }
 
-function buildFile(po_file, subdir, webpack_module, webpack_compilation) {
-    if (webpack_compilation)
-        webpack_compilation.fileDependencies.add(po_file);
-
+function buildFile(po_file, subdir, filename, filter) {
     return new Promise((resolve, reject) => {
-        const parsed = gettext_parser.po.parse(fs.readFileSync(po_file), 'utf8');
+        // Read the PO file, remove fuzzy/disabled lines to avoid tripping up the validator
+        const po_data = fs.readFileSync(po_file, 'utf8')
+                .split('\n')
+                .filter(line => !line.startsWith('#~'))
+                .join('\n');
+        const parsed = gettext_parser.po.parse(po_data, { defaultCharset: 'utf8', validation: true });
         delete parsed.translations[""][""]; // second header copy
 
         const rtl_langs = ["ar", "fa", "he", "ur"];
-        const dir = rtl_langs.includes(parsed.headers.language) ? "rtl" : "ltr";
+        const dir = rtl_langs.includes(parsed.headers.Language) ? "rtl" : "ltr";
 
         // cockpit.js only looks at "plural-forms" and "language"
         const chunks = [
             '{\n',
             ' "": {\n',
             `  "plural-forms": ${get_plural_expr(parsed.headers['plural-forms'])},\n`,
-            `  "language": "${parsed.headers.language}",\n`,
+            `  "language": "${parsed.headers.Language}",\n`,
             `  "language-direction": "${dir}"\n`,
             ' }'
         ];
@@ -74,6 +82,9 @@ function buildFile(po_file, subdir, webpack_module, webpack_compilation) {
                     continue;
 
                 if (translation.comments.flag?.match(/\bfuzzy\b/))
+                    continue;
+
+                if (!references.some(filter))
                     continue;
 
                 const key = JSON.stringify(context_prefix + msgid);
@@ -90,12 +101,8 @@ function buildFile(po_file, subdir, webpack_module, webpack_compilation) {
         const wrapper = config.wrapper?.(subdir) || DEFAULT_WRAPPER;
         const output = wrapper.replace('PO_DATA', chunks.join('')) + '\n';
 
-        const lang = path.basename(po_file).slice(0, -3);
-        const out_path = (subdir ? (subdir + '/') : '') + 'po.' + lang + '.js';
-        if (webpack_compilation)
-            webpack_compilation.emitAsset(out_path, new webpack_module.sources.RawSource(output));
-        else
-            fs.writeFileSync(path.resolve(config.outdir, out_path), output);
+        const out_path = path.join(subdir ? (subdir + '/') : '', filename);
+        fs.writeFileSync(path.resolve(config.outdir, out_path), output);
         return resolve();
     });
 }
@@ -108,11 +115,18 @@ function init(options) {
     config.outdir = options.outdir || './dist';
 }
 
-function run(webpack_module, webpack_compilation) {
+function run() {
     const promises = [];
-    config.subdirs.map(subdir =>
-        promises.push(...get_po_files().map(po_file =>
-            buildFile(po_file, subdir, webpack_module, webpack_compilation))));
+    for (const subdir of config.subdirs) {
+        for (const po_file of get_po_files()) {
+            const lang = path.basename(po_file).slice(0, -3);
+            promises.push(Promise.all([
+                // Separate translations for the manifest.json file and normal pages
+                buildFile(po_file, subdir, `po.${lang}.js`, str => !str.includes('manifest.json')),
+                buildFile(po_file, subdir, `po.manifest.${lang}.js`, str => str.includes('manifest.json'))
+            ]));
+        }
+    }
     return Promise.all(promises);
 }
 
@@ -123,22 +137,3 @@ export const cockpitPoEsbuildPlugin = options => ({
         build.onEnd(async result => { result.errors.length === 0 && await run() });
     },
 });
-
-export class CockpitPoWebpackPlugin {
-    constructor(options) {
-        init(options || {});
-    }
-
-    apply(compiler) {
-        compiler.hooks.thisCompilation.tap('CockpitPoWebpackPlugin', async compilation => {
-            const webpack = (await import('webpack')).default;
-            compilation.hooks.processAssets.tapPromise(
-                {
-                    name: 'CockpitPoWebpackPlugin',
-                    stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL,
-                },
-                () => run(webpack, compilation)
-            );
-        });
-    }
-}

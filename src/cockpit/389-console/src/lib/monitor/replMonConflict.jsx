@@ -10,6 +10,7 @@ import {
     ConflictCompareModal,
 } from "./monitorModals.jsx";
 import {
+    Button,
     Tab,
     Tabs,
     TabTitleText,
@@ -19,8 +20,7 @@ import {
     Tooltip,
 } from "@patternfly/react-core";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { SyncAltIcon } from "@patternfly/react-icons";
 
 const _ = cockpit.gettext;
 
@@ -387,8 +387,8 @@ export class ReplMonConflict extends React.Component {
     }
 
     render () {
-        const conflictEntries = this.props.data.conflicts;
-        const glueEntries = this.props.data.glues;
+        const conflictEntries = this.props.data?.conflicts || [];
+        const glueEntries = this.props.data?.glues || [];
 
         return (
             <div>
@@ -396,13 +396,13 @@ export class ReplMonConflict extends React.Component {
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {_("Monitor Conflict and Glue Entries")}
-                            <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title={_("Refresh replication monitor")}
+                            <Button 
+                                variant="plain"
+                                aria-label={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
-                            />
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
                 </div>

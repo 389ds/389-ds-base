@@ -22,11 +22,7 @@ import {
     ChartThemeColor,
     ChartVoronoiContainer
 } from '@patternfly/react-charts';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faLeaf,
-    faTree,
-} from '@fortawesome/free-solid-svg-icons';
+import { LeafIcon, TreeIcon } from "@patternfly/react-icons";
 import { numToCommas, displayBytes, log_cmd } from '../tools.jsx';
 
 const _ = cockpit.gettext;
@@ -225,10 +221,10 @@ export class SuffixMonitor extends React.Component {
         let dncachecurr = 0;
         let dncachecount = 0;
         let dnutilratio = 1;
-        let suffixIcon = faTree;
+        let SuffixIcon = TreeIcon;
 
         if (this.props.dbtype === "subsuffix") {
-            suffixIcon = faLeaf;
+            SuffixIcon = LeafIcon;
         }
 
         let content = (
@@ -606,7 +602,7 @@ export class SuffixMonitor extends React.Component {
             <div>
                 <TextContent>
                     <Text component={TextVariants.h2}>
-                        <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix} (<b>{this.props.bename}</b>)
+                        <SuffixIcon /> {this.props.suffix} (<b>{this.props.bename}</b>)
                     </Text>
                 </TextContent>
                 <div className="ds-margin-top-lg">

@@ -1,20 +1,22 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormHelperText,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TextInput,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormHelperText,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, valid_dn } from "../tools.jsx";
@@ -116,7 +118,7 @@ class AccountPolicy extends React.Component {
                 }, () => { this.validateConfig() });
             }
         };
-        this.handleRecordLoginToggle = isRecordLoginOpen => {
+        this.handleRecordLoginToggle = (_event, isRecordLoginOpen) => {
             this.setState({
                 isRecordLoginOpen
             });
@@ -139,7 +141,7 @@ class AccountPolicy extends React.Component {
                 }, () => { this.validateConfig() });
             }
         };
-        this.handleSpecificAttrToggle = isSpecificAttrOpen => {
+        this.handleSpecificAttrToggle = (_event, isSpecificAttrOpen) => {
             this.setState({
                 isSpecificAttrOpen
             });
@@ -162,7 +164,7 @@ class AccountPolicy extends React.Component {
                 }, () => { this.validateConfig() });
             }
         };
-        this.handleStateAttrToggle = isStateAttrOpen => {
+        this.handleStateAttrToggle = (_event, isStateAttrOpen) => {
             this.setState({
                 isStateAttrOpen
             });
@@ -185,7 +187,7 @@ class AccountPolicy extends React.Component {
                 }, () => { this.validateConfig() });
             }
         };
-        this.handleAlternativeStateToggle = isAltStateAttrOpen => {
+        this.handleAlternativeStateToggle = (_event, isAltStateAttrOpen) => {
             this.setState({
                 isAltStateAttrOpen
             });
@@ -208,7 +210,7 @@ class AccountPolicy extends React.Component {
                 }, () => { this.validateConfig() });
             }
         };
-        this.handleLimitAttrToggle = isLimitAttrOpen => {
+        this.handleLimitAttrToggle = (_event, isLimitAttrOpen) => {
             this.setState({
                 isLimitAttrOpen
             });
@@ -613,7 +615,7 @@ class AccountPolicy extends React.Component {
         }
     }
 
-    handleCheckboxChange(checked, e) {
+    handleCheckboxChange(e, checked) {
         this.setState({
             [e.target.id]: checked
         }, () => { this.validateConfig() });
@@ -859,11 +861,11 @@ class AccountPolicy extends React.Component {
                                     id="configDN"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configDN"
-                                    onChange={(str, e) => { this.handleModalChange(e) }}
+                                    onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
                                     isDisabled
                                 />
-                                <FormHelperText isError isHidden={!errorModal.configDN}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -876,7 +878,7 @@ class AccountPolicy extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={this.handleRecordLoginToggle}
+                                    onToggle={(event, isOpen) => this.handleRecordLoginToggle(event, isOpen)}
                                     onSelect={this.handleRecordLoginSelect}
                                     onClear={this.handleRecordLoginClear}
                                     selections={alwaysRecordLoginAttr}
@@ -899,7 +901,7 @@ class AccountPolicy extends React.Component {
                                     className="ds-left-margin"
                                     isChecked={alwaysRecordLogin}
                                     title={_("Sets that every entry records its last login time (alwaysRecordLogin)")}
-                                    onChange={this.handleCheckboxChange}
+                                    onChange={(e, checked) => this.handleCheckboxChange(e, checked)}
                                     label={_("Always Record Login")}
                                 />
                             </GridItem>
@@ -912,7 +914,7 @@ class AccountPolicy extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={this.handleSpecificAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleSpecificAttrToggle(event, isOpen)}
                                     onSelect={this.handleSpecificAttrSelect}
                                     onClear={this.handleSpecificAttrClear}
                                     selections={specAttrName}
@@ -938,7 +940,7 @@ class AccountPolicy extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={this.handleLimitAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleLimitAttrToggle(event, isOpen)}
                                     onSelect={this.handleLimitAttrSelect}
                                     onClear={this.handleLimitAttrClear}
                                     selections={limitAttrName}
@@ -964,7 +966,7 @@ class AccountPolicy extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={this.handleStateAttrToggle}
+                                    onToggle={(event, isOpen) => this.handleStateAttrToggle(event, isOpen)}
                                     onSelect={this.handleStateAttrSelect}
                                     onClear={this.handleStateAttrClear}
                                     selections={stateAttrName}
@@ -991,7 +993,7 @@ class AccountPolicy extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={this.handleAlternativeStateToggle}
+                                    onToggle={(event, isOpen) => this.handleAlternativeStateToggle(event, isOpen)}
                                     onSelect={this.handleAlternativeStateSelect}
                                     onClear={this.handleAlternativeStateClear}
                                     selections={altStateAttrName}
@@ -1019,7 +1021,7 @@ class AccountPolicy extends React.Component {
                                     id="checkAllStateAttrs"
                                     className="ds-left-margin"
                                     isChecked={checkAllStateAttrs}
-                                    onChange={this.handleCheckboxChange}
+                                    onChange={(e, checked) => this.handleCheckboxChange(e, checked)}
                                     label={_("Check Both - State and Alternative State Attributes")}
                                 />
                             </GridItem>
@@ -1050,10 +1052,10 @@ class AccountPolicy extends React.Component {
                                     id="configArea"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configArea"
-                                    onChange={(str, e) => { this.handleFieldChange(e) }}
+                                    onChange={(e, str) => { this.handleFieldChange(e) }}
                                     validated={error.configArea ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!error.configArea}>
+                                <FormHelperText  >
                                     {_("Value must be a valid DN")}
                                 </FormHelperText>
                             </GridItem>

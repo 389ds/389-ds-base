@@ -16,6 +16,7 @@ import {
     Breadcrumb,
     BreadcrumbItem,
     Button,
+    Icon ,
     Modal,
     ModalVariant,
     Spinner,
@@ -43,11 +44,7 @@ import EditorTableView from './lib/ldap_editor/tableView.jsx';
 import EditorTreeView from './lib/ldap_editor/treeView.jsx';
 import { SearchDatabase } from './lib/ldap_editor/search.jsx';
 import GenericWizard from './lib/ldap_editor/wizards/genericWizard.jsx';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import { log_cmd } from "./lib/tools.jsx";
 
 const _ = cockpit.gettext;
@@ -127,7 +124,7 @@ export class LDAPEditor extends React.Component {
         };
 
         // Actions when user clicks on the Entry Details menu
-        this.onToggleEntryMenu = isOpen => {
+        this.onToggleEntryMenu = (_event, isOpen) => {
             this.setState({
                 entryMenuIsOpen: isOpen
             });
@@ -1188,12 +1185,12 @@ export class LDAPEditor extends React.Component {
                                     </BreadcrumbItem>
                                 ))}
                             </Breadcrumb>
-                            <FontAwesomeIcon
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title={_("Refresh")}
-                                onClick={this.handleReload}
-                            />
+                            <Icon>
+                                <SyncAltIcon
+                                    className="ds-left-margin ds-refresh"
+                                    onClick={this.handleReload}
+                                />
+                            </Icon>
                         </div>
                         <div className={this.state.searching ? "ds-margin-top-xlg ds-center" : "ds-hidden"}>
                             <TextContent>

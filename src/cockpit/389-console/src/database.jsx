@@ -17,6 +17,8 @@ import {
     FormSelect,
     FormSelectOption,
     FormHelperText,
+    HelperText,
+    HelperTextItem,
     Modal,
     ModalVariant,
     Spinner,
@@ -26,12 +28,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faLeaf,
-    faTree,
-    faLink
-} from '@fortawesome/free-solid-svg-icons';
+import { TreeIcon, LeafIcon, LinkIcon } from '@patternfly/react-icons';
 import {
     CatalogIcon,
     CogIcon,
@@ -465,11 +462,11 @@ export class Database extends React.Component {
     processTree(suffixData) {
         for (const suffix of suffixData) {
             if (suffix.type === "suffix") {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+                suffix.icon = <TreeIcon size="sm" />;
             } else if (suffix.type === "subsuffix") {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+                suffix.icon = <LeafIcon size="sm" />;
             } else {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faLink} />;
+                suffix.icon = <LinkIcon size="sm" />;
             }
             if (suffix.children.length === 0) {
                 delete suffix.children;
@@ -718,7 +715,7 @@ export class Database extends React.Component {
         });
     }
 
-    onHandleSelectChange(value, event) {
+    onHandleSelectChange(_event, value) {
         let noInit = false;
         let addSuffix = false;
         let addSample = false;
@@ -738,7 +735,7 @@ export class Database extends React.Component {
         });
     }
 
-    onHandleChange(str, e) {
+    onHandleChange(e, str) {
         // Handle the Create Suffix modal changes
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
@@ -1488,9 +1485,6 @@ class CreateSuffixModal extends React.Component {
                         label={_("Suffix DN")}
                         fieldId="createSuffix"
                         title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN).")}
-                        helperTextInvalid={_("The DN of the suffix is invalid")}
-                        helperTextInvalidIcon={<ExclamationCircleIcon />}
-                        validated={error.createSuffix ? "error" : "noval"}
                     >
                         <TextInput
                             isRequired
@@ -1501,29 +1495,34 @@ class CreateSuffixModal extends React.Component {
                             onChange={handleChange}
                             validated={error.createSuffix ? "error" : "noval"}
                         />
-                        <FormHelperText isError isHidden={!error.createSuffix}>
-                            {_("Required field")}
+                        <FormHelperText>
+                                <HelperText>
+                                <HelperTextItem icon={<ExclamationCircleIcon />} variant={error.createSuffix ? "error" : "default"}>
+                                    {error.createBeName ? 'The DN of the suffix is invalid' : 'Required field'}
+                                </HelperTextItem>
+                                </HelperText>
                         </FormHelperText>
                     </FormGroup>
                     <FormGroup
                         label={_("Database Name")}
                         fieldId="suffixName"
                         title={_("The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.")}
-                        helperTextInvalid={_("You must enter a name for the database")}
-                        helperTextInvalidIcon={<ExclamationCircleIcon />}
-                        validated={error.createBeName ? "error" : "noval"}
                     >
                         <TextInput
                             isRequired
                             type="text"
                             id="createBeName"
-                            aria-describedby="createSuffix"
+                            aria-describedby="createBeName"
                             name="suffixName"
                             onChange={handleChange}
                             validated={error.createBeName ? "error" : "noval"}
                         />
-                        <FormHelperText isError isHidden={!error.createBeName}>
-                            {_("Required field")}
+                        <FormHelperText>
+                                <HelperText>
+                                <HelperTextItem icon={<ExclamationCircleIcon />} variant={error.createBeName ? "error" : "default"}>
+                                    {error.createBeName ? 'You must enter a name for the database' : 'Required field'}
+                                </HelperTextItem>
+                                </HelperText>
                         </FormHelperText>
                     </FormGroup>
                     <FormGroup

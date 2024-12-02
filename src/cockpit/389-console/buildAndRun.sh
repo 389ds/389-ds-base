@@ -12,5 +12,5 @@ if [ $? != 0 ]; then
 fi
 
 printf "\nBuilding and watching ...\n"
-ESBUILD_WATCH=true ./build.js
+./build.js --watch
 # npm run watch
