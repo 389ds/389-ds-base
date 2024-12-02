@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2020-2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,6 +19,7 @@ from lib389._constants import DSRC_HOME
 from lib389.cli_conf import config as cli_config
 from lib389.cli_conf import backend as cli_backend
 from lib389.cli_conf import directory_manager as cli_directory_manager
+from lib389.cli_conf import logging as cli_logs
 from lib389.cli_conf import plugin as cli_plugin
 from lib389.cli_conf import schema as cli_schema
 from lib389.cli_conf import monitor as cli_monitor
@@ -73,14 +74,15 @@ cli_backup.create_parser(subparsers)
 cli_chaining.create_parser(subparsers)
 cli_config.create_parser(subparsers)
 cli_directory_manager.create_parsers(subparsers)
+cli_logs.create_parser(subparsers)
 cli_monitor.create_parser(subparsers)
 cli_plugin.create_parser(subparsers)
 cli_pwpolicy.create_parser(subparsers)
 cli_replication.create_parser(subparsers)
+cli_repl_conflicts.create_parser(subparsers)
 cli_sasl.create_parser(subparsers)
 cli_security.create_parser(subparsers)
 cli_schema.create_parser(subparsers)
-cli_repl_conflicts.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 
