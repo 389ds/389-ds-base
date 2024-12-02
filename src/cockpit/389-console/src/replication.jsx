@@ -10,12 +10,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faClone,
-    faTree,
-    faLeaf,
-} from '@fortawesome/free-solid-svg-icons';
+import { TreeIcon, LeafIcon, CloneIcon } from '@patternfly/react-icons';
 import {
     TopologyIcon
 } from '@patternfly/react-icons';
@@ -157,7 +152,7 @@ export class Replication extends React.Component {
                 treeBranch.splice(sub, 1);
                 continue;
             } else if (treeBranch[sub].replicated) {
-                treeBranch[sub].icon = <FontAwesomeIcon size="sm" icon={faClone} />;
+                treeBranch[sub].icon = <CloneIcon size="sm" />;
                 treeBranch[sub].replicated = true;
             }
             if (treeBranch[sub].children.length === 0) {
@@ -194,9 +189,9 @@ export class Replication extends React.Component {
                         treeData = JSON.parse(content);
                         for (const suffix of treeData) {
                             if (suffix.type === "suffix") {
-                                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+                                suffix.icon = <TreeIcon size="sm" />;
                             } else if (suffix.type === "subsuffix") {
-                                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+                                suffix.icon = <LeafIcon size="sm" />;
                             }
                             if (suffix.children.length === 0) {
                                 delete suffix.children;
@@ -219,7 +214,7 @@ export class Replication extends React.Component {
                         let found = false;
                         for (let i = 0; i < treeData.length; i++) {
                             if (treeData[i].replicated) {
-                                treeData[i].icon = <FontAwesomeIcon size="sm" icon={faClone} />;
+                                treeData[i].icon = <CloneIcon size="sm" />;
                                 replicated = true;
                                 if (!found) {
                                     // Load the first replicated suffix we find
@@ -255,7 +250,7 @@ export class Replication extends React.Component {
                                 replicated = suffix.replicated;
                             }
                             if (suffix.replicated) {
-                                suffix.icon = <FontAwesomeIcon size="sm" icon={faClone} />;
+                                suffix.icon = <CloneIcon size="sm" />;
                             }
                         }
                         this.loadReplSuffix(current_node);

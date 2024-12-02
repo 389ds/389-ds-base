@@ -9,11 +9,11 @@ import {
 } from '@patternfly/react-core';
 import {
     Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    sortable,
-    SortByDirection,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td
 } from '@patternfly/react-table';
 
 const _ = cockpit.gettext;
@@ -29,20 +29,24 @@ class GroupTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Member DN"), transforms: [sortable] },
+                { title: _("Member DN"), sort: 'asc' },
             ],
+            pagedRows: [],
         };
         this.selectedCount = 0;
 
         this.handleSetPage = (_event, pageNumber) => {
             this.setState({
-                page: pageNumber
+                page: pageNumber,
+                pagedRows: this.getRowsToShow(pageNumber, this.state.perPage)
             });
         };
 
         this.handlePerPageSelect = (_event, perPage) => {
             this.setState({
-                perPage
+                perPage,
+                page: 1,
+                pagedRows: this.getRowsToShow(1, perPage)
             });
         };
 
@@ -69,16 +73,22 @@ class GroupTable extends React.Component {
         }
         this.setState({
             rows,
-            columns
+            columns,
+            pagedRows: this.getRowsToShow(1, this.state.perPage)
         });
     }
+
+    getRowsToShow = (page, perPage) => {
+        const start = (page - 1) * perPage;
+        const end = page * perPage;
+        return this.state.rows.slice(start, end);
+    };
 
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
         for (const row of this.props.rows) {
             if (val !== "" && val !== "*" && row.indexOf(val) === -1) {
-                // Not a match, skip it
                 continue;
             }
             rows.push({
@@ -93,16 +103,16 @@ class GroupTable extends React.Component {
             rows,
             value,
             page: 1,
+            pagedRows: this.getRowsToShow(1, this.state.perPage)
         });
     }
 
-    handleSort(_event, index, direction) {
+    handleSort(_event, columnIndex, sortDirection) {
         const rows = [];
         const sortedAttrs = [...this.props.rows];
 
-        // Sort the referrals and build the new rows
         sortedAttrs.sort();
-        if (direction !== SortByDirection.asc) {
+        if (sortDirection !== 'asc') {
             sortedAttrs.reverse();
         }
         for (const attrRow of sortedAttrs) {
@@ -111,41 +121,48 @@ class GroupTable extends React.Component {
 
         this.setState({
             sortBy: {
-                index,
-                direction
+                index: columnIndex,
+                direction: sortDirection
             },
             rows,
             page: 1,
+            pagedRows: this.getRowsToShow(1, this.state.perPage)
         });
     }
 
-    actions() {
+    getActionsForRow = (rowData) => {
+        // Return empty array if it's the "No Members" row
+        if (rowData.cells.length === 1 && rowData.cells[0] === _("No Members")) {
+            return [];
+        }
+        
+        // Only return actions for valid rows
+        if (!rowData.cells) {
+            return [];
+        }
+        
         return [
             {
                 title: _("View Entry"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.viewEntry(rowData.cells[0])
+                onClick: () => this.props.viewEntry(rowData.cells[0])
             },
             {
                 title: _("Edit Entry"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.editEntry(rowData.cells[0])
+                onClick: () => this.props.editEntry(rowData.cells[0])
             },
             {
                 isSeparator: true
             },
             {
                 title: _("Remove Entry"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.removeMember(rowData.cells[0])
+                onClick: () => this.props.removeMember(rowData.cells[0])
             }
         ];
-    }
+    };
 
     render() {
-        const { columns, rows, perPage, page, sortBy } = this.state;
+        const { columns, pagedRows, perPage, page, sortBy } = this.state;
         const extraPrimaryProps = {};
-        const canSelectAll = false;
         let deleteBtnName = _("Remove Selected Members");
         if (this.props.saving) {
             deleteBtnName = _("Updating group ...");
@@ -161,31 +178,45 @@ class GroupTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table
-                    className="ds-margin-top"
-                    canSelectAll={canSelectAll}
-                    onSelect={(_event, isSelecting, rowIndex) => {
-                        if (rowIndex !== -1) {
-                            this.props.onSelectMember(this.state.rows[rowIndex].cells[0], isSelecting);
-                        }
-                    }}
-                    aria-label="group table"
-                    cells={columns}
-                    rows={rows}
-                    variant={TableVariant.compact}
-                    sortBy={sortBy}
-                    onSort={this.handleSort}
-                    actions={rows.length > 0 ? this.actions() : null}
-                >
-                    <TableHeader />
-                    <TableBody />
+                <Table aria-label="group table" variant="compact">
+                    <Thead>
+                        <Tr>
+                            <Th
+                                sort={{
+                                    sortBy,
+                                    onSort: this.handleSort,
+                                    columnIndex: 0
+                                }}
+                            >
+                                {columns[0].title}
+                            </Th>
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {pagedRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td
+                                    select={{
+                                        rowIndex,
+                                        onSelect: (_event, isSelecting) => {
+                                            this.props.onSelectMember(row.cells[0], isSelecting);
+                                        },
+                                        isSelected: row.selected,
+                                        disable: row.disableSelection
+                                    }}
+                                    actions={this.getActionsForRow(row)}
+                                >
+                                    {row.cells[0]}
+                                </Td>
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={perPage}
                     page={page}
-                    variant={PaginationVariant.bottom}
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -194,14 +225,11 @@ class GroupTable extends React.Component {
                     variant="primary"
                     onClick={this.props.handleShowConfirmBulkDelete}
                     isLoading={this.props.saving}
-                    spinnerAriaValueText={this.state.saving ? _("Updating group ...") : undefined}
                     {...extraPrimaryProps}
                 >
                     {deleteBtnName}
                 </Button>
-                <Divider
-                    className="ds-margin-top-lg"
-                />
+                <Divider className="ds-margin-top-lg" />
             </div>
         );
     }

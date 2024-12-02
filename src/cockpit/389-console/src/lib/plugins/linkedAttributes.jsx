@@ -1,18 +1,20 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Form,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TextInput,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Form,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
@@ -72,7 +74,7 @@ class LinkedAttributes extends React.Component {
                 );
             }
         };
-        this.handleLinkTypeToggle = isLinkTypeOpen => {
+        this.handleLinkTypeToggle = (_event, isLinkTypeOpen) => {
             this.setState({
                 isLinkTypeOpen
             });
@@ -102,7 +104,7 @@ class LinkedAttributes extends React.Component {
                 );
             }
         };
-        this.handleManagedTypeToggle = isManagedTypeOpen => {
+        this.handleManagedTypeToggle = (_event, isManagedTypeOpen) => {
             this.setState({
                 isManagedTypeOpen
             });
@@ -475,7 +477,7 @@ class LinkedAttributes extends React.Component {
                                     id="configName"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="configName"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onFieldChange(e);
                                     }}
                                     validated={error.configName ? ValidatedOptions.error : ValidatedOptions.default}
@@ -491,7 +493,7 @@ class LinkedAttributes extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel="Type an attribute name"
-                                    onToggle={this.handleLinkTypeToggle}
+                                    onToggle={(event, isOpen) => this.handleLinkTypeToggle(event, isOpen)}
                                     onSelect={this.handleLinkTypeSelect}
                                     onClear={this.handleLinkTypeClear}
                                     selections={linkType}
@@ -517,7 +519,7 @@ class LinkedAttributes extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeahead}
                                     typeAheadAriaLabel="Type an attribute name"
-                                    onToggle={this.handleManagedTypeToggle}
+                                    onToggle={(event, isOpen) => this.handleManagedTypeToggle(event, isOpen)}
                                     onSelect={this.handleManagedTypeSelect}
                                     onClear={this.handleManagedTypeClear}
                                     selections={managedType}
@@ -546,7 +548,7 @@ class LinkedAttributes extends React.Component {
                                     id="linkScope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="linkScope"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.onFieldChange(e);
                                     }}
                                     validated={error.linkScope ? ValidatedOptions.error : ValidatedOptions.default}

@@ -1,36 +1,38 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Grid,
-    GridItem,
-    ExpandableSection,
-    Form,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
-    Label,
-    Modal,
-    ModalVariant,
-    NumberInput,
-    SearchInput,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Spinner,
-    Switch,
-    Text,
-    TextContent,
-    TextInput,
-    TextList,
-    TextListItem,
-    TextVariants,
-    ToggleGroup,
-    ToggleGroupItem,
-    Tooltip,
-    ValidatedOptions
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Grid,
+	GridItem,
+	ExpandableSection,
+	Form,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Label,
+	Modal,
+	ModalVariant,
+	NumberInput,
+	SearchInput,
+	Spinner,
+	Switch,
+	Text,
+	TextContent,
+	TextInput,
+	TextList,
+	TextListItem,
+	TextVariants,
+	ToggleGroup,
+	ToggleGroupItem,
+	Tooltip,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
 import {
     expandable
 } from '@patternfly/react-table';
@@ -110,13 +112,13 @@ export class SearchDatabase extends React.Component {
 
         this.initialResultText = _("Loading ...");
 
-        this.handleChangeSwitch = checkIfLocked => {
+        this.handleChangeSwitch = (_event, checkIfLocked) => {
             this.setState({
                 checkIfLocked
             });
         };
 
-        this.handleToggle = isExpanded => {
+        this.handleToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -137,7 +139,7 @@ export class SearchDatabase extends React.Component {
         };
 
         // Custom filter attributes
-        this.handleCustomAttrToggle = isCustomAttrOpen => {
+        this.handleCustomAttrToggle = (_event, isCustomAttrOpen) => {
             this.setState({
                 isCustomAttrOpen,
             });
@@ -234,7 +236,7 @@ export class SearchDatabase extends React.Component {
             });
         };
 
-        this.handleSearchTypeClick = (isSelected, event) => {
+        this.handleSearchTypeClick = (event, isSelected) => {
             const id = event.currentTarget.id;
             this.setState({
                 searchType: id,
@@ -243,7 +245,7 @@ export class SearchDatabase extends React.Component {
             });
         };
 
-        this.handleScopeClick = (isSelected, event) => {
+        this.handleScopeClick = (event, isSelected) => {
             const id = event.currentTarget.id;
             this.setState({ searchScope: id });
         };
@@ -534,7 +536,7 @@ export class SearchDatabase extends React.Component {
         });
     }
 
-    handleChange (e) {
+    handleChange (e, _str) {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value.trim();
         this.setState({
             [e.target.id]: value,
@@ -792,7 +794,7 @@ export class SearchDatabase extends React.Component {
                                     <FormSelect
                                         id="searchSuffix"
                                         value={baseDN}
-                                        onChange={(value, event) => {
+                                        onChange={(event, value) => {
                                             this.handleSuffixChange(event);
                                         }}
                                         aria-label="FormSelect Input"
@@ -821,20 +823,20 @@ export class SearchDatabase extends React.Component {
                                         text={_("Text")}
                                         buttonId="Search Text"
                                         isSelected={this.state.searchType === "Search Text"}
-                                        onChange={this.handleSearchTypeClick}
+                                        onChange={(event, isSelected) => this.handleSearchTypeClick(event, isSelected)}
                                     />
                                     <ToggleGroupItem
                                         title={_("Specific LDAP search filter for finding entries.")}
                                         text={_("Filter")}
                                         buttonId="Search Filter"
                                         isSelected={this.state.searchType === "Search Filter"}
-                                        onChange={this.handleSearchTypeClick}
+                                        onChange={(event, isSelected) => this.handleSearchTypeClick(event, isSelected)}
                                     />
                                 </ToggleGroup>
                                 <SearchInput
                                     placeholder={this.state.searchType === "Search Text" ? _("Enter search text ...") : _("Enter an LDAP search filter ...")}
                                     value={this.state.searchText}
-                                    onChange={this.handleSearchChange}
+                                    onChange={(evt, val) => this.handleSearchChange(evt, val)}
                                     onClear={(evt, val) => this.handleSearchChange(evt, '')}
                                     onSearch={this.handleSearch}
                                     className="ds-search-input"
@@ -846,7 +848,7 @@ export class SearchDatabase extends React.Component {
                     <ExpandableSection
                         className="ds-margin-left"
                         toggleText={this.state.isExpanded ? _("Hide Search Criteria") : _("Show Search Criteria")}
-                        onToggle={this.handleToggle}
+                        onToggle={(event, isExpanded) => this.handleToggle(event, isExpanded)}
                         isExpanded={this.state.isExpanded}
                         displaySize={this.state.isExpanded ? "large" : "default"}
                     >
@@ -861,14 +863,14 @@ export class SearchDatabase extends React.Component {
                                     id="searchBase"
                                     aria-describedby="searchBase"
                                     name={_("searchBase")}
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e);
                                     }}
                                     validated={!valid_dn(this.state.searchBase) ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                             </GridItem>
                             <GridItem span={2} className="ds-left-margin ds-lower-field-md">
-                                <FormHelperText isError isHidden={valid_dn(this.state.searchBase)}>
+                                <FormHelperText  >
                                     {_("Invalid DN syntax")}
                                 </FormHelperText>
                             </GridItem>
@@ -884,21 +886,21 @@ export class SearchDatabase extends React.Component {
                                         text={_("Subtree")}
                                         buttonId="sub"
                                         isSelected={this.state.searchScope === "sub"}
-                                        onChange={this.handleScopeClick}
+                                        onChange={(evt, val) => this.handleScopeClick(evt, val)}
                                         title={_("Search for entries starting at the search base, and including all its child entries")}
                                     />
                                     <ToggleGroupItem
                                         text={_("One Level")}
                                         buttonId="one"
                                         isSelected={this.state.searchScope === "one"}
-                                        onChange={this.handleScopeClick}
+                                        onChange={(evt, val) => this.handleScopeClick(evt, val)}
                                         title={_("Search for entries starting at the search base, and include only the first level of child entries")}
                                     />
                                     <ToggleGroupItem
                                         text={_("Base")}
                                         buttonId="base"
                                         isSelected={this.state.searchScope === "base"}
-                                        onChange={this.handleScopeClick}
+                                        onChange={(evt, val) => this.handleScopeClick(evt, val)}
                                         title={_("Search for an exact entry (search base). This does not include child entries.")}
                                     />
                                 </ToggleGroup>
@@ -949,7 +951,7 @@ export class SearchDatabase extends React.Component {
                                 {_("Show Locking")}
                             </GridItem>
                             <GridItem span={10}>
-                                <Switch id="no-label-switch-on" aria-label="Message when on" isChecked={this.state.checkIfLocked} onChange={this.handleChangeSwitch} />
+                                <Switch id="no-label-switch-on" aria-label="Message when on" isChecked={this.state.checkIfLocked} onChange={(event, val) => this.handleChangeSwitch(event, val)} />
                             </GridItem>
                         </Grid>
                         <div hidden={this.state.searchType === "Search Filter"}>
@@ -968,7 +970,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("cn")}
                                             id="cn"
                                             isChecked={this.state.cn}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="cn"
@@ -979,7 +981,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("uid")}
                                             id="uid"
                                             isChecked={this.state.uid}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="uid"
@@ -990,7 +992,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("sn")}
                                             id="sn"
                                             isChecked={this.state.sn}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="sn"
@@ -1003,7 +1005,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("givenName")}
                                             id="givenName"
                                             isChecked={this.state.givenName}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="givenName"
@@ -1014,7 +1016,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("mail")}
                                             id="mail"
                                             isChecked={this.state.mail}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="mail"
@@ -1025,7 +1027,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("displayName")}
                                             id="displayName"
                                             isChecked={this.state.displayName}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="displayName"
@@ -1038,7 +1040,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("legalName")}
                                             id="legalName"
                                             isChecked={this.state.legalName}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="legalName"
@@ -1049,7 +1051,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("memberOf")}
                                             id="memberOf"
                                             isChecked={this.state.memberOf}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="memberOf"
@@ -1060,7 +1062,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("member")}
                                             id="member"
                                             isChecked={this.state.member}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="member"
@@ -1073,7 +1075,7 @@ export class SearchDatabase extends React.Component {
                                             label={_("uniqueMember")}
                                             id="uniqueMember"
                                             isChecked={this.state.uniqueMember}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             aria-label="uniqueMember"
@@ -1085,7 +1087,7 @@ export class SearchDatabase extends React.Component {
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
                                             typeAheadAriaLabel="Type attributes to include in filter ..."
-                                            onToggle={this.handleCustomAttrToggle}
+                                            onToggle={(event, isOpen) => this.handleCustomAttrToggle(event, isOpen)}
                                             onSelect={this.handleCustomAttrChange}
                                             onClear={this.handleCustomAttrClear}
                                             selections={this.state.customSearchAttrs}
