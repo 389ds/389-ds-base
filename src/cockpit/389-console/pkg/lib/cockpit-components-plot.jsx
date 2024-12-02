@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import cockpit from "cockpit";
@@ -23,7 +23,9 @@ import React, { useState, useRef, useLayoutEffect } from 'react';
 import { useEvent } from "hooks.js";
 
 import { Button } from "@patternfly/react-core/dist/esm/components/Button/index.js";
-import { Dropdown, DropdownItem, DropdownSeparator, DropdownToggle } from '@patternfly/react-core/dist/esm/deprecated/components/Dropdown/index.js';
+import { Dropdown, DropdownItem, DropdownList } from '@patternfly/react-core/dist/esm/components/Dropdown/index.js';
+import { Divider } from '@patternfly/react-core/dist/esm/components/Divider/index.js';
+import { MenuToggle } from '@patternfly/react-core/dist/esm/components/MenuToggle/index.js';
 
 import { AngleLeftIcon, AngleRightIcon, SearchMinusIcon } from '@patternfly/react-icons';
 
@@ -254,22 +256,32 @@ export const ZoomControls = ({ plot_state }) => {
     if (!zoom_state)
         return null;
 
+    const dropdownItems = [
+        <DropdownItem key="now" onClick={() => { zoom_state.goto_now(); setIsOpen(false) }}>
+            {_("Go to now")}
+        </DropdownItem>,
+        <Divider key="sep" />,
+        range_item(5 * 60, _("5 minutes")),
+        range_item(60 * 60, _("1 hour")),
+        range_item(6 * 60 * 60, _("6 hours")),
+        range_item(24 * 60 * 60, _("1 day")),
+        range_item(7 * 24 * 60 * 60, _("1 week"))
+    ];
+
     return (
-        <div>
+        <div id="zoom-control">
             <Dropdown
                 isOpen={isOpen}
-                toggle={<DropdownToggle onToggle={setIsOpen}>{format_range(zoom_state.x_range)}</DropdownToggle>}
-                dropdownItems={[
-                    <DropdownItem key="now" onClick={() => { zoom_state.goto_now(); setIsOpen(false) }}>
-                        {_("Go to now")}
-                    </DropdownItem>,
-                    <DropdownSeparator key="sep" />,
-                    range_item(5 * 60, _("5 minutes")),
-                    range_item(60 * 60, _("1 hour")),
-                    range_item(6 * 60 * 60, _("6 hours")),
-                    range_item(24 * 60 * 60, _("1 day")),
-                    range_item(7 * 24 * 60 * 60, _("1 week"))
-                ]} />
+                toggle={(toggleRef) => (
+                    <MenuToggle ref={toggleRef} onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen}>
+                        {format_range(zoom_state.x_range)}
+                    </MenuToggle>
+                )}
+            >
+                <DropdownList>
+                    {dropdownItems}
+                </DropdownList>
+            </Dropdown>
             { "\n" }
             <Button variant="secondary" onClick={() => zoom_state.zoom_out()}
                     isDisabled={!zoom_state.enable_zoom_out}>
@@ -295,7 +307,11 @@ const useLayoutSize = (init_width, init_height) => {
     useLayoutEffect(() => {
         if (ref.current) {
             const rect = ref.current.getBoundingClientRect();
-            if (rect.width != size.width || rect.height != size.height)
+            // Some browsers, such as Bromite, add noise to the result
+            // of getBoundingClientRect in order to deter
+            // fingerprinting. Let's allow for that by only reacting
+            // to significant changes.
+            if (Math.abs(rect.width - size.width) > 2 || Math.abs(rect.height - size.height) > 2)
                 setSize({ width: rect.width, height: rect.height });
         }
     });

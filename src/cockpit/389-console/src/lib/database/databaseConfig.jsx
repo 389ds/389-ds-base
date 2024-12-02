@@ -117,10 +117,10 @@ export class GlobalDatabaseConfig extends React.Component {
         this.props.enableTree();
     }
 
-    handleSelectDBLocksMonitoring (val, e) {
+    handleSelectDBLocksMonitoring (e, val) {
         this.setState({
             dblocksMonitoring: !this.state.dblocksMonitoring
-        }, this.handleChange(val, e));
+        }, this.handleChange(e, val));
     }
 
     validateSaveBtn() {
@@ -148,7 +148,7 @@ export class GlobalDatabaseConfig extends React.Component {
         });
     }
 
-    handleChange(str, e) {
+    handleChange(e, str) {
         // Generic
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
@@ -158,7 +158,7 @@ export class GlobalDatabaseConfig extends React.Component {
         }, () => { this.validateSaveBtn() });
     }
 
-    handleTimeChange(value) {
+    handleTimeChange(_event, value) {
         this.setState({
             compacttime: value,
         }, () => { this.validateSaveBtn() });
@@ -735,7 +735,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                         <GridItem span={12}>
                                             <Checkbox
                                                 label={_("Automatic Cache Tuning")}
-                                                onChange={this.handleChange}
+                                                onChange={(e, str) => this.handleChange(e, str)}
                                                 isChecked={db_auto_checked}
                                                 aria-label="uncontrolled checkbox example"
                                                 id="db_cache_auto"
@@ -755,7 +755,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                             <Checkbox
                                                 label={_("Automatic Import Cache Tuning")}
                                                 title={_("Set import cache to be set automatically")}
-                                                onChange={this.handleChange}
+                                                onChange={(e, str) => this.handleChange(e, str)}
                                                 isChecked={import_auto_checked}
                                                 aria-label="uncontrolled checkbox example"
                                                 id="import_cache_auto"
@@ -828,7 +828,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                     label={_("Enable DB Lock Monitoring")}
                                                     id="dblocksMonitoring"
                                                     isChecked={this.state.dblocksMonitoring}
-                                                    onChange={this.handleSelectDBLocksMonitoring}
+                                                    onChange={(e, val) => this.handleSelectDBLocksMonitoring(e, val)}
                                                     aria-label="uncontrolled checkbox example"
                                                 />
                                             </div>
@@ -871,7 +871,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 id="txnlogdir"
                                                 aria-describedby="txnlogdir"
                                                 name="txnlogdir"
-                                                onChange={this.handleChange}
+                                                onChange={(e, str) => this.handleChange(e, str)}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -889,7 +889,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 id="dbhomedir"
                                                 aria-describedby="dbhomedir"
                                                 name="dbhomedir"
-                                                onChange={this.handleChange}
+                                                onChange={(e, str) => this.handleChange(e, str)}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1156,7 +1156,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         });
     }
 
-    handleChange(str, e) {
+    handleChange(e, str) {
         // Generic
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;

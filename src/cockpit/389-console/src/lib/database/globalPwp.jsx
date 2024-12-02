@@ -2,33 +2,31 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Alert,
-    Button,
-    Checkbox,
-    Form,
-    FormAlert,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Select,
-    SelectVariant,
-    SelectOption,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants
-} from "@patternfly/react-core";
-import PropTypes from "prop-types";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Alert,
+	Button,
+	Checkbox,
+	Form,
+	FormAlert,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
+import PropTypes from "prop-types";
+import { SyncAltIcon } from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
 
@@ -974,7 +972,7 @@ export class GlobalPwPolicy extends React.Component {
                 });
     }
 
-    handleSelectToggle = isSelectOpen => {
+    handleSelectToggle = (_event, isSelectOpen) => {
         this.setState({
             isSelectOpen
         });
@@ -1014,7 +1012,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordminlength"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminlength"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1030,7 +1028,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordminalphas"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminalphas"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1048,7 +1046,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmindigits"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmindigits"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1064,7 +1062,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordminspecials"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminspecials"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1082,7 +1080,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordminuppers"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminuppers"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1098,7 +1096,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordminlowers"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminlowers"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1116,7 +1114,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmin8bit"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmin8bit"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1132,7 +1130,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmincategories"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmincategories"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1150,7 +1148,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmaxsequence"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxsequence"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1166,7 +1164,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmaxseqsets"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxseqsets"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1184,7 +1182,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmaxclasschars"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxclasschars"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1202,7 +1200,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordbadwords"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordbadwords"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -1216,7 +1214,7 @@ export class GlobalPwPolicy extends React.Component {
                             <Select
                                 variant={SelectVariant.typeaheadMulti}
                                 typeAheadAriaLabel="Type an attribute to check"
-                                onToggle={this.handleSelectToggle}
+                                onToggle={(_event, isSelectOpen) => this.handleSelectToggle(isSelectOpen)}
                                 onClear={this.handleSelectClear}
                                 onSelect={this.handleSyntaxChange}
                                 selections={this.state.passworduserattributes}
@@ -1239,7 +1237,7 @@ export class GlobalPwPolicy extends React.Component {
                             <Checkbox
                                 id="passworddictcheck"
                                 isChecked={this.state.passworddictcheck}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                                 label={_("Dictionary Check")}
@@ -1252,7 +1250,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordpalindrome"
                                 isChecked={this.state.passwordpalindrome}
                                 className="ds-label"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                                 label={_("Reject Palindromes")}
@@ -1277,7 +1275,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmaxfailure"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxpasswordmaxfailureclasschars"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                             />
@@ -1294,7 +1292,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordresetfailurecount"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordresetfailurecount"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                             />
@@ -1311,7 +1309,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordlockoutduration"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordlockoutduration"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                             />
@@ -1322,7 +1320,7 @@ export class GlobalPwPolicy extends React.Component {
                             <Checkbox
                                 id="passwordunlock"
                                 isChecked={this.state.passwordunlock}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                                 label={_("Do Not Lockout Account Forever")}
@@ -1347,7 +1345,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordmaxage"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxage"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                             />
@@ -1364,7 +1362,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordgracelimit"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordgracelimit"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                             />
@@ -1381,7 +1379,7 @@ export class GlobalPwPolicy extends React.Component {
                                 id="passwordwarning"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordwarning"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                             />
@@ -1392,7 +1390,7 @@ export class GlobalPwPolicy extends React.Component {
                             <Checkbox
                                 id="passwordsendexpiringtime"
                                 isChecked={this.state.passwordsendexpiringtime}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                                 label={_("<>Always Send <i>Password Expiring</i>&nbsp; Control</>")}
@@ -1406,7 +1404,7 @@ export class GlobalPwPolicy extends React.Component {
         if (this.state.loading || !this.state.loaded) {
             pwp_element = (
                 <div className="ds-margin-top-xlg ds-center">
-                    <Spinner isSVG size="xl" />
+                    <Spinner  size="xl" />
                 </div>
             );
         } else {
@@ -1420,7 +1418,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="nsslapd-pwpolicy-local"
                                             isChecked={this.state['nsslapd-pwpolicy-local']}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Allow Local Password Policies")}
@@ -1432,7 +1430,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="nsslapd-pwpolicy-inherit-global"
                                             isChecked={this.state["nsslapd-pwpolicy-inherit-global"]}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Local Policies Inherit Global Policy")}
@@ -1444,7 +1442,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="nsslapd-allow-hashed-passwords"
                                             isChecked={this.state["nsslapd-allow-hashed-passwords"]}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Allow Adding Pre-Hashed Passwords")}
@@ -1456,7 +1454,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordisglobalpolicy"
                                             isChecked={this.state.passwordisglobalpolicy}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Replicate Password Policy State Attributes")}
@@ -1468,7 +1466,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordtrackupdatetime"
                                             isChecked={this.state.passwordtrackupdatetime}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Track Password Update Time")}
@@ -1480,7 +1478,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordchange"
                                             isChecked={this.state.passwordchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Allow Users To Change Their Passwords")}
@@ -1492,7 +1490,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordmustchange"
                                             isChecked={this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("User Must Change Password After Reset")}
@@ -1505,7 +1503,7 @@ export class GlobalPwPolicy extends React.Component {
                                             <Checkbox
                                                 id="passwordhistory"
                                                 isChecked={this.state.passwordhistory}
-                                                onChange={(checked, e) => {
+                                                onChange={(e, checked) => {
                                                     this.handleGeneralChange(e);
                                                 }}
                                                 label={_("Keep Password History")}
@@ -1518,7 +1516,7 @@ export class GlobalPwPolicy extends React.Component {
                                                 id="passwordinhistory"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="passwordinhistory"
-                                                onChange={(checked, e) => {
+                                                onChange={(e, checked) => {
                                                     this.handleGeneralChange(e);
                                                 }}
                                             />
@@ -1533,7 +1531,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <FormSelect
                                             id="passwordstoragescheme"
                                             value={this.state.passwordstoragescheme}
-                                            onChange={(value, event) => {
+                                            onChange={(event, value) => {
                                                 this.handleGeneralChange(event);
                                             }}
                                             aria-label="FormSelect Input"
@@ -1580,7 +1578,7 @@ export class GlobalPwPolicy extends React.Component {
                                             id="passwordminage"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordminage"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                         />
@@ -1599,7 +1597,7 @@ export class GlobalPwPolicy extends React.Component {
                                             id="passwordadmindn"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordadmindn"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                         />
@@ -1612,7 +1610,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordadminskipinfoupdate"
                                             isChecked={this.state.passwordadminskipinfoupdate}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Do not update target entry's password state attributes")}
@@ -1639,7 +1637,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordexp"
                                             isChecked={this.state.passwordexp}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleExpChange(e);
                                             }}
                                             label={_("Enforce Password Expiration")}
@@ -1667,7 +1665,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordlockout"
                                             isChecked={this.state.passwordlockout}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleLockoutChange(e);
                                             }}
                                             label={_("Enable Account Lockout")}
@@ -1695,7 +1693,7 @@ export class GlobalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordchecksyntax"
                                             isChecked={this.state.passwordchecksyntax}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleSyntaxChange(e);
                                             }}
                                             label={_("Enable Password Syntax Checking")}
@@ -1742,7 +1740,7 @@ export class GlobalPwPolicy extends React.Component {
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordtprmaxuse"
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -1764,7 +1762,7 @@ export class GlobalPwPolicy extends React.Component {
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordtprdelayexpireat"
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -1786,7 +1784,7 @@ export class GlobalPwPolicy extends React.Component {
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordtprdelayvalidfrom"
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -1817,13 +1815,14 @@ export class GlobalPwPolicy extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Global Password Policy")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh global password policy settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh global password policy settings")}
                                     onClick={this.handleLoadGlobal}
-                                />
+                                    className="ds-left-margin"
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

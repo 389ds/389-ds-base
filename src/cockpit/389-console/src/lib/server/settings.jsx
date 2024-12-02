@@ -2,35 +2,33 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, valid_dn, isValidIpAddress, is_port_in_use } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    HelperText,
-    HelperTextItem,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    NumberInput,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions,
-} from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	Form,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	HelperText,
+	HelperTextItem,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	NumberInput,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const general_attrs = [
@@ -109,7 +107,7 @@ export class ServerSettings extends React.Component {
             invalidIP: false,
         };
 
-        this.handleOnHaproxyIPsToggle = isHaproxyIPsOpen => {
+        this.handleOnHaproxyIPsToggle = (_event, isHaproxyIPsOpen) => {
             this.setState({
                 isHaproxyIPsOpen,
                 invalidIP: false,
@@ -1068,8 +1066,8 @@ async validateSaveBtn(nav_tab, attr, value) {
                                 plusBtnAriaLabel="plus"
                                 widthChars={8}
                             />
-                            <FormHelperText isError isHidden={!this.state.errObjDiskMon['nsslapd-disk-monitoring-threshold']}>
-                                _("Value must be greater than or equal to 4096")
+                            <FormHelperText  >
+                                {_("Value must be greater than or equal to 4096")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
@@ -1103,7 +1101,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                             <Checkbox
                                 id="nsslapd-disk-monitoring-logging-critical"
                                 isChecked={this.state['nsslapd-disk-monitoring-logging-critical']}
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e, "diskmon");
                                 }}
                                 label={_("Preserve Logs Even If Disk Space Gets Low")}
@@ -1131,13 +1129,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Server Settings")}
-                                    <FontAwesomeIcon
-                                        size="lg"
-                                        className="ds-left-margin ds-refresh"
-                                        icon={faSyncAlt}
-                                        title={_("Refresh configuration settings")}
+                                    <Button 
+                                        variant="plain"
+                                        aria-label={_("Refresh configuration settings")}
                                         onClick={this.handleReloadConfig}
-                                    />
+                                    >
+                                        <SyncAltIcon size="lg" />
+                                    </Button>
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -1177,7 +1175,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-localhost"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-hostname"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-localhost'] ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1243,7 +1241,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-listenhost"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-listenhost"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-listenhost'] ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1263,13 +1261,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-bakdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-bakdir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-bakdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-bakdir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-bakdir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1287,13 +1285,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-ldifdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-ldifdir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-ldifdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-ldifdir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-ldifdir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1311,13 +1309,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-schemadir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-schemadir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-schemadir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-schemadir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-schemadir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1335,13 +1333,13 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-certdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-certdir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-certdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-certdir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-certdir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1392,7 +1390,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-rootpw"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="nsslapd-rootpw"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rootdn");
                                                 }}
                                                 validated={this.state.errObjRootDN['nsslapd-rootpw'] ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1412,7 +1410,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="confirmRootpw"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="confirmRootpw"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rootdn");
                                                 }}
                                                 validated={this.state.errObjRootDN.confirmRootpw ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1429,7 +1427,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <FormSelect
                                                 id="nsslapd-rootpwstoragescheme"
                                                 value={this.state['nsslapd-rootpwstoragescheme']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rootdn");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -1458,7 +1456,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                     <Checkbox
                                         id="nsslapd-disk-monitoring"
                                         isChecked={this.state['nsslapd-disk-monitoring']}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e, "diskmon");
                                         }}
                                         label={_("Enable Disk Space Monitoring")}
@@ -1484,7 +1482,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-schemacheck"
                                                 isChecked={this.state['nsslapd-schemacheck']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable schema checking (nsslapd-schemacheck).")}
@@ -1496,7 +1494,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-syntaxcheck"
                                                 isChecked={this.state['nsslapd-syntaxcheck']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable attribute syntax checking (nsslapd-syntaxcheck).")}
@@ -1509,7 +1507,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-plugin-logging"
                                                 isChecked={this.state['nsslapd-plugin-logging']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable plugins to log access and audit events.  (nsslapd-plugin-logging).")}
@@ -1520,7 +1518,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-syntaxlogging"
                                                 isChecked={this.state['nsslapd-syntaxlogging']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable syntax logging (nsslapd-syntaxlogging).")}
@@ -1533,7 +1531,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-plugin-binddn-tracking"
                                                 isChecked={this.state['nsslapd-plugin-binddn-tracking']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 label={_("Enable Plugin Bind DN Tracking")}
@@ -1544,7 +1542,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-attribute-name-exceptions"
                                                 isChecked={this.state['nsslapd-attribute-name-exceptions']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions).")}
@@ -1557,7 +1555,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-dn-validate-strict"
                                                 isChecked={this.state['nsslapd-dn-validate-strict']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 label={_("Strict DN Syntax Validation")}
@@ -1568,7 +1566,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-entryusn-global"
                                                 isChecked={this.state['nsslapd-entryusn-global']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global).")}
@@ -1581,7 +1579,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-ignore-time-skew"
                                                 isChecked={this.state['nsslapd-ignore-time-skew']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew).")}
@@ -1592,7 +1590,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <Checkbox
                                                 id="nsslapd-readonly"
                                                 isChecked={this.state['nsslapd-readonly']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Make entire server read-only (nsslapd-readonly)")}
@@ -1611,7 +1609,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             <FormSelect
                                                 id="nsslapd-allow-anonymous-access"
                                                 value={this.state['nsslapd-allow-anonymous-access']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -1640,7 +1638,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 id="nsslapd-anonlimitsdn"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="nsslapd-anonlimitsdn"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 validated={this.state.errObjAdv.anonLimitsDN ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1658,7 +1656,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 variant={SelectVariant.typeaheadMulti}
                                                 id="nsslpad-haproxy-trusted-ip"
                                                 typeAheadAriaLabel="Type trusted HAProxy server IP address"
-                                                onToggle={this.handleOnHaproxyIPsToggle}
+                                                onToggle={(event, isOpen) => this.handleOnHaproxyIPsToggle(event, isOpen)}
                                                 onSelect={(e, selection) => {
                                                     this.handleOnHaproxyIPsSelect(e, selection, "adv");
                                                 }}

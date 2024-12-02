@@ -25,15 +25,13 @@ import {
 } from "@patternfly/react-core";
 import {
     Table,
-    TableHeader,
-    TableBody,
-    TableVariant
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td
 } from '@patternfly/react-table';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const settings_attrs = [
@@ -125,7 +123,7 @@ export class ServerErrorLog extends React.Component {
             ],
         };
 
-        this.handleOnToggle = isExpanded => {
+        this.handleOnToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -500,14 +498,14 @@ export class ServerErrorLog extends React.Component {
         }, this.props.enableTree);
     }
 
-    handleOnSelect(event, isSelected, rowId) {
+    handleOnSelect = (_event, isSelected, rowIndex) => {
         let disableSaveBtn = true;
         const rows = [...this.state.rows];
+        
+        // Update the selected row
+        rows[rowIndex].selected = isSelected;
 
-        // Update the row
-        rows[rowId].selected = isSelected;
-
-        // Handle "save button" state, first check the other config settings
+        // Check other config settings
         for (const config_attr of settings_attrs) {
             if (this.state['_' + config_attr] !== this.state[config_attr]) {
                 disableSaveBtn = false;
@@ -515,14 +513,12 @@ export class ServerErrorLog extends React.Component {
             }
         }
 
-        // Handle the table contents
+        // Check table contents
         for (const row of rows) {
             for (const orig_row of this.state._rows) {
-                if (orig_row.level === row.level) {
-                    if (orig_row.selected !== row.selected) {
-                        disableSaveBtn = false;
-                        break;
-                    }
+                if (orig_row.level === row.level && orig_row.selected !== row.selected) {
+                    disableSaveBtn = false;
+                    break;
                 }
             }
         }
@@ -566,7 +562,7 @@ export class ServerErrorLog extends React.Component {
                             className="ds-margin-top-xlg"
                             id="nsslapd-errorlog-logging-enabled"
                             isChecked={this.state['nsslapd-errorlog-logging-enabled']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Enable Error logging (nsslapd-errorlog-logging-enabled).")}
@@ -584,7 +580,7 @@ export class ServerErrorLog extends React.Component {
                                     id="nsslapd-errorlog"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-errorlog"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
@@ -594,20 +590,37 @@ export class ServerErrorLog extends React.Component {
                         <ExpandableSection
                             className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
                             toggleText={this.state.isExpanded ? _("Hide Verbose Logging Levels") : _("Show Verbose Logging Levels")}
-                            onToggle={this.handleOnToggle}
+                            onToggle={(event, isExpanded) => this.handleOnToggle(event, isExpanded)}
                             isExpanded={this.state.isExpanded}
                         >
                             <Table
+                                aria-label="Selectable Error Log Levels"
                                 className="ds-left-margin"
-                                onSelect={this.handleOnSelect}
-                                canSelectAll={this.state.canSelectAll}
-                                variant={TableVariant.compact}
-                                aria-label="Selectable Table"
-                                cells={this.state.columns}
-                                rows={this.state.rows}
+                                variant="compact"
                             >
-                                <TableHeader />
-                                <TableBody />
+                                <Thead>
+                                    <Tr>
+                                        <Th screenReaderText="Checkboxes" />
+                                        <Th>{_("Logging Level")}</Th>
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                    {this.state.rows.map((row, rowIndex) => (
+                                        <Tr key={rowIndex}>
+                                            <Td
+                                                select={{
+                                                    rowIndex,
+                                                    onSelect: (_event, isSelecting) => 
+                                                        this.handleOnSelect(_event, isSelecting, rowIndex),
+                                                    isSelected: row.selected
+                                                }}
+                                            />
+                                            <Td>
+                                                {row.cells[0].title}
+                                            </Td>
+                                        </Tr>
+                                    ))}
+                                </Tbody>
                             </Table>
                         </ExpandableSection>
 
@@ -695,7 +708,7 @@ export class ServerErrorLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-errorlog-logrotationtimeunit"
                                                 value={this.state['nsslapd-errorlog-logrotationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rotation");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -730,7 +743,7 @@ export class ServerErrorLog extends React.Component {
                                     <Switch
                                         id="nsslapd-errorlog-compress"
                                         isChecked={this.state['nsslapd-errorlog-compress']}
-                                        onChange={this.handleSwitchChange}
+                                        onChange={(_event, value) => this.handleSwitchChange(value)}
                                         aria-label="nsslapd-errorlog-compress"
                                     />
                                 </GridItem>
@@ -824,7 +837,7 @@ export class ServerErrorLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-errorlog-logexpirationtimeunit"
                                                 value={this.state['nsslapd-errorlog-logexpirationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "exp");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -875,15 +888,15 @@ export class ServerErrorLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Error Log Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh log settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
                                     onClick={() => {
                                         this.handleRefreshConfig();
                                     }}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

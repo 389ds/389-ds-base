@@ -1,31 +1,35 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    Button,
-    Card,
-    CardBody,
-    CardTitle,
-    DualListSelector,
-    Form,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    NumberInput,
-    Radio,
-    Select, SelectOption, SelectVariant,
-    SearchInput,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Text,
-    TextContent,
-    TextInput,
-    TextVariants,
-    ValidatedOptions,
-    Wizard,
+	Alert,
+	Button,
+	Card,
+	CardBody,
+	CardTitle,
+	DualListSelector,
+	Form,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	NumberInput,
+	Radio,
+	SearchInput,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextInput,
+	TextVariants,
+	ValidatedOptions
 } from '@patternfly/react-core';
+import {
+	Select,
+	SelectOption,
+	SelectVariant,
+	Wizard
+} from '@patternfly/react-core/deprecated';
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
 import {
     createLdapEntry,
@@ -203,7 +207,7 @@ class AddGroup extends React.Component {
             return noDuplicates;
         };
 
-        this.handleUsersOnListChange = (newAvailableOptions, newChosenOptions) => {
+        this.handleUsersOnListChange = (_event, newAvailableOptions, newChosenOptions) => {
             const newAvailNoDups = this.removeDuplicates(newAvailableOptions);
             const newChosenNoDups = this.removeDuplicates(newChosenOptions);
 
@@ -213,14 +217,14 @@ class AddGroup extends React.Component {
             });
         };
 
-        this.handleRadioChange = (_, event) => {
+        this.handleRadioChange = (event, _) => {
             this.setState({
                 memberAttr: event.currentTarget.id,
             });
         };
 
         // Group Type handling
-        this.handleToggleType = isOpenType => {
+        this.handleToggleType = (_event, isOpenType) => {
             this.setState({
                 isOpenType
             });
@@ -334,7 +338,7 @@ class AddGroup extends React.Component {
                         variant={SelectVariant.single}
                         className="ds-margin-top-lg"
                         aria-label="Select group type"
-                        onToggle={this.handleToggleType}
+                        onToggle={(event, isOpen) => this.handleToggleType(event, isOpen)}
                         onSelect={this.handleSelectType}
                         selections={this.state.groupType}
                         isOpen={this.state.isOpenType}
@@ -373,7 +377,7 @@ class AddGroup extends React.Component {
                                 id="groupName"
                                 aria-describedby="groupName"
                                 name="groupName"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e);
                                 }}
                                 validated={this.state.groupName === '' ? ValidatedOptions.error : ValidatedOptions.default}
@@ -391,7 +395,7 @@ class AddGroup extends React.Component {
                                 id="groupDesc"
                                 aria-describedby="groupDesc"
                                 name="groupDesc"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e);
                                 }}
                             />
@@ -412,7 +416,7 @@ class AddGroup extends React.Component {
                                     value="member"
                                     label={_("member")}
                                     isChecked={this.state.memberAttr === 'member'}
-                                    onChange={this.handleRadioChange}
+                                    onChange={(event, str) => this.handleRadioChange(event, str)}
                                     description={_("This group uses objectclass 'GroupOfNames'.")}
                                 />
                                 <Radio
@@ -421,7 +425,7 @@ class AddGroup extends React.Component {
                                     value="uniquemember"
                                     label={_("uniquemember")}
                                     isChecked={this.state.memberAttr === 'uniquemember'}
-                                    onChange={this.handleRadioChange}
+                                    onChange={(event, str) => this.handleRadioChange(event, str)}
                                     description={_("This group uses objectclass 'GroupOfUniqueNames'.")}
                                     className="ds-margin-top"
                                 />
@@ -498,7 +502,7 @@ class AddGroup extends React.Component {
                                 chosenOptions={usersChosenOptions}
                                 availableOptionsTitle={_("Available Members")}
                                 chosenOptionsTitle={_("Chosen Members")}
-                                onListChange={this.handleUsersOnListChange}
+                                onListChange={(event, newAvailableOptions, newChosenOptions) => this.handleUsersOnListChange(event, newAvailableOptions, newChosenOptions)}
                                 id="usersSelector"
                             />
                         </GridItem>

@@ -40,7 +40,7 @@ class PluginBasicConfig extends React.Component {
             isExpanded: false,
         };
 
-        this.handleToggle = (isExpanded) => {
+        this.handleToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -223,7 +223,7 @@ class PluginBasicConfig extends React.Component {
                                     label={enabled}
                                     labelOff={disabled}
                                     isChecked={this.state.currentPluginEnabled}
-                                    onChange={this.handleSwitchChange}
+                                    onChange={(event, str) => this.handleSwitchChange(event, str)}
                                     isDisabled={disableSwitch}
                                 />
                             </GridItem>
@@ -238,7 +238,7 @@ class PluginBasicConfig extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isExpanded ? _("Hide Plugin Details") : _("Show Plugin Details")}
-                        onToggle={this.handleToggle}
+                        onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}
                         isExpanded={this.state.isExpanded}
                     >
                         <Grid className="ds-margin-left">

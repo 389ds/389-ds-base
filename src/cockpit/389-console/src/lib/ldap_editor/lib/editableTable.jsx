@@ -11,20 +11,28 @@ import {
     ModalVariant,
     Radio,
     TextInput,
-    ValidatedOptions,
+    ValidatedOptions, InputGroupItem,
 } from '@patternfly/react-core';
 import {
-    EditableTextCell,
-    Table, TableHeader, TableBody, TableVariant,
-    applyCellEdits,
-    breakWord,
-    cancelCellEdits,
-    validateCellEdits,
+    Table,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td,
+    ActionsColumn,
+	applyCellEdits,
+	breakWord,
+	cancelCellEdits,
+	validateCellEdits
 } from '@patternfly/react-table';
 import {
+    CheckIcon,
+    TimesIcon,
     EyeIcon,
     EyeSlashIcon,
     InfoCircleIcon,
+    PencilAltIcon,
 } from '@patternfly/react-icons';
 import {
     BINARY_ATTRIBUTES,
@@ -38,6 +46,150 @@ import { file_is_path } from "../../tools.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
+
+const buttonGroupStyles = {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+};
+
+const EditButtonsCell = ({
+    onClick,
+    elementToFocusOnEditRef,
+    rowAriaLabel = 'row',
+    isEditing,
+    isDisabled
+}) => {
+    const editButtonRef = React.useRef();
+
+    const onKeyDown = (event, action) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.target.click();
+            setTimeout(() => {
+                const focusRef = action === 'edit' ? elementToFocusOnEditRef : editButtonRef;
+                focusRef?.current?.focus();
+            }, 0);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <div style={buttonGroupStyles}>
+                <Button
+                    aria-label={`Save edits of ${rowAriaLabel}`}
+                    onClick={() => onClick('save')}
+                    onKeyDown={event => onKeyDown(event, 'save')}
+                    variant="plain"
+                >
+                    <CheckIcon style={{ color: '#3E8635' }} />
+                </Button>
+                <Button
+                    aria-label={`Discard edits of ${rowAriaLabel}`}
+                    onClick={() => onClick('cancel')}
+                    onKeyDown={event => onKeyDown(event, 'cancel')}
+                    variant="plain"
+                >
+                    <TimesIcon />
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <Button
+            ref={editButtonRef}
+            aria-label={`Edit ${rowAriaLabel}`}
+            onClick={() => onClick('edit')}
+            onKeyDown={event => onKeyDown(event, 'edit')}
+            variant="plain"
+            isDisabled={isDisabled}
+        >
+            <PencilAltIcon />
+        </Button>
+    );
+};
+
+const EditableTextCell = ({
+    value,
+    rowIndex,
+    cellIndex,
+    props,
+    handleTextInputChange,
+    isDisabled,
+    inputAriaLabel,
+    onUpdate
+}) => {
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [editedValue, setEditedValue] = React.useState(
+        typeof value === 'object' ? '' : value
+    );
+    const inputRef = React.useRef(null);
+
+    React.useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isEditing]);
+
+    const displayValue = typeof value === 'object' ? value : editedValue;
+
+    const handleClick = (action) => {
+        if (action === 'edit') {
+            // First notify parent about edit attempt
+            const canEdit = onUpdate(null, 'edit', true, rowIndex, null);
+
+            // If parent returns false or undefined, cancel the edit
+            if (canEdit === false) {
+                setIsEditing(false);
+                setEditedValue(typeof value === 'object' ? '' : value);
+                // Explicitly call cancel to ensure proper cleanup
+                onUpdate(null, 'cancel', false, rowIndex, null);
+                return;
+            }
+            setIsEditing(true);
+        } else if (action === 'save') {
+            onUpdate(null, 'save', false, rowIndex, null);
+            setIsEditing(false);
+        } else if (action === 'cancel') {
+            setIsEditing(false);
+            setEditedValue(typeof value === 'object' ? '' : value);
+            onUpdate(null, 'cancel', false, rowIndex, null);
+        }
+    };
+
+    return (
+        <React.Fragment>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                    {isEditing ? (
+                        <TextInput
+                            ref={inputRef}
+                            value={editedValue}
+                            onChange={(_, newValue) => {
+                                setEditedValue(newValue);
+                                handleTextInputChange(newValue, null, rowIndex, cellIndex);
+                            }}
+                            aria-label={inputAriaLabel}
+                            isDisabled={isDisabled}
+                        />
+                    ) : (
+                        <div>{displayValue}</div>
+                    )}
+                </div>
+                {!isDisabled && (
+                    <EditButtonsCell
+                        onClick={handleClick}
+                        elementToFocusOnEditRef={inputRef}
+                        rowAriaLabel={`row ${rowIndex + 1}`}
+                        isEditing={isEditing}
+                        isDisabled={isDisabled}
+                    />
+                )}
+            </div>
+        </React.Fragment>
+    );
+};
 
 class EditableTable extends React.Component {
     constructor (props) {
@@ -88,7 +240,7 @@ class EditableTable extends React.Component {
             }));
         };
 
-        this.handlePwdChange = (str, e) => {
+        this.handlePwdChange = (_event, str) => {
             this.setState({
                 pwdValue: str
             });
@@ -283,11 +435,11 @@ class EditableTable extends React.Component {
             };
         };
 
-        this.handleRadioOnChange = (_, event) => {
+        this.handleRadioOnChange = (event, _) => {
             this.setState({ binaryAttributeRadio: event.currentTarget.value });
         };
 
-        this.handleBinaryAttributeInput = (str, e) => {
+        this.handleBinaryAttributeInput = (_event, str) => {
             const invalidPath = !file_is_path(str);
 
             this.setState({
@@ -321,7 +473,7 @@ class EditableTable extends React.Component {
             // DN row.
             if (rowIndex === 0) {
                 this.handleDnModalToggle();
-                return;
+                return false; // Explicitly return false to cancel edit
             }
             // RDN row.
             const attrCell = this.state.tableRows[rowIndex].cells[0];
@@ -333,7 +485,7 @@ class EditableTable extends React.Component {
             if ((myAttr === rdnInfo.rdnAttr.toLowerCase()) &&
             (myVal === rdnInfo.rdnVal)) {
                 this.handleDnModalToggle();
-                return;
+                return false; // Explicitly return false to cancel edit
             }
         }
 
@@ -346,14 +498,14 @@ class EditableTable extends React.Component {
                     isPasswordField: true,
                     pwdRowIndex: rowIndex
                 });
-                return;
+                return false; // Cancel normal edit flow
             } else if (BINARY_ATTRIBUTES.includes(myAttr)) {
                 this.setState({
                     showFileUri: true,
                     attrIsJpegPhoto: myAttr === 'jpegphoto',
                     currentRowIndex: rowIndex
                 });
-                return;
+                return false; // Cancel normal edit flow
             }
         }
 
@@ -361,7 +513,7 @@ class EditableTable extends React.Component {
         if (validationErrors && Object.keys(validationErrors).length) {
             newRows[rowIndex] = validateCellEdits(newRows[rowIndex], type, validationErrors);
             this.setState({ tableRows: newRows });
-            return;
+            return false;
         }
 
         if (type === 'cancel') {
@@ -374,7 +526,7 @@ class EditableTable extends React.Component {
             const foundEmptyValue = newRows.find(el => el.cells[1].props.value === '');
             this.props.enableNextStep(foundEmptyValue === undefined);
             // }
-            return;
+            return false;
         }
 
         newRows[rowIndex] = applyCellEdits(newRows[rowIndex], type);
@@ -395,6 +547,7 @@ class EditableTable extends React.Component {
                               this.props.saveCurrentRows(rowDataToSave, this.state.namingRowID);
                           }
                       });
+        return true;
     };
 
     // Returns an array of row data to store in the parent component.
@@ -448,17 +601,16 @@ class EditableTable extends React.Component {
                 cells: [
                     {
                         title: (value, rowIndex, cellIndex, props) => (
-                            <>
-                                <EditableTextCell
-                                    value={value}
-                                    rowIndex={rowIndex}
-                                    cellIndex={cellIndex}
-                                    props={props}
-                                    handleTextInputChange={this.onTextInputChange}
-                                    isDisabled
-                                    inputAriaLabel={attrName}
-                                />
-                            </>
+                            <EditableTextCell
+                                value={value}
+                                rowIndex={rowIndex}
+                                cellIndex={cellIndex}
+                                props={props}
+                                handleTextInputChange={this.onTextInputChange}
+                                onUpdate={this.handleUpdateEditableRows}
+                                isDisabled
+                                inputAriaLabel={attrName}
+                            />
                         ),
                         props: {
                             value: attrName,
@@ -467,17 +619,15 @@ class EditableTable extends React.Component {
                     },
                     {
                         title: (value, rowIndex, cellIndex, props) => (
-                            <>
-                                <EditableTextCell
-                                    // isDisabled={myData.isDisabled}
-                                    value={value !== "" ? "********" : <Label color="red" icon={<InfoCircleIcon />}> {_("Empty value!")} </Label>}
-                                    rowIndex={rowIndex}
-                                    cellIndex={cellIndex}
-                                    props={props}
-                                    handleTextInputChange={this.onTextInputChange}
-                                    inputAriaLabel={'_' + value} // To avoid empty property when value is empty.
-                                />
-                            </>
+                            <EditableTextCell
+                                value={value !== "" ? "********" : <Label color="red" icon={<InfoCircleIcon />}>{_("Empty value!")}</Label>}
+                                rowIndex={rowIndex}
+                                cellIndex={cellIndex}
+                                props={props}
+                                handleTextInputChange={this.onTextInputChange}
+                                onUpdate={this.handleUpdateEditableRows}
+                                inputAriaLabel={'_' + value}
+                            />
                         ),
                         props: {
                             value: myData.val,
@@ -496,30 +646,28 @@ class EditableTable extends React.Component {
                 cells: [
                     {
                         title: (value, rowIndex, cellIndex, props) => (
-                            <>
+                            <div>
                                 <EditableTextCell
                                     value={value}
                                     rowIndex={rowIndex}
                                     cellIndex={cellIndex}
                                     props={props}
                                     handleTextInputChange={this.onTextInputChange}
+                                    onUpdate={this.handleUpdateEditableRows}
                                     isDisabled
                                     inputAriaLabel={attrName}
                                 />
-                                {
-                                    (attrId === this.state.namingRowID || myData.namingAttr) &&
+                                {(attrId === this.state.namingRowID || myData.namingAttr) && (
                                     <Popover
                                         headerContent={<div>{_("Naming Attribute")}</div>}
                                         bodyContent={
-                                            <div>
-                                                {_("This attribute and value are part of the entry's DN and can not be changed except by doing a Rename (modrdn) operation on the entry.")}
-                                            </div>
+                                            <div>{_("This attribute and value are part of the entry's DN and can not be changed except by doing a Rename (modrdn) operation on the entry.")}</div>
                                         }
                                     >
                                         <a href="#" className="ds-font-size-sm">{_("Naming Attribute")}</a>
                                     </Popover>
-                                }
-                            </>
+                                )}
+                            </div>
                         ),
                         props: {
                             value: attrName,
@@ -528,17 +676,15 @@ class EditableTable extends React.Component {
                     },
                     {
                         title: (value, rowIndex, cellIndex, props) => (
-                            <>
-                                <EditableTextCell
-                                    // isDisabled={myData.isDisabled}
-                                    value={value === "" ? <Label color="red" icon={<InfoCircleIcon />}> {_("Empty value!")} </Label> : value}
-                                    rowIndex={rowIndex}
-                                    cellIndex={cellIndex}
-                                    props={props}
-                                    handleTextInputChange={this.onTextInputChange}
-                                    inputAriaLabel={'_' + value} // To avoid empty property when value is empty.
-                                />
-                            </>
+                            <EditableTextCell
+                                value={value === "" ? <Label color="red" icon={<InfoCircleIcon />}>{_("Empty value!")}</Label> : value}
+                                rowIndex={rowIndex}
+                                cellIndex={cellIndex}
+                                props={props}
+                                handleTextInputChange={this.onTextInputChange}
+                                onUpdate={this.handleUpdateEditableRows}
+                                inputAriaLabel={'_' + value}
+                            />
                         ),
                         props: {
                             value: myData.val,
@@ -568,120 +714,130 @@ class EditableTable extends React.Component {
     actionResolver = (rowData, { rowIndex }) => {
         const myAttr = rowData.cells[0].props.value;
         const myName = rowData.cells[0].props.name;
+        
+        // Early return for DN
         if (myAttr === "dn") {
-            // There should not be an actions for the DN
             return [];
         }
 
-        const namingAction = myName === this.state.namingRowID || this.props.disableNamingChange
-            ? []
-            : (this.props.namingAttr && myAttr !== this.props.namingAttr) || this.props.namingAttr === ""
-                ? [{
-                    title: _("Set as Naming Attribute"),
-                    onClick: () => {
-                        const foundEmptyValue = this.state.tableRows.find(el => el.cells[1].props.value === '');
-                        this.props.enableNextStep(foundEmptyValue === undefined);
+        const actions = [];
+        
+        // Naming Action
+        if (!(myName === this.state.namingRowID || this.props.disableNamingChange) &&
+            ((this.props.namingAttr && myAttr !== this.props.namingAttr) || this.props.namingAttr === "")) {
+            actions.push({
+                title: _("Set as Naming Attribute"),
+                onClick: () => {
+                    const foundEmptyValue = this.state.tableRows.find(el => el.cells[1].props.value === '');
+                    this.props.enableNextStep?.(foundEmptyValue === undefined);
 
-                        this.setState({
-                            namingRowID: myName,
-                            rdnAttr: myAttr
-                        },
-                                      () => {
-                                          this.props.setNamingRowID(myName);
-                                      });
-                    }
-                }]
-                : [];
-
-        const duplicationAction =
-            this.props.isAttributeSingleValued(myAttr)
-                ? []
-                : [{
-                    title: _("Add Another Value"),
-                    onClick: (event, rowId, rowData) => {
-                        const myData = {
-                            id: generateUniqueId(),
-                            attr: myAttr,
-                            val: ''
-                        };
-                        const tableRows = [...this.state.tableRows];
-                        const newItem = this.generateSingleRow(myData);
-
-                        // Insert the duplicate item right below the original.
-                        tableRows.splice(rowIndex + 1, 0, newItem);
-
-                        this.setState({ tableRows },
-                                      () => {
-                                          const rowDataToSave = this.buildRowDataToSave();
-                                          this.props.saveCurrentRows(rowDataToSave, this.state.namingRowID);
-                                          // Disable the next step because a duplicated row has no initial value.
-                                          this.props.enableNextStep(false);
-                                      });
-                    }
-                }];
-
-        const removalAction = this.state.tableRows.length === 1 || rowData.namingAttr ||
-            ((this.props.isAttributeRequired(myAttr) || rowData.required) && this.hasSingleOccurrence(myAttr))
-            ? []
-            : [
-                {
-                    title: _("Remove this Row"),
-                    onClick: (event, rowId) => {
-                        const tableRows = this.state.tableRows.filter((aRow) => aRow.cells[0].props.name !== myName);
-                        this.setState({ tableRows },
-                                      () => {
-                                          const rowDataToSave = this.buildRowDataToSave();
-                                          const foundEmptyValue = tableRows.find(el => el.cells[1].props.value === '');
-                                          this.props.enableNextStep(foundEmptyValue === undefined);
-
-                                          let namingRowID = this.state.namingRowID;
-                                          if (rowId === namingRowID) {
-                                              namingRowID = -1;
-                                              this.props.setNamingRowID(-1);
-                                              this.props.enableNextStep(false);
-                                          }
-
-                                          this.setState({ namingRowID });
-                                          this.props.saveCurrentRows(rowDataToSave, namingRowID);
-                                      });
-                    }
+                    this.setState({
+                        namingRowID: myName,
+                        rdnAttr: myAttr
+                    }, () => {
+                        // Only call setNamingRowID if it exists
+                        if (typeof this.props.setNamingRowID === 'function') {
+                            this.props.setNamingRowID(myName);
+                        }
+                    });
                 }
-            ];
+            });
+        }
 
-        const nam = namingAction.length > 0;
-        const dup = duplicationAction.length > 0;
-        const rem = removalAction.length > 0;
-        const firstSeparator = nam && (dup || rem) ? [{ isSeparator: true }] : [];
-        const secondSeparator = dup && rem ? [{ isSeparator: true }] : [];
+        // Add separator if needed
+        if (actions.length > 0 && (!this.props.isAttributeSingleValued(myAttr) || 
+            !(this.state.tableRows.length === 1 || rowData.namingAttr ||
+            ((this.props.isAttributeRequired(myAttr) || rowData.required) && this.hasSingleOccurrence(myAttr))))) {
+            actions.push({ isSeparator: true });
+        }
 
+        // Duplication Action
+        if (!this.props.isAttributeSingleValued(myAttr)) {
+            actions.push({
+                title: _("Add Another Value"),
+                onClick: () => {
+                    const myData = {
+                        id: generateUniqueId(),
+                        attr: myAttr,
+                        val: ''
+                    };
+                    const tableRows = [...this.state.tableRows];
+                    const newItem = this.generateSingleRow(myData);
+
+                    // Insert the duplicate item right below the original
+                    tableRows.splice(rowIndex + 1, 0, newItem);
+
+                    this.setState({ tableRows }, () => {
+                        const rowDataToSave = this.buildRowDataToSave();
+                        this.props.saveCurrentRows?.(rowDataToSave, this.state.namingRowID);
+                        this.props.enableNextStep?.(false);
+                    });
+                }
+            });
+        }
+
+        // Add separator before removal action if needed
+        if (actions.length > 0 && !(this.state.tableRows.length === 1 || rowData.namingAttr ||
+            ((this.props.isAttributeRequired(myAttr) || rowData.required) && this.hasSingleOccurrence(myAttr)))) {
+            actions.push({ isSeparator: true });
+        }
+
+        // Removal Action
+        if (!(this.state.tableRows.length === 1 || rowData.namingAttr ||
+            ((this.props.isAttributeRequired(myAttr) || rowData.required) && this.hasSingleOccurrence(myAttr)))) {
+            actions.push({
+                title: _("Remove this Row"),
+                onClick: () => {
+                    const tableRows = this.state.tableRows.filter((aRow) => aRow.cells[0].props.name !== myName);
+                    this.setState({ tableRows }, () => {
+                        const rowDataToSave = this.buildRowDataToSave();
+                        const foundEmptyValue = tableRows.find(el => el.cells[1].props.value === '');
+                        this.props.enableNextStep?.(foundEmptyValue === undefined);
+
+                        let namingRowID = this.state.namingRowID;
+                        if (myName === namingRowID) {
+                            namingRowID = -1;
+                            // Only call setNamingRowID if it exists
+                            if (typeof this.props.setNamingRowID === 'function') {
+                                this.props.setNamingRowID(-1);
+                            }
+                            this.props.enableNextStep?.(false);
+                        }
+
+                        this.setState({ namingRowID });
+                        this.props.saveCurrentRows?.(rowDataToSave, namingRowID);
+                    });
+                }
+            });
+        }
+
+        // Handle quick update mode
         if (this.props.quickUpdate) {
-            // Allow some actions in quick update.
-            let actions = [];
-            if (dup) {
-                actions = duplicationAction;
-                if (rem) {
-                    actions.push({ isSeparator: true });
+            const quickActions = [];
+            const canDuplicate = !this.props.isAttributeSingleValued(myAttr);
+            const canRemove = !(this.state.tableRows.length === 1 || rowData.namingAttr ||
+                ((this.props.isAttributeRequired(myAttr) || rowData.required) && this.hasSingleOccurrence(myAttr)));
+
+            if (canDuplicate) {
+                quickActions.push(actions.find(action => action.title === _("Add Another Value")));
+                if (canRemove) {
+                    quickActions.push({ isSeparator: true });
                 }
             }
-            if (rem) {
-                actions.push(removalAction[0]);
+
+            if (canRemove) {
+                quickActions.push(actions.find(action => action.title === _("Remove this Row")));
             } else {
-                actions.push({
+                quickActions.push({
                     title: _("Required Attribute"),
                     isDisabled: true
                 });
             }
-            return actions;
-        } else {
-            // Full option list
-            return [
-                ...namingAction,
-                ...firstSeparator,
-                ...duplicationAction,
-                ...secondSeparator,
-                ...removalAction
-            ];
+
+            return quickActions;
         }
+
+        return actions;
     };
 
     render () {
@@ -761,19 +917,19 @@ class EditableTable extends React.Component {
                         ]}
                     >
                         <InputGroup>
-                            <TextInput
+                            <InputGroupItem isFill ><TextInput
                                 name={_("passwordField")}
                                 id="passwordField"
                                 type={showPassword ? 'text' : 'password'}
-                                onChange={this.handlePwdChange}
+                                onChange={(event, str) => this.handlePwdChange(event, str)}
                                 aria-label="password field"
-                            />
-                            <Button
+                            /></InputGroupItem>
+                            <InputGroupItem><Button
                                 variant="control"
                                 aria-label="password field icon"
                                 onClick={this.handleShowOrHidePassword}
                                 icon={showPassword ? <EyeSlashIcon /> : <EyeIcon />}
-                            />
+                            /></InputGroupItem>
                         </InputGroup>
                     </Modal>}
 
@@ -801,7 +957,7 @@ class EditableTable extends React.Component {
                             value="Upload"
                             className="ds-margin-top"
                             isChecked={uploadSelected}
-                            onChange={this.handleRadioOnChange}
+                            onChange={(event, _) => this.handleRadioOnChange(event, _)}
                             label={_("Upload a file local to the browser.")}
                             description={_("Select a file from the machine on which the browser was launched.")}
                             name="radio-binary-attribute"
@@ -811,7 +967,7 @@ class EditableTable extends React.Component {
                             className="ds-margin-top-lg"
                             value="TextInput"
                             isChecked={!uploadSelected}
-                            onChange={this.handleRadioOnChange}
+                            onChange={(event, _) => this.handleRadioOnChange(event, _)}
                             label={_("Write the complete file path.")}
                             description={_("Type the full path of the file on the server host the LDAP server.")}
                             name="radio-binary-attribute"
@@ -844,7 +1000,7 @@ class EditableTable extends React.Component {
                         { !uploadSelected &&
                             <TextInput
                                 value={binaryAttributeFilePath}
-                                onChange={this.handleBinaryAttributeInput}
+                                onChange={(event, str) => this.handleBinaryAttributeInput(event, str)}
                                 isRequired
                                 validated={file_is_path(binaryAttributeFilePath)
                                     ? ValidatedOptions.default
@@ -853,18 +1009,33 @@ class EditableTable extends React.Component {
                                 aria-label="File input for a binary attribute."
                             />}
                     </Modal>}
-                <Table
-                    actionResolver={this.actionResolver}
-                    onRowEdit={this.handleUpdateEditableRows}
-                    dropdownDirection="up"
-                    aria-label="Editable Rows Table"
-                    variant={TableVariant.compact}
-                    cells={this.columns}
-                    rows={tableRows}
-                    className="ds-margin-top"
-                >
-                    <TableHeader />
-                    <TableBody />
+                <Table aria-label="Editable Rows Table" variant="compact">
+                    <Thead>
+                        <Tr>
+                            {this.columns.map((column, columnIndex) => (
+                                <Th key={columnIndex}>{column.title}</Th>
+                            ))}
+                            <Th>Actions</Th>
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.cells.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>
+                                        {typeof cell.title === 'function' 
+                                            ? cell.title(cell.props.value, rowIndex, cellIndex, cell.props)
+                                            : cell.title}
+                                    </Td>
+                                ))}
+                                <Td>
+                                    {rowIndex !== 0 && (
+                                        <ActionsColumn items={this.actionResolver(row, { rowIndex })} />
+                                    )}
+                                </Td>
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </>
         );

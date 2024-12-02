@@ -4,35 +4,33 @@ import { log_cmd, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { PwpTable } from "./databaseTables.jsx";
 import {
-    Alert,
-    Button,
-    Checkbox,
-    ExpandableSection,
-    Form,
-    FormAlert,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions
-} from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Alert,
+	Button,
+	Checkbox,
+	ExpandableSection,
+	Form,
+	FormAlert,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
+import { SyncAltIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -103,27 +101,27 @@ class CreatePolicy extends React.Component {
             isTPRExpanded: false,
         };
 
-        this.handleGeneralToggle = (isGeneralExpanded) => {
+        this.handleGeneralToggle = (_event, isGeneralExpanded) => {
             this.setState({
                 isGeneralExpanded
             });
         };
-        this.handleLockoutToggle = (isLockoutExpanded) => {
+        this.handleLockoutToggle = (_event, isLockoutExpanded) => {
             this.setState({
                 isLockoutExpanded
             });
         };
-        this.handleExpiredToggle = (isExpiredExpanded) => {
+        this.handleExpiredToggle = (_event, isExpiredExpanded) => {
             this.setState({
                 isExpiredExpanded
             });
         };
-        this.handleSyntaxToggle = (isSyntaxExpanded) => {
+        this.handleSyntaxToggle = (_event, isSyntaxExpanded) => {
             this.setState({
                 isSyntaxExpanded
             });
         };
-        this.handleTPRToggle = (isTPRExpanded) => {
+        this.handleTPRToggle = (_event, isTPRExpanded) => {
             this.setState({
                 isTPRExpanded
             });
@@ -165,12 +163,12 @@ class CreatePolicy extends React.Component {
                                 id="policyDN"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="policyDN"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.props.handleChange(e);
                                 }}
                                 validated={this.props.invalid_dn ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!this.props.invalid_dn && this.props.policyDN !== ""}>
+                            <FormHelperText  >
                                 {helper_text}
                             </FormHelperText>
                         </GridItem>
@@ -179,7 +177,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isGeneralExpanded ? _("Hide General Settings") : _("Show General Settings")}
-                        onToggle={this.handleGeneralToggle}
+                        onToggle={(event, isOpen) => this.handleGeneralToggle(event, isOpen)}
                         isExpanded={this.state.isGeneralExpanded}
                     >
                         <div className="ds-margin-left">
@@ -191,7 +189,7 @@ class CreatePolicy extends React.Component {
                                     <FormSelect
                                         id="create_passwordstoragescheme"
                                         value={this.props.create_passwordstoragescheme}
-                                        onChange={(value, event) => {
+                                        onChange={(event, value) => {
                                             this.props.handleChange(event);
                                         }}
                                         aria-label="FormSelect Input"
@@ -219,7 +217,7 @@ class CreatePolicy extends React.Component {
                                         id="create_passwordminage"
                                         aria-describedby="horizontal-form-name-helper"
                                         name="create_passwordminage"
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
@@ -239,7 +237,7 @@ class CreatePolicy extends React.Component {
                                         id="create_passwordadmindn"
                                         aria-describedby="horizontal-form-name-helper"
                                         name="create_passwordadmindn"
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
@@ -253,7 +251,7 @@ class CreatePolicy extends React.Component {
                                     <Checkbox
                                         id="create_passwordadminskipinfoupdate"
                                         isChecked={this.props.create_passwordadminskipinfoupdate}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                         label={_("Do not update target entry's password state attributes")}
@@ -265,7 +263,7 @@ class CreatePolicy extends React.Component {
                                     <Checkbox
                                         id="create_passwordtrackupdatetime"
                                         isChecked={this.props.create_passwordtrackupdatetime}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                         label={_("Track Password Update Time")}
@@ -277,7 +275,7 @@ class CreatePolicy extends React.Component {
                                     <Checkbox
                                         id="create_passwordchange"
                                         isChecked={this.props.create_passwordchange}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                         label={_("Allow Users To Change Their Passwords")}
@@ -289,7 +287,7 @@ class CreatePolicy extends React.Component {
                                     <Checkbox
                                         id="create_passwordmustchange"
                                         isChecked={this.props.create_passwordmustchange}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                         label={_("User Must Change Password After Reset")}
@@ -302,7 +300,7 @@ class CreatePolicy extends React.Component {
                                         <Checkbox
                                             id="create_passwordhistory"
                                             isChecked={this.props.create_passwordhistory}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
                                             label={_("Keep Password History")}
@@ -315,7 +313,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordinhistory"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="create_passwordinhistory"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
                                         />
@@ -328,7 +326,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isExpiredExpanded ? _("Hide Expiration Settings") : _("Show Expiration Settings")}
-                        onToggle={this.handleExpiredToggle}
+                        onToggle={(event, isOpen) => this.handleExpiredToggle(event, isOpen)}
                         isExpanded={this.state.isExpiredExpanded}
                     >
                         <div className="ds-margin-left">
@@ -337,7 +335,7 @@ class CreatePolicy extends React.Component {
                                     <Checkbox
                                         id="create_passwordexp"
                                         isChecked={this.props.create_passwordexp}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                         label={_("Enforce Password Expiration")}
@@ -358,7 +356,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmaxage"
                                             aria-describedby="create_passwordmaxage"
                                             name="create_passwordmaxage"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordexp}
@@ -375,7 +373,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordgracelimit"
                                             aria-describedby="create_passwordgracelimit"
                                             name="create_passwordgracelimit"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordexp}
@@ -392,7 +390,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordwarning"
                                             aria-describedby="create_passwordwarning"
                                             name="create_passwordwarning"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordexp}
@@ -407,7 +405,7 @@ class CreatePolicy extends React.Component {
                                         <Checkbox
                                             id="create_passwordsendexpiringtime"
                                             isChecked={this.props.create_passwordsendexpiringtime}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordexp}
@@ -423,7 +421,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isLockoutExpanded ? _("Hide Lockout Settings") : _("Show Lockout Settings")}
-                        onToggle={this.handleLockoutToggle}
+                        onToggle={(event, isOpen) => this.handleLockoutToggle(event, isOpen)}
                         isExpanded={this.state.isLockoutExpanded}
                     >
                         <div className="ds-margin-left">
@@ -432,7 +430,7 @@ class CreatePolicy extends React.Component {
                                     <Checkbox
                                         id="create_passwordlockout"
                                         isChecked={this.props.create_passwordlockout}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                         label={_("Enable Account Lockout")}
@@ -450,7 +448,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmaxfailure"
                                             aria-describedby="create_passwordmaxfailure"
                                             name="create_passwordmaxfailure"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordlockout}
@@ -467,7 +465,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordresetfailurecount"
                                             aria-describedby="create_passwordresetfailurecount"
                                             name="create_passwordresetfailurecount"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordlockout}
@@ -484,7 +482,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordlockoutduration"
                                             aria-describedby="create_passwordlockoutduration"
                                             name="create_passwordlockoutduration"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordlockout}
@@ -496,7 +494,7 @@ class CreatePolicy extends React.Component {
                                         <Checkbox
                                             id="create_passwordunlock"
                                             isChecked={this.props.create_passwordunlock}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordlockout}
@@ -511,7 +509,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isSyntaxExpanded ? _("Hide Syntax Settings") : _("Show Syntax Settings")}
-                        onToggle={this.handleSyntaxToggle}
+                        onToggle={(event, isOpen) => this.handleSyntaxToggle(event, isOpen)}
                         isExpanded={this.state.isSyntaxExpanded}
                     >
                         <div className="ds-margin-left">
@@ -520,7 +518,7 @@ class CreatePolicy extends React.Component {
                                     <Checkbox
                                         id="create_passwordchecksyntax"
                                         isChecked={this.props.create_passwordchecksyntax}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                         label={_("Enable Password Syntax Checking")}
@@ -538,7 +536,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordminlength"
                                             aria-describedby="create_passwordminlength"
                                             name="create_passwordminlength"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -553,7 +551,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordminalphas"
                                             aria-describedby="create_passwordminalphas"
                                             name="create_passwordminalphas"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -570,7 +568,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmindigits"
                                             aria-describedby="create_passwordmindigits"
                                             name="create_passwordmindigits"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -585,7 +583,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordminspecials"
                                             aria-describedby="create_passwordminspecials"
                                             name="create_passwordminspecials"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -602,7 +600,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordminuppers"
                                             aria-describedby="create_passwordminuppers"
                                             name="create_passwordminuppers"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -617,7 +615,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordminlowers"
                                             aria-describedby="create_passwordminlowers"
                                             name="create_passwordminlowers"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -634,7 +632,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmin8bit"
                                             aria-describedby="create_passwordmin8bit"
                                             name="create_passwordmin8bit"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -649,7 +647,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmincategories"
                                             aria-describedby="create_passwordmincategories"
                                             name="create_passwordmincategories"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -666,7 +664,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmintokenlength"
                                             aria-describedby="create_passwordmintokenlength"
                                             name="create_passwordmintokenlength"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -681,7 +679,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmaxrepeats"
                                             aria-describedby="create_passwordmaxrepeats"
                                             name="create_passwordmaxrepeats"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -698,7 +696,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmaxsequence"
                                             aria-describedby="create_passwordmaxsequence"
                                             name="create_passwordmaxsequence"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -713,7 +711,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmaxseqsets"
                                             aria-describedby="create_passwordmaxseqsets"
                                             name="create_passwordmaxseqsets"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -730,7 +728,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordmaxclasschars"
                                             aria-describedby="create_passwordmaxclasschars"
                                             name="create_passwordmaxclasschars"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -750,7 +748,7 @@ class CreatePolicy extends React.Component {
                                             id="create_passwordbadwords"
                                             aria-describedby="create_passwordbadwords"
                                             name="create_passwordbadwords"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 this.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -765,7 +763,7 @@ class CreatePolicy extends React.Component {
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
                                             typeAheadAriaLabel="Type a attribute name to check"
-                                            onToggle={this.props.onUserAttrsCreateToggle}
+                                            onToggle={(event, isOpen) => this.props.onUserAttrsCreateToggle(event, isOpen)}
                                             onSelect={this.props.handleChange}
                                             onClear={this.props.onUserAttrsCreateClear}
                                             selections={this.props.passworduserattributes}
@@ -789,7 +787,7 @@ class CreatePolicy extends React.Component {
                                         <Checkbox
                                             id="create_passworddictcheck"
                                             isChecked={this.props.create_passworddictcheck}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -802,7 +800,7 @@ class CreatePolicy extends React.Component {
                                         <Checkbox
                                             id="create_passwordpalindrome"
                                             isChecked={this.props.create_passwordpalindrome}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordchecksyntax}
@@ -816,7 +814,7 @@ class CreatePolicy extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-lg"
                         toggleText={this.state.isTPRExpanded ? _("Hide Temporary Password Settings") : _("Show Temporary Password Settings")}
-                        onToggle={this.handleTPRToggle}
+                        onToggle={(event, isOpen) => this.handleTPRToggle(event, isOpen)}
                         isExpanded={this.state.isTPRExpanded}
                     >
                         <div className="ds-margin-left">
@@ -844,7 +842,7 @@ class CreatePolicy extends React.Component {
                                         aria-describedby="horizontal-form-name-helper"
                                         name="create_passwordtprmaxuse"
                                         isDisabled={!this.props.create_passwordmustchange}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
@@ -864,7 +862,7 @@ class CreatePolicy extends React.Component {
                                         aria-describedby="horizontal-form-name-helper"
                                         name="create_passwordtprdelayexpireat"
                                         isDisabled={!this.props.create_passwordmustchange}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
@@ -884,7 +882,7 @@ class CreatePolicy extends React.Component {
                                         aria-describedby="horizontal-form-name-helper"
                                         name="create_passwordtprdelayvalidfrom"
                                         isDisabled={!this.props.create_passwordmustchange}
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             this.props.handleChange(e);
                                         }}
                                     />
@@ -1147,7 +1145,7 @@ export class LocalPwPolicy extends React.Component {
         };
 
         // Check User Attributes Create
-        this.handleUserAttrsCreateToggle = isUserAttrsCreateOpen => {
+        this.handleUserAttrsCreateToggle = (_event, isUserAttrsCreateOpen) => {
             this.setState({
                 isUserAttrsCreateOpen
             });
@@ -1185,7 +1183,7 @@ export class LocalPwPolicy extends React.Component {
             });
         };
 
-        this.handleSelectToggle = isSelectOpen => {
+        this.handleSelectToggle = (_event, isSelectOpen) => {
             this.setState({
                 isSelectOpen
             });
@@ -1257,7 +1255,7 @@ export class LocalPwPolicy extends React.Component {
         });
     }
 
-    onCreateSelectChange(value) {
+    onCreateSelectChange(_event, value) {
         this.setState({
             createPolicyType: value
         });
@@ -2421,7 +2419,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordminlength"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminlength"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2437,7 +2435,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordminalphas"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminalphas"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2455,7 +2453,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmindigits"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmindigits"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2471,7 +2469,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordminspecials"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminspecials"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2489,7 +2487,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordminuppers"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminuppers"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2505,7 +2503,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordminlowers"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordminlowers"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2523,7 +2521,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmin8bit"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmin8bit"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2539,7 +2537,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmincategories"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmincategories"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2557,7 +2555,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmaxsequence"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxsequence"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2573,7 +2571,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmaxseqsets"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxseqsets"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2591,7 +2589,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmaxclasschars"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxclasschars"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2609,7 +2607,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordbadwords"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordbadwords"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                             />
@@ -2623,7 +2621,7 @@ export class LocalPwPolicy extends React.Component {
                             <Select
                                 variant={SelectVariant.typeaheadMulti}
                                 typeAheadAriaLabel="Type an attribute to check"
-                                onToggle={this.handleSelectToggle}
+                                onToggle={(event, isOpen) => this.handleSelectToggle(event, isOpen)}
                                 onSelect={this.handleSyntaxChange}
                                 onClear={this.handleSelectClear}
                                 selections={this.state.passworduserattributes}
@@ -2646,7 +2644,7 @@ export class LocalPwPolicy extends React.Component {
                             <Checkbox
                                 id="passworddictcheck"
                                 isChecked={this.state.passworddictcheck}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                                 label={_("Dictionary Check")}
@@ -2659,7 +2657,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordpalindrome"
                                 isChecked={this.state.passwordpalindrome}
                                 className="ds-label"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleSyntaxChange(e);
                                 }}
                                 label={_("Reject Palindromes")}
@@ -2684,7 +2682,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmaxfailure"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxpasswordmaxfailureclasschars"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                             />
@@ -2701,7 +2699,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordresetfailurecount"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordresetfailurecount"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                             />
@@ -2718,7 +2716,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordlockoutduration"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordlockoutduration"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                             />
@@ -2729,7 +2727,7 @@ export class LocalPwPolicy extends React.Component {
                             <Checkbox
                                 id="passwordunlock"
                                 isChecked={this.state.passwordunlock}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleLockoutChange(e);
                                 }}
                                 label={_("Do Not Lockout Account Forever")}
@@ -2754,7 +2752,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordmaxage"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordmaxage"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                             />
@@ -2771,7 +2769,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordgracelimit"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordgracelimit"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                             />
@@ -2788,7 +2786,7 @@ export class LocalPwPolicy extends React.Component {
                                 id="passwordwarning"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="passwordwarning"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                             />
@@ -2799,7 +2797,7 @@ export class LocalPwPolicy extends React.Component {
                             <Checkbox
                                 id="passwordsendexpiringtime"
                                 isChecked={this.state.passwordsendexpiringtime}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
                                 label={_("<>Always Send <i>Password Expiring</i> Control</>")}
@@ -2836,7 +2834,7 @@ export class LocalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordtrackupdatetime"
                                             isChecked={this.state.passwordtrackupdatetime}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Track Password Update Time")}
@@ -2848,7 +2846,7 @@ export class LocalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordchange"
                                             isChecked={this.state.passwordchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("Allow Users To Change Their Passwords")}
@@ -2860,7 +2858,7 @@ export class LocalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordmustchange"
                                             isChecked={this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label={_("User Must Change Password After Reset")}
@@ -2873,7 +2871,7 @@ export class LocalPwPolicy extends React.Component {
                                             <Checkbox
                                                 id="passwordhistory"
                                                 isChecked={this.state.passwordhistory}
-                                                onChange={(checked, e) => {
+                                                onChange={(e, checked) => {
                                                     this.handleGeneralChange(e);
                                                 }}
                                                 label={_("Keep Password History")}
@@ -2886,7 +2884,7 @@ export class LocalPwPolicy extends React.Component {
                                                 id="passwordinhistory"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="passwordinhistory"
-                                                onChange={(checked, e) => {
+                                                onChange={(e, checked) => {
                                                     this.handleGeneralChange(e);
                                                 }}
                                             />
@@ -2901,7 +2899,7 @@ export class LocalPwPolicy extends React.Component {
                                         <FormSelect
                                             id="passwordstoragescheme"
                                             value={this.state.passwordstoragescheme}
-                                            onChange={(value, event) => {
+                                            onChange={(event, value) => {
                                                 this.handleGeneralChange(event);
                                             }}
                                             aria-label="FormSelect Input"
@@ -2929,7 +2927,7 @@ export class LocalPwPolicy extends React.Component {
                                             id="passwordminage"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordminage"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                         />
@@ -2948,7 +2946,7 @@ export class LocalPwPolicy extends React.Component {
                                             id="passwordadmindn"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordadmindn"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                         />
@@ -2961,7 +2959,7 @@ export class LocalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordadminskipinfoupdate"
                                             isChecked={this.state.passwordadminskipinfoupdate}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleGeneralChange(e);
                                             }}
                                             label="Do not update target entry's password state attributes"
@@ -2988,7 +2986,7 @@ export class LocalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordexp"
                                             isChecked={this.state.passwordexp}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleExpChange(e);
                                             }}
                                             label={_("Enforce Password Expiration")}
@@ -3016,7 +3014,7 @@ export class LocalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordlockout"
                                             isChecked={this.state.passwordlockout}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleLockoutChange(e);
                                             }}
                                             label={_("Enable Account Lockout")}
@@ -3044,7 +3042,7 @@ export class LocalPwPolicy extends React.Component {
                                         <Checkbox
                                             id="passwordchecksyntax"
                                             isChecked={this.state.passwordchecksyntax}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleSyntaxChange(e);
                                             }}
                                             label={_("Enable Password Syntax Checking")}
@@ -3091,7 +3089,7 @@ export class LocalPwPolicy extends React.Component {
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordtprmaxuse"
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -3113,7 +3111,7 @@ export class LocalPwPolicy extends React.Component {
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordtprdelayexpireat"
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -3135,7 +3133,7 @@ export class LocalPwPolicy extends React.Component {
                                             aria-describedby="horizontal-form-name-helper"
                                             name="passwordtprdelayvalidfrom"
                                             isDisabled={!this.state.passwordmustchange}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleTPRChange(e);
                                             }}
                                         />
@@ -3217,7 +3215,7 @@ export class LocalPwPolicy extends React.Component {
         if (this.state.loading || !this.state.loaded) {
             body = (
                 <div className="ds-margin-top-xlg ds-center">
-                    <Spinner isSVG size="xl" />
+                    <Spinner  size="xl" />
                 </div>
             );
         }
@@ -3229,13 +3227,13 @@ export class LocalPwPolicy extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Local Password Policies")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh the local password policies")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh the local password policies")}
                                     onClick={this.handleLoadPolicies}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>
