@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 import cockpit from "cockpit";
@@ -126,7 +126,7 @@ export function dmi_info() {
 
 // decode a binary Uint8Array with a trailing null byte
 function decode_proc_str(s) {
-    return cockpit.utf8_decoder().decode(s.slice(0, -1));
+    return new TextDecoder().decode(s.slice(0, -1));
 }
 
 export function devicetree_info() {

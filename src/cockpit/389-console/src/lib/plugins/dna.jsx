@@ -1,29 +1,31 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    NumberInput,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    Tooltip,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	NumberInput,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	Tooltip,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
 import { DNATable, DNASharedTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
@@ -88,7 +90,7 @@ class DNAPlugin extends React.Component {
             saveBtnDisabled: true,
         };
 
-        this.handleToggle = isOpen => {
+        this.handleToggle = (_event, isOpen) => {
             this.setState({
                 isOpen
             });
@@ -220,7 +222,7 @@ class DNAPlugin extends React.Component {
         });
     }
 
-    handleFieldChange(str, e) {
+    handleFieldChange(e, str) {
         this.setState({
             [e.target.id]: e.target.value,
         }, () => { this.validateConfig() });
@@ -1076,7 +1078,7 @@ class DNAPlugin extends React.Component {
                                             id="configName"
                                             aria-describedby="configName"
                                             name="configName"
-                                            onChange={this.handleFieldChange}
+                                            onChange={(e, str) => this.handleFieldChange(e, str)}
                                             isDisabled={!newEntry}
                                             validated={error.configName ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
@@ -1090,7 +1092,7 @@ class DNAPlugin extends React.Component {
                                         <Select
                                             variant={SelectVariant.typeaheadMulti}
                                             typeAheadAriaLabel="Type an attribute"
-                                            onToggle={this.handleToggle}
+                                            onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}
                                             onSelect={this.handleSelect}
                                             onClear={this.handleClearSelection}
                                             selections={selected}
@@ -1119,7 +1121,7 @@ class DNAPlugin extends React.Component {
                                             id="filter"
                                             aria-describedby="filter"
                                             name="filter"
-                                            onChange={this.handleFieldChange}
+                                            onChange={(e, str) => this.handleFieldChange(e, str)}
                                             validated={error.filter ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
@@ -1135,7 +1137,7 @@ class DNAPlugin extends React.Component {
                                             id="scope"
                                             aria-describedby="scope"
                                             name="scope"
-                                            onChange={this.handleFieldChange}
+                                            onChange={(e, str) => this.handleFieldChange(e, str)}
                                             validated={error.scope ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
@@ -1191,7 +1193,7 @@ class DNAPlugin extends React.Component {
                                             id="magicRegen"
                                             aria-describedby="magicRegen"
                                             name="magicRegen"
-                                            onChange={this.handleFieldChange}
+                                            onChange={(e, str) => this.handleFieldChange(e, str)}
                                             validated={error.magicRegen ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
@@ -1209,7 +1211,7 @@ class DNAPlugin extends React.Component {
                                                 aria-describedby={content.name}
                                                 name={content.name}
                                                 key={content.name}
-                                                onChange={this.handleFieldChange}
+                                                onChange={(e, str) => this.handleFieldChange(e, str)}
                                                 validated={error[content.id] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                         </GridItem>
@@ -1305,7 +1307,7 @@ class DNAPlugin extends React.Component {
                                             id="sharedConfigEntry"
                                             aria-describedby="sharedConfigEntry"
                                             name="sharedConfigEntry"
-                                            onChange={this.handleFieldChange}
+                                            onChange={(e, str) => this.handleFieldChange(e, str)}
                                             validated={error.sharedConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
                                     </GridItem>
@@ -1386,7 +1388,7 @@ class DNAPlugin extends React.Component {
                                 <FormSelect
                                     id="sharedRemoteBindMethod"
                                     value={sharedRemoteBindMethod}
-                                    onChange={this.handleFieldChange}
+                                    onChange={(e, str) => this.handleFieldChange(e, str)}
                                     aria-label="FormSelect Input"
                                     validated={sharedResult.validatedBindMethod}
                                 >
@@ -1403,7 +1405,7 @@ class DNAPlugin extends React.Component {
                                 <FormSelect
                                     id="sharedRemoteConnProtocol"
                                     value={sharedRemoteConnProtocol}
-                                    onChange={this.handleFieldChange}
+                                    onChange={(e, str) => this.handleFieldChange(e, str)}
                                     aria-label="FormSelect Input"
                                     validated={sharedResult.validatedConnProtocol}
                                 >

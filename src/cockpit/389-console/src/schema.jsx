@@ -108,7 +108,7 @@ export class Schema extends React.Component {
         };
 
         // Substring Matching Rule
-        this.handleSubstringMRToggle = isSubstringMROpen => {
+        this.handleSubstringMRToggle = (_event, isSubstringMROpen) => {
             this.setState({
                 isSubstringMROpen
             });
@@ -136,7 +136,7 @@ export class Schema extends React.Component {
         };
 
         // Order Matching Rule
-        this.handleOrderMRToggle = isOrderMROpen => {
+        this.handleOrderMRToggle = (_event, isOrderMROpen) => {
             this.setState({
                 isOrderMROpen
             });
@@ -164,7 +164,7 @@ export class Schema extends React.Component {
         };
 
         // Equaliry Matching Rule
-        this.handleEqualityMRToggle = isEqualityMROpen => {
+        this.handleEqualityMRToggle = (_event, isEqualityMROpen) => {
             this.setState({
                 isEqualityMROpen
             });
@@ -192,7 +192,7 @@ export class Schema extends React.Component {
         };
 
         // Alias Name
-        this.handleAliasNameToggle = isAliasNameOpen => {
+        this.handleAliasNameToggle = (_event, isAliasNameOpen) => {
             this.setState({
                 isAliasNameOpen
             });
@@ -222,7 +222,7 @@ export class Schema extends React.Component {
                 );
             }
         };
-        this.handleAliasNameCreateOption = newValue => {
+        this.handleAliasNameCreateOption = (_event, newValue) => {
             if (!this.state.atAliasOptions.includes(newValue)) {
                 this.setState({
                     atAliasOptions: [...this.state.atAliasOptions, { value: newValue }],
@@ -232,7 +232,7 @@ export class Schema extends React.Component {
         };
 
         // Parent Attribute
-        this.handleParentAttrToggle = isParentAttrOpen => {
+        this.handleParentAttrToggle = (_event, isParentAttrOpen) => {
             this.setState({
                 isParentAttrOpen
             });
@@ -262,7 +262,7 @@ export class Schema extends React.Component {
         };
 
         // Required Attributes
-        this.handleRequiredAttrsToggle = isRequiredAttrsOpen => {
+        this.handleRequiredAttrsToggle = (_event, isRequiredAttrsOpen) => {
             this.setState({
                 isRequiredAttrsOpen
             });
@@ -301,7 +301,7 @@ export class Schema extends React.Component {
         };
 
         // Allowed Attributes
-        this.handleAllowedAttrsToggle = isAllowedAttrsOpen => {
+        this.handleAllowedAttrsToggle = (_event, isAllowedAttrsOpen) => {
             this.setState({
                 isAllowedAttrsOpen
             });
@@ -1402,7 +1402,7 @@ export class Schema extends React.Component {
                                     id="ocUserDefined"
                                     isChecked={this.state.ocUserDefined}
                                     title={_("Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'")}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.onFieldChange(e);
                                     }}
                                     label={_("Only Show Non-standard/Custom Schema")}
@@ -1463,7 +1463,7 @@ export class Schema extends React.Component {
                                     id="atUserDefined"
                                     isChecked={this.state.atUserDefined}
                                     title={_("Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'")}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.onFieldChange(e);
                                     }}
                                     label={_("Only Show Non-standard/Custom Schema")}

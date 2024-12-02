@@ -1,17 +1,19 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormHelperText,
-    Grid,
-    GridItem,
-    Select,
-    SelectVariant,
-    SelectOption,
-    TimePicker,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormHelperText,
+	Grid,
+	GridItem,
+	TimePicker
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, listsEqual } from "../tools.jsx";
@@ -96,7 +98,7 @@ class RootDNAccessControl extends React.Component {
                 );
             }
         };
-        this.handleAllowHostToggle = isAllowHostOpen => {
+        this.handleAllowHostToggle = (_event, isAllowHostOpen) => {
             this.setState({
                 isAllowHostOpen
             });
@@ -134,7 +136,7 @@ class RootDNAccessControl extends React.Component {
                 );
             }
         };
-        this.handleDenyHostToggle = isDenyHostOpen => {
+        this.handleDenyHostToggle = (_event, isDenyHostOpen) => {
             this.setState({
                 isDenyHostOpen
             });
@@ -172,7 +174,7 @@ class RootDNAccessControl extends React.Component {
                 );
             }
         };
-        this.handleAllowIPToggle = isAllowIPOpen => {
+        this.handleAllowIPToggle = (_event, isAllowIPOpen) => {
             this.setState({
                 isAllowIPOpen
             });
@@ -210,7 +212,7 @@ class RootDNAccessControl extends React.Component {
                 );
             }
         };
-        this.handleDenyIPToggle = isDenyIPOpen => {
+        this.handleDenyIPToggle = (_event, isDenyIPOpen) => {
             this.setState({
                 isDenyIPOpen
             });
@@ -520,7 +522,7 @@ class RootDNAccessControl extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a hostname "
-                                    onToggle={this.handleAllowHostToggle}
+                                    onToggle={(event, isOpen) => this.handleAllowHostToggle(event, isOpen)}
                                     onSelect={this.handleAllowHostSelect}
                                     onClear={this.handleAllowHostClear}
                                     selections={allowHost}
@@ -548,7 +550,7 @@ class RootDNAccessControl extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a hostname "
-                                    onToggle={this.handleDenyHostToggle}
+                                    onToggle={(event, isOpen) => this.handleDenyHostToggle(event, isOpen)}
                                     onSelect={this.handleDenyHostSelect}
                                     onClear={this.handleDenyHostClear}
                                     selections={denyHost}
@@ -576,7 +578,7 @@ class RootDNAccessControl extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an IP address"
-                                    onToggle={this.handleAllowIPToggle}
+                                    onToggle={(event, isOpen) => this.handleDenyHostToggle(event, isOpen)}
                                     onSelect={this.handleAllowIPSelect}
                                     onClear={this.handleAllowIPClear}
                                     selections={allowIP}
@@ -604,7 +606,7 @@ class RootDNAccessControl extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an IP address"
-                                    onToggle={this.handleDenyIPToggle}
+                                    onToggle={(event, isOpen) => this.handleDenyIPToggle(event, isOpen)}
                                     onSelect={this.handleDenyIPSelect}
                                     onClear={this.handleDenyIPClear}
                                     selections={denyIP}
@@ -658,7 +660,7 @@ class RootDNAccessControl extends React.Component {
                                     <GridItem span={3}>
                                         <Checkbox
                                             id="allowMon"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleFieldChange(e);
                                             }}
                                             name={name}
@@ -669,7 +671,7 @@ class RootDNAccessControl extends React.Component {
                                     <GridItem span={3}>
                                         <Checkbox
                                             id="allowFri"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleFieldChange(e);
                                             }}
                                             name={name}
@@ -682,7 +684,7 @@ class RootDNAccessControl extends React.Component {
                                     <GridItem span={3}>
                                         <Checkbox
                                             id="allowTue"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleFieldChange(e);
                                             }}
                                             name={name}
@@ -693,7 +695,7 @@ class RootDNAccessControl extends React.Component {
                                     <GridItem span={3}>
                                         <Checkbox
                                             id="allowSat"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleFieldChange(e);
                                             }}
                                             name={name}
@@ -706,7 +708,7 @@ class RootDNAccessControl extends React.Component {
                                     <GridItem span={3}>
                                         <Checkbox
                                             id="allowWed"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleFieldChange(e);
                                             }}
                                             name={name}
@@ -717,7 +719,7 @@ class RootDNAccessControl extends React.Component {
                                     <GridItem span={3}>
                                         <Checkbox
                                             id="allowSun"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleFieldChange(e);
                                             }}
                                             name={name}
@@ -730,7 +732,7 @@ class RootDNAccessControl extends React.Component {
                                     <GridItem span={3}>
                                         <Checkbox
                                             id="allowThu"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleFieldChange(e);
                                             }}
                                             name={name}
@@ -739,7 +741,7 @@ class RootDNAccessControl extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <FormHelperText isError isHidden={!error.daysAllowed}>
+                                <FormHelperText  >
                                     {_("You must set at least one day")}
                                 </FormHelperText>
                             </GridItem>

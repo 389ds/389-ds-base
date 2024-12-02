@@ -27,10 +27,7 @@ import {
     ChartThemeColor,
     ChartVoronoiContainer,
 } from '@patternfly/react-charts';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
+import { SyncAltIcon } from "@patternfly/react-icons";
 
 const _ = cockpit.gettext;
 
@@ -327,13 +324,13 @@ export class ServerMonitor extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Server Statistics")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh suffix monitor")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh suffix monitor")}
                                     onClick={this.props.handleReload}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>

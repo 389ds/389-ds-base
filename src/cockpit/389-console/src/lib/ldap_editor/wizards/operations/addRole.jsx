@@ -1,40 +1,44 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    BadgeToggle,
-    Button,
-    Card,
-    CardBody,
-    CardTitle,
-    Dropdown,
-    DropdownItem,
-    DropdownPosition,
-    DualListSelector,
-    Form,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Pagination,
-    Radio,
-    SearchInput,
-    SimpleList,
-    SimpleListItem,
-    Spinner,
-    Text,
-    TextContent,
-    TextInput,
-    TextVariants,
-    ValidatedOptions,
-    Wizard,
+	Alert,
+	Button,
+	Card,
+	CardBody,
+	CardTitle,
+	DualListSelector,
+	Form,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	Pagination,
+	Radio,
+	SearchInput,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextInput,
+	TextVariants,
+	ValidatedOptions
 } from '@patternfly/react-core';
 import {
+	BadgeToggle,
+	Dropdown,
+	DropdownItem,
+	DropdownPosition,
+	Wizard
+} from '@patternfly/react-core/deprecated';
+import {
     Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    headerCol,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+	headerCol
 } from '@patternfly/react-table';
 import EditableTable from '../../lib/editableTable.jsx';
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
@@ -262,7 +266,7 @@ class AddRole extends React.Component {
             return noDuplicates;
         };
 
-        this.handleUsersListChange = (newAvailableOptions, newChosenOptions) => {
+        this.handleUsersListChange = (_event, newAvailableOptions, newChosenOptions) => {
             const newAvailNoDups = this.removeDuplicates(newAvailableOptions);
             const newChosenNoDups = this.removeDuplicates(newChosenOptions);
 
@@ -272,7 +276,7 @@ class AddRole extends React.Component {
             });
         };
 
-        this.handleRadioChange = (_, event) => {
+        this.handleRadioChange = (event, _) => {
             this.setState({
                 roleType: event.currentTarget.id,
             });
@@ -596,7 +600,7 @@ class AddRole extends React.Component {
                 onSelect={this.handleAttrDropDownSelect}
                 position={DropdownPosition.left}
                 toggle={
-                    <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
+                    <BadgeToggle id="toggle-attr-select" onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}>
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
@@ -673,7 +677,8 @@ class AddRole extends React.Component {
             pagedRowsRole, ldifArray, noEmptyValue, namingAttrVal, namingAttr,
             resultVariant, editableTableData, stepIdReached, namingVal,
             rolesSearchBaseDn, rolesAvailableOptions, rolesChosenOptions,
-            showLDAPNavModal, commandOutput, roleType
+            showLDAPNavModal, commandOutput, roleType, isAttrDropDownOpen,
+            selectedAttributes
         } = this.state;
 
         const rdnValue = namingVal;
@@ -700,7 +705,7 @@ class AddRole extends React.Component {
                                 id="namingVal"
                                 aria-describedby="namingVal"
                                 name="namingVal"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e);
                                 }}
                                 validated={this.state.namingVal === '' ? ValidatedOptions.error : ValidatedOptions.default}
@@ -720,7 +725,7 @@ class AddRole extends React.Component {
                             value="managed"
                             label={_("Managed")}
                             isChecked={this.state.roleType === 'managed'}
-                            onChange={this.handleRadioChange}
+                            onChange={(event, str) => this.handleRadioChange(event, str)}
                             description={_("This attribute uses objectclass 'RoleOfNames'")}
                         />
                         <Radio
@@ -729,7 +734,7 @@ class AddRole extends React.Component {
                             value="filtered"
                             label={_("Filtered")}
                             isChecked={this.state.roleType === 'filtered'}
-                            onChange={this.handleRadioChange}
+                            onChange={(event, str) => this.handleRadioChange(event, str)}
                             description={_("This attribute uses objectclass 'RoleOfUniqueNames'")}
                             className="ds-margin-top"
                         />
@@ -739,7 +744,7 @@ class AddRole extends React.Component {
                             value="nested"
                             label={_("Nested")}
                             isChecked={this.state.roleType === 'nested'}
-                            onChange={this.handleRadioChange}
+                            onChange={(event, str) => this.handleRadioChange(event, str)}
                             description={_("This attribute uses objectclass 'RoleOfUniqueNames'")}
                             className="ds-margin-top"
                         />
@@ -789,7 +794,7 @@ class AddRole extends React.Component {
                                 chosenOptions={rolesChosenOptions}
                                 availableOptionsTitle={_("Available Roles")}
                                 chosenOptionsTitle={_("Chosen Roles")}
-                                onListChange={this.handleUsersListChange}
+                                onListChange={(event, newAvailableOptions, newChosenOptions) => this.handleUsersListChange(event, newAvailableOptions, newChosenOptions)}
                                 id="usersSelector"
                             />
                         </GridItem>
@@ -834,7 +839,29 @@ class AddRole extends React.Component {
                             {_("Select Entry Attributes")}
                         </Text>
                     </TextContent>
-                    {this.buildAttrDropdown()}
+                    <Dropdown
+                        className="ds-dropdown-padding"
+                        position="left"
+                        onSelect={this.handleAttrDropDownSelect}
+                        toggle={
+                            <BadgeToggle 
+                                id="toggle-attr-select" 
+                                badgeProps={{
+                                    className: selectedAttributes.length > 0 ? "ds-badge-bgcolor" : undefined,
+                                    isRead: selectedAttributes.length === 0
+                                }}
+                                onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}
+                            >
+                                {selectedAttributes.length > 0 ? 
+                                    `${selectedAttributes.length} ${_("selected")}` : 
+                                    `0 ${_("selected")}`}
+                            </BadgeToggle>
+                        }
+                        isOpen={isAttrDropDownOpen}
+                        dropdownItems={selectedAttributes.map((attr) =>
+                            <DropdownItem key={attr}>{attr}</DropdownItem>
+                        )}
+                    />
                 </div>
                 <Pagination
                     itemCount={itemCountAddRole}
@@ -845,15 +872,42 @@ class AddRole extends React.Component {
                     onPerPageSelect={this.handlePerPageSelectAddRole}
                     isCompact
                 />
-                <Table
-                    cells={columnsRole}
-                    rows={pagedRowsRole}
-                    onSelect={this.handleSelect}
-                    variant={TableVariant.compact}
-                    aria-label="Pagination Role Attributes"
-                >
-                    <TableHeader />
-                    <TableBody />
+                <Table aria-label="Role Attributes Table" variant="compact">
+                    <Thead>
+                        <Tr>
+                            <Th select={{
+                                onSelect: (_event, isSelected) => this.handleSelect(_event, isSelected, -1),
+                                isSelected: this.state.allAttributesSelected
+                            }} />
+                            {columnsRole.map((column, columnIndex) => (
+                                <Th key={columnIndex}>
+                                    {typeof column === 'object' ? column.title : column}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {pagedRowsRole.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td
+                                    select={{
+                                        rowIndex,
+                                        onSelect: this.handleSelect,
+                                        isSelected: row.selected,
+                                        isDisabled: row.disableCheckbox
+                                    }}
+                                />
+                                {row.cells.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={`${rowIndex}_${cellIndex}`}
+                                        dataLabel={columnsRole[cellIndex]?.title || columnsRole[cellIndex]}
+                                    >
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </>
         );
