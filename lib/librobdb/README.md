@@ -18,8 +18,12 @@ See test/test.c (Using a 389ds entries database as example, It shows how to dump
 # Running tests
 
 dnf install -y dist/RPMS/*/*.rpm
-
 make test
+
+or
+
+make localtest
+
 
 # LICENSE
 
