@@ -9,8 +9,6 @@
 #include "bdb_layer.h"
 #include <robdb.h>
 
-#define DEBUG 1
-
 /*
  * This file contains the stub that transform usual bdb API (limited to the function 389-ds needs to export a db and a changelog
  * to  bdb_ro callbacks
@@ -248,7 +246,7 @@ int db_close(DB *db, u_int32_t flags)
 
 int dbc_close(DBC *dbc)
 {
-     bdbreader_bdb_close(dbc->impl);
+     bdbreader_cur_close(dbc->impl);
      dbc->impl = NULL;
      slapi_ch_free((void **)&dbc);
      return DB_SUCCESS;

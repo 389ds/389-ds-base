@@ -397,7 +397,6 @@ const char *dblayer_op2str(dbi_op_t op)
     return str[idx];
 }
 
-<<<<<<< HEAD
 /* Get the li_directory directory from the database instance name -
  * Caller should free the returned value
  */
@@ -440,8 +439,6 @@ get_li_directory(const char *fname)
 }
 
 /* Open db env, db and db file privately (for dbscan) */
-=======
-/* Open db env, db and db file privately (used by dbscan) */
 int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
 {
     struct ldbminfo *li;
