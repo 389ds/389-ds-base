@@ -372,7 +372,9 @@ acct_record_login(const char *dn)
                       "acct_record_login - Recorded %s=%s on \"%s\"\n", cfg->always_record_login_attr, timestr, dn);
 
         /* update login history */
-        acct_update_login_history(dn, timestr);
+        if (cfg->login_history_attr) {
+            acct_update_login_history(dn, timestr);
+        }
     }
 
 done:
