@@ -598,7 +598,7 @@ export class ServerAccessLog extends React.Component {
                                     id="nsslapd-accesslog-time-format"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-accesslog-time-format"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
@@ -611,7 +611,7 @@ export class ServerAccessLog extends React.Component {
                                 <FormSelect
                                     id="nsslapd-accesslog-log-format"
                                     value={this.state['nsslapd-accesslog-log-format']}
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                     aria-label="FormSelect Input"
@@ -652,7 +652,7 @@ export class ServerAccessLog extends React.Component {
                                             <Td
                                                 select={{
                                                     rowIndex,
-                                                    onSelect: (_event, isSelecting) => 
+                                                    onSelect: (_event, isSelecting) =>
                                                         this.handleOnSelect(_event, isSelecting, rowIndex),
                                                     isSelected: row.selected
                                                 }}
@@ -930,7 +930,7 @@ export class ServerAccessLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Access Log Settings")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh log settings")}
                                     onClick={() => {
