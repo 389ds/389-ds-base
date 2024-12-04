@@ -34,7 +34,7 @@ def get(inst, basedn, log, args):
     _generic_get(inst, basedn, log.getChild('_generic_get'), MANY, rdn, args)
 
 def get_dn(inst, basedn, log, args):
-    dn = lambda args: _get_arg( args.dn, msg="Enter dn to retrieve")
+    dn = _get_arg( args.dn, msg="Enter dn to retrieve")
     _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
 
 def create(inst, basedn, log, args):
