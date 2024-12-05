@@ -317,12 +317,9 @@ def list_suffixes(inst, basedn, log, args):
 def get_repl_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
-    pw_and_dn_prompt = False
     if args.bind_passwd_file is not None:
         args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
-    if args.bind_passwd_prompt or args.bind_dn is None or args.bind_passwd is None:
-        pw_and_dn_prompt = True
-    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=pw_and_dn_prompt)
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=args.bind_passwd_prompt)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -333,12 +330,9 @@ def get_repl_status(inst, basedn, log, args):
 def get_repl_winsync_status(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
-    pw_and_dn_prompt = False
     if args.bind_passwd_file is not None:
         args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
-    if args.bind_passwd_prompt or args.bind_dn is None or args.bind_passwd is None:
-        pw_and_dn_prompt = True
-    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True, pwprompt=pw_and_dn_prompt)
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True, pwprompt=args.bind_passwd_prompt)
     if args.json:
         log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
@@ -923,12 +917,9 @@ def poke_agmt(inst, basedn, log, args):
 
 def get_agmt_status(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
-    pw_and_dn_prompt = False
     if args.bind_passwd_file is not None:
         args.bind_passwd = get_passwd_from_file(args.bind_passwd_file)
-    if args.bind_passwd_prompt or args.bind_dn is None or args.bind_passwd is None:
-        pw_and_dn_prompt = True
-    status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=pw_and_dn_prompt)
+    status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd, pwprompt=args.bind_passwd_prompt)
     log.info(status)
 
 
