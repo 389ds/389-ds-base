@@ -321,25 +321,31 @@ class DSLdapObject(DSLogging, DSLint):
         This is useful for configuration changes that require
         atomic operation, and ease of use.
 
-        An example of usage is add_many((key, value), (key, value))
+        An example of usage is add_many((key, value), (key, [value1, value2]))
 
         No wrapping list is needed for the arguments.
 
-        :param *args: tuples of key,value to replace.
-        :type *args: (str, str)
+        :param *args: tuples of key,value to add. Value can be a single value
+                    or a collection (list, tuple, set) of values.
+        :type *args: (str, str) or (str, list/tuple/set)
         """
-
         mods = []
         for arg in args:
-            if isinstance(arg[1], list) or isinstance(arg[1], tuple):
-                value = ensure_list_bytes(arg[1])
+            key, value = arg
+            if isinstance(value, (list, tuple, set)):
+                value = ensure_list_bytes(list(value))
             else:
-                value = [ensure_bytes(arg[1])]
-            mods.append((ldap.MOD_ADD, ensure_str(arg[0]), value))
-        return _modify_ext_s(self._instance,self._dn, mods, serverctrls=self._server_controls,
-                                            clientctrls=self._client_controls, escapehatch='i am sure')
+                value = [ensure_bytes(value)]
 
-    # Basically what it means;
+            mods.append((ldap.MOD_ADD, ensure_str(key), value))
+
+        return _modify_ext_s(self._instance,
+                            self._dn,
+                            mods,
+                            serverctrls=self._server_controls,
+                            clientctrls=self._client_controls,
+                            escapehatch='i am sure')
+
     def replace(self, key, value):
         """Replace an attribute with a value
 
@@ -355,23 +361,30 @@ class DSLdapObject(DSLogging, DSLint):
         This is useful for configuration changes that require
         atomic operation, and ease of use.
 
-        An example of usage is replace_many((key, value), (key, value))
+        An example of usage is replace_many((key, value), (key, [value1, value2]))
 
         No wrapping list is needed for the arguments.
 
-        :param *args: tuples of key,value to replace.
-        :type *args: (str, str)
+        :param *args: tuples of key,value to replace. Value can be a single value
+                    or a collection (list, tuple, set) of values.
+        :type *args: (str, str) or (str, list/tuple/set)
         """
-
         mods = []
         for arg in args:
-            if isinstance(arg[1], list) or isinstance(arg[1], tuple):
-                value = ensure_list_bytes(arg[1])
+            key, value = arg
+            if isinstance(value, (list, tuple, set)):
+                value = ensure_list_bytes(list(value))
             else:
-                value = [ensure_bytes(arg[1])]
-            mods.append((ldap.MOD_REPLACE, ensure_str(arg[0]), value))
-        return _modify_ext_s(self._instance,self._dn, mods, serverctrls=self._server_controls,
-                                           clientctrls=self._client_controls, escapehatch='i am sure')
+                value = [ensure_bytes(value)]
+
+            mods.append((ldap.MOD_REPLACE, ensure_str(key), value))
+
+        return _modify_ext_s(self._instance,
+                            self._dn,
+                            mods,
+                            serverctrls=self._server_controls,
+                            clientctrls=self._client_controls,
+                            escapehatch='i am sure')
 
     # This needs to work on key + val, and key
     def remove(self, key, value):
