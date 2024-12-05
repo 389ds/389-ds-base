@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,11 +12,8 @@ from lib389.config import Config
 from lib389.cli_base import (
     _generic_get_entry,
     _generic_get_attr,
-    _generic_replace_attr,
     CustomHelpFormatter
     )
-
-OpType = Enum("OpType", "add delete")
 
 
 def _config_display_ldapimaprootdn_warning(log, args):
@@ -28,44 +25,48 @@ def _config_display_ldapimaprootdn_warning(log, args):
                         "For LDAPI configuration, \"nsslapd-rootdn\" is used instead.")
 
 
-def _config_get_existing_attrs(conf, args, op_type):
-    """Get the existing attribute from the server and return them in a dict
-    so we can add them back after the operation is done.
+def _format_values_for_display(values):
+    """Format a set of values for display"""
 
-    For op_type == OpType.delete, we delete them from the server so we can add
-    back only those that are not specified in the command line.
-    (i.e delete nsslapd-haproxy-trusted-ip="192.168.0.1", but
-    nsslapd-haproxy-trusted-ip has 192.168.0.1 and 192.168.0.2 values.
-    So we want only 192.168.0.1 to be deleted in the end)
-    """
+    if not values:
+        return ""
+    if len(values) == 1:
+        return f"'{next(iter(values))}'"
+    return ', '.join(f"'{value}'" for value in sorted(values))
 
-    existing_attrs = {}
-    if args and args.attr:
-        for attr in args.attr:
-            if "=" in attr:
-                [attr_name, val] = attr.split("=", 1)
-                # We should process only multi-valued attributes this way
-                if attr_name.lower() == "nsslapd-haproxy-trusted-ip" or \
-                   attr_name.lower() == "nsslapd-referral":
-                    if attr_name not in existing_attrs.keys():
-                        existing_attrs[attr_name] = conf.get_attr_vals_utf8(attr_name)
-                    existing_attrs[attr_name] = [x for x in existing_attrs[attr_name] if x != val]
 
-                    if op_type == OpType.add:
-                        if existing_attrs[attr_name] == []:
-                            del existing_attrs[attr_name]
+def _parse_attr_value_pairs(attrs, allow_no_value=False):
+    """Parse attribute value pairs from a list of strings in the format 'attr=value'"""
 
-                    if op_type == OpType.delete:
-                        conf.remove_all(attr_name)
-            else:
-                if op_type == OpType.delete:
-                    conf.remove_all(attr)
-                else:
-                    raise ValueError(f"You must specify a value to add for the attribute ({attr_name})")
-        return existing_attrs
-    else:
-        # Missing value
-        raise ValueError(f"Missing attribute to {op_type.name}")
+    attr_values = {}
+    attrs_without_values = set()
+
+    for attr in attrs:
+        if "=" in attr:
+            attr_name, val = attr.split("=", 1)
+            if attr_name not in attr_values:
+                attr_values[attr_name] = set()
+            attr_values[attr_name].add(val)
+        elif allow_no_value:
+            attrs_without_values.add(attr)
+        else:
+            raise ValueError(f"Invalid attribute format: {attr}. Must be in format 'attr=value'")
+
+    return attr_values, attrs_without_values
+
+
+def _handle_attribute_operation(conf, operation_type, attr_values, log):
+    """Handle attribute operations (add, replace) with consistent error handling"""
+
+    if operation_type == "add":
+        conf.add_many(*[(k, v) for k, v in attr_values.items()])
+    elif operation_type == "replace":
+        conf.replace_many(*[(k, v) for k, v in attr_values.items()])
+
+    for attr_name, values in attr_values.items():
+        formatted_values = _format_values_for_display(values)
+        operation_past = "added" if operation_type == "add" else f"{operation_type}d"
+        log.info(f"Successfully {operation_past} value(s) for '{attr_name}': {formatted_values}")
 
 
 def config_get(inst, basedn, log, args):
@@ -77,49 +78,76 @@ def config_get(inst, basedn, log, args):
 
 
 def config_replace_attr(inst, basedn, log, args):
-    _generic_replace_attr(inst, basedn, log.getChild('config_replace_attr'), Config, args)
+    if not args or not args.attr:
+        raise ValueError("Missing attribute to replace")
 
+    conf = Config(inst, basedn)
+    attr_values, _ = _parse_attr_value_pairs(args.attr)
+    _handle_attribute_operation(conf, "replace", attr_values, log)
     _config_display_ldapimaprootdn_warning(log, args)
 
 
 def config_add_attr(inst, basedn, log, args):
+    if not args or not args.attr:
+        raise ValueError("Missing attribute to add")
+
     conf = Config(inst, basedn)
-    final_mods = []
+    attr_values, _ = _parse_attr_value_pairs(args.attr)
 
-    existing_attrs = _config_get_existing_attrs(conf, args, OpType.add)
+    # Validate no values already exist
+    for attr_name, values in attr_values.items():
+        existing_vals = set(conf.get_attr_vals_utf8(attr_name) or [])
+        duplicate_vals = values & existing_vals
+        if duplicate_vals:
+            raise ldap.ALREADY_EXISTS(
+                f"Values {duplicate_vals} already exist for attribute '{attr_name}'")
 
-    if args and args.attr:
-        for attr in args.attr:
-            if "=" in attr:
-                [attr_name, val] = attr.split("=", 1)
-                if attr_name in existing_attrs:
-                    for v in existing_attrs[attr_name]:
-                        final_mods.append((attr_name, v))
-                final_mods.append((attr_name, val))
-                try:
-                    conf.add_many(*set(final_mods))
-                except ldap.TYPE_OR_VALUE_EXISTS:
-                    pass
-            else:
-                raise ValueError(f"You must specify a value to add for the attribute ({attr_name})")
-    else:
-        # Missing value
-        raise ValueError("Missing attribute to add")    
-
+    _handle_attribute_operation(conf, "add", attr_values, log)
     _config_display_ldapimaprootdn_warning(log, args)
 
 
 def config_del_attr(inst, basedn, log, args):
+    if not args or not args.attr:
+        raise ValueError("Missing attribute to delete")
+
     conf = Config(inst, basedn)
-    final_mods = []
+    attr_values, attrs_to_remove = _parse_attr_value_pairs(args.attr, allow_no_value=True)
 
-    existing_attrs = _config_get_existing_attrs(conf, args, OpType.delete)
+    # Handle complete attribute removal
+    for attr in attrs_to_remove:
+        try:
+            if conf.get_attr_vals_utf8(attr):
+                conf.remove_all(attr)
+                log.info(f"Removed attribute '{attr}' completely")
+            else:
+                log.warning(f"Attribute '{attr}' does not exist - skipping")
+        except ldap.NO_SUCH_ATTRIBUTE:
+            log.warning(f"Attribute '{attr}' does not exist - skipping")
 
-    # Then add the attributes back all except the one we need to remove
-    for attr_name in existing_attrs.keys():
-        for val in existing_attrs[attr_name]:
-            final_mods.append((attr_name, val))
-        conf.add_many(*set(final_mods))
+    # Validate and handle value-specific deletion
+    if attr_values:
+        for attr_name, values in attr_values.items():
+            try:
+                existing_values = set(conf.get_attr_vals_utf8(attr_name) or [])
+                values_to_delete = values & existing_values
+                values_not_found = values - existing_values
+
+                if values_not_found:
+                    formatted_values = _format_values_for_display(values_not_found)
+                    log.warning(f"Values {formatted_values} do not exist for attribute '{attr_name}' - skipping")
+
+                if values_to_delete:
+                    remaining_values = existing_values - values_to_delete
+                    if not remaining_values:
+                        conf.remove_all(attr_name)
+                    else:
+                        conf.replace_many((attr_name, remaining_values))
+                    formatted_values = _format_values_for_display(values_to_delete)
+                    log.info(f"Successfully deleted values {formatted_values} from '{attr_name}'")
+            except ldap.NO_SUCH_ATTRIBUTE:
+                log.warning(f"Attribute '{attr_name}' does not exist - skipping")
+
+    _config_display_ldapimaprootdn_warning(log, args)
 
 
 def create_parser(subparsers):
