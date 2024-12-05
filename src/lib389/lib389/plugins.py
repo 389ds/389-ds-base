@@ -863,7 +863,7 @@ class MemberOfPlugin(Plugin):
                             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                             report['items'].append(suffix)
                             report['items'].append(attr)
-                            report['check'] = f'memberof:substring_index'
+                            report['check'] = f'attr:substring_index'
                             yield report
                     except:
                         # No index at all, bad
@@ -874,7 +874,7 @@ class MemberOfPlugin(Plugin):
                         report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                         report['items'].append(suffix)
                         report['items'].append(attr)
-                        report['check'] = f'memberof:substring_index'
+                        report['check'] = f'attr:substring_index'
                         yield report
 
     def get_attr(self):
