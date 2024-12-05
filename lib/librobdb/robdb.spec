@@ -4,7 +4,7 @@ Release:        %{autorelease -n %{?dist}}
 Summary:        Provide basic functions to search and read Berkeley Database records
 
 License:        GPL-2.0-or-later OR LGPL-2.1-or-later
-URL:            https://github.com/389ds/389-ds-base/lib/librobdb
+URL:            https://github.com/389ds/389-ds-base/tree/main/lib/librobdb
 Source0:        %{name}-%{version}.tar.bz2
 
 BuildRequires:  gcc
