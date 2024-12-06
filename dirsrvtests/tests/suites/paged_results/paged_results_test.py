@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import socket
+import re
 from random import sample, randrange
 
 import pytest
@@ -1126,6 +1127,8 @@ def test_multi_suffix_search(topology_st, create_user, new_suffixes):
         topology_st.standalone.restart(timeout=10)
 
         access_log_lines = topology_st.standalone.ds_access_log.match('.*pr_cookie=.*')
+        # Sort access_log_lines by op number to mitigate race condition effects. 
+        access_log_lines.sort(key=lambda x: int(re.search(r"op=(\d+) RESULT", x).group(1)))
         pr_cookie_list = ([line.rsplit('=', 1)[-1] for line in access_log_lines])
         pr_cookie_list = [int(pr_cookie) for pr_cookie in pr_cookie_list]
         log.info('Assert that last pr_cookie == -1 and others pr_cookie == 0')
