@@ -188,7 +188,7 @@ def test_healthcheck_RI_plugin_missing_indexes(topology_st):
 
 
 def test_healthcheck_MO_plugin_missing_indexes(topology_st):
-    """Check if HealthCheck returns DSMOLE0002 code
+    """Check if HealthCheck returns DSMOLE0001 code
 
     :id: 236b0ec2-13da-48fb-b65a-db7406d56d5d
     :setup: Standalone instance
@@ -203,8 +203,8 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
     :expectedresults:
         1. Success
         2. Success
-        3. Healthcheck reports DSMOLE0002 code and related details
-        4. Healthcheck reports DSMOLE0002 code and related details
+        3. Healthcheck reports DSMOLE0001 code and related details
+        4. Healthcheck reports DSMOLE0001 code and related details
         5. Success
         6. Healthcheck reports no issue found
         7. Healthcheck reports no issue found
@@ -233,6 +233,86 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
     # Restart the intsnce after changing the plugin to avoid breaking the other tests
+    standalone.restart()
+
+
+def test_healthcheck_MO_plugin_substring_index(topology_st):
+    """Check if HealthCheck returns DSMOLE0002 code when the
+    member, uniquemember attribute contains a substring index type
+
+    :id: 10954811-24ac-4886-8183-e30892f8e02d
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Configure the instance with MO Plugin
+        3. Change index type to substring for member attribute
+        4. Use HealthCheck without --json option
+        5. Use HealthCheck with --json option
+        6. Change index type back to equality for member attribute
+        7. Use HealthCheck without --json option
+        8. Use HealthCheck with --json option
+        9. Change index type to substring for uniquemember attribute
+        10. Use HealthCheck without --json option
+        11. Use HealthCheck with --json option
+        12. Change index type back to equality for uniquemember attribute
+        13. Use HealthCheck without --json option
+        14. Use HealthCheck with --json option
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Healthcheck reports DSMOLE0002 code and related details
+        5. Healthcheck reports DSMOLE0002 code and related details
+        6. Success
+        7. Healthcheck reports no issue found
+        8. Healthcheck reports no issue found
+        9. Success
+        10. Healthcheck reports DSMOLE0002 code and related details
+        11. Healthcheck reports DSMOLE0002 code and related details
+        12. Success
+        13. Healthcheck reports no issue found
+        14. Healthcheck reports no issue found
+    """
+
+    RET_CODE = 'DSMOLE0002'
+    MEMBER_DN = 'cn=member,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config'
+    UNIQUE_MEMBER_DN = 'cn=uniquemember,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config'
+
+    standalone = topology_st.standalone
+
+    log.info('Enable MO plugin')
+    plugin = MemberOfPlugin(standalone)
+    plugin.disable()
+    plugin.enable()
+
+    log.info('Change the index type of the member attribute index to substring')
+    index = Index(topology_st.standalone, MEMBER_DN)
+    index.replace('nsIndexType', 'sub')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+
+    log.info('Set the index type of the member attribute index back to eq')
+    index.replace('nsIndexType', 'eq')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+
+    log.info('Change the index type of the uniquemember attribute index to substring')
+    index = Index(topology_st.standalone, UNIQUE_MEMBER_DN)
+    index.replace('nsIndexType', 'sub')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
+
+    log.info('Set the index type of the uniquemember attribute index back to eq')
+    index.replace('nsIndexType', 'eq')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
+    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
+
+    # Restart the instance after changing the plugin to avoid breaking the other tests
     standalone.restart()
 
 
