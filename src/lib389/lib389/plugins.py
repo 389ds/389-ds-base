@@ -833,7 +833,6 @@ class MemberOfPlugin(Plugin):
             backends = Backends(self._instance).list()
             attrs = self.get_attr_vals_utf8_l("memberofgroupattr")
             container = self.get_attr_val_utf8_l("nsslapd-plugincontainerscope")
-            #import pdb; pdb.set_trace()
             for backend in backends:
                 suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
                 if suffix == "cn=changelog":
@@ -866,16 +865,7 @@ class MemberOfPlugin(Plugin):
                             report['check'] = f'attr:substring_index'
                             yield report
                     except:
-                        # No index at all, bad
-                        report['detail'] = report['detail'].replace('ATTR', attr)
-                        report['detail'] = report['detail'].replace('BACKEND', suffix)
-                        report['fix'] = report['fix'].replace('ATTR', attr)
-                        report['fix'] = report['fix'].replace('BACKEND', suffix)
-                        report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                        report['items'].append(suffix)
-                        report['items'].append(attr)
-                        report['check'] = f'attr:substring_index'
-                        yield report
+                        pass
 
     def get_attr(self):
         """Get memberofattr attribute"""
