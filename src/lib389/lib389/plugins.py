@@ -831,7 +831,7 @@ class MemberOfPlugin(Plugin):
         if self.status():
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
-            attrs = self.get_attr_vals_utf8_l("memberofgroupattr")
+            membership_attrs = ['member', 'uniquemember']
             container = self.get_attr_val_utf8_l("nsslapd-plugincontainerscope")
             for backend in backends:
                 suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
@@ -844,17 +844,12 @@ class MemberOfPlugin(Plugin):
                         # skip this backend that is not in the scope
                         continue
                 indexes = backend.get_indexes()
-                membership_attrs = ['member', 'uniquemember']
                 for attr in membership_attrs:
                     report = copy.deepcopy(DSMOLE0002)
                     try:
                         index = indexes.get(attr)
                         types = index.get_attr_vals_utf8_l("nsIndexType")
-                        valid = True
                         if "sub" in types:
-                            valid = False
-
-                        if not valid:
                             report['detail'] = report['detail'].replace('ATTR', attr)
                             report['detail'] = report['detail'].replace('BACKEND', suffix)
                             report['fix'] = report['fix'].replace('ATTR', attr)
@@ -864,8 +859,8 @@ class MemberOfPlugin(Plugin):
                             report['items'].append(attr)
                             report['check'] = f'attr:substring_index'
                             yield report
-                    except:
-                        pass
+                    except KeyError:
+                        continue
 
     def get_attr(self):
         """Get memberofattr attribute"""

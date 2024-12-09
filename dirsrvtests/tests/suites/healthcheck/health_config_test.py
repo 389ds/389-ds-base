@@ -167,6 +167,7 @@ def test_healthcheck_RI_plugin_missing_indexes(topology_st):
     MEMBER_DN = 'cn=member,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config'
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('Enable RI plugin')
     plugin = ReferentialIntegrityPlugin(standalone)
@@ -214,6 +215,7 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
     MO_GROUP_ATTR = 'creatorsname'
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('Enable MO plugin')
     plugin = MemberOfPlugin(standalone)
@@ -280,6 +282,7 @@ def test_healthcheck_MO_plugin_substring_index(topology_st):
     UNIQUE_MEMBER_DN = 'cn=uniquemember,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config'
 
     standalone = topology_st.standalone
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
 
     log.info('Enable MO plugin')
     plugin = MemberOfPlugin(standalone)

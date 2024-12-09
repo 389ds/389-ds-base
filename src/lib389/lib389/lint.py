@@ -279,7 +279,7 @@ DSMOLE0002 = {
 from the large group can be slow.
 
 """,
-    'fix': """If not required you can remove the substring index type using dsconf:
+    'fix': """If not required, you can remove the substring index type using dsconf:
 
     # dsconf slapd-YOUR_INSTANCE backend index set --attr=ATTR BACKEND --del-type=sub
 """
