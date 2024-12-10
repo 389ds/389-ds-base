@@ -124,7 +124,7 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
                 if self.status():
                     return
                 time.sleep(1)
-            raise TimeoutException('Failed to start ns-slpad')
+            raise TimeoutError('Failed to start ns-slpad')
 
         def stop(self, timeout=120):
             self._reset_systemd()
@@ -173,7 +173,7 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
             if not backend_list:
                 continue
             for backend in backend_list:
-                target_be = CustomSetup._search_be(backend_options, backend)
+                target_be = CustomSetup._search_be(self, backend_options, backend)
                 if not target_be:
                     target_be = {}
                     backend_options.append(target_be)
