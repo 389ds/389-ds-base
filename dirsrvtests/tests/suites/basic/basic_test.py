@@ -537,11 +537,10 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
 
     # Wait a bit till the task is created and available for searching
-    time.sleep(1)
+    time.sleep(2)
 
     # Good as place as any to quick test the task has some expected attributes
-    if ds_is_newer('1.4.1.2'):
-        assert import_task.present('nstaskcreated')
+    assert import_task.present('nstaskcreated')
     assert import_task.present('nstasklog')
     assert import_task.present('nstaskcurrentitem')
     assert import_task.present('nstasktotalitems')
@@ -552,6 +551,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     # Offline
     log.info("Importing LDIF offline...")
     topology_st.standalone.stop()
+    time.sleep(1)  # ASAN can be slow
     if not topology_st.standalone.ldif2db(DEFAULT_BENAME, None, None, None, import_ldif):
         log.fatal('test_basic_import_export: Offline import failed')
         assert False
@@ -956,7 +956,8 @@ def test_basic_searches(topology_st, import_example_ldif):
 
 @pytest.mark.parametrize('limit,resp',
                          ((('200'), 'PASS'),
-                         (('50'), ldap.ADMINLIMIT_EXCEEDED)))
+                          (('50'), ldap.ADMINLIMIT_EXCEEDED),
+                          (('51'), ldap.ADMINLIMIT_EXCEEDED)))
 def test_basic_search_lookthroughlimit(topology_st, limit, resp, import_example_ldif):
     """
     Tests normal search with lookthroughlimit set high and low.

@@ -198,6 +198,7 @@ vattr_check_thread(void *arg)
                     }
                 }
                 slapi_free_search_results_internal(search_pb);
+                slapi_pblock_init(search_pb);
             } /* check_suffix */
         } /* suffix */
         be = (backend *) slapi_get_next_backend(cookie);
