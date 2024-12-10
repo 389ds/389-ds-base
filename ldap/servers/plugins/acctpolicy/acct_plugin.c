@@ -272,7 +272,6 @@ acct_update_login_history(const char *dn, char *timestr)
         }
         /* first time round */
     } else if (cfg->login_history_size > 0) {
-        login_hist = (char **)slapi_ch_calloc(2, sizeof(char *));
         /* alloc new array and append latest value */
         login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
         login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);

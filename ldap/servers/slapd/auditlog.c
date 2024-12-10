@@ -384,6 +384,7 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
         if (strftime(local_time, JBUFSIZE, SLAPD_INIT_AUDITLOG_TIME_FORMAT, &tms) == 0) {
             slapi_log_err(SLAPI_LOG_ERR, "write_audit_file_json",
                       "Unable to format time (%ld)\n", curtime);
+            slapi_ch_free_string(&time_format);
             return;
         }
     }

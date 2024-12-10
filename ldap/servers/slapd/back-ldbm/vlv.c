@@ -503,23 +503,22 @@ vlv_init(ldbm_instance *inst)
 
     /* Initialize lock first time through */
     if (be->vlvSearchList_lock == NULL) {
-        char *rwlockname = slapi_ch_smprintf("vlvSearchList_%s", inst->inst_name);
         be->vlvSearchList_lock = slapi_new_rwlock();
-        slapi_ch_free((void **)&rwlockname);
     }
+
+    slapi_rwlock_wrlock(be->vlvSearchList_lock);
     if (NULL != (struct vlvSearch *)be->vlvSearchList) {
         struct vlvSearch *t = NULL;
         struct vlvSearch *nt = NULL;
         /* vlvSearchList is modified; need Wlock */
-        slapi_rwlock_wrlock(be->vlvSearchList_lock);
         for (t = (struct vlvSearch *)be->vlvSearchList; NULL != t;) {
             nt = t->vlv_next;
             vlvSearch_delete(&t);
             t = nt;
         }
         be->vlvSearchList = NULL;
-        slapi_rwlock_unlock(be->vlvSearchList_lock);
     }
+    slapi_rwlock_unlock(be->vlvSearchList_lock);
 
     {
         basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
