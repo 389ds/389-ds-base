@@ -2034,13 +2034,15 @@ bdb_pre_close(struct ldbminfo *li)
     conf = (bdb_config *)li->li_dblayer_config;
     bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
 
-    if (conf->bdb_stop_threads || !pEnv) /* already stopped.  do nothing... */
-        return;
+    pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
+
+    if (conf->bdb_stop_threads || !pEnv) {
+        /* already stopped.  do nothing... */
+        goto timeout_escape;
+    }
 
     /* first, see if there are any housekeeping threads running */
-    pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
     threadcount = pEnv->bdb_thread_count;
-    pthread_mutex_unlock(&pEnv->bdb_thread_count_lock);
 
     if (threadcount) {
         PRIntervalTime cvwaittime = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL * 100);
@@ -2048,7 +2050,7 @@ bdb_pre_close(struct ldbminfo *li)
         /* Print handy-dandy log message */
         slapi_log_err(SLAPI_LOG_INFO, "bdb_pre_close", "Waiting for %d database threads to stop\n",
                       threadcount);
-        pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
+
         /* Tell them to stop - we wait until the last possible moment to invoke
            this.  If we do this much sooner than this, we could find ourselves
            in a situation where the threads see the stop_threads and exit before
@@ -2080,7 +2082,7 @@ bdb_pre_close(struct ldbminfo *li)
                 /* else just a spurious interrupt */
             }
         }
-        pthread_mutex_unlock(&pEnv->bdb_thread_count_lock);
+
         if (timedout) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "bdb_pre_close", "Timeout after [%d] milliseconds; leave %d database thread(s)...\n",
@@ -2090,7 +2092,9 @@ bdb_pre_close(struct ldbminfo *li)
         }
     }
     slapi_log_err(SLAPI_LOG_INFO, "bdb_pre_close", "All database threads now stopped\n");
+
 timeout_escape:
+    pthread_mutex_unlock(&pEnv->bdb_thread_count_lock);
     return;
 }
 
@@ -3870,7 +3874,7 @@ bdb_checkpoint_threadmain(void *param)
     time_t checkpoint_interval_update = 0;
     time_t compactdb_interval = 0;
     time_t checkpoint_interval = 0;
-    int32_t compactdb_time = 0;
+    uint64_t compactdb_time = 0;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo *)param;

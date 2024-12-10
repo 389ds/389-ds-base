@@ -83,6 +83,7 @@ dom_sid_to_bin_sid(dom_sid_t *dom_sid, bin_sid_t *res)
 
     for (size_t i = 0; i < dom_sid->num_auths; i++) {
         if ((p + sizeof(uint32_t)) > bin_sid.length) {
+            slapi_ch_free((void **)&bin_sid.sid);
             return -1;
         }
         val = htole32(dom_sid->sub_auths[i]);

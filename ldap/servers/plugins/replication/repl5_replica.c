@@ -35,7 +35,7 @@ struct replica
     ReplicaUpdateDNList updatedn_list; /* list of dns with which a supplier should bind to update this replica */
     Slapi_ValueSet *updatedn_groups;   /* set of groups whose memebers are allowed to update replica */
     ReplicaUpdateDNList groupdn_list;  /* exploded listof dns from update group */
-    uint32_t updatedn_group_last_check;    /* the time of the last group check */
+    time_t updatedn_group_last_check;  /* the time of the last group check */
     int64_t updatedn_group_check_interval; /* the group check interval */
     ReplicaType repl_type;             /* is this replica read-only ? */
     ReplicaId repl_rid;                /* replicaID */
@@ -219,7 +219,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
          * during replica initialization
          */
         rc = _replica_update_entry(r, e, errortext);
-        /* add changelog config entry to config 
+        /* add changelog config entry to config
          * this is only needed for replicas logging changes,
          * but for now let it exist for all replicas. Makes handling
          * of changing replica flags easier
@@ -2544,7 +2544,7 @@ _replica_get_config_dn(const Slapi_DN *root)
     return dn;
 }
 /* when a replica is added the changelog config entry is created
- * it will only the container entry, specifications for trimming 
+ * it will only the container entry, specifications for trimming
  * or encyrption need to be added separately
  */
 static int
@@ -2876,6 +2876,7 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
                       "replica_update_state - Failed to get the config dn for %s\n",
                       slapi_sdn_get_dn(r->repl_root));
         replica_unlock(r->repl_lock);
+        slapi_mod_done(&smod);
         return;
     }
     pb = slapi_pblock_new();

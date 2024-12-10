@@ -239,7 +239,7 @@ trim_changelog(void)
     time_t now_maxage; /* used for checking if the changelog entry can be trimmed */
     changeNumber first_in_log = 0, last_in_log = 0;
     int num_deleted = 0;
-    int max_age, last_trim, trim_interval;
+    time_t max_age, last_trim, trim_interval;
 
     now_interval = slapi_current_rel_time_t(); /* monotonic time for interval */
 
@@ -297,7 +297,7 @@ trim_changelog(void)
             }
         }
     } else {
-        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Not yet time to trim: %ld < (%d+%d)\n",
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "Not yet time to trim: %ld < (%ld+%ld)\n",
                       now_interval, last_trim, trim_interval);
     }
     PR_Lock(ts.ts_s_trim_mutex);
