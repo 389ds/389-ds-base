@@ -4308,6 +4308,8 @@ acllas_replace_attr_macro(char *rule, lasInfo *lasinfo)
              * list which replaces the old one.
              */
             l = acl_strstr(&str[0], ")");
+            /* coverity false positive: l + 2 will always be positive */
+            /* coverity[integer_overflow] */
             macro_str = slapi_ch_malloc(l + 2);
             strncpy(macro_str, &str[0], l + 1);
             macro_str[l + 1] = '\0';
@@ -4323,17 +4325,18 @@ acllas_replace_attr_macro(char *rule, lasInfo *lasinfo)
 
             str++; /* skip the . */
             l = acl_strstr(&str[0], ")");
-            if (l == -1){
+            if (l == -1) {
                 slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                               "acllas_replace_attr_macro - Invalid macro str \"%s\".", str);
                 slapi_ch_free_string(&macro_str);
                 charray_free(working_list);
                 return NULL;
             }
+            /* coverity false positive: l + 1 will always be positive */
+            /* coverity[integer_overflow] */
             macro_attr_name = slapi_ch_malloc(l + 1);
             strncpy(macro_attr_name, &str[0], l);
             macro_attr_name[l] = '\0';
-
 
             slapi_entry_attr_find(e, macro_attr_name, &attr);
             if (NULL == attr) {

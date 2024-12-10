@@ -1665,7 +1665,7 @@ index_range_read_ext(
             /* exit the loop when we either run off the end of the table,
              * fail to read a key, or read a key that's out of range.
              */
-            IDList *tmp;
+            IDList *tmp = NULL;
             /*
             char encbuf [BUFSIZ];
             slapi_log_err(SLAPI_LOG_FILTER, "   cur_key=%s(%li bytes)\n",
@@ -1716,6 +1716,7 @@ index_range_read_ext(
                  retry_count < IDL_FETCH_RETRY_COUNT;
                  retry_count++) {
                 *err = NEW_IDL_DEFAULT;
+                idl_free(&tmp);
                 tmp = idl_fetch_ext(be, db, &cur_key, NULL, ai, err, allidslimit);
                 if (*err == DBI_RC_RETRY) {
                     ldbm_nasty("index_range_read_ext", "Retrying transaction", 1090, *err);

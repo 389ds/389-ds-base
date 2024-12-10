@@ -2091,7 +2091,7 @@ _entryrdn_replace_suffix_id(entryrdn_db_ctx_t *ctx, dbi_val_t *key, dbi_val_t *a
                      * DBI_RC_NOTFOUND means that redirect db is corrupted
                      */
                     _ENTRYRDN_DEBUG_GOTO_BAIL();
-                    goto bail;
+                    goto bail0;
                 }
             }
             dblayer_value_set_buffer(ctx->be, &moddata, childelem, _entryrdn_rdn_elem_size(childelem));

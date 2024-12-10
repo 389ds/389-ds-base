@@ -87,6 +87,11 @@ set_database_dataversion(const char *dn, const char *dataversion)
 
 static char *server_dataversion_id = NULL;
 
+void
+free_server_dataversion(void) {
+    slapi_ch_free_string(&server_dataversion_id);
+}
+
 const char *
 get_server_dataversion()
 {

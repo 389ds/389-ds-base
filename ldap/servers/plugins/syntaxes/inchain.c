@@ -341,7 +341,6 @@ inchain_values2keys(Slapi_PBlock *pb, Slapi_Value **vals, Slapi_Value ***ivals, 
         strncpy(value, v->bv.bv_val, v->bv.bv_len);
         value[v->bv.bv_len] = '\0';
         slapi_log_err(SLAPI_LOG_FILTER, "inchain", " groupvals = %s\n", value);
-
     }
 
 #if 1
@@ -365,6 +364,8 @@ inchain_values2keys(Slapi_PBlock *pb, Slapi_Value **vals, Slapi_Value ***ivals, 
         groupvals.nsuniqueid_vals = NULL;
     }
     *ivals = result;
+    slapi_sdn_free(&member_sdn);
+
     return(0);
 #else
     return (string_values2keys(pb, vals, ivals, SYNTAX_CIS | SYNTAX_DN,

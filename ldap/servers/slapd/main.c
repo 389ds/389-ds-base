@@ -647,7 +647,7 @@ main(int argc, char **argv)
      * consideration of rust etc)
      */
     slapi_td_init();
-    
+
     /* Init the global counters */
     alloc_global_snmp_vars();
 
@@ -2798,6 +2798,7 @@ static struct slapd_debug_level_entry
     {LDAP_DEBUG_TIMING, "timing", 0},
     {LDAP_DEBUG_ACLSUMMARY, "accesscontrolsummary", 0},
     {LDAP_DEBUG_BACKLDBM, "backend", 0},
+    {LDAP_DEBUG_PWDPOLICY, "pwpolicy", 0},
     {LDAP_DEBUG_ALL_LEVELS, "ALL", 0},
     {0, NULL, 0}};
 
