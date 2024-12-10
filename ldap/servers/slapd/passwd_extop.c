@@ -288,8 +288,8 @@ passwd_modify_generate_policy_passwd(passwdPolicy *pwpolicy,
     /* if only minalphas is set, divide it into minuppers and minlowers. */
     if (pwpolicy->pw_minalphas > 0 &&
         (my_policy[idx_minuppers] == 0 && my_policy[idx_minlowers] == 0)) {
-        unsigned int x = (unsigned int)time(NULL);
-        my_policy[idx_minuppers] = slapi_rand_r(&x) % pwpolicy->pw_minalphas;
+        uint64_t x = time(NULL);
+        my_policy[idx_minuppers] = slapi_rand_r_64(&x) % pwpolicy->pw_minalphas;
         my_policy[idx_minlowers] = pwpolicy->pw_minalphas - my_policy[idx_minuppers];
     }
 
@@ -346,10 +346,10 @@ passwd_modify_generate_policy_passwd(passwdPolicy *pwpolicy,
     /* if password length is longer the sum of my_policy's,
        let them share the burden */
     if (passlen > tmplen) {
-        unsigned int x = (unsigned int)time(NULL);
+        uint64_t x = time(NULL);
         int delta = passlen - tmplen;
         for (i = 0; i < delta; i++) {
-            my_policy[(x = slapi_rand_r(&x)) % idx_end]++;
+            my_policy[(x = slapi_rand_r_64(&x)) % idx_end]++;
         }
     }
 

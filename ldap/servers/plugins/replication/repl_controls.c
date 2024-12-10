@@ -233,7 +233,6 @@ decode_NSDS50ReplUpdateInfoControl(LDAPControl **controlsp,
         if (NULL != modrdn_mods && got_modrdn_mods) {
             *modrdn_mods = slapi_mods_get_ldapmods_passout(&modrdn_smods);
         }
-        slapi_mods_done(&modrdn_smods);
 
         rc = 1;
     } else {
@@ -257,6 +256,9 @@ loser:
     if (NULL != csn_val.bv_val) {
         ldap_memfree(csn_val.bv_val);
         csn_val.bv_val = NULL;
+    }
+    if (rc != 0) {
+        slapi_mods_done(&modrdn_smods);
     }
     return rc;
 }

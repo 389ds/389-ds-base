@@ -38,8 +38,8 @@ slapd_log_access_abandon(slapd_log_pblock *logpb)
     char conn_key[KEY_SIZE] = {0};
 
     /* Build the connection key */
-    PR_snprintf(conn_key, sizeof(conn_key), "%d-%" PRIu64,
-                (int32_t)logpb->conn_time, logpb->conn_id);
+    PR_snprintf(conn_key, sizeof(conn_key), "%ld-%" PRIu64,
+                logpb->conn_time, logpb->conn_id);
 
     /* Construct the abandon etime */
     if (logpb->tv_sec != -1) {

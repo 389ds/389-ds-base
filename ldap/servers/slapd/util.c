@@ -1067,6 +1067,16 @@ slapi_rand_r(unsigned int *randx)
     return (int)(*randx & 0x7FFFFFFF);
 }
 
+int
+slapi_rand_r_64(uint64_t *randx)
+{
+    if (*randx) {
+        PK11_RandomUpdate(randx, sizeof(*randx));
+    }
+    PK11_GenerateRandom((unsigned char *)randx, (int)sizeof(*randx));
+    return (int)(*randx & 0x7FFFFFFF);
+}
+
 /* ***************************************************
     Random function (very similar to rand_r() but takes and returns an array)
     Note: there is an identical function in plugins/pwdstorage/ssha_pwd.c.

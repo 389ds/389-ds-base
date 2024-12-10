@@ -3871,6 +3871,8 @@ Slapi_DN *slapi_sdn_common_ancestor(Slapi_DN *dn1, Slapi_DN *dn2);
  */
 int slapi_rand_r(unsigned int *seed);
 
+int slapi_rand_r_64(uint64_t *seed);
+
 /* Generate a pseudo-random integer in an array.
  *
  * \param randx The array you want filled with the random number.

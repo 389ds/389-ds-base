@@ -42,7 +42,7 @@ changelog5_upgrade(void)
 
     if (config.dir == NULL) {
         /* we do not have a valid legacy config, nothing to upgrade */
-        return rc;
+        goto done;
     }
 
     replica_enumerate_replicas(_cl5_upgrade_replica, (void *)&config);
@@ -51,6 +51,7 @@ changelog5_upgrade(void)
 
     rc |= _cl5_upgrade_removeconfig();
 
+done:
     changelog5_config_done(&config);
 
     return rc;
@@ -122,7 +123,7 @@ _cl5_upgrade_replica_config(Replica *replica, changelog5Config *config)
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE, gen_duration(config->trimInterval));
     }
 
-    /* if changelog encryption is enabled then in the upgrade mode all backends will have 
+    /* if changelog encryption is enabled then in the upgrade mode all backends will have
      * an encrypted changelog, store the encryption attrs */
     if (config->encryptionAlgorithm) {
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM, config->encryptionAlgorithm);

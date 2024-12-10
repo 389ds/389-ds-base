@@ -2174,19 +2174,26 @@ replica_cleanallruv_thread(void *arg)
                  "Waiting to process all the updates from the deleted replica...");
     ruv_obj = replica_get_ruv(data->replica);
     ruv = object_get_data(ruv_obj);
-    while (data->maxcsn && !is_task_aborted(data->rid) && !is_cleaned_rid(data->rid) && !slapi_is_shutting_down()) {
-        struct timespec current_time = {0};
-        if (csn_get_replicaid(data->maxcsn) == 0 ||
-            ruv_covers_csn_cleanallruv(ruv, data->maxcsn) ||
-            strcasecmp(data->force, "yes") == 0) {
-            /* We are caught up, now we can clean the ruv's */
-            break;
+    if (data->maxcsn) {
+        while (!is_task_aborted(data->rid) &&
+               !is_cleaned_rid(data->rid) &&
+               !slapi_is_shutting_down())
+        {
+            struct timespec current_time = {0};
+
+            if (csn_get_replicaid(data->maxcsn) == 0 ||
+                ruv_covers_csn_cleanallruv(ruv, data->maxcsn) ||
+                strcasecmp(data->force, "yes") == 0)
+            {
+                /* We are caught up, now we can clean the ruv's */
+                break;
+            }
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += CLEANALLRUV_SLEEP;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_unlock(&notify_lock);
         }
-        clock_gettime(CLOCK_MONOTONIC, &current_time);
-        current_time.tv_sec += CLEANALLRUV_SLEEP;
-        pthread_mutex_lock(&notify_lock);
-        pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
-        pthread_mutex_unlock(&notify_lock);
     }
     object_release(ruv_obj);
     /*
