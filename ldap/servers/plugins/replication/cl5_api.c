@@ -558,7 +558,15 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
 
     /* Set changelog state to import */
     pthread_mutex_lock(&(cldb->stLock));
+
+    if (cldb->dbState == CL5_STATE_IMPORT) {
+        pthread_mutex_unlock(&(cldb->stLock));
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cl5ImportLDIF - changelog import already in progress\n");
+        return CL5_IGNORE_OP;
+    }
     cldb->dbState = CL5_STATE_IMPORT;
+
     pthread_mutex_unlock(&(cldb->stLock));
 
     /* Wait for all the threads to stop */
@@ -1363,6 +1371,7 @@ cldb_SetReplicaDB(Replica *replica, void *arg)
     if (rc != CL5_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cldb_SetReplicaDB - failed to configure changelog trimming\n");
+        changelog5_config_done(&config);
         return CL5_BAD_DATA;
     }
 
@@ -1578,7 +1587,12 @@ _cl5Entry2DBData(const CL5Entry *entry, char **data, PRUint32 *len, void *clcryp
     /* write change type */
     (*pos) = (unsigned char)op->operation_type;
     pos++;
-    /* write time */
+    /*
+     * write time
+     * --> Y2K38 - will hopefully be fixed by a future C standard htonll()
+     * function. Then we can move "t" and "entry->time" to be uint64_t
+     * to fix the issue.
+     */
     t = PR_htonl((PRUint32)entry->time);
     memcpy(pos, &t, sizeof(t));
     pos += sizeof(t);

@@ -540,8 +540,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     time.sleep(1)
 
     # Good as place as any to quick test the task has some expected attributes
-    if ds_is_newer('1.4.1.2'):
-        assert import_task.present('nstaskcreated')
+    assert import_task.present('nstaskcreated')
     assert import_task.present('nstasklog')
     assert import_task.present('nstaskcurrentitem')
     assert import_task.present('nstasktotalitems')
