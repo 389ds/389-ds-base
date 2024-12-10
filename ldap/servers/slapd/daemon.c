@@ -1327,6 +1327,7 @@ slapd_daemon(daemon_ports_t *ports)
     /* final cleanup for ASAN and other analyzers */
     PR_JoinThread(accept_thread_p);
     free_worker_thread_indexes();
+    free_server_dataversion();
 }
 
 void

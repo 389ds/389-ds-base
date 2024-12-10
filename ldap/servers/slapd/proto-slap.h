@@ -1372,11 +1372,11 @@ void g_set_global_mrl(struct matchingRuleList *newglobalmrl);
 /*
  * generation.c
  */
+void free_server_dataversion(void);
 
 /*
  * factory.c
  */
-
 int factory_register_type(const char *name, size_t offset);
 void *factory_create_extension(int type, void *object, void *parent);
 void factory_destroy_extension(int type, void *object, void *parent, void **extension);

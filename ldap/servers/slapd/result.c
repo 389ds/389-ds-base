@@ -2106,7 +2106,7 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                                        key_info->id_lookup_cnt);
                     }
                 }
-               
+
                 /* total elapsed time */
                 slapi_timespec_diff(&op_stat->search_stat->keys_lookup_end, &op_stat->search_stat->keys_lookup_start, &duration);
                 snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
@@ -2173,6 +2173,13 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
 
 
     operation_notes = slapi_pblock_get_operation_notes(pb);
+    if (0 == operation_notes) {
+        notes_str = "";
+    } else {
+        notes_str = notes_buf;
+        *notes_buf = ' ';
+        notes2str(operation_notes, notes_buf + 1, sizeof(notes_buf) - 1);
+    }
 
     if (0 == operation_notes) {
         notes_str = "";
