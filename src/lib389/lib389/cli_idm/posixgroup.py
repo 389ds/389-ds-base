@@ -38,7 +38,7 @@ def get(inst, basedn, log, args):
 
 
 def get_dn(inst, basedn, log, args):
-    dn = lambda args: _get_arg( args.dn, msg="Enter dn to retrieve")
+    dn = _get_arg( args.dn, msg="Enter dn to retrieve")
     _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
 
 
@@ -47,9 +47,10 @@ def create(inst, basedn, log, args):
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
 
 
-def delete(inst, basedn, log, args):
-    dn = _get_arg( args, msg="Enter dn to delete")
-    _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
+def delete(inst, basedn, log, args, warn=True):
+    dn = _get_arg( args.dn, msg="Enter dn to delete")
+    if warn:
+        _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
 
 
