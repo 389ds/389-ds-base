@@ -1749,7 +1749,7 @@ bdb_import_push_progress_history(ImportJob *job, ID current_id, time_t current_t
 }
 
 static void
-bdb_import_calc_rate(ImportWorkerInfo *info, int time_interval)
+bdb_import_calc_rate(ImportWorkerInfo *info, time_t time_interval)
 {
     size_t ids = info->last_ID_processed - info->previous_ID_counted;
     double rate = (double)ids / time_interval;

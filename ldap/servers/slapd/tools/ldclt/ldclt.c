@@ -1179,6 +1179,7 @@ basicInit(void)
          * Find the attribute name
          */
         for (i = 0; (i < strlen(mctx.attrpl)) && (mctx.attrpl[i] != ':'); i++);
+        free(mctx.attrplName);
         mctx.attrplName = (char *)calloc(1, i + 1);
         if (mctx.attrplName == NULL) {
             printf("Error: unable to allocate memory for attrplName\n");

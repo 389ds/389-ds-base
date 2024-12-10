@@ -9957,7 +9957,9 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be != NULL; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create backend dn string\n");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors",
+                          "Failed to create backend dn string\n");
+            slapi_ch_free_string(&cookie);
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9980,7 +9982,9 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create index dn string\n");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors",
+                          "Failed to create index dn string\n");
+            slapi_ch_free_string(&cookie);
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -10045,7 +10049,9 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=%s,cn=chaining database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create chaining be dn string\n");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors",
+                          "Failed to create chaining be dn string\n");
+            slapi_ch_free_string(&cookie);
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);

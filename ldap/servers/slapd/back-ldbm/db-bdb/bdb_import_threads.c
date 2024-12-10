@@ -358,7 +358,7 @@ bdb_import_producer(void *param)
     int fd, curr_file, curr_lineno = 0;
     char *curr_filename = NULL;
     int idx;
-    ldif_context c;
+    ldif_context c = {0};
     int my_version = 0;
     size_t newesize = 0;
     Slapi_Attr *attr = NULL;
@@ -763,6 +763,7 @@ bdb_import_producer(void *param)
 error:
     slapi_value_free(&(job->usn_value));
     info->state = ABORTED;
+    bdb_import_free_ldif(&c);
 }
 
 static int

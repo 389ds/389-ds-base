@@ -160,6 +160,8 @@ ldbm_back_init(Slapi_PBlock *pb)
     return (0);
 
 fail:
+
+    objset_delete(&li->li_instance_set);
     ldbm_config_destroy(li);
     slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
     return (-1);

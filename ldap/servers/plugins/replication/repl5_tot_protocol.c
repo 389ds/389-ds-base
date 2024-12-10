@@ -43,7 +43,7 @@ typedef struct callback_data
     Private_Repl_Protocol *prp;
     int rc;
     unsigned long num_entries;
-    time_t sleep_on_busy;
+    uint32_t sleep_on_busy;
     time_t last_busy;
     pthread_mutex_t lock;                    /* Lock to protect access to this structure, the message id list and to force memory barriers */
     PRThread *result_tid;                    /* The async result thread */
@@ -481,7 +481,7 @@ retry:
         cb_data.prp = prp;
         cb_data.rc = 0;
         cb_data.num_entries = 1UL;
-        cb_data.sleep_on_busy = 0UL;
+        cb_data.sleep_on_busy = 0;
         cb_data.last_busy = slapi_current_rel_time_t();
         cb_data.flowcontrol_detection = 0;
         pthread_mutex_init(&(cb_data.lock), NULL);
@@ -540,7 +540,7 @@ retry:
         cb_data.prp = prp;
         cb_data.rc = 0;
         cb_data.num_entries = 0UL;
-        cb_data.sleep_on_busy = 0UL;
+        cb_data.sleep_on_busy = 0;
         cb_data.last_busy = slapi_current_rel_time_t();
         cb_data.flowcontrol_detection = 0;
         pthread_mutex_init(&(cb_data.lock), NULL);
@@ -803,7 +803,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
     BerElement *bere;
     struct berval *bv;
     unsigned long *num_entriesp;
-    time_t *sleep_on_busyp;
+    uint32_t *sleep_on_busyp;
     time_t *last_busyp;
     int message_id = 0;
     int retval = 0;
@@ -899,7 +899,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
             *last_busyp = now;
 
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                          "send_entry - Replica \"%s\" is busy. Waiting %lds while"
+                          "send_entry - Replica \"%s\" is busy. Waiting %ds while"
                           " it finishes processing its current import queue\n",
                           agmt_get_long_name(prp->agmt), *sleep_on_busyp);
             DS_Sleep(PR_SecondsToInterval(*sleep_on_busyp));

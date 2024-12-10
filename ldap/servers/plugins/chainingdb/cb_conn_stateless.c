@@ -943,10 +943,10 @@ cb_update_failed_conn_cpt(cb_backend_instance *cb)
 {
     /* if the chaining BE is already unavailable, we do nothing*/
     time_t now;
+
+    slapi_lock_mutex(cb->monitor_availability.cpt_lock);
     if (cb->monitor_availability.farmserver_state == FARMSERVER_AVAILABLE) {
-        slapi_lock_mutex(cb->monitor_availability.cpt_lock);
         cb->monitor_availability.cpt++;
-        slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
         if (cb->monitor_availability.cpt >= CB_NUM_CONN_BEFORE_UNAVAILABILITY) {
             /* we reach the limit of authorized failed connections => we setup the chaining BE state to unavailable */
             now = slapi_current_rel_time_t();
@@ -958,21 +958,22 @@ cb_update_failed_conn_cpt(cb_backend_instance *cb)
                           "cb_update_failed_conn_cpt - Farm server unavailable");
         }
     }
+    slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
 }
 
 void
 cb_reset_conn_cpt(cb_backend_instance *cb)
 {
+    slapi_lock_mutex(cb->monitor_availability.cpt_lock);
     if (cb->monitor_availability.cpt > 0) {
-        slapi_lock_mutex(cb->monitor_availability.cpt_lock);
         cb->monitor_availability.cpt = 0;
         if (cb->monitor_availability.farmserver_state == FARMSERVER_UNAVAILABLE) {
             cb->monitor_availability.farmserver_state = FARMSERVER_AVAILABLE;
             slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                           "cb_reset_conn_cpt - Farm server is back");
         }
-        slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
     }
+    slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
 }
 
 int

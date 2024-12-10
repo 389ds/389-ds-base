@@ -1502,6 +1502,9 @@ entry2str_internal_put_value(const char *attrtype, const CSN *attrcsn, CSNType a
         strcpy(p, attrtype);
         p += attrtypelen;
         if (attrcsn != NULL) {
+            /* coverity false positive: there is no alloc involved in this case
+             * because p is not NULL */
+            /* coverity[leaked_storage] */
             csn_as_attr_option_string(attrcsntype, attrcsn, p);
             p += attrcsnlen;
         }

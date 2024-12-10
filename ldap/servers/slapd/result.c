@@ -2203,17 +2203,16 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
     snprintf(optime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
 
     operation_notes = slapi_pblock_get_operation_notes(pb);
+    if (0 == operation_notes) {
+        notes_str = "";
+    } else {
+        notes_str = notes_buf;
+        *notes_buf = ' ';
+        notes2str(operation_notes, notes_buf + 1, sizeof(notes_buf) - 1);
+    }
 
     if (log_format == LOG_FORMAT_DEFAULT) {
         /* we only need to do this conversion for the old logging */
-        if (0 == operation_notes) {
-            notes_str = "";
-        } else {
-            notes_str = notes_buf;
-            *notes_buf = ' ';
-            notes2str(operation_notes, notes_buf + 1, sizeof(notes_buf) - 1);
-        }
-
         csn_str[0] = '\0';
         if (config_get_csnlogging() == LDAP_ON) {
             operationcsn = operation_get_csn(op);
@@ -2329,7 +2328,6 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
                 slapi_ch_free_string(&dn);
             }
         }
-
     } else {
         if (pr_idx > -1) {
             if (!internal_op) {
