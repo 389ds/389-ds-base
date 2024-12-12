@@ -8,8 +8,17 @@
 # 
 
 """
-TODO
-- Fix parse start/end times
+OPENS
+
+- datetime doesnt support nano seconds so we normalise all parsed timestamps to micro seconds, a 
+downside of this is that when we write stats to csv file we use the "normalised" timestamp.
+Original: 04/Jun/2024:10:39:11.833513398 +0200
+Modified: 2024-06-04 08:39:11.833513
+
+- In the reworked code, we separate the handling of the match group from the processing of the
+associated statistics. While this modular approach improves clarity and future proofs the tool,
+it comes with the downside of increased memory use, memory consumption has grown from 80MB to 129MB 
+when used on a 100MB access log. Need to look into this.
 """
 
 import os
@@ -18,18 +27,17 @@ import magic
 import gzip
 import re
 import argparse
-import glob
 import logging
 import sys
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 import heapq
 from collections import Counter
 from collections import defaultdict
+from typing import Optional
 
-# Profiling, will be removed
+# Used for profiling, will be removed post code review
 import cProfile
-
 
 # Globals
 latency_groups = {
@@ -41,12 +49,14 @@ latency_groups = {
     "11-15": 0,
     "> 15": 0
 }
-disconect_errors = {
+
+disconnect_errors = {
     '32': 'broken_pipe',
     '11': 'resource_unavail',
     '131': 'connection_reset',
     '-5961': 'connection_reset'
 }
+
 ldap_error_codes = {
     '0': "Successful Operations",
     '1': "Operations Error(s)",
@@ -125,6 +135,7 @@ disconnect_msg = {
     "P2": "Poll",
     "U1": "Cleanly Closed Connections"
 }
+
 oid_messages = {
     "2.16.840.1.113730.3.5.1": "Transaction Request",
     "2.16.840.1.113730.3.5.2": "Transaction Response",
@@ -155,45 +166,117 @@ oid_messages = {
     "1.3.6.1.4.1.4203.1.11.1": "Password Modify",
     "2.16.840.1.113730.3.4.20": "MTN Control Use One Backend",
 }
-scope_txt = ["0 (base)", "1 (one)", "2 (subtree)"]
+
+scope_dict = {
+    0: "0 (base)",
+    1: "1 (one)",
+    2: "2 (subtree)"
+}
 
 
-class logAnalyzer:
-    def __init__(self, verbose=False, sizelimit=None, rootdn=None, excludeip=None,
-                 reportStatsSec=None, reportStatsMin=None):
+class logAnalyser:
+    """
+    A class to parse and analyse log files with configurable options.
+
+    Attributes:
+        verbose (Optional[bool]): Enable verbose data gathering and reporting.
+        size_limit (Optional[int]): Maximum size of entries to report.
+        root_dn (Optional[str]): Directory Managers DN.
+        exclude_ip (Optional[str]): IPs to exclude from analysis.
+        stats_file_sec (Optional[str]): Interval (in seconds) for statistics reporting.
+        stats_file_min (Optional[str]): Interval (in minutes) for statistics reporting.
+    """
+    def __init__(self, verbose: Optional[bool] = False,
+                 recommends: Optional[bool] = False,
+                 size_limit: Optional[int] = None, 
+                 root_dn: Optional[str] = None,
+                 exclude_ip: Optional[str] = None,
+                 stats_file_sec: Optional[str] = None, 
+                 stats_file_min: Optional[str] = None):
+        
         self.version = 8.3
+        self.timeformat = "%d/%b/%Y:%H:%M:%S.%f"
         self.verbose = verbose
-        self.sizelimit = sizelimit
-        self.rootDN = rootdn
-        self.excludeIP = excludeip
-        self.prevstats = None
+        self.recommends = recommends
+        self.size_limit = size_limit
+        self.root_dn = root_dn
+        self.exclude_ip = exclude_ip
         self.file_size = 0
-        self.stats_interval = None
-        self.stats_file = None
-        self.csv_writer = None
-        self.timeformat = "%d/%b/%Y:%H:%M:%S.%f %z"
 
-        if reportStatsSec:
-            self.stats_interval = 1
-            self.stats_file = reportStatsSec
-        if reportStatsMin: 
-            self.stats_interval = 60
-            self.stats_file = reportStatsMin
+        # Stats reporting
+        self.prev_stats = None
+        self.stats_interval, self.stats_file = self._configure_stats(stats_file_sec, stats_file_min)
+        self.csv_writer = self._init_csv_writer(self.stats_file) if self.stats_file else None
 
-        # Are we writing stats
-        if self.stats_interval:
-            self.stats_file = open(self.stats_file, mode='w', newline='')
-            self.csv_writer = csv.writer(self.stats_file)
+        # Init internal data structures
+        self._init_data_structures()
+
+        # Init regex patterns and corresponding actions
+        self.regexes = self._init_regexes()
+
+        # Init logger
+        self.logger = self._setup_logger()
+
+
+    def _configure_stats(self, 
+                         report_stats_sec: str, 
+                         report_stats_min: str):
+        """
+        Configure reporting interval for statistics.
+
+        Args:
+            report_stats_sec (str): Statistic reporting interval in seconds.
+            report_stats_min (str): Statistic reporting interval in minutes.
+
+        Returns:
+            A tuple where the first element indicates the multiplier for the interval 
+            (1 for seconds, 60 for minutes), and the second element is the file to 
+            write statistics to. Returns (None, None) if no interval is provided.
+        """
+        if report_stats_sec:
+            return 1, report_stats_sec
+        elif report_stats_min:
+            return 60, report_stats_min
+        else:
+            return None, None
+    
+
+    def _init_csv_writer(self, stats_file: str):
+        """
+        Initialize a CSV writer for statistics reporting.
+
+        Args:
+            stats_file (str): The path to the CSV file where statistics will be written.
+
+        Returns:
+            csv.writer: A CSV writer object for writing to the specified file.
+
+        Raises:
+            IOError: If the file cannot be opened for writing.
+        """
+        try:
+            file = open(stats_file, mode='w', newline='')
+            return csv.writer(file)
+        except IOError as io_err:
+            raise IOError(f"Failed to open file '{stats_file}' for writing: {io_err}")
+
+
+    def _init_data_structures(self):
+        """
+        Set up data structures for parsing and storing log data.
+        """
+        self.pending_conns = {}
 
         self.notesA = {}
         self.notesF = {}
         self.notesP = {}
         self.notesU = {}
-        self.meta = {}
+
         self.vlv = {
             'vlv_ctr': 0,
             'vlv_map_rco': {}
         }
+
         self.server = {
             'restart_ctr': 0,
             'first_time': None,
@@ -202,6 +285,7 @@ class logAnalyzer:
             'parse_stop_time': None,
             'lines_parsed': 0
         }
+
         self.operation = {
             'all_op_ctr': 0,
             'add_op_ctr': 0,
@@ -221,6 +305,7 @@ class logAnalyzer:
             'extop_map_rco': {},
             'abandoned_map_rco': {}
         }
+
         self.connection = {
             'conn_ctr': 0,
             'fd_taken_ctr': 0,
@@ -243,6 +328,7 @@ class logAnalyzer:
             'ip_map': {},
             'restart_conn_ip_map': {}
         }
+
         self.bind = {
             'bind_ctr': 0,
             'unbind_ctr': 0,
@@ -257,6 +343,7 @@ class logAnalyzer:
             'sasl_map_co': {},
             'root_dn': {},
         }
+
         self.result = {
             'result_ctr': 0,
             'notesA_ctr': 0,    # dynamically referenced
@@ -292,6 +379,7 @@ class logAnalyzer:
             'error_freq': {},
             'bad_pwd_map': {}
         }
+
         self.search = {
             'search_ctr': 0,
             'search_map_rco': {},
@@ -307,16 +395,35 @@ class logAnalyzer:
             'filter_map_rco': {},
             'persistent_ctr': 0
         }
+
         self.auth = {
             'ssl_client_bind_ctr': 0,
             'ssl_client_bind_failed_ctr': 0,
             'cipher_ctr': 0,
-            'auth_protocol': {}
+            'auth_info': {}
         }
-        self.regexes = {
-        'RESULT_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+|Internal\(\d+\))             # conn=int | conn=Internal(int)
+
+
+    def _init_regexes(self):
+        """
+        Initialises a dictionary of regex patterns and their associated processing methods.
+
+        Returns:
+            dict: A mapping of regex pattern key to (compiled regex, handler function) value.
+        """
+
+        # Reusable patterns
+        TIMESTAMP_PATTERN = r'''
+            \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
+        '''
+        CONN_ID_PATTERN = r'\sconn=(?P<conn_id>\d+)'
+        CONN_ID_INTERNAL_PATTERN = r'\sconn=(?P<conn_id>\d+|Internal\(\d+\))'
+        OP_ID_PATTERN = r'\sop=(?P<op_id>\d+)'
+        
+        return {
+        'RESULT_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_INTERNAL_PATTERN}                          # conn=int | conn=Internal(int)
                         (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
                         \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
                         \sRESULT                                            # RESULT
@@ -332,11 +439,11 @@ class logAnalyzer:
                         (?:\s+details=(?P<details>"[^"]*"|))?               # Optional: details="string"
                         (?:\s+pr_idx=(?P<pr_idx>\d+))?                      # Optional: pr_idx=int
                         (?:\s+pr_cookie=(?P<pr_cookie>-?\d+))?              # Optional: pr_cookie=int, -int
-                        ''', re.VERBOSE)),
-        'SEARCH_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+|\w+\(\d+\))                  # conn=int | conn=Internal(int)
-                        (?:\s+\((?P<internal>Internal)\))?                  # Optional: (Internal)
+                        ''', re.VERBOSE), self.process_result_match),
+        'SEARCH_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int | conn=Internal(int)            
+                        (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
                         \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
                         \sSRCH                                              # SRCH
                         \sbase="(?P<search_base>[^"]*)"                     # base="", "string"
@@ -345,72 +452,70 @@ class logAnalyzer:
                         (?:\s+attrs=(?P<search_attrs>ALL|\"[^"]*\"))?       # Optional: attrs=ALL | attrs="strings"
                         (\s+options=(?P<options>\S+))?                      # Optional: options=persistent
                         (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
-                        ''', re.VERBOSE)),
-        'BIND_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
-                        \sop=(?P<op_id>\d+)                                 # op=int
+                        ''', re.VERBOSE), self.process_search_match),
+        'BIND_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int 
+                        {OP_ID_PATTERN}                                     # op=int
                         \sBIND                                              # BIND
                         \sdn="(?P<bind_dn>.*?)"                             # Optional: dn=string
                         (?:\smethod=(?P<bind_method>sasl|\d+))?             # Optional: method=int|sasl
                         (?:\sversion=(?P<bind_version>\d+))?                # Optional: version=int
                         (?:\smech=(?P<sasl_mech>[\w-]+))?                   # Optional: mech=string
-                        (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Currently not used
-                        ''', re.VERBOSE)),
-        'UNBIND_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
+                        (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: authzid=string
+                        ''', re.VERBOSE), self.process_bind_match),
+        'UNBIND_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
                         (?:\sop=(?P<op_id>\d+))?                            # Optional: op=int
                         \sUNBIND                                            # UNBIND
-                        ''', re.VERBOSE)),
-        'CONNECT_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
+                        ''', re.VERBOSE), self.process_unbind_match),
+        'CONNECT_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
                         \sfd=(?P<fd>\d+)                                    # fd=int 
                         \sslot=(?P<slot>\d+)                                # slot=int
                         \s(?P<ssl>SSL\s)?                                   # Optional: SSL
                         connection\sfrom\s                                  # connection from
                         (?P<src_ip>\S+)\sto\s                               # IP to
                         (?P<dst_ip>\S+)                                     # IP
-                        ''', re.VERBOSE)),
-        'DISCONNECT_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
+                        ''', re.VERBOSE), self.process_connect_match),
+        'DISCONNECT_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
                         \s+op=(?P<op_id>-?\d+)                              # op=int
                         \s+fd=(?P<fd>\d+)                                   # fd=int 
                         \s*(?P<status>closed|Disconnect)                    # closed|Disconnect
                         \s(?: [^ ]+)*                                       # 
                         \s(?:\s*(?P<error_code>-?\d+))?                     # Optional: 
                         \s*(?:.*-\s*(?P<disconnect_code>[A-Z]\d))?          # Optional: [A-Z]int
-                        ''', re.VERBOSE)),
-        'EXTEND_OP_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
-                        \sop=(?P<op_id>\d+)                                 # op=int
+                        ''', re.VERBOSE), self.process_disconnect_match),
+        'EXTEND_OP_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
+                        {OP_ID_PATTERN}                                     # op=int
                         \sEXT                                               # EXT
                         \soid="(?P<oid>[^"]+)"                              # oid="string"
                         \sname="(?P<name>[^"]+)"                            # namme="string"
-                        ''', re.VERBOSE)),
-        'AUTOBIND_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
+                        ''', re.VERBOSE), self.process_extend_op_match),
+        'AUTOBIND_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
                         \s+AUTOBIND                                         # AUTOBIND
                         \sdn="(?P<bind_dn>.*?)"                             # Optional: dn="strings"
-                        ''', re.VERBOSE)),
-        'AUTH_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
-                        \s(?P<auth_protocol>SSL[\w\.\s-]+|TLS[\w\.\s-]+)    # SSLX.Y|TLSX.Y
-                        (\s(?P<auth_message>client\sbound\sas                   
-                        |                                                                               
-                        failed\sto\smap\sclient\scertificate\sto\sLDAP\sDN))?   
-                        (\s(?P<auth_details>.*?))?                          # Currently not used
-                        (?:\s“(?P<auth_error>.*)”|$)?                       # Currently not used
-                        ''', re.VERBOSE)),
-        'VLV_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
-                        \sop=(?P<op_id>\d+)                                 # op=int
+                        ''', re.VERBOSE), self.process_autobind_match),
+        'AUTH_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
+                        \s+(?P<auth_protocol>SSL|TLS)                       # Match SSL or TLS
+                        (?P<auth_version>\d(?:\.\d)?)?                      # Capture the version (X.Y)
+                        \s+                                                 # Match one or more spaces
+                        (?P<auth_message>.+)                                   # Capture an associated message
+                        ''', re.VERBOSE), self.process_auth_match),
+        'VLV_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
+                        {OP_ID_PATTERN}                                     # op=int
                         \sVLV\s                                             # VLV
                         (?P<result_code>\d+):                               # Currently not used
                         (?P<target_pos>\d+):                                # Currently not used
@@ -419,61 +524,100 @@ class logAnalyzer:
                         (?P<first_index>\d+):                               # Currently not used
                         (?P<last_index>\d+)\s                               # Currently not used
                         \((?P<list_count>\d+)\)                             # Currently not used
-                        ''', re.VERBOSE)), 
-        'ABANDON_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
-                        \sop=(?P<op_id>\d+)                                 # op=int
+                        ''', re.VERBOSE), self.process_vlv_match), 
+        'ABANDON_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
+                        {OP_ID_PATTERN}                                     # op=int
                         \sABANDON                                           # ABANDON
                         \stargetop=(?P<targetop>[\w\s]+)                    # targetop=string
                         \smsgid=(?P<msgid>\d+)                              # msgid=int
-                        ''', re.VERBOSE)),
-        'SORT_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
-                        \sop=(?P<op_id>\d+)                                 # op=int
+                        ''', re.VERBOSE), self.process_abandon_match),
+        'SORT_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
+                        {OP_ID_PATTERN}                                     # op=int
                         \sSORT                                              # SORT
                         \s+(?P<attribute>\w+)                               # Currently not used
                         (?:\s+\((?P<status>\d+)\))?                         # Currently not used
-                        ''', re.VERBOSE)),
-        'CRUD_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+|Internal\(\d+\))             # conn=int | conn=Internal(int)
+                        ''', re.VERBOSE), self.process_sort_match),
+        'CRUD_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_INTERNAL_PATTERN}                          # conn=int | conn=Internal(int)
+                        (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
                         \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
                         \s(?P<op_type>ADD|CMP|MOD|DEL|MODRDN)               # ADD|CMP|MOD|DEL|MODRDN
                         \sdn="(?P<dn>[^"]*)"                                # dn="", dn="strings"
                         (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
-                        ''', re.VERBOSE)),
+                        ''', re.VERBOSE), self.process_crud_match),
 
-        'ENTRY_REFERRAL_REGEX': (re.compile(r'''
-                        \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
-                        \sconn=(?P<conn_id>\d+)                             # conn=int 
-                        \sop=(?P<op_id>\d+)                                 # op=int
+        'ENTRY_REFERRAL_REGEX': (re.compile(rf'''
+                        {TIMESTAMP_PATTERN}
+                        {CONN_ID_PATTERN}                                   # conn=int  
+                        {OP_ID_PATTERN}                                     # op=int
                         \s(?P<op_type>ENTRY|REFERRAL)                       # ENTRY|REFERRAL
                         (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="string"
-                        ''', re.VERBOSE))
+                        ''', re.VERBOSE), self.process_entry_referral_match)
         }
 
-    def match_line(self, line, bytes_read):
-        for key, pattern in self.regexes.items():
-            match = pattern.match(line)
-            if match:
-                # General match stuff
 
-                #print(f"match_line - timestamp:{match.group('timestamp')} - Required group missing")
+    def _setup_logger(self):
+        """
+        Class logging
+        """
+        logger =  logging.getLogger("logAnalyser")
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+
+        logger.setLevel(logging.WARNING)
+        logger.addHandler(handler)
+
+        return logger
+        
+
+    def match_line(self, line: str, bytes_read: int):
+        """
+        Matches a log line against predefined regex patterns, processes the match,
+        and collect relevant stats.
+
+        Args:
+            line (str): A single line from the access log.
+            bytes_read (int): Total bytes read so far.
+
+        Returns:
+            bool: True if a match was found and processed, False otherwise.
+        """
+        for pattern, action in self.regexes.values():
+            match = pattern.match(line)
+            if not match:
+                continue
+
+            try:
+                groups = match.groupdict()
+
+                timestamp = groups.get('timestamp')
+                if not timestamp:
+                    self.logger.error(f"Timestamp missing in line: {line}")
+                    return False
                 
-                # datetime library doesnt support nano seconds so we need to "normalise" the timestamp
-                timestamp = match.group('timestamp')
-                norm_timestamp = timestamp[:26] + timestamp[29:]
+                # datetime library doesnt support nano seconds so we need to "normalise"
+                # the timestamp and write it back to groups dict for subsequent processing.
+                norm_timestamp = self._convert_timestamp_to_datetime(timestamp)
+                groups['timestamp'] = norm_timestamp
+
+                # Add server restart count to groups for connection tracking
+                groups['restart_ctr'] = self.server.get('restart_ctr', 0)
 
                 # Are there time range restrictions
-                if self.server['parse_start_time'] is not None:
-                    # Compare datetime objects
-                    parse_start = self.server.get('parse_start_time', 0.0)
-                    parse_stop = self.server.get('parse_stop_time', 0.0)
+                parse_start = self.server.get('parse_start_time')
+                parse_stop = self.server.get('parse_stop_time')
+                if parse_start and parse_stop:
                     if not parse_start <= norm_timestamp <= parse_stop:
-                        return
-                   
+                        print(f"Timestamp outside of range: {line}. Timestamp: {timestamp}")
+                        return False
+                    
                 # Get the first and last timestamps
                 self.server['first_time'] = (
                     self.server['first_time'] or norm_timestamp
@@ -483,825 +627,1495 @@ class logAnalyzer:
                 # Bump lines parsed
                 self.server['lines_parsed'] = self.server.get('lines_parsed', 0) + 1
 
-                # RESULT match. Capture times, notes if present and manage a client bind response
-                if key == 'RESULT_REGEX':
-                    #print(f"match_line - key {key} match groups:{match.groups()}")
+                # Call the associated method for this match
+                action(groups)
 
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'op_id', 'err', 'tag', 'etime', 'wtime', 'optime', 
-                                       'timestamp', 'nentries']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_id = match.group('op_id')
-                        err = match.group('err')
-                        tag = match.group('tag')
-                        etime = match.group('etime')
-                        wtime = match.group('wtime')
-                        optime = match.group('optime')
-                        timestamp = match.group('timestamp')
-                        nentries = match.group('nentries')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
+                # Should we gather stats for this match
+                if self.stats_interval and self.stats_file:
+                    self.process_and_write_stats(norm_timestamp, bytes_read)
+                return True
+            
+            except IndexError as exc:
+                self.logger.error(f"Error processing log line: {line}. Exception: {exc}")
+                return False
+            
 
-                    # Mapping keys for this entry
-                    restart_conn_op_key = (self.server.get('restart_ctr', 0), conn_id, op_id)
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
-                    conn_op_key = (conn_id, op_id)
+    def process_result_match(self, groups: dict):
+        """
+        Processes a result match and associate it with the corresponding connection.
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump global result count
-                    self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
-                    
-                    # Track result times
-                    self.result['timestamp_ctr'] = self.result.get('timestamp_ctr', 0) + 1
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
 
-                    # Longest etime, push current etime onto the heap
-                    heapq.heappush(self.result['etime_duration'], float(etime))
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
 
-                    # If the heap exceeds sizelimit, pop the smallest element from root
-                    if len(self.result['etime_duration']) > self.sizelimit:
-                        heapq.heappop(self.result['etime_duration'])
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
 
-                    # Longest wtime, push current wtime onto the heap
-                    heapq.heappush(self.result['wtime_duration'], float(wtime))
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
 
-                    # If the heap exceeds sizelimit, pop the smallest element from root
-                    if len(self.result['wtime_duration']) > self.sizelimit:
-                        heapq.heappop(self.result['wtime_duration'])
+        # Process stats for this match
+        self.process_result_stats(groups)
 
-                    # Longest optime, push current optime onto the heap
-                    heapq.heappush(self.result['optime_duration'], float(optime))
 
-                    # If the heap exceeds sizelimit, pop the smallest element from root
-                    if len(self.result['optime_duration']) > self.sizelimit:
-                        heapq.heappop(self.result['optime_duration'])
+    def process_result_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
 
-                    # Manage total times
-                    self.result['total_etime'] = self.result.get('total_etime', 0) + float(etime)
-                    self.result['total_wtime'] = self.result.get('total_wtime', 0) + float(wtime)
-                    self.result['total_optime'] = self.result.get('total_optime', 0) + float(optime)
+        Args:
+            groups (dict): Parsed groups from the log line.
 
-                    # Statistic reporting
-                    self.result['etime_stat'] = round(self.result['etime_stat'] + float(etime), 8)
 
-                    if self.verbose:
-                        # Capture error code
-                        self.result['error_freq'][err] = self.result['error_freq'].get(err, 0) + 1
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'timestamp': The timestamp of the connection event.
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+                - 'etime': Result elapsed time.
+                - 'wtime': Result wait time.
+                - 'optime': Result operation time.
+                - 'nentries': Result number of entries returned.
+                - 'tag': Bind response tag.
+                - 'err': Result error code.
+                - 'internal': Server internal operation.
 
-                    # Process result notes if present
-                    notes = match.group('notes')
-                    if notes is not None:
-                        # match.group('notes') can be A|U|F
-                        self.result[f'notes{notes}_ctr'] = self.result.get(f'notes{notes}_ctr', 0) + 1
-                        if self.verbose:
-                            # Track result times using server restart count, conn id and op_id as key
-                            self.result[f'notes{notes}_map'][restart_conn_op_key] = restart_conn_op_key
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.   
+        """
+        try:
+            timestamp = groups.get('timestamp')
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+            etime = float(groups.get('etime'))
+            wtime = float(groups.get('wtime'))
+            optime = float(groups.get('optime'))
+            tag = groups.get('tag')
+            err = groups.get('err')
+            nentries = int(groups.get('nentries'))
+            internal = groups.get('internal')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
 
-                            # Construct the notes dict
-                            note_dict = getattr(self, f'notes{notes}')
-                            
-                            # Exclude VLV 
-                            if restart_conn_op_key not in self.vlv['vlv_map_rco']:
-                                # Remove microseconds from timestamp
-                                tidy_time = timestamp.split('.')[0]
-                                if restart_conn_op_key in note_dict:
-                                    note_dict[restart_conn_op_key]['time'] = tidy_time
-                                else:
-                                    # First time round
-                                    note_dict[restart_conn_op_key] = {'time': tidy_time}
+        # Mapping keys for this entry
+        restart_conn_op_key = (restart_ctr, conn_id, op_id)
+        restart_conn_key = (restart_ctr, conn_id)
+        conn_op_key = (conn_id, op_id)
 
-                                note_dict[restart_conn_op_key]['etime'] = etime
-                                note_dict[restart_conn_op_key]['nentries'] = nentries
-                                note_dict[restart_conn_op_key]['ip'] = (
-                                    self.connection['restart_conn_ip_map'].get(restart_conn_key, '')
-                                )
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Bump global result count
+        self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
+        
+        # Bump global result count
+        self.result['timestamp_ctr'] = self.result.get('timestamp_ctr', 0) + 1
 
-                                if restart_conn_op_key in self.search['base_map_rco']:
-                                    note_dict[restart_conn_op_key]['base'] = self.search['base_map_rco'][restart_conn_op_key]
-                                    del self.search['base_map_rco'][restart_conn_op_key]
+        # Longest etime, push current etime onto the heap
+        heapq.heappush(self.result['etime_duration'], float(etime))
 
-                                if restart_conn_op_key in self.search['scope_map_rco']:
-                                    note_dict[restart_conn_op_key]['scope'] = self.search['scope_map_rco'][restart_conn_op_key]
-                                    # We dont need this anymore
-                                    del self.search['scope_map_rco'][restart_conn_op_key]
+        # If the heap exceeds size_limit, pop the smallest element from root
+        if len(self.result['etime_duration']) > self.size_limit:
+            heapq.heappop(self.result['etime_duration'])
 
-                                if restart_conn_op_key in self.search['filter_map_rco']:
-                                    note_dict[restart_conn_op_key]['filter'] = self.search['filter_map_rco'][restart_conn_op_key]
-                                    # We dont need this anymore
-                                    del self.search['filter_map_rco'][restart_conn_op_key]
+        # Longest wtime, push current wtime onto the heap
+        heapq.heappush(self.result['wtime_duration'], float(wtime))
 
-                                note_dict[restart_conn_op_key]['bind_dn'] = self.bind['dn_map_rc'].get(restart_conn_key, '')
+        # If the heap exceeds size_limit, pop the smallest element from root
+        if len(self.result['wtime_duration']) > self.size_limit:
+            heapq.heappop(self.result['wtime_duration'])
 
-                            elif restart_conn_op_key in self.vlv['vlv_map_rco']:
-                                # This "note" result is VLV, assign the note type for later filtering
-                                self.vlv['vlv_map_rco'][restart_conn_op_key] = notes
+        # Longest optime, push current optime onto the heap
+        heapq.heappush(self.result['optime_duration'], float(optime))
 
-                    # Trim the search data we dont need (not associated with a notes=X)
-                    if restart_conn_op_key in self.search['base_map_rco']:
-                        del self.search['base_map_rco'][restart_conn_op_key]
+        # If the heap exceeds size_limit, pop the smallest element from root
+        if len(self.result['optime_duration']) > self.size_limit:
+            heapq.heappop(self.result['optime_duration'])
 
-                    if restart_conn_op_key in self.search['scope_map_rco']:
-                        del self.search['scope_map_rco'][restart_conn_op_key]
+        # Total result times
+        self.result['total_etime'] = self.result.get('total_etime', 0) + float(etime)
+        self.result['total_wtime'] = self.result.get('total_wtime', 0) + float(wtime)
+        self.result['total_optime'] = self.result.get('total_optime', 0) + float(optime)
 
-                    if restart_conn_op_key in self.search['filter_map_rco']:
-                        del self.search['filter_map_rco'][restart_conn_op_key]
+        # Statistic reporting
+        self.result['etime_stat'] = round(self.result['etime_stat'] + float(etime), 8)
 
-                    # Is this a bind response
-                    if tag == '97':
-                        # Invalid credentials|Entry does not exist
-                        if err == '49':
-                            if self.verbose:
-                                bad_pwd_dn = self.bind['dn_map_rc'].get(restart_conn_key, None)
-                                bad_pwd_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key, None)
-                                self.result['bad_pwd_map'][(bad_pwd_dn, bad_pwd_ip)] = (
-                                    self.result['bad_pwd_map'].get((bad_pwd_dn, bad_pwd_ip), 0) + 1
-                                )
-                                # Trim items to sizelimit
-                                if len(self.result['bad_pwd_map']) > self.sizelimit:
-                                    within_size_limit = dict(sorted(self.result['bad_pwd_map'].items(),
-                                                        key=lambda item: item[1],
-                                                        reverse=True
-                                                        )[:self.sizelimit])
-                                    self.result['bad_pwd_map'] = within_size_limit
+        if err:
+            # Capture error code
+            self.result['error_freq'][err] = self.result['error_freq'].get(err, 0) + 1
 
-                        # Ths result is involved in the SASL bind process, decrement bind count, etc
-                        elif err == '14':
-                            self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) - 1
-                            self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) - 1
-                            self.bind['sasl_bind_ctr'] = self.bind.get('sasl_bind_ctr', 0) - 1
-                            self.bind['version']['3'] = self.bind['version'].get('3', 0) - 1
+        # Check for internal operations based on either conn_id or internal flag
+        if 'Internal' in conn_id or internal:
+            self.server['internal_op_ctr'] = self.server.get('internal_op_ctr', 0) + 1
 
-                            # Drop the sasl mech count also
-                            mech = self.bind['sasl_map_co'].get(conn_op_key, 0)
-                            if mech:
-                                self.bind['sasl_mech_freq'][mech] = self.bind['sasl_mech_freq'].get(mech, 0) - 1
-                        # Is this is a result to a sasl bind
-                        else:
-                            result_dn = match.group('dn')
-                            if result_dn:
-                                if result_dn != "":
-                                    # If this is a result of a sasl bind, grab the dn
-                                    if conn_op_key in self.bind['sasl_map_co']:
-                                        if result_dn == self.rootDN:
-                                            self.bind['rootdn_bind_ctr'] = (
-                                            self.bind.get('rootdn_bind_ctr', 0) + 1
-                                        )
-                                        if self.verbose:
-                                            result_dn = result_dn.lower()
-                                            if result_dn is not None:
-                                                self.bind['dn_map_rc'][restart_conn_key] = result_dn
-                                                self.bind['dn_freq'][result_dn] = (
-                                                    self.bind['dn_freq'].get(result_dn, 0) + 1
-                                                )
-                    # Handle other tag values
-                    elif tag in ['100', '101', '111', '115']:
+        # Process result notes if present
+        notes = groups['notes']
+        if notes is not None:
+            # match.group('notes') can be A|U|F
+            self.result[f'notes{notes}_ctr'] = self.result.get(f'notes{notes}_ctr', 0) + 1
+            # Track result times using server restart count, conn id and op_id as key
+            self.result[f'notes{notes}_map'][restart_conn_op_key] = restart_conn_op_key
 
-                        # Largest nentry, push current nentry onto the heap, no duplicates
-                        if int(nentries) not in self.result['nentries_set']:
-                            heapq.heappush(self.result['nentries_num'], int(nentries))
-                            self.result['nentries_set'].add(int(nentries))
+            # Construct the notes dict
+            note_dict = getattr(self, f'notes{notes}')
+            
+            # Exclude VLV 
+            if restart_conn_op_key not in self.vlv['vlv_map_rco']:
+                if restart_conn_op_key in note_dict:
+                    note_dict[restart_conn_op_key]['time'] = timestamp
+                else:
+                    # First time round
+                    note_dict[restart_conn_op_key] = {'time': timestamp}
 
-                        # If the heap exceeds sizelimit, pop the smallest element from root
-                        if len(self.result['nentries_num']) > self.sizelimit:
-                            removed = heapq.heappop(self.result['nentries_num'])
-                            self.result['nentries_set'].remove(removed)
+                note_dict[restart_conn_op_key]['etime'] = etime
+                note_dict[restart_conn_op_key]['nentries'] = nentries
+                note_dict[restart_conn_op_key]['ip'] = (
+                    self.connection['restart_conn_ip_map'].get(restart_conn_key, '')
+                )
 
-                # SEARCH match - 
-                elif key == 'SEARCH_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'op_id', 'search_base', 'search_scope', 'search_filter', 'search_attrs']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_id = match.group('op_id')
-                        search_base = match.group('search_base')
-                        search_scope = match.group('search_scope')
-                        search_filter = match.group('search_filter').lower()
-                        search_attrs = match.group('search_attrs')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                    
-                    # Create a tracking keys for this entry
-                    restart_conn_op_key = (self.server.get('restart_ctr', 0), conn_id, op_id)
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+                if restart_conn_op_key in self.search['base_map_rco']:
+                    note_dict[restart_conn_op_key]['base'] = self.search['base_map_rco'][restart_conn_op_key]
+                    del self.search['base_map_rco'][restart_conn_op_key]
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump search and global op count
-                    self.search['search_ctr'] = self.search.get('search_ctr', 0) + 1
-                    self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+                if restart_conn_op_key in self.search['scope_map_rco']:
+                    note_dict[restart_conn_op_key]['scope'] = self.search['scope_map_rco'][restart_conn_op_key]
+                    del self.search['scope_map_rco'][restart_conn_op_key]
 
-                    # Is this an internal operation
-                    if 'Internal' in match.string:
-                        self.server['internal_op_ctr']  = self.server.get('internal_op_ctr', 0) + 1
+                if restart_conn_op_key in self.search['filter_map_rco']:
+                    note_dict[restart_conn_op_key]['filter'] = self.search['filter_map_rco'][restart_conn_op_key]
+                    del self.search['filter_map_rco'][restart_conn_op_key]
 
-                    # Search attributes
-                    if search_attrs is not None:
-                        if search_attrs == 'ALL':
-                            self.search['attr_dict']['All Attributes'] += 1
-                        else:
-                            for attr in search_attrs.split():
-                                attr = attr.strip('"')
-                                self.search['attr_dict'][attr] += 1
+                note_dict[restart_conn_op_key]['bind_dn'] = self.bind['dn_map_rc'].get(restart_conn_key, '')
 
-                    # Search base
-                    if search_base is not None:
-                        if search_base:
-                            base = search_base
-                        # Empty string ("")
-                        else:
-                            base = "Root DSE"
-                        search_base = base.lower()
-                        if search_base:
-                            if self.verbose:
-                                self.search['base_map'][search_base] = self.search['base_map'].get(search_base, 0) + 1
-                                self.search['base_map_rco'][restart_conn_op_key] = search_base
+            elif restart_conn_op_key in self.vlv['vlv_map_rco']:
+                # This "note" result is VLV, assign the note type for later filtering
+                self.vlv['vlv_map_rco'][restart_conn_op_key] = notes
 
-                    # Search scope
-                    if search_scope is not None:
-                        if self.verbose:
-                            self.search['scope_map_rco'][restart_conn_op_key] = scope_txt[int(search_scope)]
+        # Trim the search data we dont need (not associated with a notes=X)
+        if restart_conn_op_key in self.search['base_map_rco']:
+            del self.search['base_map_rco'][restart_conn_op_key]
 
-                    # Search filter
-                    if search_filter is not None:
-                        if self.verbose:
-                            self.search['filter_map_rco'][restart_conn_op_key] = search_filter
-                            self.search['filter_dict'][search_filter] = self.search['filter_dict'].get(search_filter, 0) + 1
+        if restart_conn_op_key in self.search['scope_map_rco']:
+            del self.search['scope_map_rco'][restart_conn_op_key]
 
-                            found = False
-                            for idx, (count, filter) in enumerate(self.search['filter_list']):
-                                if filter == search_filter:
-                                    found = True
-                                    self.search['filter_list'][idx] = (self.search['filter_dict'][search_filter] + 1, search_filter)
-                                    heapq.heapify(self.search['filter_list'])
-                                    break
-                            
-                            if not found:
-                                if len(self.search['filter_list']) < self.sizelimit:
-                                    heapq.heappush(self.search['filter_list'], (1, search_filter))
-                                else:
-                                    heapq.heappushpop(self.search['filter_list'], (self.search['filter_dict'][search_filter], search_filter))
+        if restart_conn_op_key in self.search['filter_map_rco']:
+            del self.search['filter_map_rco'][restart_conn_op_key]
 
-                    # Check for an entire base search
-                    if "objectclass=*" in search_filter or "objectclass=top" in search_filter:
-                        if search_scope == '2':
-                            self.search['base_search_ctr'] = self.search.get('base_search_ctr', 0) + 1
-
-                    # Persistent search
-                    if match.group('options') is not None:
-                        options = match.group('options')
-                        if options == 'persistent':
-                            self.search['persistent_ctr'] = self.search.get('persistent_ctr', 0) + 1
-
-                    # Authorization identity
-                    if match.group('authzid_dn') is not None:
-                        authzid = match.group('authzid_dn')
-                        self.search['authzid'] = self.search.get('authzid', 0) + 1
-
-                # BIND match - 
-                elif key == 'BIND_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'op_id', 'bind_dn', 'bind_method', 'bind_version']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_id = match.group('op_id')
-                        bind_dn = match.group('bind_dn')
-                        bind_method = match.group('bind_method')
-                        bind_version = match.group('bind_version')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                    
-                    # Create a tracking keys for this entry
-                    restart_conn_op_key = (self.server.get('restart_ctr', 0), conn_id, op_id)
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
-                    conn_op_key = (conn_id, op_id)
-
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump bind and global op count
-                    self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
-                    self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
-
-                    # Update bind version count
-                    self.bind['version'][bind_version] = self.bind['version'].get(bind_version, 0) + 1
-
-                    # sasl or simple bind
-                    if bind_method == 'sasl':
-                        self.bind['sasl_bind_ctr'] = self.bind.get('sasl_bind_ctr', 0) + 1
-                        sasl_mech = match.group('sasl_mech')
-                        if sasl_mech is not None:
-                            # Bump sasl mechanism count
-                            self.bind['sasl_mech_freq'][sasl_mech] = self.bind['sasl_mech_freq'].get(sasl_mech, 0) + 1
-                            
-                            # Keep track of bind key to handle sasl result later
-                            self.bind['sasl_map_co'][conn_op_key] = sasl_mech
-
-                        if bind_dn == "":
-                            if bind_dn == self.rootDN:
-                                self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
-                        else:
-                            if self.verbose:
-                                    bind_dn = bind_dn.lower()
-                                    self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
-                                    self.bind['dn_map_rc'][restart_conn_key] = bind_dn
-                    else:
-                        if bind_dn == "":
-                            self.bind['anon_bind_ctr'] = self.bind.get('anon_bind_ctr', 0) + 1
-                            self.bind['dn_freq']['Anonymous'] = self.bind['dn_freq'].get('Anonymous', 0) + 1
-                            self.bind['dn_map_rc'][restart_conn_key] = ""
-                        else:
-                            if bind_dn == self.rootDN:
-                                self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
-                            if self.verbose:
-                                bind_dn = bind_dn.lower()
-                                self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
-                                self.bind['dn_map_rc'][restart_conn_key] = bind_dn
-
-                # UNBIND match - 
-                elif key == 'UNBIND_REGEX':
-                    # Check required groups are present and not None
-                    groups = match.groupdict()
-                    required_groups = ['conn_id', 'op_id']
-                    if any(group not in groups or groups[group] is None for group in required_groups):
-                        print(f"match_line - key {key} - Required group missing")
-                        return None
-                    else:
-                        conn_id = groups.get('conn_id')
-                        op_id = match.group('op_id')
-                    
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
-
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump unbind count and map 
-                    self.bind['unbind_ctr'] = self.bind.get('unbind_ctr', 0) + 1
-                 
-                # CONNECTION match - 
-                elif key == 'CONNECT_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['src_ip', 'conn_id', 'timestamp', 'slot', 'fd']
-                    if self.validate_match_groups(key, match, required_groups):
-                        src_ip = match.group('src_ip')
-                        conn_id = match.group('conn_id')
-                        timestamp = match.group('timestamp')
-                        fd = match.group('fd')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                    
-                    # datetime limitation
-                    match_time = timestamp[:26] + timestamp[29:]
-
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
-
-                    # To exclude this IP from all procesing, we need to track it
-                    if self.excludeIP and src_ip in self.excludeIP:
-                            self.connection['exclude_ip_map'][restart_conn_key] = src_ip
-                            return None
-
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
-
-                    if self.verbose:
-                        # Update open connection count
-                        self.connection['open_conns'][src_ip] = self.connection['open_conns'].get(src_ip, 0) + 1
-
-                    if self.verbose:
-                        # Grab the start time for latency report
-                        self.connection['start_time'][conn_id] = match_time
-
-                    # Update general connection counters
-                    for key in ['conn_ctr', 'sim_conn_ctr']:
-                        self.connection[key] = self.connection.get(key, 0) + 1
-
-                    # Update max simultaneous connection count
-                    self.connection['max_sim_conn_ctr'] = max(
-                        self.connection.get('max_sim_conn_ctr', 0), 
-                        self.connection['sim_conn_ctr']
+        # Process bind response based on the tag and error code.
+        if tag == '97':
+            if err == '49': # Invalid credentials|Entry does not exist
+                if self.verbose:
+                    bad_pwd_dn = self.bind['dn_map_rc'].get(restart_conn_key, None)
+                    bad_pwd_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key, None)
+                    self.result['bad_pwd_map'][(bad_pwd_dn, bad_pwd_ip)] = (
+                        self.result['bad_pwd_map'].get((bad_pwd_dn, bad_pwd_ip), 0) + 1
                     )
+                    # Trim items to size_limit
+                    if len(self.result['bad_pwd_map']) > self.size_limit:
+                        within_size_limit = dict(sorted(self.result['bad_pwd_map'].items(),
+                                            key=lambda item: item[1],
+                                            reverse=True
+                                            )[:self.size_limit])
+                        self.result['bad_pwd_map'] = within_size_limit
 
-                    # Update protocol counters
-                    src_ip_tmp = 'local' if src_ip == 'local' else 'ldap'
-                    ssl = match.group('ssl') 
-                    if ssl is not None:
-                        stat_count_key = 'ldaps_ctr'
-                    else: 
-                        stat_count_key = 'ldapi_ctr' if src_ip_tmp == 'local' else 'ldap_ctr'
-                    self.connection[stat_count_key] = self.connection.get(stat_count_key, 0) + 1
+            # Ths result is involved in the SASL bind process, decrement bind count, etc
+            elif err == '14':
+                self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) - 1
+                self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) - 1
+                self.bind['sasl_bind_ctr'] = self.bind.get('sasl_bind_ctr', 0) - 1
+                self.bind['version']['3'] = self.bind['version'].get('3', 0) - 1
+
+                # Drop the sasl mech count also
+                mech = self.bind['sasl_map_co'].get(conn_op_key, 0)
+                if mech:
+                    self.bind['sasl_mech_freq'][mech] = self.bind['sasl_mech_freq'].get(mech, 0) - 1
+            # Is this is a result to a sasl bind
+            else:
+                result_dn = groups['dn']
+                if result_dn:
+                    if result_dn != "":
+                        # If this is a result of a sasl bind, grab the dn
+                        if conn_op_key in self.bind['sasl_map_co']:
+                            if result_dn == self.root_dn:
+                                self.bind['rootdn_bind_ctr'] = (
+                                self.bind.get('rootdn_bind_ctr', 0) + 1
+                            )
+                            if self.verbose:
+                                result_dn = result_dn.lower()
+                                if result_dn is not None:
+                                    self.bind['dn_map_rc'][restart_conn_key] = result_dn
+                                    self.bind['dn_freq'][result_dn] = (
+                                        self.bind['dn_freq'].get(result_dn, 0) + 1
+                                    )
+        # Handle other tag values
+        elif tag in ['100', '101', '111', '115']:
+
+            # Largest nentry, push current nentry onto the heap, no duplicates
+            if int(nentries) not in self.result['nentries_set']:
+                heapq.heappush(self.result['nentries_num'], int(nentries))
+                self.result['nentries_set'].add(int(nentries))
+
+            # If the heap exceeds size_limit, pop the smallest element from root
+            if len(self.result['nentries_num']) > self.size_limit:
+                removed = heapq.heappop(self.result['nentries_num'])
+                self.result['nentries_set'].remove(removed)
+
+
+    def process_search_match(self, groups: dict):
+        """
+        Processes a search match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}    
+
+        # Process stats for this match
+        self.process_search_stats(groups)
+
+
+    def process_search_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+                - 'search_base': Search base.
+                - 'search_scope': Search scope.
+                - 'search_attrs':  Search attributes.
+                - 'search_filter':  Search filter.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.   
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+            search_base = groups['search_base']
+            search_scope = groups['search_scope']
+            search_attrs = groups['search_attrs']
+            search_filter = groups['search_filter']
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+                    
+        # Create a tracking keys for this entry
+        restart_conn_op_key = (restart_ctr, conn_id, op_id)
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Bump search and global op count
+        self.search['search_ctr'] = self.search.get('search_ctr', 0) + 1
+        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+
+        # Search attributes
+        if search_attrs is not None:
+            if search_attrs == 'ALL':
+                self.search['attr_dict']['All Attributes'] += 1
+            else:
+                for attr in search_attrs.split():
+                    attr = attr.strip('"')
+                    self.search['attr_dict'][attr] += 1
+
+        # Search base
+        if search_base is not None:
+            if search_base:
+                base = search_base
+            # Empty string ("")
+            else:
+                base = "Root DSE"
+            search_base = base.lower()
+            if search_base:
+                if self.verbose:
+                    self.search['base_map'][search_base] = self.search['base_map'].get(search_base, 0) + 1
+                    self.search['base_map_rco'][restart_conn_op_key] = search_base
+
+        # Search scope
+        if search_scope is not None:
+            if self.verbose:
+                self.search['scope_map_rco'][restart_conn_op_key] = scope_dict[int(search_scope)]
+
+        # Search filter
+        if search_filter is not None:
+            if self.verbose:
+                self.search['filter_map_rco'][restart_conn_op_key] = search_filter
+                self.search['filter_dict'][search_filter] = self.search['filter_dict'].get(search_filter, 0) + 1
+
+                found = False
+                for idx, (count, filter) in enumerate(self.search['filter_list']):
+                    if filter == search_filter:
+                        found = True
+                        self.search['filter_list'][idx] = (self.search['filter_dict'][search_filter] + 1, search_filter)
+                        heapq.heapify(self.search['filter_list'])
+                        break
                 
-                    # Track file descriptor counters
-                    self.connection['fd_max_ctr']  = (
-                        max(self.connection.get('fd_max_ctr', 0), int(fd))
-                    )
-                    self.connection['fd_taken_ctr']  = (
-                        self.connection.get('fd_taken_ctr', 0) + 1
-                    )
-
-                    # Server restart
-                    if conn_id == '1':
-                        self.server['restart_ctr']  = self.server.get('restart_ctr', 0) + 1
-                        if self.verbose:
-                            self.connection['open_conns'] = {}
-
-                    # Track source IP
-                    self.connection['restart_conn_ip_map'][restart_conn_key] = src_ip
-                    self.connection['ip_map'][src_ip] = self.connection['ip_map'].get(src_ip, 0) + 1
-
-                # UNBIND match - 
-                elif key == 'AUTH_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'auth_protocol']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        auth_protocol = match.group('auth_protocol')
+                if not found:
+                    if len(self.search['filter_list']) < self.size_limit:
+                        heapq.heappush(self.search['filter_list'], (1, search_filter))
                     else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                    
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+                        heapq.heappushpop(self.search['filter_list'], (self.search['filter_dict'][search_filter], search_filter))
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    if auth_protocol is not None:
-                        if match:
-                            self.auth['cipher_ctr'] = self.auth.get('cipher_ctr', 0) + 1        
-                            self.auth['auth_protocol'][auth_protocol] = self.auth['auth_protocol'].get(auth_protocol, 0) + 1        
+        # Check for an entire base search
+        if "objectclass=*" in search_filter or "objectclass=top" in search_filter:
+            if search_scope == '2':
+                self.search['base_search_ctr'] = self.search.get('base_search_ctr', 0) + 1
 
-                    auth_message = match.groups('auth_message')
-                    if auth_message is not None:
-                        auth_message = match.groups('auth_message')
-                        if auth_message == 'client bound as':
-                            self.auth['ssl_client_bind_ctr'] = self.auth.get('ssl_client_bind_ctr', 0) + 1 
-                        elif auth_message == 'failed to map client certificate to LDAP DN':
-                            self.auth['ssl_client_bind_failed_ctr'] = self.auth.get('ssl_client_bind_failed_ctr', 0) + 1 
+        # Persistent search
+        if groups['options'] is not None:
+            options = groups['options']
+            if options == 'persistent':
+                self.search['persistent_ctr'] = self.search.get('persistent_ctr', 0) + 1
 
-                elif key == 'VLV_REGEX':
-                    # Check required groups are present and not None
-                    groups = match.groupdict()
-                    required_groups = ['conn_id', 'op_id']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_id = match.group('op_id')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                        
-                    # Create tracking keys
-                    restart_conn_op_key = (self.server.get('restart_ctr', 0), conn_id, op_id)
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+        # Authorization identity
+        if groups['authzid_dn'] is not None:
+            #authzid = groups['authzid_dn']
+            self.search['authzid'] = self.search.get('authzid', 0) + 1
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump some stats
-                    self.vlv['vlv_ctr'] = self.vlv.get('vlv_ctr', 0) + 1
-                    self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
 
-                    # Key and value are the same, makes set operations easier later on
-                    self.vlv['vlv_map_rco'][restart_conn_op_key] = restart_conn_op_key
+    def process_bind_match(self, groups: dict):
+        """
+        Processes a bind match and associate it with the corresponding connection.
 
-                elif key == 'ABANDON_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'op_id', 'targetop', 'msgid']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_id = match.group('op_id')
-                        targetop = match.group('targetop')
-                        msgid = match.group('msgid')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                        
-                    # Create a tracking keys
-                    restart_conn_op_key = (self.server.get('restart_ctr', 0), conn_id, op_id)
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump some stats
-                    self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
-                    self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
-                    self.operation['abandon_op_ctr'] = self.operation.get('abandon_op_ctr', 0) + 1
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
 
-                    # Track for abandon op processing
-                    self.operation['abandoned_map_rco'][restart_conn_op_key] = (conn_id, op_id, targetop, msgid)
-                    
-                elif key == 'SORT_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'op_id']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_id = match.group('op_id')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                    
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}      
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    self.operation['sort_op_ctr'] = self.operation.get('sort_op_ctr', 0) + 1
+        # Process stats for this match
+        self.process_bind_stats(groups)
 
-                elif key == 'EXTEND_OP_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['oid', 'conn_id', 'op_id']
-                    if self.validate_match_groups(key, match, required_groups):
-                        oid = match.group('oid')
-                        conn_id = match.group('conn_id')
-                        op_id = match.group('op_id')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
 
-                    # Create a tracking key for this entry
-                    restart_conn_op_key = (self.server.get('restart_ctr', 0), conn_id, op_id)
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+    def process_bind_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump some stats
-                    self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
-                    self.operation['extnd_op_ctr'] = self.operation.get('extnd_op_ctr', 0) + 1
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+                - 'bind_dn': Bind DN.
+                - 'bind_method': Bind method (sasl, simple).
+                - 'bind_version': Bind version.
 
-                    # Track for later processing
-                    if oid is not None:
-                        self.operation['extop_dict'][oid] = self.operation['extop_dict'].get(oid, 0) + 1
-                        self.operation['extop_map_rco'][restart_conn_op_key] = self.operation['extop_map_rco'].get(restart_conn_op_key, 0) + 1
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.   
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+            bind_dn = groups.get('bind_dn')
+            bind_method = groups['bind_method']
+            bind_version = groups['bind_version']
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Create a tracking keys for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+        conn_op_key = (conn_id, op_id)
 
-                elif key == 'AUTOBIND_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'bind_dn']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        bind_dn = match.group('bind_dn')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
-                    
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Bump bind and global op count
+        self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
+        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    # Bump stats
-                    self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
-                    self.bind['autobind_ctr'] = self.bind.get('autobind_ctr', 0) + 1
-                    self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        # Update bind version count
+        self.bind['version'][bind_version] = self.bind['version'].get(bind_version, 0) + 1
 
-                    # Handle an anonymous autobind
-                    if bind_dn == "":
-                        self.bind['anon_bind_ctr'] = self.bind.get('anon_bind_ctr', 0) + 1
-                    else:
-                        if bind_dn == self.rootDN:
-                            self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
+        # If this is the first connection (indicating a server restart), increment restart counter
+        if conn_id == '1':
+            self.server['restart_ctr']  = self.server.get('restart_ctr', 0) + 1
+            if self.verbose:
+                self.connection['open_conns'] = {}
+
+        # sasl or simple bind
+        if bind_method == 'sasl':
+            self.bind['sasl_bind_ctr'] = self.bind.get('sasl_bind_ctr', 0) + 1
+            sasl_mech = groups['sasl_mech']
+            if sasl_mech is not None:
+                # Bump sasl mechanism count
+                self.bind['sasl_mech_freq'][sasl_mech] = self.bind['sasl_mech_freq'].get(sasl_mech, 0) + 1
+                
+                # Keep track of bind key to handle sasl result later
+                self.bind['sasl_map_co'][conn_op_key] = sasl_mech
+
+            if bind_dn == "":
+                if bind_dn == self.root_dn:
+                    self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
+            else:
+                if self.verbose:
                         bind_dn = bind_dn.lower()
                         self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
+                        self.bind['dn_map_rc'][restart_conn_key] = bind_dn
+        else:
+            if bind_dn == "":
+                self.bind['anon_bind_ctr'] = self.bind.get('anon_bind_ctr', 0) + 1
+                self.bind['dn_freq']['Anonymous'] = self.bind['dn_freq'].get('Anonymous', 0) + 1
+                self.bind['dn_map_rc'][restart_conn_key] = ""
+            else:
+                if bind_dn == self.root_dn:
+                    self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
+                if self.verbose:
+                    bind_dn = bind_dn.lower()
+                    self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
+                    self.bind['dn_map_rc'][restart_conn_key] = bind_dn
 
-                elif key == 'DISCONNECT_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['timestamp', 'conn_id']
-                    if self.validate_match_groups(key, match, required_groups):
-                        timestamp = match.group('timestamp')
-                        conn_id = match.group('conn_id')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
 
-                    # Prepare for datetime comparison in get_elapsed_times
-                    match_time = timestamp[:26] + timestamp[29:]
+    def process_unbind_match(self, groups: dict):
+        """
+        Processes an unbind match and associate it with the corresponding connection.
 
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
-                    
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    if self.verbose:
-                        # Get the IP for this entry if we have it
-                        if restart_conn_key in self.connection['restart_conn_ip_map']:
-                            src_ip = self.connection['restart_conn_ip_map'][restart_conn_key]
-                            # Is the IP associated with an open connection
-                            if src_ip in self.connection['open_conns']:
-                                if self.connection['open_conns'][src_ip] > 1:
-                                    self.connection['open_conns'][src_ip] = self.connection['open_conns'].get(src_ip, 0) - 1
-                                else:
-                                    del self.connection['open_conns'][src_ip]
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
 
-                    # Grab the disconnect time for latency report, only if 
-                    # a start time for this conn_id has been captured
-                    if self.verbose:
-                        start = self.connection['start_time'].get(conn_id, None)
-                        end = match_time
-                        if start and end:
-                            latency = self.get_elapsed_time(start, end, "seconds")
-                            bucket = self.group_latencies(latency)
-                            latency_groups[bucket] += 1
-                            self.connection['start_time'][conn_id] = None
-                            self.connection['end_time'][conn_id] = None
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
 
-                    # Update some stat counters
-                    self.connection['sim_conn_ctr'] = self.connection.get('sim_conn_ctr', 0) - 1
-                    self.connection['fd_returned_ctr']  = (
-                        self.connection.get('fd_returned_ctr', 0) + 1
-                    )
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
 
-                    # Track error (1.4.3) and disconnect codes
-                    error_code = match.group('error_code')
-                    if error_code is not None:
-                        disconnect_code = match.group('disconnect_code')
-                        if disconnect_code is not None:
-                            self.connection[disconect_errors.get(error_code, 'unknown')][disconnect_code] = (
-                                self.connection[disconect_errors.get(error_code, 'unknown')].get(disconnect_code, 0) + 1
-                            )
-                    disconnect_code = match.group('disconnect_code')
-                    if disconnect_code is not None:
-                        self.connection['disconnect_code'][disconnect_code] = (
-                            self.connection['disconnect_code'].get(disconnect_code, 0) + 1
-                        )
-                        self.connection['disconnect_code_map'][restart_conn_key] = disconnect_code
-                # The regex match supports ADD, CMP, MOD, DEL, MODRDN operations
-                elif key == 'CRUD_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'op_type']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_type = match.group('op_type')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}   
 
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
+        # Process stats for this match
+        self.process_unbind_stats(groups)
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
 
-                    # Bump internal op count
-                    if 'Internal' in match.string:
-                        self.server['internal_op_ctr']  = self.server.get('internal_op_ctr', 0) + 1
+    def process_unbind_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
 
-                    # Use operation type as key for stats
-                    if op_type is not None:
-                        op_key = op_type.lower()
-                        self.operation[f"{op_key}_op_ctr"] = self.operation.get(f"{op_key}_op_ctr", 0) + 1
-                        self.operation[f"{op_key}_map_rco"][restart_conn_key] = (
-                            self.operation[f"{op_key}_map_rco"].get(restart_conn_key, 0) + 1
-                        )
-                    
-                    # Authorization identity
-                    if match.group('authzid_dn') is not None:
-                        authzid = match.group('authzid_dn')
-                        self.operation['authzid'] = self.operation.get('authzid', 0) + 1
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
 
-                elif key == 'ENTRY_REFERRAL_REGEX':
-                    # Check required groups are present and not None
-                    required_groups = ['conn_id', 'op_type']
-                    if self.validate_match_groups(key, match, required_groups):
-                        conn_id = match.group('conn_id')
-                        op_type = match.group('op_type')
-                    else:
-                        print(f"match_line - key {key} - Required group missing")
-                        sys.exit()
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Bump unbind count
+        self.bind['unbind_ctr'] = self.bind.get('unbind_ctr', 0) + 1
 
-                    # Create a tracking key for this entry
-                    restart_conn_key = (self.server.get('restart_ctr', 0), conn_id)
 
-                    # Should we ignore this operation
-                    if restart_conn_key in self.connection['exclude_ip_map']:
-                        return None
-                    
-                    if op_type is not None:
-                        if op_type == 'ENTRY':
-                            self.result['entry_count'] = self.result.get('entry_count', 0) + 1
-                        elif op_type == 'REFERRAL':
-                            self.result['referral_count'] = self.result.get('referral_count', 0) + 1
+    def process_connect_match(self, groups: dict):
+        """
+        Processes a connect match and associate it with the corresponding connection.
 
-                # Performance stats
-                if self.csv_writer is not None:                    
-                    # Stats to be reported on
-                    stats = {
-                        'result_ctr': self.result,
-                        'search_ctr': self.search,
-                        'add_op_ctr': self.operation,
-                        'mod_op_ctr': self.operation,
-                        'modrdn_op_ctr': self.operation,
-                        'cmp_op_ctr': self.operation,
-                        'del_ctr': self.operation,
-                        'abandon_op_ctr': self.operation,
-                        'conn_ctr': self.connection,
-                        'ldaps_ctr': self.connection,
-                        'bind_ctr': self.bind,
-                        'anon_bind_ctr': self.bind,
-                        'unbind_ctr': self.bind,
-                        'notesA_ctr': self.result,
-                        'notesU_ctr': self.result,
-                        'notesF_ctr': self.result,
-                        'etime_stat': self.result
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+
+        self.pending_conns[conn_key] = {'ops': {}}
+
+        # Process stats for this match
+        self.process_connect_stats(groups)
+
+
+    def process_connect_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            timestamp = groups.get('timestamp')
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+            src_ip = groups.get('src_ip')
+            fd = groups['fd']
+            ssl = groups['ssl']
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we exclude this IP
+        if self.exclude_ip and src_ip in self.exclude_ip:
+            self.connection['exclude_ip_map'][restart_conn_key] = src_ip
+            return None
+
+        if self.verbose:
+            # Update open connection count
+            self.connection['open_conns'][src_ip] = self.connection['open_conns'].get(src_ip, 0) + 1
+
+            # Grab the start time for latency report
+            self.connection['start_time'][conn_id] = timestamp
+
+        # Update general connection counters
+        for key in ['conn_ctr', 'sim_conn_ctr']:
+            self.connection[key] = self.connection.get(key, 0) + 1
+
+        # Update the maximum number of simultaneous connections seen
+        self.connection['max_sim_conn_ctr'] = max(
+            self.connection.get('max_sim_conn_ctr', 0), 
+            self.connection['sim_conn_ctr']
+        )
+
+        # Update protocol counters
+        src_ip_tmp = 'local' if src_ip == 'local' else 'ldap'
+        if ssl:
+            stat_count_key = 'ldaps_ctr'
+        else: 
+            stat_count_key = 'ldapi_ctr' if src_ip_tmp == 'local' else 'ldap_ctr'
+        self.connection[stat_count_key] = self.connection.get(stat_count_key, 0) + 1
+    
+        # Track file descriptor counters
+        self.connection['fd_max_ctr']  = (
+            max(self.connection.get('fd_max_ctr', 0), int(fd))
+        )
+        self.connection['fd_taken_ctr']  = (
+            self.connection.get('fd_taken_ctr', 0) + 1
+        )
+
+        # Track source IP
+        self.connection['restart_conn_ip_map'][restart_conn_key] = src_ip
+
+        # Update the count of connections seen from this IP
+        self.connection['ip_map'][src_ip] = self.connection['ip_map'].get(src_ip, 0) + 1
+
+
+    def process_auth_match(self, groups: dict):
+        """
+        Processes an auth match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+
+        # With an auth match we do nothing, i think
+        self.pending_conns[conn_key] = {'ops': {}}  
+
+        # Process stats for this match
+        self.process_auth_stats(groups)
+
+        
+    def process_auth_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+                - 'auth_protocol': Auth protocol (SSL, TLS).
+                - 'auth_version': Auth version.
+                - 'auth_message': Optional auth message.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+            auth_protocol = groups.get('auth_protocol')
+            auth_version = groups.get('auth_version')
+            auth_message = groups.get('auth_message')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        if auth_protocol:
+            if restart_conn_key not in self.auth['auth_info']:
+                self.auth['auth_info'][restart_conn_key] = {
+                    'proto': auth_protocol, 
+                    'version': auth_version, 
+                    'count': 0,
+                    'message': []
                     }
 
-                    # Create a stat block for the curent match
-                    curr_stat_block =[]
-                    # Create a stat block for output
-                    out_stat_block =[]
-                    # We need a timestamp for this match to compare later
-                    curr_stat_block.insert(0, norm_timestamp)
-                    # Gather the stat values and add them to the current stat block 
-                    curr_stat_block.extend([refdict[key] for key, refdict in stats.items()])
-                    
-                    curr_time = datetime.strptime(curr_stat_block[0], self.timeformat)
-                    if self.prevstats is not None:
-                        prev_stat_block = self.prevstats
-                        prev_time = datetime.strptime(prev_stat_block[0], self.timeformat)
+            if auth_message:
+                # Increment counters and add auth message
+                self.auth['auth_info'][restart_conn_key]['message'].append(auth_message)
 
-                        out_stat_block.append(prev_stat_block[0])
-                        out_stat_block.append(int(prev_time.timestamp()))
+            # Bump auth related counters
+            self.auth['cipher_ctr'] = self.auth.get('cipher_ctr', 0) + 1
+            self.auth['auth_info'][restart_conn_key]['count'] = (
+                self.auth['auth_info'][restart_conn_key].get('count', 0) + 1        
+            )
 
-                        diff = curr_time - prev_time
-                        if diff.total_seconds() >= self.stats_interval:
-                            # Compare stat int values
-                            diff_temp = [
-                                c - p if isinstance(p, int) else c
-                                for c, p in zip(curr_stat_block[1:], prev_stat_block[1:])
-                            ]
-                            self.prevstats = curr_stat_block
-                            out_stat_block.extend(diff_temp)
-                            self.csv_writer.writerow(out_stat_block)
-                            # Updated every result match so reset it after we write a block
-                            self.result['etime_stat'] = 0.0
-                            
-                    # This is the first run, add the csv header for each column
-                    else:
-                        stats_header = [
-                        'Time', 'time_t', 'Results', 'Search', 'Add', 'Mod', 'Modrdn', 'Compare',
-                        'Delete', 'Abandon', 'Connections', 'SSL Conns', 'Bind', 'Anon Bind', 'Unbind', 
-                        'Unindexed search', 'Unindexed component', 'Invalid filter', 'ElapsedTime']
-                        self.csv_writer.writerow([stat for stat in stats_header])
-                        self.prevstats = curr_stat_block
-
-                    # Shorter than interval and end of file
-                    if self.prevstats is not None:
-                        if bytes_read >= self.file_size:
-                            prev_stat_block = self.prevstats
-                            diff_temp = [
-                                c - p if isinstance(p, int) else c
-                                for c, p in zip(curr_stat_block[1:], prev_stat_block[1:])
-                            ]
-                            out_stat_block.extend(diff_temp)
-                            self.csv_writer.writerow(out_stat_block)
-                            self.result['etime_stat'] = 0.0
+        if auth_message:
+            if auth_message == 'client bound as':
+                self.auth['ssl_client_bind_ctr'] = self.auth.get('ssl_client_bind_ctr', 0) + 1 
+            elif auth_message == 'failed to map client certificate to LDAP DN':
+                self.auth['ssl_client_bind_failed_ctr'] = self.auth.get('ssl_client_bind_failed_ctr', 0) + 1 
 
 
-    # Utility methods
+    def process_vlv_match(self, groups: dict):
+        """
+        Processes a vlv match and associate it with the corresponding connection.
 
-    # This is used for debug, will be removed post code review
-    def get_dict_size(self, d):
-        size = sys.getsizeof(d)  # Size of the dictionary itself
-        for key, value in d.items():
-            size += sys.getsizeof(key)  # Size of each key
-            size += sys.getsizeof(value)  # Size of each value
-        return size
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
 
-    # Check list of requried match groups are present and not None
-    def validate_match_groups(self, id, match, required_groups):
-        groups = match.groupdict()
-        if any(group not in groups or groups[group] is None for group in required_groups):
-            print(f"ID:{id} - Required match group missing")
-            return False
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
         else:
-            return True
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}} 
+
+        # Process stats for this match
+        self.process_vlv_stats(groups)
+
+
+    def process_vlv_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+            
+        # Create tracking keys
+        restart_conn_op_key = (restart_ctr, conn_id, op_id)
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Bump vlv and global op stats
+        self.vlv['vlv_ctr'] = self.vlv.get('vlv_ctr', 0) + 1
+        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+
+        # Key and value are the same, makes set operations easier later on
+        self.vlv['vlv_map_rco'][restart_conn_op_key] = restart_conn_op_key
+
+
+    def process_abandon_match(self, groups: dict):
+        """
+        Processes an abandon match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}   
+
+        # Process stats for this match
+        self.process_abandon_stats(groups)
+
+
+    def process_abandon_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+                - 'targetop': The target operation.
+                - 'msgid': Message ID.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+            targetop = groups.get('targetop')
+            msgid = groups.get('msgid')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
     
+        # Create a tracking keys
+        restart_conn_op_key = (restart_ctr, conn_id, op_id)
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Bump some stats
+        self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
+        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        self.operation['abandon_op_ctr'] = self.operation.get('abandon_op_ctr', 0) + 1
+
+        # Track abandoned operation for later processing
+        self.operation['abandoned_map_rco'][restart_conn_op_key] = (conn_id, op_id, targetop, msgid)
+
+
+    def process_sort_match(self, groups: dict):
+        """
+        Processes a sort match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+        
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
+
+        # Process stats for this match
+        self.process_sort_stats(groups)
+
+
+    def process_sort_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+    
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        self.operation['sort_op_ctr'] = self.operation.get('sort_op_ctr', 0) + 1
+
+
+    def process_extend_op_match(self, groups: dict):
+        """
+        Processes an extended operation match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+        
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
+
+        # Process stats for this match
+        self.process_extend_op_stats(groups)
+
+
+    def process_extend_op_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+                - 'oid': Extended operation identifier.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+            oid = groups.get('oid')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+
+        # Create a tracking key for this entry
+        restart_conn_op_key = (restart_ctr, conn_id, op_id)
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Increment global operation counters
+        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        self.operation['extnd_op_ctr'] = self.operation.get('extnd_op_ctr', 0) + 1
+
+        # Track extended operation data if an OID is present
+        if oid is not None:
+            self.operation['extop_dict'][oid] = self.operation['extop_dict'].get(oid, 0) + 1
+            self.operation['extop_map_rco'][restart_conn_op_key] = ( 
+                self.operation['extop_map_rco'].get(restart_conn_op_key, 0) + 1
+            )
+
+
+    def process_autobind_match(self, groups: dict):
+        """
+        Processes an autobind match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+
+        # Create a new entry with an empty ops dict
+        self.pending_conns[conn_key] = {'ops': {}}     
+
+        # Process stats for this match
+        self.process_autobind_stats(groups)
+
+
+    def process_autobind_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+                - 'bind_dn': Bind DN ("cn=Directory Manager")
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+            bind_dn = groups.get('bind_dn')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Bump relevant counters
+        self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
+        self.bind['autobind_ctr'] = self.bind.get('autobind_ctr', 0) + 1
+        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+
+        # Handle an anonymous autobind (empty bind_dn)
+        if bind_dn == "":
+            self.bind['anon_bind_ctr'] = self.bind.get('anon_bind_ctr', 0) + 1
+        else:
+            # Process non-anonymous binds, does the bind_dn if exist in dn_map_rc
+            bind_dn = self.bind['dn_map_rc'].get(restart_conn_key, bind_dn)
+            if bind_dn:
+                if bind_dn == self.root_dn:
+                    self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
+                bind_dn = bind_dn.lower()
+                self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
+
+
+    def process_disconnect_match(self, groups: dict):
+        """
+        Processes a disconnect match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+
+        if conn_key in self.pending_conns:
+            del self.pending_conns[conn_key]
+
+        # Process stats for this match
+        self.process_disconnect_stats(groups)
+
+
+    def process_disconnect_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+                - 'timestamp': The timestamp of the disconnect event.
+                - 'error_code': Error code associated with the disconnect, if any.
+                - 'disconnect_code': Disconnect code, if any.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+            timestamp = groups.get('timestamp')
+            error_code = groups.get('error_code')
+            disconnect_code = groups.get('disconnect_code')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+    
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+        
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        if self.verbose:
+            # Handle verbose logging for open connections and IP addresses
+            src_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key)
+            if src_ip and src_ip in self.connection.get('open_conns', {}):
+                open_conns = self.connection['open_conns']
+                if open_conns[src_ip] > 1:
+                    open_conns[src_ip] -= 1
+                else:
+                    del open_conns[src_ip]
+
+        # Handle latency and disconnect times
+        if self.verbose:
+            start_time = self.connection['start_time'].get(conn_id, None)
+            if start_time and timestamp:
+                latency = self._get_elapsed_time(start_time, timestamp, "seconds")
+                bucket = self._group_latencies(latency)
+                latency_groups[bucket] += 1
+
+                # Reset start and end times for the connection after processing
+                self.connection['start_time'][conn_id] = None
+                self.connection['end_time'][conn_id] = None
+
+        # Update connection stats
+        self.connection['sim_conn_ctr'] = self.connection.get('sim_conn_ctr', 0) - 1
+        self.connection['fd_returned_ctr']  = (
+            self.connection.get('fd_returned_ctr', 0) + 1
+        )
+
+        # Track error and disconnect codes if provided
+        if error_code is not None:
+            error_type = disconnect_errors.get(error_code, 'unknown')
+            if disconnect_code is not None:
+                # Increment the count for the specific error and disconnect code
+                error_map = self.connection.setdefault(error_type, {})
+                error_map[disconnect_code] = error_map.get(disconnect_code, 0) + 1
+
+        # Handle disconnect code and update stats
+        if disconnect_code is not None:
+            self.connection['disconnect_code'][disconnect_code] = (
+                self.connection['disconnect_code'].get(disconnect_code, 0) + 1
+            )
+            self.connection['disconnect_code_map'][restart_conn_key] = disconnect_code
+
+
+    # Process a CRUD operation
+    def process_crud_match(self, groups):
+        """
+        Processes a CRUD (ADD,CMP,MOD,DEL,MODRDN) match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+        
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
+
+        # Process stats for this match
+        self.process_crud_stats(groups)
+
+
+    # Processes a match entry for Create, Read, Update, Delete operations
+    def process_crud_stats(self, groups):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+                - 'op_id': Operation identifier.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+            op_type = groups.get('op_type')
+            internal = groups.get('internal')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+
+        # Use operation type as key for stats
+        if op_type is not None:
+            op_key = op_type.lower()
+            self.operation[f"{op_key}_op_ctr"] = self.operation.get(f"{op_key}_op_ctr", 0) + 1
+            self.operation[f"{op_key}_map_rco"][restart_conn_key] = (
+                self.operation[f"{op_key}_map_rco"].get(restart_conn_key, 0) + 1
+            )
+        
+        # Authorization identity
+        if groups['authzid_dn'] is not None:
+            #authzid = groups['authzid_dn']
+            self.operation['authzid'] = self.operation.get('authzid', 0) + 1
+
+
+    def process_entry_referral_match(self, groups: dict):
+        """
+        Processes an ENTRY or REFERRAL match and associate it with the corresponding connection.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'op_id': Operation identifier.
+                - 'restart_ctr': Server restart count.
+
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            op_id = groups.get('op_id')
+            restart_ctr = groups.get('restart_ctr')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+        
+        # Unique key for this connection
+        conn_key = f"{restart_ctr}_{conn_id}"
+        
+        if conn_key in self.pending_conns:
+            # Update existing connection entry
+            self.pending_conns[conn_key]['ops'][op_id] = groups
+        else:
+            # Create a new connection entry
+            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
+
+        # Process stats for this match
+        self.process_entry_referral_stats(groups)
+
+
+    def process_entry_referral_stats(self, groups: dict):
+        """
+        Process and update statistics based on the parsed result group.
+
+        Args:
+            groups (dict): A dictionary containing operation information. Expected keys:
+                - 'conn_id': Connection identifier.
+                - 'restart_ctr': Server restart count.
+                - 'op_id': Operation identifier.
+        
+        Raises:
+            KeyError: If required keys are missing in the `groups` dictionary.
+        """
+        try:
+            conn_id = groups.get('conn_id')
+            restart_ctr = groups.get('restart_ctr')
+            op_type = groups.get('op_type')
+        except KeyError as e:
+            self.logger.error(f"Missing key in groups: {e}")
+            return
+
+        # Create a tracking key for this entry
+        restart_conn_key = (restart_ctr, conn_id)
+
+        # Should we ignore this operation
+        if restart_conn_key in self.connection['exclude_ip_map']:
+            return None
+        
+        # Process operation type
+        if op_type is not None:
+            if op_type == 'ENTRY':
+                self.result['entry_count'] = self.result.get('entry_count', 0) + 1
+            elif op_type == 'REFERRAL':
+                self.result['referral_count'] = self.result.get('referral_count', 0) + 1
+
+
+    def process_and_write_stats(self, norm_timestamp: str, bytes_read: int):
+        """
+        Processes statistics and writes them to the CSV file at defined intervals.
+
+        Args: 
+            norm_timestamp: Normalized datetime for the current match
+            param bytes_read: Number of bytes read in the current file
+
+        Returns:
+            None
+        """
+
+        if self.csv_writer is None:
+            self.logger.error("CSV writer not enabled.")
+            return
+
+        # Define the stat mapping
+        stats = {
+            'result_ctr': self.result,
+            'search_ctr': self.search,
+            'add_op_ctr': self.operation,
+            'mod_op_ctr': self.operation,
+            'modrdn_op_ctr': self.operation,
+            'cmp_op_ctr': self.operation,
+            'del_op_ctr': self.operation,
+            'abandon_op_ctr': self.operation,
+            'conn_ctr': self.connection,
+            'ldaps_ctr': self.connection,
+            'bind_ctr': self.bind,
+            'anon_bind_ctr': self.bind,
+            'unbind_ctr': self.bind,
+            'notesA_ctr': self.result,
+            'notesU_ctr': self.result,
+            'notesF_ctr': self.result,
+            'etime_stat': self.result
+        }
+
+        # Build the current stat block
+        curr_stat_block = [norm_timestamp]
+        curr_stat_block.extend([refdict[key] for key, refdict in stats.items()])
+
+        curr_time = curr_stat_block[0]
+
+        # Check for previous stats for differences
+        if self.prev_stats is not None:
+            prev_stat_block = self.prev_stats
+            prev_time = prev_stat_block[0]
+
+            # Prepare the output block
+            out_stat_block = [prev_stat_block[0], int(prev_time.timestamp())]
+
+            # Get the time difference, check is it > the specified interval
+            time_diff = (curr_time - prev_time).total_seconds()
+            if time_diff >= self.stats_interval:
+                # Compute differences between current and previous stats
+                diff_stats = [
+                    curr - prev if isinstance(prev, int) else curr
+                    for curr, prev in zip(curr_stat_block[1:], prev_stat_block[1:])
+                ]
+                out_stat_block.extend(diff_stats)
+
+                # Write the stat block to csv and reset elapsed time for the next interval
+                self.csv_writer.writerow(out_stat_block)
+                self.result['etime_stat'] = 0.0
+
+                # Update previous stats for the next interval
+                self.prev_stats = curr_stat_block
+
+        else:
+            # This is the first run, add the csv header for each column
+            stats_header = [
+            'Time', 'time_t', 'Results', 'Search', 'Add', 'Mod', 'Modrdn', 'Compare',
+            'Delete', 'Abandon', 'Connections', 'SSL Conns', 'Bind', 'Anon Bind', 'Unbind', 
+            'Unindexed search', 'Unindexed component', 'Invalid filter', 'ElapsedTime']
+            self.csv_writer.writerow(stats_header)
+            self.prev_stats = curr_stat_block
+
+        # end of file and a previous block needs to be written
+        if bytes_read >= self.file_size and self.prev_stats is not None:
+            # Final write for the last block of stats
+            prev_stat_block = self.prev_stats
+            diff_stats = [
+                curr - prev if isinstance(prev, int) else curr
+                for curr, prev in zip(curr_stat_block[1:], prev_stat_block[1:])
+            ]
+            out_stat_block = [prev_stat_block[0], int(curr_time.timestamp())]
+            out_stat_block.extend(diff_stats)
+
+            # Write the stat block to csv and reset elapsed time for the next interval
+            self.csv_writer.writerow(out_stat_block)
+            self.result['etime_stat'] = 0.0
+
+   
     # Group connection latencies into 6 time ranges
-    def group_latencies(self, latency_seconds):
+    def _group_latencies(self, latency_seconds: int):
+        """
+        Group latency values into predefined categories.
+
+        Args:
+            latency_seconds (int): The latency in seconds.
+
+        Returns:
+            str: A group corresponding to the latency.
+        """
         if latency_seconds <= 1:
             return "<= 1"
         elif latency_seconds == 2:
@@ -1317,101 +2131,229 @@ class logAnalyzer:
         else:
             return "> 15"
     
-    # Check log file mime type
-    def is_file_compressed(self, filepath):
-        logging.debug("is_file_compressed - filepath:{}".format(filepath))
-        mime = magic.Magic(mime=True)
-        if os.path.exists(filepath):
+    # Determines if a file is compressed based on its MIME type
+    def _is_file_compressed(self, filepath):
+        """
+        Determines if a file is compressed based on its MIME type.
+
+        Args:
+            filepath (str): The path to the file.
+
+        Returns:
+            TrueCompressionStatus | str: 
+                - CompressionStatus.COMPRESSED and the MIME type if compressed.
+                - CompressionStatus.NOT_COMPRESSED if not compressed.
+                - CompressionStatus.FILE_NOT_FOUND if the file does not exist.
+        Returns:
+            A tuple where the first element indicates if the file is compressed with a supported
+            method, the second element is the supported compression method.
+            False, when a non supported compression method is detected.
+            None, If the file does not exist or on exception.
+        """
+        if not os.path.exists(filepath):
+            self.logger.error(f"File not found: {filepath}")
+            return None
+    
+        try:
+            mime = magic.Magic(mime=True)
             filetype = mime.from_file(filepath)
+
+            # List of supported compression types
             compressed_mime_types = [
                 'application/gzip',             # gz, tar.gz, tgz
                 'application/x-gzip',           # gz, tgz
             ]
+
             if filetype in compressed_mime_types:
-                return filetype
+                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype})")
+                return True, filetype
             else:
+                self.logger.info(f"File is not compressed: {filepath}")
                 return False
-        else:
+            
+        except Exception as e:
+            self.logger.error(f"Error while determining compression for file {filepath}: {e}")
             return None
-        
-    # Validate start and stop times if defined
-    def set_parse_times(self, start_time, stop_time):
 
-        norm_start_time = (start_time[:26] + start_time[29:]).strip("[]")
-        norm_stop_time = (stop_time[:26] + stop_time[29:]).strip("[]")
+    # Validate and set log parse start and stop times
+    def _set_parse_times(self, start_time, stop_time):
+        """
+        Validate and set log parse start and stop times.
+
+        Args:
+            start_time (str): The start time as a timestamp string.
+            stop_time (str): The stop time as a timestamp string.
+
+        Raises:
+            ValueError: If stop_time is earlier than start_time or timestamps are invalid.
+        """
         try:
-            start = datetime.strptime(norm_start_time, self.timeformat)
-            end = datetime.strptime(norm_stop_time, self.timeformat)
+            # Convert timestamps to datetime objects
+            norm_start_time = self._convert_timestamp_to_datetime(start_time)
+            norm_stop_time = self._convert_timestamp_to_datetime(stop_time)
+
+            # Validate time order
+            if norm_stop_time <= norm_start_time:
+                raise ValueError("End time is before or equal to start time. Please check the input timestamps.")
+
+            # Store the parse times as datetime objects
+            self.server['parse_start_time'] = norm_start_time
+            self.server['parse_stop_time'] = norm_stop_time
+
         except ValueError as e:
-            print("Invalid time format. Expected format: DD/Mon/YYYY:HH:MM:SS TZ. Exiting !")
-            sys.exit()
+            print(f"Error setting parse times: {e}")
+            raise
 
-        if end < start:
-            print(f"End time is before start time. Exiting !")
-            sys.exit()
+    # Process a log file line by line
+    def _process_file(self, log_num, filepath):
+        """
+        Process a file line by line, supporting both compressed and uncompressed formats.
 
-        # Store the parse times as formatted strings
-        self.server['parse_start_time'] = start.strftime(self.timeformat)
-        self.server['parse_stop_time'] = end.strftime(self.timeformat)
+        Args:
+            log_num (str): Log file number (Used for multiple log files).
+            filepath (str): Path to the file.
 
-    # Main log file processing loop
-    def process_file(self, filepath):
+        Returns:
+            None
+        """
         file_size = 0
         curr_position = 0
-        block_count = 0
         lines_read = 0
+        block_count = 0
+        block_count_limit = 0
+        # Percentage of file size to trigger progress updates
+        update_precent = 10
+
+        self.logger.info(f"Processing file: {filepath}")
 
         try:
-            comptype = self.is_file_compressed(filepath)
+            # Is log compressed
+            comptype = self._is_file_compressed(filepath)
             if (comptype):
-                if comptype == 'application/gzip':
-                    logging.debug("open_and - gzip")
+                self.logger.info(f"File compression type detected: {comptype}")
+                # If comptype is True, comptype[1] is MIME type
+                if comptype[1] == 'application/gzip':
                     filehandle = gzip.open(filepath, 'rb')
-                    
+                else:
+                    self.logger.warning(f"Unsupported compression type: {comptype}. Attempting to process as uncompressed.")
+                    filehandle = open(filepath, 'rb')
             else:
                 filehandle = open(filepath, 'rb')
-        except Exception as e:
-                print(f"Error opening:{filepath}: {e}")
 
-        # Seek to the end to get file size 
-        filehandle.seek(0, os.SEEK_END)
-        file_size = filehandle.tell()
-        self.file_size = file_size
-        print(f"{filehandle.name} size (bytes): {file_size}")
+            with filehandle:
+                # Seek to the end to get file size
+                filehandle.seek(0, os.SEEK_END)
+                file_size = filehandle.tell()
+                self.file_size = file_size
+                self.logger.info(f"{filehandle.name} size (bytes): {file_size}")
 
-        # Back to the start
-        filehandle.seek(0) 
-        for line in filehandle:
-            line_content = line.decode('utf-8').strip()
-            if line_content.startswith('['):
-                self.match_line(line_content, filehandle.tell())
-                block_count += 1
-                lines_read += 1
+                # Back to the start
+                filehandle.seek(0) 
+                print(f"[{log_num:03d}] {filehandle.name:<30}\tsize (bytes): {file_size:>12}")
 
-            if block_count >= 25000:
-                curr_position = filehandle.tell()
-                percent = curr_position/file_size * 100.0
-                print(f"{lines_read:10d} Lines Processed     {curr_position:12d} of {file_size:12d} bytes ({percent:.3f}%)")
-                block_count = 0
+                # Calculate progress interval
+                block_count_limit = int(file_size * update_precent/100)
+                for line in filehandle:
+                    try:
+                        line_content = line.decode('utf-8').strip()
+                        if line_content.startswith('['):
+                            proceed = self.match_line(line_content, filehandle.tell())
+                            if proceed is False:
+                                self.logger.info("Processing stopped, outside parse time range.")
+                                break
 
-        if filehandle and not filehandle.closed:
-            filehandle.close            
+                            block_count += len(line)
+                            lines_read += 1
+
+                        # Is it time to give an update
+                        if block_count >= block_count_limit:
+                            curr_position = filehandle.tell()
+                            percent = curr_position/file_size * 100.0
+                            print(f"{lines_read:10d} Lines Processed     {curr_position:12d} of {file_size:12d} bytes ({percent:.3f}%)")
+                            block_count = 0
+
+                    except UnicodeDecodeError as de:
+                        self.logger.error(f"non-decodable line at position {filehandle.tell()}: {de}")
+
+        except FileNotFoundError:
+            self.logger.error(f"File not found: {filepath}")
+        except IOError as ie:
+            self.logger.error(f"IO error processing file {filepath}: {ie}")        
         
 
-    # Calcluate elapsed time from start and finish timestamps, output format in seconds or HMS
-    def get_elapsed_time(self, start, finish, time_format="seconds"):
-        format = "%d/%b/%Y:%H:%M:%S.%f %z"
+    # Converts a timestamp to a Python datetime object
+    def _convert_timestamp_to_datetime(self, timestamp):
+        """
+        Converts a timestamp in the format '[04/Jun/2024:10:31:20.015139771 +0200]'
+        to a Python datetime object. Nanoseconds are truncated to microseconds.
+        
+        Args:
+            timestamp (str): The timestamp string to convert.
 
+        Returns:
+            datetime: The equivalent datetime object with timezone.
+        """
+
+        timestamp = timestamp.strip("[]")
+
+        # Separate datetime and timezone components
+        datetime_part, tz_offset = timestamp.rsplit(" ", 1)
+
+        # Separate seconds and nanoseconds
+        datetime_part, nanos = datetime_part.rsplit(".", 1)
+        
+        # Truncate nano to micro
+        nanos = nanos[:6]
+        
+        # Reconstruct datetime string with microseconds
+        datetime_with_micros = f"{datetime_part}.{nanos}"
+        
+        # Create a datetime object
+        dt = datetime.strptime(datetime_with_micros, self.timeformat)
+
+        # Calc the timezone offset
+        if tz_offset[0] == "+":
+            sign = 1 
+        else:
+            sign = -1
+
+        hours_offset = int(tz_offset[1:3])
+        minutes_offset = int(tz_offset[3:5])
+        delta = timedelta(hours=hours_offset, minutes=minutes_offset)
+        
+        # Apply the timezone offset
+        return dt - sign * delta
+
+
+    # Calculates the elapsed time between start and finish datetimes
+    def _get_elapsed_time(self, start, finish, time_format="seconds"):
+        """
+        Calculates the elapsed time between start and finish datetimes.
+
+        Args:
+            start (datetime): The start timestamp.
+            finish (datetime): The finish timestamp.
+            time_format (str): Output format ("seconds" or "hms").
+
+        Returns:
+            float | tuple: Elapsed time in seconds or as (hours, minutes, seconds).
+
+        Raises:
+            ValueError: If non datetime object used.
+            ValueError: If invalid time formatting used.
+        """
         if start == None or finish == None:
             if time_format == "seconds":
                 return (0)
             elif time_format == "hms":
                 return (0, 0, 0)
+                    
+        # Validate start and finish inputs
+        if not (isinstance(start, datetime) and isinstance(finish, datetime)):
+            raise TypeError("start and finish must be datetime objects or None.")
             
-        time1 = datetime.strptime(finish, format)
-        time2 = datetime.strptime(start, format)
-        elapsed_time = time1 - time2
-
+        # Get elapsed time, format for output
+        elapsed_time = finish - start
         if time_format == "seconds":
             return elapsed_time.total_seconds()
         elif time_format == "hms":
@@ -1421,67 +2363,96 @@ class logAnalyzer:
             return (hours, mins, secs)
         else:
             raise ValueError("Invalid format. Use 'seconds' or 'hms'.")
+
+    # Calculate the overall performance as a percentage
+    def _get_overall_perf(self, num_results, num_ops):
+        """
+        Calculate the overall performance as a percentage.
+
+        Args:
+            num_results (int): Number of results.
+            num_ops (int): Number of operations.
+
+        Returns:
+            float: Performance percentage, limited to a maximum of 100.0
         
-    # Calculate performance based on results and operations
-    def get_overall_perf(self, num_results, num_ops):
-        if num_ops == 0:
-            perf = 0.0
-        else:
-            perf = min((num_results / num_ops) * 100, 100.0)
-        return f"{perf:.1f}"
+        Raises:
+            ValueError: On negative args.
+        """
+        if num_results < 0 or num_ops < 0:
+            raise ValueError("Inputs num_results and num_ops must be non-negative.")
     
+        if num_ops == 0:
+            return 0.0
+
+        perf = min((num_results / num_ops) * 100, 100.0)
+        return round(perf, 1)
+    
+
 def main():
     parser = argparse.ArgumentParser(description="Analyze one or more server access logs")
     parser.add_argument('logs', type=str, nargs='+', help='Single or multiple (*) access logs')
-    parser.add_argument('-d', '--rootDN', type=str, default="cn=directory manager", help='Directory Managers DN, default is "cn=directory manager"')
-    parser.add_argument('-X', '--excludeIP', action='append', help='IP address to exclude from connection stats')
-    parser.add_argument('-s', '--sizeLimit', type=int, default=10, help='Number of results to return per catagory, default is 10')
-    parser.add_argument('-S', '--startTime', action='store', help='Time to begin analyzing logfile from')
-    parser.add_argument('-E', '--endTime', action='store', help='Time to stop analyzing logfile')
-    parser.add_argument("-m", '--reportFileSecs', metavar="STATS FILENAME", type=str, help="Enable writing perf stats to specified CSV file at specified intervals")
-    parser.add_argument("-M", '--reportFileMins', metavar="STATS FILENAME", type=str, help="Enable writing perf stats to specified CSV file at specified intervals")
+    parser.add_argument('-d', '--rootDN', type=str, default="cn=directory manager", 
+                        help='Directory Managers DN, default is "cn=directory manager"')
+    parser.add_argument('-X', '--exclude_ip', action='append', help='IP address to exclude from connection stats')
+    parser.add_argument('-s', '--sizeLimit', type=int, default=10, 
+                        help='Number of results to return per category (default: 10)')
+    parser.add_argument('-S', '--startTime', action='store', 
+                        help='Time to begin analyzing logfile from, E.g -S "[04/Jun/2024:10:31:20.014629085 +0200]"')
+    parser.add_argument('-E', '--endTime', action='store', 
+                        help='Time to stop analyzing logfile. E.g.  -E "[04/Jun/2024:10:38:59.763138314 +0200]"')
+    parser.add_argument("-m", '--reportFileSecs', metavar="STATS FILENAME", type=str, 
+                        help="Write performance stats to CSV file at second intervals")
+    parser.add_argument("-M", '--reportFileMins', metavar="STATS FILENAME", type=str, 
+                        help="Write performance stats to CSV file at minute intervals")
+    parser.add_argument('-j', '--recommends', action='store_true', help='Display recomendations')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')
-    
-
     args = parser.parse_args()
 
-    db = logAnalyzer(verbose=args.verbose, sizelimit=args.sizeLimit, 
-                     rootdn=args.rootDN, excludeip=args.excludeIP, 
-                     reportStatsSec=args.reportFileSecs, reportStatsMin=args.reportFileMins)
 
-    if args.startTime and args.endTime:
-        db.set_parse_times(args.startTime, args.endTime)
+    try:
+        # Initialize log analyser
+        db = logAnalyser(
+            verbose=args.verbose, 
+            size_limit=args.sizeLimit, 
+            root_dn=args.rootDN, 
+            exclude_ip=args.exclude_ip, 
+            stats_file_sec=args.reportFileSecs, 
+            stats_file_min=args.reportFileMins,
+            recommends=args.recommends)
+
+        if args.startTime and args.endTime:
+            db._set_parse_times(args.startTime, args.endTime)
     
-    print(f"Access Log Analyzer {db.version}")
-    print(f"Command: {' '.join(sys.argv)}")
+        print(f"Access Log Analyser {db.version}")
+        print(f"Command: {' '.join(sys.argv)}")
 
-    # Sanitise list of log files, and sort by creation time
-    logs = [file for file in args.logs if not re.search(r'access\.rotationinfo', file)]
-    logs.sort(key=lambda x: os.path.getctime(x))
-    # We shoud never reach here, if we do put access and the end of the log file list
-    if 'access'  in logs:
-        logs.append(logs.pop(logs.index('access')))
+        # Sanitise list of log files
+        access_logs = [file for file in args.logs if not re.search(r'access\.rotationinfo', file)]
+        # Sort by creation time
+        access_logs.sort(key=lambda x: os.path.getctime(x))
+        # We shoud never reach here, if we do put access and the end of the log file list
+        if 'access'  in access_logs:
+            access_logs.append(access_logs.pop(access_logs.index('access')))
 
-    print(f"Processing {len(logs)} Access Log(s)")
-    print()
+        num_logs = len(access_logs)
+        print(f"Processing {num_logs} access log{'s' if num_logs > 1 else ''}...\n")
 
-    # Main file handling
-    for log in logs:
-        accesslogs = glob.glob(log)
-        logging.debug("main - acceslogs:{}".format(accesslogs))
-        if not accesslogs:
-            print(f"No access log found !: {args.logs}")
-        else:
-            for accesslog in accesslogs:
-                if os.path.isfile(accesslog):
-                    db.process_file(accesslog)
-                else:
-                    print(f"Invalid file: {accesslog}")
+        # Main file handling
+        for num, accesslog in enumerate(access_logs, start = 1):
+            if os.path.isfile(accesslog):
+                db._process_file(num, accesslog)
+            else:
+                print(f"Invalid file: {accesslog}")
+                db.logger.error(f"Invalid file:{accesslog}")
 
+    except Exception as e:
+        db.logger.error("An error occurred: %s", e, exc_info=args.verbose)
+        sys.exit(1)
 
     # Prep for display
-    hrs, mins, secs = db.get_elapsed_time(db.server['first_time'], db.server['last_time'], "hms")
-    elapsed_secs = db.get_elapsed_time(db.server['first_time'], db.server['last_time'], "seconds")
+    hrs, mins, secs = db._get_elapsed_time(db.server['first_time'], db.server['last_time'], "hms")
+    elapsed_secs = db._get_elapsed_time(db.server['first_time'], db.server['last_time'], "seconds")
     num_ops = db.operation.get('all_op_ctr', 0)
     num_results = db.result.get('result_ctr', 0)
     num_conns = db.connection.get('conn_ctr', 0)
@@ -1493,55 +2464,70 @@ def main():
     num_search = db.search.get('search_ctr', 0)
     num_mod = db.operation.get('mod_op_ctr', 0)
     num_add = db.operation.get('add_op_ctr', 0)
-    num_del = db.operation.get('del_ctr', 0)
+    num_del = db.operation.get('del_op_ctr', 0)
     num_modrdn = db.operation.get('modrdn_op_ctr', 0)
     num_cmp = db.operation.get('cmp_op_ctr', 0)
     num_bind = db.bind.get('bind_ctr', 0)
+    num_unbind = db.bind.get('unbind_ctr', 0)
     num_proxyd_auths = db.operation.get('authzid', 0) + db.search.get('authzid', 0)
     num_time_count = db.result.get('timestamp_ctr')
+    num_fd_taken = db.connection.get('fd_taken_ctr', 0)
+    num_fd_rtn = db.connection.get('fd_returned_ctr', 0)
+    num_DM_binds = db.bind.get('rootdn_bind_ctr', 0)
+    avg_wtime = round(db.result.get('total_wtime', 0)/num_time_count, 9)
+    avg_optime = round(db.result.get('total_optime', 0)/num_time_count, 9)
+    avg_etime = round(db.result.get('total_etime', 0)/num_time_count, 9)
+    num_base_search = db.search.get('base_search_ctr', 0)
 
-    print()
-    print(f"Total Log Lines Analysed:{db.server['lines_parsed']}")
-    print()
+    print(f"\nTotal Log Lines Analysed:{db.server['lines_parsed']}\n")
     print("\n----------- Access Log Output ------------\n")
     print(f"Start of Logs:                  {db.server['first_time']}")
     print(f"End of Logs:                    {db.server['last_time']}")
-    print()
-    print(f"Processed Log Time:             {hrs:.0f} Hours, {mins:.0f} Minutes, {secs:.0f} Seconds")
-    print()
+    print(f"\nProcessed Log Time:             {hrs:.0f} Hour{'s' if hrs > 1 else ''},"
+        f"{mins:.0f} Minute{'s' if mins > 1 else ''}, {secs:.0f} Seconds\n")
     if db.stats_interval is not None:
         sys.exit()
     print(f"Restarts:                       {db.server.get('restart_ctr', 0)}")    
     if db.auth.get('cipher_ctr', 0) > 0:
         print(f"Secure Protocol Versions:")
-        protocols = db.auth['auth_protocol']
-        for protocol in sorted(protocols.keys(), key=lambda k: protocols[k], reverse=True):
-            print(f"   - {protocol:<4}: {protocols[protocol]:>6} connections")
-    print()
-    print(f"Peak Concurrent connections:    {db.connection.get('max_sim_conn_ctr', 0)}")
+        # Group data by protocol + version + unique message
+        grouped_data = defaultdict(lambda: {'count': 0, 'messages': set()})
+        for _, details in db.auth['auth_info'].items():
+            # If there is no protocol version
+            if details['version']:
+                proto_version = f"{details['proto']}{details['version']}"
+            else:
+                proto_version = f"{details['proto']}"
+
+            for message in details['message']:
+                # Unique key for protocol-version and message
+                unique_key = (proto_version, message)  
+                grouped_data[unique_key]['count'] += details['count']
+                grouped_data[unique_key]['messages'].add(message)
+
+        for ((proto_version, message), data) in grouped_data.items():
+            print(f"  - {proto_version} {message} ({data['count']} connection{'s' if data['count'] > 1 else ''})")
+
+    print(f"\nPeak Concurrent connections:    {db.connection.get('max_sim_conn_ctr', 0)}")
     print(f"Total Operations:               {num_ops}")
     print(f"Total Results:                  {num_results}")
-    print(f"Overall Performance:            {db.get_overall_perf(num_results, num_ops)}%")
-    print()
-    print(f"Total connections:              {num_conns:<10}{num_conns/elapsed_secs:>10.2f}/sec {(num_conns/elapsed_secs) * 60:>10.2f}/min")
+    print(f"Overall Performance:            {db._get_overall_perf(num_results, num_ops)}%")
+    print(f"\nTotal connections:              {num_conns:<10}{num_conns/elapsed_secs:>10.2f}/sec {(num_conns/elapsed_secs) * 60:>10.2f}/min")
     print(f"- LDAP connections:             {num_ldap:<10}{num_ldap/elapsed_secs:>10.2f}/sec {(num_ldap/elapsed_secs) * 60:>10.2f}/min")
     print(f"- LDAPI connections:            {num_ldapi:<10}{num_ldapi/elapsed_secs:>10.2f}/sec {(num_ldapi/elapsed_secs) * 60:>10.2f}/min")
     print(f"- LDAPS connections:            {num_ldaps:<10}{num_ldaps/elapsed_secs:>10.2f}/sec {(num_ldaps/elapsed_secs) * 60:>10.2f}/min")
     print(f"- StartTLS Extended Ops         {num_startls:<10}{num_startls/elapsed_secs:>10.2f}/sec {(num_startls/elapsed_secs) * 60:>10.2f}/min")
-    print()
-    print(f"Searches:                       {num_search:<10}{num_search/elapsed_secs:>10.2f}/sec {(num_search/elapsed_secs) * 60:>10.2f}/min")
+    print(f"\nSearches:                       {num_search:<10}{num_search/elapsed_secs:>10.2f}/sec {(num_search/elapsed_secs) * 60:>10.2f}/min")
     print(f"Modifications:                  {num_mod:<10}{num_mod/elapsed_secs:>10.2f}/sec {(num_mod/elapsed_secs) * 60:>10.2f}/min")
     print(f"Adds:                           {num_add:<10}{num_add/elapsed_secs:>10.2f}/sec {(num_add/elapsed_secs) * 60:>10.2f}/min")
     print(f"Deletes:                        {num_del:<10}{num_del/elapsed_secs:>10.2f}/sec {(num_del/elapsed_secs) * 60:>10.2f}/min")
     print(f"Mod RDNs:                       {num_modrdn:<10}{num_modrdn/elapsed_secs:>10.2f}/sec {(num_modrdn/elapsed_secs) * 60:>10.2f}/min")
     print(f"Compares:                       {num_cmp:<10}{num_cmp/elapsed_secs:>10.2f}/sec {(num_cmp/elapsed_secs) * 60:>10.2f}/min")
     print(f"Binds:                          {num_bind:<10}{num_bind/elapsed_secs:>10.2f}/sec {(num_bind/elapsed_secs) * 60:>10.2f}/min")
-    print()
-    print(f"Average wtime (wait time):      {round(db.result.get('total_wtime', 0)/num_time_count, 9)}")
-    print(f"Average optime (op time):       {round(db.result.get('total_optime', 0)/num_time_count, 9)}")
-    print(f"Average etime (elapsed time):   {round(db.result.get('total_etime', 0)/num_time_count, 9)}")
-    print()
-    print(f"Multi-factor Authentications:   {db.result.get('notesM_ctr', 0)}")
+    print(f"\nAverage wtime (wait time):      {avg_wtime:.9f}")
+    print(f"Average optime (op time):       {avg_optime:.9f}")
+    print(f"Average etime (elapsed time):   {avg_etime:.9f}")
+    print(f"\nMulti-factor Authentications:   {db.result.get('notesM_ctr', 0)}")
     print(f"Proxied Auth Operations:        {num_proxyd_auths}")
     print(f"Persistent Searches:            {db.search.get('persistent_ctr', 0)}")
     print(f"Internal Operations:            {db.server.get('internal_op_ctr', 0)}")
@@ -1549,22 +2535,20 @@ def main():
     print(f"Extended Operations:            {db.operation.get('extnd_op_ctr', 0)}") 
     print(f"Abandoned Requests:             {db.operation.get('abandon_op_ctr', 0)}")
     print(f"Smart Referrals Received:       {db.result.get('referral_count', 0)}") 
-    print()
-    print(f"VLV Operations:                 {db.vlv.get('vlv_ctr', 0)}")
+    print(f"\nVLV Operations:                 {db.vlv.get('vlv_ctr', 0)}")
     print(f"VLV Unindexed Searches:         {len([key for key, value in db.vlv['vlv_map_rco'].items() if value == 'A'])}")
     print(f"VLV Unindexed Components:       {len([key for key, value in db.vlv['vlv_map_rco'].items() if value == 'U'])}")
     print(f"SORT Operations:                {db.operation.get('sort_op_ctr', 0)}")
-    print()
-    print(f"Entire Search Base Queries:     {db.search.get('base_search_ctr', 0)}")
+    print(f"\nEntire Search Base Queries:     {db.search.get('base_search_ctr', 0)}")
     print(f"Paged Searches:                 {db.result.get('notesP_ctr', 0)}")
     num_unindexed_search = len(db.notesA.keys())
     print(f"Unindexed Searches:             {num_unindexed_search}")
     if db.verbose:
         if num_unindexed_search > 0:
-            for num, key in enumerate(db.notesU, start = 1):
+            for num, key in enumerate(db.notesA, start = 1):
                 src, conn, op = key
                 restart_conn_op_key = (src, conn, op)
-                print(f"Unindexed Search #{num} (notes=A)")
+                print(f"\nUnindexed Search #{num} (notes=A)")
                 print(f"  -  Date/Time:             {db.notesA[restart_conn_op_key]['time']}")
                 print(f"  -  Connection Number:     {conn}")
                 print(f"  -  Operation Number:      {op}")
@@ -1574,18 +2558,16 @@ def main():
                 print(f"  -  Search Base:           {db.notesA[restart_conn_op_key]['base']}")
                 print(f"  -  Search Scope:          {db.notesA[restart_conn_op_key]['scope']}")
                 print(f"  -  Search Filter:         {db.notesA[restart_conn_op_key]['filter']}")
-                print(f"  -  Bind DN:               {db.notesA[restart_conn_op_key]['bind_dn']}")
-                print()
+                print(f"  -  Bind DN:               {db.notesA[restart_conn_op_key]['bind_dn']}\n")
+
     num_unindexed_component = len(db.notesU.keys())
     print(f"Unindexed Components:           {num_unindexed_component}")
-
     if db.verbose:
         if num_unindexed_component > 0:
             for num, key in enumerate(db.notesU, start = 1):
                 src, conn, op = key
                 restart_conn_op_key = (src, conn, op)
-                print()
-                print(f"Unindexed Component #{num} (notes=U)")
+                print(f"\nUnindexed Component #{num} (notes=U)")
                 print(f"  -  Date/Time:             {db.notesU[restart_conn_op_key]['time']}")
                 print(f"  -  Connection Number:     {conn}")
                 print(f"  -  Operation Number:      {op}")
@@ -1595,8 +2577,8 @@ def main():
                 print(f"  -  Search Base:           {db.notesU[restart_conn_op_key]['base']}")
                 print(f"  -  Search Scope:          {db.notesU[restart_conn_op_key]['scope']}")
                 print(f"  -  Search Filter:         {db.notesU[restart_conn_op_key]['filter']}")
-                print(f"  -  Bind DN:               {db.notesU[restart_conn_op_key]['bind_dn']}")
-                print()
+                print(f"  -  Bind DN:               {db.notesU[restart_conn_op_key]['bind_dn']}\n")
+
     num_invalid_filter = len(db.notesF.keys())
     print(f"Invalid Attribute Filters:      {num_invalid_filter}")
     if db.verbose:
@@ -1604,8 +2586,7 @@ def main():
             for num, key in enumerate(db.notesF, start = 1):
                 src, conn, op = key
                 restart_conn_op_key = (src, conn, op)
-                print()
-                print(f"Invalid Attribute Filter #{num} (notes=F)")
+                print(f"\nInvalid Attribute Filter #{num} (notes=F)")
                 print(f"  -  Date/Time:             {db.notesF[restart_conn_op_key]['time']}")
                 print(f"  -  Connection Number:     {conn}")
                 print(f"  -  Operation Number:      {op}")
@@ -1613,35 +2594,29 @@ def main():
                 print(f"  -  Nentries:              {db.notesF[restart_conn_op_key]['nentries']}")
                 print(f"  -  IP Address:            {db.notesF[restart_conn_op_key]['ip']}")
                 print(f"  -  Search Filter:         {db.notesF[restart_conn_op_key]['filter']}")
-                print(f"  -  Bind DN:               {db.notesF[restart_conn_op_key]['bind_dn']}")
-                print()
-    print(f"FDs Taken:                      {db.connection.get('fd_taken_ctr', 0)}")
-    print(f"FDs Returned:                   {db.connection.get('fd_returned_ctr', 0)}")
-    print(f"Highest FD Taken:               {db.connection.get('fd_max_ctr', 0)}")
-    print()
+                print(f"  -  Bind DN:               {db.notesF[restart_conn_op_key]['bind_dn']}\n")
+    print(f"FDs Taken:                      {num_fd_taken}")
+    print(f"FDs Returned:                   {num_fd_rtn}")
+    print(f"Highest FD Taken:               {db.connection.get('fd_max_ctr', 0)}\n")
     num_broken_pipe = len(db.connection['broken_pipe'])
-    print(f"Broken Pipe:                    {num_broken_pipe}")
+    print(f"Broken Pipes:                    {num_broken_pipe}")
     if num_broken_pipe > 0:
         for code, count in db.connection['broken_pipe'].items():
             print(f"    - {count} ({code}) {disconnect_msg.get(code, 'unknown')}")
-        print()
 
     num_reset_peer = len(db.connection['connection_reset'])
     print(f"Connection Reset By Peer:       {num_reset_peer}")
     if num_reset_peer > 0:
         for code, count in db.connection['connection_reset'].items():
             print(f"    - {count} ({code}) {disconnect_msg.get(code, 'unknown')}")
-        print()
 
     num_resource_unavail = len(db.connection['resource_unavail'])
     print(f"Resource Unavailable:           {num_resource_unavail}")
     if num_resource_unavail > 0:
         for code, count in db.connection['resource_unavail'].items():
             print(f"    - {count} ({code}) {disconnect_msg.get(code, 'unknown')}")
-        print()
 
-    print(f"Max BER Size Exceeded:          {db.connection['disconnect_code'].get('B2', 0)}")
-    print()
+    print(f"Max BER Size Exceeded:          {db.connection['disconnect_code'].get('B2', 0)}\n")
     print(f"Binds:                          {db.bind.get('bind_ctr', 0)}")
     print(f"Unbinds:                        {db.bind.get('unbind_ctr', 0)}")
     print(f"----------------------------------")
@@ -1655,14 +2630,11 @@ def main():
         saslmech = db.bind['sasl_mech_freq']
         for saslb in sorted(saslmech.keys(), key=lambda k: saslmech[k], reverse=True):
             print(f"   - {saslb:<4}: {saslmech[saslb]}")
-    print(f"- Directory Manager Binds:      {db.bind.get('rootdn_bind_ctr', 0)}")
-    print(f"- Anonymous Binds:              {db.bind.get('anon_bind_ctr', 0)}")
-    print()
+    print(f"- Directory Manager Binds:      {num_DM_binds}")
+    print(f"- Anonymous Binds:              {db.bind.get('anon_bind_ctr', 0)}\n")
     if db.verbose:
         # Connection Latency
-        print()
-        print(f" ----- Connection Latency Details -----")
-        print()
+        print(f"\n ----- Connection Latency Details -----\n")
         print(f" (in seconds){' ' * 10}{'<=1':^7}{'2':^7}{'3':^7}{'4-5':^7}{'6-10':^7}{'11-15':^7}{'>15':^7}")
         print('-' * 72)
         print(f"{' (# of connections)    ':<17}"
@@ -1673,18 +2645,16 @@ def main():
             f"{latency_groups['6-10']:^7}"
             f"{latency_groups['11-15']:^7}"
             f"{latency_groups['> 15']:^7}")
-        print()
 
         # Open Connections
         open_conns = db.connection['open_conns']
         if len(open_conns) > 0:
-            print(f" ----- Current Open Connection IDs -----\n")
+            print(f"\n ----- Current Open Connection IDs -----\n")
             for conn in sorted(open_conns.keys(), key=lambda k: open_conns[k], reverse=True):
                 print(f"{conn:<16} {open_conns[conn]:>10}")    
-        print()
 
         # Error Codes
-        print(f" ----- Errors -----\n")
+        print(f"\n----- Errors -----\n")
         error_freq = db.result['error_freq']
         for err in sorted(error_freq.keys(), key=lambda k: error_freq[k], reverse=True):
             print(f"err={err:<2} {error_freq[err]:>10}  {ldap_error_codes[err]:<30}")
@@ -1692,18 +2662,15 @@ def main():
         # Failed Logins
         bad_pwd_map = db.result['bad_pwd_map']
         if len(bad_pwd_map) > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Failed Logins ------\n")
+            print(f"\n----- Top {db.size_limit} Failed Logins ------\n")
             for num, (dn, ip) in enumerate(bad_pwd_map):
-                if num > db.sizelimit:
+                if num > db.size_limit:
                     break
                 count = bad_pwd_map.get((dn, ip))
                 print(f"{count:<10} {dn}")
-            print()
-            print(f"From the IP address(s) :")
-            print()
+            print(f"\nFrom the IP address(s) :\n")
             for num, (dn, ip) in enumerate(bad_pwd_map):
-                if num > db.sizelimit:
+                if num > db.size_limit:
                     break
                 count = bad_pwd_map.get((dn, ip))
                 print(f"{count:<10} {ip}")
@@ -1711,9 +2678,7 @@ def main():
         # Connection Codes
         disconnect_codes = db.connection['disconnect_code']
         if len(disconnect_codes) > 0:
-            print()
-            print(f"----- Total Connection Codes ----")
-            print()
+            print(f"\n----- Total Connection Codes ----\n")
             for code in disconnect_codes:
                 print(f"{code:<2} {disconnect_codes[code]:>10}  {disconnect_msg.get(code, 'unknown'):<30}")
         
@@ -1721,15 +2686,12 @@ def main():
         restart_conn_ip_map = db.connection['restart_conn_ip_map']
         ip_map = db.connection['ip_map']
         if len(ip_map) > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Clients -----")
-            print()
-            print(f"Number of Clients:  {len(ip_map)}")
-            print()
+            print(f"\n----- Top {db.size_limit} Clients -----\n")
+            print(f"Number of Clients:  {len(ip_map)}\n")
             for num, (outer_ip, count) in enumerate(ip_map.items(), start = 1):
                 temp = {}
                 print(f"[{num}] Client: {outer_ip}")
-                print(f"    {count} - Connections")
+                print(f"    {count} - Connection{'s' if count > 1 else ''}")
                 for id, inner_ip in restart_conn_ip_map.items():
                     (src, conn) = id
                     if outer_ip == inner_ip:
@@ -1737,21 +2699,18 @@ def main():
                         if code:
                                 temp[code] = temp.get(code, 0) + 1
                 for code, count in temp.items():
-                    print(f"    {count} - {code} ({disconnect_msg.get(code, 'unknown')})")
-                print()
-                if num > db.sizelimit - 1:
+                    print(f"    {count} - {code} ({disconnect_msg.get(code, 'unknown')})\n")
+                if num > db.size_limit - 1:
                     break
 
         # Unique Bind DN's
         binds = db.bind.get('dn_freq', 0)
         binds_len = len(binds)
         if binds_len > 0:
-            print(f"----- Top {db.sizelimit} Bind DN's ----")
-            print()
-            print(f"Number of Unique Bind DN's: {binds_len}")
-            print()
+            print(f"\n----- Top {db.size_limit} Bind DN's ----\n")
+            print(f"Number of Unique Bind DN's: {binds_len}\n")
             for num, bind in enumerate(sorted(binds.keys(), key=lambda k: binds[k], reverse=True)):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"{db.bind['dn_freq'][bind]:<10}  {bind:<30}")
         
@@ -1759,13 +2718,10 @@ def main():
         bases = db.search['base_map']
         num_bases = len(bases)
         if num_bases > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Search Bases ----")
-            print()
-            print(f"Number of Unique Search Bases: {num_bases}")
-            print()
+            print(f"\n----- Top {db.size_limit} Search Bases -----\n")
+            print(f"Number of Unique Search Bases: {num_bases}\n")
             for num, base in enumerate(sorted(bases.keys(), key=lambda k: bases[k], reverse=True)):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"{db.search['base_map'][base]:<10}  {base}")
 
@@ -1773,11 +2729,9 @@ def main():
         filters = sorted(db.search['filter_list'], reverse=True)
         num_filters = len(filters)
         if num_filters > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Search Filters ----")
-            print()
+            print(f"\n----- Top {db.size_limit} Search Filters -----\n")
             for num, (count, filter) in enumerate(filters):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"{count:<10} {filter}")
 
@@ -1785,11 +2739,9 @@ def main():
         etimes = sorted(db.result['etime_duration'], reverse=True)
         num_etimes = len(etimes)
         if num_etimes > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Longest etimes (elapsed times) ----")
-            print()
+            print(f"\n----- Top {db.size_limit} Longest etimes (elapsed times) -----\n")
             for num, etime in enumerate(etimes):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"etime={etime:<12}")
 
@@ -1797,11 +2749,9 @@ def main():
         wtimes = sorted(db.result['wtime_duration'], reverse=True)
         num_wtimes = len(wtimes)
         if num_wtimes > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Longest wtimes (wait times) ----")
-            print()
+            print(f"\n----- Top {db.size_limit} Longest wtimes (wait times) -----\n")
             for num, wtime in enumerate(wtimes):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"wtime={wtime:<12}")
 
@@ -1809,11 +2759,9 @@ def main():
         optimes = sorted(db.result['optime_duration'], reverse=True)
         num_optimes = len(optimes)
         if num_optimes > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Longest optimes (actual operation times) ----")
-            print()
+            print(f"\n----- Top {db.size_limit} Longest optimes (actual operation times) -----\n")
             for num, optime in enumerate(optimes):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"optime={optime:<12}")
 
@@ -1821,11 +2769,9 @@ def main():
         nentries = sorted(db.result['nentries_num'], reverse=True)
         num_nentries = len(nentries)
         if num_nentries > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Largest nentries ----")
-            print()
+            print(f"\n----- Top {db.size_limit} Largest nentries -----\n")
             for num, nentry in enumerate(nentries):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"nentries={nentry:<10}")
             print()
@@ -1834,11 +2780,9 @@ def main():
         oids = db.operation['extop_dict']
         num_oids = len(oids)
         if num_oids > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Extended Operations ----")
-            print()
+            print(f"\n----- Top {db.size_limit} Extended Operations -----\n")
             for num, oid in enumerate(sorted(oids, key=lambda k: oids[k], reverse=True)):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"{oids[oid]:<12} {oid:<30} {oid_messages.get(oid, "Other"):<60}")
 
@@ -1846,11 +2790,9 @@ def main():
         attrs = db.search['attr_dict']
         num_nattrs = len(attrs)
         if num_nattrs > 0:
-            print()
-            print(f"----- Top {db.sizelimit} Most Requested Attributes ----")
-            print()
+            print(f"\n----- Top {db.size_limit} Most Requested Attributes -----\n")
             for num, attr in enumerate(sorted(attrs, key=lambda k: attrs[k], reverse=True)):
-                if num >= db.sizelimit:
+                if num >= db.size_limit:
                     break
                 print(f"{attrs[attr]:<11} {attr:<10}")
             print()
@@ -1858,14 +2800,81 @@ def main():
         abandoned = db.operation['abandoned_map_rco']
         num_abandoned = len(abandoned)
         if num_abandoned > 0:
-            print()
-            print(f"----- Abandon Request Stats -----")
-            print()
+            print(f"\n----- Abandon Request Stats -----\n")
             for num, abandon in enumerate(abandoned, start = 1):
                 (restart, conn, op) = abandon
                 conn, op, target_op, msgid = db.operation['abandoned_map_rco'][(restart, conn, op)]
                 print(f"{num:<6} conn={conn} op={op} msgid={msgid} target_op:{target_op} client={db.connection['restart_conn_ip_map'].get((restart, conn), '"Unknown"')}")
             print()
+
+    if db.recommends or db.verbose:
+        print(f"\n----- Recommendations -----")
+        rec_count = 1
+
+        if num_unindexed_search > 0:
+            print(f"\n {rec_count}. You have unindexed searches. This can be caused by a search on an unindexed attribute or by returned results exceeding the nsslapd-idlistscanlimit. Unindexed searches are very resource-intensive and should be prevented or corrected. To refuse unindexed searches, set 'nsslapd-require-index' to 'on' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n")
+            rec_count += 1
+
+        if num_unindexed_component > 0:
+            print(f"\n {rec_count}. You have unindexed components. This can be caused by a search on an unindexed attribute or by returned results exceeding the nsslapd-idlistscanlimit. Unindexed components are not recommended. To refuse unindexed searches, set 'nsslapd-require-index' to 'on' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n")
+            rec_count += 1
+
+        if db.connection['disconnect_code'].get('T1', 0) > 0:
+            print(f"\n {rec_count}. You have some connections being closed by the idletimeout setting. You may want to increase the idletimeout if it is set low.\n")
+            rec_count += 1
+
+        if db.connection['disconnect_code'].get('T2', 0) > 0:
+            print(f"\n {rec_count}. You have some connections being closed by the ioblocktimeout setting. You may want to increase the ioblocktimeout.\n")
+            rec_count += 1
+
+        if db.connection['disconnect_code'].get('T3', 0) > 0:
+            print(f"\n {rec_count}. You have some connections being closed because a paged result search limit has been exceeded. You may want to increase the search time limit.\n")
+            rec_count += 1
+
+        if (num_bind - num_unbind) > (num_bind * 0.3):
+            print(f"\n {rec_count}. You have a significant difference between binds and unbinds. You may want to investigate this difference.\n")
+            rec_count += 1
+
+        if (num_fd_taken - num_fd_rtn) > (num_fd_taken * 0.3):
+            print(f"\n {rec_count}. You have a significant difference between file descriptors taken and file descriptors returned. You may want to investigate this difference.\n")
+            rec_count += 1
+
+        if num_DM_binds > (num_bind * 0.2):
+                print(f"\n {rec_count}. You have a high number of Directory Manager binds. The Directory Manager account should only be used under certain circumstances. Avoid using this account for client applications.\n")
+                rec_count += 1
+
+        num_success = db.result['error_freq'].get('0')
+        num_err = sum(v for k, v in db.result['error_freq'].items() if k != '0')
+        if num_err > num_success:
+            print(f"\n {rec_count}. You have more unsuccessful operations than successful operations. You should investigate this difference.\n")
+            rec_count += 1
+
+        num_close_clean = db.connection['disconnect_code'].get('U1', 0)
+        num_close_total = num_err = sum(v for k, v in db.connection['disconnect_code'].items())
+        if num_close_clean < (num_close_total - num_close_clean):
+            print(f"\n {rec_count}. You have more abnormal connection codes than cleanly closed connections. You may want to investigate this difference.\n")
+            rec_count += 1
+
+        if round(avg_etime, 1) > 0:
+            print(f"\n {rec_count}. Your average etime is {avg_etime:.1f}. You may want to investigate this performance problem.\n")
+            rec_count += 1
+
+        if round(avg_wtime, 1) > 0.5:
+            print(f"\n {rec_count}. Your average wtime is {avg_wtime:.1f}. You may need to increase the number of worker threads (nsslapd-threadnumber).\n")
+            rec_count += 1
+
+        if round(avg_optime, 1) > 0:
+            print(f"\n {rec_count}. Your average optime is {avg_optime:.1f}. You may want to investigate this performance problem.\n")
+            rec_count += 1
+
+        if num_base_search > (num_search * 0.25):
+            print(f"\n {rec_count}. You have a high number of searches that query the entire search base. Although this is not necessarily bad, it could be resource-intensive if the search base contains many entries.\n")
+            rec_count += 1
+
+        if rec_count == 1:
+            print("\nNone.")
+
+    print("Done.")
 
     # Used for measuring memory consumption, will be removed post code review
     process = psutil.Process(os.getpid())
