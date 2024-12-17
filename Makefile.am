@@ -23,7 +23,6 @@ NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 DEBUG_CFLAGS = @debug_cflags@
 DEBUG_CXXFLAGS = @debug_cxxflags@
-GCCSEC_CFLAGS = @gccsec_cflags@
 if CLANG_ENABLE
 ASAN_CFLAGS = @asan_cflags@
 else
@@ -32,6 +31,7 @@ ASAN_CFLAGS = @asan_cflags@ -lasan
 else
 ASAN_CFLAGS = @asan_cflags@
 endif
+GCCSEC_CFLAGS = @gccsec_cflags@
 endif
 MSAN_CFLAGS = @msan_cflags@
 TSAN_CFLAGS = @tsan_cflags@
@@ -60,11 +60,11 @@ CARGO_FLAGS = @cargo_defs@
 
 if CLANG_ENABLE
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
-RUSTC_LINK_FLAGS = -C link-arg=-fuse-ld=lld
+RUSTC_LINK_FLAGS = -Clink-arg=-fuse-ld=lld
 RUST_LDFLAGS = -ldl -lpthread -lc -lm -lrt -lutil
 else
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
-RUSTC_LINK_FLAGS =
+RUSTC_LINK_FLAGS = -Clink-arg=-fuse-ld=ld
 # This avoids issues with stderr being double provided with clang + asan.
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 endif
@@ -77,11 +77,11 @@ endif
 
 if CLANG_ENABLE
 CLANG_ON = 1
-CLANG_LDFLAGS = -latomic -fuse-ld=lld
+CLANG_LDFLAGS = -latomic -fuse-ld=lld -Wl,--build-id=sha1
 EXPORT_LDFLAGS =
 else
 CLANG_ON = 0
-CLANG_LDFLAGS =
+CLANG_LDFLAGS = -flto
 if DEBUG
 EXPORT_LDFLAGS = -rdynamic
 endif
