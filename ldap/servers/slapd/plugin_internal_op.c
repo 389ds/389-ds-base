@@ -249,13 +249,6 @@ slapi_search_internal_set_pb(Slapi_PBlock *pb, const char *base, int scope, cons
         return;
     }
 
-    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    operation_free(&op, NULL);
-    slapi_pblock_set(pb, SLAPI_OPERATION, NULL);
-    slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &tmp_attrs);
-    slapi_ch_array_free(tmp_attrs);
-    slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, NULL);
-
     op = internal_operation_new(SLAPI_OPERATION_SEARCH, operation_flags);
     slapi_pblock_set(pb, SLAPI_OPERATION, op);
     slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET_DN, (void *)base);
