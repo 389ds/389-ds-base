@@ -1534,6 +1534,7 @@ _entryrdn_get_elem(entryrdn_db_ctx_t *ctx,
     dbi_entryrdn_records_t rec = {0};
     int rc = 0;
     int dbop = 0;
+    void *prev_elem_data = NULL;
 
     if (NULL == ctx || NULL == key || NULL == data || NULL == elem ||
         NULL == comp_key) {
@@ -1548,7 +1549,7 @@ _entryrdn_get_elem(entryrdn_db_ctx_t *ctx,
         slapi_log_err(ENTRYRDN_LOGLEVEL(rc), "_entryrdn_get_elem",
                       "Backend %s suffix %s is too long.\n",
                       ctx->be->be_name, (char*)(key->data));
-        rc = DBI_RC_OTHER;;
+        rc = DBI_RC_OTHER;
         _ENTRYRDN_DEBUG_GOTO_BAIL();
         goto bail;
     }
@@ -1561,8 +1562,14 @@ _entryrdn_get_elem(entryrdn_db_ctx_t *ctx,
     /* Position cursor at the matching key */
     *elem = NULL;
     dbop = DBI_OP_MOVE_NEAR_DATA;
+
 retry_get:
+    if (*elem) {
+        /* This is a retry, so free the previous elem's data */
+        slapi_ch_free((void**)&prev_elem_data);
+    }
     rc = dblayer_cursor_op(&ctx->cursor, dbop, key, data);
+    prev_elem_data = data->data;  /* save pointer to data so we can free it on a retry */
     *elem = (rdn_elem *)data->data;
     dblayer_value_init(ctx->be, data);
 
@@ -1591,6 +1598,7 @@ retry_get:
     }
     if (*elem && RDN_IS_REDIRECT(*elem)) {
         rc = _entryrdn_resolve_redirect(ctx, elem, 1);
+        prev_elem_data = *elem;
         if (rc) {
             _ENTRYRDN_DEBUG_GOTO_BAIL();
             goto bail;
@@ -1607,7 +1615,7 @@ retry_get:
     }
     if (*elem && 0 != strcmp(comp_key, (char *)(*elem)->rdn_elem_nrdn_rdn)) {
         /* the exact element was not found */
-        if (rc ==0 && rec.redirect) {
+        if (rc == 0 && rec.redirect) {
             /* If the data is redirected, it is not in entryrdn db
              * so DBI_OP_MOVE_NEAR_DATA selected a wrong record
              * lets try the other records with the same key
@@ -1619,12 +1627,20 @@ retry_get:
         _ENTRYRDN_DEBUG_GOTO_BAIL();
         goto bail;
     }
+
 bail:
+    if (rec.redirect) {
+        dblayer_value_free(ctx->be, &rec.redirect_data);
+        dblayer_value_free(ctx->be, &rec.redirect_key);
+    }
     if (*elem) {
         slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem (*elem rdn=%s) rc=%d\n",
                       RDN_ADDR(*elem), rc);
     } else {
         slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem (*elem NULL) rc=%d\n", rc);
+    }
+    if (rc) {
+        slapi_ch_free((void**)elem);
     }
     return rc;
 }
@@ -1749,6 +1765,9 @@ retry_get0:
     } while (0 == rc);
 
 bail:
+    if (RDN_IS_REDIRECT(childelem)) {
+        slapi_ch_free((void **)&childelem);
+    }
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_tombstone_elem",
                   "<-- _entryrdn_get_tombstone_elem\n");
     return rc;
@@ -3118,7 +3137,7 @@ _entryrdn_index_read(entryrdn_db_ctx_t *ctx,
             if (childelems) {
                 break; /* get the child elems */
             } else {
-/* We got the targetelem.
+                /* We got the targetelem.
                  * And we don't have to gather childelems, so we can return. */
 #ifdef LDAP_DEBUG_ENTRYRDN
                 char *dn = NULL;
