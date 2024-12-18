@@ -118,6 +118,9 @@ const char *type_nsds5ReplicaBootstrapBindDN = "nsds5ReplicaBootstrapBindDN";
 const char *type_nsds5ReplicaBootstrapCredentials = "nsds5ReplicaBootstrapCredentials";
 const char *type_nsds5ReplicaBootstrapBindMethod = "nsds5ReplicaBootstrapBindMethod";
 const char *type_nsds5ReplicaBootstrapTransportInfo = "nsds5ReplicaBootstrapTransportInfo";
+const char *type_nsds5ReplicaLastInitStart = "nsds5replicaLastInitStart";
+const char *type_nsds5ReplicaLastInitEnd = "nsds5replicaLastInitEnd";
+const char *type_nsds5ReplicaLastInitStatus = "nsds5replicaLastInitStatus";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";

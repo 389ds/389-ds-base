@@ -2441,6 +2441,7 @@ clean_agmts(cleanruv_data *data)
                      "Cleaning agmt (%s) ...", agmt_get_long_name(agmt));
         agmt_stop(agmt);
         agmt_update_consumer_ruv(agmt);
+        agmt_update_init_status(agmt);
         agmt_start(agmt);
         agmt_obj = agmtlist_get_next_agreement_for_replica(data->replica, agmt_obj);
     }
