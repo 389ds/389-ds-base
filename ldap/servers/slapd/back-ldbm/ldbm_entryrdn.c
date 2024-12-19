@@ -1517,6 +1517,7 @@ _entryrdn_get_elem(entryrdn_db_ctx_t *ctx,
     dbi_entryrdn_records_t rec = {0};
     int rc = 0;
     int dbop = 0;
+    void *elem_data = NULL;
 
     if (NULL == ctx || NULL == key || NULL == data || NULL == elem ||
         NULL == comp_key) {
@@ -1544,8 +1545,13 @@ _entryrdn_get_elem(entryrdn_db_ctx_t *ctx,
     /* Position cursor at the matching key */
     *elem = NULL;
     dbop = DBI_OP_MOVE_NEAR_DATA;
+
 retry_get:
+    if (*elem) {
+        slapi_ch_free((void**)&elem_data);
+    }
     rc = dblayer_cursor_op(&ctx->cursor, dbop, key, data);
+    elem_data = data->data;  /* save pointer to data so we can free it on a retry */
     *elem = (rdn_elem *)data->data;
     dblayer_value_init(ctx->be, data);
 
@@ -1570,12 +1576,15 @@ retry_get:
                                          key->data, data->size, data->ulen, rc);
         }
         _ENTRYRDN_DEBUG_GOTO_BAIL();
+        slapi_ch_free((void**)elem);
         goto bail;
     }
     if (*elem && RDN_IS_REDIRECT(*elem)) {
         rc = _entryrdn_resolve_redirect(ctx, elem, 1);
+        elem_data = *elem;
         if (rc) {
             _ENTRYRDN_DEBUG_GOTO_BAIL();
+            slapi_ch_free((void**)elem);
             goto bail;
         }
     }
@@ -1585,6 +1594,7 @@ retry_get:
             /* the exact element was not found */
             rc = DBI_RC_NOTFOUND;
             _ENTRYRDN_DEBUG_GOTO_BAIL();
+            slapi_ch_free((void**)elem);
             goto bail;
         }
     }
@@ -1600,9 +1610,15 @@ retry_get:
         }
         rc = DBI_RC_NOTFOUND;
         _ENTRYRDN_DEBUG_GOTO_BAIL();
+        slapi_ch_free((void**)elem);
         goto bail;
     }
+
 bail:
+    if (rec.redirect) {
+        dblayer_value_free(ctx->be, &rec.redirect_data);
+        dblayer_value_free(ctx->be, &rec.redirect_key);
+    }
     if (*elem) {
         slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_elem", "<-- _entryrdn_get_elem (*elem rdn=%s) rc=%d\n",
                       RDN_ADDR(*elem), rc);
@@ -1695,12 +1711,18 @@ retry_get0:
             if (0 == strcmp(comma + 1, slapi_rdn_get_nrdn(srdn))) {
                 /* found and done */
                 _entryrdn_dup_rdn_elem((const void *)dataret.data, elem);
+                if (RDN_IS_REDIRECT(childelem)) {
+                    slapi_ch_free((void **)&childelem);
+                }
                 goto bail;
             }
             if (0 == strncmp(childnrdn, slapi_rdn_get_nrdn(srdn),
                              comma - childnrdn)) {
                 /* found and done */
                 _entryrdn_dup_rdn_elem((const void *)dataret.data, elem);
+                if (RDN_IS_REDIRECT(childelem)) {
+                    slapi_ch_free((void **)&childelem);
+                }
                 _ENTRYRDN_DEBUG_GOTO_BAIL();
                 goto bail;
             }
@@ -3101,7 +3123,7 @@ _entryrdn_index_read(entryrdn_db_ctx_t *ctx,
             if (childelems) {
                 break; /* get the child elems */
             } else {
-/* We got the targetelem.
+                /* We got the targetelem.
                  * And we don't have to gather childelems, so we can return. */
 #ifdef LDAP_DEBUG_ENTRYRDN
                 char *dn = NULL;
