@@ -1164,7 +1164,6 @@ cleanup:
     slapd_ssl_destroy();
     ndn_cache_destroy();
     NSS_Shutdown();
-    dse_destroy_backup_lock();
 
     /*
      * Server has stopped, lets force everything to disk: logs

@@ -73,9 +73,6 @@
 #define DSE_USE_LOCK 1
 #define DSE_NO_LOCK 0
 
-/* Global lock used during backups */
-static PRLock *backup_lock = NULL;
-
 struct dse_callback
 {
     int operation;
@@ -104,6 +101,8 @@ struct dse
                                      /* initialize the dse */
     int dse_is_updateable;           /* if non-zero, this DSE can be written to */
     int dse_readonly_error_reported; /* used to ensure that read-only errors are logged only once */
+    pthread_mutex_t dse_backup_lock; /* used to block write when online backup is in progress */
+    int dse_backup_in_progress;      /* tell that online backup is in progress (protected by dse_rwlock) */
 };
 
 struct dse_node
@@ -155,6 +154,91 @@ static int dse_write_entry(caddr_t data, caddr_t arg);
 static int ldif_record_end(char *p);
 static int dse_call_callback(struct dse *pdse, Slapi_PBlock *pb, int operation, int flags, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext);
 
+/* Lock the dse in read mode */
+INLINE_DIRECTIVE static void
+dse_lock_read(struct dse *pdse, int use_lock)
+{
+    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock) {
+        slapi_rwlock_rdlock(pdse->dse_rwlock);
+    }
+}
+
+/* Lock the dse in write mode and wait until the */
+INLINE_DIRECTIVE static void
+dse_lock_write(struct dse *pdse, int use_lock)
+{
+    if (use_lock != DSE_USE_LOCK || !pdse->dse_rwlock) {
+        return;
+    }
+    slapi_rwlock_wrlock(pdse->dse_rwlock);
+    while (pdse->dse_backup_in_progress) {
+        slapi_rwlock_unlock(pdse->dse_rwlock);
+        /* Wait util dse_backup_lock is unlocked */
+        pthread_mutex_lock(&pdse->dse_backup_lock);
+        pthread_mutex_unlock(&pdse->dse_backup_lock);
+        slapi_rwlock_wrlock(pdse->dse_rwlock);
+    }
+}
+
+/* release the dse lock */
+INLINE_DIRECTIVE static void
+dse_lock_unlock(struct dse *pdse, int use_lock)
+{
+    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock) {
+        slapi_rwlock_unlock(pdse->dse_rwlock);
+    }
+}
+
+/* Call cb(pdse) */
+INLINE_DIRECTIVE static void
+dse_call_cb(void (*cb)(struct dse*))
+{
+    Slapi_Backend *be = slapi_be_select_by_instance_name("DSE");
+    if (be) {
+        struct dse *pdse = NULL;
+        slapi_be_Rlock(be);
+        pdse = be->be_database->plg_private;
+        if (pdse) {
+            cb(pdse);
+        }
+        slapi_be_Unlock(be);
+    }
+}
+
+/* Helper for dse_backup_lock() */
+static void
+dse_backup_lock_cb(struct dse *pdse)
+{
+    pthread_mutex_lock(&pdse->dse_backup_lock);
+    slapi_rwlock_wrlock(pdse->dse_rwlock);
+    pdse->dse_backup_in_progress = 1;
+    slapi_rwlock_unlock(pdse->dse_rwlock);
+}
+
+/* Helper for dse_backup_unlock() */
+static void
+dse_backup_unlock_cb(struct dse *pdse)
+{
+    slapi_rwlock_wrlock(pdse->dse_rwlock);
+    pdse->dse_backup_in_progress = 0;
+    slapi_rwlock_unlock(pdse->dse_rwlock);
+    pthread_mutex_unlock(&pdse->dse_backup_lock);
+}
+
+/* Tells that a backup thread is starting */
+void
+dse_backup_lock()
+{
+    dse_call_cb(dse_backup_lock_cb);
+}
+
+/* Tells that a backup thread is ending */
+void
+dse_backup_unlock()
+{
+    dse_call_cb(dse_backup_unlock_cb);
+}
+
 /*
  * Map a DN onto a dse_node.
  * Returns NULL if not found.
@@ -192,18 +276,12 @@ dse_get_entry_copy(struct dse *pdse, const Slapi_DN *dn, int use_lock)
     Slapi_Entry *e = NULL;
     struct dse_node *n;
 
-    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock) {
-        slapi_rwlock_rdlock(pdse->dse_rwlock);
-    }
-
+    dse_lock_read(pdse, use_lock);
     n = dse_find_node(pdse, dn);
     if (n != NULL) {
         e = slapi_entry_dup(n->entry);
     }
-
-    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock) {
-        slapi_rwlock_unlock(pdse->dse_rwlock);
-    }
+    dse_lock_unlock(pdse, use_lock);
 
     return e;
 }
@@ -393,6 +471,7 @@ dse_new(char *filename, char *tmpfilename, char *backfilename, char *startokfile
             pdse->dse_callback = NULL;
             pdse->dse_is_updateable = dse_permission_to_write(pdse,
                                                               SLAPI_LOG_TRACE);
+            pthread_mutex_init(&pdse->dse_backup_lock, NULL);
         }
         slapi_ch_free((void **)&realconfigdir);
     }
@@ -429,8 +508,7 @@ dse_destroy(struct dse *pdse)
     if (NULL == pdse) {
         return 0; /* no one checks this return value */
     }
-    if (pdse->dse_rwlock)
-        slapi_rwlock_wrlock(pdse->dse_rwlock);
+    dse_lock_write(pdse, DSE_USE_LOCK);
     slapi_ch_free((void **)&(pdse->dse_filename));
     slapi_ch_free((void **)&(pdse->dse_tmpfile));
     slapi_ch_free((void **)&(pdse->dse_fileback));
@@ -439,8 +517,8 @@ dse_destroy(struct dse *pdse)
     dse_callback_deletelist(&pdse->dse_callback);
     charray_free(pdse->dse_filelist);
     nentries = avl_free(pdse->dse_tree, dse_internal_delete_entry);
+    dse_lock_unlock(pdse, DSE_USE_LOCK);
     if (pdse->dse_rwlock) {
-        slapi_rwlock_unlock(pdse->dse_rwlock);
         slapi_destroy_rwlock(pdse->dse_rwlock);
     }
     slapi_ch_free((void **)&pdse);
@@ -928,9 +1006,7 @@ dse_check_for_readonly_error(Slapi_PBlock *pb, struct dse *pdse)
 {
     int rc = 0; /* default: no error */
 
-    if (pdse->dse_rwlock)
-        slapi_rwlock_rdlock(pdse->dse_rwlock);
-
+    dse_lock_read(pdse, DSE_USE_LOCK);
     if (!pdse->dse_is_updateable) {
         if (!pdse->dse_readonly_error_reported) {
             if (NULL != pdse->dse_filename) {
@@ -944,9 +1020,7 @@ dse_check_for_readonly_error(Slapi_PBlock *pb, struct dse *pdse)
         }
         rc = 1; /* return an error to the client */
     }
-
-    if (pdse->dse_rwlock)
-        slapi_rwlock_unlock(pdse->dse_rwlock);
+    dse_lock_unlock(pdse, DSE_USE_LOCK);
 
     if (rc != 0) {
         slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
@@ -972,8 +1046,6 @@ dse_write_file_nolock(struct dse *pdse)
 
     fpw.fpw_rc = 0;
     fpw.fpw_prfd = NULL;
-
-    dse_backup_lock();
 
     if (NULL != pdse->dse_filename) {
         if ((fpw.fpw_prfd = PR_Open(pdse->dse_tmpfile, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, SLAPD_DEFAULT_DSE_FILE_MODE)) == NULL) {
@@ -1107,8 +1179,7 @@ dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_DSE_MERGE_WHEN_ADDING, &merge);
 
     /* keep write lock during both tree update and file write operations */
-    if (pdse->dse_rwlock)
-        slapi_rwlock_wrlock(pdse->dse_rwlock);
+    dse_lock_write(pdse, DSE_USE_LOCK);
     if (merge) {
         rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_merge);
     } else {
@@ -1131,8 +1202,7 @@ dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb)
     } else {                 /* duplicate entry ignored */
         dse_node_delete(&n); /* This also deletes the contained entry */
     }
-    if (pdse->dse_rwlock)
-        slapi_rwlock_unlock(pdse->dse_rwlock);
+    dse_lock_unlock(pdse, DSE_USE_LOCK);
 
     if (rc == -1) {
         /* duplicate entry ignored */
@@ -1299,8 +1369,7 @@ dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock
     int rc = -1;
     if (NULL != e) {
         struct dse_node *n = dse_node_new(e);
-        if (use_lock && pdse->dse_rwlock)
-            slapi_rwlock_wrlock(pdse->dse_rwlock);
+        dse_lock_write(pdse, use_lock);
         rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_replace);
         if (write_file)
             dse_write_file_nolock(pdse);
@@ -1310,8 +1379,7 @@ dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock
             dse_node_delete(&n);
             rc = 0; /* for return to caller */
         }
-        if (use_lock && pdse->dse_rwlock)
-            slapi_rwlock_unlock(pdse->dse_rwlock);
+        dse_lock_unlock(pdse, use_lock);
     }
     return rc;
 }
@@ -1398,8 +1466,7 @@ dse_delete_entry(struct dse *pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
     slapi_pblock_get(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &dont_write_file);
 
     /* keep write lock for both tree deleting and file writing */
-    if (pdse->dse_rwlock)
-        slapi_rwlock_wrlock(pdse->dse_rwlock);
+    dse_lock_write(pdse, DSE_USE_LOCK);
     if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree, n, entry_dn_cmp))) {
         dse_node_delete(&deleted_node);
     }
@@ -1411,8 +1478,7 @@ dse_delete_entry(struct dse *pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
                                  SLAPI_OPERATION_DELETE);
         dse_write_file_nolock(pdse);
     }
-    if (pdse->dse_rwlock)
-        slapi_rwlock_unlock(pdse->dse_rwlock);
+    dse_lock_unlock(pdse, DSE_USE_LOCK);
 
     return 1;
 }
@@ -1574,11 +1640,9 @@ do_dse_search(struct dse *pdse, Slapi_PBlock *pb, int scope, const Slapi_DN *bas
      * entries that change, we skip looking through the DSE entries.
      */
     if (pb_op == NULL || !operation_is_flag_set(pb_op, OP_FLAG_PS_CHANGESONLY)) {
-        if (pdse->dse_rwlock)
-            slapi_rwlock_rdlock(pdse->dse_rwlock);
+        dse_lock_read(pdse, DSE_USE_LOCK);
         dse_apply_nolock(pdse, dse_search_filter_entry, (caddr_t)&stuff);
-        if (pdse->dse_rwlock)
-            slapi_rwlock_unlock(pdse->dse_rwlock);
+        dse_lock_unlock(pdse, DSE_USE_LOCK);
     }
 
     if (stuff.ss) /* something was found which matched our criteria */
@@ -2925,32 +2989,3 @@ dse_next_search_entry(Slapi_PBlock *pb)
     return 0;
 }
 
-/* When a backup is occurring we can not allow the writing the dse.ldif file */
-void
-dse_init_backup_lock()
-{
-    backup_lock = PR_NewLock();
-}
-
-void
-dse_destroy_backup_lock()
-{
-    PR_DestroyLock(backup_lock);
-    backup_lock = NULL;
-}
-
-void
-dse_backup_lock()
-{
-    if (backup_lock) {
-        PR_Lock(backup_lock);
-    }
-}
-
-void
-dse_backup_unlock()
-{
-    if (backup_lock) {
-        PR_Unlock(backup_lock);
-    }
-}

@@ -17,15 +17,19 @@ import ldap
 from datetime import datetime
 from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
-from lib389.topologies import topology_st as topo, topology_m2 as topo_m2
+from lib389.topologies import topology_st as topo, topology_m2 as topo_m2, set_timeout
 from lib389.backend import Backends, Backend
 from lib389.dbgen import dbgen_users
 from lib389.tasks import BackupTask, RestoreTask
 from lib389.config import BDB_LDBMConfig
+from lib389.idm.nscontainer import nsContainers
 from lib389 import DSEldif
 from lib389.utils import ds_is_older, get_default_db_lib
 from lib389.replica import ReplicationManager
+from threading import Thread, Event
 import tempfile
+
+
 
 pytestmark = pytest.mark.tier1
 
@@ -36,6 +40,11 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+# test_online_backup_and_dse_write may hang if 6372 is not fixed
+# so lets use a shorter timeout
+set_timeout(30*60)
+
+event = Event()
 
 BESTRUCT = [
     { "bename" : "be1", "suffix": "dc=be1", "nbusers": 1000 },
@@ -346,6 +355,38 @@ def test_backup_task_after_failure(mytopo):
     exitCode = tasks.db2bak(backup_dir=archive_dir2, args={TASK_WAIT: True})
     # Step 6. Check it is successful
     assert exitCode == 0, "Backup failed. Issue #6229 may not be fixed."
+
+
+def load_dse(inst):
+    conts = nsContainers(inst, 'cn=config')
+    while not event.is_set():
+        cont = conts.create(properties={'cn': 'test_online_backup_and_dse_write'})
+        cont.delete()
+
+
+def test_online_backup_and_dse_write(topo):
+    """Test online backup while attempting to add/delete entries in dse.ldif.
+
+    :id: 4a1edd2c-be15-11ef-8bc8-482ae39447e5
+    :setup: One standalone instance
+    :steps:
+        1. Start a thread that loops adding then removing in the dse.ldif
+        2. Perform 10 online backups
+        3. Stop the thread
+    :expectedresults:
+        1. Success
+        2. Success (or timeout if issue #6372 is not fixed.)
+        3. Success
+    """
+    inst = topo.standalone
+    t = Thread(target=load_dse, args=[inst])
+    t.start()
+    for x in range(10):
+        with tempfile.TemporaryDirectory() as backup_dir:
+            assert inst.tasks.db2bak(backup_dir=f'{backup_dir}', args={TASK_WAIT: True}) == 0
+    event.set()
+    t.join()
+    event.clear()
 
 
 if __name__ == '__main__':
