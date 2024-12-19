@@ -43,6 +43,7 @@ static char *bootstrap_plugins[] = {
     "dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n"
     "objectclass: top\n"
     "objectclass: nsSlapdPlugin\n"
+    "objectClass: pwdPBKDF2PluginConfig\n"
     "cn: PBKDF2-SHA512\n"
     "nsslapd-pluginpath: libpwdchan-plugin\n"
     "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha512_plugin_init\n"
