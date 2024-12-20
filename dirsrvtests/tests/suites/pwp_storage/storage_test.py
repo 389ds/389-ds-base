@@ -390,7 +390,7 @@ def test_check_two_scheme(topo):
 
 @pytest.mark.skipif(ds_is_older('1.4'), reason="Not implemented")
 def test_check_pbkdf2_sha512(topo):
-    """Check password scheme PBKDF2-SHA512.
+    """Check password scheme PBKDF2-SHA512 is restored after deletion
 
     :id: 31612e7e-33a6-11ea-a750-8c16451d917b
     :setup: Standalone
@@ -409,7 +409,7 @@ def test_check_pbkdf2_sha512(topo):
     plg._protected = False
     plg.delete()
     topo.standalone.restart()
-    assert Config(topo.standalone).get_attr_val_utf8('passwordStorageScheme') == 'PBKDF2-SHA512'
+    assert Config(topo.standalone).get_attr_val_utf8('passwordStorageScheme') == value
     assert topo.standalone.status()
     user.delete()
 
