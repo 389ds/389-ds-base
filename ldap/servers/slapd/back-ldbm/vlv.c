@@ -412,7 +412,7 @@ vlv_rebuild_scope_filter(backend *be)
     }
     slapi_rwlock_unlock(be->vlvSearchList_lock);
     if (txn == &new_txn) {
-        dblayer_txn_abort(be, txn);
+        dblayer_read_txn_abort(be, txn);
     }
     slapi_pblock_destroy(pb);
 }
