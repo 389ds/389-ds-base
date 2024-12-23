@@ -1282,7 +1282,7 @@ export class CertificateManagement extends React.Component {
                             </Button>
                         </div>
                     </Tab>
-                    <Tab eventKey={2} title={<TabTitleText>{_("Certificate Sigining Requests")} <font size="2">({this.state.ServerCSRs.length})</font></TabTitleText>}>
+                    <Tab eventKey={2} title={<TabTitleText>{_("Certificate Signing Requests")} <font size="2">({this.state.ServerCSRs.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
                             <CSRTable
                                 ServerCSRs={this.state.ServerCSRs}
