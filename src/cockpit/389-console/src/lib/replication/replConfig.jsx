@@ -630,7 +630,7 @@ export class ReplConfig extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid
-                                    title={_("The interval to check for any changes in the group memebrship specified in the Bind DN Group and automatically rebuilds the list for the replication managers accordingly.  (nsds5replicabinddngroupcheckinterval).")}
+                                    title={_("The interval to check for any changes in the group membership specified in the Bind DN Group and automatically rebuilds the list for the replication managers accordingly.  (nsds5replicabinddngroupcheckinterval).")}
                                     className="ds-margin-top"
                                 >
                                     <GridItem className="ds-label" span={3}>

@@ -1173,7 +1173,7 @@ export class GlobalPwPolicy extends React.Component {
         if (this.state.passwordexp) {
             pwExpirationRows = (
                 <div className="ds-margin-left">
-                    <Grid className="ds-margin-top" title={_("The maxiumum age of a password in seconds before it expires (passwordMaxAge).")}>
+                    <Grid className="ds-margin-top" title={_("The maximum age of a password in seconds before it expires (passwordMaxAge).")}>
                         <GridItem className="ds-label" span={5}>
                             {_("Password Expiration Time")}
                         </GridItem>
