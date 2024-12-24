@@ -98,7 +98,10 @@ setup(
         'python-ldap',
         'setuptools',
         'distro',
-        'cryptography'
+        'cryptography',
+        'plotly',
+        'matplotlib',
+        'numpy'
         ],
 
     cmdclass={
