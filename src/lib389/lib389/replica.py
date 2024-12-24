@@ -2013,7 +2013,7 @@ class ReplicationManager(object):
             return repl_group
         else:
             try:
-                repl_group = groups.get('replication_managers')
+                repl_group = groups.get(dn=f'cn=replication_managers,{self._suffix}')
                 return repl_group
             except ldap.NO_SUCH_OBJECT:
                 self._log.warning("{} doesn't have cn=replication_managers,{} entry \
@@ -2037,7 +2037,7 @@ class ReplicationManager(object):
         services = ServiceAccounts(from_instance, self._suffix)
         # Generate the password and save the credentials
         # for putting them into agreements in the future
-        service_name = '{}:{}'.format(to_instance.host, port)
+        service_name = f'{self._suffix}:{to_instance.host}:{port}'
         creds = password_generate()
         repl_service = services.ensure_state(properties={
             'cn': service_name,
@@ -2296,7 +2296,7 @@ class ReplicationManager(object):
         Internal Only.
         """
 
-        rdn = '{}:{}'.format(from_instance.host, from_instance.sslport)
+        rdn = f'{self._suffix}:{from_instance.host}:{from_instance.sslport}'
         try:
             creds = self._repl_creds[rdn]
         except KeyError:
@@ -2537,8 +2537,8 @@ class ReplicationManager(object):
         # Touch something then wait_for_replication.
         from_groups = Groups(from_instance, basedn=self._suffix, rdn=None)
         to_groups = Groups(to_instance, basedn=self._suffix, rdn=None)
-        from_group = from_groups.get('replication_managers')
-        to_group = to_groups.get('replication_managers')
+        from_group = from_groups.get(dn=f'cn=replication_managers,{self._suffix}')
+        to_group = to_groups.get(dn=f'cn=replication_managers,{self._suffix}')
 
         change = str(uuid.uuid4())
 

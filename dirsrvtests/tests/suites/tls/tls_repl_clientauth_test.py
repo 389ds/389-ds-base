@@ -47,7 +47,7 @@ def topo_tls_ldapi(topo):
     # Create replication DNs
     services = ServiceAccounts(m1, DEFAULT_SUFFIX)
     for instance in (m1, m2):
-        repl = services.get(f'{instance.host}:{instance.sslport}')
+        repl = services.get(f'{DEFAULT_SUFFIX}:{instance.host}:{instance.sslport}')
         repl.set('nsCertSubjectDN', instance.get_server_tls_subject())
 
     # Check the replication is "done".
