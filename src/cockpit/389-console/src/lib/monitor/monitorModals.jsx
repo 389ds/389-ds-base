@@ -630,7 +630,7 @@ class ReportConnectionModal extends React.Component {
                                     />
                                 </GridItem>
                             </Grid>
-                            <Grid title={_("Bind password for the specified instance.  You can also speciy a password file but the filename needs to be inside of brackets [/PATH/FILE]")}>
+                            <Grid title={_("Bind password for the specified instance.  You can also specify a password file but the filename needs to be inside of brackets [/PATH/FILE]")}>
                                 <GridItem className="ds-label" span={3}>
                                     {_("Password")}
                                 </GridItem>
