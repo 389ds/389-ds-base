@@ -1436,7 +1436,7 @@ class CreateSuffixModal extends React.Component {
                     <FormGroup
                         label={_("Suffix DN")}
                         fieldId="createSuffix"
-                        title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN).")}
+                        title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distinguished Name (DN).")}
                     >
                         <TextInput
                             isRequired

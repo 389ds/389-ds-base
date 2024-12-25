@@ -359,7 +359,7 @@ export class ReplRUV extends React.Component {
                         {_("Local RUV")}
                         <Button 
                             variant="plain"
-                            aria-label={_("Refresh the RUV for this suffixs")}
+                            aria-label={_("Refresh the RUV for this suffix")}
                             onClick={() => {
                                 this.props.reload(this.props.suffix);
                             }}
@@ -374,7 +374,7 @@ export class ReplRUV extends React.Component {
                         {_("Remote RUV's")}
                         <Button 
                             variant="plain"
-                            aria-label={_("Refresh the remote RUVs for this suffixs")}
+                            aria-label={_("Refresh the remote RUVs for this suffix")}
                             onClick={() => {
                                 this.props.reload(this.props.suffix);
                             }}
@@ -456,7 +456,7 @@ export class ReplRUV extends React.Component {
                     checked={this.state.modalChecked}
                     mTitle={_("Initialize Replication Changelog From LDIF")}
                     mMsg={_("Are you sure you want to attempt to initialize the changelog from LDIF?  This will reject all operations during during the initialization.")}
-                    mSpinningMsg={_("Initialzing Replication Change Log ...")}
+                    mSpinningMsg={_("Initializing Replication Change Log ...")}
                     mBtnName={_("Import Changelog LDIF")}
                 />
                 <ExportCLModal

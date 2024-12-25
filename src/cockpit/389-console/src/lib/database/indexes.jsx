@@ -872,7 +872,7 @@ class AddIndexModal extends React.Component {
                                     onChange={(e, checked) => {
                                         handleChange(e);
                                     }}
-                                    label={_("Equailty Indexing")}
+                                    label={_("Equality Indexing")}
                                 />
                             </GridItem>
                         </Grid>
@@ -1013,7 +1013,7 @@ class EditIndexModal extends React.Component {
                 onChange={(e, checked) => {
                     handleChange(e);
                 }}
-                label={_("Equailty Indexing")}
+                label={_("Equality Indexing")}
                 />
             </div>
         );
