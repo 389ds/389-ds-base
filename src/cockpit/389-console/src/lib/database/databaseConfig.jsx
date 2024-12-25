@@ -1693,7 +1693,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         </GridItem>
                                     </Grid>
                                     <Grid
-                                        title={_("The maximun number of read transactions that can be opened simultaneously. A value of 0 means this value is computed by the server (nsslapd-mdb-max-readers).")}
+                                        title={_("The maximum number of read transactions that can be opened simultaneously. A value of 0 means this value is computed by the server (nsslapd-mdb-max-readers).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>

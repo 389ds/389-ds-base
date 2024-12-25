@@ -284,7 +284,7 @@ class CreateSubSuffixModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <Grid className="ds-margin-top" title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)")}>
+                    <Grid className="ds-margin-top" title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distinguished Name (DN)")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Sub-Suffix DN")}
                         </GridItem>
