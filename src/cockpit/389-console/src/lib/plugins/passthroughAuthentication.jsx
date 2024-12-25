@@ -210,7 +210,7 @@ class PassthroughAuthentication extends React.Component {
             "list"
         ];
         this.props.toggleLoadingHandler();
-        log_cmd("loadURLs", "Get Passthough Authentication Plugin Configs", cmd);
+        log_cmd("loadURLs", "Get Passthrough Authentication Plugin Configs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -299,7 +299,7 @@ class PassthroughAuthentication extends React.Component {
             modalSpinning: true
         });
 
-        log_cmd("deleteURL", "Delete the Passthough Authentication Plugin URL entry", cmd);
+        log_cmd("deleteURL", "Delete the Passthrough Authentication Plugin URL entry", cmd);
         cockpit
                 .spawn(cmd, {
                     superuser: true,
@@ -367,7 +367,7 @@ class PassthroughAuthentication extends React.Component {
         });
         log_cmd(
             "PassthroughAuthOperation",
-            `Do the ${action} operation on the Passthough Authentication Plugin`,
+            `Do the ${action} operation on the Passthrough Authentication Plugin`,
             cmd
         );
         cockpit

@@ -322,7 +322,7 @@ export class CreateInstanceModal extends React.Component {
                                                                 })
                                                                 .done(() => {
                                                                     // Success!!!  Now set Root DN pw, and cleanup everything up...
-                                                                    log_cmd("handleCreateInstance", "Instance creation compelete, remove INF file...", rm_cmd);
+                                                                    log_cmd("handleCreateInstance", "Instance creation complete, remove INF file...", rm_cmd);
                                                                     cockpit.spawn(rm_cmd, { superuser: true });
 
                                                                     const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
@@ -555,7 +555,7 @@ export class CreateInstanceModal extends React.Component {
                             />
                         </Grid>
                         <div className={createDBCheckbox ? "" : "ds-hidden"}>
-                            <Grid title={_("Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)")}>
+                            <Grid title={_("Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distinguished Name (DN)")}>
                                 <GridItem className="ds-label" offset={1} span={3}>
                                     {_("Database Suffix")}
                                 </GridItem>
