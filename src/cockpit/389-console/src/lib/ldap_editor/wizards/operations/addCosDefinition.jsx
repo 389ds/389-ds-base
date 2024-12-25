@@ -999,7 +999,7 @@ class AddCosDefinition extends React.Component {
                         </Modal>
                         <Modal
                             variant={ModalVariant.small}
-                            title={_("Leaving CoS Definiton Creation Wizard")}
+                            title={_("Leaving CoS Definition Creation Wizard")}
                             isOpen={this.state.isConfirmModalOpen}
                             onClose={this.handleConfirmModalToggle}
                             actions={[
@@ -1011,7 +1011,7 @@ class AddCosDefinition extends React.Component {
                                 </Button>
                             ]}
                         >
-                            {_("You are about to leave CoS Definiton creation wizard. After you click 'Confirm', you'll appear in CoS Template creation wizard and you won't able to return from there until the process is finished. Then you'll be able to use the created entry in the CoS definiton creation. It'll be preselected for you automatically.")}
+                            {_("You are about to leave CoS Definition creation wizard. After you click 'Confirm', you'll appear in CoS Template creation wizard and you won't able to return from there until the process is finished. Then you'll be able to use the created entry in the CoS definition creation. It'll be preselected for you automatically.")}
                         </Modal>
                         <Modal
                             variant={ModalVariant.medium}

@@ -766,7 +766,7 @@ export class Schema extends React.Component {
                         console.info("cmdOperationObjectclass", "Result", content);
                         this.props.addNotification(
                             "success",
-                            cockpit.format(_("ObjectClass $0 - $1 operation was successfull"), ocName, action)
+                            cockpit.format(_("ObjectClass $0 - $1 operation was successful"), ocName, action)
                         );
                         this.loadSchemaData();
                         this.closeObjectclassModal();
@@ -1083,7 +1083,7 @@ export class Schema extends React.Component {
                     console.info("cmdOperationAttribute", "Result", content);
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("Attribute $0 - add operation was successfull"), atName)
+                        cockpit.format(_("Attribute $0 - add operation was successful"), atName)
                     );
                     this.loadSchemaData();
                     this.closeAttributeModal();
@@ -1194,7 +1194,7 @@ export class Schema extends React.Component {
                     console.info("cmdOperationAttribute", "Result", content);
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("Attribute $0 - replace operation was successfull"), atName)
+                        cockpit.format(_("Attribute $0 - replace operation was successful"), atName)
                     );
                     this.loadSchemaData();
                     this.closeAttributeModal();

@@ -218,7 +218,7 @@ class USNPlugin extends React.Component {
                     .done(content => {
                         this.props.addNotification(
                             "success",
-                            _("Cleanup USN Tombstones task was successfull")
+                            _("Cleanup USN Tombstones task was successful")
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({

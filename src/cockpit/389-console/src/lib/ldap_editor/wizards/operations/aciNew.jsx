@@ -1498,7 +1498,7 @@ class AddNewAci extends React.Component {
                                         <FormSelectOption key="roledn" label={_("Role DN (roledn)")} value="roledn" title={_("Bind rules for Roles")} />
                                     </>}
                                 {!this.state.haveUserRules && !this.state.haveUserAttrRules &&
-                                    <FormSelectOption key="special" label={_("User DN Aliases (userdn)")} value="User DN Aliases" title={_("Special bind rules for user DN catagories")} />}
+                                    <FormSelectOption key="special" label={_("User DN Aliases (userdn)")} value="User DN Aliases" title={_("Special bind rules for user DN categories")} />}
                                 {!this.state.haveUserRules && !this.state.haveUserAttrRules &&
                                     <FormSelectOption key="userattr" label={_("User Attribute (userattr)")} value="userattr" title={_("Bind rule to specify which attribute must match between the entry used to bind to the directory and the targeted entry")} />}
                                 <FormSelectOption key="authmethod" label={_("Authentication Method (authmethod)")} value="authmethod" title={_("Specify the authentication methods to restrict")} />

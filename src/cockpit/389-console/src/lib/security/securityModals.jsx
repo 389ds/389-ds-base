@@ -288,11 +288,11 @@ export class SecurityAddCertModal extends React.Component {
                                     browseButtonText={_("Upload PEM File")}
                                 />
                             </div>
-                            <div title={_("Choose a cerificate from the server's certificate directory")}>
+                            <div title={_("Choose a certificate from the server's certificate directory")}>
                                 <Radio
                                     id="certRadioSelect"
                                     className="ds-margin-top-lg"
-                                    label={_("Choose Cerificate From Server")}
+                                    label={_("Choose Certificate From Server")}
                                     name="certChoice"
                                     isChecked={certRadioSelect}
                                     onChange={handleRadioChange}

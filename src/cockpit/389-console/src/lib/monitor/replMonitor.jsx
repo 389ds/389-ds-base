@@ -1503,7 +1503,7 @@ export class ReplMonitor extends React.Component {
         }
 
         let overwriteWarning = (
-            _("Only one monitor configuraton can be saved in the server's '~/.dsrc' file.  There is already an existing monitor configuration, and if you proceed it will be completely overwritten with the new configuraton."));
+            _("Only one monitor configuration can be saved in the server's '~/.dsrc' file.  There is already an existing monitor configuration, and if you proceed it will be completely overwritten with the new configuration."));
         if (this.state.credRows.length === 0 && this.state.aliasRows.length === 0) {
             overwriteWarning = (
                 _("This will save the current credentials and aliases to the server's '~/.dsrc' file so it can be reused in the future."));
