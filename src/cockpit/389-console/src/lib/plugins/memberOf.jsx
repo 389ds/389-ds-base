@@ -648,7 +648,7 @@ class MemberOf extends React.Component {
                     .done(content => {
                         this.props.addNotification(
                             "success",
-                            cockpit.format(_("Fixup task for $0 was successfull"), this.state.fixupDN)
+                            cockpit.format(_("Fixup task for $0 was successful"), this.state.fixupDN)
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({

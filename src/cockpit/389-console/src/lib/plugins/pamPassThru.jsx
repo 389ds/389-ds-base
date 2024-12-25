@@ -285,7 +285,7 @@ class PAMPassthroughAuthentication extends React.Component {
             "list",
         ];
         this.props.toggleLoadingHandler();
-        log_cmd("loadPAMConfigs", "Get PAM Passthough Authentication Plugin Configs", cmd);
+        log_cmd("loadPAMConfigs", "Get PAM Passthrough Authentication Plugin Configs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -348,7 +348,7 @@ class PAMPassthroughAuthentication extends React.Component {
             this.props.toggleLoadingHandler();
             log_cmd(
                 "openModal",
-                "Fetch the PAM Passthough Authentication Plugin pamConfig entry",
+                "Fetch the PAM Passthrough Authentication Plugin pamConfig entry",
                 cmd
             );
             cockpit
@@ -485,7 +485,7 @@ class PAMPassthroughAuthentication extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd(
             "deletePAMConfig",
-            "Delete the PAM Passthough Authentication Plugin pamConfig entry",
+            "Delete the PAM Passthrough Authentication Plugin pamConfig entry",
             cmd
         );
         cockpit
@@ -595,7 +595,7 @@ class PAMPassthroughAuthentication extends React.Component {
         });
         log_cmd(
             "pamPassthroughAuthOperation",
-            `Do the ${action} operation on the PAM Passthough Authentication Plugin`,
+            `Do the ${action} operation on the PAM Passthrough Authentication Plugin`,
             cmd
         );
         cockpit
@@ -649,7 +649,7 @@ class PAMPassthroughAuthentication extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
-        const title = cockpit.format(_("$0 PAM Passthough Auth Config Entry"), (newPAMConfigEntry ? _("Add") : _("Edit")));
+        const title = cockpit.format(_("$0 PAM Passthrough Auth Config Entry"), (newPAMConfigEntry ? _("Add") : _("Edit")));
 
         return (
             <div className={savingPAM ? "ds-disabled" : ""}>

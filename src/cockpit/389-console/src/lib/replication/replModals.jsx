@@ -661,7 +661,7 @@ export class WinsyncAgmtModal extends React.Component {
                                     <GridItem span={12}>
                                         <TextContent>
                                             <Text component={TextVariants.h5}>
-                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certains days and within certain windows of time then you can setup a custom replication schedule.")}
+                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certain days and within certain windows of time then you can setup a custom replication schedule.")}
                                             </Text>
                                         </TextContent>
                                     </GridItem>
@@ -1406,7 +1406,7 @@ export class ReplAgmtModal extends React.Component {
                                     <GridItem span={12}>
                                         <TextContent>
                                             <Text component={TextVariants.h5}>
-                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certains days and within certain windows of time then you can setup a custom replication schedule.")}
+                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certain days and within certain windows of time then you can setup a custom replication schedule.")}
                                             </Text>
                                         </TextContent>
                                     </GridItem>

@@ -523,7 +523,7 @@ export class CertificateManagement extends React.Component {
                         });
                         this.props.addNotification(
                             "error",
-                            cockpit.format(_("Faield to create temporary certificate file: $0"), err)
+                            cockpit.format(_("Failed to create temporary certificate file: $0"), err)
                         );
                     });
         } else {
@@ -1242,7 +1242,7 @@ export class CertificateManagement extends React.Component {
         } else {
             certificatePage = (
                 <Tabs isBox isSecondary className="ds-margin-top-xlg ds-left-indent" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
-                    <Tab eventKey={0} title={<TabTitleText>{_("Trusted Certificate Authorites")} <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
+                    <Tab eventKey={0} title={<TabTitleText>{_("Trusted Certificate Authorities")} <font size="2">({this.state.CACerts.length})</font></TabTitleText>}>
                         <div className="ds-margin-top-lg ds-left-indent">
                             <CertTable
                                 certs={this.state.CACerts}
@@ -1297,7 +1297,7 @@ export class CertificateManagement extends React.Component {
                                     this.showAddCSRModal();
                                 }}
                             >
-                                {_("Create Certificate Sigining Request")}
+                                {_("Create Certificate Signing Request")}
                             </Button>
                         </div>
                     </Tab>
@@ -1464,7 +1464,7 @@ export class CertificateManagement extends React.Component {
                     item={this.state.certName}
                     checked={this.state.modalChecked}
                     mTitle={_("Warning - Altering CA Certificate Properties")}
-                    mMsg={_("Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?")}
+                    mMsg={_("Removing the 'C' or 'T' flags from the SSL trust category could break all TLS connectivity to and from the server, are you sure you want to proceed?")}
                     mSpinningMsg={_("Editing CA Certificate ...")}
                     mBtnName={_("Change Trust Flags")}
                 />
