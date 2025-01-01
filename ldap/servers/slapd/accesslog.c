@@ -293,7 +293,7 @@ int32_t
 slapd_log_access_result(slapd_log_pblock *logpb)
 {
     int32_t rc = 0;
-    char *bind_dn;
+    char *bind_dn = NULL;
 
     /* get the bind dn */
     slapi_pblock_get(logpb->pb, SLAPI_CONN_DN, &bind_dn);
