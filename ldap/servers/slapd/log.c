@@ -7055,7 +7055,7 @@ void
 slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock *pb)
 {
     Slapi_Operation *op = NULL;
-    Connection *conn = NULL;;
+    Connection *conn = NULL;
 
     if (pb) {
         slapi_pblock_get(pb, SLAPI_OPERATION, &op);
