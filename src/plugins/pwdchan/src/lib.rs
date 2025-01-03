@@ -9,18 +9,16 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::convert::TryInto;
 use std::os::raw::c_char;
 
-const DEFAULT_PBKDF2_SHA1_ROUNDS: usize = 70_000;
-const DEFAULT_PBKDF2_SHA256_ROUNDS: usize = 30_000;
-const DEFAULT_PBKDF2_SHA512_ROUNDS: usize = 10_000;
+const DEFAULT_PBKDF2_ROUNDS: usize = 100_000;
 const MIN_PBKDF2_ROUNDS: usize = 10_000;
 const MAX_PBKDF2_ROUNDS: usize = 10_000_000;
 
 const PBKDF2_ROUNDS_ATTR: &str = "nsslapd-pwdPBKDF2NumIterations";
 // Each algorithm gets its own atomic counter for thread-safe round configuration
-static PBKDF2_ROUNDS: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_SHA1_ROUNDS);
-static PBKDF2_ROUNDS_SHA1: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_SHA1_ROUNDS);
-static PBKDF2_ROUNDS_SHA256: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_SHA256_ROUNDS);
-static PBKDF2_ROUNDS_SHA512: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_SHA512_ROUNDS);
+static PBKDF2_ROUNDS: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
+static PBKDF2_ROUNDS_SHA1: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
+static PBKDF2_ROUNDS_SHA256: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
+static PBKDF2_ROUNDS_SHA512: AtomicUsize = AtomicUsize::new(DEFAULT_PBKDF2_ROUNDS);
 
 const PBKDF2_SALT_LEN: usize = 24;
 const PBKDF2_SHA1_EXTRACT: usize = 20;

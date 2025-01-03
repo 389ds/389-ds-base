@@ -54,7 +54,7 @@ class SSHAPlugin(PasswordPlugin):
 
 class PBKDF2BasePlugin(PasswordPlugin):
     """Base class for all PBKDF2 variants"""
-    DEFAULT_ROUNDS = 70000  # Fallback default if not specified by subclass
+    DEFAULT_ROUNDS = 100000
 
     def __init__(self, instance, dn):
         super(PBKDF2BasePlugin, self).__init__(instance, dn)
@@ -90,7 +90,6 @@ class PBKDF2BasePlugin(PasswordPlugin):
 
 class PBKDF2Plugin(PBKDF2BasePlugin):
     """PBKDF2 password storage scheme"""
-    DEFAULT_ROUNDS = 70000
 
     def __init__(self, instance, dn=f'cn=PBKDF2,{DN_PWDSTORAGE_SCHEMES}'):
         super(PBKDF2Plugin, self).__init__(instance, dn)
@@ -98,7 +97,6 @@ class PBKDF2Plugin(PBKDF2BasePlugin):
 
 class PBKDF2SHA1Plugin(PBKDF2BasePlugin):
     """PBKDF2-SHA1 password storage scheme"""
-    DEFAULT_ROUNDS = 70000
 
     def __init__(self, instance, dn=f'cn=PBKDF2-SHA1,{DN_PWDSTORAGE_SCHEMES}'):
         super(PBKDF2SHA1Plugin, self).__init__(instance, dn)
@@ -106,7 +104,6 @@ class PBKDF2SHA1Plugin(PBKDF2BasePlugin):
 
 class PBKDF2SHA256Plugin(PBKDF2BasePlugin):
     """PBKDF2-SHA256 password storage scheme"""
-    DEFAULT_ROUNDS = 30000
 
     def __init__(self, instance, dn=f'cn=PBKDF2-SHA256,{DN_PWDSTORAGE_SCHEMES}'):
         super(PBKDF2SHA256Plugin, self).__init__(instance, dn)
@@ -114,7 +111,6 @@ class PBKDF2SHA256Plugin(PBKDF2BasePlugin):
 
 class PBKDF2SHA512Plugin(PBKDF2BasePlugin):
     """PBKDF2-SHA512 password storage scheme"""
-    DEFAULT_ROUNDS = 10000
 
     def __init__(self, instance, dn=f'cn=PBKDF2-SHA512,{DN_PWDSTORAGE_SCHEMES}'):
         super(PBKDF2SHA512Plugin, self).__init__(instance, dn)
