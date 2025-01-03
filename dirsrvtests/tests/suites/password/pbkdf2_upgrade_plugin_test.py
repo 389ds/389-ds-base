@@ -8,7 +8,7 @@
 #
 import pytest
 from lib389.topologies import topology_st
-from lib389.password_plugins import PBKDF2Plugin
+from lib389.password_plugins import PBKDF2SHA256Plugin
 from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
@@ -35,18 +35,18 @@ def test_pbkdf2_upgrade(topology_st):
 
     """
     # Remove the pbkdf2 plugin config
-    p1 = PBKDF2Plugin(topology_st.standalone)
+    p1 = PBKDF2SHA256Plugin(topology_st.standalone)
     assert(p1.exists())
     p1._protected = False
     p1.delete()
     # Restart
     topology_st.standalone.restart()
     # check it's been readded.
-    p2 = PBKDF2Plugin(topology_st.standalone)
+    p2 = PBKDF2SHA256Plugin(topology_st.standalone)
     assert(p2.exists())
     # Now restart to make sure we still work from the non-bootstrap form
     topology_st.standalone.restart()
-    p3 = PBKDF2Plugin(topology_st.standalone)
+    p3 = PBKDF2SHA256Plugin(topology_st.standalone)
     assert(p3.exists())
 
 
