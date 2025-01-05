@@ -73,7 +73,7 @@ def _ldap_op_s(inst, f, fname, *args, **kwargs):
     try:
         return f(*args, **kwargs)
     except ldap.LDAPError as e:
-        new_desc = f"{fname}({args},{kwargs}) on instance {inst.serverid}";
+        new_desc = f"{fname}({args},{kwargs}) on instance {inst.serverid}"
         if len(e.args) >= 1:
             e.args[0]['ldap_request'] = new_desc
             logging.getLogger().debug(f"args={e.args}")
@@ -488,9 +488,10 @@ class DSLdapObject(DSLogging, DSLint):
         elif value is not None:
             value = [ensure_bytes(value)]
 
-        return _modify_ext_s(self._instance,self._dn, [(action, key, value)],
-                                           serverctrls=self._server_controls, clientctrls=self._client_controls,
-                                           escapehatch='i am sure')
+        return _modify_ext_s(self._instance, self._dn, [(action, key, value)],
+                             serverctrls=self._server_controls,
+                             clientctrls=self._client_controls,
+                             escapehatch='i am sure')
 
     def apply_mods(self, mods):
         """Perform modification operation using several mods at once
