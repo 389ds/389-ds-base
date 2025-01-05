@@ -32,7 +32,7 @@ from lib389.cli_idm import role as cli_role
 from lib389.cli_idm import service as cli_service
 from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
-from lib389.cli_base import format_error_to_dict
+from lib389.cli_base import format_error_to_dict, format_pretty_error
 from lib389.cli_base import parent_argparser
 
 parser = argparse.ArgumentParser(allow_abbrev=True, parents=[parent_argparser])
@@ -145,10 +145,9 @@ if __name__ == '__main__':
         if args.json:
             sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
         else:
-            if 'desc' in msg:
-                log.error(f"Error: {msg['desc']}")
-            else:
-                log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
+            if not args.verbose:
+                msg = format_pretty_error(msg)
+            log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
 
     disconnect_instance(inst)
