@@ -18,7 +18,7 @@ from textwrap import dedent
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_base import setup_script_logger
-from lib389.cli_base import format_error_to_dict
+from lib389.cli_base import format_error_to_dict, format_pretty_error
 
 
 epilog = """
@@ -103,6 +103,8 @@ if __name__ == '__main__':
         if args and args.json:
             sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
         else:
+            if not args.verbose:
+                msg = format_pretty_error(msg)
             log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
 
