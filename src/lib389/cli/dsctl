@@ -31,6 +31,7 @@ from lib389.cli_base import (
     disconnect_instance,
     setup_script_logger,
     format_error_to_dict,
+    format_pretty_error,
     parent_argparser
     )
 from lib389._constants import DSRC_CONTAINER
@@ -131,6 +132,8 @@ if __name__ == '__main__':
             if args.json:
                 sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
             else:
+                if not args.verbose:
+                    msg = format_pretty_error(msg)
                 log.error("Error: %s" % " - ".join(msg.values()))
             sys.exit(1)
         except Exception as e:
@@ -138,6 +141,8 @@ if __name__ == '__main__':
             if args.json:
                 sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
             else:
+                if not args.verbose:
+                    msg = format_pretty_error(msg)
                 log.error("Error: %s" % " - ".join(msg.values()))
             sys.exit(1)
     if len(insts) != 1:
@@ -160,6 +165,8 @@ if __name__ == '__main__':
         if args.json:
             sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
         else:
+            if not args.verbose:
+                msg = format_pretty_error(msg)
             log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
     disconnect_instance(inst)
