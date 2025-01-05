@@ -388,7 +388,7 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         if len(actions) > 0 and actions[0].option_strings:
             actions = parent_arguments + actions
         super(CustomHelpFormatter, self).add_arguments(actions)
-    
+
     def _format_usage(self, usage, actions, groups, prefix):
         usage = super(CustomHelpFormatter, self)._format_usage(usage, actions, groups, prefix)
         formatted_options = self._format_actions_usage(parent_arguments, [])
@@ -504,9 +504,24 @@ def format_error_to_dict(exception):
     # We should fix the code here after the issue is fixed
     errmsg = str(exception)
     try:
-        # The function literal_eval parses the string and returns only if it's a literal.
-        # Also, the code is never executed. So there is no reason for a security risk.
+        # The function literal_eval parses the string and returns only if it's
+        # a literal. Also, the code is never executed. So there is no reason
+        # for a security risk.
         msg = ast.literal_eval(errmsg)
     except Exception:
         msg = {'desc': errmsg}
+
     return msg
+
+
+def format_pretty_error(msg_dict):
+    """
+    Take a raw exception dict and make a pretty message for the user
+    """
+    msg = f"{msg_dict['desc']}"
+    if 'result' in msg_dict:
+        msg += f"({msg_dict['result']})"
+    if 'info' in msg_dict:
+        msg += f" - {msg_dict['info']}"
+
+    return {'desc': msg}
