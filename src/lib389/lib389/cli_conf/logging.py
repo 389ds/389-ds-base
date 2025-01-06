@@ -124,8 +124,6 @@ ACCESS_ATTR_MAP = {
     'nsslapd-accesslog-maxlogsize': 'Max log size',
     'nsslapd-accesslog-logbuffering': 'Buffering enabled',
     'nsslapd-accesslog-logminfreediskspace': 'Minimum free disk space',
-    'nsslapd-accesslog-time-format': 'Time format for JSON logging (strftime)',
-    'nsslapd-accesslog-log-format': 'Logging format',
 }
 
 AUDIT_ATTR_MAP = {
@@ -146,8 +144,6 @@ AUDIT_ATTR_MAP = {
     'nsslapd-auditlog-logbuffering': 'Buffering enabled',
     'nsslapd-auditlog-logminfreediskspace': 'Minimum free disk space',
     'nsslapd-auditlog-display-attrs': 'Additional attrs to display',
-    'nsslapd-auditlog-time-format': 'Time format for JSON logging (strftime)',
-    'nsslapd-auditlog-log-format': 'Logging format',
 }
 
 AUDITFAIL_ATTR_MAP = {
@@ -675,34 +671,6 @@ def create_parser(subparsers):
             help="Set the minimum available disk space in MB that triggers "
             + "the server to delete rotated log files.",
         )
-
-        if log_type in ['access', 'audit', 'security']:
-            # JSON logging
-            set_log_format_parser = set_parsers.add_parser(
-                "log-format",
-                help='Choose between "default", "json", or "json-pretty"',
-                formatter_class=CustomHelpFormatter,
-            )
-            set_log_format_parser.set_defaults(
-                func=update_config, logtype=log_type, keyword="log-format"
-            )
-            set_log_format_parser.add_argument(
-                "values", nargs=1,
-                help='Choose between "default", "json", or "json-pretty"'
-            )
-
-            set_time_format_parser = set_parsers.add_parser(
-                "time-format",
-                help="Time format for JSON logging (strftime)",
-                formatter_class=CustomHelpFormatter,
-            )
-            set_time_format_parser.set_defaults(
-                func=update_config, logtype=log_type, keyword="time-format"
-            )
-            set_time_format_parser.add_argument(
-                "values", nargs=1, help="Time format for JSON logging "
-                                        + "(strftime)"
-            )
 
         if log_type == 'audit':
             set_display_attrs_parser = set_parsers.add_parser(
