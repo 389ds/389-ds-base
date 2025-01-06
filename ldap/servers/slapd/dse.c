@@ -41,6 +41,7 @@
 #include <pwd.h>
 /* Needed to access read_config_dse */
 #include "proto-slap.h"
+#include <stdbool.h>
 
 #include <unistd.h> /* provides fsync/close */
 
@@ -102,7 +103,7 @@ struct dse
     int dse_is_updateable;           /* if non-zero, this DSE can be written to */
     int dse_readonly_error_reported; /* used to ensure that read-only errors are logged only once */
     pthread_mutex_t dse_backup_lock; /* used to block write when online backup is in progress */
-    int dse_backup_in_progress;      /* tell that online backup is in progress (protected by dse_rwlock) */
+    bool dse_backup_in_progress;     /* tell that online backup is in progress (protected by dse_rwlock) */
 };
 
 struct dse_node
@@ -211,7 +212,7 @@ dse_backup_lock_cb(struct dse *pdse)
 {
     pthread_mutex_lock(&pdse->dse_backup_lock);
     slapi_rwlock_wrlock(pdse->dse_rwlock);
-    pdse->dse_backup_in_progress = 1;
+    pdse->dse_backup_in_progress = true;
     slapi_rwlock_unlock(pdse->dse_rwlock);
 }
 
@@ -220,7 +221,7 @@ static void
 dse_backup_unlock_cb(struct dse *pdse)
 {
     slapi_rwlock_wrlock(pdse->dse_rwlock);
-    pdse->dse_backup_in_progress = 0;
+    pdse->dse_backup_in_progress = false;
     slapi_rwlock_unlock(pdse->dse_rwlock);
     pthread_mutex_unlock(&pdse->dse_backup_lock);
 }
