@@ -674,7 +674,7 @@ def create_parser(subparsers):
             + "the server to delete rotated log files.",
         )
 
-        if log_type in ['audit', 'security']:
+        if log_type == 'audit':
             # JSON logging
             set_log_format_parser = set_parsers.add_parser(
                 "log-format",
@@ -702,7 +702,7 @@ def create_parser(subparsers):
                                         + "(strftime)"
             )
 
-        if log_type == 'audit':
+            # Display attributes
             set_display_attrs_parser = set_parsers.add_parser(
                 "display-attrs",
                 help="Sets additional identifying attrs to display",
