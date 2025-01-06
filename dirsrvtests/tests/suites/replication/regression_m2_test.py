@@ -1203,6 +1203,15 @@ def test_online_reinit_may_hang(topo_with_sigkill):
     """
     M1 = topo_with_sigkill.ms["supplier1"]
     M2 = topo_with_sigkill.ms["supplier2"]
+
+    # The RFE 5367 (when enabled) retrieves the DN
+    # from the dncache. This hides an issue
+    # with primary fix for 6417.
+    # We need to disable the RFE to verify that the primary
+    # fix is properly fixed.
+    if ds_is_newer('2.3.1'):
+        M1.config.replace('nsslapd-return-original-entrydn', 'off')
+
     M1.stop()
     ldif_file = '%s/supplier1.ldif' % M1.get_ldif_dir()
     M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],

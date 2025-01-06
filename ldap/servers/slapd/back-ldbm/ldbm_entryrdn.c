@@ -1111,6 +1111,7 @@ entryrdn_lookup_dn(backend *be,
     rdn_elem *elem = NULL;
     int maybesuffix = 0;
     int db_retry = 0;
+    ID suffix_id = 1;
 
     slapi_log_err(SLAPI_LOG_TRACE, "entryrdn_lookup_dn",
                   "--> entryrdn_lookup_dn\n");
@@ -1171,6 +1172,22 @@ entryrdn_lookup_dn(backend *be,
     /* Setting the bulk fetch buffer */
     data.flags = DB_DBT_MALLOC;
 
+    /* Just in case the suffix ID is not '1' retrieve it from the database */
+    keybuf = slapi_ch_strdup(slapi_sdn_get_ndn(be->be_suffix));
+    dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
+    rc = dblayer_cursor_op(&ctx.cursor, DBI_OP_MOVE_TO_KEY, &key, &data);
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_WARNING, "entryrdn_lookup_dn",
+                      "Fails to retrieve the ID of suffix %s - keep the default value '%d'\n",
+                      slapi_sdn_get_ndn(be->be_suffix),
+                      suffix_id);
+    } else {
+        elem = (rdn_elem *)data.data;
+        suffix_id = id_stored_to_internal(elem->rdn_elem_id);
+    }
+    dblayer_value_free(be, &data);
+    dblayer_value_free(be, &key);
+
     do {
         /* Setting up a key for the node to get its parent */
         slapi_ch_free_string(&keybuf);
@@ -1220,7 +1237,7 @@ entryrdn_lookup_dn(backend *be,
                     }
                     goto bail;
                 }
-                if (workid == 1) {
+                if (workid == suffix_id) {
                     /* The loop (workid) iterates from the starting 'id'
                      * up to the suffix ID (i.e. '1').
                      * A corner case (#6417) is if an entry, on the path
