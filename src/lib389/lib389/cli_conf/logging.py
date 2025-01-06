@@ -124,8 +124,6 @@ ACCESS_ATTR_MAP = {
     'nsslapd-accesslog-maxlogsize': 'Max log size',
     'nsslapd-accesslog-logbuffering': 'Buffering enabled',
     'nsslapd-accesslog-logminfreediskspace': 'Minimum free disk space',
-    'nsslapd-accesslog-time-format': 'Time format for JSON logging (strftime)',
-    'nsslapd-accesslog-log-format': 'Logging format',
 }
 
 AUDIT_ATTR_MAP = {
@@ -676,7 +674,7 @@ def create_parser(subparsers):
             + "the server to delete rotated log files.",
         )
 
-        if log_type in ['access', 'audit', 'security']:
+        if log_type in ['audit', 'security']:
             # JSON logging
             set_log_format_parser = set_parsers.add_parser(
                 "log-format",
