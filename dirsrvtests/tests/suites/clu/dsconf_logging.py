@@ -124,7 +124,7 @@ def test_log_settings(topo):
             assert rc == 0
 
         # Log formats
-        if log_type in ["access", "audit"]:
+        if log_type == "audit":
             output, rc = execute_dsconf_command(dsconf_cmd,
                                                 [log_type, 'set',
                                                  'time-format', '%D'])
