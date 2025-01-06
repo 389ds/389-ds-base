@@ -1127,7 +1127,7 @@ entryrdn_lookup_dn(backend *be,
     /* Just in case the suffix ID is not '1' retrieve it from the database */
     keybuf = slapi_ch_strdup(slapi_sdn_get_ndn(be->be_suffix));
     dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
-    rc = dblayer_cursor_op(&ctx.cursor, DBI_OP_MOVE_TO_KEY, &key, &data);
+    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY, &key, &data);
     if (rc) {
         slapi_log_err(SLAPI_LOG_WARNING, "entryrdn_lookup_dn",
                       "Fails to retrieve the ID of suffix %s - keep the default value '%d'\n",
