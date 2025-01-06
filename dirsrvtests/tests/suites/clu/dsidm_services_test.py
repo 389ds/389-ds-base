@@ -171,7 +171,7 @@ def test_dsidm_service_get_rdn(topology_st, create_test_service):
 
 
 @pytest.mark.bz1893667
-@pytest.mark.xfail(reason="Will fail because of bz1893667")
+#@pytest.mark.xfail(reason="Will fail because of bz1893667")
 @pytest.mark.skipif(ds_is_older("2.1.0"), reason="Not implemented")
 def test_dsidm_service_get_dn(topology_st, create_test_service):
     """ Test dsidm service get_dn option
@@ -186,20 +186,25 @@ def test_dsidm_service_get_dn(topology_st, create_test_service):
          2. Success
     """
 
+    service_name = 'test_service'
     standalone = topology_st.standalone
     services = ServiceAccounts(standalone, DEFAULT_SUFFIX)
-    test_service = services.get('test_service')
+    test_service = services.get(service_name)
     args = FakeArgs()
     args.dn = test_service.dn
+    args.json = False
 
     log.info('Empty the log file to prevent false data to check about service')
     topology_st.logcap.flush()
 
     log.info('Test dsidm service get_dn without json')
     get_dn(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
-    # check_value_in_log_and_reset(topology_st, content_list=service_content)
-    # The check_value_in_log_and_reset will have to be updated accordinly after bz1893667 is fixed
-    # because now I can't determine the output
+    check_value_in_log_and_reset(topology_st, content_list=service_name)
+
+    log.info('Test dsidm service get_dn with json')
+    args.json = True
+    get_dn(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, content_list=service_name)
 
 
 @pytest.mark.skipif(ds_is_older("2.1.0"), reason="Not implemented")
