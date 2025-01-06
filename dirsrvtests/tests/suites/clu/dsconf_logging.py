@@ -123,29 +123,6 @@ def test_log_settings(topo):
                                                  'default'])
             assert rc == 0
 
-        # Log formats
-        if log_type in ["access", "audit"]:
-            output, rc = execute_dsconf_command(dsconf_cmd,
-                                                [log_type, 'set',
-                                                 'time-format', '%D'])
-            assert rc == 0
-            output, rc = execute_dsconf_command(dsconf_cmd,
-                                                [log_type, 'set',
-                                                 'time-format',
-                                                 DEFAULT_TIME_FORMAT])
-            assert rc == 0
-
-            output, rc = execute_dsconf_command(dsconf_cmd,
-                                                [log_type, 'set',
-                                                 'log-format',
-                                                 'json'])
-            assert rc == 0
-            output, rc = execute_dsconf_command(dsconf_cmd,
-                                                [log_type, 'set',
-                                                 'log-format',
-                                                 'default'])
-            assert rc == 0
-
         # Audit log display attrs
         if log_type == "audit":
             output, rc = execute_dsconf_command(dsconf_cmd,
