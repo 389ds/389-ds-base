@@ -1178,8 +1178,10 @@ entryrdn_lookup_dn(backend *be,
 
     /* Just in case the suffix ID is not '1' retrieve it from the database */
     keybuf = slapi_ch_strdup(slapi_sdn_get_ndn(be->be_suffix));
-    dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
-    rc = dblayer_cursor_op(&ctx.cursor, DBI_OP_MOVE_TO_KEY, &key, &data);
+    key.data = keybuf;
+    key.size = key.ulen = strlen(keybuf) + 1;
+    key.flags = DB_DBT_USERMEM;
+    rc = cursor->c_get(cursor, &key, &data, DB_SET);
     if (rc) {
         slapi_log_err(SLAPI_LOG_WARNING, "entryrdn_lookup_dn",
                       "Fails to retrieve the ID of suffix %s - keep the default value '%d'\n",
@@ -1189,8 +1191,8 @@ entryrdn_lookup_dn(backend *be,
         elem = (rdn_elem *)data.data;
         suffix_id = id_stored_to_internal(elem->rdn_elem_id);
     }
-    dblayer_value_free(be, &data);
-    dblayer_value_free(be, &key);
+    slapi_ch_free(&data.data);
+    slapi_ch_free_string(&keybuf);
 
     do {
         /* Setting up a key for the node to get its parent */
