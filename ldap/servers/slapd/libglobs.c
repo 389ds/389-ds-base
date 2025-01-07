@@ -2026,9 +2026,6 @@ FrontendConfig_init(void)
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
 
-    /* init the dse file backup lock */
-    dse_init_backup_lock();
-
     init_config_get_and_set();
 }
 
