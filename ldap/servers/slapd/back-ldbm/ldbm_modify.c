@@ -1168,16 +1168,15 @@ common_return:
         if (!result_sent) {
             /* result is already sent in find_entry. */
             int deferred;
-            PRIntervalTime delay;
 
             if (!is_internal) {
                 slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
                 if (deferred) {
-                    delay = PR_MillisecondsToInterval(100);
-                }
-                while (deferred) {
-                    DS_Sleep(delay);
-                    slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                    PRIntervalTime delay = PR_MillisecondsToInterval(100);
+                    while (deferred) {
+                        DS_Sleep(delay);
+                        slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                    }
                 }
             }
             slapi_send_ldap_result(pb, ldap_result_code, NULL, ldap_result_message, 0, NULL);

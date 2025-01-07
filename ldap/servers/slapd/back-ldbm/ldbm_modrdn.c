@@ -1510,17 +1510,15 @@ common_return:
         }
         if (!result_sent) {
             int deferred;
-            PRIntervalTime delay;
 
             if (!is_internal) {
-                /* for direct operation, wait for members update */
                 slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
                 if (deferred) {
-                    delay = PR_MillisecondsToInterval(100);
-                }
-                while (deferred) {
-                    DS_Sleep(delay);
-                    slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                    PRIntervalTime delay = PR_MillisecondsToInterval(100);
+                    while (deferred) {
+                        DS_Sleep(delay);
+                        slapi_pblock_get(pb, SLAPI_DEFERRED_MEMBEROF, &deferred);
+                    }
                 }
             }
             slapi_send_ldap_result(pb, ldap_result_code, ldap_result_matcheddn,
