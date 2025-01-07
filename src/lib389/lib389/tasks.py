@@ -525,7 +525,7 @@ class Tasks(object):
             entry.setValues('nsIncludeSuffix', suffix)
 
         # start the task and possibly wait for task completion
-        self.conn.add_s(entry)
+        self.conn.add_s(entry, escapehatch='i am sure')
 
         exitCode = 0
         warningCode = 0
@@ -598,7 +598,7 @@ class Tasks(object):
             entry.setValues('nsExportReplica', 'true')
 
         # start the task and possibly wait for task completion
-        self.conn.add_s(entry)
+        self.conn.add_s(entry, escapehatch='i am sure')
         exitCode = 0
         warningCode = 0
         if args and args.get(TASK_WAIT, False):
@@ -649,7 +649,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the backup task (%s)", dn)
             return -1
@@ -706,7 +706,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the backup task (%s)", dn)
             return -1
@@ -834,7 +834,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the index task for %s", attrname)
             return -1
@@ -914,7 +914,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the memberOf fixup task")
             return -1
@@ -975,7 +975,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add the fixup tombstone task")
             return -1
@@ -1031,7 +1031,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Automember Rebuild Membership task")
             return -1
@@ -1087,7 +1087,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Automember Export Updates task")
             return -1
@@ -1138,7 +1138,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Automember Map Updates task")
             return -1
@@ -1183,7 +1183,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Fixup Linked Attributes task")
             return -1
@@ -1227,7 +1227,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Schema Reload task")
             return -1
@@ -1272,7 +1272,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add fixupWinsyncMembers 'memberuid task'")
             return -1
@@ -1319,7 +1319,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Syntax Validate task")
             return -1
@@ -1370,7 +1370,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add USN tombstone cleanup task")
             return -1
@@ -1421,7 +1421,7 @@ class Tasks(object):
             entry.setValues('logchanges', logchanges)
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Sysconfig Reload task")
             return -1
@@ -1473,7 +1473,7 @@ class Tasks(object):
             entry.setValues('replica-force-cleaning', 'yes')
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add cleanAllRUV task")
             return (dn, -1)
@@ -1528,7 +1528,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Abort cleanAllRUV task")
             return (dn, -1)
@@ -1582,7 +1582,7 @@ class Tasks(object):
 
         # start the task and possibly wait for task completion
         try:
-            self.conn.add_s(entry)
+            self.conn.add_s(entry, escapehatch='i am sure')
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add upgradedb task")
             return -1
