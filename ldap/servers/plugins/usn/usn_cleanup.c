@@ -240,7 +240,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
     char *suffix = NULL;
     char *backend_str = NULL;
     char *maxusn = NULL;
-    char *bind_dn;
+    char *bind_dn = NULL;
     struct usn_cleanup_data *cleanup_data = NULL;
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Task *task = NULL;
@@ -323,8 +323,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
     suffix = NULL; /* don't free in this function */
     cleanup_data->maxusn_to_delete = maxusn;
     maxusn = NULL; /* don't free in this function */
-    cleanup_data->bind_dn = bind_dn;
-    bind_dn = NULL; /* don't free in this function */
+    cleanup_data->bind_dn = slapi_ch_strdup(bind_dn);
     slapi_task_set_data(task, cleanup_data);
 
     /* start the USN tombstone cleanup task as a separate thread */
@@ -363,7 +362,6 @@ usn_cleanup_task_destructor(Slapi_Task *task)
             slapi_ch_free_string(&mydata->suffix);
             slapi_ch_free_string(&mydata->maxusn_to_delete);
             slapi_ch_free_string(&mydata->bind_dn);
-            /* Need to cast to avoid a compiler warning */
             slapi_ch_free((void **)&mydata);
         }
     }
