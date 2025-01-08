@@ -31,6 +31,7 @@ from lib389.cli_conf.plugins import automember as cli_automember
 from lib389.cli_conf.plugins import posix_winsync as cli_posix_winsync
 from lib389.cli_conf.plugins import contentsync as cli_contentsync
 from lib389.cli_conf.plugins import entryuuid as cli_entryuuid
+from lib389.cli_conf.plugins import pwstorage as cli_pwstorage
 
 SINGULAR = Plugin
 MANY = Plugins
@@ -120,6 +121,7 @@ def create_parser(subparsers):
     cli_posix_winsync.create_parser(subcommands)
     cli_contentsync.create_parser(subcommands)
     cli_entryuuid.create_parser(subcommands)
+    cli_pwstorage.create_parser(subcommands)
 
     list_parser = subcommands.add_parser('list', help="List current configured (enabled and disabled) plugins", formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=plugin_list)
