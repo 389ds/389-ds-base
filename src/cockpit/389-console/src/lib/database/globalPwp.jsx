@@ -88,6 +88,16 @@ const tpr_attrs = [
     "passwordtprdelayvalidfrom",
 ];
 
+const password_storage_attrs = [
+    "nsslapd-pwdpbkdf2numiterations"
+];
+
+const PBKDF2_SCHEMES = ['pbkdf2', 'pbkdf2-sha1', 'pbkdf2-sha256', 'pbkdf2-sha512'];
+
+const isPBKDF2Scheme = (scheme) => {
+    return PBKDF2_SCHEMES.includes(scheme.toLowerCase());
+};
+
 export class GlobalPwPolicy extends React.Component {
     constructor(props) {
         super(props);
@@ -101,6 +111,7 @@ export class GlobalPwPolicy extends React.Component {
             // each field, so we can loop over them to efficently
             // check for changes, and updating/saving the config.
             saveGeneralDisabled: true,
+            savePasswordStorageDisabled: true,
             saveExpDisabled: true,
             saveLockoutDisabled: true,
             saveSyntaxDisabled: true,
@@ -117,6 +128,8 @@ export class GlobalPwPolicy extends React.Component {
 
         this.handleGeneralChange = this.handleGeneralChange.bind(this);
         this.saveGeneral = this.saveGeneral.bind(this);
+        this.handlePasswordStorageChange = this.handlePasswordStorageChange.bind(this);
+        this.handleSavePasswordStorage = this.handleSavePasswordStorage.bind(this);
         this.handleExpChange = this.handleExpChange.bind(this);
         this.saveExp = this.saveExp.bind(this);
         this.handleLockoutChange = this.handleLockoutChange.bind(this);
@@ -126,6 +139,7 @@ export class GlobalPwPolicy extends React.Component {
         this.handleTPRChange = this.handleTPRChange.bind(this);
         this.saveTPR = this.saveTPR.bind(this);
         this.loadGlobal = this.loadGlobal.bind(this);
+        this.handleLoadPasswordStorage = this.handleLoadPasswordStorage.bind(this);
         // Select Typeahead
         this.onSelectToggle = this.onSelectToggle.bind(this);
         this.onSelectClear = this.onSelectClear.bind(this);
@@ -142,6 +156,68 @@ export class GlobalPwPolicy extends React.Component {
 
     handleNavSelect(key) {
         this.setState({ activeKey: key });
+    }
+
+    handlePasswordStorageChange(e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const attr = e.target.id.toLowerCase();
+        let disableSaveBtn = true;
+
+        for (const password_storage_attr of password_storage_attrs) {
+            const storageAttr = password_storage_attr.toLowerCase();
+            const oldValue = String(this.state['_' + storageAttr] || '');
+            const newValue = String(value || '');
+
+            if (attr === storageAttr && oldValue !== newValue) {
+                disableSaveBtn = false;
+                break;
+            }
+        }
+
+        this.setState({
+            [attr]: value || '',
+            savePasswordStorageDisabled: disableSaveBtn,
+        });
+    }
+
+    handleSavePasswordStorage() {
+        if (!isPBKDF2Scheme(this.state.passwordstoragescheme)) {
+            return;
+        }
+        this.setState({
+            saving: true
+        });
+
+        const cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'plugin', 'pwstorage-scheme', this.state.passwordstoragescheme.toLowerCase(),
+            'set-num-iterations', this.state[password_storage_attrs[0]]
+        ];
+
+        log_cmd("handleSavePasswordStorage", "Saving password storage settings", cmd);
+        cockpit
+            .spawn(cmd, { superuser: true, err: "message" })
+            .done(content => {
+                this.handleLoadGlobal();
+                this.setState({
+                    saving: false
+                });
+                this.props.addNotification(
+                    "success",
+                    _("Successfully updated number of iterations for password storage scheme")
+                );
+            })
+            .fail(err => {
+                const errMsg = JSON.parse(err);
+                this.handleLoadGlobal();
+                this.setState({
+                    saving: false
+                });
+                this.props.addNotification(
+                    "error",
+                    cockpit.format(_("Error updating number of iterations for password storage scheme - $0"), errMsg.desc)
+                );
+            });
     }
 
     handleGeneralChange(e) {
@@ -165,9 +241,18 @@ export class GlobalPwPolicy extends React.Component {
             }
         }
 
-        this.setState({
+        // Create state update object
+        const stateUpdate = {
             [attr]: value,
             saveGeneralDisabled: disableSaveBtn,
+        };
+
+        this.setState(stateUpdate, () => {
+            // If passwordstoragescheme was changed and it's a PBKDF2 scheme,
+            // load the iterations value
+            if (attr === 'passwordstoragescheme' && isPBKDF2Scheme(value)) {
+                this.handleLoadPasswordStorage(true);
+            }
         });
     }
 
@@ -175,6 +260,15 @@ export class GlobalPwPolicy extends React.Component {
         this.setState({
             saving: true
         });
+        if (!this.state.savePasswordStorageDisabled) {
+            this.handleSavePasswordStorage();
+        }
+        if (this.state.saveGeneralDisabled) {
+            this.setState({
+                saving: false
+            });
+            return;
+        }
 
         let cmd = [
             'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -593,10 +687,74 @@ export class GlobalPwPolicy extends React.Component {
                 });
     }
 
+    handleLoadPasswordStorage(skipLoading = false) {
+        if (!skipLoading) {
+            this.setState({
+                loading: true
+            });
+        }
+
+        if (!isPBKDF2Scheme(this.state.passwordstoragescheme)) {
+            this.setState({
+                loading: false,
+                'nsslapd-pwdpbkdf2numiterations': '',
+                '_nsslapd-pwdpbkdf2numiterations': ''
+            });
+            return;
+        }
+
+        const cmd = [
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'plugin', 'pwstorage-scheme', this.state.passwordstoragescheme.toLowerCase(),
+            'get-num-iterations'
+        ];
+
+        log_cmd("handleLoadPasswordStorage", "Load password storage settings", cmd);
+        cockpit
+            .spawn(cmd, { superuser: true, err: "message" })
+            .done(content => {
+                const config = JSON.parse(content);
+                const attrs = config.attrs;
+
+                const stateUpdates = {
+                    'nsslapd-pwdpbkdf2numiterations': '',
+                    '_nsslapd-pwdpbkdf2numiterations': ''
+                };
+                
+                if (!skipLoading) {
+                    stateUpdates["loading"] = false
+                }
+                password_storage_attrs.forEach(attr => {
+                    const attrLower = attr.toLowerCase();
+                    const attrValue = attrs[attr] || attrs[attrLower];
+
+                    if (attrValue && attrValue[0]) {
+                        stateUpdates[attrLower] = attrValue[0];
+                        stateUpdates['_' + attrLower] = attrValue[0];
+                    }
+                });
+
+                this.setState(stateUpdates);
+            })
+            .fail(err => {
+                const errMsg = JSON.parse(err);
+                this.setState({
+                    loading: false,
+                    'nsslapd-pwdpbkdf2numiterations': '',
+                    '_nsslapd-pwdpbkdf2numiterations': ''
+                });
+                this.props.addNotification(
+                    "error",
+                    cockpit.format(_("Error loading password storage settings - $0"), errMsg.desc)
+                );
+            });
+    }
+
     loadGlobal() {
         this.setState({
             loading: true
         });
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get"
@@ -695,6 +853,7 @@ export class GlobalPwPolicy extends React.Component {
                             loaded: true,
                             loading: false,
                             saveGeneralDisabled: true,
+                            savePasswordStorageDisabled: true,
                             saveUserDisabled: true,
                             saveExpDisabled: true,
                             saveLockoutDisabled: true,
@@ -788,8 +947,10 @@ export class GlobalPwPolicy extends React.Component {
                             _passwordtprmaxuse: attrs.passwordtprmaxuse[0],
                             _passwordtprdelayexpireat: attrs.passwordtprdelayexpireat[0],
                             _passwordtprdelayvalidfrom: attrs.passwordtprdelayvalidfrom[0],
-                        }), this.props.enableTree()
-                    );
+                        }), () => {
+                            this.props.enableTree();
+                            this.handleLoadPasswordStorage();
+                        });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
@@ -1374,6 +1535,25 @@ export class GlobalPwPolicy extends React.Component {
                                         </FormSelect>
                                     </GridItem>
                                 </Grid>
+                                {isPBKDF2Scheme(this.state.passwordstoragescheme) && (
+                                    <Grid title={_("Set the number of iterations to the password storage scheme plugin entry (nsslapd-pwdPBKDF2NumIterations).")}>
+                                        <GridItem className="ds-label" span={3}>
+                                            {_("PBKDF2 Iterations")}
+                                        </GridItem>
+                                        <GridItem span={9}>
+                                            <TextInput
+                                                value={this.state[password_storage_attrs[0]] || ''}
+                                                type="number"
+                                                id={password_storage_attrs[0]}
+                                                aria-describedby="horizontal-form-name-helper"
+                                                name={password_storage_attrs[0]}
+                                                onChange={(e, checked) => {
+                                                    this.handlePasswordStorageChange(e);
+                                                }}
+                                            />
+                                        </GridItem>
+                                    </Grid>
+                                )}
                                 <Grid
                                     title="Indicates the number of seconds that must pass before a user can change their password again. (passwordMinAge)."
                                 >
@@ -1414,7 +1594,7 @@ export class GlobalPwPolicy extends React.Component {
                                 </Grid>
                             </Form>
                             <Button
-                                isDisabled={this.state.saveGeneralDisabled || this.state.saving}
+                                isDisabled={this.state.saveGeneralDisabled && this.state.savePasswordStorageDisabled || this.state.saving}
                                 variant="primary"
                                 className="ds-margin-top-xlg ds-margin-left-sm"
                                 onClick={this.saveGeneral}
