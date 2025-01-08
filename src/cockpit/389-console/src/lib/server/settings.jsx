@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, isValidIpAddress } from "../tools.jsx";
+import { log_cmd, valid_dn, isValidIpAddress, is_port_in_use } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -187,26 +187,106 @@ export class ServerSettings extends React.Component {
         this.reloadDiskMonitoring = this.reloadDiskMonitoring.bind(this);
         this.handleSaveAdvanced = this.handleSaveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
-        this.onMinusConfig = (id, nav_tab) => {
-            this.setState({
-                [id]: Number(this.state[id]) - 1
-            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+
+        this.onMinusConfig = async (id, nav_tab) => {
+            const errObj = { ...this.state.errObjConfig };
+
+            if (id === 'nsslapd-port' || id === 'nsslapd-secureport') {
+                const portValue = Number(this.state[id]) - 1;
+                try {
+                    // Is the updated port value already used
+                    errObj[id] = await is_port_in_use(portValue);
+                    this.setState({
+                        errObjConfig: errObj,
+                        [id]: portValue,
+                    }, () => {
+                        this.validateSaveBtn(nav_tab, id, portValue);
+                    });
+                } catch (error) {
+                    console.error("Error checking port:", error);
+                    errObj[id] = true;
+                    this.setState({
+                        errObjConfig: errObj,
+                    }, () => {
+                        this.validateSaveBtn(nav_tab, id, portValue);
+                    });
+                }
+            } else {
+                this.setState({
+                    [id]: Number(this.state[id]) - 1
+                }, () => {
+                    this.validateSaveBtn(nav_tab, id, Number(this.state[id]));
+                });
+            }
         };
-        this.onConfigChange = (event, id, min, max, nav_tab) => {
+        this.onConfigChange = async (event, id, min, max, nav_tab) => {
+            const errObj = { ...this.state.errObjConfig };
             let maxValue = this.maxValue;
             if (max !== 0) {
                 maxValue = max;
             }
             let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
             newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
-            this.setState({
-                [id]: newValue
-            }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
+
+            if (id === 'nsslapd-port' || id === 'nsslapd-secureport') {
+                if (newValue) {
+                    try {
+                        // Is the updated port value already used
+                        errObj[id] = await is_port_in_use(newValue);
+                        this.setState({
+                            errObjConfig: errObj,
+                            [id]: newValue,
+                        }, () => {
+                            this.validateSaveBtn(nav_tab, id, newValue);
+                        });
+                    } catch (error) {
+                        console.error("Error checking port:", error);
+                        errObj[id] = true;
+                        this.setState({
+                            errObjConfig: errObj,
+                        }, () => {
+                            this.validateSaveBtn(nav_tab, id, newValue);
+                        });
+                    }
+                }
+            } else {
+                this.setState({
+                    [id]: newValue
+                }, () => {
+                    this.validateSaveBtn(nav_tab, id, Number(this.state[id]));
+                });
+            }
         };
-        this.onPlusConfig = (id, nav_tab) => {
-            this.setState({
-                [id]: Number(this.state[id]) + 1
-            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        this.onPlusConfig = async (id, nav_tab) => {
+            const errObj = { ...this.state.errObjConfig };
+
+            if (id === 'nsslapd-port' || id === 'nsslapd-secureport') {
+                const portValue = Number(this.state[id]) + 1;
+                try {
+                    // Is the updated port value already used
+                    errObj[id] = await is_port_in_use(portValue);
+                    this.setState({
+                        errObjConfig: errObj,
+                        [id]: portValue,
+                    }, () => {
+                        this.validateSaveBtn(nav_tab, id, portValue);
+                    });
+                } catch (error) {
+                    console.error("Error checking port:", error);
+                    errObj[id] = true;
+                    this.setState({
+                        errObjConfig: errObj,
+                    }, () => {
+                        this.validateSaveBtn(nav_tab, id, portValue);
+                    });
+                }
+            } else {
+                this.setState({
+                    [id]: Number(this.state[id]) + 1
+                }, () => {
+                    this.validateSaveBtn(nav_tab, id, Number(this.state[id]));
+                });
+            }
         };
         this.validateSaveBtn = this.validateSaveBtn.bind(this);
     }
@@ -297,6 +377,12 @@ export class ServerSettings extends React.Component {
                 // Only listenhost is allowed to be blank
                 valueErr = true;
                 disableSaveBtn = true;
+            }
+            if (attr === 'nsslapd-port' || attr === 'nsslapd-secureport') {
+                // Check errObj for port values that are already in use.
+                if (errObj[attr] == true) {
+                    disableSaveBtn = true;
+                }
             }
         } else if (nav_tab === "rootdn") {
             // Handle validating passwords are in sync
@@ -1006,6 +1092,8 @@ export class ServerSettings extends React.Component {
                     });
                 });
     }
+
+
 
     render() {
         let body = "";
