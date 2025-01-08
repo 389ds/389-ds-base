@@ -86,7 +86,7 @@ impl PblockRef {
         match unsafe { slapi_pblock_get(self.raw_pb, req_type as i32, value_ptr) } {
             0 => Ok(value),
             e => {
-                log_error!(ErrorLevel::Error, "enable to get from pblock -> {:?}", e);
+                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {:?}", e);
                 Err(())
             }
         }
@@ -98,7 +98,7 @@ impl PblockRef {
         match unsafe { slapi_pblock_get(self.raw_pb, req_type as i32, value_ptr) } {
             0 => Ok(value),
             e => {
-                log_error!(ErrorLevel::Error, "enable to get from pblock -> {:?}", e);
+                log_error!(ErrorLevel::Error, "Unable to get from pblock -> {:?}", e);
                 Err(())
             }
         }
