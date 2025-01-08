@@ -18,17 +18,19 @@ from lib389.idm.role import (
     MUST_ATTRIBUTES,
     MUST_ATTRIBUTES_NESTED,
     RDN,
-)
+    )
+from lib389.cli_idm import (
+    _generic_create,
+    _generic_delete,
+    _generic_list,
+    _generic_get,
+    _generic_get_dn,
+    )
 from lib389.cli_base import (
     populate_attr_arguments,
     _get_arg,
     _get_attributes,
-    _generic_get,
-    _generic_get_dn,
-    _generic_list,
-    _generic_delete,
     _generic_modify_dn,
-    _generic_create,
     _get_dn_arg,
     _warn,
     CustomHelpFormatter

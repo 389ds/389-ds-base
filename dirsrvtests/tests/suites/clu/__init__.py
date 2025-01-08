@@ -9,6 +9,15 @@ log = logging.getLogger(__name__)
 
 def check_value_in_log_and_reset(topology, content_list=None, content_list2=None, check_value=None,
                                  check_value_not=None):
+
+    check_value_in_log(topology, content_list, content_list2, check_value, check_value_not)
+
+    log.info('Reset the log for next test')
+    topology.logcap.flush()
+
+
+def check_value_in_log(topology, content_list=None, content_list2=None, check_value=None,
+                                 check_value_not=None):
     if content_list2 is not None:
         log.info('Check if content is present in output')
         for item in content_list + content_list2:
@@ -26,6 +35,3 @@ def check_value_in_log_and_reset(topology, content_list=None, content_list2=None
     if check_value_not is not None:
         log.info('Check if value is not present in output')
         assert not topology.logcap.contains(check_value_not)
-
-    log.info('Reset the log for next test')
-    topology.logcap.flush()
