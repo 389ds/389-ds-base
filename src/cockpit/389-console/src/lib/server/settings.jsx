@@ -162,6 +162,8 @@ export class ServerSettings extends React.Component {
         };
 
         this.options = [
+            { value: 'PBKDF2-SHA512', label: 'PBKDF2-SHA512', disabled: false },
+            { value: 'PBKDF2-SHA256', label: 'PBKDF2-SHA256', disabled: false },
             { value: 'PBKDF2_SHA256', label: 'PBKDF2_SHA256', disabled: false },
             { value: 'SSHA512', label: 'SSHA512', disabled: false },
             { value: 'SSHA384', label: 'SSHA384', disabled: false },
