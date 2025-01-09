@@ -30,7 +30,7 @@ LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
 ifeq ($(BUNDLE_LIBDB), 1)
 BUNDLE_BDBREADERS ?= 0
 else
-ifeq (,$(wildcard /usr/include/db.h#))
+ifeq (,$(wildcard /usr/include/db.h))
 BUNDLE_BDBREADERS ?= 1
 else
 BUNDLE_BDBREADERS ?= 0
@@ -197,7 +197,3 @@ debug:
 	@echo COCKPIT_ON=$(COCKPIT_ON)
 	@echo JEMALLOC_URL=$(JEMALLOC_URL)
 	@echo LIBDB_URL=$(LIBDB_URL)
-
-d2:
-	echo $(wildcard /usr/include/db.hX)
-	echo $(wildcard /usr/include/db.h)
