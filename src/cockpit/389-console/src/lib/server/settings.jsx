@@ -309,6 +309,9 @@ async validateSaveBtn(nav_tab, attr, value) {
                         const portInUse = await is_port_in_use(portValue);
                         if (portInUse) {
                             disableSaveBtn = true;
+                            if (portValue !== Number(this.state['_' + attr])) {
+                                valueErr = true;
+                            }
                         }
                     } catch (error) {
                         console.error("Error checking port:", error);
