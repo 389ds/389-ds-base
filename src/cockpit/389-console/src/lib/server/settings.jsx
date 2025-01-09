@@ -187,108 +187,31 @@ export class ServerSettings extends React.Component {
         this.reloadDiskMonitoring = this.reloadDiskMonitoring.bind(this);
         this.handleSaveAdvanced = this.handleSaveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
 
-        this.onMinusConfig = async (id, nav_tab) => {
-            const errObj = { ...this.state.errObjConfig };
+        this.onMinusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) - 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
 
-            if (id === 'nsslapd-port' || id === 'nsslapd-secureport') {
-                const portValue = Number(this.state[id]) - 1;
-                try {
-                    // Is the updated port value already used
-                    errObj[id] = await is_port_in_use(portValue);
-                    this.setState({
-                        errObjConfig: errObj,
-                        [id]: portValue,
-                    }, () => {
-                        this.validateSaveBtn(nav_tab, id, portValue);
-                    });
-                } catch (error) {
-                    console.error("Error checking port:", error);
-                    errObj[id] = true;
-                    this.setState({
-                        errObjConfig: errObj,
-                    }, () => {
-                        this.validateSaveBtn(nav_tab, id, portValue);
-                    });
-                }
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) - 1
-                }, () => {
-                    this.validateSaveBtn(nav_tab, id, Number(this.state[id]));
-                });
-            }
-        };
-        this.onConfigChange = async (event, id, min, max, nav_tab) => {
-            const errObj = { ...this.state.errObjConfig };
+        this.onConfigChange = (event, id, min, max, nav_tab) => {
             let maxValue = this.maxValue;
             if (max !== 0) {
                 maxValue = max;
             }
             let newValue = isNaN(event.target.value) ? min : Number(event.target.value);
             newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
+            this.setState({
+                [id]: newValue
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
 
-            if (id === 'nsslapd-port' || id === 'nsslapd-secureport') {
-                if (newValue) {
-                    try {
-                        // Is the updated port value already used
-                        errObj[id] = await is_port_in_use(newValue);
-                        this.setState({
-                            errObjConfig: errObj,
-                            [id]: newValue,
-                        }, () => {
-                            this.validateSaveBtn(nav_tab, id, newValue);
-                        });
-                    } catch (error) {
-                        console.error("Error checking port:", error);
-                        errObj[id] = true;
-                        this.setState({
-                            errObjConfig: errObj,
-                        }, () => {
-                            this.validateSaveBtn(nav_tab, id, newValue);
-                        });
-                    }
-                }
-            } else {
-                this.setState({
-                    [id]: newValue
-                }, () => {
-                    this.validateSaveBtn(nav_tab, id, Number(this.state[id]));
-                });
-            }
-        };
-        this.onPlusConfig = async (id, nav_tab) => {
-            const errObj = { ...this.state.errObjConfig };
-
-            if (id === 'nsslapd-port' || id === 'nsslapd-secureport') {
-                const portValue = Number(this.state[id]) + 1;
-                try {
-                    // Is the updated port value already used
-                    errObj[id] = await is_port_in_use(portValue);
-                    this.setState({
-                        errObjConfig: errObj,
-                        [id]: portValue,
-                    }, () => {
-                        this.validateSaveBtn(nav_tab, id, portValue);
-                    });
-                } catch (error) {
-                    console.error("Error checking port:", error);
-                    errObj[id] = true;
-                    this.setState({
-                        errObjConfig: errObj,
-                    }, () => {
-                        this.validateSaveBtn(nav_tab, id, portValue);
-                    });
-                }
-            } else {
-                this.setState({
-                    [id]: Number(this.state[id]) + 1
-                }, () => {
-                    this.validateSaveBtn(nav_tab, id, Number(this.state[id]));
-                });
-            }
-        };
-        this.validateSaveBtn = this.validateSaveBtn.bind(this);
+        this.onPlusConfig = (id, nav_tab) => {
+            this.setState({
+                [id]: Number(this.state[id]) + 1
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
     }
 
     componentDidMount() {
@@ -331,7 +254,7 @@ export class ServerSettings extends React.Component {
         }
     }
 
-    validateSaveBtn(nav_tab, attr, value) {
+async validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
@@ -379,9 +302,19 @@ export class ServerSettings extends React.Component {
                 disableSaveBtn = true;
             }
             if (attr === 'nsslapd-port' || attr === 'nsslapd-secureport') {
-                // Check errObj for port values that are already in use.
-                if (errObj[attr] == true) {
-                    disableSaveBtn = true;
+                const portValue = Number(value)
+                if (!isNaN(portValue)) {
+                    try {
+                        // Check port value is not already in use.
+                        const portInUse = await is_port_in_use(portValue);
+                        if (portInUse) {
+                            disableSaveBtn = true;
+                        }
+                    } catch (error) {
+                        console.error("Error checking port:", error);
+                        disableSaveBtn = true;
+                        valueErr = true;
+                    }
                 }
             }
         } else if (nav_tab === "rootdn") {
