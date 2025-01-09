@@ -1026,8 +1026,6 @@ async validateSaveBtn(nav_tab, attr, value) {
                 });
     }
 
-
-
     render() {
         let body = "";
         let diskMonitor = "";
