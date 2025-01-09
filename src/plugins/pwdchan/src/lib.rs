@@ -53,10 +53,10 @@ macro_rules! ab64_to_b64 {
 // Create a module for each plugin type to avoid name conflicts
 mod pbkdf2 {
     use super::*;
-    
+
     pub struct PwdChanPbkdf2;
     slapi_r_plugin_hooks!(pwdchan_pbkdf2, PwdChanPbkdf2);
-    
+
     impl super::Pbkdf2Plugin for PwdChanPbkdf2 {
         fn digest_type() -> MessageDigest { MessageDigest::sha1() }
         fn scheme_name() -> &'static str { "PBKDF2" }
@@ -65,10 +65,10 @@ mod pbkdf2 {
 
 mod pbkdf2_sha1 {
     use super::*;
-    
+
     pub struct PwdChanPbkdf2Sha1;
     slapi_r_plugin_hooks!(pwdchan_pbkdf2_sha1, PwdChanPbkdf2Sha1);
-    
+
     impl super::Pbkdf2Plugin for PwdChanPbkdf2Sha1 {
         fn digest_type() -> MessageDigest { MessageDigest::sha1() }
         fn scheme_name() -> &'static str { "PBKDF2-SHA1" }
@@ -77,10 +77,10 @@ mod pbkdf2_sha1 {
 
 mod pbkdf2_sha256 {
     use super::*;
-    
+
     pub struct PwdChanPbkdf2Sha256;
     slapi_r_plugin_hooks!(pwdchan_pbkdf2_sha256, PwdChanPbkdf2Sha256);
-    
+
     impl super::Pbkdf2Plugin for PwdChanPbkdf2Sha256 {
         fn digest_type() -> MessageDigest { MessageDigest::sha256() }
         fn scheme_name() -> &'static str { "PBKDF2-SHA256" }
@@ -89,10 +89,10 @@ mod pbkdf2_sha256 {
 
 mod pbkdf2_sha512 {
     use super::*;
-    
+
     pub struct PwdChanPbkdf2Sha512;
     slapi_r_plugin_hooks!(pwdchan_pbkdf2_sha512, PwdChanPbkdf2Sha512);
-    
+
     impl super::Pbkdf2Plugin for PwdChanPbkdf2Sha512 {
         fn digest_type() -> MessageDigest { MessageDigest::sha512() }
         fn scheme_name() -> &'static str { "PBKDF2-SHA512" }
@@ -122,8 +122,8 @@ macro_rules! impl_slapi_pbkdf2_plugin {
                 Ok(())
             }
 
-            fn has_pwd_storage() -> bool { 
-                true 
+            fn has_pwd_storage() -> bool {
+                true
             }
 
             fn pwd_scheme_name() -> &'static str {
@@ -353,25 +353,7 @@ impl PwdChanCrypto {
     }
 
     fn get_pbkdf2_rounds(digest: MessageDigest) -> Result<usize, PluginError> {
-        let rounds = Self::get_rounds_atomic(digest).load(Ordering::Relaxed);
-        let digest_name = if digest == MessageDigest::sha1() {
-            "SHA1"
-        } else if digest == MessageDigest::sha256() {
-            "SHA256"
-        } else if digest == MessageDigest::sha512() {
-            "SHA512"
-        } else {
-            "Unknown"
-        };
-
-        log_error!(
-            ErrorLevel::Error,
-            "get_pbkdf2_rounds -> PBKDF2 rounds for {} is {}",
-            digest_name,
-            rounds
-        );
-        Ok(rounds)
-        // Ok(Self::get_rounds_atomic(digest).load(Ordering::Relaxed))
+        Ok(Self::get_rounds_atomic(digest).load(Ordering::Relaxed))
     }
 }
 
