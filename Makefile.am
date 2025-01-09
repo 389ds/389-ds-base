@@ -332,7 +332,10 @@ bin_PROGRAMS = dbscan \
 # based on defines
 # ----------------------------------------------------------------------------------------
 
-server_LTLIBRARIES = libslapd.la libldaputil.la libns-dshttpd.la librewriters.la librobdb.la
+server_LTLIBRARIES = libslapd.la libldaputil.la libns-dshttpd.la librewriters.la
+if WITH_LIBBDB_RO
+server_LTLIBRARIES += librobdb.la
+endif
 
 lib_LTLIBRARIES = libsvrcore.la
 
