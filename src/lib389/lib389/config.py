@@ -23,7 +23,7 @@ from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
 from lib389.lint import (
-    DSCLE0001, DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSELE0001
+    DSCLE0002, DSCLE0003, DSCLE0004, DSCLE0005, DSCLE0006, DSELE0001
 )
 
 class Config(DSLdapObject):
@@ -70,9 +70,9 @@ class Config(DSLdapObject):
         if selinux_present() and (key.lower() == 'nsslapd-secureport' or key.lower() == 'nsslapd-port'):
             # Get old port and remove label
             old_port = self.get_attr_val_utf8(key)
-            self.log.debug("Removing old port's selinux label...")
+            self.log.debug("Removing old port's SELinux label...")
             selinux_label_port(old_port, remove_label=True)
-            self.log.debug("Setting new port's selinux label...")
+            self.log.debug("Setting new port's SELinux label...")
             selinux_label_port(value)
         super(Config, self).replace(key,  value)
 
@@ -203,14 +203,6 @@ class Config(DSLdapObject):
     def lint_uid(cls):
         return 'config'
 
-    def _lint_hr_timestamp(self):
-        hr_timestamp = self.get_attr_val('nsslapd-logging-hr-timestamps-enabled')
-        if ensure_bytes('on') != hr_timestamp:
-            report = copy.deepcopy(DSCLE0001)
-            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-            report['check'] = "config:hr_timestamp"
-            yield report
-
     def _lint_passwordscheme(self):
         allowed_schemes = ['PBKDF2-SHA512', 'PBKDF2_SHA256', 'PBKDF2_SHA512', 'GOST_YESCRYPT']
         u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
@@ -250,11 +242,21 @@ class Config(DSLdapObject):
             report['check'] = "config:accesslogbuffering"
             yield report
 
+    def _lint_auditlog_buffering(self):
+        # audit log buffering
+        enabled = self.get_attr_val_utf8_l('nsslapd-auditlog-logging-enabled')
+        buffering = self.get_attr_val_utf8_l('nsslapd-auditlog-logbuffering')
+        if enabled == "on" and buffering == "off":
+            report = copy.deepcopy(DSCLE0006)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "config:auditlogbuffering"
+            yield report
 
     def _lint_securitylog_buffering(self):
         # security log buffering
+        enabled = self.get_attr_val_utf8_l('nsslapd-securitylog-logging-enabled')
         buffering = self.get_attr_val_utf8_l('nsslapd-securitylog-logbuffering')
-        if buffering == "off":
+        if enabled == "on" and buffering == "off":
             report = copy.deepcopy(DSCLE0005)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             report['check'] = "config:securitylogbuffering"
@@ -333,7 +335,7 @@ class Encryption(DSLdapObject):
         :type ciphers: list of str
         """
         self.set('nsSSL3Ciphers', ','.join(ciphers))
-        self._log.info('Remeber to restart the server to apply the new cipher set.')
+        self._log.info('Remember to restart the server to apply the new cipher set.')
         self._log.info('Some ciphers may be disabled anyway due to allowWeakCipher attribute.')
 
     def _get_listed_ciphers(self, attr):

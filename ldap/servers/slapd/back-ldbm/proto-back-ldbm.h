@@ -231,6 +231,7 @@ int idl_get_tune(void);
 size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit);
 int idl_get_idl_new(void);
 IDList *idl_new_range_fetch(backend *be, dbi_db_t *db, dbi_val_t *lowerkey, dbi_val_t *upperkey, dbi_txn_t *txn, struct attrinfo *a, int *flag_err, int allidslimit, int sizelimit, struct timespec *expire_time, int lookthrough_limit, int operator);
+IDList *idl_lmdb_range_fetch(backend *be, dbi_db_t *db, dbi_val_t *lowerkey, dbi_val_t *upperkey, dbi_txn_t *txn, struct attrinfo *a, int *flag_err, int allidslimit, int sizelimit, struct timespec *expire_time, int lookthrough_limit, int operator);
 char *get_index_name(backend *be, dbi_db_t *db, struct attrinfo *a);
 
 int64_t idl_compare(IDList *a, IDList *b);
@@ -351,9 +352,9 @@ ID next_id(backend *be);
 void next_id_return(backend *be, ID id);
 ID next_id_get(backend *be);
 void id_internal_to_stored(ID, char *);
-ID id_stored_to_internal(char *);
+ID id_stored_to_internal(const char *);
 void sizeushort_internal_to_stored(size_t i, char *b);
-size_t sizeushort_stored_to_internal(char *b);
+size_t sizeushort_stored_to_internal(const char *b);
 void get_ids_from_disk(backend *be);
 void get_both_ids(struct ldbminfo *li, ID *nextid, ID *nextid2index);
 
@@ -415,7 +416,7 @@ int make_sort_response_control(Slapi_PBlock *pb, int code, char *error_type);
 int parse_sort_spec(struct berval *sort_spec_ber, sort_spec **ps);
 struct berval *attr_value_lowest(struct berval **values, value_compare_fn_type compare_fn);
 int sort_attr_compare(struct berval **value_a, struct berval **value_b, value_compare_fn_type compare_fn);
-void sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates);
+const char *sort_log_access(Slapi_PBlock *pb, sort_spec_thing *s, IDList *candidates, PRBool just_copy);
 
 /*
  * dbsize.c
@@ -477,6 +478,8 @@ struct vlv_response
     ber_int_t result;
 };
 
+char ** vlv_list_filenames(ldbm_instance *inst);
+int does_vlv_need_init(ldbm_instance *inst);
 int vlv_init(ldbm_instance *inst);
 void vlv_close(ldbm_instance *inst);
 int vlv_remove_callbacks(ldbm_instance *inst);
@@ -493,14 +496,15 @@ int vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec *
 int vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct vlv_request *vlvp);
 int vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp);
 void vlv_getindices(IFP callback_fn, void *param, backend *be);
-void vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo);
-void vlv_grok_new_import_entry(const struct backentry *e, backend *be);
+void vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo, sort_spec_thing *sort_control);
+void vlv_grok_new_import_entry(const struct backentry *e, backend *be, int *seen_them_all);
 IDList *vlv_find_index_by_filter(struct backend *be, const char *base, Slapi_Filter *f);
 IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base, Slapi_Filter *f, back_txn *txn);
 int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, ldbm_instance *inst);
 void vlv_acquire_lock(backend *be);
 void vlv_release_lock(backend *be);
 int vlv_isvlv(char *filename);
+void vlv_rebuild_scope_filter(backend *be);
 
 
 /*
@@ -602,8 +606,7 @@ int ldbm_back_wire_import(Slapi_PBlock *pb);
 void import_abort_all(struct _ImportJob *job, int wait_for_them);
 void *factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)));
 void factory_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)));
-
-
+uint64_t wait_for_ref_count(Slapi_Counter *inst_ref_count);
 
 /*
  * ldbm_attrcrypt.c
@@ -631,8 +634,6 @@ void entryrdn_set_switch(int val);
 int entryrdn_get_switch(void);
 void entryrdn_set_noancestorid(int val);
 int entryrdn_get_noancestorid(void);
-int entryrdn_insert_key(backend *be, dbi_cursor_t *cursor, Slapi_RDN *srdn, ID id, back_txn *txn);
-int entryrdn_delete_key(backend *be, dbi_cursor_t *cursor, Slapi_RDN *srdn, ID id, back_txn *txn);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
 int

@@ -282,7 +282,13 @@ replica_config_modify(Slapi_PBlock *pb,
     PR_Lock(s_configLock);
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
-    PR_ASSERT(mtnode_ext);
+    if (NULL == mtnode_ext) {
+        PR_Unlock(s_configLock);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Unable to get the replica mapping tree");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
     if (mtnode_ext->replica == NULL) {
         PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica does not exist for %s", replica_root);
@@ -614,7 +620,13 @@ replica_config_post_modify(Slapi_PBlock *pb,
     PR_Lock(s_configLock);
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
-    PR_ASSERT(mtnode_ext);
+    if (NULL == mtnode_ext) {
+        PR_Unlock(s_configLock);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Unable to get the replica mapping tree");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
     if (mtnode_ext->replica == NULL) {
         PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -708,7 +720,13 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
     PR_Lock(s_configLock);
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
-    PR_ASSERT(mtnode_ext);
+    if (NULL == mtnode_ext) {
+        PR_Unlock(s_configLock);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Unable to get the replica mapping tree");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
     if (mtnode_ext->replica) {
         /* remove object from the hash */
@@ -840,7 +858,13 @@ replica_config_search(Slapi_PBlock *pb,
     PR_Lock(s_configLock);
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
-    PR_ASSERT(mtnode_ext);
+    if (NULL == mtnode_ext) {
+        PR_Unlock(s_configLock);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Unable to get the replica mapping tree");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
     if (mtnode_ext->replica) {
         Replica *replica = (Replica *)object_get_data(mtnode_ext->replica);

@@ -192,7 +192,6 @@ def schema_replication_init(topology_m1c1):
         'cn': 'test_entry'})))
 
 
-@pytest.mark.ds47490
 def test_schema_replication_one(topology_m1c1, schema_replication_init):
     """Check supplier schema is a superset (one extra OC) of consumer schema, then
     schema is pushed and there is no message in the error log
@@ -241,7 +240,6 @@ def test_schema_replication_one(topology_m1c1, schema_replication_init):
         assert False
 
 
-@pytest.mark.ds47490
 def test_schema_replication_two(topology_m1c1, schema_replication_init):
     """Check consumer schema is a superset (one extra OC) of supplier schema, then
         schema is pushed and there is a message in the error log
@@ -311,7 +309,6 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
     assert new_oc['x_origin'][0].lower() == "user defined"
 
 
-@pytest.mark.ds47490
 def test_schema_replication_three(topology_m1c1, schema_replication_init):
     """Check supplier schema is again a superset (one extra OC), then
     schema is pushed and there is no message in the error log
@@ -360,7 +357,6 @@ def test_schema_replication_three(topology_m1c1, schema_replication_init):
         assert False
 
 
-@pytest.mark.ds47490
 def test_schema_replication_four(topology_m1c1, schema_replication_init):
     """Check supplier schema is again a superset (OC with more MUST), then
     schema is pushed and there is no message in the error log
@@ -409,7 +405,6 @@ def test_schema_replication_four(topology_m1c1, schema_replication_init):
         assert False
 
 
-@pytest.mark.ds47490
 def test_schema_replication_five(topology_m1c1, schema_replication_init):
     """Check consumer schema is  a superset (OC with more MUST), then
     schema is  pushed (fix for 47721) and there is a message in the error log
@@ -474,7 +469,6 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
     res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
 
 
-@pytest.mark.ds47490
 def test_schema_replication_six(topology_m1c1, schema_replication_init):
     """Check supplier schema is  again a superset (OC with more MUST), then
     schema is pushed and there is no message in the error log
@@ -529,7 +523,6 @@ def test_schema_replication_six(topology_m1c1, schema_replication_init):
         assert False
 
 
-@pytest.mark.ds47490
 def test_schema_replication_seven(topology_m1c1, schema_replication_init):
     """Check supplier schema is again a superset (OC with more MAY), then
     schema is pushed and there is no message in the error log
@@ -582,7 +575,6 @@ def test_schema_replication_seven(topology_m1c1, schema_replication_init):
         assert False
 
 
-@pytest.mark.ds47490
 def test_schema_replication_eight(topology_m1c1, schema_replication_init):
     """Check consumer schema is a superset (OC with more MAY), then
     schema is  pushed (fix for 47721) and there is  message in the error log
@@ -647,7 +639,6 @@ def test_schema_replication_eight(topology_m1c1, schema_replication_init):
     res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
 
 
-@pytest.mark.ds47490
 def test_schema_replication_nine(topology_m1c1, schema_replication_init):
     """Check consumer schema is a superset (OC with more MAY), then
     schema is  not pushed and there is message in the error log

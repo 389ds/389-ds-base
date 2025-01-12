@@ -136,6 +136,7 @@ ldapu_get_cert_ava_val(void *cert_in, int which_dn, const char *attr, char ***va
     CERTAVA **avas;
     CERTAVA *ava;
     int attr_tag = certmap_name_to_secoid(attr);
+    int nbvals = 1; /* reserve 1 slot for final NULL */
     char **val;
     char **ptr;
     int rv;
@@ -153,46 +154,55 @@ ldapu_get_cert_ava_val(void *cert_in, int which_dn, const char *attr, char ***va
     else
         return LDAPU_ERR_INVALID_ARGUMENT;
 
-    val = (char **)malloc(32 * sizeof(char *));
+    rdns = cert_dn->rdns;
+    if (!rdns) {
+        return LDAPU_FAILED;
+    }
+
+    for (rdn = rdns; *rdn; rdn++) {
+        nbvals++;
+    }
+
+    val = (char **)malloc(nbvals*sizeof(char *));
 
     if (!val)
         return LDAPU_ERR_OUT_OF_MEMORY;
 
     ptr = val;
 
-    rdns = cert_dn->rdns;
 
-    if (rdns) {
-        for (rdn = rdns; *rdn; rdn++) {
-            avas = (*rdn)->avas;
-            while ((ava = *avas++) != NULL) {
-                int tag = CERT_GetAVATag(ava);
+    for (rdn = rdns; *rdn; rdn++) {
+        avas = (*rdn)->avas;
+        while ((ava = *avas++) != NULL) {
+            int tag = CERT_GetAVATag(ava);
 
-                if (tag == attr_tag) {
-                    char buf[BIG_LINE];
-                    int lenLen;
-                    int vallen;
-                    /* Found it */
+            if (tag == attr_tag) {
+                char buf[BIG_LINE];
+                int lenLen;
+                int vallen;
+                /* Found it */
 
-                    /* Copied from ns/lib/libsec ...
-             * XXX this code is incorrect in general
-             * -- should use a DER template.
-             */
-                    lenLen = 2;
-                    if (ava->value.len >= 128)
-                        lenLen = 3;
-                    vallen = ava->value.len - lenLen;
+                /* Copied from ns/lib/libsec ...
+         * XXX this code is incorrect in general
+         * -- should use a DER template.
+         */
+                lenLen = 2;
+                if (ava->value.len >= 128)
+                    lenLen = 3;
+                vallen = ava->value.len - lenLen;
 
-                    rv = CERT_RFC1485_EscapeAndQuote(buf,
-                                                     BIG_LINE,
-                                                     (char *)ava->value.data + lenLen,
-                                                     vallen);
+                rv = CERT_RFC1485_EscapeAndQuote(buf,
+                                                 BIG_LINE,
+                                                 (char *)ava->value.data + lenLen,
+                                                 vallen);
 
-                    if (rv == SECSuccess) {
-                        *ptr++ = strdup(buf);
+                if (rv == SECSuccess) {
+                    char *newbuf = strdup(buf);
+                    if (newbuf != NULL) {
+                        *ptr++ = newbuf;
                     }
-                    break;
                 }
+                break;
             }
         }
     }

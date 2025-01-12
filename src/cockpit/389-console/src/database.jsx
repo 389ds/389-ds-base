@@ -5,7 +5,7 @@ import {
     ChainingConfig,
     ChainingDatabaseConfig
 } from "./lib/database/chaining.jsx";
-import { GlobalDatabaseConfig } from "./lib/database/databaseConfig.jsx";
+import { GlobalDatabaseConfig, GlobalDatabaseConfigMDB } from "./lib/database/databaseConfig.jsx";
 import { Suffix } from "./lib/database/suffix.jsx";
 import { Backups } from "./lib/database/backups.jsx";
 import { GlobalPwPolicy } from "./lib/database/globalPwp.jsx";
@@ -17,6 +17,8 @@ import {
     FormSelect,
     FormSelectOption,
     FormHelperText,
+    HelperText,
+    HelperTextItem,
     Modal,
     ModalVariant,
     Spinner,
@@ -26,12 +28,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faLeaf,
-    faTree,
-    faLink
-} from '@fortawesome/free-solid-svg-icons';
+import { TreeIcon, LeafIcon, LinkIcon } from '@patternfly/react-icons';
 import {
     CatalogIcon,
     CogIcon,
@@ -49,6 +46,8 @@ const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
 const PWP_CONFIG = "pwpolicy";
 const LOCAL_PWP_CONFIG = "localpwpolicy";
+const BE_IMPL_BDB = "bdb";
+const BE_IMPL_MDB = "mdb";
 
 const _ = cockpit.gettext;
 
@@ -83,6 +82,7 @@ export class Database extends React.Component {
             globalDBConfig: {
                 activeTab: 0,
             },
+            backendImplement: BE_IMPL_MDB,
             configUpdated: 0,
             // Chaining Config
             chainingConfig: {},
@@ -240,55 +240,87 @@ export class Database extends React.Component {
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
-                    let db_cache_auto = false;
-                    let import_cache_auto = false;
-                    let dblocksMonitoring = false;
                     let dbhome = "";
+                    let dbimplement = "";
 
-                    if ('nsslapd-db-home-directory' in attrs) {
-                        dbhome = attrs['nsslapd-db-home-directory'][0];
+                    if ('nsslapd-backend-implement' in attrs) {
+                        dbimplement = attrs['nsslapd-backend-implement'][0];
+                        this.setState({ backendImplement: dbimplement });
                     }
-                    if (attrs['nsslapd-cache-autosize'][0] !== "0") {
-                        db_cache_auto = true;
-                    }
-                    if (attrs['nsslapd-import-cache-autosize'][0] !== "0") {
-                        import_cache_auto = true;
-                    }
-                    if (attrs['nsslapd-db-locks-monitoring-enabled'][0] === "on") {
-                        dblocksMonitoring = true;
-                    }
+                    if (dbimplement === BE_IMPL_BDB) {
+                        let db_cache_auto = false;
+                        let import_cache_auto = false;
+                        let dblocksMonitoring = false;
 
-                    this.setState(() => (
-                        {
-                            globalDBConfig:
-                                {
-                                    loading: false,
-                                    activeTab,
-                                    db_cache_auto,
-                                    import_cache_auto,
-                                    looklimit: attrs['nsslapd-lookthroughlimit'][0],
-                                    idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
-                                    pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
-                                    pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
-                                    rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
-                                    autosize: attrs['nsslapd-cache-autosize'][0],
-                                    autosizesplit: attrs['nsslapd-cache-autosize-split'][0],
-                                    dbcachesize: attrs['nsslapd-dbcachesize'][0],
-                                    txnlogdir: attrs['nsslapd-db-logdirectory'][0],
-                                    dbhomedir: dbhome,
-                                    dblocks: attrs['nsslapd-db-locks'][0],
-                                    dblocksMonitoring,
-                                    dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'][0],
-                                    dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'][0],
-                                    chxpoint: attrs['nsslapd-db-checkpoint-interval'][0],
-                                    compactinterval: attrs['nsslapd-db-compactdb-interval'][0],
-                                    compacttime: attrs['nsslapd-db-compactdb-time'][0],
-                                    importcacheauto: attrs['nsslapd-import-cache-autosize'][0],
-                                    importcachesize: attrs['nsslapd-import-cachesize'][0],
-                                },
-                            configUpdated: 1
-                        }), () => { this.loadNDN() });
-                })
+                        if ('nsslapd-db-home-directory' in attrs) {
+                            dbhome = attrs['nsslapd-db-home-directory'][0];
+                        }
+                        if (attrs['nsslapd-cache-autosize'][0] !== "0") {
+                            db_cache_auto = true;
+                        }
+                        if (attrs['nsslapd-import-cache-autosize'][0] !== "0") {
+                            import_cache_auto = true;
+                        }
+                        if (attrs['nsslapd-db-locks-monitoring-enabled'][0] === "on") {
+                            dblocksMonitoring = true;
+                        }
+
+                        this.setState(() => (
+                            {
+                                globalDBConfig:
+                                    {
+                                        loading: false,
+                                        activeTab,
+                                        db_cache_auto,
+                                        import_cache_auto,
+                                        looklimit: attrs['nsslapd-lookthroughlimit'][0],
+                                        idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
+                                        pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
+                                        pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
+                                        rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
+                                        autosize: attrs['nsslapd-cache-autosize'][0],
+                                        autosizesplit: attrs['nsslapd-cache-autosize-split'][0],
+                                        dbcachesize: attrs['nsslapd-dbcachesize'][0],
+                                        txnlogdir: attrs['nsslapd-db-logdirectory'][0],
+                                        dbhomedir: dbhome,
+                                        dblocks: attrs['nsslapd-db-locks'][0],
+                                        dblocksMonitoring,
+                                        dblocksMonitoringThreshold: attrs['nsslapd-db-locks-monitoring-threshold'][0],
+                                        dblocksMonitoringPause: attrs['nsslapd-db-locks-monitoring-pause'][0],
+                                        chxpoint: attrs['nsslapd-db-checkpoint-interval'][0],
+                                        compactinterval: attrs['nsslapd-db-compactdb-interval'][0],
+                                        compacttime: attrs['nsslapd-db-compactdb-time'][0],
+                                        importcacheauto: attrs['nsslapd-import-cache-autosize'][0],
+                                        importcachesize: attrs['nsslapd-import-cachesize'][0],
+                                    },
+                                configUpdated: 1
+                            }), () => { this.loadNDN() });
+                    } else if (dbimplement === BE_IMPL_MDB) {
+                        if ('nsslapd-directory' in attrs) {
+                            dbhome = attrs['nsslapd-directory'][0];
+                        }
+
+                        this.setState(() => (
+                            {
+                                globalDBConfig:
+                                    {
+                                        loading: false,
+                                        activeTab,
+                                        looklimit: attrs['nsslapd-lookthroughlimit'][0],
+                                        idscanlimit: attrs['nsslapd-idlistscanlimit'][0],
+                                        pagelooklimit: attrs['nsslapd-pagedlookthroughlimit'][0],
+                                        pagescanlimit: attrs['nsslapd-pagedidlistscanlimit'][0],
+                                        rangelooklimit: attrs['nsslapd-rangelookthroughlimit'][0],
+                                        mdbmaxsize: attrs['nsslapd-mdb-max-size'][0],
+                                        mdbmaxreaders: attrs['nsslapd-mdb-max-readers'][0],
+                                        mdbmaxdbs: attrs['nsslapd-mdb-max-dbs'][0],
+                                        dbhomedir: dbhome,
+                                    },
+                                configUpdated: 1
+                            }), () => { this.loadNDN() });
+                    }
+                }
+                )
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.addNotification(
@@ -430,11 +462,11 @@ export class Database extends React.Component {
     processTree(suffixData) {
         for (const suffix of suffixData) {
             if (suffix.type === "suffix") {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+                suffix.icon = <TreeIcon size="sm" />;
             } else if (suffix.type === "subsuffix") {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+                suffix.icon = <LeafIcon size="sm" />;
             } else {
-                suffix.icon = <FontAwesomeIcon size="sm" icon={faLink} />;
+                suffix.icon = <LinkIcon size="sm" />;
             }
             if (suffix.children.length === 0) {
                 delete suffix.children;
@@ -683,7 +715,7 @@ export class Database extends React.Component {
         });
     }
 
-    onHandleSelectChange(value, event) {
+    onHandleSelectChange(_event, value) {
         let noInit = false;
         let addSuffix = false;
         let addSample = false;
@@ -703,7 +735,7 @@ export class Database extends React.Component {
         });
     }
 
-    onHandleChange(str, e) {
+    onHandleChange(e, str) {
         // Handle the Create Suffix modal changes
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
@@ -1217,16 +1249,29 @@ export class Database extends React.Component {
 
         if (this.state.loaded) {
             if (this.state.node_name === DB_CONFIG || this.state.node_name === "") {
-                db_element = (
-                    <GlobalDatabaseConfig
-                        serverId={this.props.serverId}
-                        addNotification={this.props.addNotification}
-                        reload={this.loadGlobalConfig}
-                        data={this.state.globalDBConfig}
-                        enableTree={this.enableTree}
-                        key={this.state.configUpdated}
-                    />
-                );
+                if (this.state.backendImplement === BE_IMPL_BDB) {
+                    db_element = (
+                        <GlobalDatabaseConfig
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            reload={this.loadGlobalConfig}
+                            data={this.state.globalDBConfig}
+                            enableTree={this.enableTree}
+                            key={this.state.configUpdated}
+                        />
+                    );
+                } else if (this.state.backendImplement === BE_IMPL_MDB) {
+                    db_element = (
+                        <GlobalDatabaseConfigMDB
+                            serverId={this.props.serverId}
+                            addNotification={this.props.addNotification}
+                            reload={this.loadGlobalConfig}
+                            data={this.state.globalDBConfig}
+                            enableTree={this.enableTree}
+                            key={this.state.configUpdated}
+                        />
+                    );
+                }
             } else if (this.state.node_name === CHAINING_CONFIG) {
                 db_element = (
                     <ChainingDatabaseConfig
@@ -1439,10 +1484,7 @@ class CreateSuffixModal extends React.Component {
                     <FormGroup
                         label={_("Suffix DN")}
                         fieldId="createSuffix"
-                        title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN).")}
-                        helperTextInvalid={_("The DN of the suffix is invalid")}
-                        helperTextInvalidIcon={<ExclamationCircleIcon />}
-                        validated={error.createSuffix ? "error" : "noval"}
+                        title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distinguished Name (DN).")}
                     >
                         <TextInput
                             isRequired
@@ -1453,29 +1495,34 @@ class CreateSuffixModal extends React.Component {
                             onChange={handleChange}
                             validated={error.createSuffix ? "error" : "noval"}
                         />
-                        <FormHelperText isError isHidden={!error.createSuffix}>
-                            {_("Required field")}
+                        <FormHelperText>
+                                <HelperText>
+                                <HelperTextItem icon={<ExclamationCircleIcon />} variant={error.createSuffix ? "error" : "default"}>
+                                    {error.createBeName ? 'The DN of the suffix is invalid' : 'Required field'}
+                                </HelperTextItem>
+                                </HelperText>
                         </FormHelperText>
                     </FormGroup>
                     <FormGroup
                         label={_("Database Name")}
                         fieldId="suffixName"
                         title={_("The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.")}
-                        helperTextInvalid={_("You must enter a name for the database")}
-                        helperTextInvalidIcon={<ExclamationCircleIcon />}
-                        validated={error.createBeName ? "error" : "noval"}
                     >
                         <TextInput
                             isRequired
                             type="text"
                             id="createBeName"
-                            aria-describedby="createSuffix"
+                            aria-describedby="createBeName"
                             name="suffixName"
                             onChange={handleChange}
                             validated={error.createBeName ? "error" : "noval"}
                         />
-                        <FormHelperText isError isHidden={!error.createBeName}>
-                            {_("Required field")}
+                        <FormHelperText>
+                                <HelperText>
+                                <HelperTextItem icon={<ExclamationCircleIcon />} variant={error.createBeName ? "error" : "default"}>
+                                    {error.createBeName ? 'You must enter a name for the database' : 'Required field'}
+                                </HelperTextItem>
+                                </HelperText>
                         </FormHelperText>
                     </FormGroup>
                     <FormGroup

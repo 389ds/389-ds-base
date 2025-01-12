@@ -12,11 +12,11 @@ on:
         required: false
         default: false
       debug_enabled:
-        description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'     
+        description: 'Set to "true" to enable debugging with tmate (https://github.com/marketplace/actions/debugging-with-tmate)'
         required: false
         default: false
 
-permissions: 
+permissions:
   actions: read
   packages: read
   contents: read
@@ -31,7 +31,7 @@ jobs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add GITHUB_WORKSPACE as a safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -47,7 +47,7 @@ jobs:
         run: tar -cvf dist.tar dist/
 
       - name: Upload RPMs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: rpms
           path: dist.tar
@@ -62,7 +62,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
@@ -79,10 +79,10 @@ jobs:
         sudo systemctl start docker
 
     - name: Download RPMs
-      uses: actions/download-artifact@master
+      uses: actions/download-artifact@v4
       with:
         name: rpms
-    
+
     - name: Extract RPMs
       run: tar xvf dist.tar
 
@@ -90,6 +90,10 @@ jobs:
       run: |
         set -x
         CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        until sudo docker exec $CID sh -c "systemctl is-system-running"
+        do
+          echo "Waiting for container to be ready..."
+        done
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
         export PASSWD=$(openssl rand -base64 32)
         sudo docker exec $CID sh -c "echo \"${PASSWD}\" | passwd --stdin root"
@@ -107,10 +111,10 @@ jobs:
     - name: Sanitize filename
       if: always()
       run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
-      
+
     - name: Upload pytest test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: pytest-${{ env.PYTEST_SUITE }}
         path: |

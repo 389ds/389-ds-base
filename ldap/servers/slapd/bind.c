@@ -185,7 +185,7 @@ do_bind(Slapi_PBlock *pb)
             static char *kmsg =
                 "LDAPv2-style kerberos authentication received "
                 "on LDAPv3 connection.";
-            slapi_log_err(SLAPI_LOG_ERR, "do_bind", "%s", kmsg);
+            slapi_log_err(SLAPI_LOG_ERR, "do_bind", "%s\n", kmsg);
             log_bind_access(pb, dn ? dn : "empty", method, version, saslmech, kmsg);
             send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL,
                              kmsg, 0, NULL);
@@ -248,7 +248,7 @@ do_bind(Slapi_PBlock *pb)
     /* You are "bound" when the SSL connection is made,
        but the client still passes a BIND SASL/EXTERNAL request.
      */
-    if ((LDAP_AUTH_SASL == method) &&
+    if ((LDAP_AUTH_SASL == method) && (saslmech != NULL) &&
         (0 == strcasecmp(saslmech, LDAP_SASL_EXTERNAL)) &&
         (0 == dn || 0 == dn[0]) && pb_conn->c_unix_local) {
         slapd_bind_local_user(pb_conn);
@@ -936,34 +936,73 @@ log_bind_access(
     Connection *pb_conn = NULL;
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     if (pb_op == NULL || pb_conn == NULL) {
         return;
     }
 
+    slapd_log_pblock_init(&logpb, log_format, pb);
+    logpb.version = version;
+    logpb.bind_dn = dn;
+    logpb.method = "sasl";
+
     if (method == LDAP_AUTH_SASL && saslmech && msg) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=sasl version=%d mech=%s, %s\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         version, saslmech, msg);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.mech = saslmech;
+            logpb.msg = msg;
+            logpb.method = "sasl";
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=sasl version=%d mech=%s, %s\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             version, saslmech, msg);
+        }
     } else if (method == LDAP_AUTH_SASL && saslmech) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=sasl version=%d mech=%s\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         version, saslmech);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.mech = saslmech;
+            logpb.method = "sasl";
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=sasl version=%d mech=%s\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             version, saslmech);
+        }
     } else if (msg) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=%" BERTAG_T " version=%d, %s\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         method, version, msg);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.mech = saslmech;
+            logpb.msg = msg;
+            logpb.method = "sasl";
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=%" BERTAG_T " version=%d, %s\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             method, version, msg);
+        }
     } else {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
-                         "method=%" BERTAG_T " version=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, dn,
-                         method, version);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            char method_str[22] = {0};
+
+            PR_snprintf(method_str, sizeof(method_str), "%lu", method);
+            logpb.method = method_str;
+            slapd_log_access_bind(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d BIND dn=\"%s\" "
+                             "method=%" BERTAG_T " version=%d\n",
+                             pb_conn->c_connid, pb_op->o_opid, dn,
+                             method, version);
+        }
     }
 }

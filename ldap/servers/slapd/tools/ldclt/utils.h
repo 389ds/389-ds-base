@@ -12,6 +12,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <sys/types.h>
 
 
 /*
@@ -46,6 +47,7 @@ extern int rndlim(int low, int high);
 extern void rndstr(char *buf, int ndigits);
 extern int utilsInit(void);
 extern int incr_and_wrap(int val, int min, int max, int incr);
+void *safe_malloc(size_t datalen);
 
 
 /* End of file */

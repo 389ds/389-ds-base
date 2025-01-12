@@ -56,7 +56,7 @@ static int32_t rootdn_check_access(Slapi_PBlock *pb);
 static int32_t rootdn_check_host_wildcard(char *host, char *client_host);
 static int rootdn_check_ip_wildcard(char *ip, char *client_ip);
 static int32_t rootdn_preop_bind_init(Slapi_PBlock *pb);
-char *strToLower(char *str);
+void strToLower(char *str);
 
 /*
  * Plug-in globals
@@ -238,13 +238,12 @@ rootdn_load_config(Slapi_PBlock *pb)
          *  Validate out settings
          */
         if (daysAllowed_tmp) {
-            daysAllowed_tmp = strToLower(daysAllowed_tmp);
+            strToLower(daysAllowed_tmp);
             end = strspn(daysAllowed_tmp, "abcdefghijklmnopqrstuvwxyz ,");
             if (!end || daysAllowed_tmp[end] != '\0') {
                 slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                       "Invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n",
                               daysAllowed_tmp);
-                slapi_ch_free_string(&daysAllowed_tmp);
                 result = -1;
                 goto free_and_return;
             }
@@ -256,7 +255,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "Invalid rootdn-days-allowed day value(%s), must be \"Mon, Tue, Wed, Thu, Fri, Sat, or Sun\".\n",
                                   token);
-                    slapi_ch_free_string(&daysAllowed_tmp);
                     slapi_ch_free_string(&copy);
                     result = -1;
                     goto free_and_return;
@@ -350,7 +348,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "Hostname (%s) contains invalid characters, skipping\n",
                                   hosts_tmp[i]);
-                    slapi_ch_array_free(hosts_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -363,7 +360,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "Hostname (%s) contains invalid characters, skipping\n",
                                   hosts_to_deny_tmp[i]);
-                    slapi_ch_array_free(hosts_to_deny_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -376,7 +372,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "IP address contains invalid characters (%s), skipping\n",
                                   ips_tmp[i]);
-                    slapi_ch_array_free(ips_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -389,7 +384,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                         slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                               "IPv4 address contains invalid characters (%s), skipping\n",
                                       ips_tmp[i]);
-                        slapi_ch_array_free(ips_tmp);
                         result = -1;
                         goto free_and_return;
                     }
@@ -403,7 +397,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "IP address contains invalid characters (%s), skipping\n",
                                   ips_to_deny_tmp[i]);
-                    slapi_ch_array_free(ips_to_deny_tmp);
                     result = -1;
                     goto free_and_return;
                 }
@@ -416,7 +409,6 @@ rootdn_load_config(Slapi_PBlock *pb)
                         slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                               "IPv4 address contains invalid characters (%s), skipping\n",
                                       ips_to_deny_tmp[i]);
-                        slapi_ch_array_free(ips_to_deny_tmp);
                         result = -1;
                         goto free_and_return;
                     }
@@ -430,21 +422,38 @@ rootdn_load_config(Slapi_PBlock *pb)
         result = -1;
     }
 
-free_and_return:
     if (result == 0) {
         /*
          * Free the existing global vars, and move the new ones over
          */
         rootdn_free();
         daysAllowed = daysAllowed_tmp;
+        daysAllowed_tmp = NULL;
         hosts = hosts_tmp;
+        hosts_tmp = NULL;
         hosts_to_deny = hosts_to_deny_tmp;
+        hosts_to_deny_tmp = NULL;
         ips = ips_tmp;
+        ips_tmp = NULL;
         ips_to_deny = ips_to_deny_tmp;
+        ips_to_deny_tmp = NULL;
     }
 
+free_and_return:
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
-
+    slapi_ch_free_string(&daysAllowed_tmp);
+    if (hosts_tmp != NULL) {
+        slapi_ch_array_free(hosts_tmp);
+    }
+    if (hosts_to_deny_tmp != NULL) {
+        slapi_ch_array_free(hosts_to_deny_tmp);
+    }
+    if (ips_tmp != NULL) {
+        slapi_ch_array_free(ips_tmp);
+    }
+    if (ips_to_deny_tmp != NULL) {
+        slapi_ch_array_free(ips_to_deny_tmp);
+    }
     return result;
 }
 
@@ -499,13 +508,12 @@ rootdn_check_access(Slapi_PBlock *pb)
      */
     if (daysAllowed) {
         char *timestr;
-        char day[4] = {0};
-        char *today = day;
+        char today[4] = {0};
 
         timestr = asctime(timeinfo);  // DDD MMM dd hh:mm:ss YYYY
-        memmove(day, timestr, 3);     // we only want the day
-        today = strToLower(today);
-        daysAllowed = strToLower(daysAllowed);
+        memmove(today, timestr, 3);   // we only want the day
+        strToLower(today);
+        strToLower(daysAllowed);
 
         if (!strstr(daysAllowed, today)) {
             slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
@@ -758,11 +766,15 @@ rootdn_check_ip_wildcard(char *ip, char *client_ip)
     return 0;
 }
 
-char *
+void
 strToLower(char *str)
 {
-    for (size_t i = 0; str && i < strlen(str); i++) {
-        str[i] = tolower(str[i]);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
+    if (NULL != str) {
+        for (char *pt = str; *pt != '\0'; pt++) {
+            *pt = tolower(*pt);
+        }
     }
-    return str;
+#pragma GCC diagnostic pop
 }

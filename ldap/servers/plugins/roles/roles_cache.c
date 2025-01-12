@@ -631,8 +631,8 @@ roles_cache_stop()
 
         current_role = next_role;
     }
-    slapi_rwlock_unlock(global_lock);
     roles_list = NULL;
+    slapi_rwlock_unlock(global_lock);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_stop\n");
 }

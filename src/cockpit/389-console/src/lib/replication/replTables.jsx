@@ -3,17 +3,18 @@ import React from "react";
 import {
     Button,
     Pagination,
-    PaginationVariant,
     SearchInput,
     Spinner,
 } from '@patternfly/react-core';
 import {
-    Table,
-    TableHeader,
-    TableBody,
-    TableVariant,
-    sortable,
-    SortByDirection,
+	Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+    ActionsColumn,
+    SortByDirection
 } from '@patternfly/react-table';
 import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
@@ -30,11 +31,11 @@ class ReplAgmtTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Name"), transforms: [sortable] },
-                { title: _("Host"), transforms: [sortable] },
-                { title: _("Port"), transforms: [sortable] },
-                { title: _("State"), transforms: [sortable] },
-                { title: _("Last Init Status"), transforms: [sortable] },
+                { title: _("Name"), sortable: true },
+                { title: _("Host"), sortable: true },
+                { title: _("Port"), sortable: true },
+                { title: _("State"), sortable: true },
+                { title: _("Last Init Status"), sortable: true },
             ],
         };
 
@@ -52,77 +53,59 @@ class ReplAgmtTable extends React.Component {
     }
 
     componentDidMount() {
-        // Deep copy the rows so we can handle sorting and searching
         this.setState({ page: this.props.page });
     }
 
-    actions() {
-        return [
-            {
-                title: _("Edit Agreement"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.edit(rowData.cells[0])
-            },
-            {
-                title: _("Initialize Agreement"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.init(rowData.cells[0])
-            },
-            {
-                title: _("Poke Agreement"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.poke(rowData.cells[0])
-            },
-            {
-                title: _("Disable/Enable Agreement"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.enable(rowData.cells[0], rowData.cells[3])
-            },
-            {
-                isSeparator: true
-            },
-            {
-                title: _("Delete Agreement"),
-                onClick: (event, rowId, rowData, extra) =>
-                    this.props.delete(rowData.cells[0], rowData.cells[3])
-            },
-
-        ];
-    }
+    getActionsForRow = (rowData) => [
+        {
+            title: _("Edit Agreement"),
+            onClick: () => this.props.edit(rowData[0])
+        },
+        {
+            title: _("Initialize Agreement"),
+            onClick: () => this.props.init(rowData[0])
+        },
+        {
+            title: _("Poke Agreement"),
+            onClick: () => this.props.poke(rowData[0])
+        },
+        {
+            title: _("Disable/Enable Agreement"),
+            onClick: () => this.props.enable(rowData[0], rowData[3])
+        },
+        {
+            isSeparator: true
+        },
+        {
+            title: _("Delete Agreement"),
+            onClick: () => this.props.delete(rowData[0], rowData[3])
+        },
+    ];
 
     convertStatus(msg) {
         if (msg === "Initialized") {
-            return (
-                <i>{_("Initialized")}</i>
-            );
+            return <i>{_("Initialized")}</i>;
         } else if (msg === "Not Initialized") {
-            return (
-                <i>{_("Not Initialized")}</i>
-            );
+            return <i>{_("Not Initialized")}</i>;
         } else if (msg === "Initializing") {
             return (
                 <div>
                     <i>{_("Initializing")}</i> <Spinner size="sm" />
                 </div>
             );
-        } else {
-            return (
-                <i>{msg}</i>
-            );
         }
+        return <i>{msg}</i>;
     }
 
     render() {
-        // let rows = this.state.rows;
         const rows = [];
         let columns = this.state.columns;
         let has_rows = true;
         let tableRows;
         const rows_copy = JSON.parse(JSON.stringify(this.props.rows));
 
-        // Refine rows to handle JSX objects
         for (const row of rows_copy) {
-            rows.push({ cells: [row[0], row[1], row[2], row[3], { title: this.convertStatus(row[5]) }] });
+            rows.push([row[0], row[1], row[2], row[3], this.convertStatus(row[5])]);
         }
 
         if (rows.length === 0) {
@@ -133,6 +116,7 @@ class ReplAgmtTable extends React.Component {
             const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
             tableRows = rows.splice(startIdx, this.state.perPage);
         }
+
         return (
             <div className="ds-margin-top-xlg">
                 <SearchInput
@@ -142,27 +126,57 @@ class ReplAgmtTable extends React.Component {
                     onChange={this.props.handleSearch}
                     onClear={(evt) => this.props.search(evt, '')}
                 />
-                <Table
+                <Table 
                     className="ds-margin-top-lg"
                     aria-label="agmt table"
-                    cells={columns}
-                    rows={tableRows}
-                    variant={TableVariant.compact}
-                    sortBy={this.props.sortBy}
-                    onSort={this.props.handleSort}
-                    actions={has_rows ? this.actions() : null}
-                    dropdownPosition="right"
-                    dropdownDirection="bottom"
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th 
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy: this.props.sortBy,
+                                        onSort: this.props.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {has_rows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {Array.isArray(row) ? (
+                                    row.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                ) : (
+                                    row.cells.map((cell, cellIndex) => (
+                                        <Td key={cellIndex}>{cell}</Td>
+                                    ))
+                                )}
+                                {has_rows && (
+                                    <Td isActionCell>
+                                        <ActionsColumn 
+                                            items={this.getActionsForRow(row)}
+                                        />
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
                 <Pagination
                     itemCount={this.props.rows.length}
                     widgetId="pagination-options-menu-bottom"
                     perPage={this.state.perPage}
                     page={this.state.page}
-                    variant={PaginationVariant.bottom}
+                    variant="bottom"
                     onSetPage={this.handleSetPage}
                     onPerPageSelect={this.handlePerPageSelect}
                 />
@@ -178,7 +192,16 @@ class ManagerTable extends React.Component {
         this.state = {
             sortBy: {},
             rows: [],
-            columns: ['', ''],
+            columns: [
+                { 
+                    title: 'Manager Name', 
+                    sortable: true 
+                },
+                { 
+                    title: 'Actions',
+                    screenReaderText: 'Manager actions'
+                }
+            ],
         };
 
         this.handleSort = this.handleSort.bind(this);
@@ -188,42 +211,36 @@ class ManagerTable extends React.Component {
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
+        
         for (const managerRow of this.props.rows) {
-            rows.push({
-                cells: [managerRow, { props: { textCenter: true }, title: this.getDeleteButton(managerRow) }]
-            });
+            rows.push([
+                managerRow,
+                this.getDeleteButton(managerRow)
+            ]);
         }
+        
         if (rows.length === 0) {
-            rows = [{ cells: [_("No Replication Managers")] }];
+            rows = [[_("No Replication Managers")]];
             columns = [{ title: '' }];
         }
+        
         this.setState({
             rows,
             columns
         });
     }
 
-    handleSort(_event, index, direction) {
-        const rows = [];
-        const sortedManagers = [...this.state.rows];
-
-        // Sort the managers and build the new rows
-        sortedManagers.sort();
-        if (direction !== SortByDirection.asc) {
-            sortedManagers.reverse();
-        }
-
-        for (const managerRow of sortedManagers) {
-            rows.push({ cells: [managerRow.cells[0], { props: { textCenter: true }, title: this.getDeleteButton(managerRow.cells[0]) }] });
-        }
+    handleSort(_event, columnIndex, sortDirection) {
+        const sortedRows = [...this.state.rows].sort((a, b) => 
+            (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)
+        );
 
         this.setState({
             sortBy: {
-                index,
-                direction
+                index: columnIndex,
+                direction: sortDirection
             },
-            rows,
-            page: 1,
+            rows: sortDirection === 'asc' ? sortedRows : sortedRows.reverse()
         });
     }
 
@@ -245,14 +262,39 @@ class ManagerTable extends React.Component {
         return (
             <Table
                 aria-label="manager table"
-                cells={this.state.columns}
-                rows={this.state.rows}
-                variant={TableVariant.compact}
-                sortBy={this.state.sortBy}
-                onSort={this.handleSort}
+                variant="compact"
             >
-                <TableHeader />
-                <TableBody />
+                <Thead>
+                    <Tr>
+                        {this.state.columns.map((column, columnIndex) => (
+                            <Th
+                                key={columnIndex}
+                                sort={column.sortable ? {
+                                    sortBy: this.state.sortBy,
+                                    onSort: this.handleSort,
+                                    columnIndex
+                                } : undefined}
+                                screenReaderText={column.screenReaderText}
+                            >
+                                {column.title}
+                            </Th>
+                        ))}
+                    </Tr>
+                </Thead>
+                <Tbody>
+                    {this.state.rows.map((row, rowIndex) => (
+                        <Tr key={rowIndex}>
+                            {row.map((cell, cellIndex) => (
+                                <Td 
+                                    key={cellIndex}
+                                    textCenter={cellIndex === 1}
+                                >
+                                    {cell}
+                                </Td>
+                            ))}
+                        </Tr>
+                    ))}
+                </Tbody>
             </Table>
         );
     }
@@ -266,10 +308,10 @@ class RUVTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("Replica ID"), transforms: [sortable] },
-                { title: _("Replica LDAP URL"), transforms: [sortable] },
-                { title: _("Max CSN"), transforms: [sortable] },
-                { title: '' },
+                { title: _("Replica ID"), sortable: true },
+                { title: _("Replica LDAP URL"), sortable: true },
+                { title: _("Max CSN"), sortable: true },
+                { title: '', sortable: false, screenReaderText: _("Clean RUV") }
             ],
         };
 
@@ -281,9 +323,12 @@ class RUVTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const row of this.props.rows) {
-            rows.push({
-                cells: [row.rid, row.url, row.maxcsn, { props: { textCenter: true }, title: this.getCleanButton(row.rid) }]
-            });
+            rows.push([
+                row.rid,
+                row.url,
+                row.maxcsn,
+                this.getCleanButton(row.rid)
+            ]);
         }
         if (rows.length === 0) {
             rows = [{ cells: [_("No RUV's")] }];
@@ -296,7 +341,9 @@ class RUVTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        const sortedRows = [...this.state.rows].sort((a, b) => 
+            (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
+        );
         this.setState({
             sortBy: {
                 index,
@@ -321,19 +368,47 @@ class RUVTable extends React.Component {
     }
 
     render() {
+        const tableRows = this.state.rows.map((row, rowIndex) => ({
+            cells: Array.isArray(row) ? row : row.cells
+        }));
+
         return (
             <div className="ds-margin-top">
                 <Table
-                    className="ds-margin-top"
                     aria-label="ruv table"
-                    cells={this.state.columns}
-                    rows={this.state.rows}
-                    variant={TableVariant.compact}
-                    sortBy={this.state.sortBy}
-                    onSort={this.handleSort}
+                    variant="compact"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {this.state.columns.map((column, columnIndex) => (
+                                <Th
+                                    key={columnIndex}
+                                    sort={column.sortable ? {
+                                        sortBy: this.state.sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex
+                                    } : undefined}
+                                    screenReaderText={column.screenReaderText}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                {row.cells.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={cellIndex}
+                                        textCenter={cellIndex === row.cells.length - 1}
+                                    >
+                                        {cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </div>
         );
@@ -349,9 +424,9 @@ class ReplicaLDIFTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { title: _("LDIF File"), transforms: [sortable] },
-                { title: _("Creation Date"), transforms: [sortable] },
-                { title: _("File Size"), transforms: [sortable] },
+                { title: _("LDIF File"), sortable: true },
+                { title: _("Creation Date"), sortable: true },
+                { title: _("File Size"), sortable: true },
             ],
         };
 
@@ -374,14 +449,10 @@ class ReplicaLDIFTable extends React.Component {
         let rows = [];
         let columns = this.state.columns;
         for (const ldifRow of this.props.rows) {
-            rows.push({
-                cells: [
-                    ldifRow[0], ldifRow[1], ldifRow[2]
-                ]
-            });
+            rows.push(ldifRow);
         }
         if (rows.length === 0) {
-            rows = [{ cells: [_("No LDIF files")] }];
+            rows = [[_("No LDIF files")]];
             columns = [{ title: _("LDIF File") }];
         }
         this.setState({
@@ -391,29 +462,16 @@ class ReplicaLDIFTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const rows = [];
-        const sortedLDIF = [...this.props.rows];
-
-        // Sort the referrals and build the new rows
-        sortedLDIF.sort();
-        if (direction !== SortByDirection.asc) {
-            sortedLDIF.reverse();
-        }
-        for (const ldifRow of sortedLDIF) {
-            rows.push({
-                cells:
-                [
-                    ldifRow[0], ldifRow[1], ldifRow[2]
-                ]
-            });
-        }
+        const sortedRows = [...this.state.rows].sort((a, b) => 
+            (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
+        );
 
         this.setState({
             sortBy: {
                 index,
                 direction
             },
-            rows,
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse(),
             page: 1,
         });
     }
@@ -424,16 +482,39 @@ class ReplicaLDIFTable extends React.Component {
         return (
             <Table
                 aria-label="ldif table"
-                cells={columns}
-                rows={rows}
-                variant={TableVariant.compact}
-                sortBy={sortBy}
-                onSort={this.handleSort}
-                dropdownPosition="right"
-                dropdownDirection="bottom"
+                variant="compact"
             >
-                <TableHeader />
-                <TableBody />
+                <Thead>
+                    <Tr>
+                        {columns.map((column, idx) => (
+                            <Th 
+                                key={idx}
+                                sort={column.sortable ? {
+                                    sortBy: sortBy,
+                                    onSort: this.handleSort,
+                                    columnIndex: idx
+                                } : undefined}
+                            >
+                                {column.title}
+                            </Th>
+                        ))}
+                    </Tr>
+                </Thead>
+                <Tbody>
+                    {rows.map((row, rowIndex) => (
+                        <Tr key={rowIndex}>
+                            {Array.isArray(row) ? (
+                                row.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))
+                            ) : (
+                                row.cells.map((cell, cellIndex) => (
+                                    <Td key={cellIndex}>{cell}</Td>
+                                ))
+                            )}
+                        </Tr>
+                    ))}
+                </Tbody>
             </Table>
         );
     }

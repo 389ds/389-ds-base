@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2022 Red Hat, Inc.
+ * Copyright (C) 2022-2024 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -183,7 +183,8 @@ struct logging_opts
     time_t log_error_ctime;             /* log creation time */
     LogFileInfo *log_error_logchain;    /* all the logs info */
     char *log_errorinfo_file;           /* error log rotation info file */
-    Slapi_RWLock *log_error_rwlock;     /* lock on error*/
+    Slapi_RWLock *log_error_rwlock;     /* lock on error */
+    LogBufferInfo *log_error_buffer;    /* buffer for error log */
 
     /* These are audit log specific */
     int log_audit_state;
@@ -208,8 +209,8 @@ struct logging_opts
     time_t log_audit_ctime;             /* log creation time */
     LogFileInfo *log_audit_logchain;    /* all the logs info */
     char *log_auditinfo_file;           /* audit log rotation info file */
-    Slapi_RWLock *log_audit_rwlock;     /* lock on audit*/
     int log_audit_compress;             /* Compress rotated logs */
+    LogBufferInfo *log_audit_buffer;    /* buffer for access log */
 
     /* These are auditfail log specific */
     int log_auditfail_state;
@@ -234,8 +235,8 @@ struct logging_opts
     time_t log_auditfail_ctime;             /* log creation time */
     LogFileInfo *log_auditfail_logchain;    /* all the logs info */
     char *log_auditfailinfo_file;           /* auditfail log rotation info file */
-    Slapi_RWLock *log_auditfail_rwlock;     /* lock on auditfail */
     int log_auditfail_compress;             /* Compress rotated logs */
+    LogBufferInfo *log_auditfail_buffer;    /* buffer for access log */
 
     int log_backend;
 };
@@ -260,15 +261,15 @@ struct logging_opts
 #define LOG_ERROR_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_error_rwlock)
 #define LOG_ERROR_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_error_rwlock)
 
-#define LOG_AUDIT_LOCK_READ()    slapi_rwlock_rdlock(loginfo.log_audit_rwlock)
-#define LOG_AUDIT_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_audit_rwlock)
-#define LOG_AUDIT_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_audit_rwlock)
-#define LOG_AUDIT_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_audit_rwlock)
+#define LOG_AUDIT_LOCK_READ()    PR_Lock(loginfo.log_audit_buffer->lock)
+#define LOG_AUDIT_UNLOCK_READ()  PR_Unlock(loginfo.log_audit_buffer->lock)
+#define LOG_AUDIT_LOCK_WRITE()   PR_Lock(loginfo.log_audit_buffer->lock)
+#define LOG_AUDIT_UNLOCK_WRITE() PR_Unlock(loginfo.log_audit_buffer->lock)
 
-#define LOG_AUDITFAIL_LOCK_READ()    slapi_rwlock_rdlock(loginfo.log_auditfail_rwlock)
-#define LOG_AUDITFAIL_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_auditfail_rwlock)
-#define LOG_AUDITFAIL_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_auditfail_rwlock)
-#define LOG_AUDITFAIL_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_auditfail_rwlock)
+#define LOG_AUDITFAIL_LOCK_READ()    PR_Lock(loginfo.log_auditfail_buffer->lock)
+#define LOG_AUDITFAIL_UNLOCK_READ()  PR_Unlock(loginfo.log_auditfail_buffer->lock)
+#define LOG_AUDITFAIL_LOCK_WRITE()   PR_Lock(loginfo.log_auditfail_buffer->lock)
+#define LOG_AUDITFAIL_UNLOCK_WRITE() PR_Unlock(loginfo.log_auditfail_buffer->lock)
 
 /* For using with slapi_log_access */
 #define TBUFSIZE 75                         /* size for time buffers */

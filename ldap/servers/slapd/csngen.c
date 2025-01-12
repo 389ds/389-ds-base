@@ -443,7 +443,7 @@ csngen_test()
     int rc;
     CSNGen *gen = csngen_new(255, NULL);
 
-    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "staring csn generator test ...");
+    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "staring csn generator test ...\n");
     csngen_dump_state(gen, SLAPI_LOG_INFO);
 
     rc = _csngen_start_test_threads(gen);
@@ -455,7 +455,7 @@ csngen_test()
 
     _csngen_stop_test_threads();
     csngen_dump_state(gen, SLAPI_LOG_INFO);
-    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "csn generator test is complete...");
+    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "csn generator test is complete...\n");
 }
 
 /*
@@ -858,6 +858,10 @@ void csngen_multi_suppliers_test(void)
         if (gen[i]) {
             gen[i]->gettime = _csngen_tester_gettime;
             gen[i]->state.sampled_time = now.tv_sec;
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "csngen_multi_suppliers_test",
+                          "Failed to initialize the CSNs\n");
+            return;
         }
     }
 

@@ -10,7 +10,7 @@ import json
 import ldap
 from lib389.plugins import (PAMPassThroughAuthPlugin,
                             PAMPassThroughAuthConfigs, PAMPassThroughAuthConfig)
-
+from lib389.cli_base import CustomHelpFormatter
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
 
@@ -114,20 +114,20 @@ def create_parser(subparsers):
 
     add_generic_plugin_parsers(subcommands, PAMPassThroughAuthPlugin)
 
-    list_pam = subcommands.add_parser('list', help='Lists PAM configurations')
+    list_pam = subcommands.add_parser('list', help='Lists PAM configurations', formatter_class=CustomHelpFormatter)
     list_pam.set_defaults(func=pam_pta_list)
 
-    pam = subcommands.add_parser('config', help='Manage PAM PTA configurations.')
+    pam = subcommands.add_parser('config', help='Manage PAM PTA configurations.', formatter_class=CustomHelpFormatter)
     pam.add_argument('NAME', help='The PAM PTA configuration name')
     subcommands_pam = pam.add_subparsers(help='action')
 
-    add = subcommands_pam.add_parser('add', help='Add the config entry')
+    add = subcommands_pam.add_parser('add', help='Add the config entry', formatter_class=CustomHelpFormatter)
     add.set_defaults(func=pam_pta_add)
     _add_parser_args_pam(add)
-    edit = subcommands_pam.add_parser('set', help='Edit the config entry')
+    edit = subcommands_pam.add_parser('set', help='Edit the config entry', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=pam_pta_edit)
     _add_parser_args_pam(edit)
-    show = subcommands_pam.add_parser('show', help='Display the config entry')
+    show = subcommands_pam.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show.set_defaults(func=pam_pta_show)
-    delete = subcommands_pam.add_parser('delete', help='Delete the config entry')
+    delete = subcommands_pam.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
     delete.set_defaults(func=pam_pta_del)

@@ -1,21 +1,23 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectOption,
-    SelectVariant,
-    TextInput,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
 import { PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
@@ -66,7 +68,7 @@ class PAMPassthroughAuthentication extends React.Component {
             pamConfigEntryModalShow: false,
         };
 
-        this.handleExcludeToggle = isExcludeOpen => {
+        this.handleExcludeToggle = (_event, isExcludeOpen) => {
             this.setState({
                 isExcludeOpen
             });
@@ -103,7 +105,7 @@ class PAMPassthroughAuthentication extends React.Component {
             }
         };
 
-        this.handleIncludeToggle = isIncludeOpen => {
+        this.handleIncludeToggle = (_event, isIncludeOpen) => {
             this.setState({
                 isIncludeOpen
             });
@@ -283,7 +285,7 @@ class PAMPassthroughAuthentication extends React.Component {
             "list",
         ];
         this.props.toggleLoadingHandler();
-        log_cmd("loadPAMConfigs", "Get PAM Passthough Authentication Plugin Configs", cmd);
+        log_cmd("loadPAMConfigs", "Get PAM Passthrough Authentication Plugin Configs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -346,7 +348,7 @@ class PAMPassthroughAuthentication extends React.Component {
             this.props.toggleLoadingHandler();
             log_cmd(
                 "openModal",
-                "Fetch the PAM Passthough Authentication Plugin pamConfig entry",
+                "Fetch the PAM Passthrough Authentication Plugin pamConfig entry",
                 cmd
             );
             cockpit
@@ -483,7 +485,7 @@ class PAMPassthroughAuthentication extends React.Component {
         this.props.toggleLoadingHandler();
         log_cmd(
             "deletePAMConfig",
-            "Delete the PAM Passthough Authentication Plugin pamConfig entry",
+            "Delete the PAM Passthrough Authentication Plugin pamConfig entry",
             cmd
         );
         cockpit
@@ -593,7 +595,7 @@ class PAMPassthroughAuthentication extends React.Component {
         });
         log_cmd(
             "pamPassthroughAuthOperation",
-            `Do the ${action} operation on the PAM Passthough Authentication Plugin`,
+            `Do the ${action} operation on the PAM Passthrough Authentication Plugin`,
             cmd
         );
         cockpit
@@ -647,7 +649,7 @@ class PAMPassthroughAuthentication extends React.Component {
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
         }
 
-        const title = cockpit.format(_("$0 PAM Passthough Auth Config Entry"), (newPAMConfigEntry ? _("Add") : _("Edit")));
+        const title = cockpit.format(_("$0 PAM Passthrough Auth Config Entry"), (newPAMConfigEntry ? _("Add") : _("Edit")));
 
         return (
             <div className={savingPAM ? "ds-disabled" : ""}>
@@ -686,7 +688,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                     id="pamConfigName"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="pamConfigName"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handlePAMChange(e);
                                     }}
                                     isDisabled={!newPAMConfigEntry}
@@ -708,7 +710,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                     isCreatable
                                     onCreateOption={this.handleCreateExcludeOption}
                                     typeAheadAriaLabel="Add a suffix"
-                                    onToggle={this.handleExcludeToggle}
+                                    onToggle={(event, isOpen) => this.handleExcludeToggle(event, isOpen)}
                                     onSelect={this.handleExcludeSelect}
                                     onClear={this.handleClearExcludeSelection}
                                     selections={pamExcludeSuffix}
@@ -739,7 +741,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                     isCreatable
                                     onCreateOption={this.handleCreateIncludeOption}
                                     typeAheadAriaLabel="Add an include suffix"
-                                    onToggle={this.handleIncludeToggle}
+                                    onToggle={(event, isOpen) => this.handleIncludeToggle(event, isOpen)}
                                     onSelect={this.handleIncludeSelect}
                                     onClear={this.handleClearIncludeSelection}
                                     selections={pamIncludeSuffix}
@@ -764,7 +766,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                 <FormSelect
                                     id="pamIDAttr"
                                     value={pamIDAttr}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handlePAMChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -782,7 +784,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                 <FormSelect
                                     id="pamMissingSuffix"
                                     value={pamMissingSuffix}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handlePAMChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -804,7 +806,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                     id="pamFilter"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="pamFilter"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handlePAMChange(e);
                                     }}
                                     validated={error.pamFilter ? ValidatedOptions.error : ValidatedOptions.default}
@@ -819,7 +821,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                 <FormSelect
                                     id="pamIDMapMethod"
                                     value={pamIDMapMethod}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handlePAMChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -838,7 +840,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                 <FormSelect
                                     id="pamService"
                                     value={pamService}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handlePAMChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -856,7 +858,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                 <Checkbox
                                     id="pamFallback"
                                     isChecked={pamFallback}
-                                    onChange={(checked, e) => { this.handlePAMChange(e) }}
+                                    onChange={(e, checked) => { this.handlePAMChange(e) }}
                                     title={_("Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)")}
                                 />
                             </GridItem>
@@ -869,7 +871,7 @@ class PAMPassthroughAuthentication extends React.Component {
                                 <Checkbox
                                     id="pamSecure"
                                     isChecked={pamSecure}
-                                    onChange={(checked, e) => { this.handlePAMChange(e) }}
+                                    onChange={(e, checked) => { this.handlePAMChange(e) }}
                                     title={_("Requires secure TLS connection for PAM authentication (pamSecure)")}
                                 />
                             </GridItem>

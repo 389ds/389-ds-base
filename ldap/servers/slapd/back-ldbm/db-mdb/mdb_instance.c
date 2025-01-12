@@ -80,6 +80,13 @@ typedef struct {
     int line;
 } errinfo_t;
 
+/* Helper used to generate smaller key if privdn nrdn is too long. */
+typedef struct {
+    char header[sizeof (long)];
+    unsigned long h;
+    unsigned long id;
+} privdb_small_key_t;
+
 /*
  * Global reference to dbi slot table (used for debug purpose and for
  * dbmdb_dbicmp function. dbi are not closed (until either
@@ -167,6 +174,8 @@ dbmdb_get_file_params(const char *dbname, int *flags, MDB_cmp_func **dupsort_fn)
     if (is_dbfile(fname, LDBM_ENTRYRDN_STR)) {
         *flags |= MDB_DUPSORT;
         *dupsort_fn = dbmdb_entryrdn_compare_dups;
+    } else if (is_dbfile(fname, LDBM_LONG_ENTRYRDN_STR)) {
+        *flags |= 0;
     } else if (is_dbfile(fname, ID2ENTRY)) {
         *flags |= 0;
     } else if (strstr(fname,  CHANGELOG_PATTERN)) {
@@ -184,11 +193,19 @@ char *dbmdb_build_dbname(backend *be, const char *filename)
     char *res, *pt;
 
     PR_ASSERT(filename[0] != '/');
-    if (strchr(filename, '/')) {
+    /* Only some special private sub db like vlv cache starts with ~
+     * None of the other sub db should contains a / unless
+     * it is a fullname with the bename
+     * So filename containing a / and nor starting by ~ are full names.
+     */
+    if (filename[0] != '~' && strchr(filename, '/')) {
+        /* be name already in filename */
         res = slapi_ch_smprintf("%s%s", filename, suffix);
     } else if (!be) {
+        /* no be name */
         return slapi_ch_strdup(filename);
     } else {
+        /* add the be name */
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         res = slapi_ch_smprintf("%s/%s%s", inst->inst_name, filename, suffix);
     }
@@ -270,6 +287,13 @@ int add_dbi(dbi_open_ctx_t *octx, backend *be, const char *fname, int flags)
         slapi_ch_free((void**)&treekey.dbname);
         return octx->rc;
     }
+    if (treekey.dbi >= ctx->dsecfg.max_dbs) {
+        octx->rc = MDB_DBS_FULL;
+        slapi_log_err(SLAPI_LOG_ERR, "add_dbi", "Failed to open database instance %s slots: %d/%d. Error is %d: %s.\n",
+                      treekey.dbname, treekey.dbi, ctx->dsecfg.max_dbs, octx->rc, mdb_strerror(octx->rc));
+        slapi_ch_free((void**)&treekey.dbname);
+        return octx->rc;
+    }
     if (octx->ai && octx->ai->ai_key_cmp_fn) {
 		octx->rc = dbmdb_update_dbi_cmp_fn(ctx, &treekey, octx->ai->ai_key_cmp_fn, octx->txn);
         if (octx->rc) {
@@ -318,7 +342,7 @@ add_index_dbi(struct attrinfo *ai, dbi_open_ctx_t *octx)
     octx->ai = ai;
 
     if (ai->ai_indexmask & INDEX_VLV) {
-        rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, ai->ai_type);
+        rcdbname = dbmdb_recno_cache_get_dbname(ai->ai_type);
         octx->rc = add_dbi(octx, octx->be, rcdbname, flags);
         slapi_ch_free_string(&rcdbname);
         if (octx->rc) {
@@ -357,23 +381,53 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
     MDB_val key = {0};
     char *special_names[] = { ID2ENTRY, LDBM_PARENTID_STR, LDBM_ENTRYRDN_STR, LDBM_ANCESTORID_STR, BE_CHANGELOG_FILE, NULL };
     dbmdb_dbi_t *sn_dbis[(sizeof special_names) / sizeof special_names[0]] = {0};
+    ldbm_instance *inst = be ? ((ldbm_instance *)be->be_instance_info) : NULL;
     int *valid_slots = NULL;
     errinfo_t errinfo = {0};
+    char **vlv_list = NULL;
     int ctxflags;
     int rc = 0;
     int i;
 
     if (!ctx) {
-        struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
-        ctx = MDB_CONFIG(li);
+        if (!be) {
+            /* Testing for "be" to avoid a covscan warning although
+             * dbmdb_open_all_files is never called with both parameters NULL
+             */
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_all_files",
+                          "Unable to open the database environment witout either the database context or a backend.\n");
+            return DBI_RC_INVALID;
+        } else {
+            struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
+            ctx = MDB_CONFIG(li);
+        }
     }
     ctxflags = ctx->readonly ? MDB_RDONLY: MDB_CREATE;
+    if (be != NULL && does_vlv_need_init(inst)) {
+        /* Vlv initialization is quite tricky as it require that
+         *  [1] dbis_lock is not held
+         *  [2] inst->inst_id2entry is set
+         *  [3] vlv_getindices is not yet called
+         *  So for newly discovered backend, it is better to explicitly
+         *  build the vlv list before initializing it
+         */
+        vlv_list = vlv_list_filenames(be->be_instance_info);
+    }
+
+    /*
+     * Lets start by opening all the existing db files (registered in __DBNAMES)
+     */
 
     /* Note: ctx->dbis_lock mutex must always be hold after getting the txn
      *  because txn is held very early (within backend code) in add operation
      *  and inverting the order may lead to deadlock
+     * BTW TST macro cannot be used here because mutex is not held and valid_slot is NULL
      */
-    TST(START_TXN(&txn, NULL, TXNFL_DBI));
+    rc = START_TXN(&txn, NULL, TXNFL_DBI);
+    if (rc != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_open_all_files", "failed to begin a new transaction rc=%d: %s.\n", rc, mdb_strerror(rc));
+        return dbmdb_map_error(__FUNCTION__, rc);
+    }
     pthread_mutex_lock(&ctx->dbis_lock);
 
     if (!ctx->dbi_slots) {
@@ -410,16 +464,30 @@ dbmdb_open_all_files(dbmdb_ctx_t *ctx, backend *be)
         rc =  0;
 
     if (be) {
-        ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         for (i=0; special_names[i]; i++) {
             TST(add_dbi(&octx, be, special_names[i], ctxflags));
             sn_dbis[i] = octx.dbi;
         }
+        TST(add_dbi(&octx, be, LDBM_LONG_ENTRYRDN_STR, ctxflags));
         inst->inst_id2entry = sn_dbis[0];
         if (avl_apply(inst->inst_attrs, add_index_dbi, &octx, STOP_AVL_APPLY, AVL_INORDER)) {
             TST(octx.rc);
         }
-        vlv_getindices((IFP)add_index_dbi, &octx, be);
+        if (be->vlvSearchList_lock) {
+            /* vlv search list is initialized so we can use it */
+            vlv_getindices((IFP)add_index_dbi, &octx, be);
+        } else if (vlv_list) {
+            char *rcdbname = NULL;
+            for (size_t i=0; rc == 0 && vlv_list[i]; i++) {
+                dbg_log(__FILE__,__LINE__,__FUNCTION__, DBGMDB_LEVEL_OTHER, "Opening vlv index %s.\n", vlv_list[i]);
+                rcdbname = dbmdb_recno_cache_get_dbname(vlv_list[i]);
+                rc = add_dbi(&octx, be, rcdbname, ctxflags);
+                slapi_ch_free_string(&rcdbname);
+                if (rc ==0) {
+                    rc = add_dbi(&octx, be, vlv_list[i], ctxflags);
+                }
+            }
+        }
     }
 
 error:
@@ -452,6 +520,16 @@ error:
     slapi_ch_free((void**)&valid_slots);
 
     pthread_mutex_unlock(&ctx->dbis_lock);
+    if (vlv_list) {
+        charray_free(vlv_list);
+        vlv_list = NULL;
+    }
+    if (rc == 0 && does_vlv_need_init(inst)) {
+        vlv_init(inst);
+    }
+    if (be) {
+        vlv_rebuild_scope_filter(be);
+    }
     return dbmdb_map_error(__FUNCTION__, rc);
 }
 
@@ -623,6 +701,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
         rc = dbmdb_write_infofile(ctx);
     } else {
         /* No Config ==> read it from info file */
+        ctx->dsecfg = ctx->startcfg;
     }
     if (rc) {
         return rc;
@@ -657,9 +736,9 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
         }
     }
 
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MBD environment created with maxsize=%lu.\n", ctx->startcfg.max_size);
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MBD environment created with max readers=%d.\n", ctx->startcfg.max_readers);
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MBD environment created with max database instances=%d.\n", ctx->startcfg.max_dbs);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with maxsize=%lu.\n", ctx->startcfg.max_size);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with max readers=%d.\n", ctx->startcfg.max_readers);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with max database instances=%d.\n", ctx->startcfg.max_dbs);
 
     /* If some upgrade is needed based on libmdb version, then another test must be done here.
      *  and the new test should be based on infofileinfo.libversion
@@ -760,6 +839,11 @@ dbmdb_list_dbis(dbmdb_ctx_t *ctx, backend *be, char *fname, int islocked, int *s
         pthread_mutex_lock(&ctx->dbis_lock);
     if (fname) {
         treekey.dbname = dbmdb_build_dbname(be, fname);
+        /* coverity false positive:
+         * Accessing "ctx->dbis_treeroot" without holding lock "dbmdb_ctx_t.dbis_lock"
+         * But the lock is held.
+         */
+        /* coverity[missing_lock] */
         node = tfind(&treekey, &ctx->dbis_treeroot, cmp_dbi_names);
         slapi_ch_free((void**)&treekey.dbname);
         octx.dbilist = (dbmdb_dbi_t **)slapi_ch_calloc(2, sizeof (dbmdb_dbi_t *));
@@ -893,6 +977,10 @@ dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome)
     used_pages += st.ms_branch_pages+st.ms_leaf_pages+st.ms_overflow_pages;
     END_TXN(&txn, 0);
     mdb_env_info(ctx.env, &info);
+    if (st.ms_psize == 0) {
+        /* Should never happen but avoid DIVIDE_BY_ZERO coverity scan error */
+        st.ms_psize = 1;
+    }
     alloced = fst.st_size / st.ms_psize;
     PR_snprintf(dbs[i].filename, PATH_MAX, "GLOBAL STATS: pages max=%ld alloced=%ld used=%ld size=%d",
         info.me_mapsize / st.ms_psize, alloced, used_pages, st.ms_psize);
@@ -1165,6 +1253,8 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
     dbi_open_ctx_t octx = {0};
     dbi_txn_t *txn = NULL;
     int rc = 0;
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "dbmdb_open_dbi_from_filename: filename=%s flags=0x%x", filename, flags);
+
 
     if (ctx->readonly || (flags&MDB_RDONLY)) {
         flags &= ~MDB_CREATE;
@@ -1189,7 +1279,11 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
              * So far only known case of hitting this condition is that
              * online import/bulk import/reindex failed and suffix database was cleared)
              */
-            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_open_dbi_from_filename", "Attempt to open to open dbi %s/%s while txn is already pending. The only case this message is expected is after a failed import or reindex.\n", be->be_name, filename);
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_open_dbi_from_filename",
+                          "Attempt to open to open dbi %s/%s while txn is already pending."
+                          " Usually that means that the index must be reindex. Root cause is"
+                          " likely that last import of reindex failed or that the index was"
+                          " created but not yet reindexed).\n", be->be_name, filename);
             slapi_log_backtrace(SLAPI_LOG_WARNING);
             return MDB_NOTFOUND;
         }
@@ -1208,19 +1302,24 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
         }
     }
     if (rc) {
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "returning %d", rc);
         return rc;
     }
     if (!*dbi) {
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "returning MDB_NOTFOUND");
         return MDB_NOTFOUND;
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "So far rc = %d", rc);
     if (ai && ai->ai_key_cmp_fn != (*dbi)->cmp_fn) {
         if (! (*dbi)->cmp_fn) {
             rc = dbmdb_update_dbi_cmp_fn(ctx, *dbi, ai->ai_key_cmp_fn, NULL);
         }
         (*dbi)->cmp_fn = ai->ai_key_cmp_fn;
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "So far rc = %d", rc);
 
     if (((*dbi)->state.state & DBIST_DIRTY) && !(flags & MDB_OPEN_DIRTY_DBI)) {
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "returning MDB_NOTFOUND");
         return MDB_NOTFOUND;
     }
     if (!rc && !((*dbi)->state.state & DBIST_DIRTY) && (flags & MDB_MARK_DIRTY_DBI)) {
@@ -1228,12 +1327,15 @@ int dbmdb_open_dbi_from_filename(dbmdb_dbi_t **dbi, backend *be, const char *fil
            st.state |= DBIST_DIRTY;
            rc = dbmdb_update_dbi_state(ctx, *dbi, &st, NULL, PR_FALSE);
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "So far rc = %d", rc);
     if (!rc && (flags & MDB_TRUNCATE_DBI)) {
         octx.ctx = ctx;
         octx.dbi = *dbi;
         octx.deletion_flags = 0;
+        DBG_LOG(DBGMDB_LEVEL_OTHER, "truncating db");
         rc = dbi_remove(&octx);
     }
+    DBG_LOG(DBGMDB_LEVEL_OTHER, "returning rc=%d", rc);
     return rc;
 }
 
@@ -1267,6 +1369,21 @@ int dbmdb_close_cursor(dbmdb_cursor_t *dbicur, int rc)
     return rc;
 }
 
+/*
+ * Returns the vlv cache db name (without the backend)
+ * Return value must be freed by the caller.
+ */
+char *
+dbmdb_recno_cache_get_dbname(const char *vlvdbiname)
+{
+    char *rcdbname = NULL;
+    const char *vlvidxname = NULL;
+
+    vlvidxname = strrchr(vlvdbiname, '/');
+    vlvidxname = vlvidxname ? vlvidxname+1 : vlvdbiname;
+    rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, vlvidxname);
+    return rcdbname;
+}
 
 /*
  * Determine how to build the recno cache:
@@ -1289,39 +1406,39 @@ int dbmdb_recno_cache_get_mode(dbmdb_recno_cache_ctx_t *rcctx)
     rcctx->mode = RCMODE_UNKNOWN;
     rcctx->cursortxn = txn;
     rcctx->dbi = &ctx->dbi_slots[curdbi];
-    rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, rcctx->dbi->dbname);
+    rcdbname = dbmdb_recno_cache_get_dbname(rcctx->dbi->dbname);
+    rcctx->rcdbname = rcdbname;
+    rcctx->env = ctx->env;
 
     /* Now lets search for the associated recno cache dbi */
-    rcctx->rcdbi = dbi_get_by_name(ctx, NULL, rcdbname);
-    if (rcctx->rcdbi)
-        rcctx->mode = RCMODE_USE_CURSOR_TXN;
-
-    if (rcctx->mode == RCMODE_USE_CURSOR_TXN) {
+    rcctx->rcdbi = dbi_get_by_name(ctx, rcctx->cursor->be, rcdbname);
+    if (rcctx->rcdbi) {
         /* DBI cache was found,  Let check that it is usuable */
-        slapi_ch_free_string(&rcdbname);
         rcctx->key.mv_data = "OK";
         rcctx->key.mv_size = 2;
         rc = MDB_GET(txn, rcctx->rcdbi->dbi, &rcctx->key, &rcctx->data);
-        if (rc) {
-            rcctx->mode = RCMODE_UNKNOWN;
+        if (rc == MDB_SUCCESS) {
+            rcctx->mode = RCMODE_USE_CURSOR_TXN;
+            DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_USE_CURSOR_TXN rc=0", rcdbname);
+            return rc;
         }
         if (rc != MDB_NOTFOUND) {
+            /* There was an error or cache is valid.
+             * Im both cases there is no need to rebuilt the cache.
+             */
+            DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_UNKNOWN rc=%d", rcdbname, rc);
             return rc;
         }
     }
-    /* if rcdbname is set then cache is not open
-     * if rcdbname is NULL then cache must be rebuild
-     * ==> In both case A write TXN is needed
-     *  (either as subtxn or in new thread)
-     */
-    rcctx->rcdbname = rcdbname;
-    rcctx->env = ctx->env;
+    /* Cache must be rebuilt so a write TXN is needed (either as subtxn or in new thread) */
     rc = TXN_BEGIN(ctx->env, rcctx->cursortxn, 0, &txn);
     if (rc == 0) {
         TXN_ABORT(txn);
         txn = NULL;
         rcctx->mode = RCMODE_USE_SUBTXN;
+        DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_USE_SUBTXN rc=0", rcdbname);
     } else if (rc == EINVAL) {
+        DBG_LOG(DBGMDB_LEVEL_VLV, "dbmdb_recno_cache_get_mode(%s) mode=RCMODE_USE_NEW_THREAD rc=0", rcdbname);
         rcctx->mode = RCMODE_USE_NEW_THREAD;
         rc = 0;
     }
@@ -1402,7 +1519,7 @@ dbmdb_reset_vlv_file(backend *be, const char *filename)
     struct ldbminfo *li = (struct ldbminfo *)(be->be_database->plg_private);
     dbmdb_ctx_t *ctx = MDB_CONFIG(li);
     dbmdb_dbi_t *dbi = NULL;
-    char *rcdbname = slapi_ch_smprintf("%s%s", RECNOCACHE_PREFIX, filename);
+    char *rcdbname = dbmdb_recno_cache_get_dbname(filename);
     int rc = 0;
     dbi = dbi_get_by_name(ctx, be, filename);
     if (dbi)
@@ -1475,7 +1592,7 @@ dbmdb_privdb_handle_cursor(mdb_privdb_t *db, int dbi_index)
         db->wcount = 0;
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to commit dndb transaction. Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to commit dndb transaction. Error is %d: %s.\n", rc, mdb_strerror(rc));
             TXN_ABORT(db->txn);
             return -1;
         }
@@ -1484,13 +1601,13 @@ dbmdb_privdb_handle_cursor(mdb_privdb_t *db, int dbi_index)
         rc = TXN_BEGIN(db->env, NULL, 0, &db->txn);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to begin dndb transaction. Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to begin dndb transaction. Error is %d: %s.\n", rc, mdb_strerror(rc));
             return -1;
         }
         rc = MDB_CURSOR_OPEN(db->txn, db->dbis[dbi_index].dbi, &db->cursor);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to open dndb cursor. Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to open dndb cursor. Error is %d: %s.\n", rc, mdb_strerror(rc));
             dbmdb_privdb_discard_cursor(db);
             return -1;
         }
@@ -1520,6 +1637,58 @@ dbmdb_privdb_destroy(mdb_privdb_t **db)
     }
 }
 
+
+/* Compute a smaller key for long rdn */
+int
+dbmdb_privdb_init_small_key(mdb_privdb_t *db, const MDB_val *longkey, int addnewkey, privdb_small_key_t *smallkey)
+{
+    MDB_val key = {0};
+    MDB_val data = {0};
+    unsigned long nextid = 0;
+    char *pt = longkey->mv_data;
+    int rc = 0;
+
+    memset(smallkey, 0, sizeof *smallkey);
+    /* Prepare the samllkey used to store the long key with id=0 */
+    strcpy(smallkey->header, "==>");
+    for (pt += longkey->mv_size - 1; pt >= (char*)longkey->mv_data; pt--) {
+        smallkey->h += ((smallkey->h << 3) | (smallkey->h >> ((8 * sizeof(long)) - 3))) ^ (*pt & 0x1f);
+    }
+    key.mv_data = smallkey;
+    key.mv_size = sizeof (*smallkey);
+    rc = MDB_CURSOR_GET(db->cursor, &key, &data, MDB_SET_RANGE);
+    /* Let walk all the keys that have the right hash */
+    while (rc == 0 && key.mv_size == sizeof(privdb_small_key_t) &&
+           memcmp(key.mv_data, smallkey, offsetof(privdb_small_key_t, id)) == 0) {
+        if (longkey->mv_size == data.mv_size &&
+            memcmp(longkey->mv_data, data.mv_data, data.mv_size) == 0) {
+            /* Key to the wanted data exists, lets return the small key used for getting/storing data ! */
+            memcpy(smallkey, key.mv_data, key.mv_size);
+            smallkey->header[0] = '@';
+            return 0;
+        }
+        /* Wrong key, lets get next one */
+        memcpy(&nextid, &((privdb_small_key_t*)data.mv_data)->id, sizeof nextid);
+        nextid++;
+        rc = MDB_CURSOR_GET(db->cursor, &key, &data, MDB_NEXT);
+    }
+    if (rc ==0 || rc == MDB_NOTFOUND) {
+        /* Key does not exists */
+        if (addnewkey) {
+            /* Lets add it! */
+            smallkey->id = nextid;
+            key.mv_data = smallkey;
+            key.mv_size = sizeof (*smallkey);
+            rc = MDB_CURSOR_PUT(db->cursor, &key, (MDB_val*)longkey, 0);
+            smallkey->header[0] = '@';
+        } else {
+            rc = MDB_NOTFOUND;
+        }
+    }
+    return rc;
+}
+
+
 int
 dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
 {
@@ -1527,24 +1696,47 @@ dbmdb_privdb_get(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
     data->mv_data = NULL;
     data->mv_size = 0;
     if (!rc) {
-        rc = MDB_CURSOR_GET(db->cursor, key, data, MDB_SET_KEY);
+        if (key->mv_size > db->maxkeysize) {
+            privdb_small_key_t small_key = {0};
+            MDB_val key2 = {0};
+            key2.mv_data = &small_key;
+            key2.mv_size = sizeof small_key;
+            rc = dbmdb_privdb_init_small_key(db, key, 0, &small_key);
+            if (!rc) {
+                rc = MDB_CURSOR_GET(db->cursor, &key2, data, MDB_SET_KEY);
+            }
+        } else {
+            rc = MDB_CURSOR_GET(db->cursor, key, data, MDB_SET_KEY);
+        }
         if (rc && rc != MDB_NOTFOUND) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to get key from dndb cursor Error is %d: %s.\n", rc, mdb_strerror(rc));
         }
     }
     return rc;
 }
+
 
 int
 dbmdb_privdb_put(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
 {
     int rc = dbmdb_privdb_handle_cursor(db, 0);
     if (!rc) {
-        rc = MDB_CURSOR_PUT(db->cursor, key, data, MDB_NOOVERWRITE);
+        if (key->mv_size > db->maxkeysize) {
+            privdb_small_key_t small_key = {0};
+            MDB_val key2 = {0};
+            key2.mv_data = &small_key;
+            key2.mv_size = sizeof small_key;
+            rc = dbmdb_privdb_init_small_key(db, key, 1, &small_key);
+            if (!rc) {
+                rc = MDB_CURSOR_PUT(db->cursor, &key2, data, MDB_NOOVERWRITE);
+            }
+        } else {
+            rc = MDB_CURSOR_PUT(db->cursor, key, data, MDB_NOOVERWRITE);
+        }
         if (rc && rc != MDB_KEYEXIST) {
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_privdb_handle_cursor",
-                          "Failed to get key from dndb cursor Error is %d: %s.", rc, mdb_strerror(rc));
+                          "Failed to put data into dndb cursor Error is %d: %s.\n", rc, mdb_strerror(rc));
         }
     }
     if (!rc) {
@@ -1582,6 +1774,7 @@ dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
         goto bail;
     }
 
+    db->maxkeysize = mdb_env_get_maxkeysize(db->env);
     mdb_env_set_maxdbs(db->env, nbdbis);
     mdb_env_set_mapsize(db->env, db->db_size);
 
@@ -1602,7 +1795,7 @@ dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
         goto bail;
     }
 
-    rc = mdb_txn_begin(db->env, NULL, 0, &txn);
+    rc = TXN_BEGIN(db->env, NULL, 0, &txn);
     if (rc) {
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to begin a txn for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
         goto bail;
@@ -1614,18 +1807,18 @@ dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
         db->dbis[i].state.flags = MDB_CREATE;
         db->dbis[i].dbname = va_arg(va, char*);
         if (rc == 0) {
-            rc = mdb_dbi_open(txn, db->dbis[i].dbname, db->dbis[i].state.flags, &db->dbis[i].dbi);
+            rc = MDB_DBI_OPEN(txn, db->dbis[i].dbname, db->dbis[i].state.flags, &db->dbis[i].dbi);
         }
     }
     va_end(va);
     if (rc) {
-        mdb_txn_abort(txn);
+        TXN_ABORT(txn);
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to open a database instance for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
         goto bail;
     }
-    rc = mdb_txn_commit(txn);
+    rc = TXN_COMMIT(txn);
     if (rc) {
-        mdb_txn_abort(txn);
+        TXN_ABORT(txn);
         slapi_log_error(SLAPI_LOG_ERR, "dbmdb_privdb_create", "Failed to commit database instance creation transaction for lmdb environment with path %s. Error %d :%s.\n", db->path, rc, mdb_strerror(rc));
         goto bail;
     }

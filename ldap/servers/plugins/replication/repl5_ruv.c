@@ -972,7 +972,7 @@ ruv_get_min_csn_ext(const RUV *ruv, CSN **csn, int ignore_cleaned_rid)
 }
 
 int
-ruv_enumerate_elements(const RUV *ruv, FNEnumRUV fn, void *arg)
+ruv_enumerate_elements(const RUV *ruv, FNEnumRUV fn, void *arg, int all_elements)
 {
     int cookie;
     RUVElement *elem;
@@ -987,8 +987,12 @@ ruv_enumerate_elements(const RUV *ruv, FNEnumRUV fn, void *arg)
     slapi_rwlock_rdlock(ruv->lock);
     for (elem = (RUVElement *)dl_get_first(ruv->elements, &cookie); elem;
          elem = (RUVElement *)dl_get_next(ruv->elements, &cookie)) {
-        /* we only return elements that contains both minimal and maximal CSNs */
-        if (elem->csn && elem->min_csn) {
+        /*
+         * Either we return all elements or
+         * only those that contains both minimal and maximal CSNs
+         */
+        if (all_elements || (elem->csn && elem->min_csn)) {
+            enum_data.rid = elem->rid;
             enum_data.csn = elem->csn;
             enum_data.min_csn = elem->min_csn;
             rc = fn(&enum_data, arg);
@@ -2033,10 +2037,10 @@ get_ruvelement_from_berval(const struct berval *bval)
                 char mincsnstr[CSN_STRSIZE];
                 char maxcsnstr[CSN_STRSIZE];
 
-                memset(mincsnstr, '\0', CSN_STRSIZE);
-                memset(maxcsnstr, '\0', CSN_STRSIZE);
                 memcpy(mincsnstr, &bval->bv_val[mincsnbegin], _CSN_VALIDCSN_STRLEN);
                 memcpy(maxcsnstr, &bval->bv_val[mincsnbegin + _CSN_VALIDCSN_STRLEN + 1], _CSN_VALIDCSN_STRLEN);
+                maxcsnstr[_CSN_VALIDCSN_STRLEN] = 0;
+                mincsnstr[_CSN_VALIDCSN_STRLEN] = 0;
                 ret_ruve = (RUVElement *)slapi_ch_calloc(1, sizeof(RUVElement));
                 ret_ruve->min_csn = csn_new_by_string(mincsnstr);
                 ret_ruve->csn = csn_new_by_string(maxcsnstr);

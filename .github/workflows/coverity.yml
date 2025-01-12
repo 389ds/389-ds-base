@@ -1,0 +1,24 @@
+name: Coverity Scan
+
+on:
+  schedule:
+    - cron:  '30 9 * * 1'
+
+jobs:
+  coverity:
+    runs-on: ubuntu-22.04
+
+    container:
+      image: quay.io/389ds/ci-images:fedora
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout and configure
+        run: autoreconf -fvi && ./configure
+
+      - uses: vapier/coverity-scan-action@v1
+        with:
+          project: '389ds/389-ds-base'
+          command: make
+          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}

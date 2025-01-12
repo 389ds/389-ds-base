@@ -1,31 +1,34 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Checkbox,
-    ClipboardCopy, ClipboardCopyVariant,
-    Divider,
-    FileUpload,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    HelperText,
-    HelperTextItem,
-    Modal,
-    ModalVariant,
-    Radio,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Text,
-    TextContent,
-    TextVariants,
-    TextInput,
-    Tooltip,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	ClipboardCopy,
+	ClipboardCopyVariant,
+	Divider,
+	FileUpload,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	HelperText,
+	HelperTextItem,
+	Modal,
+	ModalVariant,
+	Radio,
+	Text,
+	TextContent,
+	TextVariants,
+	TextInput,
+	Tooltip,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 import PropTypes from "prop-types";
 import { bad_file_name, validHostname } from "../tools.jsx";
@@ -97,7 +100,7 @@ export class ExportCertModal extends React.Component {
                                 id="exportFileName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="exportFileName"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={fileName === "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -110,7 +113,7 @@ export class ExportCertModal extends React.Component {
                             <Checkbox
                                 label={_("Export Certificate In Binary/DER Format")}
                                 isChecked={binaryFormat}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 id="exportDERFormat"
@@ -239,7 +242,7 @@ export class SecurityAddCertModal extends React.Component {
                                 id="certName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="certName"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={certName === "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -285,11 +288,11 @@ export class SecurityAddCertModal extends React.Component {
                                     browseButtonText={_("Upload PEM File")}
                                 />
                             </div>
-                            <div title={_("Choose a cerificate from the server's certificate directory")}>
+                            <div title={_("Choose a certificate from the server's certificate directory")}>
                                 <Radio
                                     id="certRadioSelect"
                                     className="ds-margin-top-lg"
-                                    label={_("Choose Cerificate From Server")}
+                                    label={_("Choose Certificate From Server")}
                                     name="certChoice"
                                     isChecked={certRadioSelect}
                                     onChange={handleRadioChange}
@@ -337,7 +340,7 @@ export class SecurityAddCertModal extends React.Component {
                                     id="certFile"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="certFile"
-                                    onChange={(value, e) => {
+                                    onChange={(e, value) => {
                                         handleChange(e);
                                     }}
                                     validated={certRadioFile && certFile === "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -425,7 +428,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrName"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.csrName || bad_file_name(csrName) ? ValidatedOptions.error : ValidatedOptions.default}
@@ -477,7 +480,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrSubjectCommonName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrSubjectCommonName"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.csrSubjectCommonName ? ValidatedOptions.error : ValidatedOptions.default}
@@ -495,7 +498,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrSubjectOrg"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrSubjectOrg"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -512,7 +515,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrSubjectOrgUnit"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrSubjectOrgUnit"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -529,7 +532,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrSubjectLocality"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrSubjectLocality"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -546,7 +549,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrSubjectState"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrSubjectState"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -563,7 +566,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrSubjectCountry"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrSubjectCountry"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -580,7 +583,7 @@ export class SecurityAddCSRModal extends React.Component {
                                 id="csrSubjectEmail"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="csrSubjectEmail"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                             />
@@ -701,7 +704,7 @@ export class SecurityEnableModal extends React.Component {
                             <FormSelect
                                 value={primaryName}
                                 id="certNameSelect"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 aria-label="FormSelect Input"
@@ -864,7 +867,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="CflagSSL"
                             isChecked={CSSLChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -873,7 +876,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="CflagEmail"
                             isChecked={CEmailChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -882,7 +885,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="CflagOS"
                             isChecked={COSChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -895,7 +898,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="TflagSSL"
                             isChecked={TSSLChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -904,7 +907,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="TflagEmail"
                             isChecked={TEmailChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -913,7 +916,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="TflagOS"
                             isChecked={TOSChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -926,7 +929,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="cflagSSL"
                             isChecked={cSSLChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -935,7 +938,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="cflagEmail"
                             isChecked={cEmailChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -944,7 +947,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="cflagOS"
                             isChecked={cOSChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -957,7 +960,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="PflagSSL"
                             isChecked={PSSLChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -966,7 +969,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="PflagEmail"
                             isChecked={PEmailChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -975,7 +978,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="PflagOS"
                             isChecked={POSChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -988,7 +991,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="pflagSSL"
                             isChecked={pSSLChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -997,7 +1000,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="pflagEmail"
                             isChecked={pEmailChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />
@@ -1006,7 +1009,7 @@ export class EditCertModal extends React.Component {
                         <Checkbox
                             id="pflagOS"
                             isChecked={pOSChecked}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                         />

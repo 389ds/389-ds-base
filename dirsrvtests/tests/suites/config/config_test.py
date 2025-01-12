@@ -11,11 +11,13 @@ import logging
 import pytest
 import os
 from lib389 import DirSrv, pid_from_file
+from lib389.dseldif import DSEldif
 from lib389.tasks import *
 from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389._mapped_object import DSLdapObjects
+from lib389.agreement import Agreements
 from lib389.cli_base import FakeArgs
 from lib389.cli_conf.backend import db_config_set
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
@@ -26,6 +28,8 @@ from lib389.cos import CosPointerDefinitions, CosTemplates
 from lib389.backend import Backends, DatabaseConfig
 from lib389.monitor import MonitorLDBM, Monitor
 from lib389.plugins import ReferentialIntegrityPlugin
+from lib389.replica import BootstrapReplicationManager, Replicas
+from lib389.passwd import password_generate
 
 pytestmark = pytest.mark.tier0
 
@@ -34,6 +38,8 @@ PSTACK_CMD = '/usr/bin/pstack'
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
 
 @pytest.fixture(scope="module")
 def big_file():
@@ -47,8 +53,6 @@ def big_file():
     return TEMP_BIG_FILE
 
 
-@pytest.mark.bz1897248
-@pytest.mark.ds4315
 @pytest.mark.skipif(ds_is_older('1.4.3.16'), reason="This config setting exists in 1.4.3.16 and higher")
 def test_nagle_default_value(topo):
     """Test that nsslapd-nagle attribute is off by default
@@ -204,8 +208,6 @@ def test_config_deadlock_policy(topology_m2):
     ldbmconfig.replace('nsslapd-db-deadlock-policy', deadlock_policy)
 
 
-@pytest.mark.bz766322
-@pytest.mark.ds26
 def test_defaultnamingcontext(topo):
     """Tests configuration attribute defaultNamingContext in the rootdse
 
@@ -290,7 +292,6 @@ def test_defaultnamingcontext(topo):
     b2.delete()
 
 
-@pytest.mark.bz602456
 def test_allow_add_delete_config_attributes(topo):
     """Tests configuration attributes are allowed to add and delete
 
@@ -332,8 +333,6 @@ def test_allow_add_delete_config_attributes(topo):
     assert not topo.standalone.config.present('invalid-attribute', 'invalid-value')
 
 
-@pytest.mark.bz918705
-@pytest.mark.ds511
 def test_ignore_virtual_attrs(topo):
     """Test nsslapd-ignore-virtual-attrs configuration attribute
 
@@ -442,10 +441,8 @@ def test_ignore_virtual_attrs_after_restart(topo):
     log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
-@pytest.mark.bz918694
-@pytest.mark.ds408
 def test_ndn_cache_enabled(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Check the behavior of the Normalized DN cache when enabled/disabled
 
     :id: 2caa3ec0-cd05-458e-9e21-3b73cf4697ff
     :setup: Standalone instance
@@ -507,7 +504,7 @@ def test_ndn_cache_enabled(topo):
 
 
 def test_require_index(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Validate that unindexed searches are rejected
 
     :id: fb6e31f2-acc2-4e75-a195-5c356faeb803
     :setup: Standalone instance
@@ -541,7 +538,7 @@ def test_require_index(topo):
 
 @pytest.mark.skipif(ds_is_older('1.4.2'), reason="The config setting only exists in 1.4.2 and higher")
 def test_require_internal_index(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Ensure internal operations require indexed attributes
 
     :id: 22b94f30-59e3-4f27-89a1-c4f4be036f7f
     :setup: Standalone instance
@@ -618,7 +615,7 @@ def check_number_of_threads(cfgnbthreads, monitor, pid):
         log.info('pstack is not installed ==> skipping pstack test.')
 
 def test_changing_threadnumber(topo):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Validate thread number changes in the server configuration
 
     :id: 11bcf426-061c-11ee-8c22-482ae39447e5
     :setup: Standalone instance
@@ -708,14 +705,14 @@ def set_and_check(inst, db_config, dsconf_attr, ldap_attr, val):
 
 
 def test_lmdb_config(create_lmdb_instance):
-    """Test nsslapd-ignore-virtual-attrs configuration attribute
+    """Verify LMDB configuration settings in custom instance
 
     :id: bca28086-61cf-11ee-a064-482ae39447e5
     :setup: Custom instance named 'i_lmdb' having db_lib=mdb and lmdb_size=0.5
     :steps:
         1. Get dscreate create-template output
         2. Check that 'db_lib' is in output
-        3. Check that 'lmdb_size' is in output
+        3. Extract 'mdb_max_size' from output and verify it's correct
         4. Get the database config
         5. Check that nsslapd-backend-implement is mdb
         6. Check that nsslapd-mdb-max-size is 536870912 (i.e 0.5Gb)
@@ -738,7 +735,18 @@ def test_lmdb_config(create_lmdb_instance):
                          stderr=subprocess.STDOUT, encoding='utf-8')
     inst = create_lmdb_instance
     assert 'db_lib' in res.stdout
-    assert 'mdb_max_size' in res.stdout
+
+    # Extract the mdb_max_size value from the output
+    mdb_max_size_line = next(line for line in res.stdout.splitlines() if 'mdb_max_size =' in line)
+    mdb_max_size_value = mdb_max_size_line.split('=')[1].strip()
+
+    # Parse the mdb_max_size value to int and back
+    parsed_size = parse_size(mdb_max_size_value)
+    formatted_size = format_size(parsed_size)
+
+    # Assert the original value and the processed value are the same
+    assert mdb_max_size_value == formatted_size, f"Initial mdb_max_size value {mdb_max_size_value} does not match the formatted size {formatted_size}"
+
     db_config = DatabaseConfig(inst)
     cfg_vals = db_config.get()
     assert 'nsslapd-backend-implement' in cfg_vals
@@ -748,6 +756,147 @@ def test_lmdb_config(create_lmdb_instance):
     set_and_check(inst, db_config, 'mdb_max_size', 'nsslapd-mdb-max-size', parse_size('2G'))
     set_and_check(inst, db_config, 'mdb_max_readers', 'nsslapd-mdb-max-readers', 200)
     set_and_check(inst, db_config, 'mdb_max_dbs', 'nsslapd-mdb-max-dbs', 200)
+
+
+def test_numlisteners_limit(topo):
+    """Test higher limit of nsslapd-numlisteners than 4
+    DS allows a higher value of nsslapd-numlisteners than it's limit of 4
+
+    :id: 96869ea9-c7b4-4a4f-85f9-ea1d3f4a63aa
+    :setup: Standalone Instance
+    :steps:
+        1. Check default nsslapd-numlisteners value is 1
+        2. Set nsslapd-numlisteners value to 4
+        3. Check nsslapd-numlisteners value is set to 4
+        4. Check dse.ldif value of nsslapd-numlisteners is set to 4
+        5. systemctl restart dirsrv@localhost
+        6. Check nsslapd-numlisteners value is 4, after server restart
+        7. Set nsslapd-numlisteners value to greater than the max value (4)
+        8. Check if nsslapd-numlisteners value is still 4
+        9. Check dse.ldif value of nsslapd-numlisteners is set to 4
+    :expectedresults:
+        1. nsslapd-numlisteners config value should show 1 by default
+        2. nsslapd-numlisteners value should be successfully set to 4
+        3. nsslapd-numlisteners is indeed set to 4
+        4. nsslapd-numlisteners value in localhost dse.ldif file is set to 4
+        5. restart DS instance is successful
+        6. nsslapd-numlisteners value is still 4 after server restart
+        7. Invalid value is rejected
+        8. nsslapd-numlisteners value is still 4
+        9. nsslapd-numlisteners value in localhost dse.ldif file is set to 4
+    """
+    # Check default value for nsslapd-numlisteners is 1
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '1'
+
+    # Set nsslapd-numlisteners value to 4
+    topo.standalone.config.set('nsslapd-numlisteners', '4')
+
+    # Check nsslapd-numlisteners value is set to 4
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
+
+    # Check instance dse.ldif value is set to 4
+    inst = topo.standalone
+    dse_ldif = DSEldif(inst)
+    numlisteners = dse_ldif.get(DN_CONFIG, 'nsslapd-numlisteners')
+    assert numlisteners[0] == '4'
+
+    # Restart instance
+    topo.standalone.restart()
+
+    # Check nsslapd-numlisteners value is set to 4
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
+
+    # Check if nsslapd-numlisteners value is not set more than 4
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        assert(not topo.standalone.config.replace('nsslapd-numlisteners', '5'))
+
+    # Check nsslapd-numlisteners value is set to 4
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-numlisteners') == '4'
+
+    # Check the value of nsslapd-numlisteners in dse.ldif is set to 4
+    numlisteners = dse_ldif.get(DN_CONFIG, 'nsslapd-numlisteners')
+    assert numlisteners[0] == '4'
+
+
+def bootstrap_replication(inst_from, inst_to, creds):
+    manager = BootstrapReplicationManager(inst_to)
+    rdn_val = 'replication manager'
+    if  manager.exists():
+        manager.delete()
+    manager.create(properties={
+        'cn': rdn_val,
+        'uid': rdn_val,
+        'userPassword': creds
+    })
+    for replica in Replicas(inst_to).list():
+        replica.remove_all('nsDS5ReplicaBindDNGroup')
+        replica.replace('nsDS5ReplicaBindDN', manager.dn)
+    for agmt in Agreements(inst_from).list():
+        agmt.replace('nsDS5ReplicaBindDN', manager.dn)
+        agmt.replace('nsDS5ReplicaCredentials', creds)
+
+
+@pytest.mark.skipif(get_default_db_lib() != "mdb", reason="This test requires lmdb")
+def test_lmdb_autotuned_maxdbs(topology_m2, request):
+    """Verify that after restart, nsslapd-mdb-max-dbs is large enough to add a new backend.
+
+    :id: 0272d432-9080-11ef-8f40-482ae39447e5
+    :setup: Two suppliers configuration
+    :steps:
+        1. loop 20 times
+        3. In 1 loop: restart instance
+        3. In 1 loop: add a new backend
+        4. In 1 loop: check that instance is still alive
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    s1 = topology_m2.ms["supplier1"]
+    s2 = topology_m2.ms["supplier2"]
+
+    backends = Backends(s1)
+    db_config = DatabaseConfig(s1)
+    # Generate the teardown finalizer
+    belist = []
+    creds=password_generate()
+    bootstrap_replication(s2, s1, creds)
+    bootstrap_replication(s1, s2, creds)
+
+    def fin():
+        s1.start()
+        for be in belist:
+            be.delete()
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    # 1. Set autotuning (off-line to be able to decrease the value)
+    s1.stop()
+    dse_ldif = DSEldif(s1)
+    dse_ldif.replace(db_config.dn, 'nsslapd-mdb-max-dbs', '0')
+    os.remove(f'{s1.dbdir}/data.mdb')
+    s1.start()
+
+    # 2. Reinitialize the db:
+    log.info("Bulk import...")
+    agmt = Agreements(s2).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    log.info(f'Bulk importresult is ({done}, {error})')
+    assert done is True
+    assert error is False
+
+    # 3. loop 20 times
+    for idx in range(20):
+        s1.restart()
+        log.info(f'Adding backend test{idx}')
+        belist.append(backends.create(properties={'cn': f'test{idx}',
+                                     'nsslapd-suffix': f'dc=test{idx}'}))
+        assert s1.status()
+
 
 
 if __name__ == '__main__':

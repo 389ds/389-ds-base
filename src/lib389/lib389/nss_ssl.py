@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 class NssSsl(DSLint):
-    def __init__(self, dirsrv=None, dbpassword=None, dbpath=None):
+    def __init__(self, dirsrv=None, dbpassword=None, dbpath=None, uid=None, gid=None):
         self.dirsrv = dirsrv
         self._certdb = dbpath
         if self._certdb is None:
@@ -150,7 +150,7 @@ class NssSsl(DSLint):
         finally:
             prv_mask = os.umask(prv_mask)
 
-    def reinit(self):
+    def reinit(self, uid=None, gid=None):
         """
         Re-init (create) the nss db.
         """
@@ -190,6 +190,10 @@ only.
             if not os.path.exists(pwd_text_file):
                 with open(pwd_text_file, 'w') as f:
                     f.write('%s' % self.dbpassword)
+
+            if uid is not None and gid is not None:
+                os.chown(pin_file, uid, gid)
+                os.chown(pwd_text_file, uid, gid)
         finally:
             prv_mask = os.umask(prv_mask)
 
@@ -203,7 +207,13 @@ only.
         except subprocess.CalledProcessError as e:
             raise ValueError(e.output.decode('utf-8').rstrip())
         self.log.debug("nss output: %s", result)
+
+        if uid is not None and gid is not None:
+            for file in self.db_files["sql_backend"]:
+                os.chown(file, uid, gid)
+
         return True
+
 
     def _db_exists(self, even_partial=False):
         """Check that a nss db exists at the certpath"""

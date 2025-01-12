@@ -14,7 +14,7 @@
  * Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
+ * along with Cockpit; If not, see <https://www.gnu.org/licenses/>.
  */
 
 /* NOTIFICATIONS
@@ -116,7 +116,7 @@ Usage:
 */
 
 import cockpit from "cockpit";
-import deep_equal from "deep-equal";
+import { dequal } from 'dequal/lite';
 
 class PageStatus {
     constructor() {
@@ -157,7 +157,7 @@ class PageStatus {
     }
 
     set_own(status) {
-        if (!deep_equal(status, this.cur_own)) {
+        if (!dequal(status, this.cur_own)) {
             this.cur_own = status;
             cockpit.transport.control("notify", { page_status: status });
         }

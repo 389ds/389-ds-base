@@ -159,7 +159,7 @@ send_op(char *s)
      */
         if (pendops[i].op == tmp.op && pendops[i].conn == tmp.conn) {
             sz = strlen(pendops[i].dn);
-            result = (repconfirm *)malloc(sizeof(repconfirm) + sz);
+            result = (repconfirm *)safe_malloc(sizeof(repconfirm) + sz);
             t = strstr(s, "err=");
             for (t += 4, result->res = 0; isdigit(*t); t++)
                 result->res = result->res * 10 + *t - '0';
@@ -287,7 +287,7 @@ main(int argc, char **argv)
             printf("Unknown host %s\n", hn);
             exit(1);
         }
-        srvlist = (Towho *)malloc(sizeof(Towho));
+        srvlist = (Towho *)safe_malloc(sizeof(Towho));
         srvlist[nsrv].addr.sin_addr.s_addr = htonl(*((u_long *)(info->ai_addr)));
         srvlist[nsrv].addr.sin_family = AF_INET;
         srvlist[nsrv].addr.sin_port = htons(port);
@@ -298,7 +298,7 @@ main(int argc, char **argv)
         freeaddrinfo(info);
     }
     maxop = npend = 0;
-    pendops = (Optype *)malloc(sizeof(Optype) * 20);
+    pendops = (Optype *)safe_malloc(sizeof(Optype) * 20);
     /*
   * Ignore SIGPIPE during write()
   */

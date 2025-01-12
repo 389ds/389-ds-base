@@ -301,16 +301,10 @@ static int
 convert_to_string(Slapi_DN *dn, void *arg)
 {
     struct list_to_string_data *data = (struct list_to_string_data *)arg;
-    int newlen = slapi_sdn_get_ndn_len(dn) + strlen(data->delimiter) + 1;
-    if (data->string) {
-        newlen += strlen(data->string);
-        data->string = slapi_ch_realloc(data->string, newlen);
-    } else {
-        data->string = slapi_ch_calloc(1, newlen);
-    }
-    strcat(data->string, slapi_sdn_get_dn(dn));
-    strcat(data->string, data->delimiter);
-
+    char *str = slapi_ch_smprintf("%s%s%s", (data->string ? data->string : ""),
+                                  slapi_sdn_get_dn(dn), data->delimiter);
+    slapi_ch_free_string(&data->string);
+    data->string = str;
     return 1;
 }
 

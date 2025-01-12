@@ -63,7 +63,7 @@ export class SuffixConfig extends React.Component {
                                 id="dncachememsize"
                                 aria-describedby="dncachememsize"
                                 name="dncachememsize"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.props.handleChange(e);
                                 }}
                             />
@@ -85,7 +85,7 @@ export class SuffixConfig extends React.Component {
                                 id="cachememsize"
                                 aria-describedby="cachememsize"
                                 name="cachememsize"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.props.handleChange(e);
                                 }}
                             />
@@ -102,7 +102,7 @@ export class SuffixConfig extends React.Component {
                                 id="cachesize"
                                 aria-describedby="cachesize"
                                 name="cachesize"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.props.handleChange(e);
                                 }}
                             />
@@ -119,7 +119,7 @@ export class SuffixConfig extends React.Component {
                                 id="dncachememsize"
                                 aria-describedby="dncachememsize"
                                 name="dncachememsize"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.props.handleChange(e);
                                 }}
                             />
@@ -150,7 +150,7 @@ export class SuffixConfig extends React.Component {
                             <FormSelect
                                 id="dbstate"
                                 value={this.props.dbstate}
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.props.handleChange(e);
                                 }}
                                 aria-label="FormSelect Input"
@@ -168,7 +168,7 @@ export class SuffixConfig extends React.Component {
                                 label={_("Database Read-Only Mode")}
                                 id="readOnly"
                                 isChecked={this.props.readOnly}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.props.handleChange(e);
                                 }}
                                 aria-label="send ref"
@@ -181,7 +181,7 @@ export class SuffixConfig extends React.Component {
                                 label={_("Block Unindexed Searches")}
                                 id="requireIndex"
                                 isChecked={this.props.requireIndex}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.props.handleChange(e);
                                 }}
                                 aria-label="requireIndex"

@@ -5836,6 +5836,7 @@ char *slapi_ch_smprintf(const char *fmt, ...) __ATTRIBUTE__((format(printf, 1, 2
  * \return 0 on match. 1 on non-match. 2 on presence of NULL pointer in p1 or p2.
  */
 int slapi_ct_memcmp(const void *p1, const void *p2, size_t n);
+void slapi_ch_oom(const char *funcname) __ATTRIBUTE__((noreturn));
 
 /*
  * syntax plugin routines
@@ -6777,7 +6778,7 @@ time_t slapi_current_time(void) __attribute__((deprecated));
  * and should NOT be used for timer information.
  */
 int32_t slapi_clock_gettime(struct timespec *tp);
-/* 
+/*
  * slapi_clock_gettime should have better been called
  * slapi_clock_utc_gettime but sice the function pre-existed
  * we are just adding an alias (to avoid risking to break
@@ -6991,6 +6992,7 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 #define SLAPI_BE_LASTMOD       137
 #define SLAPI_CONN_ID          139
 #define SLAPI_BACKEND_COUNT    860
+#define SLAPI_DEFERRED_MEMBEROF 861
 
 /* operation */
 #define SLAPI_OPINITIATED_TIME            140
@@ -7283,6 +7285,7 @@ typedef struct slapi_plugindesc
 /* controls we know about */
 #define SLAPI_MANAGEDSAIT 1000
 #define SLAPI_PWPOLICY    1001
+#define SLAPI_SESSION_TRACKING       1002
 
 /* arguments that are common to all operation */
 #define SLAPI_TARGET_SDN      47 /* target sdn of the operation */
@@ -7323,7 +7326,18 @@ typedef enum _slapi_op_note_t {
     SLAPI_OP_NOTE_SIMPLEPAGED = 0x02,
     SLAPI_OP_NOTE_FULL_UNINDEXED = 0x04,
     SLAPI_OP_NOTE_FILTER_INVALID = 0x08,
+    SLAPI_OP_NOTE_MFA_AUTH = 0x10,
 } slapi_op_note_t;
+
+/**
+ * Set an operation note on an operation.  This will append a notes keyword
+ * in the access log result line for this operation
+ *
+ * \param pb - The slapi_pblock structure
+ * \param opnotes
+ * \return void
+ */
+void slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes);
 
 
 /* Allows controls to be passed before operation object is created */
@@ -7536,6 +7550,12 @@ typedef enum _slapi_op_note_t {
 
 /* dbverify */
 #define SLAPI_DBVERIFY_DBDIR 1947
+
+/* task passed by memberof be_txn_post to the
+ * memberof be_post to be pushed in the list
+ * of memberof deferred updates
+ */
+#define SLAPI_MEMBEROF_DEFERRED_TASK  1951
 
 /* convenience macros for checking modify operation types */
 #define SLAPI_IS_MOD_ADD(x)     (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
@@ -8302,8 +8322,6 @@ int slapi_is_special_rdn(const char *rdn, int flag);
  */
 void DS_Sleep(PRIntervalTime ticks);
 
-
-#ifdef HAVE_CLOCK_GETTIME
 /**
  * Diffs two timespects a - b into *diff. This is useful with
  * clock_monotonic to find time taken to perform operations.
@@ -8354,7 +8372,6 @@ void slapi_operation_workq_time_elapsed(Slapi_Operation *o, struct timespec *ela
  * \param Slapi_Operation o - the operation which is inprogress
  */
 void slapi_operation_set_time_started(Slapi_Operation *o);
-#endif
 
 /**
  * Store a 32bit integral value atomicly

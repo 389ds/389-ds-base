@@ -65,9 +65,6 @@ def topology_setup(topology_m2):
 
 
 @pytest.mark.skipif(not ds_paths.asan_enabled, reason="Don't run if ASAN is not enabled")
-@pytest.mark.ds48226
-@pytest.mark.bz1243970
-@pytest.mark.bz1262363
 def test_MMR_double_free(topology_m2, topology_setup, timeout=5):
     """Reproduce conditions where a double free occurs and check it does not make
     the server crash

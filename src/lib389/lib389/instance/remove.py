@@ -81,8 +81,9 @@ def remove_ds_instance(dirsrv, force=False):
 
     # Stop the instance (if running) and now we know it really does exist
     # and hopefully have permission to access it ...
-    _log.debug("Stopping instance %s" % dirsrv.serverid)
-    dirsrv.stop()
+    if dirsrv.status():
+        _log.debug("Stopping instance %s" % dirsrv.serverid)
+        dirsrv.stop()
 
     _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
 
@@ -122,7 +123,7 @@ def remove_ds_instance(dirsrv, force=False):
         except OSError as e:
             _log.debug("Failed to remove tmpfile: " + str(e))
 
-    # Nor can we assume we have selinux. Try docker sometime ;)
+    # Nor can we assume we have SELinux.
     if dirsrv.ds_paths.with_selinux:
         # Remove selinux port label
         _log.debug("Removing the port labels")
@@ -133,15 +134,17 @@ def remove_ds_instance(dirsrv, force=False):
             selinux_label_port(dirsrv.sslport, remove_label=True)
 
     # If this was the last instance, remove the ssca instance
-    # and all ds related selinux customizations
+    # and all ds related SELinux customizations
     insts = dirsrv.list(all=True)
     if len(insts) == 0:
         ssca = NssSsl(dbpath=dirsrv.get_ssca_dir())
         ssca.remove_db()
         selinux_clean_ports_label()
-        selinux_clean_files_label(all=True)
+        if dirsrv.ds_paths.prefix != '/usr':
+            selinux_clean_files_label(all=True)
     else:
-        selinux_clean_files_label()
+        if dirsrv.ds_paths.prefix != '/usr':
+            selinux_clean_files_label()
 
     ### ANY NEW REMOVAL ACTIONS MUST BE ABOVE THIS LINE!!!
 

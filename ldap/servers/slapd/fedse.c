@@ -202,6 +202,19 @@ static const char *internal_entries[] =
         "nsslapd-pluginVendor: 389 Project\n"
         "nsslapd-pluginDescription: CRYPT-SHA512\n",
 
+        "dn: cn=CRYPT-YESCRYPT,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectClass: top\n"
+        "objectClass: nsSlapdPlugin\n"
+        "cn: CRYPT-YESCRYPT\n"
+        "nsslapd-pluginPath: libpwdstorage-plugin\n"
+        "nsslapd-pluginInitfunc: crypt_yescrypt_pwd_storage_scheme_init\n"
+        "nsslapd-pluginType: pwdstoragescheme\n"
+        "nsslapd-pluginEnabled: on\n"
+        "nsslapd-pluginId: CRYPT-YESCRYPT\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: CRYPT-YESCRYPT\n",
+
         "dn: cn=GOST_YESCRYPT,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
         "objectclass: nsSlapdPlugin\n"
@@ -218,6 +231,7 @@ static const char *internal_entries[] =
         "dn: cn=PBKDF2,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
         "objectclass: nsSlapdPlugin\n"
+        "objectClass: pwdPBKDF2PluginConfig\n"
         "cn: PBKDF2\n"
         "nsslapd-pluginpath: libpwdchan-plugin\n"
         "nsslapd-plugininitfunc: pwdchan_pbkdf2_plugin_init\n"
@@ -231,6 +245,7 @@ static const char *internal_entries[] =
         "dn: cn=PBKDF2-SHA1,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
         "objectclass: nsSlapdPlugin\n"
+        "objectClass: pwdPBKDF2PluginConfig\n"
         "cn: PBKDF2-SHA1\n"
         "nsslapd-pluginpath: libpwdchan-plugin\n"
         "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha1_plugin_init\n"
@@ -244,6 +259,7 @@ static const char *internal_entries[] =
         "dn: cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
         "objectclass: nsSlapdPlugin\n"
+        "objectClass: pwdPBKDF2PluginConfig\n"
         "cn: PBKDF2-SHA256\n"
         "nsslapd-pluginpath: libpwdchan-plugin\n"
         "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha256_plugin_init\n"

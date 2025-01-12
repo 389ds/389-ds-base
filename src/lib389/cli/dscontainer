@@ -34,8 +34,7 @@ import subprocess
 import argparse, argcomplete
 from argparse import RawTextHelpFormatter
 
-
-from lib389 import DirSrv
+from lib389 import DirSrv, pid_exists, pid_from_file
 from lib389.cli_base import setup_script_logger
 from lib389.instance.setup import SetupDs
 from lib389.instance.options import General2Base, Slapd2Base
@@ -57,6 +56,9 @@ from lib389.idm.directorymanager import DirectoryManager
 # We setup the logger in verbose mode to make sure debug info
 # is always available!
 log = setup_script_logger("container-init", True)
+
+# PID FILE
+PID_FILE = "/data/run/slapd-localhost.pid"
 
 
 # Handle any dead child process signals we receive. Wait for them to terminate, or
@@ -337,9 +339,7 @@ binddn = cn=Directory Manager
     ds_proc = subprocess.Popen([
         "%s/ns-slapd" % paths.sbin_dir,
         "-D", paths.config_dir,
-        # This container version doesn't actually use or need the pidfile to track
-        # the process.
-        # "-i", "/data/run/slapd-localhost.pid",
+        "-i", PID_FILE,
         "-d", loglevel,
         ], stdout=None, stderr=None, env=os.environ.copy())
 
@@ -425,6 +425,18 @@ def begin_healthcheck(ds_proc, log_exception):
     return (True, False)
 
 
+def stop():
+    stop_timeout = os.getenv("DS_STOP_TIMEOUT", 60)
+    count = int(stop_timeout)
+    pid = pid_from_file(PID_FILE)
+    os.kill(pid, signal.SIGTERM)
+    while pid_exists(pid) and count > 0:
+        time.sleep(1)
+        count -= 1
+    if pid_exists(pid):
+        os.kill(pid, signal.SIGKILL)
+
+
 if __name__ == '__main__':
     # Before all else, we are INIT so setup sigchild
     signal.signal(signal.SIGCHLD, _sigchild_handler)
@@ -462,6 +474,9 @@ container host.
     parser.add_argument('-r', '--runit',
                         help="Actually run the instance! You understand what that means ...",
                         action='store_true', default=False, dest='runit')
+    parser.add_argument('-s', '--stop',
+                        help="Stop the instance",
+                        action='store_true', default=False, dest='stop')
     parser.add_argument('-H', '--healthcheck',
                         help="Start a healthcheck inside of the container for an instance. You should understand what this means ...",
                         action='store_true', default=False, dest='healthcheck')
@@ -472,6 +487,8 @@ container host.
 
     if args.runit:
         begin_magic()
+    elif args.stop:
+        stop()
     elif args.healthcheck:
         if begin_healthcheck(None, False) == (False, True):
             sys.exit(0)

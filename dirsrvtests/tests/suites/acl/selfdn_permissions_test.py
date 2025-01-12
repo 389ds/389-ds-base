@@ -84,7 +84,6 @@ def allow_user_init(topology_st):
             'cn': name})))
 
 
-@pytest.mark.ds47653
 def test_selfdn_permission_add(topology_st, allow_user_init):
     """Check add entry operation with and without SelfDN aci
 
@@ -185,7 +184,6 @@ def test_selfdn_permission_add(topology_st, allow_user_init):
     topology_st.standalone.add_s(entry_with_member)
 
 
-@pytest.mark.ds47653
 def test_selfdn_permission_search(topology_st, allow_user_init):
     """Check search operation with and without SelfDN aci
 
@@ -235,7 +233,6 @@ def test_selfdn_permission_search(topology_st, allow_user_init):
     assert len(ents) == 1
 
 
-@pytest.mark.ds47653
 def test_selfdn_permission_modify(topology_st, allow_user_init):
     """Check modify operation with and without SelfDN aci
 
@@ -294,7 +291,6 @@ def test_selfdn_permission_modify(topology_st, allow_user_init):
     assert ensure_str(ents[0].postalCode) == '1928'
 
 
-@pytest.mark.ds47653
 def test_selfdn_permission_delete(topology_st, allow_user_init):
     """Check delete operation with and without SelfDN aci
 

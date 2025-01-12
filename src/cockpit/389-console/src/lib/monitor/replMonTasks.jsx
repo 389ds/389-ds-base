@@ -9,6 +9,7 @@ import {
     TaskLogModal,
 } from "./monitorModals.jsx";
 import {
+    Button,
     Tab,
     Tabs,
     TabTitleText,
@@ -16,8 +17,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { SyncAltIcon } from "@patternfly/react-icons";
 
 const _ = cockpit.gettext;
 
@@ -90,13 +90,13 @@ export class ReplMonTasks extends React.Component {
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {_("Monitor Replication Tasks")}
-                            <FontAwesomeIcon
-                                size="lg"
-                                className="ds-left-margin ds-refresh"
-                                icon={faSyncAlt}
-                                title={_("Refresh replication monitor")}
+                            <Button 
+                                variant="plain"
+                                aria-label={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
-                            />
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
                 </div>

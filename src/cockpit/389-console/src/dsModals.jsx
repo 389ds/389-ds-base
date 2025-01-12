@@ -322,7 +322,7 @@ export class CreateInstanceModal extends React.Component {
                                                                 })
                                                                 .done(() => {
                                                                     // Success!!!  Now set Root DN pw, and cleanup everything up...
-                                                                    log_cmd("handleCreateInstance", "Instance creation compelete, remove INF file...", rm_cmd);
+                                                                    log_cmd("handleCreateInstance", "Instance creation complete, remove INF file...", rm_cmd);
                                                                     cockpit.spawn(rm_cmd, { superuser: true });
 
                                                                     const dm_pw_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + newServerId + '.socket',
@@ -414,12 +414,12 @@ export class CreateInstanceModal extends React.Component {
                                     id="createServerId"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="createServerId"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={errObj.createServerId ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!errObj.createServerId}>
+                                <FormHelperText  >
                                     {this.state.createServerIdMsg}
                                 </FormHelperText>
                             </GridItem>
@@ -442,7 +442,7 @@ export class CreateInstanceModal extends React.Component {
                                     plusBtnAriaLabel="plus"
                                     widthChars={8}
                                 />
-                                <FormHelperText className="ds-info-color" isHidden={createPort !== 0}>
+                                <FormHelperText className="ds-info-color" >
                                     {_("Port 0 will disable non-TLS connections")}
                                 </FormHelperText>
                             </GridItem>
@@ -475,7 +475,7 @@ export class CreateInstanceModal extends React.Component {
                                 <Checkbox
                                     id="createTLSCert"
                                     isChecked={createTLSCert}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.handleFieldChange(e);
                                     }}
                                 />
@@ -492,12 +492,12 @@ export class CreateInstanceModal extends React.Component {
                                     id="createDM"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="createDM"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={errObj.createDM ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!errObj.createDM}>
+                                <FormHelperText  >
                                     {_("Enter a valid DN")}
                                 </FormHelperText>
                             </GridItem>
@@ -513,12 +513,12 @@ export class CreateInstanceModal extends React.Component {
                                     id="createDMPassword"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="createDMPassword"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={errObj.createDMPassword ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!errObj.createDMPassword}>
+                                <FormHelperText  >
                                     {_("Password must be set and it must match the confirmation password.")}
                                 </FormHelperText>
                             </GridItem>
@@ -534,12 +534,12 @@ export class CreateInstanceModal extends React.Component {
                                     id="createDMPasswordConfirm"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="createDMPasswordConfirm"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={errObj.createDMPasswordConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText isError isHidden={!errObj.createDMPasswordConfirm}>
+                                <FormHelperText  >
                                     {_("Confirmation password must be set and it must match the first password.")}
                                 </FormHelperText>
                             </GridItem>
@@ -549,13 +549,13 @@ export class CreateInstanceModal extends React.Component {
                                 id="createDBCheckbox"
                                 label={_("Create Database")}
                                 isChecked={createDBCheckbox}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     this.handleFieldChange(e);
                                 }}
                             />
                         </Grid>
                         <div className={createDBCheckbox ? "" : "ds-hidden"}>
-                            <Grid title={_("Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)")}>
+                            <Grid title={_("Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distinguished Name (DN)")}>
                                 <GridItem className="ds-label" offset={1} span={3}>
                                     {_("Database Suffix")}
                                 </GridItem>
@@ -568,12 +568,12 @@ export class CreateInstanceModal extends React.Component {
                                         aria-describedby="horizontal-form-name-helper"
                                         name="createDBSuffix"
                                         isDisabled={!createDBCheckbox}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleFieldChange(e);
                                         }}
                                         validated={errObj.createDBSuffix ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                    <FormHelperText isError isHidden={!errObj.createDBSuffix}>
+                                    <FormHelperText  >
                                         {_("Value must be a valid DN")}
                                     </FormHelperText>
                                 </GridItem>
@@ -591,12 +591,12 @@ export class CreateInstanceModal extends React.Component {
                                         aria-describedby="horizontal-form-name-helper"
                                         name="createDBName"
                                         isDisabled={!createDBCheckbox}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleFieldChange(e);
                                         }}
                                         validated={errObj.createDBName ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                    <FormHelperText isError isHidden={!errObj.createDBName}>
+                                    <FormHelperText  >
                                         {_("Name is required")}
                                     </FormHelperText>
                                 </GridItem>
@@ -609,7 +609,7 @@ export class CreateInstanceModal extends React.Component {
                                     <FormSelect
                                         id="createInitDB"
                                         value={createInitDB}
-                                        onChange={(value, event) => {
+                                        onChange={(event, value) => {
                                             this.handleFieldChange(event);
                                         }}
                                         aria-label="FormSelect Input"
@@ -721,7 +721,7 @@ export class SchemaReloadModal extends React.Component {
                                 id="reloadSchemaDir"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="reloadSchemaDir"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleFieldChange(e);
                                 }}
                             />

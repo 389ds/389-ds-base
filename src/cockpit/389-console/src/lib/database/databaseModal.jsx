@@ -78,7 +78,7 @@ class CreateLinkModal extends React.Component {
                                         id="createLinkSuffix"
                                         aria-describedby="horizontal-form-name-helper"
                                         name="createLinkSuffix"
-                                        onChange={(checked, e) => {
+                                        onChange={(e, checked) => {
                                             handleChange(e);
                                         }}
                                         validated={error.createLinkSuffix ? ValidatedOptions.error : ValidatedOptions.default}
@@ -88,7 +88,7 @@ class CreateLinkModal extends React.Component {
                                     <b><font color="blue">,{suffix}</font></b>
                                 </div>
                             </div>
-                            <FormHelperText isError isHidden={!error.createLinkSuffix}>
+                            <FormHelperText  >
                                 {_("Required field")}
                             </FormHelperText>
                         </GridItem>
@@ -103,12 +103,12 @@ class CreateLinkModal extends React.Component {
                                 id="createLinkName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="createLinkName"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.createLinkName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!error.createLinkName}>
+                            <FormHelperText  >
                                 {_("Required field")}
                             </FormHelperText>
                         </GridItem>
@@ -123,12 +123,12 @@ class CreateLinkModal extends React.Component {
                                 id="createNsfarmserverurl"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="createNsfarmserverurl"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.createNsfarmserverurl ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!error.createNsfarmserverurl}>
+                            <FormHelperText  >
                                 {_("Required field")}
                             </FormHelperText>
                         </GridItem>
@@ -143,12 +143,12 @@ class CreateLinkModal extends React.Component {
                                 id="createNsmultiplexorbinddn"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="createNsmultiplexorbinddn"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.createNsmultiplexorbinddn ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!error.createNsmultiplexorbinddn}>
+                            <FormHelperText  >
                                 {_("Required field")}
                             </FormHelperText>
                         </GridItem>
@@ -163,12 +163,12 @@ class CreateLinkModal extends React.Component {
                                 id="createNsmultiplexorcredentials"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="createNsmultiplexorcredentials"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.createNsmultiplexorcredentials ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!error.createNsmultiplexorcredentials}>
+                            <FormHelperText  >
                                 {_("Password does not match")}
                             </FormHelperText>
                         </GridItem>
@@ -183,12 +183,12 @@ class CreateLinkModal extends React.Component {
                                 id="createNsmultiplexorcredentialsConfirm"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="createNsmultiplexorcredentialsConfirm"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.createNsmultiplexorcredentialsConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!error.createNsmultiplexorcredentialsConfirm}>
+                            <FormHelperText  >
                                 {_("Password does not match")}
                             </FormHelperText>
                         </GridItem>
@@ -211,7 +211,7 @@ class CreateLinkModal extends React.Component {
                         <GridItem span={12}>
                             <Checkbox
                                 id="createUseStartTLS"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 isChecked={starttls_checked}
@@ -283,7 +283,7 @@ class CreateSubSuffixModal extends React.Component {
                 ]}
             >
                 <Form isHorizontal autoComplete="off">
-                    <Grid className="ds-margin-top" title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)")}>
+                    <Grid className="ds-margin-top" title={_("Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distinguished Name (DN)")}>
                         <GridItem className="ds-label" span={3}>
                             {_("Sub-Suffix DN")}
                         </GridItem>
@@ -296,7 +296,7 @@ class CreateSubSuffixModal extends React.Component {
                                         id="subSuffixValue"
                                         aria-describedby="horizontal-form-name-helper"
                                         name="subSuffixValue"
-                                        onChange={(val, e) => {
+                                        onChange={(e, val) => {
                                             handleChange(e);
                                         }}
                                         validated={error.subSuffixValue ? ValidatedOptions.error : ValidatedOptions.default}
@@ -306,7 +306,7 @@ class CreateSubSuffixModal extends React.Component {
                                     <b><font color="blue">,{suffix}</font></b>
                                 </div>
                             </div>
-                            <FormHelperText isError isHidden={!error.subSuffixValue}>
+                            <FormHelperText  >
                                 {_("Required field")}
                             </FormHelperText>
                         </GridItem>
@@ -321,12 +321,12 @@ class CreateSubSuffixModal extends React.Component {
                                 id="subSuffixBeName"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="subSuffixBeName"
-                                onChange={(val, e) => {
+                                onChange={(e, val) => {
                                     handleChange(e);
                                 }}
                                 validated={error.subSuffixBeName ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={!error.subSuffixBeName}>
+                            <FormHelperText  >
                                 {_("Required field")}
                             </FormHelperText>
                         </GridItem>
@@ -403,7 +403,7 @@ class ExportModal extends React.Component {
                                 id="ldifLocation"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="ldifLocation"
-                                onChange={(val, e) => {
+                                onChange={(e, val) => {
                                     handleChange(e);
                                 }}
                                 validated={error.ldifLocation ? ValidatedOptions.error : ValidatedOptions.default}
@@ -414,7 +414,7 @@ class ExportModal extends React.Component {
                         <GridItem span={12}>
                             <Checkbox
                                 id="includeReplData"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 isChecked={includeReplData}
@@ -474,7 +474,7 @@ class ImportModal extends React.Component {
                                 id="ldifLocation"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="ldifLocation"
-                                onChange={(val, e) => {
+                                onChange={(e, val) => {
                                     handleChange(e);
                                 }}
                             />

@@ -184,7 +184,11 @@ endif
 ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
+if BUNDLE_LIBDB
+DB_LINK = -llmdb
+else
 DB_LINK = @db_lib@ -ldb-@db_libver@ -llmdb
+endif
 DB_INC = @db_inc@
 DB_IMPL = libback-ldbm.la
 SASL_LINK = $(SASL_LIBS)
@@ -231,7 +235,7 @@ endif #end hpux
 #    If the library source code has changed at all since the last update, then increment revision (‘c:r:a’ becomes ‘c:r+1:a’).
 #    If any interfaces have been added, removed, or changed since the last update, increment current, and set revision to 0.
 #    If any interfaces have been added since the last public release, then increment age.
-#    If any interfaces have been removed or changed since the last public release, then set age to 0. 
+#    If any interfaces have been removed or changed since the last public release, then set age to 0.
 
 SLAPD_LDFLAGS = -version-info 1:0:1
 
@@ -349,7 +353,7 @@ endif
 serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libaddn-plugin.la \
 	libattr-unique-plugin.la \
-	libautomember-plugin.la libback-ldbm.la libchainingdb-plugin.la \
+	libautomember-plugin.la $(DB_IMPL) libchainingdb-plugin.la \
 	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
 	libpbe-plugin.la libdistrib-plugin.la \
 	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
@@ -563,7 +567,6 @@ dist_noinst_DATA = \
 	$(srcdir)/m4 \
 	$(srcdir)/rpm/389-ds-base.spec.in \
 	$(srcdir)/rpm/389-ds-base-devel.README \
-	$(srcdir)/rpm/389-ds-base-git.sh \
 	$(srcdir)/README.md \
 	$(srcdir)/LICENSE \
 	$(srcdir)/LICENSE.* \
@@ -1069,6 +1072,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/attr.c \
 	ldap/servers/slapd/attrlist.c \
 	ldap/servers/slapd/attrsyntax.c \
+	ldap/servers/slapd/accesslog.c \
 	ldap/servers/slapd/auditlog.c \
 	ldap/servers/slapd/ava.c \
 	ldap/servers/slapd/backend.c \
@@ -1187,6 +1191,37 @@ libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 #
 #////////////////////////////////////////////////////////////////
 #------------------------
+# libback-bdb
+#------------------------
+DB_BDB_SRCS = \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_config.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_instance_config.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_perfctrs.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c
+
+if BUNDLE_LIBDB
+  # db-bdb sources are compiled within libback-bdb.so
+  DB_BDB_WITHIN_BACKLDBM =
+  serverplugin_LTLIBRARIES += libback-bdb.la
+  libback_bdb_la_SOURCES = $(DB_BDB_SRCS)
+  libback_bdb_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)
+  libback_bdb_la_DEPENDENCIES = libslapd.la libback-ldbm.la
+  libback_bdb_la_LIBADD = libslapd.la  @db_lib@ -ldb-@db_libver@ $(LDAPSDK_LINK) $(NSPR_LINK)
+  libback_bdb_la_LDFLAGS = -avoid-version @db_lib@ -ldb-@db_libver@ -lback-ldbm
+else
+  # db-bdb sources are compiled within libback-ldbm.so
+  DB_BDB_WITHIN_BACKLDBM = $(DB_BDB_SRCS)
+endif
+
+#------------------------
 # libback-ldbm
 #------------------------
 libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
@@ -1244,18 +1279,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/vlv.c \
 	ldap/servers/slapd/back-ldbm/vlv_key.c \
 	ldap/servers/slapd/back-ldbm/vlv_srch.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_instance_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_perfctrs.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_config.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_debug.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_instance.c \
@@ -1269,8 +1292,8 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_monitor.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_ldif2db.c \
 	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import_threads.c
-
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import_threads.c \
+	$(DB_BDB_WITHIN_BACKLDBM)
 
 
 libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)
@@ -1412,7 +1435,7 @@ libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
 	ldap/servers/plugins/chainingdb/cb_temp.c \
 	ldap/servers/plugins/chainingdb/cb_test.c \
 	ldap/servers/plugins/chainingdb/cb_unbind.c \
-	ldap/servers/plugins/chainingdb/cb_utils.c 
+	ldap/servers/plugins/chainingdb/cb_utils.c
 
 libchainingdb_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 libchainingdb_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
@@ -1738,6 +1761,7 @@ libsyntax_plugin_la_SOURCES = ldap/servers/plugins/syntaxes/bin.c \
 	ldap/servers/plugins/syntaxes/facsimile.c \
 	ldap/servers/plugins/syntaxes/guide.c \
 	ldap/servers/plugins/syntaxes/int.c \
+	ldap/servers/plugins/syntaxes/inchain.c \
 	ldap/servers/plugins/syntaxes/nameoptuid.c \
 	ldap/servers/plugins/syntaxes/numericstring.c \
 	ldap/servers/plugins/syntaxes/phonetic.c \
@@ -2085,7 +2109,7 @@ git-archive:
 # Python test tests
 # How will we update this to python 3?
 
-lib389: src/lib389/setup.py
+lib389: $(srcdir)/src/lib389/setup.py
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build ; $(PYTHON) setup.py build_manpages
 
 lib389-install: lib389
@@ -2102,7 +2126,7 @@ $(NODE_MODULES_TEST):
 	cd src/cockpit/389-console; npm install
 
 $(WEBPACK_TEST): $(NODE_MODULES_TEST)
-	cd src/cockpit/389-console; npx audit-ci; ./build.js
+	cd src/cockpit/389-console; npx --yes audit-ci; ./build.js
 
 389-console: $(WEBPACK_TEST)
 

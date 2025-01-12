@@ -120,7 +120,7 @@ DEFAULT_INST_HEAD = 'slapd-'
 DEFAULT_ENV_HEAD = 'dirsrv-'
 DEFAULT_CHANGELOG_NAME = "changelog5"
 DEFAULT_CHANGELOG_DB = 'changelogdb'
-DEFAULT_DB_LIB = 'bdb'
+DEFAULT_DB_LIB = 'mdb'
 
 # CONF_DIR = 'etc/dirsrv'
 # ENV_SYSCONFIG_DIR = '/etc/sysconfig'
@@ -375,3 +375,11 @@ CONTAINER_TLS_SERVER_KEY = '/data/tls/server.key'
 CONTAINER_TLS_SERVER_CERT = '/data/tls/server.crt'
 CONTAINER_TLS_SERVER_CADIR = '/data/tls/ca'
 CONTAINER_TLS_PWDFILE = '/data/config/pwdfile.txt'
+
+# Describe what kind of Berkeley Database library is available
+BDB_IMPL_STATUS = Enum('BDB_IMPL_STATUS', [
+                       'UNKNOWN',   # Unable to discover
+                       'STANDARD',  # os libdb rpm is installed
+                       'BUNDLED',   # lib389 bundled rpm is installed
+                       'READ_ONLY', # Read-only version is available
+                       'NONE' ])    # bdb is not usasable

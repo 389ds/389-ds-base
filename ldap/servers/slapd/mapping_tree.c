@@ -2534,6 +2534,10 @@ mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb, Slapi_Backend **be,
         /* shut down detected */
         return LDAP_OPERATIONS_ERROR;
     }
+    if (target_node == NULL) {
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
     /* Get usefull stuff like the type of operation, target dn */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     op_type = operation_get_type(op);

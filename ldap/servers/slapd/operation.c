@@ -767,3 +767,15 @@ slapi_operation_workq_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
 {
     slapi_timespec_diff(&(o->o_hr_time_started_rel), &(o->o_hr_time_rel), elapsed);
 }
+
+LDAPControl **
+operation_get_req_controls(const Operation *o)
+{
+    return o->o_params.request_controls;
+}
+
+LDAPControl **
+operation_get_result_controls(const Operation *o)
+{
+    return o->o_results.result_controls;
+}

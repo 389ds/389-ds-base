@@ -7,6 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import argparse
 import ast
 import logging
 import sys
@@ -365,6 +366,42 @@ def _generic_modify_dn(inst, basedn, log, manager_class, dn, args=None):
     _generic_modify_inner(log, o, args.changes)
 
 
+# We need parent parser to be able to add -v and -j to all subparsers
+# because we use parent_arguments in CustomHelpFormatter
+parent_arguments = []
+parent_argparser = argparse.ArgumentParser(add_help=False)
+parent_arguments.append(parent_argparser.add_argument('-v', '--verbose',
+        help="Display verbose operation tracing during command execution",
+        action='store_true', default=False
+    ))
+parent_arguments.append(parent_argparser.add_argument('-j', '--json',
+        help="Return result in JSON object",
+        default=False, action='store_true'
+    ))
+
+
+class CustomHelpFormatter(argparse.HelpFormatter):
+    """Custom help formatter to add [-v] [-j] to the usage line and add these options'
+    description to the full help output
+    """
+    def add_arguments(self, actions):
+        if len(actions) > 0 and actions[0].option_strings:
+            actions = parent_arguments + actions
+        super(CustomHelpFormatter, self).add_arguments(actions)
+
+    def _format_usage(self, usage, actions, groups, prefix):
+        usage = super(CustomHelpFormatter, self)._format_usage(usage, actions, groups, prefix)
+        formatted_options = self._format_actions_usage(parent_arguments, [])
+        # If formatted_options already in usage - remove them
+        if formatted_options in usage:
+            usage = usage.replace(f' {formatted_options}', '')
+        usage = usage.split(' ')
+        usage.insert(2, formatted_options)
+        usage = ' '.join(usage)
+
+        return usage
+
+
 class LogCapture(logging.Handler):
     """
     This useful class is for intercepting logs, and then making assertions about
@@ -467,9 +504,24 @@ def format_error_to_dict(exception):
     # We should fix the code here after the issue is fixed
     errmsg = str(exception)
     try:
-        # The function literal_eval parses the string and returns only if it's a literal.
-        # Also, the code is never executed. So there is no reason for a security risk.
+        # The function literal_eval parses the string and returns only if it's
+        # a literal. Also, the code is never executed. So there is no reason
+        # for a security risk.
         msg = ast.literal_eval(errmsg)
     except Exception:
         msg = {'desc': errmsg}
+
     return msg
+
+
+def format_pretty_error(msg_dict):
+    """
+    Take a raw exception dict and make a pretty message for the user
+    """
+    msg = f"{msg_dict['desc']}"
+    if 'result' in msg_dict:
+        msg += f"({msg_dict['result']})"
+    if 'info' in msg_dict:
+        msg += f" - {msg_dict['info']}"
+
+    return {'desc': msg}

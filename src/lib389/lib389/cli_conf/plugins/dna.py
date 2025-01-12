@@ -10,6 +10,7 @@ import json
 import ldap
 from lib389.plugins import DNAPlugin, DNAPluginConfig, DNAPluginConfigs, DNAPluginSharedConfig, DNAPluginSharedConfigs
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add, _args_to_attrs
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'type': 'dnaType',
@@ -201,43 +202,43 @@ def _add_parser_args(parser):
                              'can request a range from a new server (dnaRangeRequestTimeout)')
 
 def create_parser(subparsers):
-    dna = subparsers.add_parser('dna', help='Manage and configure DNA plugin')
+    dna = subparsers.add_parser('dna', help='Manage and configure DNA plugin', formatter_class=CustomHelpFormatter)
     subcommands = dna.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, DNAPlugin)
 
-    list = subcommands.add_parser('list', help='List available plugin configs')
+    list = subcommands.add_parser('list', help='List available plugin configs', formatter_class=CustomHelpFormatter)
     subcommands_list = list.add_subparsers(help='action')
-    list_configs = subcommands_list.add_parser('configs', help='List main DNA plugin config entries')
+    list_configs = subcommands_list.add_parser('configs', help='List main DNA plugin config entries', formatter_class=CustomHelpFormatter)
     list_configs.set_defaults(func=dna_list)
-    list_shared_configs = subcommands_list.add_parser('shared-configs', help='List DNA plugin shared config entries')
+    list_shared_configs = subcommands_list.add_parser('shared-configs', help='List DNA plugin shared config entries', formatter_class=CustomHelpFormatter)
     list_shared_configs.add_argument('BASEDN', help='The search DN')
     list_shared_configs.set_defaults(func=dna_config_list)
 
-    config = subcommands.add_parser('config', help='Manage plugin configs')
+    config = subcommands.add_parser('config', help='Manage plugin configs', formatter_class=CustomHelpFormatter)
     config.add_argument('NAME', help='The DNA configuration name')
     config_subcommands = config.add_subparsers(help='action')
-    add = config_subcommands.add_parser('add', help='Add the config entry')
+    add = config_subcommands.add_parser('add', help='Add the config entry', formatter_class=CustomHelpFormatter)
     add.set_defaults(func=dna_add)
     _add_parser_args(add)
-    edit = config_subcommands.add_parser('set', help='Edit the config entry')
+    edit = config_subcommands.add_parser('set', help='Edit the config entry', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=dna_edit)
     _add_parser_args(edit)
-    show = config_subcommands.add_parser('show', help='Display the config entry')
+    show = config_subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show.set_defaults(func=dna_show)
-    delete = config_subcommands.add_parser('delete', help='Delete the config entry')
+    delete = config_subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
     delete.set_defaults(func=dna_del)
 
-    shared_config = config_subcommands.add_parser('shared-config-entry', help='Manage the shared config entry')
+    shared_config = config_subcommands.add_parser('shared-config-entry', help='Manage the shared config entry', formatter_class=CustomHelpFormatter)
     shared_config.add_argument('SHARED_CFG',
                                help='Use HOSTNAME:PORT for this argument to identify the host name and port of a server in a shared range, as part of the DNA range '
                                     'configuration for that specific host in multi-supplier replication.  (dnaHostname+dnaPortNum)')
     shared_config_subcommands = shared_config.add_subparsers(help='action')
-    edit_config = shared_config_subcommands.add_parser('set', help='Edit the shared config entry')
+    edit_config = shared_config_subcommands.add_parser('set', help='Edit the shared config entry', formatter_class=CustomHelpFormatter)
     edit_config.set_defaults(func=dna_config_edit)
     edit_config.add_argument('--remote-bind-method', help='Specifies the remote bind method "SIMPLE", "SSL" (for SSL client auth), "SASL/GSSAPI", or "SASL/DIGEST-MD5" (dnaRemoteBindMethod)')
     edit_config.add_argument('--remote-conn-protocol', help='Specifies the remote connection protocol "LDAP", or "TLS" (dnaRemoteConnProtocol)')
 
-    show_config_parser = shared_config_subcommands.add_parser('show', help='Display the shared config entry')
+    show_config_parser = shared_config_subcommands.add_parser('show', help='Display the shared config entry', formatter_class=CustomHelpFormatter)
     show_config_parser.set_defaults(func=dna_config_show)
-    del_config_parser = shared_config_subcommands.add_parser('delete', help='Delete the shared config entry')
+    del_config_parser = shared_config_subcommands.add_parser('delete', help='Delete the shared config entry', formatter_class=CustomHelpFormatter)
     del_config_parser.set_defaults(func=dna_config_del)

@@ -554,7 +554,7 @@ ids_sasl_userdb_checkpass(sasl_conn_t *conn,
         goto out;
     }
 
-    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_userdb_checkpass", "Using mech %s", mech);
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_userdb_checkpass", "Using mech %s\n", mech);
     if (passlen == 0) {
         goto out;
     }

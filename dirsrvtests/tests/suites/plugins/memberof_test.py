@@ -11,6 +11,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import PLUGIN_MEMBER_OF, SUFFIX
+from lib389.plugins import MemberOfPlugin
 
 pytestmark = pytest.mark.tier1
 
@@ -34,6 +35,16 @@ USERS_CONTAINER = "ou=people,%s" % SUFFIX
 GROUP_RDN = "group"
 GROUPS_CONTAINER = "ou=groups,%s" % SUFFIX
 
+def _memberof_checking_delay(inst):
+    memberof = MemberOfPlugin(inst)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        # In case of deferred update then a safe delay
+        # to let the deferred thread processing is 3 sec
+        delay = 3
+    else:
+        # Else it is the same TXN, no reason to wait
+        delay = 0
+    return delay
 
 def _set_memberofgroupattr_add(topology_st, values):
     topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
@@ -200,6 +211,10 @@ def test_member_add(topology_st):
         2. Success
         3. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
+
+    topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+    topology_st.standalone.restart()
 
     memofenh1 = _create_user(topology_st, 'memofenh1')
     memofenh2 = _create_user(topology_st, 'memofenh2')
@@ -216,6 +231,7 @@ def test_member_add(topology_st):
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh2, memofegrp2))
     topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
+    time.sleep(delay)
     # assert enh1 is member of grp1 and grp2
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp2)
@@ -238,6 +254,8 @@ def test_member_delete_gr1(topology_st):
         2. Success
     """
 
+    delay = _memberof_checking_delay(topology_st.standalone)
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -247,6 +265,7 @@ def test_member_delete_gr1(topology_st):
     mods = [(ldap.MOD_DELETE, 'member', memofenh1)]
     topology_st.standalone.modify_s(ensure_str(memofegrp1), mods)
 
+    time.sleep(delay)
     # assert enh1 is NOT member of grp1 and  is member of grp2
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp2)
@@ -268,6 +287,7 @@ def test_member_delete_gr2(topology_st):
         1. Success
         2. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -279,6 +299,7 @@ def test_member_delete_gr2(topology_st):
     mods = [(ldap.MOD_DELETE, 'uniqueMember', memofenh2)]
     topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
+    time.sleep(delay)
     # assert enh1 is NOT member of grp1 and  is member of grp2
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp2)
@@ -300,6 +321,7 @@ def test_member_delete_all(topology_st):
         1. Success
         2. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -315,6 +337,7 @@ def test_member_delete_all(topology_st):
     mods = [(ldap.MOD_DELETE, 'member', memofenh1)]
     topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
+    time.sleep(delay)
     # assert enh1 is NOT member of grp1 and  is member of grp2
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp2)
@@ -338,6 +361,7 @@ def test_member_after_restart(topology_st):
         2. Success
         3. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -353,6 +377,7 @@ def test_member_after_restart(topology_st):
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh2, memofegrp2))
     topology_st.standalone.modify_s(ensure_str(memofegrp2), mods)
 
+    time.sleep(delay)
     # assert enh1 is member of grp1 and  is NOT member of grp2
     assert _check_memberof(topology_st, member=memofenh1, group=memofegrp1)
     assert not _check_memberof(topology_st, member=memofenh1, group=memofegrp2)
@@ -548,6 +573,8 @@ def test_member_uniquemember_same_user(topology_st):
         6. Success
     """
 
+    delay = _memberof_checking_delay(topology_st.standalone)
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -570,6 +597,7 @@ def test_member_uniquemember_same_user(topology_st):
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh1, memofegrp3))
     topology_st.standalone.modify_s(ensure_str(memofegrp3), mods)
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -586,6 +614,7 @@ def test_member_uniquemember_same_user(topology_st):
     log.info("Update %s is memberof %s (member)" % (memofenh2, memofegrp3))
     topology_st.standalone.modify_s(ensure_str(memofegrp3), mods)
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -658,6 +687,7 @@ def test_member_not_exists(topology_st):
         2. Success
         3. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -700,6 +730,7 @@ def test_member_not_exists(topology_st):
     assert ensure_bytes(dummy1) not in ent.getValues('uniqueMember')
     assert ensure_bytes(dummy2) in ent.getValues('uniqueMember')
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -770,6 +801,7 @@ def test_member_not_exists_complex(topology_st):
         5. Success
         6. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -807,6 +839,7 @@ def test_member_not_exists_complex(topology_st):
     log.info("Update %s is memberof %s (uniqueMember)" % (memofenh1, memofegrp016))
     topology_st.standalone.modify_s(ensure_str(memofegrp016), mods)
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -851,6 +884,7 @@ def test_member_not_exists_complex(topology_st):
     assert ent.hasAttr('uniqueMember')
     assert ensure_bytes(dummy1) in ent.getValues('uniqueMember')
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -944,6 +978,8 @@ def test_complex_group_scenario_1(topology_st):
         8. Success
     """
 
+    delay = _memberof_checking_delay(topology_st.standalone)
+
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
 
@@ -1013,6 +1049,7 @@ def test_complex_group_scenario_1(topology_st):
     log.info("Update %s is memberof %s (memberuid)" % (memofuser3, memofegrp017))
     topology_st.standalone.modify_s(ensure_str(memofegrp017), mods)
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -1168,6 +1205,7 @@ def test_complex_group_scenario_2(topology_st):
         6. Success
         7. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -1263,6 +1301,7 @@ def test_complex_group_scenario_2(topology_st):
     log.info("Update %s is memberof %s (memberuid)" % (memofuser1, memofegrp017))
     topology_st.standalone.modify_s(ensure_str(memofegrp018), mods)
 
+    time.sleep(delay)
     # assert user1 is member of
     #       - not grp1
     #       - not grp2
@@ -1284,6 +1323,7 @@ def test_complex_group_scenario_2(topology_st):
     log.info("Update %s is no longer memberof %s (uniqueMember)" % (memofuser1, memofegrp018))
     topology_st.standalone.modify_s(ensure_str(memofegrp018), mods)
 
+    time.sleep(delay)
     # assert user1 is member of
     #       - not grp1
     #       - not grp2
@@ -1306,6 +1346,7 @@ def test_complex_group_scenario_2(topology_st):
     topology_st.standalone.delete_s(ensure_str(memofuser3))
     topology_st.standalone.delete_s(ensure_str(memofegrp017))
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -1441,6 +1482,7 @@ def test_complex_group_scenario_3(topology_st):
         11. Success
         12. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -1502,6 +1544,7 @@ def test_complex_group_scenario_3(topology_st):
     mods = [(ldap.MOD_ADD, 'member', memofegrp019_2), (ldap.MOD_ADD, 'member', memofegrp019_3)]
     topology_st.standalone.modify_s(ensure_str(memofegrp019_1), mods)
 
+    time.sleep(delay)
     # assert memofegrp019_1 is member of
     #       - not grp1
     #       - not grp2
@@ -1609,6 +1652,7 @@ def test_complex_group_scenario_3(topology_st):
     topology_st.standalone.delete_s(ensure_str(memofegrp019_2))
     topology_st.standalone.delete_s(ensure_str(memofegrp019_3))
 
+    time.sleep(delay)
     # assert enh1 is member of
     #       - grp1 (member)
     #       - not grp2
@@ -1676,6 +1720,7 @@ def test_complex_group_scenario_4(topology_st):
         5. Success
         6. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -1739,6 +1784,7 @@ def test_complex_group_scenario_4(topology_st):
         mods.append((ldap.MOD_ADD, 'member', grp))
     topology_st.standalone.modify_s(ensure_str(memofegrp020_5), mods)
 
+    time.sleep(delay)
     assert _check_memberof(topology_st, member=memofuser1, group=memofegrp020_1)
     assert _check_memberof(topology_st, member=memofuser1, group=memofegrp020_2)
     assert _check_memberof(topology_st, member=memofuser1, group=memofegrp020_3)
@@ -1816,6 +1862,7 @@ def test_complex_group_scenario_5(topology_st):
         10. Success
         11. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -1881,6 +1928,7 @@ def test_complex_group_scenario_5(topology_st):
         mods.append((ldap.MOD_ADD, 'member', grp))
     topology_st.standalone.modify_s(ensure_str(memofegrp020_5), mods)
 
+    time.sleep(delay)
     # assert user[1-4] are member of grp20_5
     for user in [memofuser1, memofuser2, memofuser3, memofuser4]:
         assert _check_memberof(topology_st, member=user, group=memofegrp020_5)
@@ -2010,6 +2058,7 @@ def test_complex_group_scenario_6(topology_st):
         7. Success
         8. Success
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -2109,6 +2158,7 @@ def test_complex_group_scenario_6(topology_st):
         mods = [(ldap.MOD_ADD, 'member', x[1])]
         topology_st.standalone.modify_s(ensure_str(x[0]), mods)
 
+    time.sleep(delay)
     # check that user[1-4] are 'member' and 'uniqueMember' of the grp20_[1-4]
     for x in [(memofegrp020_1, memofuser1),
               (memofegrp020_2, memofuser2),
@@ -2290,6 +2340,7 @@ def test_complex_group_scenario_7(topology_st):
                      |<--uniquemember-/
 
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofenh1 = _get_user_dn('memofenh1')
     memofenh2 = _get_user_dn('memofenh2')
@@ -2415,6 +2466,7 @@ def test_complex_group_scenario_7(topology_st):
          |----member ---> G4 ---member/uniqueMember -> U4
          |<--uniquemember-/  
     """
+    time.sleep(delay)
     verify_post_023(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5,
                     memofuser1, memofuser2, memofuser3, memofuser4)
 
@@ -2507,6 +2559,7 @@ def test_complex_group_scenario_8(topology_st):
                      |<--uniquemember-/
 
     """
+    delay = _memberof_checking_delay(topology_st.standalone)
 
     memofuser1 = _get_user_dn('memofuser1')
     memofuser2 = _get_user_dn('memofuser2')
@@ -2524,6 +2577,8 @@ def test_complex_group_scenario_8(topology_st):
     # ADD user1 as 'member' of grp20_1
     mods = [(ldap.MOD_ADD, 'member', memofuser1)]
     topology_st.standalone.modify_s(ensure_str(memofegrp020_1), mods)
+
+    time.sleep(delay)
     verify_post_024(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5,
                     memofuser1, memofuser2, memofuser3, memofuser4)
 
@@ -2602,6 +2657,11 @@ def test_complex_group_scenario_9(topology_st):
                      |----member ---> G4
 
     """
+    memberof = MemberOfPlugin(topology_st.standalone)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
 
     memofuser1 = _get_user_dn('memofuser1')
     memofuser2 = _get_user_dn('memofuser2')
@@ -2655,6 +2715,7 @@ def test_complex_group_scenario_9(topology_st):
 
     """
 
+    time.sleep(delay)
     verify_post_025(topology_st, memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4, memofegrp020_5,
                     memofuser1, memofuser2, memofuser3, memofuser4)
 
@@ -2691,6 +2752,12 @@ def test_memberof_auto_add_oc(topology_st):
         10. Success
         11. Success
     """
+
+    memberof = MemberOfPlugin(topology_st.standalone)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
 
     # enable dynamic plugins
     try:
@@ -2734,6 +2801,7 @@ def test_memberof_auto_add_oc(topology_st):
         log.fatal('Failed to add group entry, error: ' + e.message['desc'])
         assert False
 
+    time.sleep(delay)
     # Assert memberOf on user1
     _check_memberof(topology_st, USER1_DN, GROUP_DN)
 

@@ -438,8 +438,6 @@ def test_dnsalias_keyword_test_nodns_cannot(topo, add_user, aci_of_user):
 
 #unstable or unstatus tests, skipped for now
 @pytest.mark.flaky(max_runs=2, min_passes=1)
-@pytest.mark.ds50378
-@pytest.mark.bz1710848
 @pytest.mark.parametrize("ip_addr", ['127.0.0.1', "[::1]"])
 def test_user_can_access_from_ipv4_or_ipv6_address(topo, add_user, aci_of_user, ip_addr):
     """User can modify the data when accessing the server from the allowed IPv4 and IPv6 addresses

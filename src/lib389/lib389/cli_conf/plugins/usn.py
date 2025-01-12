@@ -8,6 +8,7 @@
 
 from lib389.plugins import USNPlugin
 from lib389.cli_conf import add_generic_plugin_parsers
+from lib389.cli_base import CustomHelpFormatter
 
 
 def display_usn_mode(inst, basedn, log, args):
@@ -48,19 +49,19 @@ def tombstone_cleanup(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    usn_parser = subparsers.add_parser('usn', help='Manage and configure USN plugin')
+    usn_parser = subparsers.add_parser('usn', help='Manage and configure USN plugin', formatter_class=CustomHelpFormatter)
     subcommands = usn_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, USNPlugin)
 
-    global_mode_parser = subcommands.add_parser('global', help='Get or manage global USN mode (nsslapd-entryusn-global)')
+    global_mode_parser = subcommands.add_parser('global', help='Get or manage global USN mode (nsslapd-entryusn-global)', formatter_class=CustomHelpFormatter)
     global_mode_parser.set_defaults(func=display_usn_mode)
     global_mode_subcommands = global_mode_parser.add_subparsers(help='action')
-    on_global_mode_parser = global_mode_subcommands.add_parser('on', help='Enables USN global mode')
+    on_global_mode_parser = global_mode_subcommands.add_parser('on', help='Enables USN global mode', formatter_class=CustomHelpFormatter)
     on_global_mode_parser.set_defaults(func=enable_global_mode)
-    off_global_mode_parser = global_mode_subcommands.add_parser('off', help='Disables USN global mode')
+    off_global_mode_parser = global_mode_subcommands.add_parser('off', help='Disables USN global mode', formatter_class=CustomHelpFormatter)
     off_global_mode_parser.set_defaults(func=disable_global_mode)
 
-    cleanup_parser = subcommands.add_parser('cleanup', help='Runs the USN tombstone cleanup task')
+    cleanup_parser = subcommands.add_parser('cleanup', help='Runs the USN tombstone cleanup task', formatter_class=CustomHelpFormatter)
     cleanup_parser.set_defaults(func=tombstone_cleanup)
     cleanup_group = cleanup_parser.add_mutually_exclusive_group(required=True)
     cleanup_group.add_argument('-s', '--suffix',

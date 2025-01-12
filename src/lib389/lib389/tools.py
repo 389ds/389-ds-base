@@ -410,7 +410,7 @@ class DirSrvTools(object):
         certdir = e_config.getValue('nsslapd-certdir')
         # have to stop the server before replacing any security files
         DirSrvTools.stop(dirsrv)
-        # allow secport for selinux
+        # allow secport for SELinux
         if secport != 636:
             try:
                 log.debug("Configuring SELinux on port: %s", str(secport))

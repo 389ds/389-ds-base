@@ -8,24 +8,42 @@ PACKAGE = 389-ds-base
 RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(RPM_VERSION_PREREL)
 NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
 TARBALL = $(NAME_VERSION).tar.bz2
-JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
-JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
-BUNDLE_JEMALLOC = 1
 NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
+NODE_MODULES_PATH = src/cockpit/389-console/
+CARGO_PATH = src/
 GIT_TAG = ${TAG}
+
+BUNDLE_JEMALLOC = 1
+RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_JEMALLOC)),--with bundle_jemalloc,--without bundle_jemalloc)
+JEMALLOC_URL ?= $(shell rpmspec $(RPMBUILD_OPTIONS) -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
+JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
+
+BUNDLE_LIBDB ?= 0
+RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_LIBDB)),--with bundle_libdb,--without bundle_libdb)
+# LIBDB tarball was generated from
+#  https://kojipkgs.fedoraproject.org//packages/libdb/5.3.28/59.fc40/src/libdb-5.3.28-59.fc40.src.rpm
+#  then uploaded in https://fedorapeople.org
+LIBDB_URL ?= $(shell rpmspec $(RPMBUILD_OPTIONS) -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
+LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
+RPMBUILD_OPTIONS += $(if $(filter 1, $(CLANG_ON)),--with clang,--without clang)
 # Address Sanitizer
 ASAN_ON = 0
+RPMBUILD_OPTIONS += $(if $(filter 1, $(ASAN_ON)),--with asan,--without asan)
 # Memory Sanitizer (clang only)
 MSAN_ON = 0
+RPMBUILD_OPTIONS += $(if $(filter 1, $(MSAN_ON)),--with msan --with clang,--without msan)
 # Thread Sanitizer
 TSAN_ON = 0
+RPMBUILD_OPTIONS += $(if $(filter 1, $(TSAN_ON)),--with tsan,--without tsan)
 # Undefined Behaviour Sanitizer
 UBSAN_ON = 0
+RPMBUILD_OPTIONS += $(if $(filter 1, $(UBSAN_ON)),--with ubsan,--without ubsan)
 
 COCKPIT_ON = 1
+RPMBUILD_OPTIONS += $(if $(filter 1, $(COCKPIT_ON)),--with cockpit,--without cockpit)
 
 clean:
 	rm -rf dist
@@ -42,8 +60,8 @@ download-cargo-dependencies:
 	cargo fetch --manifest-path=./src/Cargo.toml
 	tar -czf vendor.tar.gz vendor
 
-bundle-rust:
-	python3 rpm/bundle-rust-downstream.py ./src/Cargo.lock $(DS_SPECFILE) ./vendor
+bundle-rust-npm:
+	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(DS_SPECFILE) --backup-specfile
 
 install-node-modules:
 ifeq ($(COCKPIT_ON), 1)
@@ -52,7 +70,7 @@ ifeq ($(COCKPIT_ON), 1)
 	npm ci > /dev/null
 ifndef SKIP_AUDIT_CI
 	cd src/cockpit/389-console; \
-	npx audit-ci
+	npx --yes audit-ci
 endif
 endif
 
@@ -78,7 +96,7 @@ endif
 
 local-archive: build-cockpit
 	-mkdir -p dist/$(NAME_VERSION)
-	rsync -a --exclude=node_modules --exclude=dist --exclude=__pycache__ --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
+	rsync -a --exclude=node_modules --exclude=dist --exclude=__pycache__ --exclude=.git --exclude=rpmbuild --exclude=vendor.tar.gz . dist/$(NAME_VERSION)
 
 tarballs: local-archive
 	-mkdir -p dist/sources
@@ -90,6 +108,9 @@ endif
 	cd dist/sources ; \
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		curl -LO $(JEMALLOC_URL) ; \
+	fi ; \
+	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+		curl -LO $(LIBDB_URL) ; \
 	fi
 
 rpmroot:
@@ -101,14 +122,12 @@ rpmroot:
 	mkdir -p $(RPMBUILD)/SRPMS
 	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
 	-e s/__VERSION_PREREL__/$(VERSION_PREREL)/ \
-	-e s/__ASAN_ON__/$(ASAN_ON)/ \
-	-e s/__MSAN_ON__/$(MSAN_ON)/ \
-	-e s/__TSAN_ON__/$(TSAN_ON)/ \
-	-e s/__UBSAN_ON__/$(UBSAN_ON)/ \
-	-e s/__COCKPIT_ON__/$(COCKPIT_ON)/ \
-	-e s/__CLANG_ON__/$(CLANG_ON)/ \
-	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
+
+rpmspec:
+	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
+	-e s/__VERSION_PREREL__/$(VERSION_PREREL)/ \
+	rpm/$(PACKAGE).spec.in > rpm/$(PACKAGE).spec
 
 rpmdistdir:
 	mkdir -p dist/rpms
@@ -122,11 +141,17 @@ rpmbuildprep:
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
 		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
 	fi
+	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
+		cp dist/sources/$(LIBDB_TARBALL) $(RPMBUILD)/SOURCES/ ; \
+	fi
 
-srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep 
-	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
+srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep
+	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(RPMBUILD)/SPECS/$(PACKAGE).spec -f
+	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec $(RPMBUILD_OPTIONS)
+	cp $(RPMBUILD)/SRPMS/*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
+
+srpm: srpms
 
 patch: rpmroot
 	cp rpm/*.patch $(RPMBUILD)/SOURCES/
@@ -135,9 +160,12 @@ patch: rpmroot
 patch_srpms: | patch srpms
 
 rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
-	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	cp $(RPMBUILD)/RPMS/*/*$(RPM_VERSION)$(RPM_VERSION_PREREL)*.rpm dist/rpms/
-	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
+	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(RPMBUILD)/SPECS/$(PACKAGE).spec -f
+	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec $(RPMBUILD_OPTIONS)
+	cp $(RPMBUILD)/RPMS/*/*.rpm dist/rpms/
+	cp $(RPMBUILD)/SRPMS/*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
+
+rpm: rpms
 
 patch_rpms: | patch rpms

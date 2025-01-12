@@ -638,7 +638,7 @@ check_flow_control_tot_init(Repl_Connection *conn, int optype, const char *extop
                      * Log it at least once to inform administrator there is
                      * a potential configuration issue here
                      */
-                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                    slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
                                   "check_flow_control_tot_init - %s -  Total update flow control gives time (%d msec) to the consumer before sending more entries [ msgid sent: %d, rcv: %d])\n"
                                   "If total update fails you can try to increase %s and/or decrease %s in the replica agreement configuration\n",
                                   agmt_get_long_name(conn->agmt),
@@ -681,8 +681,8 @@ check_flow_control_tot_init(Repl_Connection *conn, int optype, const char *extop
 static ConnResult
 conn_is_available(Repl_Connection *conn)
 {
-    time_t poll_timeout_sec = 1;   /* Polling for 1sec */
-    time_t yield_delay_msec = 100; /* Delay to wait */
+    int32_t poll_timeout_sec = 1;   /* Polling for 1sec */
+    int32_t yield_delay_msec = 100; /* Delay to wait */
     time_t start_time = slapi_current_rel_time_t();
     time_t time_now;
     ConnResult return_value = CONN_OPERATION_SUCCESS;

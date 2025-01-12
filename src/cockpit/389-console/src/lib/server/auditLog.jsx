@@ -2,39 +2,40 @@ import cockpit from "cockpit";
 import React from "react";
 import { listsEqual, log_cmd } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormGroup,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    NumberInput,
-    Select,
-    SelectVariant,
-    SelectOption,
-    Spinner,
-    Switch,
-    Tab,
-    Tabs,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    TimePicker,
-} from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	Form,
+	FormGroup,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	NumberInput,
+	Spinner,
+	Switch,
+	Tab,
+	Tabs,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	TimePicker
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const settings_attrs = [
     'nsslapd-auditlog',
     'nsslapd-auditlog-logging-enabled',
+    'nsslapd-auditlog-logbuffering',
+    'nsslapd-auditlog-log-format',
+    'nsslapd-auditlog-time-format',
 ];
 
 const rotation_attrs = [
@@ -79,7 +80,7 @@ export class ServerAuditLog extends React.Component {
             attrs: this.props.attrs,
             displayAttrs: [],
             isDisplayAttrOpen: false,
-            attributes: [],
+            attributes: this.props.displayAttrs,
             displayAllAttrs: false,
         };
 
@@ -107,7 +108,7 @@ export class ServerAuditLog extends React.Component {
                 );
             }
         };
-        this.handleOnDisplayAttrToggle = isDisplayAttrOpen => {
+        this.handleOnDisplayAttrToggle = (_event, isDisplayAttrOpen) => {
             this.setState({
                 isDisplayAttrOpen
             });
@@ -152,34 +153,10 @@ export class ServerAuditLog extends React.Component {
     componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
-            this.getAttributes();
+            this.loadConfig();
         } else {
             this.props.enableTree();
         }
-    }
-
-    getAttributes() {
-        const attr_cmd = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "schema",
-            "attributetypes",
-            "list"
-        ];
-        log_cmd("getAttributes", "Get attributes for audit log display attributes", attr_cmd);
-        cockpit
-                .spawn(attr_cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    const attrContent = JSON.parse(content);
-                    const attrs = [];
-                    for (const content of attrContent.items) {
-                        attrs.push(content.name[0]);
-                    }
-                    this.setState({
-                        attributes: attrs,
-                    }, () => { this.loadConfig() });
-                });
     }
 
     validateSaveBtn(nav_tab, attr, value) {
@@ -365,6 +342,7 @@ export class ServerAuditLog extends React.Component {
                     const attrs = config.attrs;
                     let enabled = false;
                     let compressed = false;
+                    let buffering = false;
                     let display_attrs = [];
                     let displayAllAttrs = this.state.displayAllAttrs;
 
@@ -373,6 +351,9 @@ export class ServerAuditLog extends React.Component {
                     }
                     if (attrs['nsslapd-auditlog-compress'][0] === "on") {
                         compressed = true;
+                    }
+                    if (attrs['nsslapd-auditlog-logbuffering'][0] === "on") {
+                        buffering = true;
                     }
                     if ('nsslapd-auditlog-display-attrs' in attrs) {
                         if (attrs['nsslapd-auditlog-display-attrs'][0] === "*") {
@@ -403,6 +384,9 @@ export class ServerAuditLog extends React.Component {
                         'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
                         'nsslapd-auditlog-compress': compressed,
+                        'nsslapd-auditlog-logbuffering': buffering,
+                        'nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+                        'nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
                         displayAttrs: display_attrs,
                         displayAllAttrs,
                         // Record original values
@@ -420,6 +404,9 @@ export class ServerAuditLog extends React.Component {
                         '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
                         '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
                         '_nsslapd-auditlog-compress': compressed,
+                        '_nsslapd-auditlog-logbuffering': buffering,
+                        '_nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+                        '_nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
                         _displayAttrs: display_attrs,
                         _displayAllAttrs: displayAllAttrs,
                     });
@@ -441,6 +428,7 @@ export class ServerAuditLog extends React.Component {
         const attrs = this.state.attrs;
         let enabled = false;
         let compressed = false;
+        let buffering = false;
         let display_attrs = [];
         let displayAllAttrs = this.state.displayAllAttrs;
 
@@ -449,6 +437,9 @@ export class ServerAuditLog extends React.Component {
         }
         if (attrs['nsslapd-auditlog-compress'][0] === "on") {
             compressed = true;
+        }
+        if (attrs['nsslapd-auditlog-logbuffering'][0] === "on") {
+            buffering = true;
         }
 
         if ('nsslapd-auditlog-display-attrs' in attrs) {
@@ -479,6 +470,9 @@ export class ServerAuditLog extends React.Component {
             'nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             'nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
             'nsslapd-auditlog-compress': compressed,
+            'nsslapd-auditlog-logbuffering': buffering,
+            'nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+            'nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
             displayAttrs: display_attrs,
             displayAllAttrs,
             // Record original values,
@@ -496,6 +490,9 @@ export class ServerAuditLog extends React.Component {
             '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
             '_nsslapd-auditlog-compress': compressed,
+            '_nsslapd-auditlog-logbuffering': buffering,
+            '_nsslapd-auditlog-log-format': attrs['nsslapd-auditlog-log-format'][0],
+            '_nsslapd-auditlog-time-format': attrs['nsslapd-auditlog-time-format'][0],
             _displayAttrs: display_attrs,
             _displayAllAttrs: displayAllAttrs,
         }, this.props.enableTree);
@@ -526,6 +523,12 @@ export class ServerAuditLog extends React.Component {
         }
         rotationTime = hour + ":" + min;
 
+        const time_format_title = (
+            <>
+                {_("Time Format")} <font size="1">({_("JSON only")})</font>
+            </>
+        );
+
         let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
@@ -534,13 +537,13 @@ export class ServerAuditLog extends React.Component {
                             className="ds-margin-top-xlg"
                             id="nsslapd-auditlog-logging-enabled"
                             isChecked={this.state['nsslapd-auditlog-logging-enabled']}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 this.handleChange(e, "settings");
                             }}
                             title={_("Enable audit logging (nsslapd-auditlog-logging-enabled).")}
                             label={_("Enable Audit Logging")}
                         />
-                        <Form className="ds-margin-top-xlg ds-margin-left" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
                                 label={_("Audit Log Location")}
                                 fieldId="nsslapd-auditlog"
@@ -552,13 +555,47 @@ export class ServerAuditLog extends React.Component {
                                     id="nsslapd-auditlog"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="nsslapd-auditlog"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
                             </FormGroup>
+                            <FormGroup
+                                label={time_format_title}
+                                fieldId="nsslapd-auditlog-time-format"
+                                title={_("Time format using strftime formatting (nsslapd-auditlog-time-format). This only applies to the JSON log format")}
+                            >
+                                <TextInput
+                                    value={this.state['nsslapd-auditlog-time-format']}
+                                    type="text"
+                                    id="nsslapd-auditlog-time-format"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="nsslapd-auditlog-time-format"
+                                    onChange={(e, str) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                />
+                            </FormGroup>
+                            <FormGroup
+                                label={_("Log Format")}
+                                fieldId="nsslapd-auditlog-log-format"
+                                title={_("Choose the log format (nsslapd-auditlog-log-format).")}
+                            >
+                                <FormSelect
+                                    id="nsslapd-auditlog-log-format"
+                                    value={this.state['nsslapd-auditlog-log-format']}
+                                    onChange={(e, str) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key="0" value="default" label="Default" />
+                                    <FormSelectOption key="1" value="json" label="JSON" />
+                                    <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
+                                </FormSelect>
+                            </FormGroup>
                         </Form>
-                        <Form className="ds-margin-top-lg ds-margin-left" isHorizontal autoComplete="off">
+                        <Form className="ds-margin-top-lg ds-left-margin-md" isHorizontal autoComplete="off">
                             <FormGroup
                                 label={_("Display Attributes")}
                                 fieldId="nsslapd-auditlog-display-attrs"
@@ -568,7 +605,7 @@ export class ServerAuditLog extends React.Component {
                                     <Select
                                         variant={SelectVariant.typeaheadMulti}
                                         typeAheadAriaLabel="Type an attribute"
-                                        onToggle={this.handleOnDisplayAttrToggle}
+                                        onToggle={(event, isOpen) => this.handleOnDisplayAttrToggle(event, isOpen)}
                                         onSelect={this.handleOnDisplayAttrSelect}
                                         onClear={this.handleOnDisplayAttrClear}
                                         selections={this.state.displayAttrs}
@@ -589,7 +626,7 @@ export class ServerAuditLog extends React.Component {
                                     className="ds-lower-field-md"
                                     id="displayAllAttrs"
                                     isChecked={this.state.displayAllAttrs}
-                                    onChange={(checked, e) => {
+                                    onChange={(e, checked) => {
                                         this.handleChange(e, "settings");
                                     }}
                                     title={_("Display all attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
@@ -597,6 +634,16 @@ export class ServerAuditLog extends React.Component {
                                 />
                             </FormGroup>
                         </Form>
+                        <Checkbox
+                            className="ds-left-margin-md ds-margin-top-lg"
+                            id="nsslapd-auditlog-logbuffering"
+                            isChecked={this.state['nsslapd-auditlog-logbuffering']}
+                            onChange={(e, checked) => {
+                                this.handleChange(e, "settings");
+                            }}
+                            title={_("This applies to both the audit & auditfail logs.  Disable audit log buffering for faster troubleshooting, but this will impact server performance (nsslapd-auditlog-logbuffering).")}
+                            label={_("Audit Log Buffering Enabled")}
+                        />
                         <Button
                             key="save settings"
                             isDisabled={this.state.saveSettingsDisabled || this.state.loading}
@@ -681,7 +728,7 @@ export class ServerAuditLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-auditlog-logrotationtimeunit"
                                                 value={this.state['nsslapd-auditlog-logrotationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rotation");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -716,7 +763,7 @@ export class ServerAuditLog extends React.Component {
                                     <Switch
                                         id="nsslapd-auditlog-compress"
                                         isChecked={this.state['nsslapd-auditlog-compress']}
-                                        onChange={this.handleSwitchChange}
+                                        onChange={(_event, value) => this.handleSwitchChange(value)}
                                         aria-label="nsslapd-auditlog-compress"
                                     />`
                                 </GridItem>
@@ -810,7 +857,7 @@ export class ServerAuditLog extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-auditlog-logexpirationtimeunit"
                                                 value={this.state['nsslapd-auditlog-logexpirationtimeunit']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "exp");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -861,15 +908,15 @@ export class ServerAuditLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Audit Log Settings")}
-                                <FontAwesomeIcon
-                                    size="lg"
-                                    className="ds-left-margin ds-refresh"
-                                    icon={faSyncAlt}
-                                    title={_("Refresh log settings")}
+                                <Button 
+                                    variant="plain"
+                                    aria-label={_("Refresh log settings")}
                                     onClick={() => {
                                         this.refreshConfig();
                                     }}
-                                />
+                                >
+                                    <SyncAltIcon />
+                                </Button>
                             </Text>
                         </TextContent>
                     </GridItem>
@@ -886,9 +933,11 @@ ServerAuditLog.propTypes = {
     addNotification: PropTypes.func,
     serverId: PropTypes.string,
     attrs: PropTypes.object,
+    displayAttrs: PropTypes.array,
 };
 
 ServerAuditLog.defaultProps = {
     serverId: "",
     attrs: {},
+    displayAttrs: [],
 };

@@ -39,11 +39,20 @@
 static unsigned char itoa64[] = /* 0 ... 63 => ascii - 64 */
     "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-#define CRYPT_UNIX 0
-#define CRYPT_MD5 1
-#define CRYPT_SHA256 2
-#define CRYPT_SHA512 3
+/* Standard Crypt Algorithms identifiers (with usual options when needed) */
+#define CRYPT_ALGO_ID_UNIX ""
+#define CRYPT_ALGO_ID_MD5 "$1$"
+#define CRYPT_ALGO_ID_SHA256 "$5$"
+#define CRYPT_ALGO_ID_SHA512 "$6$"
+#define CRYPT_ALGO_ID_YESCRYPT "$y$j9T$"
 
+/* Use the same salt lengths as shadow */
+#define CRYPT_UNIX_SALT_LENGTH 2
+#define CRYPT_MD5_SALT_LENGTH 8
+#define CRYPT_SHA_SALT_LENGTH 16
+#define CRYPT_YESCRYPT_SALT_LENGTH 24
+
+#define CRYPT_SALT_STRING_MAXLEN CRYPT_YESCRYPT_SALT_LENGTH + 1
 
 int
 crypt_pw_cmp(const char *userpwd, const char *dbpwd)
@@ -72,40 +81,26 @@ crypt_pw_cmp(const char *userpwd, const char *dbpwd)
 }
 
 static char *
-crypt_pw_enc_by_hash(const char *pwd, int hash_algo)
+crypt_pw_enc_by_hash(const char *pwd, int salt_len, const char *algo_id)
 {
-    char salt[3];
+    char salt[CRYPT_SALT_STRING_MAXLEN];
     char *algo_salt = NULL;
     char *cry;
     char *enc = NULL;
-    long v;
-    static unsigned int seed = 0;
+    int i;
     struct crypt_data data;
     data.initialized = 0;
 
-    if (seed == 0) {
-        seed = (unsigned int)slapi_rand();
-    }
-    v = slapi_rand_r(&seed);
+    /* Fill salt with salt_len random chars */
+    slapi_rand_array(salt, salt_len);
 
-    salt[0] = itoa64[v & 0x3f];
-    v >>= 6;
-    salt[1] = itoa64[v & 0x3f];
-    salt[2] = '\0';
-
-    /* Prepare our salt based on the hashing algorithm */
-    if (hash_algo == CRYPT_UNIX) {
-        algo_salt = strdup(salt);
-    } else if (hash_algo == CRYPT_MD5) {
-        algo_salt = slapi_ch_smprintf("$1$%s", salt);
-    } else if (hash_algo == CRYPT_SHA256) {
-        algo_salt = slapi_ch_smprintf("$5$%s", salt);
-    } else if (hash_algo == CRYPT_SHA512) {
-        algo_salt = slapi_ch_smprintf("$6$%s", salt);
-    } else {
-        /* default to CRYPT_UNIX */
-        algo_salt = strdup(salt);
+    /* Convert each 8bit random char to a 6bit base64 char */
+    for (i=0; i < salt_len; i++) {
+        salt[i] = itoa64[salt[i] & 0x3f];
     }
+    salt[i] = 0;
+
+    algo_salt = slapi_ch_smprintf("%s%s", algo_id, salt);
 
     cry = crypt_r(pwd, algo_salt, &data);
     if (cry != NULL) {
@@ -119,21 +114,26 @@ crypt_pw_enc_by_hash(const char *pwd, int hash_algo)
 char *
 crypt_pw_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_UNIX);
+    return crypt_pw_enc_by_hash(pwd, CRYPT_UNIX_SALT_LENGTH, CRYPT_ALGO_ID_UNIX);
 }
 
 char *
 crypt_pw_md5_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_MD5);
+    return crypt_pw_enc_by_hash(pwd, CRYPT_MD5_SALT_LENGTH, CRYPT_ALGO_ID_MD5);
 }
 char *
 crypt_pw_sha256_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA256);
+    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, CRYPT_ALGO_ID_SHA256);
 }
 char *
 crypt_pw_sha512_enc(const char *pwd)
 {
-    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA512);
+    return crypt_pw_enc_by_hash(pwd, CRYPT_SHA_SALT_LENGTH, CRYPT_ALGO_ID_SHA512);
+}
+char *
+crypt_pw_yescrypt_enc(const char *pwd)
+{
+    return crypt_pw_enc_by_hash(pwd, CRYPT_YESCRYPT_SALT_LENGTH, CRYPT_ALGO_ID_YESCRYPT);
 }

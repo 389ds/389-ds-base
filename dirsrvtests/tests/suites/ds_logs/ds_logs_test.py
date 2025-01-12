@@ -37,9 +37,9 @@ pytestmark = pytest.mark.tier1
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-PLUGIN_TIMESTAMP = 'nsslapd-logging-hr-timestamps-enabled'
 PLUGIN_LOGGING = 'nsslapd-plugin-logging'
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
+
 
 def add_users(topology_st, users_num):
     users = UserAccounts(topology_st, DEFAULT_SUFFIX)
@@ -205,6 +205,7 @@ def set_audit_log_config_values(topology_st, request, enabled, logsize):
 def set_audit_log_config_values_to_rotate(topology_st, request):
     set_audit_log_config_values(topology_st, request, 'on', '1')
 
+
 @pytest.fixture(scope="function")
 def disable_access_log_buffering(topology_st, request):
     log.info('Disable access log buffering')
@@ -216,6 +217,7 @@ def disable_access_log_buffering(topology_st, request):
     request.addfinalizer(fin)
 
     return disable_access_log_buffering
+
 
 def create_backend(inst, rdn, suffix):
     # We only support dc= in this test.
@@ -243,57 +245,9 @@ def create_backend(inst, rdn, suffix):
 
     return be1
 
-@pytest.mark.bz1273549
-def test_check_default(topology_st):
-    """Check the default value of nsslapd-logging-hr-timestamps-enabled,
-     it should be ON
 
-    :id: 2d15002e-9ed3-4796-b0bb-bf04e4e59bd3
-
-    :setup: Standalone instance
-
-    :steps:
-         1. Fetch the value of nsslapd-logging-hr-timestamps-enabled attribute
-         2. Test that the attribute value should be "ON" by default
-
-    :expectedresults:
-         1. Value should be fetched successfully
-         2. Value should be "ON" by default
-    """
-
-    # Get the default value of nsslapd-logging-hr-timestamps-enabled attribute
-    default = topology_st.standalone.config.get_attr_val_utf8(PLUGIN_TIMESTAMP)
-
-    # Now check it should be ON by default
-    assert default == "on"
-    log.debug(default)
-
-
-@pytest.mark.bz1273549
-def test_plugin_set_invalid(topology_st):
-    """Try to set some invalid values for nsslapd-logging-hr-timestamps-enabled
-    attribute
-
-    :id: c60a68d2-703a-42bf-a5c2-4040736d511a
-
-    :setup: Standalone instance
-
-    :steps:
-         1. Set some "JUNK" value of nsslapd-logging-hr-timestamps-enabled attribute
-
-    :expectedresults:
-         1. There should be an operation error
-    """
-
-    log.info('test_plugin_set_invalid - Expect to fail with junk value')
-    with pytest.raises(ldap.OPERATIONS_ERROR):
-        topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'JUNK')
-
-
-@pytest.mark.bz1273549
 def test_log_plugin_on(topology_st, remove_users):
-    """Check access logs for millisecond, when
-    nsslapd-logging-hr-timestamps-enabled=ON
+    """Check access logs for millisecond
 
     :id: 65ae4e2a-295f-4222-8d69-12124bc7a872
 
@@ -326,59 +280,7 @@ def test_log_plugin_on(topology_st, remove_users):
     assert topology_st.standalone.ds_access_log.match(r'^\[.+\d{9}.+\].+')
 
 
-@pytest.mark.bz1273549
-def test_log_plugin_off(topology_st, remove_users):
-    """Milliseconds should be absent from access logs when
-    nsslapd-logging-hr-timestamps-enabled=OFF
-
-    :id: b3400e46-d940-4574-b399-e3f4b49bc4b5
-
-    :setup: Standalone instance
-
-    :steps:
-         1. Set nsslapd-logging-hr-timestamps-enabled=OFF
-         2. Restart the server
-         3. Delete old access logs
-         4. Do search operations to generate fresh access logs
-         5. Restart the server
-         6. Check access logs
-
-    :expectedresults:
-         1. Attribute nsslapd-logging-hr-timestamps-enabled should be set to "OFF"
-         2. Server should restart
-         3. Access logs should be deleted
-         4. Search operation should PASS
-         5. Server should restart
-         6. There should not be any milliseconds added in the access logs
-    """
-
-    log.info('Bug 1273549 - Check access logs for missing millisecond, when attribute is OFF')
-
-    log.info('test_log_plugin_off - set the configuration attribute to OFF')
-    topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'OFF')
-
-    log.info('Restart the server to flush the logs')
-    topology_st.standalone.restart(timeout=10)
-
-    log.info('test_log_plugin_off - delete the previous access logs')
-    topology_st.standalone.deleteAccessLogs()
-
-    # Now generate some fresh logs
-    add_users(topology_st.standalone, 10)
-    search_users(topology_st.standalone)
-
-    log.info('Restart the server to flush the logs')
-    topology_st.standalone.restart(timeout=10)
-
-    log.info('check access log that microseconds are not present')
-    access_log_lines = topology_st.standalone.ds_access_log.readlines()
-    assert len(access_log_lines) > 0
-    assert not topology_st.standalone.ds_access_log.match(r'^\[.+\d{9}.+\].+')
-
-
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
 
@@ -396,7 +298,6 @@ def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_acc
 
     topo = topology_st.standalone
     default_log_level = topo.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
-
 
     log.info('Set nsslapd-plugin-logging to on')
     topo.config.set(PLUGIN_LOGGING, 'ON')
@@ -423,8 +324,6 @@ def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_acc
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
 
@@ -473,8 +372,6 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_acc
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_access_log_buffering):
     """Tests client initiated operations when automember plugin is enabled
 
@@ -557,8 +454,6 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_acc
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disable_access_log_buffering):
     """Tests client-initiated operations while referential integrity plugin is enabled
 
@@ -642,8 +537,6 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disab
 
 
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
-@pytest.mark.bz1358706
-@pytest.mark.ds49029
 def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_access_log_buffering):
     """Tests client initiated operations when referential integrity plugin is enabled
 
@@ -734,8 +627,6 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_acc
 
 
 @pytest.mark.skipif(ds_is_older('1.4.2.0'), reason="Not implemented")
-@pytest.mark.bz1358706
-@pytest.mark.ds49232
 def test_access_log_truncated_search_message(topology_st, clean_access_logs):
     """Tests that the access log message is properly truncated when the message is too long
 
@@ -771,8 +662,6 @@ def test_access_log_truncated_search_message(topology_st, clean_access_logs):
 
 @pytest.mark.skipif(ds_is_newer("1.4.3"), reason="rsearch was removed")
 @pytest.mark.xfail(ds_is_older('1.4.2.0'), reason="May fail because of bug 1732053")
-@pytest.mark.bz1732053
-@pytest.mark.ds50510
 def test_etime_at_border_of_second(topology_st, clean_access_logs):
     """Test that the etime reported in the access log doesn't contain wrong nsec value
 
@@ -824,7 +713,6 @@ def test_etime_at_border_of_second(topology_st, clean_access_logs):
 
 @pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.skipif(ds_is_older('1.3.10.1', '1.4.1'), reason="Fail because of bug 1749236")
-@pytest.mark.bz1749236
 def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
     """Test that the etime reported in the access log has a correct order of magnitude
 
@@ -904,8 +792,6 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3.8'), reason="Fail because of bug 1850275")
-@pytest.mark.bz1850275
-@pytest.mark.bz1924848
 def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
     """Test that the new optime and wtime keywords are present in the access log and have correct values
 
@@ -994,9 +880,6 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
 
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
-@pytest.mark.bz1662461
-@pytest.mark.ds50428
-@pytest.mark.ds49969
 def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_buffering):
     """Test that DS correctly logs the base dn when a search with invalid attribute request is performed
 
@@ -1040,8 +923,6 @@ def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_b
 
 
 @pytest.mark.xfail(ds_is_older('1.3.8', '1.4.2'), reason="May fail because of bug 1676948")
-@pytest.mark.bz1676948
-@pytest.mark.ds50536
 def test_audit_log_rotate_and_check_string(topology_st, clean_access_logs, set_audit_log_config_values_to_rotate):
     """Version string should be logged only once at the top of audit log
     after it is rotated.
@@ -1176,8 +1057,6 @@ def test_enable_external_libs_debug_log(topology_st):
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3'), reason="Might fail because of bug 1895460")
-@pytest.mark.bz1895460
-@pytest.mark.ds4593
 def test_cert_personality_log_help(topology_st, request):
     """Test changing the nsSSLPersonalitySSL attribute will raise help message in log
 
@@ -1465,220 +1344,6 @@ def test_referral_check(topology_st, request):
 
     request.addfinalizer(fin)
 
-def test_referral_subsuffix(topology_st, request):
-    """Test the results of an inverted parent suffix definition in the configuration.
-
-    For more details see:
-    https://www.port389.org/docs/389ds/design/mapping_tree_assembly.html
-
-    :id: 4faf210a-4fde-4e4f-8834-865bdc8f4d37
-    :setup: Standalone instance
-    :steps:
-        1. First create two Backends, without mapping trees.
-        2. create the mapping trees for these backends
-        3. reduce nsslapd-referral-check-period to accelerate test
-        4. Remove error log file
-        5. Create a referral entry on parent suffix
-        6. Check that the server detected the referral
-        7. Delete the referral entry
-        8. Check that the server detected the deletion of the referral
-        9. Remove error log file
-        10. Create a referral entry on child suffix
-        11. Check that the server detected the referral on both parent and child suffixes
-        12. Delete the referral entry
-        13. Check that the server detected the deletion of the referral on both parent and child suffixes
-        14. Remove error log file
-        15. Create a referral entry on parent suffix
-        16. Check that the server detected the referral on both parent and child suffixes
-        17. Delete the child referral entry
-        18. Check that the server detected the deletion of the referral on child suffix but not on parent suffix
-        19. Delete the parent referral entry
-        20. Check that the server detected the deletion of the referral parent suffix
-
-    :expectedresults:
-        all steps succeeds
-    """
-    inst = topology_st.standalone
-    # Step 1 First create two Backends, without mapping trees.
-    PARENT_SUFFIX='dc=parent,dc=com'
-    CHILD_SUFFIX='dc=child,%s' % PARENT_SUFFIX
-    be1 = create_backend(inst, 'Parent', PARENT_SUFFIX)
-    be2 = create_backend(inst, 'Child', CHILD_SUFFIX)
-    # Step 2 create the mapping trees for these backends
-    mts = MappingTrees(inst)
-    mt1 = mts.create(properties={
-        'cn': PARENT_SUFFIX,
-        'nsslapd-state': 'backend',
-        'nsslapd-backend': 'Parent',
-    })
-    mt2 = mts.create(properties={
-        'cn': CHILD_SUFFIX,
-        'nsslapd-state': 'backend',
-        'nsslapd-backend': 'Child',
-        'nsslapd-parent-suffix': PARENT_SUFFIX,
-    })
-
-    dc_ex = Domain(inst, dn=PARENT_SUFFIX)
-    assert dc_ex.exists()
-
-    dc_st = Domain(inst, dn=CHILD_SUFFIX)
-    assert dc_st.exists()
-
-    # Step 3 reduce nsslapd-referral-check-period to accelerate test
-    # requires a restart done on step 4
-    REFERRAL_CHECK=7
-    topology_st.standalone.config.set("nsslapd-referral-check-period", str(REFERRAL_CHECK))
-
-    # Check that if we create a referral at parent level
-    #  - referral is detected at parent backend
-    #  - referral is not detected at child backend
-
-    # Step 3 Remove error log file
-    topology_st.standalone.stop()
-    lpath = topology_st.standalone.ds_error_log._get_log_path()
-    os.unlink(lpath)
-    topology_st.standalone.start()
-
-    # Step 4 Create a referral entry on parent suffix
-    REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
-    properties = ({'cn': 'my_ref',
-                   'uid': 'my_ref',
-                   'sn': 'my_ref',
-                   'uidNumber': '1000',
-                   'gidNumber': '2000',
-                   'homeDirectory': '/home/testuser',
-                   'description': 'referral entry',
-                   'objectclass': "top referral extensibleObject".split(),
-                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
-    referral = UserAccount(inst, REFERRAL_DN)
-    referral.create(properties=properties)
-
-    # Step 5 Check that the server detected the referral
-    time.sleep(REFERRAL_CHECK + 1)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % PARENT_SUFFIX)
-    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % CHILD_SUFFIX)
-    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
-
-    # Step 6 Delete the referral entry
-    referral.delete()
-
-    # Step 7 Check that the server detected the deletion of the referral
-    time.sleep(REFERRAL_CHECK + 1)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
-
-    # Check that if we create a referral at child level
-    #  - referral is detected at parent backend
-    #  - referral is detected at child backend
-
-    # Step 8 Remove error log file
-    topology_st.standalone.stop()
-    lpath = topology_st.standalone.ds_error_log._get_log_path()
-    os.unlink(lpath)
-    topology_st.standalone.start()
-
-    # Step 9 Create a referral entry on child suffix
-    REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
-    properties = ({'cn': 'my_ref',
-                   'uid': 'my_ref',
-                   'sn': 'my_ref',
-                   'uidNumber': '1000',
-                   'gidNumber': '2000',
-                   'homeDirectory': '/home/testuser',
-                   'description': 'referral entry',
-                   'objectclass': "top referral extensibleObject".split(),
-                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
-    referral = UserAccount(inst, REFERRAL_DN)
-    referral.create(properties=properties)
-
-    # Step 10 Check that the server detected the referral on both parent and child suffixes
-    time.sleep(REFERRAL_CHECK + 1)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % PARENT_SUFFIX)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % CHILD_SUFFIX)
-    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
-
-    # Step 11 Delete the referral entry
-    referral.delete()
-
-    # Step 12 Check that the server detected the deletion of the referral on both parent and child suffixes
-    time.sleep(REFERRAL_CHECK + 1)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
-
-    # Check that if we create a referral at child level and parent level
-    #  - referral is detected at parent backend
-    #  - referral is detected at child backend
-
-    # Step 13 Remove error log file
-    topology_st.standalone.stop()
-    lpath = topology_st.standalone.ds_error_log._get_log_path()
-    os.unlink(lpath)
-    topology_st.standalone.start()
-
-    # Step 14 Create a referral entry on parent suffix
-    #         Create a referral entry on child suffix
-    REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
-    properties = ({'cn': 'my_ref',
-                   'uid': 'my_ref',
-                   'sn': 'my_ref',
-                   'uidNumber': '1000',
-                   'gidNumber': '2000',
-                   'homeDirectory': '/home/testuser',
-                   'description': 'referral entry',
-                   'objectclass': "top referral extensibleObject".split(),
-                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
-    referral = UserAccount(inst, REFERRAL_DN)
-    referral.create(properties=properties)
-    REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
-    properties = ({'cn': 'my_ref',
-                   'uid': 'my_ref',
-                   'sn': 'my_ref',
-                   'uidNumber': '1000',
-                   'gidNumber': '2000',
-                   'homeDirectory': '/home/testuser',
-                   'description': 'referral entry',
-                   'objectclass': "top referral extensibleObject".split(),
-                   'ref': 'ref: ldap://remote/%s' % REFERRAL_DN})
-    referral = UserAccount(inst, REFERRAL_DN)
-    referral.create(properties=properties)
-
-    # Step 15 Check that the server detected the referral on both parent and child suffixes
-    time.sleep(REFERRAL_CHECK + 1)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % PARENT_SUFFIX)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - New referral entries are detected under %s.*' % CHILD_SUFFIX)
-    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
-
-    # Step 16 Delete the child referral entry
-    REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
-    referral = UserAccount(inst, REFERRAL_DN)
-    referral.delete()
-
-    # Step 17 Check that the server detected the deletion of the referral on child suffix but not on parent suffix
-    time.sleep(REFERRAL_CHECK + 1)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % CHILD_SUFFIX)
-    assert not topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
-
-    # Step 18 Delete the parent referral entry
-    REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
-    referral = UserAccount(inst, REFERRAL_DN)
-    referral.delete()
-
-    # Step 19 Check that the server detected the deletion of the referral parent suffix
-    time.sleep(REFERRAL_CHECK + 1)
-    assert topology_st.standalone.ds_error_log.match('.*slapd_daemon - No more referral entry under %s' % PARENT_SUFFIX)
-
-    def fin():
-        log.info('Deleting referral')
-        try:
-            REFERRAL_DN = "cn=my_ref,%s" % PARENT_SUFFIX
-            referral = UserAccount(inst, REFERRAL_DN)
-            referral.delete()
-            REFERRAL_DN = "cn=my_ref,%s" % CHILD_SUFFIX
-            referral = UserAccount(inst, REFERRAL_DN)
-            referral.delete()
-        except:
-            pass
-
-    request.addfinalizer(fin)
 
 def test_missing_backend_suffix(topology_st, request):
     """Test that the server does not crash if a backend has no suffix
@@ -1704,8 +1369,46 @@ def test_missing_backend_suffix(topology_st, request):
         log.info('Restore dse.ldif')
         topology_st.standalone.stop()
         shutil.copy(dse_ldif + '.correct', dse_ldif)
+        topology_st.standalone.start()
 
     request.addfinalizer(fin)
+
+
+def test_errorlog_buffering(topology_st, request):
+    """Test log buffering works as expected when on or off
+
+    :id: 324ec5ed-c8ec-49fe-ab20-8c8cbfedca41
+    :setup: Standalone Instance
+    :steps:
+        1. Set buffering on
+        2. Reset logs and restart the server
+        3. Check for logging that should be buffered (not found)
+        4. Disable buffering
+        5. Reset logs and restart the server
+        6. Check for logging that should be found
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    # Configure instance
+    inst = topology_st.standalone
+    inst.config.replace('nsslapd-errorlog-logbuffering', 'on')
+    inst.deleteErrorLogs(restart=True)
+
+    time.sleep(1)
+    assert not inst.ds_error_log.match(".*slapd_daemon - slapd started.*")
+
+    inst.config.replace('nsslapd-errorlog-logbuffering', 'off')
+    inst.deleteErrorLogs(restart=True)
+
+    time.sleep(1)
+    assert inst.ds_error_log.match(".*slapd_daemon - slapd started.*")
+
 
 if __name__ == '__main__':
     # Run isolated

@@ -837,13 +837,6 @@ typedef struct _cleanruv_data
     PRBool original_task;
 } cleanruv_data;
 
-typedef struct _cleanruv_purge_data
-{
-    int cleaned_rid;
-    const Slapi_DN *suffix_sdn;
-    Replica *replica;
-} cleanruv_purge_data;
-
 typedef struct _csngen_test_data
 {
     Slapi_Task *task;
@@ -937,5 +930,6 @@ void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, cha
 char *replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
 int replica_execute_cleanruv_task(Replica *r, ReplicaId rid, char *returntext);
 int replica_execute_cleanall_ruv_task(Replica *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext);
+void delete_cleaned_rid_config(cleanruv_data *data);
 
 #endif /* _REPL5_H_ */

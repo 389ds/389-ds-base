@@ -124,7 +124,6 @@ def test_accept_aci_in_addition_to_acl(topo, clean, aci_of_user):
         i.delete()
 
 
-@pytest.mark.bz334451
 def test_more_then_40_acl_will_crash_slapd(topo, clean, aci_of_user):
     """bug 334451 : more then 40 acl will crash slapd
     superseded by Bug 772778 - acl cache overflown problem with > 200 acis
@@ -156,7 +155,6 @@ def test_more_then_40_acl_will_crash_slapd(topo, clean, aci_of_user):
     for i in uas.list():
         i.delete()
 
-@pytest.mark.bz345643
 def test_search_access_should_not_include_read_access(topo, clean, aci_of_user):
     """bug 345643
     Misc Test 4 search access should not include read access
@@ -285,7 +283,6 @@ def test_only_allow_some_targetattr_two(topo, clean, aci_of_user, request):
         i.delete()
 
 
-@pytest.mark.bz326000
 def test_memberurl_needs_to_be_normalized(topo, clean, aci_of_user):
     """Non-regression test for BUG 326000: MemberURL needs to be normalized
 
@@ -331,7 +328,6 @@ def test_memberurl_needs_to_be_normalized(topo, clean, aci_of_user):
     for i in uas.list():
         i.delete()
 
-@pytest.mark.bz624370
 def test_greater_than_200_acls_can_be_created(topo, clean, aci_of_user):
     """Misc 10, check that greater than 200 ACLs can be created. Bug 624370
 
@@ -363,7 +359,6 @@ def test_greater_than_200_acls_can_be_created(topo, clean, aci_of_user):
         i.delete()
 
 
-@pytest.mark.bz624453
 def test_server_bahaves_properly_with_very_long_attribute_names(topo, clean, aci_of_user):
     """Make sure the server bahaves properly with very long attribute names. Bug 624453.
 

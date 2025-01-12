@@ -255,7 +255,7 @@ slapi_search_internal_set_pb(Slapi_PBlock *pb, const char *base, int scope, cons
     slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &scope);
     slapi_pblock_set(pb, SLAPI_SEARCH_STRFILTER, (void *)filter);
     slapi_pblock_set(pb, SLAPI_CONTROLS_ARG, controls);
-    /* forbidden attrs could be removed in slapi_pblock_set. */
+    /* forbidden attrs could be removed in slapi_pblock_set */
     tmp_attrs = slapi_ch_array_dup(attrs);
     slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, tmp_attrs);
     slapi_pblock_set(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);

@@ -647,7 +647,7 @@ main(int argc, char **argv)
      * consideration of rust etc)
      */
     slapi_td_init();
-    
+
     /* Init the global counters */
     alloc_global_snmp_vars();
 
@@ -817,11 +817,17 @@ main(int argc, char **argv)
     }
 
     /* Now, sockets are open, so we can safely change identity now */
-    return_value = main_setuid(slapdFrontendConfig->localuser);
-    if (0 != return_value) {
-        slapi_log_err(SLAPI_LOG_ERR, "main", "Failed to change user and group identity to that of %s\n",
-                      slapdFrontendConfig->localuser);
-        exit(1);
+    /*
+     * We can only change uid if we are already root - otherwise it's likely
+     * that our external service manager has setup the uid/gid for us.
+     */
+    if (getuid() == 0) {
+        return_value = main_setuid(slapdFrontendConfig->localuser);
+        if (0 != return_value) {
+            slapi_log_err(SLAPI_LOG_ERR, "main", "Failed to change user and group identity to that of %s\n",
+                          slapdFrontendConfig->localuser);
+            exit(1);
+        }
     }
 
     /*
@@ -1155,9 +1161,9 @@ cleanup:
     compute_terminate();
     SSL_ShutdownServerSessionIDCache();
     SSL_ClearSessionCache();
+    slapd_ssl_destroy();
     ndn_cache_destroy();
     NSS_Shutdown();
-    dse_destroy_backup_lock();
 
     /*
      * Server has stopped, lets force everything to disk: logs
@@ -2791,6 +2797,7 @@ static struct slapd_debug_level_entry
     {LDAP_DEBUG_TIMING, "timing", 0},
     {LDAP_DEBUG_ACLSUMMARY, "accesscontrolsummary", 0},
     {LDAP_DEBUG_BACKLDBM, "backend", 0},
+    {LDAP_DEBUG_PWDPOLICY, "pwpolicy", 0},
     {LDAP_DEBUG_ALL_LEVELS, "ALL", 0},
     {0, NULL, 0}};
 

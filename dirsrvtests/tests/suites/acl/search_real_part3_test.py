@@ -434,7 +434,6 @@ def test_entry_with_lots_100_attributes(topo, add_test_user, aci_of_user):
     assert 103 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
 
 
-@pytest.mark.bz301798
 def test_groupdnattr_value_is_another_group(topo):
     """Search Test 42 groupdnattr value is another group test #1
 

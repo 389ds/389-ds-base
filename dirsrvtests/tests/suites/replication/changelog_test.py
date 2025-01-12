@@ -248,9 +248,6 @@ def remove_ldif_files_from_changelogdir(topo, extension):
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1', '1.4.3'), reason="bug bz1685059")
 @pytest.mark.skip(reason="does not work for prefix builds")
-@pytest.mark.bz1685059
-@pytest.mark.ds50498
-@pytest.mark.bz1769296
 def test_cldump_files_removed(topo):
     """Verify bz1685059 : cl-dump generated ldif files are removed at the end, -l option is the way to keep them
 
@@ -562,7 +559,6 @@ def test_verify_changelog_offline_backup(topo):
     _check_changelog_ldif(topo, changelog_ldif)
 
 
-@pytest.mark.ds47669
 def test_changelog_maxage(topo, changelog_init):
     """Check nsslapd-changelog max age values
 
@@ -594,7 +590,6 @@ def test_changelog_maxage(topo, changelog_init):
     add_and_check(topo, CHANGELOG, MAXAGE, 'xyz', False)
 
 
-@pytest.mark.ds47669
 def test_ticket47669_changelog_triminterval(topo, changelog_init):
     """Check nsslapd-changelog triminterval values
 
@@ -627,7 +622,6 @@ def test_ticket47669_changelog_triminterval(topo, changelog_init):
     add_and_check(topo, CHANGELOG, TRIMINTERVAL, 'xyz', False)
 
 
-@pytest.mark.ds47669
 @pytest.mark.skipif(ds_supports_new_changelog(), reason="changelog compaction is done by the backend itself, with id2entry as well, nsslapd-changelogcompactdb-interval is no longer supported")
 def test_changelog_compactdbinterval(topo, changelog_init):
     """Check nsslapd-changelog compactdbinterval values
@@ -662,7 +656,6 @@ def test_changelog_compactdbinterval(topo, changelog_init):
     add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, 'xyz', False)
 
 
-@pytest.mark.ds47669
 def test_retrochangelog_maxage(topo, changelog_init):
     """Check nsslapd-retrochangelog max age values
 
@@ -697,7 +690,6 @@ def test_retrochangelog_maxage(topo, changelog_init):
 
     topo.ms["supplier1"].log.info("ticket47669 was successfully verified.")
 
-@pytest.mark.ds50736
 def test_retrochangelog_trimming_crash(topo, changelog_init):
     """Check that when retroCL nsslapd-retrocthangelog contains invalid
     value, then the instance does not crash at shutdown
@@ -743,7 +735,6 @@ def test_retrochangelog_trimming_crash(topo, changelog_init):
     topo.ms["supplier1"].log.info("ticket 50736 was successfully verified.")
 
 
-@pytest.mark.bz2034407
 @pytest.mark.skipif(not os.path.isfile("/usr/bin/db_stat"), reason="libdb-utils package is not installed")
 def test_changelog_pagesize(topo):
     """Test that changelog page size is set properly

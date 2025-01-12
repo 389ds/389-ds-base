@@ -2,7 +2,7 @@
 
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,6 +19,7 @@ import argparse
 import argcomplete
 from lib389.utils import get_instance_list, instance_choices
 from lib389._constants import DSRC_HOME
+from lib389.cli_idm import _get_basedn_arg
 from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init
 from lib389.cli_idm import organizationalunit as cli_ou
@@ -31,9 +32,10 @@ from lib389.cli_idm import role as cli_role
 from lib389.cli_idm import service as cli_service
 from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
-from lib389.cli_base import format_error_to_dict
+from lib389.cli_base import format_error_to_dict, format_pretty_error
+from lib389.cli_base import parent_argparser
 
-parser = argparse.ArgumentParser(allow_abbrev=True)
+parser = argparse.ArgumentParser(allow_abbrev=True, parents=[parent_argparser])
 # First, add the LDAP options
 parser.add_argument('instance',
         help="The name of the instance or its LDAP URL, such as ldap://server.example.com:389",
@@ -41,10 +43,6 @@ parser.add_argument('instance',
 parser.add_argument('-b', '--basedn',
         help="Base DN (root naming context) of the instance to manage",
         default=None
-    )
-parser.add_argument('-v', '--verbose',
-        help="Display verbose operation tracing during command execution",
-        action='store_true', default=False
     )
 parser.add_argument('-D', '--binddn',
         help="The account to bind as for executing operations",
@@ -64,10 +62,6 @@ parser.add_argument('-y', '--pwdfile',
     )
 parser.add_argument('-Z', '--starttls',
         help="Connect with StartTLS",
-        default=False, action='store_true'
-    )
-parser.add_argument('-j', '--json',
-        help="Return result in JSON object",
         default=False, action='store_true'
     )
 subparsers = parser.add_subparsers(help="resources to act upon")
@@ -124,14 +118,6 @@ if __name__ == '__main__':
             parser.print_help()
         sys.exit(1)
 
-    if dsrc_inst['basedn'] is None:
-        errmsg = "Must provide a basedn!"
-        if args.json:
-            sys.stderr.write('{"desc": "%s"}\n' % errmsg)
-        else:
-            log.error(errmsg)
-        sys.exit(1)
-
     if not args.verbose:
         signal.signal(signal.SIGINT, signal_handler)
 
@@ -142,7 +128,15 @@ if __name__ == '__main__':
     result = False
     try:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
-        result = args.func(inst, dsrc_inst['basedn'], log, args)
+        basedn = _get_basedn_arg(inst, args,  dsrc_inst['basedn'], log, msg="Enter basedn")
+        if basedn is None:
+            errmsg = "Must provide a basedn!"
+            if args.json:
+                sys.stderr.write('{"desc": "%s"}\n' % errmsg)
+            else:
+                log.error(errmsg)
+            sys.exit(1)
+        result = args.func(inst, basedn, log, args)
         if args.verbose:
             log.info("Command successful.")
     except Exception as e:
@@ -151,10 +145,9 @@ if __name__ == '__main__':
         if args.json:
             sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
         else:
-            if 'desc' in msg:
-                log.error(f"Error: {msg['desc']}")
-            else:
-                log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
+            if not args.verbose:
+                msg = format_pretty_error(msg)
+            log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
 
     disconnect_instance(inst)

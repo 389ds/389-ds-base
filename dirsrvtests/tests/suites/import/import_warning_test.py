@@ -75,8 +75,6 @@ sn: demo
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3.26'), reason="Fail because of bug 1951537")
-@pytest.mark.bz1951537
-@pytest.mark.ds4734
 def test_import_warning(topology_st):
     """Import ldif file with skipped entries to generate a warning message
 

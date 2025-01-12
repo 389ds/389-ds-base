@@ -47,8 +47,6 @@ def set_log_file_and_ldif(topology_st, request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.ds50545
-@pytest.mark.bz1739718
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_posix_winsync_fixup(topology_st, set_log_file_and_ldif):
     """Test posix-winsync fixup that was ported from legacy tools

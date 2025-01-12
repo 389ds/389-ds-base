@@ -2733,6 +2733,16 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                 }
             }
             /* Clear out the pblock for reuse. */
+            /*
+             * False/positive coverity issue:
+             * CID 1548916:  Memory - corruptions  (USE_AFTER_FREE)
+             * >>> Calling "slapi_pblock_init" frees pointer "mep_pb->pb_op" which has
+             * already been freed.
+             * But the 'identity transfer' inference related to
+             * slapi_pblock_get is wrong: the switch value does not match
+             * mep_pb->pb_op is not freed by slapi_delete_internal_pb
+             */
+            /* coverity[double_free : FALSE] */
             slapi_pblock_init(mep_pb);
 
             /* Remove the pointer from the origin entry. */

@@ -834,6 +834,7 @@ typedef struct _back_search_result_set
 
 #define LDBM_ANCESTORID_STR                "ancestorid"
 #define LDBM_ENTRYDN_STR                   SLAPI_ATTR_ENTRYDN
+#define LDBM_LONG_ENTRYRDN_STR             "@long-entryrdn"
 #define LDBM_ENTRYRDN_STR                  "entryrdn"
 #define LDBM_NUMSUBORDINATES_STR           "numsubordinates"
 #define LDBM_TOMBSTONE_NUMSUBORDINATES_STR "tombstonenumsubordinates"
@@ -895,4 +896,6 @@ typedef struct _back_search_result_set
     ((L)->size == (R)->size && !memcmp((L)->data, (R)->data, (L)->size))
 
 typedef int backend_implement_init_fn(struct ldbminfo *li, config_info *config_array);
+
+pthread_mutex_t *get_import_ctx_mutex(void);
 #endif /* _back_ldbm_h_ */

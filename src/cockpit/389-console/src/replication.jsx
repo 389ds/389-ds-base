@@ -10,12 +10,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faClone,
-    faTree,
-    faLeaf,
-} from '@fortawesome/free-solid-svg-icons';
+import { TreeIcon, LeafIcon, CloneIcon } from '@patternfly/react-icons';
 import {
     TopologyIcon
 } from '@patternfly/react-icons';
@@ -157,13 +152,16 @@ export class Replication extends React.Component {
                 treeBranch.splice(sub, 1);
                 continue;
             } else if (treeBranch[sub].replicated) {
-                treeBranch[sub].icon = <FontAwesomeIcon size="sm" icon={faClone} />;
+                treeBranch[sub].icon = <CloneIcon size="sm" />;
                 treeBranch[sub].replicated = true;
             }
             if (treeBranch[sub].children.length === 0) {
                 delete treeBranch[sub].children;
+            } else {
+                this.processBranch(treeBranch[sub].children);
             }
-            this.processBranch(treeBranch[sub].children);
+            // Load replication data for this suffix
+            this.loadReplSuffix(treeBranch[sub].id);
         }
     }
 
@@ -191,9 +189,9 @@ export class Replication extends React.Component {
                         treeData = JSON.parse(content);
                         for (const suffix of treeData) {
                             if (suffix.type === "suffix") {
-                                suffix.icon = <FontAwesomeIcon size="sm" icon={faTree} />;
+                                suffix.icon = <TreeIcon size="sm" />;
                             } else if (suffix.type === "subsuffix") {
-                                suffix.icon = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+                                suffix.icon = <LeafIcon size="sm" />;
                             }
                             if (suffix.children.length === 0) {
                                 delete suffix.children;
@@ -216,7 +214,7 @@ export class Replication extends React.Component {
                         let found = false;
                         for (let i = 0; i < treeData.length; i++) {
                             if (treeData[i].replicated) {
-                                treeData[i].icon = <FontAwesomeIcon size="sm" icon={faClone} />;
+                                treeData[i].icon = <CloneIcon size="sm" />;
                                 replicated = true;
                                 if (!found) {
                                     // Load the first replicated suffix we find
@@ -252,7 +250,7 @@ export class Replication extends React.Component {
                                 replicated = suffix.replicated;
                             }
                             if (suffix.replicated) {
-                                suffix.icon = <FontAwesomeIcon size="sm" icon={faClone} />;
+                                suffix.icon = <CloneIcon size="sm" />;
                             }
                         }
                         this.loadReplSuffix(current_node);
@@ -528,7 +526,7 @@ export class Replication extends React.Component {
                             nsds5flags: config.attrs.nsds5flags[0],
                             nsds5replicatype: config.attrs.nsds5replicatype[0],
                             nsds5replicaid: 'nsds5replicaid' in config.attrs ? config.attrs.nsds5replicaid[0] : "",
-                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : "",
+                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : [],
                             nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config.attrs ? config.attrs.nsds5replicabinddngroup[0] : "",
                             nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config.attrs ? config.attrs.nsds5replicabinddngroupcheckinterval[0] : "",
                             nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",
@@ -671,7 +669,7 @@ export class Replication extends React.Component {
                             nsds5flags: config.attrs.nsds5flags[0],
                             nsds5replicatype: config.attrs.nsds5replicatype[0],
                             nsds5replicaid: 'nsds5replicaid' in config.attrs ? config.attrs.nsds5replicaid[0] : "",
-                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : "",
+                            nsds5replicabinddn: 'nsds5replicabinddn' in config.attrs ? config.attrs.nsds5replicabinddn : [],
                             nsds5replicabinddngroup: 'nsds5replicabinddngroup' in config.attrs ? config.attrs.nsds5replicabinddngroup[0] : "",
                             nsds5replicabinddngroupcheckinterval: 'nsds5replicabinddngroupcheckinterval' in config.attrs ? config.attrs.nsds5replicabinddngroupcheckinterval[0] : "",
                             nsds5replicareleasetimeout: 'nsds5replicareleasetimeout' in config.attrs ? config.attrs.nsds5replicareleasetimeout[0] : "",

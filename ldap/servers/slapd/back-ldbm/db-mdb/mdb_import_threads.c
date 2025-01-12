@@ -93,21 +93,31 @@ char *mdb_stat_summarize(mdb_stat_info_t *sinfo, char *buf, size_t bufsize);
 
 
 /* The private db records data (i.e entry_info) format is:
- *      ID: entry ID
- *      ID: nb ancestors
- *      ID: nrdn len
- *      ID: rdn len
+ *      ID: entry ID      [0]
+ *      ID: nb ancestors  [1]
+ *      ID: nrdn len      [2] ( The len include the final \0 )
+ *      ID: rdn len       [3] ( The len include the final \0 )
+ *      ID: dn len        [4] ( The len include the final \0 )
  *      ID[]: ancestors
  *      char[]: null terminated nrdn
  *      char[]: null terminated rdn
+ *      char[]: null terminated ndn
  *      Note: the IDs are stored directly as this database is transient and
  *       not shared across different hardware.
  *     Note: all these data for parent and current entry are needed
  *     by the worker thread to be able to build the entryrdn index records
  *     and ancestorid index records associated with the entry
  */
-#define INFO_NRDN(info)  ((char*)(&((ID*)(info))[4+((ID*)(info))[1]]))
-#define INFO_RDN(info)  (INFO_NRDN(info)+((ID*)(info))[2])
+#define INFO_IDX_ENTRY_ID       0
+#define INFO_IDX_NB_ANCESTORS   1
+#define INFO_IDX_NRDN_LEN       2
+#define INFO_IDX_RDN_LEN        3
+#define INFO_IDX_DN_LEN         4
+#define INFO_IDX_ANCESTORS      5
+#define INFO_NRDN(info)         ((char*)(&((ID*)(info))[INFO_IDX_ANCESTORS+((ID*)(info))[INFO_IDX_NB_ANCESTORS]]))
+#define INFO_RDN(info)          (INFO_NRDN(info)+((ID*)(info))[INFO_IDX_NRDN_LEN])
+#define INFO_DN(info)           (INFO_RDN(info)+((ID*)(info))[INFO_IDX_RDN_LEN])
+#define INFO_RECORD_LEN(info)   ((INFO_DN(info)-(char*)(info))+(info)[INFO_IDX_DN_LEN])  /* Total length of a record */
 
 typedef struct {
     back_txn txn;
@@ -721,7 +731,7 @@ get_entry_type(WorkerQueueData_t *wqelmt, Slapi_DN *sdn)
     int len = SLAPI_ATTR_UNIQUEID_LENGTH;
     const char *ndn = slapi_sdn_get_ndn(sdn);
 
-    if (slapi_be_issuffix(be, sdn)) {
+    if (slapi_be_issuffix(be, sdn) && (wqelmt->wait_id == 1)) {
         return DNRC_SUFFIX;
     }
     if (PL_strncasecmp(ndn, SLAPI_ATTR_UNIQUEID, len) || ndn[len] != '=') {
@@ -818,7 +828,7 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
     const char *nrdn = NULL;
     dnrc_t dnrc = DNRC_OK;
     size_t len = 0;
-    static const ID pinfozero[6] = {0};
+    static const ID pinfozero[INFO_IDX_ANCESTORS+2] = {0};
     const ID *pinfo = pinfozero;
     int pidfromkey = 0;
     int rc = 0;
@@ -868,9 +878,11 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
                 param->ekey.mv_data = (void*)slapi_sdn_get_ndn(&param->sdn);
                 param->ekey.mv_size = strlen(param->ekey.mv_data)+1;
                 param->pkey.mv_data = (void*)slapi_dn_find_parent_ext(param->ekey.mv_data, dnrc != DNRC_OK);
-                param->pkey.mv_size = strlen(param->pkey.mv_data)+1;
                 if (!param->pkey.mv_data) {
                     dnrc = DNRC_NOPARENT_DN;
+                    param->pkey.mv_size = 0;
+                } else {
+                    param->pkey.mv_size = strlen(param->pkey.mv_data)+1;
                 }
             }
         }
@@ -900,24 +912,47 @@ dbmdb_import_entry_info_by_param(EntryInfoParam_t *param, WorkerQueueData_t *wqe
         }
     }
     if (DNRC_IS_ENTRY(dnrc)) {
-        /* Note: If someday we needs to rebuild the entry dn, we could store it in the entry info
-         *  and build it from parent entry info + entry rdn. But as of today we do not need it.
-         */
-        len = strlen(nrdn) + strlen(rdn) + 2 + (5 + pinfo[1]) * sizeof(ID);
+        size_t rdnlen = strlen(rdn);
+        size_t nrdnlen = strlen(nrdn);
+        size_t dnlen = 0;
+        if (param->flags & EIP_RDN) {
+            /* In reindex case, dn must be rebuilt to be able to scope properly the vlv index */
+            dnlen = rdnlen + 1 + pinfo[INFO_IDX_DN_LEN];  /* dn len (including final \0) */
+        }
+
+        len = rdnlen + nrdnlen + 2 + dnlen + (INFO_IDX_ANCESTORS + 1 + pinfo[INFO_IDX_NB_ANCESTORS]) * sizeof(ID);
         data.mv_data = wqelmt->entry_info = (ID*)slapi_ch_calloc(ALIGN_TO_ID_SLOT(len), sizeof(ID));
         data.mv_size = len;
-        wqelmt->entry_info[0] = param->eid;
-        wqelmt->entry_info[1] = pinfo[1] + 1;
-        wqelmt->entry_info[2] = strlen(nrdn)+1;
-        wqelmt->entry_info[3] = strlen(rdn)+1;
-        if (pinfo[1]) {
-            /* Copy parent ancestors */
-            memcpy(&wqelmt->entry_info[4], &pinfo[4], pinfo[1]*sizeof(ID));
-            /* Then add parent id to ancestors */
-            wqelmt->entry_info[4+pinfo[1]] = pinfo[0];
+        wqelmt->entry_info[INFO_IDX_ENTRY_ID] = param->eid;
+        if (pinfo[INFO_IDX_ENTRY_ID] == 0) {
+            wqelmt->entry_info[INFO_IDX_NB_ANCESTORS] = 0;
+        } else {
+            wqelmt->entry_info[INFO_IDX_NB_ANCESTORS] = pinfo[INFO_IDX_NB_ANCESTORS] + 1; /* parent ancestors + parent id */
         }
-        memcpy(INFO_NRDN(wqelmt->entry_info), nrdn, wqelmt->entry_info[2]);
-        memcpy(INFO_RDN(wqelmt->entry_info), rdn, wqelmt->entry_info[3]);
+        wqelmt->entry_info[INFO_IDX_NRDN_LEN] = nrdnlen+1;
+        wqelmt->entry_info[INFO_IDX_RDN_LEN] = rdnlen+1;
+        wqelmt->entry_info[INFO_IDX_DN_LEN] = dnlen;
+        if (pinfo[INFO_IDX_NB_ANCESTORS]) {
+            /* Copy parent ancestors */
+            memcpy(&wqelmt->entry_info[INFO_IDX_ANCESTORS], &pinfo[INFO_IDX_ANCESTORS], pinfo[INFO_IDX_NB_ANCESTORS]*sizeof(ID));
+        }
+        if (pinfo[INFO_IDX_ENTRY_ID] != 0) {
+            /* Then add parent id to ancestors */
+            wqelmt->entry_info[INFO_IDX_ANCESTORS+pinfo[INFO_IDX_NB_ANCESTORS]] = pinfo[INFO_IDX_ENTRY_ID];
+        }
+        memcpy(INFO_NRDN(wqelmt->entry_info), nrdn, wqelmt->entry_info[INFO_IDX_NRDN_LEN]);
+        memcpy(INFO_RDN(wqelmt->entry_info), rdn, wqelmt->entry_info[INFO_IDX_RDN_LEN]);
+        if (dnlen>0) {
+            char *dn = INFO_DN(wqelmt->entry_info);
+            memcpy(dn, rdn, rdnlen);
+            if (pinfo[INFO_IDX_DN_LEN]) {
+                dn[rdnlen] = ',';
+                memcpy(dn+rdnlen+1, INFO_DN(pinfo), pinfo[INFO_IDX_DN_LEN]);
+            } else {
+                /* Should be the suffix entry */
+                dn[rdnlen] = '\0';
+            }
+        }
         rc = dbmdb_privdb_put(param->db, 0, &param->ekey, &data);
         if (rc == MDB_KEYEXIST) {
             dnrc = DNRC_DUP;
@@ -1264,7 +1299,7 @@ dbmdb_import_producer(void *param)
                 continue;
             case DNRC_ERROR:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_producer",
-                                  "Import is arborted because a LMDB database error was detected. Please check the error log for more details.");
+                                  "Import is aborted because a LMDB database error was detected. Please check the error log for more details.");
                 slapi_ch_free_string(&wqelmt.dn);
                 slapi_ch_free(&wqelmt.data);
                 thread_abort(info);
@@ -1737,7 +1772,7 @@ dbmdb_index_producer(void *param)
                 continue;
             case DNRC_ERROR:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_index_producer",
-                                  "Reindex is arborted because a LMDB database error was detected. Please check the error log for more details.");
+                                  "Reindex is aborted because a LMDB database error was detected. Please check the error log for more details.");
                 thread_abort(info);
                 continue;
             case DNRC_WAIT:
@@ -1828,6 +1863,8 @@ dbmdb_import_index_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
         backentry_free(&ep);
         return NULL;
     }
+    /* Set the full dn from the entry_info data */
+    slapi_entry_set_dn(ep->ep_entry, slapi_ch_strdup(INFO_DN(wqelmnt->entry_info)));
 
     return ep;
 }
@@ -2226,7 +2263,7 @@ dbmdb_upgrade_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
                                                   inst->inst_name, dn_id);
                         }
                         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                                      "%s: Error: failed to write a line \"%s\"",
+                                      "%s: Error: failed to write a line \"%s\"\n",
                                       inst->inst_name, dn_id);
                         slapi_ch_free_string(&dn_id);
                         goto error;
@@ -2829,6 +2866,11 @@ process_foreman(backentry *ep, WorkerQueueData_t *wqelmnt)
             return -1;
         }
     }
+    if (!job->all_vlv_init) {
+        /* Let check if we have to update vlvSearch filters with that entryid */
+        vlv_grok_new_import_entry(ep, be, &job->all_vlv_init);
+    }
+
     return 0;
 }
 
@@ -2920,6 +2962,51 @@ dbmdb_store_ruv_in_entryrdn(WorkerQueueData_t *wqelmnt, ID idruv, ID idsuffix, c
 }
 
 /*
+ * Push record in entryrdn and redirect dn
+ */
+void
+push_entryrdn_records(ImportWorkerInfo *info, const char *key, ID id, const char *nrdn, const char *rdn)
+{
+    ImportJob *job = info->job;
+    ImportCtx_t *ctx = job->writer_ctx;
+    backend *be = job->inst->inst_be;
+    size_t elemlen = 0;
+    void *elem = entryrdn_encode_data(be, &elemlen, id, nrdn, rdn);
+    dbi_entryrdn_records_t rec = {0};
+    WriterQueueData_t wqd = {0};
+    dbi_val_t tmpkey = {0};
+    dbi_val_t tmpdata = {0};
+
+    dblayer_value_set_buffer(be, &tmpkey, (char*)key, strlen(key)+1);
+    dblayer_value_set_buffer(be, &tmpdata, elem, elemlen);
+    dblayer_entryrdn_init_records(be, &tmpkey, &tmpdata, &rec);
+    if (rec.suffix_too_long) {
+        import_log_notice(job, SLAPI_LOG_ERR,
+                          "push_entryrdn_records", "Backend %s suffix %s is too long.\n",
+                          be->be_name, key);
+        thread_abort(info);
+        return;
+    }
+
+    wqd.dbi = ctx->entryrdn->dbi;
+    wqd.key.mv_data = rec.key.data;
+    wqd.key.mv_size = rec.key.size;
+    wqd.data.mv_data = rec.data.data;
+    wqd.data.mv_size = rec.data.size;
+    dbmdb_import_writeq_push(ctx, &wqd);
+    if (rec.redirect) {
+        wqd.dbi = ctx->redirect->dbi;
+        wqd.key.mv_data = rec.redirect_key.data;
+        wqd.key.mv_size = rec.redirect_key.size;
+        wqd.data.mv_data = rec.redirect_data.data;
+        wqd.data.mv_size = rec.redirect_data.size;
+        dbmdb_import_writeq_push(ctx, &wqd);
+    }
+    slapi_ch_free((void **)&elem);
+    dblayer_entryrdn_discard_records(be, &rec);
+}
+
+/*
  * Compute entry rdn and parentid and store entyrdn related keys:
  *       id --> id nrdn rdn
  *       'C'+parentid --> id nrdn rdn
@@ -2934,7 +3021,6 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
     ImportWorkerInfo *info = &wqelmnt->winfo;
     ImportJob *job = info->job;
     ImportCtx_t *ctx = job->writer_ctx;
-    backend *be = job->inst->inst_be;
     WriterQueueData_t wqd = {0};
     char key_id[10];
     char *nrdn, *rdn;
@@ -2942,41 +3028,32 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
     int n;
 
    if (ctx->entryrdn && wqelmnt->entry_info) {
-        wqd.dbi = ctx->entryrdn->dbi;
         id = wqelmnt->entry_info[0];
         nrdn = INFO_NRDN(wqelmnt->entry_info);
         rdn = INFO_RDN(wqelmnt->entry_info);
 
         /* id --> id nrdn rdn */
         if (wqelmnt->dnrc == DNRC_SUFFIX) {
-            wqd.key.mv_data = nrdn;
+            push_entryrdn_records(info, nrdn, id, nrdn, rdn);
         } else {
-            wqd.key.mv_data = key_id;
             PR_snprintf(key_id, (sizeof key_id), "%d", id);
+            push_entryrdn_records(info, key_id, id, nrdn, rdn);
         }
-        wqd.key.mv_size = strlen(wqd.key.mv_data)+1;
-        wqd.data.mv_data = entryrdn_encode_data(be, &wqd.data.mv_size, id, nrdn, rdn);
-        dbmdb_import_writeq_push(ctx, &wqd);
-        slapi_ch_free(&wqd.data.mv_data);
+
         if (wqelmnt->parent_info) {
             /* 'C'+parentid --> id nrdn rdn */
             pid = wqelmnt->parent_info[0];
             PR_snprintf(key_id, (sizeof key_id), "C%d", pid);
-            wqd.key.mv_size = strlen(wqd.key.mv_data)+1;
-            wqd.data.mv_data = entryrdn_encode_data(be, &wqd.data.mv_size, id, nrdn, rdn);
-            dbmdb_import_writeq_push(ctx, &wqd);
-            slapi_ch_free(&wqd.data.mv_data);
+            push_entryrdn_records(info, key_id, id, nrdn, rdn);
             /* 'P'+id --> parentid parentnrdn parentrdn */
             nrdn = INFO_NRDN(wqelmnt->parent_info);
             rdn = INFO_RDN(wqelmnt->parent_info);
             PR_snprintf(key_id, (sizeof key_id), "P%d", id);
-            wqd.key.mv_size = strlen(wqd.key.mv_data)+1;
-            wqd.data.mv_data = entryrdn_encode_data(be, &wqd.data.mv_size, pid, nrdn, rdn);
-            dbmdb_import_writeq_push(ctx, &wqd);
-            slapi_ch_free(&wqd.data.mv_data);
+            push_entryrdn_records(info, key_id, pid, nrdn, rdn);
         }
     }
 
+    wqd.key.mv_data = key_id;  /* Reserve some memory space to write the key */
     if (ctx->parentid && wqelmnt->parent_info) {
         /* Update parentid */
         pid = wqelmnt->parent_info[0];
@@ -2984,13 +3061,16 @@ process_entryrdn(backentry *ep, WorkerQueueData_t *wqelmnt)
         prepare_ids(&wqd, pid, &id);
         dbmdb_import_writeq_push(ctx, &wqd);
         dbmdb_add_op_attrs(job, ep, pid);  /* Before loosing the pid */
+    } else {
+        /* Update entryid */
+        add_update_entry_operational_attributes(ep, 0);
     }
 
     if (ctx->ancestorid && wqelmnt->entry_info) {
         /* Update ancestorids */
         wqd.dbi = ctx->ancestorid->dbi;
-        for (n=0; n<wqelmnt->entry_info[1]; n++) {
-            prepare_ids(&wqd, wqelmnt->entry_info[4+n], &id);
+        for (n=0; n<wqelmnt->entry_info[INFO_IDX_NB_ANCESTORS]; n++) {
+            prepare_ids(&wqd, wqelmnt->entry_info[INFO_IDX_ANCESTORS+n], &id);
             dbmdb_import_writeq_push(ctx, &wqd);
         }
     }
@@ -3072,7 +3152,7 @@ process_regular_index(backentry *ep, ImportWorkerInfo *info)
         if (0 != ret) {
             /* Something went wrong, eg disk filled up */
             slapi_log_err(SLAPI_LOG_ERR, "process_regular_index",
-                    "Import %s thread aborted after index_addordel_values_ext_sv failure on attribute %s.\n",
+                    "Import %s thread aborted after failing to update index %s.\n",
                     info->name, attrname);
             thread_abort(info);
             return;
@@ -3089,6 +3169,16 @@ attr_in_list(const char *search, char **list)
         }
     }
     return NULL;
+}
+
+/* Check if attrlist and vlvlist is empty or if attrname is in vlvlist */
+int
+is_reindexed_attr(const char *attrname, const ImportCtx_t *ctx, char **list)
+{
+    if (!ctx->indexAttrs && !ctx->indexVlvs) {
+        return  ((ctx->job->flags & FLAG_INDEX_ATTRS) == FLAG_INDEX_ATTRS);
+    }
+    return (list && attr_in_list(attrname, list));
 }
 
 static void
@@ -3111,7 +3201,8 @@ process_vlv_index(backentry *ep, ImportWorkerInfo *info)
         struct vlvIndex *vlv_index = ps->vlv_index;
         Slapi_PBlock *pb = slapi_pblock_new();
         slapi_pblock_set(pb, SLAPI_BACKEND, be);
-        if (vlv_index && (ctx->indexAttrs==NULL || attr_in_list(vlv_index->vlv_name, ctx->indexAttrs))) {
+        if (vlv_index && vlv_index->vlv_attrinfo &&
+            is_reindexed_attr(vlv_index->vlv_attrinfo->ai_type , ctx, ctx->indexVlvs)) {
             ret = vlv_update_index(vlv_index, (dbi_txn_t*)&txn, inst->inst_li, pb, NULL, ep);
         }
         if (0 != ret) {
@@ -3306,16 +3397,52 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
                           "%s: Indexing %s\n", job->inst->inst_name, mii->name);
         } else {
-            if (job->task) {
-                slapi_task_log_notice(job->task, "%s: Indexing attribute: %s", job->inst->inst_name, mii->name);
+            if (ii->ai->ai_indexmask == INDEX_VLV) {
+                if (job->task) {
+                    slapi_task_log_notice(job->task, "%s: Indexing VLV: %s", job->inst->inst_name, mii->name);
+                }
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
+                              "%s: Indexing VLV: %s\n", job->inst->inst_name, mii->name);
+            } else {
+                if (job->task) {
+                    slapi_task_log_notice(job->task, "%s: Indexing attribute: %s", job->inst->inst_name, mii->name);
+                }
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
+                              "%s: Indexing attribute: %s\n", job->inst->inst_name, mii->name);
             }
-            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_db2index",
-                          "%s: Indexing attribute: %s\n", job->inst->inst_name, mii->name);
         }
     }
 
+    DBG_LOG(DBGMDB_LEVEL_OTHER,"Calling dbmdb_open_dbi_from_filename for %s flags = 0x%x", mii->name, dbi_flags);
     dbmdb_open_dbi_from_filename(&mii->dbi, job->inst->inst_be, mii->name, mii->ai, dbi_flags);
     avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
+}
+
+/*
+ * Open redirect database and link it in the index avl
+ * so its data get freed/closed when the import completes
+ * It is similar to dbmdb_add_import_index but do
+ * not rely on job->index_list (as the db is nor really an index)
+ */
+void
+dbmdb_open_redirect_db(ImportCtx_t *ctx)
+{
+    int dbi_flags = MDB_CREATE|MDB_MARK_DIRTY_DBI|MDB_OPEN_DIRTY_DBI|MDB_TRUNCATE_DBI;
+    ImportJob *job = ctx->job;
+    Slapi_Backend *be = job->inst->inst_be;
+    MdbIndexInfo_t *mii = CALLOC(MdbIndexInfo_t);
+
+    struct attrinfo *ai = NULL;
+    ainfo_get(be, LDBM_LONG_ENTRYRDN_STR, &ai);
+    if (NULL == ai || strcmp(LDBM_LONG_ENTRYRDN_STR, ai->ai_type)) {
+        attr_create_empty(be, LDBM_LONG_ENTRYRDN_STR, &ai);
+    }
+    mii->name = (char*) slapi_utf8StrToLower((unsigned char*)LDBM_LONG_ENTRYRDN_STR);
+    mii->ai = ai;
+    mii->flags = MII_SKIP | MII_NOATTR;
+    dbmdb_open_dbi_from_filename(&mii->dbi, be, mii->name, mii->ai, dbi_flags);
+    avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
+    ctx->redirect = mii;
 }
 
 void
@@ -3325,22 +3452,24 @@ dbmdb_build_import_index_list(ImportCtx_t *ctx)
     IndexInfo *ii;
 
     if (ctx->role != IM_UPGRADE) {
-            for (ii=job->index_list; ii; ii=ii->next) {
+        for (ii=job->index_list; ii; ii=ii->next) {
             if (ii->ai->ai_indexmask == INDEX_VLV) {
-                continue;
+                if (is_reindexed_attr(ii->ai->ai_type, ctx, ctx->indexVlvs)) {
+                    dbmdb_add_import_index(ctx, NULL, ii);
+                }
+            } else if (is_reindexed_attr(ii->ai->ai_type, ctx, ctx->indexAttrs)){
+                dbmdb_add_import_index(ctx, NULL, ii);
             }
-            /* Keep only the index in reindex  list */
-            if (ctx->indexAttrs && !(attr_in_list(ii->ai->ai_type, ctx->indexAttrs))) {
-                continue;
-            }
-            dbmdb_add_import_index(ctx, NULL, ii);
         }
     }
 
     /* If a naming attribute is present, make sure that all of the are rebuilt */
-    if (ctx->entryrdn || ctx->parentid || ctx->ancestorid || ctx->role != IM_INDEX) {
+    if (ctx->entryrdn || ctx->redirect || ctx->parentid || ctx->ancestorid || ctx->role != IM_INDEX) {
         if (!ctx->entryrdn) {
             dbmdb_add_import_index(ctx, LDBM_ENTRYRDN_STR, NULL);
+        }
+        if (!ctx->redirect) {
+            dbmdb_open_redirect_db(ctx);
         }
         if (!ctx->parentid) {
             dbmdb_add_import_index(ctx, LDBM_PARENTID_STR, NULL);
@@ -3519,7 +3648,7 @@ dbmdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 {
     int rval = 0;
     rval = dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
-    rval += dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
+    rval |= dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
     return rval;
 }
 
@@ -3561,7 +3690,7 @@ dbmdb_read_ldif_entries(struct ldbminfo *li, char *src_dir, char *file_name)
         slapi_ch_free_string(&estr);
         if (!e) {
             slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_read_ldif_entries",
-                          "Skipping bad LDIF entry ending line %d of file \"%s\"",
+                          "Skipping bad LDIF entry ending line %d of file \"%s\"\n",
                           curr_lineno, filename);
             continue;
         }
@@ -3573,7 +3702,7 @@ dbmdb_read_ldif_entries(struct ldbminfo *li, char *src_dir, char *file_name)
     }
     if (!backup_entries) {
         slapi_log_err(SLAPI_LOG_ERR, "dbmdb_read_ldif_entries",
-                      "No entry found in backup config file \"%s\"",
+                      "No entry found in backup config file \"%s\"\n",
                       filename);
         goto out;
     }
@@ -3986,7 +4115,7 @@ dbmdb_bulk_producer(void *param)
                 continue;
             case DNRC_ERROR:
                 import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_producer",
-                                  "Reindex is arborted because a LMDB database error was detected. Please check the error log for more details.");
+                                  "Reindex is aborted because a LMDB database error was detected. Please check the error log for more details.");
                 thread_abort(info);
                 continue;
             case DNRC_WAIT:
@@ -4151,9 +4280,12 @@ dbmdb_import_init_writer(ImportJob *job, ImportRole_t role)
 void
 dbmdb_free_import_ctx(ImportJob *job)
 {
-    if (job->writer_ctx) {
-        ImportCtx_t *ctx = job->writer_ctx;
-        job->writer_ctx = NULL;
+    ImportCtx_t *ctx = NULL;
+    pthread_mutex_lock(get_import_ctx_mutex());
+    ctx = job->writer_ctx;
+    job->writer_ctx = NULL;
+    pthread_mutex_unlock(get_import_ctx_mutex());
+    if (ctx) {
         pthread_mutex_destroy(&ctx->workerq.mutex);
         pthread_cond_destroy(&ctx->workerq.cv);
         slapi_ch_free((void**)&ctx->workerq.slots);
@@ -4164,6 +4296,7 @@ dbmdb_free_import_ctx(ImportJob *job)
         avl_free(ctx->indexes, (IFP) free_ii);
         ctx->indexes = NULL;
         charray_free(ctx->indexAttrs);
+        charray_free(ctx->indexVlvs);
         slapi_ch_free((void**)&ctx);
     }
 }

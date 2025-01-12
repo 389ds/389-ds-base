@@ -15,7 +15,6 @@ from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1
 
-@pytest.mark.bz834056
 def test_configuration(topo):
     """Automembership plugin and mixed in the plugin configuration
 

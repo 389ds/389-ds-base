@@ -32,7 +32,6 @@ def enable_plugin(topology_st):
     topology_st.standalone.plugins.enable(name=PLUGIN_7_BIT_CHECK)
 
 
-@pytest.mark.ds47431
 def test_duplicate_values(topology_st, enable_plugin):
     """Check 26 duplicate values are treated as one
 
@@ -86,7 +85,6 @@ def test_duplicate_values(topology_st, enable_plugin):
     log.info("Ticket 47431 - 1: done")
 
 
-@pytest.mark.ds47431
 def test_multiple_value(topology_st, enable_plugin):
     """Check two values belonging to one arg is fixed
 
@@ -142,7 +140,6 @@ def test_multiple_value(topology_st, enable_plugin):
     log.info("Ticket 47431 - 2: done")
 
 
-@pytest.mark.ds47431
 def test_missing_args(topology_st, enable_plugin):
     """Check missing args are fixed
 

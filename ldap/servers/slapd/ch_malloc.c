@@ -22,6 +22,7 @@
 #include "slap.h"
 
 #define OOM_PREALLOC_SIZE 65536
+#define BACKTRACE_THRESHOLD (1LU<<20)
 static void *oom_emergency_area = NULL;
 static PRLock *oom_emergency_lock = NULL;
 
@@ -33,8 +34,9 @@ static const char *const oom_advice =
     "one or more of the following server configuration settings:\n"
     "  nsslapd-cachesize        (Database Settings - Maximum entries in cache)\n"
     "  nsslapd-cachememsize     (Database Settings - Memory available for cache)\n"
-    "  nsslapd-dbcachesize      (LDBM Plug-in Settings - Maximum cache size)\n"
-    "  nsslapd-import-cachesize (LDBM Plug-in Settings - Import cache size).\n"
+    "  nsslapd-dbcachesize      (LDBM Plug-in Settings (if bdb) - Maximum cache size)\n"
+    "  nsslapd-import-cachesize (LDBM Plug-in Settings (if bdb) - Import cache size)\n"
+    "  nsslapd-mdb-max-size     (LDBM Plug-in Settings (if mdb) - Maximum database size).\n"
     "Can't recover; calling exit(1).\n";
 
 static void
@@ -79,6 +81,15 @@ log_negative_alloc_msg(const char *op, const char *units, unsigned long size)
                   "trying to allocate 0 or a negative number of %s is not portable and\n"
                   "gives different results on different platforms.\n",
                   op, size, units, units);
+    slapi_log_backtrace(SLAPI_LOG_ERR);
+}
+
+static void
+oom_log_backtrace(unsigned long size)
+{
+    if (size > BACKTRACE_THRESHOLD) {
+        slapi_log_backtrace(SLAPI_LOG_ERR);
+    }
 }
 
 char *
@@ -99,6 +110,7 @@ slapi_ch_malloc(
         slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
                       "malloc of %lu bytes failed; OS error %d (%s)%s\n",
                       size, oserr, slapd_system_strerror(oserr), oom_advice);
+        oom_log_backtrace(size);
         exit(1);
     }
     /* So long as this happens once, we are happy, put it in ch_malloc. */
@@ -120,6 +132,7 @@ slapi_ch_memalign(uint32_t size, uint32_t alignment)
         slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
                       "malloc of %" PRIu32 " bytes failed; OS error %d (%s)%s\n",
                       size, oserr, slapd_system_strerror(oserr), oom_advice);
+        oom_log_backtrace(size);
         exit(1);
     }
 
@@ -149,6 +162,7 @@ slapi_ch_realloc(
         slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
                       "realloc of %lu bytes failed; OS error %d (%s)%s\n",
                       size, oserr, slapd_system_strerror(oserr), oom_advice);
+        oom_log_backtrace(size);
         exit(1);
     }
 
@@ -179,6 +193,7 @@ slapi_ch_calloc(
         slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
                       "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
                       nelem, size, oserr, slapd_system_strerror(oserr), oom_advice);
+        oom_log_backtrace(nelem*size);
         exit(1);
     }
 
@@ -219,6 +234,7 @@ slapi_ch_bvdup(const struct berval *v)
                       "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
                       (unsigned long)v->bv_len, oserr, slapd_system_strerror(oserr),
                       oom_advice);
+        oom_log_backtrace((unsigned long)v->bv_len);
         exit(1);
     }
     return newberval;
@@ -228,6 +244,10 @@ struct berval **
 slapi_ch_bvecdup(struct berval **v)
 {
     struct berval **newberval = NULL;
+    /* Disable fanalyzer false positive */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
+
     if (v != NULL) {
         size_t i = 0;
         while (v[i] != NULL)
@@ -238,6 +258,7 @@ slapi_ch_bvecdup(struct berval **v)
             newberval[i] = slapi_ch_bvdup(v[i]);
         }
     }
+#pragma GCC diagnostic pop
     return newberval;
 }
 
@@ -348,4 +369,16 @@ slapi_ct_memcmp(const void *p1, const void *p2, size_t n)
         }
     }
     return result;
+}
+
+/* Log out of memory error message and exit process */
+void
+slapi_ch_oom(const char *funcname)
+{
+        int oserr = errno;
+        oom_occurred();
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+                      "Run out of memory while calling %s(); OS error %d (%s)%s\n",
+                      funcname, oserr, slapd_system_strerror(oserr), oom_advice);
+        exit(1);
 }

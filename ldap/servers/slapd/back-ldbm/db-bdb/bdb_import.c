@@ -1065,7 +1065,7 @@ bdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int
     /* If it is a tombstone entry, add tombstonesubordinates instead of
      * numsubordinates. */
     if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        numsub_str = tombstone_numsubordinates;
+        numsub_str = LDBM_TOMBSTONE_NUMSUBORDINATES_STR;
     }
     /* attr numsubordinates/tombstonenumsubordinates could already exist in
      * the entry, let's check whether it's already there or not */
@@ -1749,7 +1749,7 @@ bdb_import_push_progress_history(ImportJob *job, ID current_id, time_t current_t
 }
 
 static void
-bdb_import_calc_rate(ImportWorkerInfo *info, int time_interval)
+bdb_import_calc_rate(ImportWorkerInfo *info, time_t time_interval)
 {
     size_t ids = info->last_ID_processed - info->previous_ID_counted;
     double rate = (double)ids / time_interval;
@@ -3141,6 +3141,7 @@ static int
 bdb_import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
 {
     ldbm_instance *inst = worker->job->inst;
+    PR_ASSERT(NULL != inst);
     backend *be = inst->inst_be;
     DB *output_file = NULL;
     int ret = 0;
@@ -3149,8 +3150,6 @@ bdb_import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
     int pass_number = 0;
     DB **input_files = NULL;
     DBC **input_cursors = NULL;
-
-    PR_ASSERT(NULL != inst);
 
     /* Try to open all the input files.
        If we can't open file a file, we assume that is

@@ -2,35 +2,33 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, valid_dn, isValidIpAddress } from "../tools.jsx";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    HelperText,
-    HelperTextItem,
-    Select,
-    SelectOption,
-    SelectVariant,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleText,
-    NumberInput,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions,
-} from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+	Button,
+	Checkbox,
+	Form,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	HelperText,
+	HelperTextItem,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleText,
+	NumberInput,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
 import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
+import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
 const general_attrs = [
@@ -109,7 +107,7 @@ export class ServerSettings extends React.Component {
             invalidIP: false,
         };
 
-        this.handleOnHaproxyIPsToggle = isHaproxyIPsOpen => {
+        this.handleOnHaproxyIPsToggle = (_event, isHaproxyIPsOpen) => {
             this.setState({
                 isHaproxyIPsOpen,
                 invalidIP: false,
@@ -162,6 +160,8 @@ export class ServerSettings extends React.Component {
         };
 
         this.options = [
+            { value: 'PBKDF2-SHA512', label: 'PBKDF2-SHA512', disabled: false },
+            { value: 'PBKDF2-SHA256', label: 'PBKDF2-SHA256', disabled: false },
             { value: 'PBKDF2_SHA256', label: 'PBKDF2_SHA256', disabled: false },
             { value: 'SSHA512', label: 'SSHA512', disabled: false },
             { value: 'SSHA384', label: 'SSHA384', disabled: false },
@@ -178,6 +178,7 @@ export class ServerSettings extends React.Component {
         ];
 
         this.validatePaths = this.validatePaths.bind(this);
+        this.validateAllTabs = this.validateAllTabs.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.handleSaveConfig = this.handleSaveConfig.bind(this);
@@ -217,6 +218,7 @@ export class ServerSettings extends React.Component {
         if (!this.state.loaded) {
             this.loadConfig();
         } else {
+            this.validateAllTabs();
             this.props.enableTree();
         }
     }
@@ -376,6 +378,30 @@ export class ServerSettings extends React.Component {
         }, () => { this.validateSaveBtn(nav_tab, attr, value) });
     }
 
+    validateAllTabs() {
+        const tabs = ['config', 'rootdn', 'diskmon', 'adv'];
+        tabs.forEach(tab => {
+            let attrs;
+            switch (tab) {
+            case 'config':
+                attrs = general_attrs;
+                break;
+            case 'rootdn':
+                attrs = rootdn_attrs;
+                break;
+            case 'diskmon':
+                attrs = disk_attrs;
+                break;
+            case 'adv':
+                attrs = adv_attrs;
+                break;
+            }
+            attrs.forEach(attr => {
+                this.validateSaveBtn(tab, attr, this.state[attr]);
+            });
+        });
+    }
+
     loadConfig() {
         const attrs = this.state.attrs;
         // Handle the checkbox values
@@ -502,7 +528,10 @@ export class ServerSettings extends React.Component {
             '_nsslapd-entryusn-global': usnGlobal,
             '_nsslapd-ignore-time-skew': ignoreSkew,
             '_nsslapd-readonly': readOnly,
-        }, this.props.enableTree);
+        }, () => {
+            this.validateAllTabs();
+            this.props.enableTree();
+        });
     }
 
     handleSaveRootDN() {
@@ -1015,8 +1044,8 @@ export class ServerSettings extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={8}
                             />
-                            <FormHelperText isError isHidden={!this.state.errObjDiskMon['nsslapd-disk-monitoring-threshold']}>
-                                _("Value must be greater than or equal to 4096")
+                            <FormHelperText  >
+                                {_("Value must be greater than or equal to 4096")}
                             </FormHelperText>
                         </GridItem>
                     </Grid>
@@ -1050,7 +1079,7 @@ export class ServerSettings extends React.Component {
                             <Checkbox
                                 id="nsslapd-disk-monitoring-logging-critical"
                                 isChecked={this.state['nsslapd-disk-monitoring-logging-critical']}
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     this.handleChange(e, "diskmon");
                                 }}
                                 label={_("Preserve Logs Even If Disk Space Gets Low")}
@@ -1078,13 +1107,13 @@ export class ServerSettings extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Server Settings")}
-                                    <FontAwesomeIcon
-                                        size="lg"
-                                        className="ds-left-margin ds-refresh"
-                                        icon={faSyncAlt}
-                                        title={_("Refresh configuration settings")}
+                                    <Button 
+                                        variant="plain"
+                                        aria-label={_("Refresh configuration settings")}
                                         onClick={this.handleReloadConfig}
-                                    />
+                                    >
+                                        <SyncAltIcon size="lg" />
+                                    </Button>
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -1124,7 +1153,7 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-localhost"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-hostname"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-localhost'] ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1190,7 +1219,7 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-listenhost"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-listenhost"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-listenhost'] ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1210,13 +1239,13 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-bakdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-bakdir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-bakdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-bakdir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-bakdir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1234,13 +1263,13 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-ldifdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-ldifdir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-ldifdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-ldifdir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-ldifdir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1258,13 +1287,13 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-schemadir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-schemadir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-schemadir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-schemadir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-schemadir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1282,13 +1311,13 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-certdir"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="server-certdir"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "config");
                                                 }}
                                                 validated={this.state.errObjConfig['nsslapd-certdir'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
                                             {this.state.errObjConfig['nsslapd-certdir'] &&
-                                                <FormHelperText isError isHidden={!this.state.errObjConfig['nsslapd-certdir']}>
+                                                <FormHelperText  >
                                                     Invalid path
                                                 </FormHelperText>}
                                         </GridItem>
@@ -1339,7 +1368,7 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-rootpw"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="nsslapd-rootpw"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rootdn");
                                                 }}
                                                 validated={this.state.errObjRootDN['nsslapd-rootpw'] ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1359,7 +1388,7 @@ export class ServerSettings extends React.Component {
                                                 id="confirmRootpw"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="confirmRootpw"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rootdn");
                                                 }}
                                                 validated={this.state.errObjRootDN.confirmRootpw ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1376,7 +1405,7 @@ export class ServerSettings extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-rootpwstoragescheme"
                                                 value={this.state['nsslapd-rootpwstoragescheme']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "rootdn");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -1405,7 +1434,7 @@ export class ServerSettings extends React.Component {
                                     <Checkbox
                                         id="nsslapd-disk-monitoring"
                                         isChecked={this.state['nsslapd-disk-monitoring']}
-                                        onChange={(str, e) => {
+                                        onChange={(e, str) => {
                                             this.handleChange(e, "diskmon");
                                         }}
                                         label={_("Enable Disk Space Monitoring")}
@@ -1431,7 +1460,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-schemacheck"
                                                 isChecked={this.state['nsslapd-schemacheck']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable schema checking (nsslapd-schemacheck).")}
@@ -1443,7 +1472,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-syntaxcheck"
                                                 isChecked={this.state['nsslapd-syntaxcheck']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable attribute syntax checking (nsslapd-syntaxcheck).")}
@@ -1456,7 +1485,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-plugin-logging"
                                                 isChecked={this.state['nsslapd-plugin-logging']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable plugins to log access and audit events.  (nsslapd-plugin-logging).")}
@@ -1467,7 +1496,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-syntaxlogging"
                                                 isChecked={this.state['nsslapd-syntaxlogging']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Enable syntax logging (nsslapd-syntaxlogging).")}
@@ -1480,7 +1509,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-plugin-binddn-tracking"
                                                 isChecked={this.state['nsslapd-plugin-binddn-tracking']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 label={_("Enable Plugin Bind DN Tracking")}
@@ -1491,7 +1520,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-attribute-name-exceptions"
                                                 isChecked={this.state['nsslapd-attribute-name-exceptions']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Allows non-standard characters in attribute names to be used for backwards compatibility with older servers (nsslapd-attribute-name-exceptions).")}
@@ -1504,7 +1533,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-dn-validate-strict"
                                                 isChecked={this.state['nsslapd-dn-validate-strict']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 label={_("Strict DN Syntax Validation")}
@@ -1515,7 +1544,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-entryusn-global"
                                                 isChecked={this.state['nsslapd-entryusn-global']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("For USN plugin - maintain unique USNs across all back end databases (nsslapd-entryusn-global).")}
@@ -1528,7 +1557,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-ignore-time-skew"
                                                 isChecked={this.state['nsslapd-ignore-time-skew']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Ignore replication time skew when acquiring a replica to start a replciation session (nsslapd-ignore-time-skew).")}
@@ -1539,7 +1568,7 @@ export class ServerSettings extends React.Component {
                                             <Checkbox
                                                 id="nsslapd-readonly"
                                                 isChecked={this.state['nsslapd-readonly']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 title={_("Make entire server read-only (nsslapd-readonly)")}
@@ -1558,7 +1587,7 @@ export class ServerSettings extends React.Component {
                                             <FormSelect
                                                 id="nsslapd-allow-anonymous-access"
                                                 value={this.state['nsslapd-allow-anonymous-access']}
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 aria-label="FormSelect Input"
@@ -1587,7 +1616,7 @@ export class ServerSettings extends React.Component {
                                                 id="nsslapd-anonlimitsdn"
                                                 aria-describedby="horizontal-form-name-helper"
                                                 name="nsslapd-anonlimitsdn"
-                                                onChange={(str, e) => {
+                                                onChange={(e, str) => {
                                                     this.handleChange(e, "adv");
                                                 }}
                                                 validated={this.state.errObjAdv.anonLimitsDN ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1605,7 +1634,7 @@ export class ServerSettings extends React.Component {
                                                 variant={SelectVariant.typeaheadMulti}
                                                 id="nsslpad-haproxy-trusted-ip"
                                                 typeAheadAriaLabel="Type trusted HAProxy server IP address"
-                                                onToggle={this.handleOnHaproxyIPsToggle}
+                                                onToggle={(event, isOpen) => this.handleOnHaproxyIPsToggle(event, isOpen)}
                                                 onSelect={(e, selection) => {
                                                     this.handleOnHaproxyIPsSelect(e, selection, "adv");
                                                 }}

@@ -1,23 +1,25 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
-    Form,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    Select,
-    SelectOption,
-    SelectVariant,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Form,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectOption,
+	SelectVariant
+} from '@patternfly/react-core/deprecated';
 import {
     ArrowRightIcon,
 } from '@patternfly/react-icons';
@@ -124,7 +126,7 @@ class AutoMembership extends React.Component {
                 });
             }
         };
-        this.handleRegexExcludeToggle = isRegexExcludeOpen => {
+        this.handleRegexExcludeToggle = (_event, isRegexExcludeOpen) => {
             this.setState({
                 isRegexExcludeOpen
             });
@@ -162,7 +164,7 @@ class AutoMembership extends React.Component {
                 });
             }
         };
-        this.handleRegexIncludeToggle = isRegexIncludeOpen => {
+        this.handleRegexIncludeToggle = (_event, isRegexIncludeOpen) => {
             this.setState({
                 isRegexIncludeOpen
             });
@@ -1105,7 +1107,7 @@ class AutoMembership extends React.Component {
                                     id="definitionName"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="definitionName"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     isDisabled={!newDefinitionEntry}
@@ -1124,7 +1126,7 @@ class AutoMembership extends React.Component {
                                     id="scope"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="scope"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={this.state.error.scope || scope === "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1142,7 +1144,7 @@ class AutoMembership extends React.Component {
                                     id="filter"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="filter"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={this.state.error.filter || filter === "" ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1157,7 +1159,7 @@ class AutoMembership extends React.Component {
                                 <FormSelect
                                     id="groupingAttrMember"
                                     value={groupingAttrMember}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -1174,7 +1176,7 @@ class AutoMembership extends React.Component {
                                 <FormSelect
                                     id="groupingAttrEntry"
                                     value={groupingAttrEntry}
-                                    onChange={(value, event) => {
+                                    onChange={(event, value) => {
                                         this.handleFieldChange(event);
                                     }}
                                     aria-label="FormSelect Input"
@@ -1196,7 +1198,7 @@ class AutoMembership extends React.Component {
                                     id="defaultGroup"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="defaultGroup"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleFieldChange(e);
                                     }}
                                     validated={this.state.error.defaultGroup ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1265,7 +1267,7 @@ class AutoMembership extends React.Component {
                                     id="regexName"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="regexName"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleRegexChange(e);
                                     }}
                                     isDisabled={!newRegexEntry}
@@ -1281,7 +1283,7 @@ class AutoMembership extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a regex"
-                                    onToggle={this.handleRegexExcludeToggle}
+                                    onToggle={(event, isOpen) => this.handleRegexExcludeToggle(event, isOpen)}
                                     onSelect={this.handleRegexExcludeSelect}
                                     onClear={this.handleClearRegexExcludeSelection}
                                     selections={regexExclusive}
@@ -1308,7 +1310,7 @@ class AutoMembership extends React.Component {
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type a regex"
-                                    onToggle={this.handleRegexIncludeToggle}
+                                    onToggle={(event, isOpen) => this.handleRegexIncludeToggle(event, isOpen)}
                                     onSelect={this.handleRegexIncludeSelect}
                                     onClear={this.handleClearRegexIncludeSelection}
                                     selections={regexInclusive}
@@ -1338,7 +1340,7 @@ class AutoMembership extends React.Component {
                                     id="regexTargetGroup"
                                     aria-describedby="horizontal-form-name-helper"
                                     name="regexTargetGroup"
-                                    onChange={(str, e) => {
+                                    onChange={(e, str) => {
                                         this.handleRegexChange(e);
                                     }}
                                     validated={this.state.errorRegex.regexTargetGroup ? ValidatedOptions.error : ValidatedOptions.default}

@@ -903,6 +903,7 @@ normalize_nextACERule:
      */
     if (strncasecmp(tmp_str, "allow", 5) == 0) {
         memcpy(acestr, tmp_str, len);
+        acestr[len] = 0;
         tmp_str += 5;
         /* gather the rights */
         aci_rights_val = __aclp__get_aci_right(tmp_str); /* bug 389975 */
@@ -943,7 +944,9 @@ normalize_nextACERule:
 
         len = strlen(d_rule);
         memcpy(acestr, d_rule, len);
-        memcpy(acestr + len, tmp_str, strlen(tmp_str));
+        size_t len2 = strlen(tmp_str);
+        memcpy(acestr + len, tmp_str, len2);
+        acestr[len+len2] = 0;
 
         s = strchr(acestr, ')');
         if (NULL == s) {
@@ -1844,6 +1847,7 @@ __aclp_chk_paramRules(aci_t *aci_item, char *start, char *end)
 
     s = str = (char *)slapi_ch_calloc(1, len + 1);
     memcpy(str, start, len);
+    s[len] = 0; /* purely for covscan */
     while ((p = strchr(s, '$')) != NULL) {
         p++; /* skip the $ */
         if (0 == strncasecmp(p, "dn", 2))

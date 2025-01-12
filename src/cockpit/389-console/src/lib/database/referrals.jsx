@@ -369,7 +369,7 @@ class AddReferralModal extends React.Component {
                                 id="refHost"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="refHost"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.refHost ? ValidatedOptions.error : ValidatedOptions.default}
@@ -386,7 +386,7 @@ class AddReferralModal extends React.Component {
                                 id="refPort"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="refPort"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.refPort ? ValidatedOptions.error : ValidatedOptions.default}
@@ -403,7 +403,7 @@ class AddReferralModal extends React.Component {
                                 id="refSuffix"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="refSuffix"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 validated={error.refSuffix ? ValidatedOptions.error : ValidatedOptions.default}
@@ -420,7 +420,7 @@ class AddReferralModal extends React.Component {
                                 id="refAttrs"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="refAttrs"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                             />
@@ -436,7 +436,7 @@ class AddReferralModal extends React.Component {
                                 id="refFilter"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="refFilter"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                             />

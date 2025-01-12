@@ -255,8 +255,6 @@ def test_exhaust_db_locks_big_pause(topology_st_fn, setup_attruniq_index_be_impo
     inst.restart()
 
 
-@pytest.mark.ds4623
-@pytest.mark.bz1812286
 @pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 @pytest.mark.parametrize("invalid_value", [("0"), ("1"), ("42"), ("68"), ("69"), ("96"), ("120")])
@@ -285,8 +283,6 @@ def test_invalid_threshold_range(topology_st_fn, invalid_value):
         assert msg in str(e)
 
 
-@pytest.mark.ds4623
-@pytest.mark.bz1812286
 @pytest.mark.skipif(ds_is_older("1.4.3.23"), reason="Not implemented")
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 @pytest.mark.parametrize("locks_invalid", [("0"), ("1"), ("9999"), ("10000")])

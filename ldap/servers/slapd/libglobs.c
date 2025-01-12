@@ -186,6 +186,7 @@ slapi_onoff_t init_securitylog_compress_enabled;
 slapi_onoff_t init_auditlog_compress_enabled;
 slapi_onoff_t init_auditfaillog_compress_enabled;
 slapi_onoff_t init_errorlog_compress_enabled;
+slapi_onoff_t init_errorlogbuffering;
 slapi_onoff_t init_accesslog_logging_enabled;
 slapi_onoff_t init_accesslogbuffering;
 slapi_onoff_t init_securitylog_logging_enabled;
@@ -193,10 +194,10 @@ slapi_onoff_t init_securitylogbuffering;
 slapi_onoff_t init_external_libs_debug_enabled;
 slapi_onoff_t init_errorlog_logging_enabled;
 slapi_onoff_t init_auditlog_logging_enabled;
+slapi_onoff_t init_auditlogbuffering;
 slapi_onoff_t init_auditlog_logging_hide_unhashed_pw;
 slapi_onoff_t init_auditfaillog_logging_enabled;
 slapi_onoff_t init_auditfaillog_logging_hide_unhashed_pw;
-slapi_onoff_t init_logging_hr_timestamps;
 slapi_onoff_t init_csnlogging;
 slapi_onoff_t init_pw_unlock;
 slapi_onoff_t init_pw_must_change;
@@ -820,6 +821,14 @@ static struct config_get_and_set
      log_set_logging, SLAPD_AUDIT_LOG,
      (void **)&global_slapdFrontendConfig.auditlog_logging_enabled,
      CONFIG_ON_OFF, NULL, &init_auditlog_logging_enabled, NULL},
+    {CONFIG_AUDITLOG_LOG_FORMAT_ATTRIBUTE, config_set_auditlog_log_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.auditlog_log_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_FORMAT, NULL},
+    {CONFIG_AUDITLOG_TIME_FORMAT_ATTRIBUTE, config_set_auditlog_time_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.auditlog_time_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_TIME_FORMAT, NULL},
     {CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW, config_set_auditlog_unhashed_pw,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_logging_hide_unhashed_pw,
@@ -828,14 +837,30 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.auditlog_display_attrs,
      CONFIG_STRING, NULL, &config_get_auditlog_display_attrs, NULL},
+    {CONFIG_ACCESSLOG_LOG_FORMAT_ATTRIBUTE, config_set_accesslog_log_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.accesslog_log_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_FORMAT, NULL},
+    {CONFIG_ACCESSLOG_TIME_FORMAT_ATTRIBUTE, config_set_accesslog_time_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.accesslog_time_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_TIME_FORMAT, NULL},
     {CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE, config_set_accesslogbuffering,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslogbuffering,
      CONFIG_ON_OFF, NULL, &init_accesslogbuffering, NULL},
+    {CONFIG_AUDITLOG_BUFFERING_ATTRIBUTE, config_set_auditlogbuffering,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.auditlogbuffering,
+     CONFIG_ON_OFF, NULL, &init_auditlogbuffering, NULL},
     {CONFIG_SECURITYLOG_BUFFERING_ATTRIBUTE, config_set_securitylogbuffering,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securitylogbuffering,
      CONFIG_ON_OFF, NULL, &init_securitylogbuffering, NULL},
+    {CONFIG_ERRORLOG_BUFFERING_ATTRIBUTE, config_set_errorlogbuffering,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.errorlogbuffering,
+     CONFIG_ON_OFF, NULL, &init_errorlogbuffering, NULL},
     {CONFIG_CSNLOGGING_ATTRIBUTE, config_set_csnlogging,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.csnlogging,
@@ -1376,13 +1401,6 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.securitylog,
      CONFIG_STRING_OR_EMPTY, NULL, "", NULL /* prevents deletion when null */},
-/* warning: initialization makes pointer from integer without a cast [enabled by default]. Why do we get this? */
-#ifdef HAVE_CLOCK_GETTIME
-    {CONFIG_LOGGING_HR_TIMESTAMPS, config_set_logging_hr_timestamps,
-     NULL, 0,
-     (void **)&global_slapdFrontendConfig.logging_hr_timestamps,
-     CONFIG_ON_OFF, NULL, &init_logging_hr_timestamps, NULL},
-#endif
     {CONFIG_EXTRACT_PEM, config_set_extract_pem,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.extract_pem,
@@ -1865,6 +1883,8 @@ FrontendConfig_init(void)
     cfg->accesslog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
     cfg->accesslog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->accessloglevel = SLAPD_DEFAULT_ACCESSLOG_LEVEL;
+    cfg->accesslog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
+    cfg->accesslog_time_format = slapi_ch_strdup(SLAPD_INIT_LOG_TIME_FORMAT);
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
     init_accesslog_compress_enabled = cfg->accesslog_compress = LDAP_OFF;
@@ -1905,8 +1925,11 @@ FrontendConfig_init(void)
     cfg->errorlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->errorloglevel = SLAPD_DEFAULT_FE_ERRORLOG_LEVEL;
     init_errorlog_compress_enabled = cfg->errorlog_compress = LDAP_OFF;
+    init_errorlogbuffering = cfg->errorlogbuffering = LDAP_OFF;
 
     init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
+    cfg->auditlog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
+    cfg->auditlog_time_format = slapi_ch_strdup(SLAPD_INIT_LOG_TIME_FORMAT);
     cfg->auditlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
     cfg->auditlog_maxnumlogs = SLAPD_DEFAULT_LOG_MAXNUMLOGS;
     cfg->auditlog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
@@ -1922,6 +1945,7 @@ FrontendConfig_init(void)
     cfg->auditlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     init_auditlog_logging_hide_unhashed_pw =
         cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
+    init_auditlogbuffering = cfg->auditlogbuffering = LDAP_ON;
     init_auditlog_compress_enabled = cfg->auditlog_compress = LDAP_OFF;
 
     init_auditfaillog_logging_enabled = cfg->auditfaillog_logging_enabled = LDAP_OFF;
@@ -1941,11 +1965,6 @@ FrontendConfig_init(void)
     init_auditfaillog_logging_hide_unhashed_pw =
         cfg->auditfaillog_logging_hide_unhashed_pw = LDAP_ON;
     init_auditfaillog_compress_enabled = cfg->auditfaillog_compress = LDAP_OFF;
-
-#ifdef HAVE_CLOCK_GETTIME
-    init_logging_hr_timestamps =
-        cfg->logging_hr_timestamps = LDAP_ON;
-#endif
     init_entryusn_global = cfg->entryusn_global = LDAP_OFF;
     cfg->entryusn_import_init = slapi_ch_strdup(SLAPD_ENTRYUSN_IMPORT_INIT);
     cfg->default_naming_context = NULL; /* store normalized dn */
@@ -2013,9 +2032,6 @@ FrontendConfig_init(void)
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
-
-    /* init the dse file backup lock */
-    dse_init_backup_lock();
 
     init_config_get_and_set();
 }
@@ -2232,26 +2248,6 @@ config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *err
     return retVal;
 }
 
-#ifdef HAVE_CLOCK_GETTIME
-int32_t
-config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply)
-{
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int32_t retVal = LDAP_SUCCESS;
-
-    retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->logging_hr_timestamps),
-                              errorbuf, apply);
-    if (apply && retVal == LDAP_SUCCESS) {
-        if (strcasecmp(value, "on") == 0) {
-            log_enable_hr_timestamps();
-        } else {
-            log_disable_hr_timestamps();
-        }
-    }
-    return retVal;
-}
-#endif
-
 /*
  * Utility function called by many of the config_set_XXX() functions.
  * Returns a non-zero value if 'value' is NULL and zero if not.
@@ -2269,6 +2265,70 @@ config_value_is_null(const char *attrname, const char *value, char *errorbuf, in
     }
 
     return 0;
+}
+
+int32_t
+config_set_auditlog_log_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strcasecmp(value, "default") && strcasecmp(value, "json") && strcasecmp(value, "json-pretty")) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is invalid, the acceptable values "
+                              "are \"default\", \"json\", and \"json-pretty\"",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->auditlog_log_format);
+        slapdFrontendConfig->auditlog_log_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return LDAP_SUCCESS;
+}
+
+int32_t
+config_set_auditlog_time_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    time_t curtime;
+    char local_time[75] = "";
+    struct tm tms;
+    int32_t retVal = LDAP_SUCCESS;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    /* validate the value */
+    curtime = slapi_current_utc_time();
+    (void)localtime_r(&curtime, &tms);
+    if (strftime(local_time, 75, value, &tms) == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is not a valid string format for strftime",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->auditlog_time_format);
+        slapdFrontendConfig->auditlog_time_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
 }
 
 int32_t
@@ -2299,6 +2359,66 @@ config_get_auditlog_display_attrs()
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapi_ch_strdup(slapdFrontendConfig->auditlog_display_attrs);
     CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_accesslog_log_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strcasecmp(value, "default") && strcasecmp(value, "json") && strcasecmp(value, "json-pretty")) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is invalid, the acceptable values "
+                              "are \"default\", \"json\", and \"json-pretty\"",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->accesslog_log_format);
+        slapdFrontendConfig->accesslog_log_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return LDAP_SUCCESS;
+}
+
+int32_t
+config_set_accesslog_time_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    time_t curtime;
+    char local_time[75] = "";
+    struct tm tms;
+    int32_t retVal = LDAP_SUCCESS;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    /* validate the value */
+    curtime = slapi_current_utc_time();
+    (void)localtime_r(&curtime, &tms);
+    if (strftime(local_time, 75, value, &tms) == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is not a valid string format for strftime",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->accesslog_time_format);
+        slapdFrontendConfig->accesslog_time_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
 
     return retVal;
 }
@@ -2346,7 +2466,6 @@ config_set_disk_threshold_readonly(const char *attrname, char *value, char *erro
                               errorbuf, apply);
     return retVal;
 }
-
 
 int
 config_set_disk_threshold(const char *attrname, char *value, char *errorbuf, int apply)
@@ -2715,7 +2834,7 @@ config_set_haproxy_trusted_ip(const char *attrname, struct berval **value, char 
         PL_strncasecmp((char *)value[0]->bv_val, HAPROXY_TRUSTED_IP_REMOVE_CMD, value[0]->bv_len) != 0) {
         for (size_t i = 0; value[i] != NULL; i++) {
             end = strspn(value[i]->bv_val, "0123456789:ABCDEFabcdef.*");
-            /* 
+            /*
             * If no valid characters are found, or if there are characters after the valid ones,
             * then print an error message and exit with LDAP_OPERATIONS_ERROR.
             */
@@ -5119,11 +5238,11 @@ config_set_num_listeners(const char *attrname, char *value, char *errorbuf, int 
     errno = 0;
     nValue = strtol(value, &endp, 0);
     if (*endp != '\0' || errno == ERANGE || nValue < minVal || nValue > maxVal) {
-        nValue = (nValue < minVal) ? minVal : maxVal;
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                                "%s: invalid value \"%s\", %s must range from %d to %d. "
-                                "Server will use a setting of %d.",
-                                CONFIG_NUM_LISTENERS_ATTRIBUTE, attrname, value, minVal, maxVal, nValue);
+                                "%s: invalid value \"%s\", %s must range from %d to %d.",
+                                CONFIG_NUM_LISTENERS_ATTRIBUTE, attrname, value, minVal, maxVal);
+        retVal = LDAP_UNWILLING_TO_PERFORM;
+        return retVal;
     }
 
     if (apply) {
@@ -6947,6 +7066,76 @@ config_get_auditfaillog_logging_enabled()
 }
 
 int
+config_get_auditlog_log_format()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *value;
+    int retVal;
+
+    /* map string value to int to avoid excessive freeing and duping */
+    CFG_LOCK_READ(slapdFrontendConfig);
+    value = slapdFrontendConfig->auditlog_log_format;
+    if (strcasecmp(value, "default") == 0) {
+        retVal = LOG_FORMAT_DEFAULT;
+    } else if (strcasecmp(value, "json") == 0) {
+        retVal = LOG_FORMAT_JSON;
+    } else {
+        retVal = LOG_FORMAT_JSON_PRETTY;
+    }
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+char *
+config_get_auditlog_time_format(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *ret;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    ret = config_copy_strval(slapdFrontendConfig->auditlog_time_format);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return ret;
+}
+
+int
+config_get_accesslog_log_format()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *value;
+    int retVal;
+
+    /* map string value to int to avoid excessive freeing and duping */
+    CFG_LOCK_READ(slapdFrontendConfig);
+    value = slapdFrontendConfig->accesslog_log_format;
+    if (strcasecmp(value, "default") == 0) {
+        retVal = LOG_FORMAT_DEFAULT;
+    } else if (strcasecmp(value, "json") == 0) {
+        retVal = LOG_FORMAT_JSON;
+    } else {
+        retVal = LOG_FORMAT_JSON_PRETTY;
+    }
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+char *
+config_get_accesslog_time_format(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *ret;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    ret = config_copy_strval(slapdFrontendConfig->accesslog_time_format);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return ret;
+}
+
+int
 config_get_accesslog_logging_enabled()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -7780,6 +7969,36 @@ config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf,
     retVal = config_set_onoff(attrname,
                               value,
                               &(slapdFrontendConfig->accesslogbuffering),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_errorlogbuffering(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->errorlogbuffering),
+                              errorbuf,
+                              apply);
+
+    return retVal;
+}
+
+int32_t
+config_set_auditlogbuffering(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname,
+                              value,
+                              &(slapdFrontendConfig->auditlogbuffering),
                               errorbuf,
                               apply);
 
@@ -9022,13 +9241,16 @@ static void
 config_set_value(
     Slapi_Entry *e,
     struct config_get_and_set *cgas,
-    void **value)
+    void *value)
 {
     struct berval **values = 0;
     char *sval = 0;
     int ival = 0;
     uintptr_t pval;
 
+    /* gcc -fanalyzer false postive with switch and type lenght */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-out-of-bounds"
     switch (cgas->config_var_type) {
     case CONFIG_ON_OFF: /* convert 0,1 to "off","on" */
         slapi_entry_attr_set_charptr(e, cgas->attr_name,
@@ -9081,7 +9303,7 @@ config_set_value(
     case CONFIG_SPECIAL_REFERRALLIST:
         /* referral list is already an array of berval* */
         if (value)
-            slapi_entry_attr_replace(e, cgas->attr_name, (struct berval **)*value);
+            slapi_entry_attr_replace(e, cgas->attr_name, *(struct berval ***)value);
         else
             slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
         break;
@@ -9089,7 +9311,7 @@ config_set_value(
     case CONFIG_SPECIAL_TRUSTED_IP_LIST:
         /* trusted IP list is already an array of berval* */
         if (value)
-            slapi_entry_attr_replace(e, cgas->attr_name, (struct berval **)*value);
+            slapi_entry_attr_replace(e, cgas->attr_name, *(struct berval ***)value);
         else
             slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
         break;
@@ -9248,6 +9470,7 @@ config_set_value(
         PR_ASSERT(0); /* something went horribly wrong . . . */
         break;
     }
+#pragma GCC diagnostic pop
 
     return;
 }
@@ -9276,7 +9499,7 @@ config_set_entry(Slapi_Entry *e)
     CFG_LOCK_READ(slapdFrontendConfig);
     for (ii = 0; ii < tablesize; ++ii) {
         struct config_get_and_set *cgas = &ConfigList[ii];
-        void **value = 0;
+        void *value = 0;
 
         PR_ASSERT(cgas);
         value = cgas->config_var_addr;
@@ -9299,7 +9522,7 @@ config_set_entry(Slapi_Entry *e)
         struct config_get_and_set *cgas = &ConfigList[ii];
         int ival = 0;
         long lval = 0;
-        void **value = NULL;
+        void *value = NULL;
         void *alloc_val = NULL;
         int needs_free = 0;
 
@@ -9316,10 +9539,10 @@ config_set_entry(Slapi_Entry *e)
         /* otherwise endianness problems will ensue */
         if (isInt(cgas->config_var_type)) {
             ival = (int)(intptr_t)(cgas->getfunc)();
-            value = (void **)&ival; /* value must be address of int */
+            value = &ival; /* value must be address of int */
         } else if (cgas->config_var_type == CONFIG_LONG) {
             lval = (long)(intptr_t)(cgas->getfunc)();
-            value = (void **)&lval; /* value must be address of long */
+            value = &lval; /* value must be address of long */
         } else {
             alloc_val = (cgas->getfunc)();
             value = &alloc_val; /* value must be address of pointer */
@@ -9331,9 +9554,9 @@ config_set_entry(Slapi_Entry *e)
 
         if (needs_free && value) { /* assumes memory allocated by slapi_ch_Xalloc */
             if (CONFIG_CHARRAY == cgas->config_var_type) {
-                charray_free((char **)*value);
+                charray_free(*(char ***)value);
             } else if (CONFIG_SPECIAL_REFERRALLIST == cgas->config_var_type) {
-                ber_bvecfree((struct berval **)*value);
+                ber_bvecfree(*(struct berval ***)value);
             } else if ((CONFIG_CONSTANT_INT != cgas->config_var_type) && /* do not free constants */
                        (CONFIG_CONSTANT_STRING != cgas->config_var_type)) {
                 slapi_ch_free(value);
@@ -9735,7 +9958,9 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be != NULL; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create backend dn string");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors",
+                          "Failed to create backend dn string\n");
+            slapi_ch_free_string(&cookie);
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9758,7 +9983,9 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create index dn string");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors",
+                          "Failed to create index dn string\n");
+            slapi_ch_free_string(&cookie);
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9784,7 +10011,7 @@ validate_num_config_reservedescriptors(void)
     /* If replication is enabled add replication descriptor constant, plus the number of enabled repl agmts */
     mt_str = slapi_get_mapping_tree_config_root();
     if (NULL == mt_str) {
-        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to get mapping tree config string");
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to get mapping tree config string\n");
         return -1;
     }
     search_pb = slapi_pblock_new();
@@ -9807,7 +10034,7 @@ validate_num_config_reservedescriptors(void)
     /* Get the operation connection limit from the default instance config */
     entry_str = slapi_create_dn_string("cn=default instance config,cn=chaining database,cn=plugins,cn=config");
     if (NULL == entry_str) {
-        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create default chaining config dn string");
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create default chaining config dn string\n");
         return -1;
     }
     slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9823,7 +10050,9 @@ validate_num_config_reservedescriptors(void)
     for (be = slapi_get_first_backend(&cookie); be; be = slapi_get_next_backend(cookie)) {
         entry_str = slapi_create_dn_string("cn=%s,cn=chaining database,cn=plugins,cn=config", be->be_name);
         if (NULL == entry_str) {
-            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create chaining be dn string");
+            slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors",
+                          "Failed to create chaining be dn string\n");
+            slapi_ch_free_string(&cookie);
             return -1;
         }
         slapi_sdn_init_dn_byref(&sdn, entry_str);
@@ -9845,7 +10074,7 @@ validate_num_config_reservedescriptors(void)
     /* If PTA is enabled add the pass through auth descriptor constant */
     entry_str = slapi_create_dn_string("cn=Pass Through Authentication,cn=plugins,cn=config");
     if (NULL == entry_str) {
-        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create PTA dn string");
+        slapi_log_err(SLAPI_LOG_ERR, "validate_num_config_reservedescriptors", "Failed to create PTA dn string\n");
         return -1;
     }
     slapi_sdn_init_dn_byref(&sdn, entry_str);

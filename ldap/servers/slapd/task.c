@@ -1120,7 +1120,7 @@ task_export_thread(void *arg)
 
     if (!ldif_file) {
         slapi_task_log_notice(task, "export failed (NULL ldif_file).");
-        slapi_log_err(SLAPI_LOG_ERR, "task_export_thread", "Export failed (NULL ldif_file).");
+        slapi_log_err(SLAPI_LOG_ERR, "task_export_thread", "Export failed (NULL ldif_file).\n");
         return;
     }
 
@@ -1962,6 +1962,7 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     const char *database_type = "ldbm database";
     const char *my_database_type = NULL;
     char *cookie = NULL;
+    char *seq_val = NULL;
 
     *returncode = LDAP_SUCCESS;
     if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
@@ -2030,7 +2031,7 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
         int32_t seq_type = SLAPI_UPGRADEDB_FORCE; /* force; reindex all regardless the dbversion */
         slapi_pblock_set(mypb, SLAPI_SEQ_TYPE, &seq_type);
     }
-    char *seq_val = slapi_ch_strdup(archive_dir);
+    seq_val = slapi_ch_strdup(archive_dir);
     slapi_pblock_set(pb, SLAPI_BACKEND_TASK, task);
     int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
@@ -2044,7 +2045,7 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
 out:
-    slapi_ch_free((void **)&seq_val);
+    slapi_ch_free_string(&seq_val);
     if (rv != 0) {
         if (task)
             destroy_task(1, task);

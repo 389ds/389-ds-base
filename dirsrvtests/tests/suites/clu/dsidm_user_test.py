@@ -185,8 +185,6 @@ def test_dsidm_user_get_rdn(topology_st, create_test_user):
     check_value_in_log_and_reset(topology_st, content_list=json_content)
 
 
-@pytest.mark.bz1893667
-@pytest.mark.xfail(reason="Will fail because of bz1893667")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_user_get_dn(topology_st, create_test_user):
     """ Test dsidm user get_dn option
@@ -194,17 +192,24 @@ def test_dsidm_user_get_dn(topology_st, create_test_user):
     :id: 787bf278-87c3-402e-936e-6161799d098d
     :setup: Standalone instance
     :steps:
-         1. Run dsidm user get_dn for created user
+         1. Run dsidm user get_dn for created user without json
          2. Check the output content is correct
+         3. Run dsidm user get_dn for created user with json
+         4. Check the output content os correct
     :expectedresults:
          1. Success
          2. Success
+         3. Success
+         4. Success
     """
 
     standalone = topology_st.standalone
     users = nsUserAccounts(standalone, DEFAULT_SUFFIX)
-    test_user = users.get('test_user_1000')
+    user_name = 'test_user_1000'
+    test_user = users.get(user_name)
+
     args = FakeArgs()
+    args.json = False
     args.dn = test_user.dn
 
     log.info('Empty the log file to prevent false data to check about user')
@@ -212,9 +217,12 @@ def test_dsidm_user_get_dn(topology_st, create_test_user):
 
     log.info('Test dsidm user get_dn without json')
     get_dn(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
-    # check_value_in_log_and_reset(topology_st, content_list=user_content)
-    # The check_value_in_log_and_reset will have to be updated accordinly after bz1893667 is fixed
-    # because now I can't determine the output
+    check_value_in_log_and_reset(topology_st, content_list=user_name)
+    
+    log.info('Test dsidm user get_dn with json')
+    args.json = True
+    get_dn(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, content_list=user_name)
 
 
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")

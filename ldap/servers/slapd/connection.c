@@ -40,20 +40,22 @@ static void log_ber_too_big_error(const Connection *conn,
 
 static PRStack *op_stack;     /* stack of Slapi_Operation * objects so we don't have to malloc/free every time */
 static PRInt32 op_stack_size; /* size of op_stack */
-
 struct Slapi_op_stack
 {
     PRStackElem stackelem; /* must be first in struct for PRStack to work */
     Slapi_Operation *op;
 };
 
-static void add_work_q(work_q_item *, struct Slapi_op_stack *);
-static work_q_item *get_work_q(struct Slapi_op_stack **);
+/* worker threads */
+static int32_t max_threads = 0;
+static int32_t *threads_indexes = NULL;
 
 /*
  * We maintain a global work queue of items that have not yet
  * been handed off to an operation thread.
  */
+static void add_work_q(work_q_item *, struct Slapi_op_stack *);
+static work_q_item *get_work_q(struct Slapi_op_stack **);
 struct Slapi_work_q
 {
     PRStackElem stackelem; /* must be first in struct for PRStack to work */
@@ -272,6 +274,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     char buf_destip[INET6_ADDRSTRLEN + 1] = {0};
     char *str_unknown = "unknown";
     int in_referral_mode = config_check_referral_mode();
+    int32_t log_format = config_get_accesslog_log_format();
 
     slapi_log_err(SLAPI_LOG_CONNS, "connection_reset", "new %sconnection on %d\n", pTmp, conn->c_sd);
 
@@ -406,11 +409,6 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
         ids_sasl_server_new(conn);
     }
 
-    /* log useful stuff to our access log */
-    slapi_log_access(LDAP_DEBUG_STATS,
-                     "conn=%" PRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
-                     conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip);
-
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
     conn->c_starttime = slapi_current_utc_time();  /* only used by the monitor */
@@ -423,6 +421,26 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     conn->c_local_ssf = 0;
     conn->c_ipaddr = slapi_ch_strdup(str_ip);
     conn->c_serveripaddr = slapi_ch_strdup(str_destip);
+
+    /* log useful stuff to our access log */
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock logpb = {0};
+
+        logpb.log_format = log_format;
+        logpb.conn_time = conn->c_starttime;
+        logpb.conn_id = conn->c_connid;
+        logpb.fd = conn->c_sd;
+        logpb.slot = ns;
+        logpb.client_ip = str_ip;
+        logpb.server_ip = str_destip;
+        logpb.using_tls = is_SSL ? PR_TRUE : PR_FALSE;
+        slapd_log_access_conn(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS,
+                         "conn=%" PRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
+                         conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip);
+
+    }
 }
 
 /* Create a pool of threads for handling the operations */
@@ -430,9 +448,7 @@ void
 init_op_threads()
 {
     pthread_condattr_t condAttr;
-    int32_t max_threads = config_get_threadnumber();
     int32_t rc;
-    int32_t *threads_indexes;
 
     /* Initialize the locks and cv */
     if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
@@ -463,13 +479,13 @@ init_op_threads()
     op_stack = PR_CreateStack("connection_operation");
     alloc_per_thread_snmp_vars(max_threads);
     init_thread_private_snmp_vars();
-    
 
+    max_threads = config_get_threadnumber();
     threads_indexes = (int32_t *) slapi_ch_calloc(max_threads, sizeof(int32_t));
     for (size_t i = 0; i < max_threads; i++) {
         threads_indexes[i] = i + 1; /* idx 0 is reserved for global snmp_vars */
     }
-    
+
     /* start the operation threads */
     for (size_t i = 0; i < max_threads; i++) {
         PR_SetConcurrency(4);
@@ -486,10 +502,14 @@ init_op_threads()
             g_incr_active_threadcnt();
         }
     }
-    /* Here we should free thread_indexes, but because of the dynamic of the new
-     * threads (connection_threadmain) we are not sure when it can be freed.
-     * Let's accept that unique initialization leak (typically 32 to 64 bytes)
-     */
+    /* We will free threads_indexes at the very end of slapd_daemon() */
+}
+
+/* Called at shutdown to silence ASAN and friends */
+void
+free_worker_thread_indexes()
+{
+    slapi_ch_free((void **)&threads_indexes);
 }
 
 static void
@@ -516,42 +536,57 @@ referral_mode_reply(Slapi_PBlock *pb)
 static int
 connection_need_new_password(const Connection *conn, const Operation *op, Slapi_PBlock *pb)
 {
-    int r = 0;
+    int32_t log_format = config_get_accesslog_log_format();
+    int rc = 0;
     /*
-        * add tag != LDAP_REQ_SEARCH to allow admin server 3.5 to do
+     * add tag != LDAP_REQ_SEARCH to allow admin server 3.5 to do
      * searches when the user needs to reset
      * the pw the first time logon.
-     * LP: 22 Dec 2000: Removing LDAP_REQ_SEARCH. It's very unlikely that AS 3.5 will
-     * be used to manage DS5.0
      */
 
     if (conn->c_needpw && op->o_tag != LDAP_REQ_MODIFY &&
         op->o_tag != LDAP_REQ_BIND && op->o_tag != LDAP_REQ_UNBIND &&
-        op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_EXTENDED) {
+        op->o_tag != LDAP_REQ_ABANDON && op->o_tag != LDAP_REQ_EXTENDED)
+    {
         slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",
-                         conn->c_connid, op->o_opid,
-                         "UNPROCESSED OPERATION - need new password");
+
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock logpb = {0};
+
+            logpb.log_format = log_format;
+            logpb.conn_time = conn->c_starttime;
+            logpb.conn_id = conn->c_connid;
+            logpb.op_id = op->o_opid;
+            logpb.request_controls = operation_get_req_controls(op);
+            logpb.result_controls = operation_get_result_controls(op);
+            logpb.msg = "UNPROCESSED OPERATION - need new password";
+            slapd_log_access_error(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d %s\n",
+                             conn->c_connid, op->o_opid,
+                             "UNPROCESSED OPERATION - need new password");
+        }
         send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM,
                          NULL, NULL, 0, NULL);
-        r = 1;
+        rc = 1;
     }
-    return r;
+    return rc;
 }
-
 
 static void
 connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
     int32_t minssf = conn->c_minssf;
     int32_t minssf_exclude_rootdse = conn->c_minssf_exclude_rootdse;
+    int32_t log_format = config_get_accesslog_log_format();
+
 #ifdef TCP_CORK
     int32_t enable_nagle = conn->c_enable_nagle;
     int32_t pop_cork = 0;
 #endif
 
     /* Set the connid and op_id to be used by internal op logging */
-    slapi_td_reset_internal_logging(conn->c_connid, op->o_opid);
+    slapi_td_reset_internal_logging(conn->c_connid, op->o_opid, conn->c_starttime);
 
     /* Get the effective key length now since the first SSL handshake should be complete */
     connection_set_ssl_ssf(conn);
@@ -582,12 +617,27 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
         (conn->c_sasl_ssf < minssf) && (conn->c_ssl_ssf < minssf) &&
         (conn->c_local_ssf < minssf) && (op->o_tag != LDAP_REQ_BIND) &&
         (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
-        (op->o_tag != LDAP_REQ_ABANDON)) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
-                         " - Insufficient SSF (local_ssf=%d sasl_ssf=%d ssl_ssf=%d)\n",
-                         conn->c_connid, op->o_opid, conn->c_local_ssf,
-                         conn->c_sasl_ssf, conn->c_ssl_ssf);
+        (op->o_tag != LDAP_REQ_ABANDON))
+    {
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock logpb = {0};
+            logpb.log_format = log_format;
+            logpb.conn_time = conn->c_starttime;
+            logpb.conn_id = conn->c_connid;
+            logpb.op_id = op->o_opid;
+            logpb.local_ssf = conn->c_local_ssf;
+            logpb.ssl_ssf = conn->c_ssl_ssf;
+            logpb.sasl_ssf = conn->c_sasl_ssf;
+            logpb.msg = "UNPROCESSED OPERATION - Insufficient SSF";
+            slapd_log_access_ssf_error(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
+                             " - Insufficient SSF (local_ssf=%d sasl_ssf=%d ssl_ssf=%d)\n",
+                             conn->c_connid, op->o_opid, conn->c_local_ssf,
+                             conn->c_sasl_ssf, conn->c_ssl_ssf);
+        }
+
         send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
                          "Minimum SSF not met.", 0, NULL);
         return;
@@ -610,11 +660,23 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
          /* root DSE access only and something other than BIND, EXTOP, UNBIND, ABANDON, or SEARCH */
          ((conn->c_anon_access == SLAPD_ANON_ACCESS_ROOTDSE) && (op->o_tag != LDAP_REQ_BIND) &&
           (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
-          (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH)))) {
-        slapi_log_access(LDAP_DEBUG_STATS,
-                         "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
-                         " - Anonymous access not allowed\n",
-                         conn->c_connid, op->o_opid);
+          (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH))))
+    {
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            slapd_log_pblock logpb = {0};
+
+            logpb.log_format = log_format;
+            logpb.conn_time = conn->c_starttime;
+            logpb.conn_id = conn->c_connid;
+            logpb.op_id = op->o_opid;
+            logpb.msg = "UNPROCESSED OPERATION - Anonymous access not allowed";
+            slapd_log_access_error(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                             "conn=%" PRIu64 " op=%d UNPROCESSED OPERATION"
+                             " - Anonymous access not allowed\n",
+                             conn->c_connid, op->o_opid);
+        }
 
         send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL,
                          "Anonymous access is not allowed.",
@@ -1187,8 +1249,11 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     char str_ip[INET6_ADDRSTRLEN + 1] = {0};
     char str_haproxy_ip[INET6_ADDRSTRLEN + 1] = {0};
     char str_haproxy_destip[INET6_ADDRSTRLEN + 1] = {0};
+    int trusted_matches_ip_found = 0;
+    int trusted_matches_destip_found = 0;
     struct berval **bvals = NULL;
     int proxy_connection = 0;
+    int32_t log_format = config_get_accesslog_log_format();
 
     pthread_mutex_lock(&(conn->c_mutex));
     /*
@@ -1225,7 +1290,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
             /* Process HAProxy header */
             if (conn->c_haproxyheader_read == 0) {
                 conn->c_haproxyheader_read = 1;
-                /* 
+                /*
                 * We only check for HAProxy header if nsslapd-haproxy-trusted-ip is configured.
                 * If it is we proceed with the connection only if it's comming from trusted
                 * proxy server with correct and complete header.
@@ -1245,21 +1310,38 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         normalize_IPv4(conn->cin_addr, buf_ip, sizeof(buf_ip), str_ip, sizeof(str_ip));
                         normalize_IPv4(&pr_netaddr_dest, buf_haproxy_destip, sizeof(buf_haproxy_destip),
                                        str_haproxy_destip, sizeof(str_haproxy_destip));
+                        size_t ip_len = strlen(buf_ip);
+                        size_t destip_len = strlen(buf_haproxy_destip);
 
                         /* Now, reset RC and set it to 0 only if a match is found */
                         haproxy_rc = -1;
 
-                        /* Allow only:
-                        * Trusted IP == Original Client IP == HAProxy Header Destination IP */
+                        /*
+                         * We need to allow a configuration where DS instance and HAProxy are on the same machine.
+                         * In this case, we need to check if
+                         * the HAProxy client IP (which will be a loopback address) matches one of the the trusted IP addresses,
+                         * while still checking that
+                         * the HAProxy header destination IP address matches one of the trusted IP addresses.
+                         * Additionally, this change will also allow configuration having
+                         * HAProxy listening on a different subnet than one used to forward the request.
+                         */
                         for (size_t i = 0; bvals[i] != NULL; ++i) {
-                            if ((strlen(bvals[i]->bv_val) == strlen(buf_ip)) &&
-                                (strlen(bvals[i]->bv_val) == strlen(buf_haproxy_destip)) &&
-                                (strncasecmp(bvals[i]->bv_val, buf_ip, strlen(buf_ip)) == 0) &&
-                                (strncasecmp(bvals[i]->bv_val, buf_haproxy_destip, strlen(buf_haproxy_destip)) == 0)) {
-                                haproxy_rc = 0;
-                                break;
+                            size_t bval_len = strlen(bvals[i]->bv_val);
+
+                            /* Check if the Client IP (HAProxy's machine IP) address matches the trusted IP address */
+                            if (!trusted_matches_ip_found) {
+                                trusted_matches_ip_found = (bval_len == ip_len) && (strncasecmp(bvals[i]->bv_val, buf_ip, ip_len) == 0);
+                            }
+                            /* Check if the HAProxy header destination IP address matches the trusted IP address */
+                            if (!trusted_matches_destip_found) {
+                                trusted_matches_destip_found = (bval_len == destip_len) && (strncasecmp(bvals[i]->bv_val, buf_haproxy_destip, destip_len) == 0);
                             }
                         }
+
+                        if (trusted_matches_ip_found && trusted_matches_destip_found) {
+                            haproxy_rc = 0;
+                        }
+
                         if (haproxy_rc == -1) {
                             slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation", "HAProxy header received from unknown source.\n");
                             disconnect_server_nomutex(conn, conn->c_connid, -1, SLAPD_DISCONNECT_PROXY_UNKNOWN, EPROTO);
@@ -1278,9 +1360,23 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                         memcpy(conn->cin_destaddr, &pr_netaddr_dest, sizeof(PRNetAddr));
                         conn->c_ipaddr = slapi_ch_strdup(str_haproxy_ip);
                         conn->c_serveripaddr = slapi_ch_strdup(str_haproxy_destip);
-                        slapi_log_access(LDAP_DEBUG_STATS,
-                                         "conn=%" PRIu64 " fd=%d HAProxy new_address_from=%s to new_address_dest=%s\n",
-                                         conn->c_connid, conn->c_sd, str_haproxy_ip, str_haproxy_destip);
+                        conn->c_hapoxied = PR_TRUE;
+
+                        if (log_format != LOG_FORMAT_DEFAULT) {
+                            slapd_log_pblock logpb = {0};
+
+                            logpb.log_format = log_format;
+                            logpb.conn_time = conn->c_starttime;
+                            logpb.conn_id =conn->c_connid;
+                            logpb.fd = conn->c_sd;
+                            logpb.haproxy_ip = str_haproxy_ip;
+                            logpb.haproxy_destip = str_haproxy_destip;
+                            slapd_log_access_haproxy(&logpb);
+                        } else {
+                            slapi_log_access(LDAP_DEBUG_STATS,
+                                             "conn=%" PRIu64 " fd=%d HAProxy new_address_from=%s to new_address_dest=%s\n",
+                                              conn->c_connid, conn->c_sd, str_haproxy_ip, str_haproxy_destip);
+                        }
                         slapi_log_security_tcp(conn, SECURITY_HAPROXY_SUCCESS, 0, "");
                     }
                 }
@@ -2179,6 +2275,7 @@ connection_add_operation(Connection *conn, Operation *op)
     *tmp = op;
     op->o_opid = id;
     op->o_connid = connid;
+    op->o_conn_starttime = conn->c_starttime;
     /* Call the plugin extension constructors */
     op->o_extension = factory_create_extension(get_operation_object_type(), op, conn);
 }
@@ -2378,6 +2475,9 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
          conn->c_connid == opconnid) &&
         !(conn->c_flags & CONN_FLAG_CLOSING))
     {
+        int32_t log_format = config_get_accesslog_log_format();
+        slapd_log_pblock logpb = {0};
+
         slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext",
                 "Setting conn %" PRIu64 " fd=%d to be disconnected: reason %d\n",
                 conn->c_connid, conn->c_sd, reason);
@@ -2398,17 +2498,35 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
         conn->c_flags |= CONN_FLAG_CLOSING;
         g_decrement_current_conn_count();
 
+        logpb.log_format = log_format;
+        logpb.conn_time = conn->c_starttime;
+        logpb.conn_id = conn->c_connid;
+        logpb.op_id = opid;
+        logpb.fd = conn->c_sd;
+        logpb.close_reason = slapd_pr_strerror(reason);
+
         if(error) {
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s - %s\n",
-                             conn->c_connid, opid, conn->c_sd,
-                             slapd_system_strerror(error),
-                             slapd_pr_strerror(reason));
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.close_error = slapd_system_strerror(error);
+                slapd_log_access_close(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                                 "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s - %s\n",
+                                 conn->c_connid, opid, conn->c_sd,
+                                 slapd_system_strerror(error),
+                                 slapd_pr_strerror(reason));
+            }
+
         } else {
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s\n",
-                             conn->c_connid, opid, conn->c_sd,
-                             slapd_pr_strerror(reason));
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_access_close(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                                 "conn=%" PRIu64 " op=%d fd=%d Disconnect - %s\n",
+                                 conn->c_connid, opid, conn->c_sd,
+                                 slapd_pr_strerror(reason));
+            }
+
         }
         slapi_log_security_tcp(conn, SECURITY_TCP_ERROR, reason, slapd_pr_strerror(reason));
 
@@ -2440,7 +2558,6 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                 }
             }
         }
-
     } else {
         slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext",
                 "Not setting conn %d to be disconnected: %s\n",

@@ -1,34 +1,58 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    Bullseye,
-    Button,
-    Card, CardBody, CardTitle,
-    Checkbox,
-    Divider,
-    Drawer, DrawerPanelContent, DrawerContent,
-    DrawerContentBody, DrawerHead,
-    DrawerActions, DrawerCloseButton,
-    DualListSelector,
-    Form, FormHelperText, FormSelect, FormSelectOption,
-    Grid, GridItem,
-    HelperText, HelperTextItem,
-    Modal, ModalVariant,
-    SearchInput,
-    Select, SelectOption, SelectVariant,
-    Spinner,
-    Text, TextArea, TextContent, TextInput, TextVariants,
-    TimePicker,
-    Tooltip,
-    ValidatedOptions,
-    Wizard,
+	Alert,
+	Bullseye,
+	Button,
+	Card,
+	CardBody,
+	CardTitle,
+	Checkbox,
+	Divider,
+	Drawer,
+	DrawerPanelContent,
+	DrawerContent,
+	DrawerContentBody,
+	DrawerHead,
+	DrawerActions,
+	DrawerCloseButton,
+	DualListSelector,
+	Form,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	HelperText,
+	HelperTextItem,
+	Modal,
+	ModalVariant,
+	SearchInput,
+	Spinner,
+	Text,
+	TextArea,
+	TextContent,
+	TextInput,
+	TextVariants,
+	TimePicker,
+	Tooltip,
+	ValidatedOptions
 } from '@patternfly/react-core';
 import {
+	Select,
+	SelectOption,
+	SelectVariant,
+	Wizard
+} from '@patternfly/react-core/deprecated';
+import {
     Table,
-    TableHeader,
-    TableBody,
-    sortable,
+    Thead,
+    Tbody,
+    Tr,
+    Th,
+    Td,
+	sortable,
+    ActionsColumn
 } from '@patternfly/react-table';
 import {
     getSearchEntries, getAttributesNameAndOid,
@@ -338,7 +362,7 @@ class AddNewAci extends React.Component {
         this.targetsDrawerRef = React.createRef();
 
         // Target attr operator
-        this.handleToggleTargetAttrOp = isOpenTargetAttrOperator => {
+        this.handleToggleTargetAttrOp = (_event, isOpenTargetAttrOperator) => {
             this.setState({
                 isOpenTargetAttrOperator
             });
@@ -351,7 +375,7 @@ class AddNewAci extends React.Component {
         };
 
         // rights
-        this.handleToggleRights = isOpenRights => {
+        this.handleToggleRights = (_event, isOpenRights) => {
             this.setState({
                 isOpenRights
             });
@@ -471,13 +495,16 @@ class AddNewAci extends React.Component {
         this.handleRightsOnSelect = (event, isSelected, rowId) => {
             let rows;
             if (rowId === -1) {
-                rows = this.state.rightsRows.map(oneRow => {
-                    oneRow.selected = isSelected;
-                    return oneRow;
-                });
+                rows = this.state.rightsRows.map(oneRow => ({
+                    ...oneRow,
+                    selected: isSelected
+                }));
             } else {
                 rows = [...this.state.rightsRows];
-                rows[rowId].selected = isSelected;
+                rows[rowId] = {
+                    ...rows[rowId],
+                    selected: isSelected
+                };
             }
             this.setState({
                 rightsRows: rows
@@ -497,7 +524,7 @@ class AddNewAci extends React.Component {
             return noDuplicates;
         };
 
-        this.handleUsersOnListChange = (newAvailableOptions, newChosenOptions) => {
+        this.handleUsersOnListChange = (_event, newAvailableOptions, newChosenOptions) => {
             const newAvailNoDups = this.removeDuplicates(newAvailableOptions);
             const newChosenNoDups = this.removeDuplicates(newChosenOptions);
 
@@ -597,7 +624,7 @@ class AddNewAci extends React.Component {
             });
         };
 
-        this.handleTextChange = (value) => {
+        this.handleTextChange = (_event, value) => {
             this.setState({
                 aciTextNew: value,
             });
@@ -772,7 +799,7 @@ class AddNewAci extends React.Component {
                             id="newAciName"
                             value={newAciName}
                             type="text"
-                            onChange={(str, e) => { this.handleChange(e) }}
+                            onChange={(e, str) => { this.handleChange(e) }}
                             aria-label="Text input ACI name"
                             autoComplete="off"
                         />
@@ -789,7 +816,7 @@ class AddNewAci extends React.Component {
                             id="target"
                             value={target}
                             type="text"
-                            onChange={(str, e) => { this.handleChange(e) }}
+                            onChange={(e, str) => { this.handleChange(e) }}
                             aria-label="Text input ACI target"
                             autoComplete="off"
                         />
@@ -832,7 +859,7 @@ class AddNewAci extends React.Component {
                     chosenOptions={usersChosenOptions}
                     availableOptionsTitle={_("Available Entries")}
                     chosenOptionsTitle={_("Chosen Entries")}
-                    onListChange={this.handleUsersOnListChange}
+                    onListChange={(event, newAvailableOptions, newChosenOptions) => this.handleUsersOnListChange(event, newAvailableOptions, newChosenOptions)}
                     id="usersSelector"
                     className="ds-aci-dual-select"
                 />
@@ -902,7 +929,7 @@ class AddNewAci extends React.Component {
                     className="ds-margin-top-lg"
                     variant="primary"
                     onClick={this.handleOpenAddBindRule}
-                    isSmall
+                    size="sm"
                 >
                     {_("Add Bind Rule")}
                 </Button>
@@ -912,7 +939,8 @@ class AddNewAci extends React.Component {
         const rightsComponent = (
             <>
                 <TextContent>
-                    <Text component={TextVariants.h3}>{_("Choose the Rights to Allow or Deny")}
+                    <Text component={TextVariants.h3}>
+                        {_("Choose the Rights to Allow or Deny")}
                         <Tooltip
                             position="bottom"
                             content={
@@ -931,7 +959,7 @@ class AddNewAci extends React.Component {
                     variant={SelectVariant.single}
                     className="ds-margin-top-lg"
                     aria-label="Select rights"
-                    onToggle={this.handleToggleRights}
+                    onToggle={(event, isOpen) => this.handleToggleRights(event, isOpen)}
                     onSelect={this.handleSelectRights}
                     selections={this.state.rightType}
                     isOpen={this.state.isOpenRights}
@@ -939,17 +967,35 @@ class AddNewAci extends React.Component {
                     <SelectOption key="allow" value="allow" />
                     <SelectOption key="deny" value="deny" />
                 </Select>
-                <Table
-                    onSelect={this.handleRightsOnSelect}
+                <Table 
                     aria-label="Selectable Table User Rights"
-                    cells={this.rightsColumns}
-                    rows={rightsRows}
                     variant="compact"
                     borders={false}
                     className="ds-margin-top-lg"
                 >
-                    <TableHeader />
-                    <TableBody />
+                    <Thead>
+                        <Tr>
+                            {this.rightsColumns.map((column, columnIndex) => (
+                                <Th key={columnIndex}>{column.title}</Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {rightsRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td>
+                                    <Checkbox
+                                        id={`rights-checkbox-${rowIndex}`}
+                                        isChecked={row.selected}
+                                        onChange={(checked) => this.handleRightsOnSelect(null, checked, rowIndex)}
+                                        aria-label={`Select ${row.cells[0]}`}
+                                    />
+                                    {row.cells[0]}
+                                </Td>
+                                <Td>{row.cells[1]}</Td>
+                            </Tr>
+                        ))}
+                    </Tbody>
                 </Table>
             </>
         );
@@ -981,7 +1027,7 @@ class AddNewAci extends React.Component {
                         <Select
                             variant={SelectVariant.single}
                             aria-label="Select auth compare operator"
-                            onToggle={this.handleToggleTargetAttrOp}
+                            onToggle={(event, isOpen) => this.handleToggleTargetAttrOp(event, isOpen)}
                             onSelect={this.handleSelectTargetAttrOp}
                             selections={this.state.targetAttrCompOp}
                             isOpen={this.state.isOpenTargetAttrOperator}
@@ -1037,11 +1083,11 @@ class AddNewAci extends React.Component {
                             <TextInput
                                 id="targetFilter"
                                 aria-label="Add target filter"
-                                onChange={(str, e) => { this.handleChange(e) }}
+                                onChange={(e, str) => { this.handleChange(e) }}
                                 value={targetFilter}
                                 validated={targetFilter !== "" && !valid_filter(targetFilter) ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={targetFilter === "" || valid_filter(targetFilter)}>
+                            <FormHelperText  >
                                 {_("The filter must be enclosed with parentheses")}
                             </FormHelperText>
                         </GridItem>
@@ -1077,11 +1123,11 @@ class AddNewAci extends React.Component {
                             <TextInput
                                 id="target_from"
                                 aria-label="Add target_from"
-                                onChange={(str, e) => { this.handleChange(e) }}
+                                onChange={(e, str) => { this.handleChange(e) }}
                                 value={target_from}
                                 validated={target_from !== "" && !isValidLDAPUrl(target_from) ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={target_from === "" || isValidLDAPUrl(target_from)}>
+                            <FormHelperText  >
                                 {_("The LDAP URL must start with 'ldap:///'")}
                             </FormHelperText>
                         </GridItem>
@@ -1092,11 +1138,11 @@ class AddNewAci extends React.Component {
                             <TextInput
                                 id="target_to"
                                 aria-label="Add target_to"
-                                onChange={(str, e) => { this.handleChange(e) }}
+                                onChange={(e, str) => { this.handleChange(e) }}
                                 value={target_to}
                                 validated={target_to !== "" && !isValidLDAPUrl(target_to) ? ValidatedOptions.error : ValidatedOptions.default}
                             />
-                            <FormHelperText isError isHidden={target_to === "" || isValidLDAPUrl(target_to)}>
+                            <FormHelperText  >
                                 {_('The LDAP URL must start with "ldap:///"')}
                             </FormHelperText>
                         </GridItem>
@@ -1133,7 +1179,7 @@ class AddNewAci extends React.Component {
                         className=""
                         label={_("Sunday")}
                         isChecked={this.state.sunday}
-                        onChange={(checked, e) => this.handleChange(e)}
+                        onChange={(e, checked) => this.handleChange(e)}
                         aria-label="Sunday"
                         id="sunday"
                     />
@@ -1141,7 +1187,7 @@ class AddNewAci extends React.Component {
                         className=""
                         label={_("Monday")}
                         isChecked={this.state.monday}
-                        onChange={(checked, e) => this.handleChange(e)}
+                        onChange={(e, checked) => this.handleChange(e)}
                         aria-label="monday"
                         id="monday"
                     />
@@ -1149,7 +1195,7 @@ class AddNewAci extends React.Component {
                         className=""
                         label={_("Tuesday")}
                         isChecked={this.state.tuesday}
-                        onChange={(checked, e) => this.handleChange(e)}
+                        onChange={(e, checked) => this.handleChange(e)}
                         aria-label="Tuesday"
                         id="tuesday"
                     />
@@ -1157,7 +1203,7 @@ class AddNewAci extends React.Component {
                         className=""
                         label={_("Wednesday")}
                         isChecked={this.state.wednesday}
-                        onChange={(checked, e) => this.handleChange(e)}
+                        onChange={(e, checked) => this.handleChange(e)}
                         aria-label="wednesday"
                         id="wednesday"
                     />
@@ -1165,7 +1211,7 @@ class AddNewAci extends React.Component {
                         className=""
                         label={_("Thursday")}
                         isChecked={this.state.thursday}
-                        onChange={(checked, e) => this.handleChange(e)}
+                        onChange={(e, checked) => this.handleChange(e)}
                         aria-label="thursday"
                         id="thursday"
                     />
@@ -1173,7 +1219,7 @@ class AddNewAci extends React.Component {
                         className=""
                         label={_("Friday")}
                         isChecked={this.state.friday}
-                        onChange={(checked, e) => this.handleChange(e)}
+                        onChange={(e, checked) => this.handleChange(e)}
                         aria-label="friday"
                         id="friday"
                     />
@@ -1181,7 +1227,7 @@ class AddNewAci extends React.Component {
                         className=""
                         label={_("Saturday")}
                         isChecked={this.state.saturday}
-                        onChange={(checked, e) => this.handleChange(e)}
+                        onChange={(e, checked) => this.handleChange(e)}
                         aria-label="saturday"
                         id="saturday"
                     />
@@ -1200,7 +1246,7 @@ class AddNewAci extends React.Component {
                         <FormSelect
                             id="timeStartCompOp"
                             value={this.state.timeStartCompOp}
-                            onChange={(str, e) => { this.handleChange(e) }}
+                            onChange={(e, str) => { this.handleChange(e) }}
                             aria-label="FormSelect Input"
                         >
                             <FormSelectOption key="=" label="=" value="=" />
@@ -1228,7 +1274,7 @@ class AddNewAci extends React.Component {
                         <FormSelect
                             id="timeEndCompOp"
                             value={this.state.timeEndCompOp}
-                            onChange={(str, e) => { this.handleChange(e) }}
+                            onChange={(e, str) => { this.handleChange(e) }}
                             aria-label="FormSelect Input"
                         >
                             <FormSelectOption key="=" label="=" value="=" />
@@ -1274,7 +1320,7 @@ class AddNewAci extends React.Component {
                             className="ds-textarea"
                             id="aciTextNew"
                             value={aciTextNew}
-                            onChange={this.handleTextChange}
+                            onChange={(event, str) => this.handleTextChange(event, str)}
                             aria-label="aci text edit area"
                             autoResize
                             resizeOrientation="vertical"
@@ -1285,7 +1331,7 @@ class AddNewAci extends React.Component {
                             variant="primary"
                             onClick={this.handleResetACIText}
                             isDisabled={aciText === aciTextNew}
-                            isSmall
+                            size="sm"
                         >
                             {_("Undo Changes")}
                         </Button>
@@ -1442,7 +1488,7 @@ class AddNewAci extends React.Component {
                             {_("Choose Bind Rule")}
                         </GridItem>
                         <GridItem span={9}>
-                            <FormSelect id="bindRuleType" value={bindRuleType} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                            <FormSelect id="bindRuleType" value={bindRuleType} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                 { this.state.specialSelection === "" && !this.state.haveUserAttrRules &&
                                     <>
                                         <FormSelectOption key="userdn" label={_("User DN (userdn)")} value="userdn" title={_("Bind rules for user entries")} />
@@ -1450,7 +1496,7 @@ class AddNewAci extends React.Component {
                                         <FormSelectOption key="roledn" label={_("Role DN (roledn)")} value="roledn" title={_("Bind rules for Roles")} />
                                     </>}
                                 {!this.state.haveUserRules && !this.state.haveUserAttrRules &&
-                                    <FormSelectOption key="special" label={_("User DN Aliases (userdn)")} value="User DN Aliases" title={_("Special bind rules for user DN catagories")} />}
+                                    <FormSelectOption key="special" label={_("User DN Aliases (userdn)")} value="User DN Aliases" title={_("Special bind rules for user DN categories")} />}
                                 {!this.state.haveUserRules && !this.state.haveUserAttrRules &&
                                     <FormSelectOption key="userattr" label={_("User Attribute (userattr)")} value="userattr" title={_("Bind rule to specify which attribute must match between the entry used to bind to the directory and the targeted entry")} />}
                                 <FormSelectOption key="authmethod" label={_("Authentication Method (authmethod)")} value="authmethod" title={_("Specify the authentication methods to restrict")} />
@@ -1467,7 +1513,7 @@ class AddNewAci extends React.Component {
                                 {_("Select Alias URL")}
                             </GridItem>
                             <GridItem span={9}>
-                                <FormSelect id="specialSelection" value={this.state.specialSelection} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                                <FormSelect id="specialSelection" value={this.state.specialSelection} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                     <FormSelectOption key="anyone" label={_("ldap:///anyone")} value="ldap:///anyone" title={_("Grants Anonymous Access")} />
                                     <FormSelectOption key="all" label={_("ldap:///all")} value="ldap:///all" title={_("Grants Access to Authenticated Users")} />
                                     <FormSelectOption key="self" label={_("ldap:///self")} value="ldap:///self" title={_("Enables Users to Access Their Own Entries")} />
@@ -1483,7 +1529,7 @@ class AddNewAci extends React.Component {
                                     {_("Choose Comparator")}
                                 </GridItem>
                                 <GridItem span={9}>
-                                    <FormSelect id="bindRuleOperator" value={bindRuleType} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                                    <FormSelect id="bindRuleOperator" value={bindRuleType} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                         <FormSelectOption key="=" label="=" value="=" />
                                         <FormSelectOption key="!=" label="!=" value="!=" />
                                     </FormSelect>
@@ -1502,7 +1548,7 @@ class AddNewAci extends React.Component {
                                     {_("IP Address")}
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <FormSelect id="ipOperator" value={this.state.ipOperator} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                                    <FormSelect id="ipOperator" value={this.state.ipOperator} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                         <FormSelectOption key="=" label="=" value="=" />
                                         <FormSelectOption key="!=" label="!=" value="!=" />
                                     </FormSelect>
@@ -1511,7 +1557,7 @@ class AddNewAci extends React.Component {
                                     <TextInput
                                         id="ip"
                                         aria-label="Add IP restriction"
-                                        onChange={(str, e) => { this.handleChange(e) }}
+                                        onChange={(e, str) => { this.handleChange(e) }}
                                         value={ip}
                                         autoComplete="off"
                                         validated={ip === "" || (ip !== "" && !isValidIpAddress(ip)) ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1531,7 +1577,7 @@ class AddNewAci extends React.Component {
                                     {_("Hostname")}
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <FormSelect id="dnsOperator" value={this.state.dnsOperator} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                                    <FormSelect id="dnsOperator" value={this.state.dnsOperator} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                         <FormSelectOption key="=" label="=" value="=" />
                                         <FormSelectOption key="!=" label="!=" value="!=" />
                                     </FormSelect>
@@ -1540,7 +1586,7 @@ class AddNewAci extends React.Component {
                                     <TextInput
                                         id="dns"
                                         aria-label="Add Hostname restriction"
-                                        onChange={(str, e) => { this.handleChange(e) }}
+                                        onChange={(e, str) => { this.handleChange(e) }}
                                         value={dns}
                                         validated={dns === "" || (dns !== "" && !isValidHostname(dns)) ? ValidatedOptions.error : ValidatedOptions.default}
                                         autoComplete="off"
@@ -1562,7 +1608,7 @@ class AddNewAci extends React.Component {
                                 <FormSelect
                                     id="authMethodOperator"
                                     value={this.state.authMethodOperator}
-                                    onChange={(str, e) => { this.handleChange(e) }}
+                                    onChange={(e, str) => { this.handleChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     <FormSelectOption key="=" label="=" value="=" />
@@ -1570,7 +1616,7 @@ class AddNewAci extends React.Component {
                                 </FormSelect>
                             </GridItem>
                             <GridItem span={7} className="ds-left-margin">
-                                <FormSelect id="authmethod" value={this.state.authmethod} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                                <FormSelect id="authmethod" value={this.state.authmethod} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                     <FormSelectOption key="none" value="none" label="none" />
                                     <FormSelectOption key="simple" value="simple" label="simple" />
                                     <FormSelectOption key="SSL" value="SSL" label="SSL" />
@@ -1588,7 +1634,7 @@ class AddNewAci extends React.Component {
                                 <FormSelect
                                     id="ssfOperator"
                                     value={this.state.ssfOperator}
-                                    onChange={(str, e) => { this.handleChange(e) }}
+                                    onChange={(e, str) => { this.handleChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     <FormSelectOption key="=" label="=" value="=" />
@@ -1603,7 +1649,7 @@ class AddNewAci extends React.Component {
                                 <FormSelect
                                     id="ssf"
                                     value={this.state.ssf}
-                                    onChange={(str, e) => { this.handleChange(e) }}
+                                    onChange={(e, str) => { this.handleChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     <FormSelectOption key="0" label="0" value="0" title={_("No connection security restrictions")} />
@@ -1622,7 +1668,7 @@ class AddNewAci extends React.Component {
                                 <FormSelect
                                     id="userattrOperator"
                                     value={this.state.userattrOperator}
-                                    onChange={(str, e) => { this.handleChange(e) }}
+                                    onChange={(e, str) => { this.handleChange(e) }}
                                     aria-label="FormSelect Input"
                                 >
                                     <FormSelectOption key="=" label="=" value="=" />
@@ -1630,7 +1676,7 @@ class AddNewAci extends React.Component {
                                 </FormSelect>
                             </GridItem>
                             <GridItem span={5} className="ds-left-margin">
-                                <FormSelect id="userattrAttr" value={this.state.userattrAttr} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                                <FormSelect id="userattrAttr" value={this.state.userattrAttr} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                     <FormSelectOption value="" label={_("Select an attribute")} isPlaceholder />
                                     {this.state.attributeList.map((attr, index) => (
                                         <FormSelectOption key={attr} value={attr} label={attr} />
@@ -1638,7 +1684,7 @@ class AddNewAci extends React.Component {
                                 </FormSelect>
                             </GridItem>
                             <GridItem span={2} className="ds-left-margin">
-                                <FormSelect id="userattrBindType" value={this.state.userattrBindType} onChange={(str, e) => { this.handleChange(e) }} aria-label="FormSelect Input">
+                                <FormSelect id="userattrBindType" value={this.state.userattrBindType} onChange={(e, str) => { this.handleChange(e) }} aria-label="FormSelect Input">
                                     <FormSelectOption key="USERDN" value="USERDN" label="USERDN" />
                                     <FormSelectOption key="GROUPDN" value="GROUPDN" label="GROUPDN" />
                                     <FormSelectOption key="ROLEDN" value="ROLEDN" label="ROLEDN" />
@@ -1655,7 +1701,7 @@ class AddNewAci extends React.Component {
                                     className=""
                                     label="0"
                                     isChecked={this.state.userAttrParent0}
-                                    onChange={(checked, e) => this.handleChange(e)}
+                                    onChange={(e, checked) => this.handleChange(e)}
                                     aria-label="0"
                                     id="userAttrParent0"
                                     title={_("Default value, this userattr bind rule only applies to the target entry (no child entries).")}
@@ -1664,7 +1710,7 @@ class AddNewAci extends React.Component {
                                     className=""
                                     label="1"
                                     isChecked={this.state.userAttrParent1}
-                                    onChange={(checked, e) => this.handleChange(e)}
+                                    onChange={(e, checked) => this.handleChange(e)}
                                     aria-label="1"
                                     id="userAttrParent1"
                                 />
@@ -1672,7 +1718,7 @@ class AddNewAci extends React.Component {
                                     className=""
                                     label="2"
                                     isChecked={this.state.userAttrParent2}
-                                    onChange={(checked, e) => this.handleChange(e)}
+                                    onChange={(e, checked) => this.handleChange(e)}
                                     aria-label="2"
                                     id="userAttrParent2"
                                 />
@@ -1680,7 +1726,7 @@ class AddNewAci extends React.Component {
                                     className=""
                                     label="3"
                                     isChecked={this.state.userAttrParent3}
-                                    onChange={(checked, e) => this.handleChange(e)}
+                                    onChange={(e, checked) => this.handleChange(e)}
                                     aria-label="3"
                                     id="userAttrParent3"
                                 />
@@ -1688,7 +1734,7 @@ class AddNewAci extends React.Component {
                                     className=""
                                     label="4"
                                     isChecked={this.state.userAttrParent4}
-                                    onChange={(checked, e) => this.handleChange(e)}
+                                    onChange={(e, checked) => this.handleChange(e)}
                                     aria-label="4"
                                     id="userAttrParent4"
                                 />

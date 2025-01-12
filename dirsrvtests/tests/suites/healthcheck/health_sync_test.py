@@ -58,8 +58,6 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
 
 
 # This test is in separate file because it is timeout specific
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 #unstable or unstatus tests, skipped for now
 @pytest.mark.flaky(max_runs=2, min_passes=1)

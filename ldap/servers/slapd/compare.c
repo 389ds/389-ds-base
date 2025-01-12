@@ -44,6 +44,7 @@ do_compare(Slapi_PBlock *pb)
     Slapi_DN sdn;
     Slapi_Entry *referral = NULL;
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+    int32_t log_format = config_get_accesslog_log_format();
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_compare", "=>\n");
 
@@ -128,9 +129,18 @@ do_compare(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_ARGS, "do_compare: dn (%s) attr (%s)\n",
                   rawdn, ava.ava_type, 0);
 
-    slapi_log_access(LDAP_DEBUG_STATS,
-                     "conn=%" PRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
-                     pb_conn->c_connid, pb_op->o_opid, dn, ava.ava_type);
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        slapd_log_pblock logpb = {0};
+
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.target_dn = dn;
+        logpb.cmp_attr = ava.ava_type;
+        slapd_log_access_cmp(&logpb);
+    } else {
+        slapi_log_access(LDAP_DEBUG_STATS,
+                         "conn=%" PRIu64 " op=%d CMP dn=\"%s\" attr=\"%s\"\n",
+                         pb_conn->c_connid, pb_op->o_opid, dn, ava.ava_type);
+    }
 
     /*
      * We could be serving multiple database backends.  Select the

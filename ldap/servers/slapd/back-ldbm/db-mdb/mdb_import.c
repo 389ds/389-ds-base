@@ -154,7 +154,7 @@ dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, i
     /* If it is a tombstone entry, add tombstonesubordinates instead of
      * numsubordinates. */
     if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        numsub_str = tombstone_numsubordinates;
+        numsub_str = LDBM_TOMBSTONE_NUMSUBORDINATES_STR;
     }
     /* attr numsubordinates/tombstonenumsubordinates could already exist in
      * the entry, let's check whether it's already there or not */
@@ -735,8 +735,22 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             /* Reset USN slapi_counter with the last key of the entryUSN index */
             ldbm_set_last_usn(inst->inst_be);
 
-            /* bring backend online again */
-            slapi_mtn_be_enable(inst->inst_be);
+            /* Bring backend online again:
+             * In lmdb case, the import framework is also used for reindexing
+             * while in bdb case reindexing uses its own code.
+             * So dbmdb_import_all_done is called either after 
+             * dbmdb_ldif2db or after dbmdb_db2index while
+             * bdb_import_all_done is only called after bdb_ldif2db.
+             *
+             * dbmdb_db2index uses instance_set_busy_and_readonly 
+             * while dbmdb_ldif2db uses slapi_mtn_be_disable
+             * and these functions have to be reverted accordingly.
+             */
+            if (job->flags & FLAG_REINDEXING) {
+                instance_set_not_busy(inst);
+            } else {
+                slapi_mtn_be_enable(inst->inst_be);
+            }
             slapi_log_err(SLAPI_LOG_INFO, "dbmdb_import_all_done",
                           "Backend %s is now online.\n",
                           slapi_be_get_name(inst->inst_be));
@@ -753,6 +767,24 @@ dbmdb_import_all_done(ImportJob *job, int ret)
     }
 
     return ret;
+}
+
+/* vlv_getindices callback that truncate vlv index (in reindex case) */
+static int
+truncate_index_dbi(struct attrinfo *ai, ImportCtx_t *ctx)
+{
+    int rc = 0;
+    if (is_reindexed_attr(ai->ai_type, ctx, ctx->indexVlvs)) {
+        backend *be = ctx->job->inst->inst_be;
+        dbmdb_dbi_t *dbi = NULL;
+        rc = dbmdb_open_dbi_from_filename(&dbi, be, ai->ai_type, ai, MDB_TRUNCATE_DBI);
+        if (!rc) {
+            char *dbname = dbmdb_recno_cache_get_dbname(dbi->dbname);
+            rc = dbmdb_open_dbi_from_filename(&dbi, be, dbname, ai, MDB_TRUNCATE_DBI);
+            slapi_ch_free_string(&dbname);
+        }
+    }
+    return rc;
 }
 
 int
@@ -818,6 +850,8 @@ dbmdb_public_dbmdb_import_main(void *arg)
             pthread_cond_signal(&job->wire_cv);
             pthread_mutex_unlock(&job->wire_lock);
             break;
+        case IM_INDEX:
+            vlv_getindices((IFP)truncate_index_dbi, ctx, job->inst->inst_be);
         default:
             break;
     }
@@ -1078,6 +1112,28 @@ dbmdb_import_main(void *arg)
     g_decr_active_threadcnt();
 }
 
+static char *
+get_vlv_dbname(const char *attrname)
+{
+    /* Returns vlv index database name as stored in attribute names
+     * freed by the caller .
+     */
+    char *dbname = slapi_ch_malloc(4+strlen(attrname)+1);
+    char *p = dbname;
+    *p++ = 'v';
+    *p++ = 'l';
+    *p++ = 'v';
+    *p++ = '#';
+    for (; *attrname; attrname++) {
+        if (isalnum(*attrname)) {
+            *p = TOLOWER(*attrname);
+            p++;
+        }
+    }
+    *p = '\0';
+    return dbname;
+}
+
 void
 process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
 {
@@ -1094,6 +1150,8 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
      * TBD
      */
     char **attrs = NULL;
+    char *attrname = NULL;
+    char *pt = NULL;
     int i;
 
     slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &attrs);
@@ -1101,10 +1159,16 @@ process_db2index_attrs(Slapi_PBlock *pb, ImportCtx_t *ctx)
     for (i = 0; attrs && attrs[i]; i++) {
         switch (attrs[i][0]) {
         case 't': /* attribute type to index */
-            slapi_ch_array_add(&ctx->indexAttrs, slapi_ch_strdup(attrs[i] + 1));
+            attrname = slapi_ch_strdup(attrs[i] + 1);
+            /* Strip index type */
+            pt = strchr(attrname, ':');
+            if (pt != NULL) {
+                *pt = '\0';
+            }
+            slapi_ch_array_add(&ctx->indexAttrs, attrname);
             break;
         case 'T': /* VLV Search to index */
-            slapi_ch_array_add(&ctx->indexAttrs, slapi_ch_strdup(attrs[i] + 1));
+            slapi_ch_array_add(&ctx->indexVlvs, get_vlv_dbname(attrs[i] + 1));
             break;
         }
     }
@@ -1345,11 +1409,7 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     dbmdb_delete_instance_dir(be);
     /* it's okay to fail -- it might already be gone */
 
-    /* vlv_init should be called before dbmdb_instance_start
-     * so the vlv dbi get created
-     */
-    vlv_init(job->inst);
-    /* dbmdb_instance_start will init the id2entry index. */
+    /* dbmdb_instance_start will init the id2entry index and the vlv search list. */
     /* it also (finally) fills in inst_dir_name */
     ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
     if (ret != 0)
@@ -1507,6 +1567,7 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
 
     if (state == SLAPI_BI_STATE_ADD) {
         Slapi_Entry *pb_import_entry = NULL;
+        char buf[BUFSIZ] = "";
         slapi_pblock_get(pb, SLAPI_BULK_IMPORT_ENTRY, &pb_import_entry);
         /* continuing previous import */
         if (!dbmdb_import_entry_belongs_here(pb_import_entry, job->inst->inst_be)) {
@@ -1518,9 +1579,17 @@ dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
             return 0;
         }
 
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+            /*
+             * Queued entries are processed (then freed) by another thread
+             * so the sdn should be capured before queuing the entry to avoid
+             * race condition.
+             */
+            escape_string(slapi_sdn_get_dn(slapi_entry_get_sdn(pb_import_entry)), buf);
+        }
         rc = dbmdb_bulk_import_queue(job, pb_import_entry);
-        slapi_log_err(SLAPI_LOG_REPL, "dbmdb_ldbm_back_wire_import", "dbmdb_bulk_import_queue returned %d with entry %s\n",
-                      rc, slapi_sdn_get_dn(slapi_entry_get_sdn(pb_import_entry)));
+        slapi_log_err(SLAPI_LOG_REPL, "dbmdb_ldbm_back_wire_import",
+                      "dbmdb_bulk_import_queue returned %d with entry %s\n", rc, buf);
         return rc;
     }
 
