@@ -22,6 +22,8 @@
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
 
+#define indextype_EQUALITY "eq"
+
 static void bdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
 static int bdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
 static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
@@ -223,7 +225,7 @@ bdb_import_get_entry(ldif_context *c, int fd, int *lineno)
 
         /* copy what we did so far into the output buffer */
         /* (first, make sure the output buffer is large enough) */
-        if (bufSize - bufOffset < i - c->offset + 1) {
+        while (bufSize - bufOffset < i - c->offset + 1) {
             char *newbuf = NULL;
             size_t newsize = (buf ? bufSize * 2 : LDIF_BUFFER_SIZE);
 
@@ -356,7 +358,7 @@ bdb_import_producer(void *param)
     int fd, curr_file, curr_lineno = 0;
     char *curr_filename = NULL;
     int idx;
-    ldif_context c;
+    ldif_context c = {0};
     int my_version = 0;
     size_t newesize = 0;
     Slapi_Attr *attr = NULL;
@@ -761,6 +763,7 @@ bdb_import_producer(void *param)
 error:
     slapi_value_free(&(job->usn_value));
     info->state = ABORTED;
+    bdb_import_free_ldif(&c);
 }
 
 static int
@@ -1715,6 +1718,11 @@ bdb_upgradedn_producer(void *param)
                            the temp work file */
             /* open "path" once, and set FILE* to upgradefd */
             if (NULL == job->upgradefd) {
+                /* Disable gcc -fanalyzer false positive about job->upgradefd */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wanalyzer-malloc-leak"
+#pragma GCC diagnostic ignored "-Wanalyzer-file-leak"
+
                 char *ldifdir = config_get_ldifdir();
                 if (ldifdir) {
                     path = slapi_ch_smprintf("%s/%s_dn_norm_sp.txt",
@@ -1751,6 +1759,7 @@ bdb_upgradedn_producer(void *param)
                         goto error;
                     }
                 }
+#pragma GCC diagnostic pop
             }
             slapi_ch_free_string(&path);
             if (is_dryrun) {
@@ -2737,11 +2746,12 @@ bdb_import_foreman(void *param)
                 goto error;
         }
 
-        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
+        if (!job->all_vlv_init &&
+            !slapi_entry_flag_is_set(fi->entry->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* Lastly, before we're finished with the entry, pass it to the
                vlv code to see whether it's within the scope a VLV index. */
-            vlv_grok_new_import_entry(fi->entry, be);
+            vlv_grok_new_import_entry(fi->entry, be, &job->all_vlv_init);
         }
         if (job->flags & FLAG_ABORT) {
             goto error;
@@ -3661,7 +3671,7 @@ bdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 {
     int rval = 0;
     rval = bdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
-    rval += bdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
+    rval |= bdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
     return rval;
 }
 
@@ -3788,7 +3798,7 @@ bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 
     rval = bdb_dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
                                 "Instance Config");
-    rval += bdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
+    rval |= bdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
                                  "Index Config");
 
     slapi_ch_free_string(&instance_entry_filter);

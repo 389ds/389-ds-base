@@ -71,7 +71,7 @@ send_op(char *s, int sfd)
         if (pendops[i].op == tmp.op && pendops[i].conn == tmp.conn) {
             t = strstr(s, "err=");
             sz = strlen(pendops[i].dn);
-            result = (repconfirm *)malloc(sizeof(repconfirm) + sz);
+            result = (repconfirm *)safe_malloc(sizeof(repconfirm) + sz);
             for (t += 4, result->res = 0; isdigit(*t); t++)
                 result->res = result->res * 10 + *t - '0';
             result->type = htonl(ldap_val[pendops[i].type]);
@@ -126,7 +126,7 @@ main(int argc, char **argv)
     srvsaddr.sin_port = htons(port);
     freeaddrinfo(info);
     maxop = npend = 0;
-    pendops = (Optype *)malloc(sizeof(Optype) * 20);
+    pendops = (Optype *)safe_malloc(sizeof(Optype) * 20);
     sigset(SIGPIPE, SIG_IGN);
     while (fgets(logline, sizeof(logline), stdin)) {
         if ((p = strchr(logline, '\n'))) {

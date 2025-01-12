@@ -499,8 +499,6 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
 
-@pytest.mark.bz1589144
-@pytest.mark.ds50091
 def test_search_shadowWarning_when_passwordWarning_is_lower(topology_st, global_policy):
     """Test if value shadowWarning is present with global password policy
        when passwordWarning is set with lower value.
@@ -546,7 +544,6 @@ def test_search_shadowWarning_when_passwordWarning_is_lower(topology_st, global_
     assert testuser.present('shadowWarning')
 
 
-@pytest.mark.bug624080
 def test_password_expire_works(topology_st):
     """Regression test for bug624080. If passwordMaxAge is set to a
     value and a new user is added, if the passwordMaxAge is changed

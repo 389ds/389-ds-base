@@ -69,7 +69,7 @@ from lib389.utils import (
     get_user_is_root)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
-from lib389.tasks import BackupTask, RestoreTask
+from lib389.tasks import BackupTask, RestoreTask, Task
 from lib389.dseldif import DSEldif
 
 # mixin
@@ -321,7 +321,10 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.aci import Aci
         from lib389.config import RSA
         from lib389.config import Encryption
-        from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog, DirsrvAuditLog, DirsrvSecurityLog
+        from lib389.dirsrv_log import (
+            DirsrvAccessLog, DirsrvErrorLog, DirsrvAuditLog,
+            DirsrvAuditJSONLog, DirsrvSecurityLog
+        )
         from lib389.ldclt import Ldclt
         from lib389.mappingTree import MappingTrees
         from lib389.mappingTree import MappingTreeLegacy as MappingTree
@@ -367,6 +370,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.ds_access_log = DirsrvAccessLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
         self.ds_audit_log = DirsrvAuditLog(self)
+        self.ds_audit_json_log = DirsrvAuditJSONLog(self)
         self.ds_security_log = DirsrvSecurityLog(self)
         self.ldclt = Ldclt(self)
         self.saslmaps = SaslMappings(self)
@@ -874,11 +878,11 @@ class DirSrv(SimpleLDAPObject, object):
         with suppress(AttributeError):
             return self._db_lib
         with suppress(Exception):
-            from backend import DatabaseConfig
+            from lib389.backend import DatabaseConfig
             self._db_lib = DatabaseConfig(self).get_db_lib()
             return self._db_lib
         with suppress(Exception):
-            dse_ldif = DSEldif(None, self)
+            dse_ldif = DSEldif(self)
             self._db_lib = dse_ldif.get(DN_CONFIG_LDBM, "nsslapd-backend-implement", single=True)
             return self._db_lib
         return get_default_db_lib()
@@ -1050,7 +1054,7 @@ class DirSrv(SimpleLDAPObject, object):
 
     def dump_errorlog(self):
         '''
-            Its logs all errors messages within the error log that occured 
+            Its logs all errors messages within the error log that occured
             after the last startup.
         '''
         errlog = self.ds_paths.error_log
@@ -1105,7 +1109,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status() is True:
             return
 
-        if self.with_systemd():
+        if self.with_systemd_running():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
             try:
@@ -1186,7 +1190,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status() is False:
             return
 
-        if self.with_systemd():
+        if self.with_systemd_running():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
             subprocess.check_output(["systemctl", "stop", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
@@ -1213,7 +1217,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         Will update the self.state parameter.
         """
-        if self.with_systemd():
+        if self.with_systemd_running():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
             rc = subprocess.call(["systemctl",
@@ -1420,7 +1424,7 @@ class DirSrv(SimpleLDAPObject, object):
                                        name, self.ds_paths.prefix)
 
         # create the archive
-        name = "backup_%s_%s.tar.gz" % (self.serverid, time.strftime("%m%d%Y_%H%M%S"))
+        name = "backup_%s_%s.tar.gz" % (self.serverid, Task.get_timestamp())
         backup_file = os.path.join(backup_dir, name)
         tar = tarfile.open(backup_file, "w:gz")
         tar.extraction_filter = (lambda member, path: member)
@@ -1729,6 +1733,17 @@ class DirSrv(SimpleLDAPObject, object):
         if self.systemd_override is not None:
             return self.systemd_override
         return self.ds_paths.with_systemd
+
+    def with_systemd_running(self):
+        if not self.with_systemd():
+            return False
+        cp = subprocess.run(["systemctl", "is-system-running"],
+                            universal_newlines=True, stdout=subprocess.PIPE)
+        # is-system-running can detect the 7 modes (initializing, starting,
+        # running, degraded, maintenance, stopping, offline) or "unknown".
+        # To keep things simple, we assume that anything other than "offline"
+        # means that systemd is usable.
+        return cp.stdout.strip() != 'offline'
 
     def pid_file(self):
         if self._containerised:
@@ -2806,7 +2821,7 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             # No output file specified.  Use the default ldif location/name
             cmd.append('-a')
-            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            tnow = Task.get_timestamp()
             if bename:
                 ldifname = os.path.join(self.ds_paths.ldif_dir, "%s-%s-%s.ldif" % (self.serverid, bename, tnow))
             else:
@@ -2877,7 +2892,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         if archive_dir is None:
             # Use the instance name and date/time as the default backup name
-            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            tnow = Task.get_timestamp()
             archive_dir = os.path.join(self.ds_paths.backup_dir, "%s-%s" % (self.serverid, tnow))
         elif not archive_dir.startswith("/"):
             # Relative path, append it to the bak directory
@@ -3035,14 +3050,17 @@ class DirSrv(SimpleLDAPObject, object):
             return self._dbisupport
         # check if -D and -L options are supported
         try:
-            cmd = ["%s/dbscan" % self.get_bin_dir(), "--help"]
+            cmd = ["%s/dbscan" % self.get_bin_dir(), "-h"]
             self.log.debug("DEBUG: checking dbscan supported options %s" % cmd)
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         except subprocess.CalledProcessError:
             pass
         output, stderr = p.communicate()
-        self.log.debug("is_dbi_supported output " + output.decode())
-        if "-D <dbimpl>" in output.decode() and "-L <dbhome>" in output.decode():
+        output = output.decode()
+        self.log.debug("is_dbi_supported output " + output)
+        if "-D <dbimpl>" in output and "-L <dbhome>" in output:
+            self._dbisupport = True
+        elif "--db-type" in output and "--list" in output:
             self._dbisupport = True
         else:
             self._dbisupport = False
@@ -3499,7 +3517,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         if archive is None:
             # Use the instance name and date/time as the default backup name
-            tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            tnow = Task.get_timestamp()
             if self.serverid is not None:
                 backup_dir_name = "%s-%s" % (self.serverid, tnow)
             else:

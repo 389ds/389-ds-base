@@ -272,7 +272,6 @@ def test_agmt_num_modify(topo, attr, too_small, too_big, overflow, notnum, valid
 
 
 @pytest.mark.skipif(ds_is_older('1.4.1.4'), reason="Not implemented")
-@pytest.mark.bz1546739
 def test_same_attr_yields_same_return_code(topo):
     """Test that various operations with same incorrect attribute value yield same return code
 

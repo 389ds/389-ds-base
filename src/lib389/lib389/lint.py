@@ -57,29 +57,36 @@ DSBLE0003 = {
     'fix': """You need to import an LDIF file, or create the suffix entry, in order to initialize the database."""
 }
 
-# Config checks
-DSCLE0001 = {
-    'dsle': 'DSCLE0001',
+# BDB and MDB checks
+DSBLE0004 = {
+    'dsle': 'DSBLE0004',
     'severity': 'LOW',
-    'description': 'Different log timestamp format.',
-    'items': ['cn=config', ],
-    'detail': """nsslapd-logging-hr-timestamps-enabled changes the log format in directory server from
-
-[07/Jun/2017:17:15:58 +1000]
-
-to
-
-[07/Jun/2017:17:15:58.716117312 +1000]
-
-This actually provides a performance improvement. Additionally, this setting will be
-removed in a future release.
-""",
-    'fix': """Set nsslapd-logging-hr-timestamps-enabled to on.
-You can use 'dsconf' to set this attribute.  Here is an example:
-
-    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-logging-hr-timestamps-enabled=on"""
+    'description': 'Both MDB and BDB database files are present.',
+    'items': [],
+    'detail': """Files for both MDB and BDB databases have been found. This indicates that a cleanup of the database
+files has not been performed after a backend implementation change.""",
+    'fix': """Run 'dsctl <instance> dblib cleanup' to remove old database files that are no longer needed or remove them manually."""
 }
 
+DSBLE0005 = {
+    'dsle': 'DSBLE0005',
+    'severity': 'LOW',
+    'description': 'Backend configuration attributes mismatch.',
+    'items': [],
+    'detail': 'Found configuration attributes that are not applicable for the configured backend type.',
+    'fix': 'Review the backend configuration and remove or adjust the incorrect attributes.'
+}
+
+DSBLE0006 = {
+    'dsle': 'DSBLE0006',
+    'severity': 'MEDIUM',
+    'description': 'BDB is still used as a backend.',
+    'items': [],
+    'detail': 'BDB is deprecated and should not be used as a backend.',
+    'fix': 'Migrate the backend to MDB.'
+}
+
+# Config checks
 DSCLE0002 = {
     'dsle': 'DSCLE0002',
     'severity': 'HIGH',
@@ -152,6 +159,22 @@ for debug purposes
 You can use 'dsconf' to set this attribute.  Here is an example:
 
     # dsconf slapd-YOUR_INSTANCE config replace nsslapd-securitylog-logbuffering=on
+"""
+}
+
+DSCLE0006 = {
+    'dsle': 'DSCLE0006',
+    'severity': 'LOW',
+    'description': 'Audit Log buffering disabled',
+    'items': ['cn=config', ],
+    'detail': """nsslapd-auditlog-logbuffering is set to 'off' this will cause high
+disk IO and it will impact server performance.  This should only be used
+for debug purposes
+""",
+    'fix': """Set nsslapd-auditlog-logbuffering to 'on'.
+You can use 'dsconf' to set this attribute.  Here is an example:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-auditlog-logbuffering=on
 """
 }
 

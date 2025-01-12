@@ -77,13 +77,13 @@ def get_hostnames_from_log(port1, port2):
     # search for Supplier :hostname:port 
     # and use \D to insure there is no more number is after
     # the matched port (i.e that 10 is not matching 101)
-    regexp = '(Supplier: )([^:]*)(:' + str(port1) + '\D)'
+    regexp = '(Supplier: )([^:]*)(:' + str(port1) + r'\D)'
     match=re.search(regexp, logtext)
     host_m1 = 'localhost.localdomain'
     if (match is not None):
         host_m1 = match.group(2)
     # Same for supplier 2 
-    regexp = '(Supplier: )([^:]*)(:' + str(port2) + '\D)'
+    regexp = '(Supplier: )([^:]*)(:' + str(port2) + r'\D)'
     match=re.search(regexp, logtext)
     host_m2 = 'localhost.localdomain'
     if (match is not None):
@@ -92,8 +92,6 @@ def get_hostnames_from_log(port1, port2):
 
 #unstable or unstatus tests, skipped for now
 @pytest.mark.flaky(max_runs=2, min_passes=1)
-@pytest.mark.ds50545
-@pytest.mark.bz1739718
 @pytest.mark.skipif(ds_is_older("1.4.0"), reason="Not implemented")
 def test_dsconf_replication_monitor(topology_m2, set_log_file):
     """Test replication monitor that was ported from legacy tools

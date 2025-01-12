@@ -23,8 +23,6 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.ds49623
-@pytest.mark.bz1790986
 def test_modrdn_loop(topology_m1):
     """Test that renaming the same entry multiple times reusing the same
        RDN multiple times does not result in cenotaph error messages

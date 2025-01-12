@@ -15,6 +15,10 @@ import ldap
 import pytest
 import subprocess
 import time
+import random
+import string
+from shutil import rmtree
+from lib389.dbgen import dbgen_users
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccount, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
@@ -25,10 +29,11 @@ from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.services import ServiceAccounts, ServiceAccount
-from lib389.replica import Replicas, ReplicationManager, ReplicaRole
+from lib389.replica import Replicas, ReplicationManager, ReplicaRole, BootstrapReplicationManager
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
+from lib389.tasks import Tasks
 from lib389.topologies import topology_m2 as topo_m2, TopologyMain, create_topology, _remove_ssca_db
 
 
@@ -257,6 +262,46 @@ def topo_with_sigkill(request):
     return topology
 
 
+@pytest.fixture(scope="function")
+def preserve_topo_m2(topo_m2, request):
+    """Backup the topology and restore it at the end."""
+
+    saves = []
+
+    def fin():
+        for inst,backup_dir in saves:
+            inst.tasks.bak2db(backup_dir=backup_dir, args={TASK_WAIT: True})
+            rmtree(backup_dir)
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    bindcn = "replication manager"
+    binddn = f"cn={bindcn},cn=config"
+    bindpw = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
+    for inst in topo_m2:
+        backup_dir = f'{inst.ds_paths.backup_dir}/topo_bak'
+        try:
+            rmtree(backup_dir)
+        except FileNotFoundError:
+            pass
+        inst.tasks.db2bak(backup_dir=backup_dir, args={TASK_WAIT: True})
+        # Ensure that we are not using group bind dn
+        # because the test may delete credentials
+        replmgr = BootstrapReplicationManager(inst, dn=binddn)
+        if replmgr.exists():
+            replmgr.replace('userPassword', bindpw)
+        else:
+            replmgr.create(properties={'cn':bindcn, 'userPassword':bindpw})
+        replica = Replicas(inst).get(DEFAULT_SUFFIX)
+        replica.replace(REPL_BINDDN, binddn);
+        replica.remove_all(REPL_BIND_GROUP);
+        for agmt in replica.get_agreements().list():
+            agmt.replace_many((AGMT_CRED, bindpw), (REPL_BINDDN, binddn))
+        saves.append((inst, backup_dir))
+    return topo_m2
+
+
 @pytest.fixture()
 def create_entry(topo_m2, request):
     """Add test entry using UserAccounts"""
@@ -354,7 +399,6 @@ def test_double_delete(topo_m2, create_entry):
     repl.test_replication(m2, m1)
 
 
-@pytest.mark.bz1506831
 def test_repl_modrdn(topo_m2):
     """Test that replicated MODRDN does not break replication
 
@@ -741,8 +785,6 @@ def test_plugin_bind_dn_tracking_and_replication(topo_m2):
     agmt.set(REPL_PROTOCOL_TIMEOUT, "20")
 
 
-@pytest.mark.bz1314956
-@pytest.mark.ds48755
 def test_moving_entry_make_online_init_fail(topo_m2):
     """
     Moving an entry could make the online init fail
@@ -940,7 +982,6 @@ def test_keepalive_entries(topo_m2):
         pytest.param( "replMgr", id="using-bind-dn"),
     ],
 )
-@pytest.mark.bz1956987
 def test_change_repl_passwd(topo_m2, request, bind_cn):
     """Replication may break after changing password.
        Testing when agmt bind group are used.
@@ -986,8 +1027,123 @@ def test_change_repl_passwd(topo_m2, request, bind_cn):
     a2.testok()
 
 
-@pytest.mark.ds49915
-@pytest.mark.bz1626375
+def test_repl_after_reindex(topo_m2):
+    """Check that replication does not break after reindex.
+
+    :id: 0b48992e-bac6-11ee-9cbe-482ae39447e5
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Check that replication is working
+        2. Perform a few changes on supplier1
+        3. Reindex 'cn' on supplier1
+        4. Check that replication is still working
+    :expectedresults:
+        1. Replication should work
+        2. Step should run sucessfully without errors
+        3. Step should run sucessfully without errors
+        4. Replication should still work
+    """
+
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    tasks = Tasks(m1)
+    # Check that replication is working
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m2, m1)
+    # Perform a few changes on supplier1
+    for idx in range(2):
+        Domain(m1, DEFAULT_SUFFIX).replace('description', f'test_repl_after_reindex {idx}')
+    # Reindex 'cn' on supplier1
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='cn',
+        args={TASK_WAIT: True}
+    )
+    # Check that replication is still working
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m2, m1)
+
+
+def test_suffix_entryid(preserve_topo_m2):
+    """Test that entryid attribute is present in suffix entry
+
+    :id: 9201f2c8-3eb8-11ef-80cc-482ae39447e5
+    :setup: Two suppliers replicated instances
+    :steps:
+        1. Generate LDIF file
+        2. Import the ldif file
+        3. Check that identry is still present in suffix entry
+        4. Check that parentid>=1 search returns all entries but one
+    :expectedresults:
+        1. Operation successful
+        2. Operation successful
+        3. Suffix id2entry should be 1
+        4. parentid>=1 search returns all entries but one
+    """
+    s1 = preserve_topo_m2.ms["supplier1"]
+    ldif_file = f'{s1.get_ldif_dir()}/db10.ldif'
+    dbgen_users(s1, 10, ldif_file, DEFAULT_SUFFIX)
+    s1.tasks.importLDIF(benamebase=DEFAULT_BENAME,
+                        input_file=ldif_file,
+                        args={TASK_WAIT: True})
+    dc = Domain(s1, dn=DEFAULT_SUFFIX)
+    assert dc.get_attr_val_utf8('entryid') == '1'
+    all_entries =  s1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)", attrlist=('dn',), escapehatch='i am sure')
+    childrens =  s1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(parentid>=1)", attrlist=('dn',), escapehatch='i am sure')
+    assert len(all_entries) == (len(childrens) + 1)
+
+
+def test_bulk_import(preserve_topo_m2):
+    """Test that bulk import is working properly
+
+    :id: 4e73254a-3ed6-11ef-aa44-482ae39447e5
+    :setup: Two suppliers replicated instances
+    :steps:
+        1. Generate LDIF file
+        2. Import the ldif file
+        3. Add replication_managers group
+        4. Perform bulk import
+        5. Check that replication is still working
+        6. Check that the replicas have the same number of users
+    :expectedresults:
+        1. Operation successful
+        2. Operation successful
+        3. Operation successful
+        4. Operation successful
+        5. Replication should be in sync
+        6. Replicas should have same number of user entries
+    """
+    s1 = preserve_topo_m2.ms["supplier1"]
+    s2 = preserve_topo_m2.ms["supplier2"]
+    ldif_file = f'{s1.get_ldif_dir()}/db2K.ldif'
+    dbgen_users(s1, 2000, ldif_file, DEFAULT_SUFFIX)
+    s1.tasks.importLDIF(benamebase=DEFAULT_BENAME,
+                        input_file=ldif_file,
+                        args={TASK_WAIT: True})
+
+    # Create replication_managers group so that we can use
+    #  repl.test_replication_topology
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl._create_service_group(s1)
+    repl._create_service_account(s1, s2)
+
+    agmt = Agreements(s1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    repl.test_replication_topology(preserve_topo_m2)
+
+    # Cannot use UserAccounts().list() because 'account' objectclass is missing
+    users_s1 =  s1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)", escapehatch='i am sure')
+    log.info(f"{len(users_s1)} user entries found on supplier1")
+    users_s2 =  s2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)", escapehatch='i am sure')
+    log.info(f"{len(users_s2)} user entries found on supplier2")
+    assert len(users_s1) == len(users_s2)
+
+
 def test_online_reinit_may_hang(topo_with_sigkill):
     """Online reinitialization may hang when the first
        entry of the DB is RUV entry instead of the suffix
@@ -1009,6 +1165,15 @@ def test_online_reinit_may_hang(topo_with_sigkill):
     """
     M1 = topo_with_sigkill.ms["supplier1"]
     M2 = topo_with_sigkill.ms["supplier2"]
+
+    # The RFE 5367 (when enabled) retrieves the DN
+    # from the dncache. This hides an issue
+    # with primary fix for 6417.
+    # We need to disable the RFE to verify that the primary
+    # fix is properly fixed.
+    if ds_is_newer('2.3.1'):
+        M1.config.replace('nsslapd-return-original-entrydn', 'off')
+
     M1.stop()
     ldif_file = '%s/supplier1.ldif' % M1.get_ldif_dir()
     M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],

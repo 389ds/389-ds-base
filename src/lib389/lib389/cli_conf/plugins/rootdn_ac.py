@@ -10,6 +10,7 @@ import socket
 from lib389.plugins import RootDNAccessControlPlugin
 from lib389.utils import is_valid_hostname
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'allow_host': 'rootdn-allow-host',
@@ -124,11 +125,11 @@ def _add_parser_args(parser):
 
 
 def create_parser(subparsers):
-    rootdnac_parser = subparsers.add_parser('root-dn', help='Manage and configure RootDN Access Control plugin')
+    rootdnac_parser = subparsers.add_parser('root-dn', help='Manage and configure RootDN Access Control plugin', formatter_class=CustomHelpFormatter)
     subcommands = rootdnac_parser.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, RootDNAccessControlPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin settings')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=rootdn_edit)
     _add_parser_args(edit)
 

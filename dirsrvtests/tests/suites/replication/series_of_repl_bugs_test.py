@@ -34,7 +34,6 @@ def _delete_after(request, topo_m2):
     request.addfinalizer(last)
 
 
-@pytest.mark.bz830337
 def test_deletions_are_not_replicated(topo_m2):
     """usn + mmr = deletions are not replicated
 
@@ -87,7 +86,6 @@ def test_deletions_are_not_replicated(topo_m2):
         user.status()
 
 
-@pytest.mark.bz891866
 def test_error_20(topo_m2, _delete_after):
     """DS returns error 20 when replacing values of a multi-valued attribute (only when replication is enabled)
 
@@ -110,7 +108,6 @@ def test_error_20(topo_m2, _delete_after):
     assert user.replace_many(('cn', 'BUG 891866'), ('cn', 'Test'))
 
 
-@pytest.mark.bz1955658
 def test_enable_repl_w_master(topo):
     """Check that enabling replication with the role "master" succeeds.
 
@@ -147,7 +144,6 @@ def test_enable_repl_w_master(topo):
     assert os.system(cmd) == 0
 
 
-@pytest.mark.bz914305
 def test_segfaults(topo_m2, _delete_after):
     """ns-slapd segfaults while trying to delete a tombstone entry
 

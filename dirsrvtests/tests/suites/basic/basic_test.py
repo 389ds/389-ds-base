@@ -64,11 +64,7 @@ ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
 # (should have more connections with lmdb)
 MAX_FDS = 150
 
-
-
 default_paths = Paths()
-
-
 
 log = logging.getLogger(__name__)
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -84,7 +80,7 @@ class CustomSetup():
     DEFAULT_SLAPD = { 'root_password': PW_DM,
                       'defaults': INSTALL_LATEST_CONFIG,
                     }
-    DEFAULT_BACKENDS = [ { 
+    DEFAULT_BACKENDS = [ {
                             'cn': 'userroot',
                             'nsslapd-suffix': DEFAULT_SUFFIX,
                             'sample_entries': 'yes',
@@ -93,7 +89,7 @@ class CustomSetup():
 
     WRAPPER_FORMAT = '''#!/bin/sh
 {wrapper_options}
-exec {nsslapd} -D {cfgdir} -i {pidfile} 
+exec {nsslapd} -D {cfgdir} -i {pidfile}
 '''
 
 
@@ -101,14 +97,14 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
         def __init__(self, verbose=False, external_log=log):
             super().__init__(verbose=verbose, external_log=external_log)
             self.wrapper = None       # placeholder for the wrapper file name
-            
+
         def _reset_systemd(self):
             self.systemd_override = False
-    
+
         def status(self):
             self._reset_systemd()
             return super().status()
-    
+
         def start(self, timeout=120, *args):
             if self.status():
                 return
@@ -128,14 +124,13 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
                 if self.status():
                     return
                 time.sleep(1)
-            raise TimeoutException('Failed to start ns-slpad')
-    
+            raise TimeoutError('Failed to start ns-slpad')
+
         def stop(self, timeout=120):
             self._reset_systemd()
             super().stop(timeout=timeout)
-    
 
-    def _search_be(belist, beinfo):
+    def _search_be(self, belist, beinfo):
         for be in belist:
             if be['cn'] == beinfo['cn']:
                 return be
@@ -163,7 +158,7 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
                     general_options.set(key,val)
         log.debug('[general]: %s' % general_options._options)
         self.general = general_options
-        
+
         slapd_options = Slapd2Base(self.log)
         slapd_options.set('instance_name', serverid)
         for d in (CustomSetup.DEFAULT_SLAPD, slapd):
@@ -178,7 +173,7 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
             if not backend_list:
                 continue
             for backend in backend_list:
-                target_be = CustomSetup._search_be(backend_options, backend)
+                target_be = CustomSetup._search_be(self, backend_options, backend)
                 if not target_be:
                     target_be = {}
                     backend_options.append(target_be)
@@ -196,7 +191,7 @@ exec {nsslapd} -D {cfgdir} -i {pidfile}
         args["SER_SECURE_PORT"] = slapd['secure_port']
         args["SER_SERVERID_PROP"] = self.serverid
         return args
-	
+
     def create_instance(self):
         sds = SetupDs(verbose=self.verbose, dryrun=False, log=self.log)
         self.general.verify()
@@ -256,7 +251,7 @@ def _reset_attr(request, topology_st):
             dm_conn.config.replace('nsslapd-close-on-failed-bind', 'off')
             assert (dm_conn.config.get_attr_val_utf8('nsslapd-close-on-failed-bind')) == 'off'
         except ldap.LDAPError as e:
-            log.error('Failure reseting attr')
+            log.error('Failure reseting attr: ' + str(e))
             assert False
         topology_st.standalone.restart()
 
@@ -542,11 +537,10 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
 
     # Wait a bit till the task is created and available for searching
-    time.sleep(0.5)
+    time.sleep(1)
 
     # Good as place as any to quick test the task has some expected attributes
-    if ds_is_newer('1.4.1.2'):
-        assert import_task.present('nstaskcreated')
+    assert import_task.present('nstaskcreated')
     assert import_task.present('nstasklog')
     assert import_task.present('nstaskcurrentitem')
     assert import_task.present('nstasktotalitems')
@@ -1381,8 +1375,6 @@ def test_basic_anonymous_search(topology_st, create_users):
         assert len(entries) != 0
 
 
-@pytest.mark.ds604
-@pytest.mark.bz915801
 def test_search_original_type(topology_st, create_users):
     """Test ldapsearch returning original attributes
        using nsslapd-search-return-original-type-switch
@@ -1418,7 +1410,6 @@ def test_search_original_type(topology_st, create_users):
     assert "objectclass overflow" not in entries[0].getAttrs()
 
 
-@pytest.mark.bz192901
 def test_search_ou(topology_st):
     """Test that DS should not return an entry that does not match the filter
 
@@ -1514,8 +1505,6 @@ def test_bind_entry_missing_passwd(topology_st):
         user.bind("some_password")
 
 
-@pytest.mark.bz1044135
-@pytest.mark.ds47319
 def test_connection_buffer_size(topology_st):
     """Test connection buffer size adjustable with different values(valid values and invalid)
 
@@ -1539,7 +1528,6 @@ def test_connection_buffer_size(topology_st):
             topology_st.standalone.config.replace('nsslapd-connection-buffer', value)
 
 
-@pytest.mark.bz1637439
 def test_critical_msg_on_empty_range_idl(topology_st):
     """Doing a range index lookup should not report a critical message even if IDL is empty
 
@@ -1612,8 +1600,6 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
 
 
-@pytest.mark.bz1870624
-@pytest.mark.ds4379
 @pytest.mark.parametrize("case,value", [('positive', ['cn','','']),
                                         ("positive", ['cn', '', '', '', '', '', '', '', '', '', '']),
                                         ("negative", ['cn', '', '', '', '', '', '', '', '', '', '', ''])])
@@ -1640,8 +1626,6 @@ def test_attr_description_limit(topology_st, case, value):
             DSLdapObjects(topology_st.standalone, basedn='').filter("(objectclass=*)", attrlist=value, scope=0)
 
 
-@pytest.mark.bz1647099
-@pytest.mark.ds50026
 def test_ldbm_modification_audit_log(topology_st):
     """When updating LDBM config attributes, those attributes/values are not listed
     in the audit log
@@ -2255,8 +2239,6 @@ sample_entries = yes
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1748016
-@pytest.mark.ds50581
 def test_dscreate_ldapi(dscreate_long_instance):
     """Test that an instance with a long name can
     handle ldapi connection using a long socket name
@@ -2277,8 +2259,6 @@ def test_dscreate_ldapi(dscreate_long_instance):
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1715406
-@pytest.mark.ds50923
 def test_dscreate_multiple_dashes_name(dscreate_long_instance):
     """Test that an instance with a multiple dashes in the name
     can be removed with dsctl --remove-all
@@ -2347,8 +2327,6 @@ suffix = {request.param}
 
 @pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
                     reason="This test is only required with new admin cli, and requires root.")
-@pytest.mark.bz1807419
-@pytest.mark.ds50928
 def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
     """Test that dscreate works with different RDN attributes as suffix
 
@@ -2388,7 +2366,7 @@ def dscreate_custom_instance(request):
 
     request.addfinalizer(fin)
     topo.create_instance()
-    # Return CustomSetup object associated with 
+    # Return CustomSetup object associated with
     #  a stopped instance named "custom"
     return topo
 

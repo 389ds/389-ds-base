@@ -13,6 +13,7 @@ from lib389.utils import ensure_str
 from lib389.pwpolicy import PwPolicyEntries, PwPolicyManager
 from lib389.password_plugins import PasswordPlugins
 from lib389.idm.account import Account
+from lib389.cli_base import CustomHelpFormatter
 
 
 def _args_to_attrs(args, arg_to_attr):
@@ -212,23 +213,23 @@ def list_schemes(inst, basedn, log, args):
 
 def create_parser(subparsers):
     # Create our two parsers for local and global policies
-    globalpwp_parser = subparsers.add_parser('pwpolicy', help='Manage the global password policy settings')
-    localpwp_parser = subparsers.add_parser('localpwp', help='Manage the local user and subtree password policies')
+    globalpwp_parser = subparsers.add_parser('pwpolicy', help='Manage the global password policy settings', formatter_class=CustomHelpFormatter)
+    localpwp_parser = subparsers.add_parser('localpwp', help='Manage the local user and subtree password policies', formatter_class=CustomHelpFormatter)
 
     ############################################
     # Local password policies
     ############################################
     local_subcommands = localpwp_parser.add_subparsers(help='Local password policy')
     # List all the local policies
-    list_parser = local_subcommands.add_parser('list', help='List all the local password policies')
+    list_parser = local_subcommands.add_parser('list', help='List all the local password policies', formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list_policies)
     list_parser.add_argument('DN', nargs='?', help='Suffix to search for local password policies')
     # Get a local policy
-    get_parser = local_subcommands.add_parser('get', help='Get local password policy entry')
+    get_parser = local_subcommands.add_parser('get', help='Get local password policy entry', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get_local_policy)
     get_parser.add_argument('DN', nargs=1, help='Get the local policy for this entry DN')
     # The "set" arguments...
-    set_parser = local_subcommands.add_parser('set', help='Set an attribute in a local password policy')
+    set_parser = local_subcommands.add_parser('set', help='Set an attribute in a local password policy', formatter_class=CustomHelpFormatter)
     set_parser.set_defaults(func=set_local_policy)
     # General settings
     set_parser.add_argument('--pwdscheme', help="The password storage scheme")
@@ -278,18 +279,18 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwptprdelayexpireat', help="Number of seconds after which a reset password expires")
     set_parser.add_argument('--pwptprdelayvalidfrom', help="Number of seconds to wait before using a reset password to authenticated")
     # delete local password policy
-    del_parser = local_subcommands.add_parser('remove', help='Remove a local password policy')
+    del_parser = local_subcommands.add_parser('remove', help='Remove a local password policy', formatter_class=CustomHelpFormatter)
     del_parser.set_defaults(func=del_local_policy)
     del_parser.add_argument('DN', nargs=1, help='Remove local policy for this entry DN')
     #
     # create USER local password policy
     #
-    add_user_parser = local_subcommands.add_parser('adduser', add_help=False, parents=[set_parser], help='Add new user password policy')
+    add_user_parser = local_subcommands.add_parser('adduser', add_help=False, parents=[set_parser], help='Add new user password policy', formatter_class=CustomHelpFormatter)
     add_user_parser.set_defaults(func=create_user_policy)
     #
     # create SUBTREE local password policy
     #
-    add_subtree_parser = local_subcommands.add_parser('addsubtree', add_help=False, parents=[set_parser], help='Add new subtree password policy')
+    add_subtree_parser = local_subcommands.add_parser('addsubtree', add_help=False, parents=[set_parser], help='Add new subtree password policy', formatter_class=CustomHelpFormatter)
     add_subtree_parser.set_defaults(func=create_subtree_policy)
 
     ###########################################
@@ -297,7 +298,7 @@ def create_parser(subparsers):
     ###########################################
     global_subcommands = globalpwp_parser.add_subparsers(help='Global password policy')
     # Get policy
-    get_global_parser = global_subcommands.add_parser('get', help='Get the global password policy entry')
+    get_global_parser = global_subcommands.add_parser('get', help='Get the global password policy entry', formatter_class=CustomHelpFormatter)
     get_global_parser.set_defaults(func=get_global_policy)
     # Set policy
     set_global_parser = global_subcommands.add_parser('set', add_help=False, parents=[set_parser],
@@ -308,7 +309,7 @@ def create_parser(subparsers):
     set_global_parser.add_argument('--pwdallowhash', help="Set to \"on\" to allow adding prehashed passwords")
     set_global_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
     # list password storage schemes
-    list_scehmes_parser = global_subcommands.add_parser('list-schemes', help='Get a list of the current password storage schemes')
+    list_scehmes_parser = global_subcommands.add_parser('list-schemes', help='Get a list of the current password storage schemes', formatter_class=CustomHelpFormatter)
     list_scehmes_parser.set_defaults(func=list_schemes)
 
     #############################################

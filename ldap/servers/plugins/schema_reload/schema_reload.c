@@ -88,7 +88,7 @@ schemareload_start(Slapi_PBlock *pb)
     int rc = 0;
 
     if ((schemareload_lock = PR_NewLock()) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "schemareload", "schemareload_start - Failed to create global schema reload lock.");
+        slapi_log_err(SLAPI_LOG_ERR, "schemareload", "schemareload_start - Failed to create global schema reload lock.\n");
         return -1;
     }
     rc = slapi_plugin_task_register_handler("schema reload task", schemareload_add, pb);
@@ -154,7 +154,7 @@ schemareload_thread(void *arg)
     if (slapi_is_shutting_down()) {
         slapi_task_log_notice(task, "Server is shuttoing down; Schema validation aborted.");
         slapi_task_log_status(task, "Server is shuttoing down; Schema validation aborted.");
-        slapi_log_err(SLAPI_LOG_ERR, "schemareload", "schemareload_thread - Server is shutting down; Schema validation aborted.");
+        slapi_log_err(SLAPI_LOG_ERR, "schemareload", "schemareload_thread - Server is shutting down; Schema validation aborted.\n");
     } else if (LDAP_SUCCESS == rv) {
         slapi_task_log_notice(task, "Schema validation passed.");
         slapi_task_log_status(task, "Schema validation passed.");

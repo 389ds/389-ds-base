@@ -34,7 +34,7 @@ from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
-from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSVIRTLE0001, DSCLLE0001
+from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSBLE0004, DSBLE0005, DSBLE0006, DSVIRTLE0001, DSCLLE0001
 
 
 class BackendLegacy(object):
@@ -508,6 +508,82 @@ class Backend(DSLdapObject):
             result = DSBLE0001
             result['check'] = f'backends:{bename}:mappingtree'
             result['items'] = [bename, ]
+            yield result
+
+
+    def _lint_backend_implementation(self):
+        backend_impl = self._instance.get_db_lib()
+        if backend_impl == 'bdb':
+            result = DSBLE0006
+            result['items'] = [self.lint_uid()]
+            yield result
+
+
+    def _lint_backend_implementation_cleanup_needed(self):
+        db_files = os.listdir(self._instance.ds_paths.db_dir)
+        if self._instance.ds_paths.db_home_dir is not None and self._instance.ds_paths.db_home_dir != self._instance.ds_paths.db_dir:
+            db_files.extend(os.listdir(self._instance.ds_paths.db_home_dir))
+        db_files = [f.lower() for f in db_files]
+        db_files = sorted(set(db_files))
+
+        mdb_files = ['data.mdb', 'info.mdb', 'lock.mdb']
+        bdb_files = ['__db.001', 'dbversion', '__db.003', 'userroot', 'log.0000000001', '__db.002']
+
+        bdb_files_present = all(file in db_files for file in bdb_files)
+        mdb_files_present = all(file in db_files for file in mdb_files)
+
+        if bdb_files_present and mdb_files_present:
+            result = DSBLE0004
+            result['items'] = [self.lint_uid()]
+            yield result
+
+    def _lint_backend_implementation_config_attributes(self):
+        backend_impl = self._instance.get_db_lib()
+        db_config = DatabaseConfig(self._instance)
+        config_attrs = db_config.get()
+
+        mdb_only_attrs = ['nsslapd-mdb-max-size', 'nsslapd-mdb-max-readers', 'nsslapd-mdb-max-dbs']
+        bdb_only_attrs = ['nsslapd-dbcachesize',
+                          'nsslapd-dbncache',
+                          'nsslapd-db-logdirectory',
+                          'nsslapd-db-circular-logging',
+                          'nsslapd-db-transaction-wait',
+                          'nsslapd-db-checkpoint-interval',
+                          'nsslapd-db-compactdb-interval',
+                          'nsslapd-db-compactdb-time',
+                          'nsslapd-db-transaction-batch-val',
+                          'nsslapd-db-transaction-batch-min-wait',
+                          'nsslapd-db-transaction-batch-max-wait',
+                          'nsslapd-db-logbuf-size',
+                          'nsslapd-db-page-size',
+                          'nsslapd-db-index-page-size',
+                          'nsslapd-db-logfile-size',
+                          'nsslapd-db-trickle-percentage',
+                          'nsslapd-db-spin-count',
+                          'nsslapd-db-verbose',
+                          'nsslapd-db-debug',
+                          'nsslapd-db-locks',
+                          'nsslapd-db-locks-monitoring-enabled',
+                          'nsslapd-db-locks-monitoring-threshold',
+                          'nsslapd-db-locks-monitoring-pause',
+                          'nsslapd-db-named-regions',
+                          'nsslapd-db-private-mem',
+                          'nsslapd-db-private-import-mem',
+                          'nsslapd-db-shm-key',
+                          'nsslapd-db-debug-checkpointing',
+                          'nsslapd-db-lockdown',
+                          'nsslapd-db-tx-max',
+                          'nsslapd-online-import-encrypt',
+                          'nsslapd-db-deadlock-policy']
+
+        if backend_impl == 'bdb':
+            invalid_attrs = [attr for attr in mdb_only_attrs if attr in config_attrs]
+        else:  # mdb
+            invalid_attrs = [attr for attr in bdb_only_attrs if attr in config_attrs]
+
+        if invalid_attrs:
+            result = DSBLE0005
+            result['items'] = invalid_attrs
             yield result
 
     def _lint_cl_trimming(self):

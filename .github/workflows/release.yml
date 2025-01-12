@@ -10,7 +10,7 @@ on:
         description: Specify tag to generate a tarball
         required: true
       skip-audit-ci:
-        description: Skip npm audit-ci
+        description: Skip npx --yes audit-ci
         type: boolean
         default: false
 
@@ -33,10 +33,23 @@ jobs:
           VERSION: ${{ github.event.inputs.version || github.ref_name }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ steps.get_version.outputs.version }}
+
+      - name: Check if the tagged commit belongs to a valid branch
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          COMMIT=$(git rev-parse HEAD)
+          BRANCHES=$(git branch -a --contains $COMMIT | grep -v 'HEAD detached at')
+          if [ -n "$BRANCHES" ]; then
+              echo "Tagged commit $COMMIT belongs to the following branch(es):"
+              echo "$BRANCHES"
+          else
+              echo "Tagged commit $COMMIT does not belong to any branch."
+              exit 1
+          fi
 
       - name: Create tarball
         run: |
@@ -47,7 +60,7 @@ jobs:
           TAG=${{ steps.get_version.outputs.version }} make -f rpm.mk dist-bz2
 
       - name: Upload tarball
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.get_version.outputs.version }}.tar.bz2
           path: ${{ steps.get_version.outputs.version }}.tar.bz2

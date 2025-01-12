@@ -161,10 +161,10 @@ ldapu_find_entire_tree(LDAP *ld, int scope, const char *filter, const char **att
             retval = LDAPU_FAILED;
             return retval;
         }
-        for (i = num_namingcontexts; i < (num_namingcontexts + num_private_suffix); ++i) {
-            suffix_list[i] = strdup(private_suffix_list[i - num_namingcontexts]);
+        for (i = 0; i < num_private_suffix; ++i) {
+            suffix_list[num_namingcontexts + i] = strdup(private_suffix_list[i]);
         }
-        suffix_list[i] = NULL;
+        suffix_list[num_namingcontexts + i] = NULL;
         num_namingcontexts += num_private_suffix;
         suffix = suffix_list;
     }

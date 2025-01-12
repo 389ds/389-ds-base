@@ -36,8 +36,8 @@
  */
 static void fixup_hashtable_empty( MemberOfConfig *config, char *msg);
 static void ancestor_hashtable_empty(MemberOfConfig *config, char *msg);
-static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
-										 int *returncode, char *returntext, void *arg);
+static int memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
+                                     int *returncode, char *returntext, void *arg);
 static int memberof_search (Slapi_PBlock *pb __attribute__((unused)),
                             Slapi_Entry* entryBefore __attribute__((unused)),
                             Slapi_Entry* e __attribute__((unused)),
@@ -469,7 +469,9 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     char **entryScopeExcludeSubtrees = NULL;
     char *sharedcfg = NULL;
     const char *skip_nested = NULL;
+    const char *deferred_update = NULL;
     char *auto_add_oc = NULL;
+    const char *needfixup = NULL;
     int num_vals = 0;
 
     *returncode = LDAP_SUCCESS;
@@ -503,7 +505,9 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
     allBackends = slapi_entry_attr_get_ref(e, MEMBEROF_BACKEND_ATTR);
     skip_nested = slapi_entry_attr_get_ref(e, MEMBEROF_SKIP_NESTED_ATTR);
+    deferred_update = slapi_entry_attr_get_ref(e, MEMBEROF_DEFERRED_UPDATE_ATTR);
     auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
+    needfixup = slapi_entry_attr_get_ref(e, MEMBEROF_NEED_FIXUP);
 
     if (auto_add_oc == NULL) {
         auto_add_oc = slapi_ch_strdup(NSMEMBEROF);
@@ -514,6 +518,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
      * a memberOf operation, so we obtain an exclusive lock here
      */
     memberof_wlock_config();
+    theConfig.need_fixup = (needfixup != NULL);
 
     if (groupattrs) {
         int i = 0;
@@ -563,18 +568,29 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         slapi_filter_free(theConfig.group_filter, 1);
 
         if (num_groupattrs > 1) {
-            int bytes_out = 0;
-            int filter_str_len = groupattr_name_len + (num_groupattrs * 4) + 4;
+            size_t bytes_out = 0;
+            size_t filter_str_len = groupattr_name_len + (num_groupattrs * 4) + 4;
 
             /* Allocate enough space for the filter */
             filter_str = slapi_ch_malloc(filter_str_len);
 
             /* Add beginning of filter. */
             bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
+            if (bytes_out<0) {
+                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                goto done;
+            }
 
             /* Add filter section for each groupattr. */
-            for (i = 0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
-                bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
+            for (size_t i=0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
+                size_t bytes_read = snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
+                if (bytes_read<0) {
+                    slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
+                    goto done;
+                }
+                bytes_out += bytes_read;
             }
 
             /* Add end of filter. */
@@ -612,6 +628,15 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
             theConfig.skip_nested = 1;
         } else {
             theConfig.skip_nested = 0;
+        }
+    }
+
+
+    if (deferred_update) {
+        if (strcasecmp(deferred_update, "on") == 0) {
+            theConfig.deferred_update = PR_TRUE;
+        } else {
+            theConfig.deferred_update = PR_FALSE;
         }
     }
 
@@ -754,6 +779,14 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 
         slapi_ch_free_string(&dest->auto_add_oc);
         dest->auto_add_oc = slapi_ch_strdup(src->auto_add_oc);
+
+        dest->deferred_update = src->deferred_update;
+        dest->need_fixup = src->need_fixup;
+        /*
+         * deferred_list, ancestors_cache, fixup_cache are not config parameters
+         *  but simple global parameters and should not be copied as
+         *  and they are only meaningful in the original config (i.e: theConfig)
+         */
 
         if (src->entryScopes) {
             int num_vals = 0;
@@ -986,7 +1019,7 @@ bail:
     if (ret) {
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, returntext);
-        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate - %s/n",
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate - %s\n",
                       returntext);
     }
     slapi_sdn_free(&config_sdn);

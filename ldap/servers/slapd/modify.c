@@ -612,6 +612,8 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
     char *proxydn = NULL;
     int proxy_err = LDAP_SUCCESS;
     char *errtext = NULL;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
     slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
@@ -657,26 +659,47 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
         }
 
         if (!internal_op) {
-            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s\n",
-                             pb_conn->c_connid,
-                             operation->o_opid,
-                             slapi_sdn_get_dn(sdn),
-                             proxystr ? proxystr : "");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_pblock_init(&logpb, log_format, pb);
+                logpb.target_dn = slapi_sdn_get_dn(sdn);
+                logpb.authzid = proxydn;
+                slapd_log_access_mod(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s\n",
+                                 pb_conn->c_connid,
+                                 operation->o_opid,
+                                 slapi_sdn_get_dn(sdn),
+                                 proxystr ? proxystr : "");
+            }
+
         } else {
             uint64_t connid;
             int32_t op_id;
             int32_t op_internal_id;
             int32_t op_nested_count;
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
-            slapi_log_access(LDAP_DEBUG_ARGS,
-                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) MOD dn=\"%s\"%s\n" :
-                                         "conn=%" PRId64 " (Internal) op=%d(%d)(%d) MOD dn=\"%s\"%s\n",
-                             connid,
-                             op_id,
-                             op_internal_id,
-                             op_nested_count,
-                             slapi_sdn_get_dn(sdn),
-                             proxystr ? proxystr : "");
+            time_t start_time;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.log_format = log_format;
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
+                logpb.op_internal_id = op_internal_id;
+                logpb.op_nested_count = op_nested_count;
+                logpb.target_dn = slapi_sdn_get_dn(sdn);
+                logpb.authzid = proxydn;
+                slapd_log_access_mod(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_ARGS,
+                                 connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) MOD dn=\"%s\"%s\n" :
+                                             "conn=%" PRId64 " (Internal) op=%d(%d)(%d) MOD dn=\"%s\"%s\n",
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 slapi_sdn_get_dn(sdn),
+                                 proxystr ? proxystr : "");
+            }
         }
 
         slapi_ch_free_string(&proxystr);
@@ -762,7 +785,9 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
      * flagged - leave mod attributes alone */
     if (!repl_op && !skip_modified_attrs && lastmod) {
         modify_update_last_modified_attr(pb, &smods);
+        slapi_pblock_set(pb, SLAPI_MODIFY_MODS, slapi_mods_get_ldapmods_byref(&smods));
     }
+
 
     if (0 == slapi_mods_get_num_mods(&smods)) {
         /* nothing to do - no mods - this is not an error - just
@@ -930,8 +955,10 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
 
             /* encode password */
             if (pw_encodevals_ext(pb, sdn, va)) {
-                slapi_log_err(SLAPI_LOG_CRIT, "op_shared_modify", "Unable to hash userPassword attribute for %s.\n", slapi_entry_get_dn_const(e));
-                send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Unable to store attribute \"userPassword\" correctly\n", 0, NULL);
+                slapi_log_err(SLAPI_LOG_CRIT, "op_shared_modify", "Unable to hash userPassword attribute for %s, "
+                    "check value is utf8 string.\n", slapi_entry_get_dn_const(e));
+                send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Unable to hash \"userPassword\" attribute, "
+                    "check value is utf8 string.\n", 0, NULL);
                 valuearray_free(&va);
                 goto free_and_return;
             }
@@ -1141,6 +1168,8 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     char *proxystr = NULL;
     char *errtext = NULL;
     int32_t needpw = 0;
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
 
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
     if (repl_op) {
@@ -1166,12 +1195,21 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
         needpw = pb_conn->c_needpw;
     }
 
+    /* Prep log pblock */
+    slapd_log_pblock_init(&logpb, log_format, pb);
+    logpb.target_dn = slapi_sdn_get_dn(&sdn);
+
     /* get the proxy auth dn if the proxy auth control is present */
     if ((proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext)) != LDAP_SUCCESS) {
         if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
-            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"\n",
-                             pb_conn ? pb_conn->c_connid: -1, operation->o_opid,
-                             slapi_sdn_get_dn(&sdn));
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.authzid = proxydn;
+                slapd_log_access_mod(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"\n",
+                                 pb_conn ? pb_conn->c_connid: -1, operation->o_opid,
+                                 slapi_sdn_get_dn(&sdn));
+            }
         }
 
         send_ldap_result(pb, proxy_err, NULL, errtext, 0, NULL);
@@ -1212,9 +1250,14 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                 if (proxydn) {
                     proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
                 }
-                slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s\n",
-                                 pb_conn ? pb_conn->c_connid : -1, operation->o_opid,
-                                 slapi_sdn_get_dn(&sdn), proxystr ? proxystr : "");
+                if (log_format != LOG_FORMAT_DEFAULT) {
+                    logpb.authzid = proxydn;
+                    slapd_log_access_mod(&logpb);
+                } else {
+                    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s\n",
+                                     pb_conn ? pb_conn->c_connid : -1, operation->o_opid,
+                                     slapi_sdn_get_dn(&sdn), proxystr ? proxystr : "");
+                }
             }
 
             /* Write access is denied to userPassword by ACIs */
@@ -1260,12 +1303,17 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                 if (proxydn) {
                     proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
                 }
-
-                slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-                                 pb_conn ? pb_conn->c_connid : -1, operation->o_opid,
-                                 slapi_sdn_get_dn(&sdn),
-                                 proxystr ? proxystr : "",
-                                 "user is not allowed to change password");
+                if (log_format != LOG_FORMAT_DEFAULT) {
+                    logpb.authzid = proxydn;
+                    logpb.msg = "user is not allowed to change password";
+                    slapd_log_access_mod(&logpb);
+                } else {
+                    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
+                                     pb_conn ? pb_conn->c_connid : -1, operation->o_opid,
+                                     slapi_sdn_get_dn(&sdn),
+                                     proxystr ? proxystr : "",
+                                     "user is not allowed to change password");
+                }
             }
 
             rc = -1;
@@ -1282,19 +1330,35 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             }
 
             if (!internal_op) {
-                slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-                                 pb_conn ? pb_conn->c_connid : -1,
-                                 operation->o_opid,
-                                 slapi_sdn_get_dn(&sdn),
-                                 proxystr ? proxystr : "",
-                                 "within password minimum age");
+                if (log_format != LOG_FORMAT_DEFAULT) {
+                    logpb.authzid = proxydn;
+                    logpb.msg = "within password minimum age";
+                    slapd_log_access_mod(&logpb);
+                } else {
+                    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
+                                     pb_conn ? pb_conn->c_connid : -1,
+                                     operation->o_opid,
+                                     slapi_sdn_get_dn(&sdn),
+                                     proxystr ? proxystr : "",
+                                     "within password minimum age");
+                }
             } else {
-                slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
-                                 LOG_INTERNAL_OP_CON_ID,
-                                 LOG_INTERNAL_OP_OP_ID,
-                                 slapi_sdn_get_dn(&sdn),
-                                 proxystr ? proxystr : "",
-                                 "within password minimum age");
+                if (log_format != LOG_FORMAT_DEFAULT) {
+                    logpb.op_id = -1;
+                    logpb.op_internal_id = 0;
+                    logpb.op_nested_count = 0;
+                    logpb.authzid = proxydn;
+                    logpb.msg = "within password minimum age";
+                    slapd_log_access_mod(&logpb);
+                } else {
+                    slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
+                                     LOG_INTERNAL_OP_CON_ID,
+                                     LOG_INTERNAL_OP_OP_ID,
+                                     slapi_sdn_get_dn(&sdn),
+                                     proxystr ? proxystr : "",
+                                     "within password minimum age");
+                }
+
             }
         }
         rc = -1;
@@ -1316,19 +1380,34 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             }
 
             if (!internal_op) {
-                slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
-                                 pb_conn ? pb_conn->c_connid : -1,
-                                 operation->o_opid,
-                                 slapi_sdn_get_dn(&sdn),
-                                 proxystr ? proxystr : "",
-                                 "invalid password syntax");
+                if (log_format != LOG_FORMAT_DEFAULT) {
+                    logpb.authzid = proxydn;
+                    logpb.msg = "invalid password syntax";
+                    slapd_log_access_mod(&logpb);
+                } else {
+                    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d MOD dn=\"%s\"%s, %s\n",
+                                     pb_conn ? pb_conn->c_connid : -1,
+                                     operation->o_opid,
+                                     slapi_sdn_get_dn(&sdn),
+                                     proxystr ? proxystr : "",
+                                     "invalid password syntax");
+                }
             } else {
-                slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
-                                 LOG_INTERNAL_OP_CON_ID,
-                                 LOG_INTERNAL_OP_OP_ID,
-                                 slapi_sdn_get_dn(&sdn),
-                                 proxystr ? proxystr : "",
-                                 "invalid password syntax");
+                if (log_format != LOG_FORMAT_DEFAULT) {
+                    logpb.op_id = -1;
+                    logpb.op_internal_id = 0;
+                    logpb.op_nested_count = 0;
+                    logpb.authzid = proxydn;
+                    logpb.msg = "invalid password syntax";
+                    slapd_log_access_mod(&logpb);
+                } else {
+                    slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
+                                     LOG_INTERNAL_OP_CON_ID,
+                                     LOG_INTERNAL_OP_OP_ID,
+                                     slapi_sdn_get_dn(&sdn),
+                                     proxystr ? proxystr : "",
+                                     "invalid password syntax");
+                }
             }
         }
         rc = -1;

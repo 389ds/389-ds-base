@@ -465,36 +465,62 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
      * and - if applicable - log reason of any error to the errors log
      */
     if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
+        int32_t log_format = config_get_accesslog_log_format();
+        slapd_log_pblock logpb = {0};
+
+        slapd_log_pblock_init(&logpb, log_format, pb);
+        logpb.target_dn = dn;
+        logpb.newrdn = newrdn;
+        logpb.newsup = newsuperior;
+        logpb.deletoldrdn = deloldrdn ? PR_TRUE : PR_FALSE;
+        logpb.authzid = proxydn;
+
         if (proxydn) {
             proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
         if (!internal_op) {
-            slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
-                             pb_conn->c_connid,
-                             operation->o_opid,
-                             dn,
-                             newrdn ? newrdn : "(null)",
-                             newsuperior ? newsuperior : "(null)",
-                             proxystr ? proxystr : "");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_access_modrdn(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS,
+                                 "conn=%" PRIu64 " op=%d MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
+                                 pb_conn->c_connid,
+                                 operation->o_opid,
+                                 dn,
+                                 newrdn ? newrdn : "(null)",
+                                 newsuperior ? newsuperior : "(null)",
+                                 proxystr ? proxystr : "");
+            }
+
         } else {
             uint64_t connid;
             int32_t op_id;
             int32_t op_internal_id;
             int32_t op_nested_count;
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
-            slapi_log_access(LDAP_DEBUG_ARGS,
-                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n" :
-                                         "conn=%" PRId64 " (Internal) op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
-                             connid,
-                             op_id,
-                             op_internal_id,
-                             op_nested_count,
-                             dn,
-                             newrdn ? newrdn : "(null)",
-                             newsuperior ? newsuperior : "(null)",
-                             proxystr ? proxystr : "");
+            time_t start_time;
+
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
+                logpb.op_internal_id = op_internal_id;
+                logpb.op_nested_count = op_nested_count;
+                slapd_log_access_modrdn(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_ARGS,
+                                 connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n" :
+                                             "conn=%" PRId64 " (Internal) op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 dn,
+                                 newrdn ? newrdn : "(null)",
+                                 newsuperior ? newsuperior : "(null)",
+                                 proxystr ? proxystr : "");
+            }
         }
     }
 
@@ -688,6 +714,7 @@ free_and_return_nolock : {
 
     slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &s);
     slapi_ch_free((void **)&s);
+    slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, NULL);
 }
 }
 

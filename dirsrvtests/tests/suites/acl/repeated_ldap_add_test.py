@@ -148,7 +148,6 @@ def check_op_result(server, op, dn, superior, exists, rc):
     log.info('PASSED\n')
 
 
-@pytest.mark.bz1347760
 def test_repeated_ldap_add(topology_st):
     """Prevent revealing the entry info to whom has no access rights.
 

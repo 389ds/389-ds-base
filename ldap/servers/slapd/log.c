@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2005-2024 Red Hat, Inc.
  * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -31,7 +31,7 @@
 #include <pwd.h> /* getpwnam */
 #include "zlib.h"
 #define _PSEP '/'
-#include <json-c/json.h>
+// #include <json-c/json.h>
 #include <assert.h>
 #include <execinfo.h>
 
@@ -47,7 +47,8 @@ PRUintn logbuf_tsdindex;
 struct logbufinfo *logbuf_accum;
 static struct logging_opts loginfo;
 static int detached = 0;
-static int logging_hr_timestamps_enabled = 1;
+
+typedef int open_log(int32_t state, int32_t flags);
 
 //extern int slapd_ldap_debug;
 
@@ -90,6 +91,8 @@ static int slapi_log_map[] = {
 #define SLAPI_LOG_MIN SLAPI_LOG_FATAL /* from slapi-plugin.h */
 #define SLAPI_LOG_MAX SLAPI_LOG_DEBUG /* from slapi-plugin.h */
 #define LOG_CHUNK 16384 /* zlib compression */
+#define FLUSH PR_TRUE
+#define NO_FLUSH PR_FALSE
 
 /**************************************************************************
  * PROTOTYPES
@@ -117,13 +120,17 @@ static PRInt64 log__getfilesize_with_filename(char *filename);
 static int log__enough_freespace(char *path);
 static int vslapd_log_error(LOGFD fp, int sev_level, const char *subsystem, const char *fmt, va_list ap, int locked);
 static int vslapd_log_access(const char *fmt, va_list ap);
+static int vslapd_log_audit(const char *log_data, PRBool json);
 static int vslapd_log_security(const char *log_data);
 static void log_convert_time(time_t ctime, char *tbuf, int type);
 static time_t log_reverse_convert_time(char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
-static void log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
 static void log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
-static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now);
+static void log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
+static void log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
+static void log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
+static void log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, int locked);
+static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now, int locked);
 static void log_write_title(LOGFD fp);
 static void log__error_emergency(const char *errstr, int reopen, int locked);
 static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
@@ -204,13 +211,6 @@ compress_log_file(char *log_name)
     return 0;
 }
 
-int
-loglevel_is_set(int level)
-{
-    return (0 != (slapd_ldap_debug & level));
-}
-
-
 static int
 slapd_log_error_proc_internal(
     int loglevel,
@@ -220,55 +220,33 @@ slapd_log_error_proc_internal(
     va_list ap_file);
 
 /*
- * these macros are used for opening a log file, closing a log file, and
- * writing out to a log file.  we have to do this because currently NSPR
- * is extremely under-performant on NT, while fopen/fwrite fail on several
- * unix platforms if there are more than 128 files open.
- *
- * LOG_OPEN_APPEND(fd, filename, mode) returns true if successful.  'fd' should
- *    be of type LOGFD (check log.h).  the file is open for appending to.
- * LOG_OPEN_WRITE(fd, filename, mode) is the same but truncates the file and
- *    starts writing at the beginning of the file.
- * LOG_WRITE(fd, buffer, size, headersize) writes into a LOGFD
- * LOG_WRITE_NOW(fd, buffer, size, headersize, err) writes into a LOGFD and
- *  flushes the buffer if necessary
- * LOG_CLOSE(fd) closes the logfile
+ * Writes into a LOGFD, if requested FLUSH the log to disk
  */
-#define LOG_OPEN_APPEND(fd, filename, mode)                              \
-    (((fd) = PR_Open((filename), PR_WRONLY | PR_APPEND | PR_CREATE_FILE, \
-                     mode)) != NULL)
-#define LOG_OPEN_WRITE(fd, filename, mode)                 \
-    (((fd) = PR_Open((filename), PR_WRONLY | PR_TRUNCATE | \
-                                     PR_CREATE_FILE,       \
-                     mode)) != NULL)
-#define LOG_WRITE(fd, buffer, size, headersize)                                                                                                              \
-    if (slapi_write_buffer((fd), (buffer), (PRInt32)(size)) != (PRInt32)(size)) {                                                                            \
-        PRErrorCode prerr = PR_GetError();                                                                                                                   \
-        syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer) + (headersize)); \
-    }
-#define LOG_WRITE_NOW(fd, buffer, size, headersize, err)                                                                                                         \
-    do {                                                                                                                                                         \
-        (err) = 0;                                                                                                                                               \
-        if (slapi_write_buffer((fd), (buffer), (PRInt32)(size)) != (PRInt32)(size)) {                                                                            \
-            PRErrorCode prerr = PR_GetError();                                                                                                                   \
-            syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer) + (headersize)); \
-            (err) = prerr;                                                                                                                                       \
-        }                                                                                                                                                        \
-        /* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */                                                                                    \
-        PR_Sync(fd);                                                                                                                                             \
-    } while (0)
-#define LOG_WRITE_NOW_NO_ERR(fd, buffer, size, headersize)                                                                                                       \
-    do {                                                                                                                                                         \
-        if (slapi_write_buffer((fd), (buffer), (PRInt32)(size)) != (PRInt32)(size)) {                                                                            \
-            PRErrorCode prerr = PR_GetError();                                                                                                                   \
-            syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer) + (headersize)); \
-        }                                                                                                                                                        \
-        /* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */                                                                                    \
-        PR_Sync(fd);                                                                                                                                             \
-    } while (0)
-#define LOG_CLOSE(fd) \
-    PR_Close((fd))
+static int32_t
+log_write(LOGFD fd, char *buffer, int32_t size, int32_t headersize, PRBool flush)
+{
+    int32_t rc = 0;
 
+    if (slapi_write_buffer((fd), (buffer), (PRInt32)(size)) != (PRInt32)(size)) {
+        PRErrorCode prerr = PR_GetError();
+        syslog(LOG_ERR,
+               "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n",
+               prerr, slapd_pr_strerror(prerr), (buffer) + (headersize));
+        rc = -1;
+    }
+
+    if (flush) {
+        PR_Sync(fd);
+    }
+
+    return rc;
+}
+
+int
+loglevel_is_set(int level)
+{
+    return (0 != (slapd_ldap_debug & level));
+}
 
 /******************************************************************************
 * Set the access level
@@ -416,6 +394,10 @@ g_log_init()
     if ((loginfo.log_error_rwlock = slapi_new_rwlock()) == NULL) {
         exit(-1);
     }
+    loginfo.log_error_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
+    if ((loginfo.log_error_buffer->lock = PR_NewLock()) == NULL) {
+        exit(-1);
+    }
 
     /* AUDIT LOG */
     loginfo.log_audit_state = cfg->auditlog_logging_enabled;
@@ -440,8 +422,12 @@ g_log_init()
     loginfo.log_numof_audit_logs = 1;
     loginfo.log_audit_fdes = NULL;
     loginfo.log_audit_logchain = NULL;
+    loginfo.log_audit_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
     loginfo.log_audit_compress = cfg->auditlog_compress;
-    if ((loginfo.log_audit_rwlock = slapi_new_rwlock()) == NULL) {
+    if (loginfo.log_audit_buffer == NULL) {
+        exit(-1);
+    }
+    if ((loginfo.log_audit_buffer->lock = PR_NewLock()) == NULL) {
         exit(-1);
     }
 
@@ -468,9 +454,13 @@ g_log_init()
     loginfo.log_numof_auditfail_logs = 1;
     loginfo.log_auditfail_fdes = NULL;
     loginfo.log_auditfail_logchain = NULL;
+    loginfo.log_auditfail_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
     loginfo.log_backend = LOGGING_BACKEND_INTERNAL;
     loginfo.log_auditfail_compress = cfg->auditfaillog_compress;
-    if ((loginfo.log_auditfail_rwlock = slapi_new_rwlock()) == NULL) {
+    if (loginfo.log_auditfail_buffer == NULL) {
+        exit(-1);
+    }
+    if ((loginfo.log_auditfail_buffer->lock = PR_NewLock()) == NULL) {
         exit(-1);
     }
     CFG_UNLOCK_READ(cfg);
@@ -706,9 +696,9 @@ log_set_backend(const char *attrname __attribute__((unused)), char *value, int l
         return LDAP_OPERATIONS_ERROR;
     }
     if (apply) {
-        /* We have a valid backend, set it */
         /*
-         * We just need to use any lock here, doesn't matter which.
+         * We have a valid backend, set it.  Just need to use any lock here,
+         * doesn't matter which.
          */
         LOG_ACCESS_LOCK_WRITE();
         loginfo.log_backend = backend_flags;
@@ -719,6 +709,7 @@ log_set_backend(const char *attrname __attribute__((unused)), char *value, int l
 
     return LDAP_SUCCESS;
 }
+
 /******************************************************************************
 * Tell me  the access log file name inc path
 ******************************************************************************/
@@ -750,14 +741,16 @@ log_update_accesslogdir(char *pathname, int apply)
     LOGFD fp;
 
     /* try to open the file, we may have a incorrect path */
-    if (!LOG_OPEN_APPEND(fp, pathname, loginfo.log_access_mode)) {
+    if (!(fp = PR_Open(pathname, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_access_mode)))
+    {
         slapi_log_err(SLAPI_LOG_WARNING, "log_update_accesslogdir - Can't open file %s. "
                                          "errno %d (%s)\n",
                       pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    LOG_CLOSE(fp);
+    PR_Close(fp);
 
     /* skip the rest if we aren't doing this for real */
     if (!apply) {
@@ -777,7 +770,7 @@ log_update_accesslogdir(char *pathname, int apply)
                       "Moving to a new access log file (%s)\n",
                       pathname, 0, 0);
 
-        LOG_CLOSE(loginfo.log_access_fdes);
+        PR_Close(loginfo.log_access_fdes);
         loginfo.log_access_fdes = 0;
         loginfo.log_access_ctime = 0;
         logp = loginfo.log_access_logchain;
@@ -815,6 +808,7 @@ g_get_error_log()
 
     return logfile;
 }
+
 /******************************************************************************
 * Point to a new error logdir
 *
@@ -831,7 +825,9 @@ log_update_errorlogdir(char *pathname, int apply)
     LOGFD fp;
 
     /* try to open the file, we may have a incorrect path */
-    if (!LOG_OPEN_APPEND(fp, pathname, loginfo.log_error_mode)) {
+    if (!(fp = PR_Open(pathname, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_error_mode)))
+    {
         char buffer[SLAPI_LOG_BUFSIZ];
         PRErrorCode prerr = PR_GetError();
         /* stay with the current log file */
@@ -841,7 +837,7 @@ log_update_errorlogdir(char *pathname, int apply)
         log__error_emergency(buffer, 0, 0);
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    LOG_CLOSE(fp);
+    PR_Close(fp);
 
     /* skip the rest if we aren't doing this for real */
     if (!apply) {
@@ -856,7 +852,7 @@ log_update_errorlogdir(char *pathname, int apply)
     if (loginfo.log_error_fdes) {
         LogFileInfo *logp, *d_logp;
 
-        LOG_CLOSE(loginfo.log_error_fdes);
+        PR_Close(loginfo.log_error_fdes);
         loginfo.log_error_fdes = 0;
         loginfo.log_error_ctime = 0;
         logp = loginfo.log_error_logchain;
@@ -879,6 +875,7 @@ log_update_errorlogdir(char *pathname, int apply)
     LOG_ERROR_UNLOCK_WRITE();
     return rv;
 }
+
 /******************************************************************************
 * Tell me  the audit log file name inc path
 ******************************************************************************/
@@ -894,6 +891,7 @@ g_get_audit_log()
 
     return logfile;
 }
+
 /******************************************************************************
 * Point to a new audit logdir
 *
@@ -909,14 +907,16 @@ log_update_auditlogdir(char *pathname, int apply)
     LOGFD fp;
 
     /* try to open the file, we may have a incorrect path */
-    if (!LOG_OPEN_APPEND(fp, pathname, loginfo.log_audit_mode)) {
+    if (!(fp = PR_Open(pathname, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_audit_mode)))
+    {
         slapi_log_err(SLAPI_LOG_WARNING, "log_update_auditlogdir - Can't open file %s. "
                                          "errno %d (%s)\n",
                       pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    LOG_CLOSE(fp);
+    PR_Close(fp);
 
     /* skip the rest if we aren't doing this for real */
     if (!apply) {
@@ -935,7 +935,7 @@ log_update_auditlogdir(char *pathname, int apply)
                       "Moving to a new audit file (%s)\n",
                       pathname, 0, 0);
 
-        LOG_CLOSE(loginfo.log_audit_fdes);
+        PR_Close(loginfo.log_audit_fdes);
         loginfo.log_audit_fdes = 0;
         loginfo.log_audit_ctime = 0;
         logp = loginfo.log_audit_logchain;
@@ -974,6 +974,7 @@ g_get_auditfail_log()
 
     return logfile;
 }
+
 /******************************************************************************
 * Point to a new auditfail logdir
 *
@@ -989,14 +990,17 @@ log_update_auditfaillogdir(char *pathname, int apply)
     LOGFD fp;
 
     /* try to open the file, we may have a incorrect path */
-    if (!LOG_OPEN_APPEND(fp, pathname, loginfo.log_auditfail_mode)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "log_update_auditfaillogdir - Can't open file %s. "
-                                         "errno %d (%s)\n",
+    if (!(fp = PR_Open(pathname, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_auditfail_mode)))
+    {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                      "log_update_auditfaillogdir - Can't open file %s. "
+                      "errno %d (%s)\n",
                       pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    LOG_CLOSE(fp);
+    PR_Close(fp);
 
     /* skip the rest if we aren't doing this for real */
     if (!apply) {
@@ -1015,7 +1019,7 @@ log_update_auditfaillogdir(char *pathname, int apply)
                       "Moving to a new auditfail file (%s)\n",
                       pathname, 0, 0);
 
-        LOG_CLOSE(loginfo.log_auditfail_fdes);
+        PR_Close(loginfo.log_auditfail_fdes);
         loginfo.log_auditfail_fdes = 0;
         loginfo.log_auditfail_ctime = 0;
         logp = loginfo.log_auditfail_logchain;
@@ -1645,6 +1649,7 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
     }
     return rv;
 }
+
 /******************************************************************************
 * ROTATION TIME UNIT
 * Return Values:
@@ -1771,6 +1776,7 @@ log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, char *e
     }
     return rv;
 }
+
 /******************************************************************************
 * MAXIMUM DISK SPACE
 * Return Values:
@@ -1883,6 +1889,7 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
     }
     return rv;
 }
+
 /******************************************************************************
 * MINIMUM FREE SPACE
 * Return Values:
@@ -1962,6 +1969,7 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
     }
     return rv;
 }
+
 /******************************************************************************
 * LOG EXPIRATION TIME
 * Return Values:
@@ -2085,6 +2093,7 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 
     return rv;
 }
+
 /******************************************************************************
 * LOG EXPIRATION TIME UNIT
 * Return Values:
@@ -2225,24 +2234,6 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
     return rv;
 }
 
-/*
- * Enables HR timestamps in logs.
- */
-void
-log_enable_hr_timestamps()
-{
-    logging_hr_timestamps_enabled = 1;
-}
-
-/*
- * Disables HR timestamps in logs.
- */
-void
-log_disable_hr_timestamps()
-{
-    logging_hr_timestamps_enabled = 0;
-}
-
 /******************************************************************************
  * Write title line in log file
  *****************************************************************************/
@@ -2253,12 +2244,16 @@ log_write_title(LOGFD fp)
     char *buildnum = config_get_buildnum();
     char buff[512];
     int bufflen = sizeof(buff);
+    int rc = 0;
 
     PR_snprintf(buff, bufflen, "\t%s B%s\n",
                 fe_cfg->versionstring ? fe_cfg->versionstring : CAPBRAND "-Directory/" DS_PACKAGE_VERSION,
                 buildnum ? buildnum : "");
-    LOG_WRITE_NOW_NO_ERR(fp, buff, strlen(buff), 0);
-
+    rc = log_write(fp, buff, strlen(buff), 0, FLUSH);
+    if (rc != 0) {
+        slapi_ch_free((void **)&buildnum);
+        return;
+    }
     if (fe_cfg->localhost) {
         PR_snprintf(buff, bufflen, "\t%s:%d (%s)\n\n",
                     fe_cfg->localhost,
@@ -2271,7 +2266,7 @@ log_write_title(LOGFD fp)
         PR_snprintf(buff, bufflen, "\t<host>:<port> (%s)\n\n",
                     fe_cfg->configdir ? fe_cfg->configdir : "");
     }
-    LOG_WRITE_NOW_NO_ERR(fp, buff, strlen(buff), 0);
+    log_write(fp, buff, strlen(buff), 0, FLUSH);
     slapi_ch_free((void **)&buildnum);
 }
 
@@ -2284,7 +2279,6 @@ log_write_title(LOGFD fp)
 int
 error_log_openf(char *pathname, int locked)
 {
-
     int rv = 0;
     int logfile_type = 0;
 
@@ -2313,6 +2307,7 @@ error_log_openf(char *pathname, int locked)
         LOG_ERROR_UNLOCK_WRITE();
     return rv;
 }
+
 /******************************************************************************
 *  init function for the audit log
 *  Returns:
@@ -2322,7 +2317,6 @@ error_log_openf(char *pathname, int locked)
 int
 audit_log_openf(char *pathname, int locked)
 {
-
     int rv = 0;
     int logfile_type = 0;
 
@@ -2363,7 +2357,6 @@ audit_log_openf(char *pathname, int locked)
 int
 auditfail_log_openf(char *pathname, int locked)
 {
-
     int rv = 0;
     int logfile_type = 0;
 
@@ -2394,32 +2387,77 @@ auditfail_log_openf(char *pathname, int locked)
 
     return rv;
 }
+
 /******************************************************************************
 * write in the audit log
 ******************************************************************************/
+static int
+vslapd_log_audit(const char *log_data, PRBool json_format)
+{
+    char buffer[SLAPI_LOG_BUFSIZ];
+    time_t tnl = slapi_current_utc_time();
+    int32_t blen = TBUFSIZE;
+    int32_t rc = LDAP_SUCCESS;
+    int32_t msg_len = strlen(log_data);
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_audit__entry);
+#endif
+
+    /*
+     * An audit entry can be larger than the buffer, flush the current buffer
+     * and write new audit entry directly to the file
+     */
+    if (msg_len > SLAPI_LOG_BUFSIZ) {
+        PR_Lock(loginfo.log_audit_buffer->lock);
+        log_flush_buffer(loginfo.log_audit_buffer, SLAPD_AUDIT_LOG, 0, 1);
+
+        LogBufferInfo lbi;
+        lbi.top = (char *)log_data;
+        lbi.current = (char *)log_data+msg_len;
+        lbi.maxsize = msg_len;
+        lbi.lock = NULL;
+        lbi.refcount = 0;
+        log_flush_buffer(&lbi, SLAPD_AUDIT_LOG, 0, 1);
+
+        PR_Unlock(loginfo.log_audit_buffer->lock);
+        return 0;
+    }
+
+    /* We do this sooner, because that we can use the message in other calls */
+    if (json_format) {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s\n", log_data)) == -1) {
+            log__error_emergency("vslapd_log_audit, Unable to format message", 1, 0);
+            return -1;
+        }
+    } else {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s", log_data)) == -1) {
+            log__error_emergency("vslapd_log_audit, Unable to format message", 1, 0);
+            return -1;
+        }
+    }
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_audit__prepared);
+#endif
+    log_append_audit_buffer(tnl, loginfo.log_audit_buffer, buffer, blen);
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_audit__buffer);
+#endif
+
+    return (rc);
+}
 
 int
-slapd_log_audit(
-    char *buffer,
-    int buf_len,
-    int sourcelog)
+slapd_log_audit(char *buffer, PRBool json_format)
 {
     /* We use this to route audit log entries to where they need to go */
     int retval = LDAP_SUCCESS;
     int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
 
-    int *state;
-    if (sourcelog == SLAPD_AUDIT_LOG) {
-        state = &loginfo.log_audit_state;
-    } else if (sourcelog == SLAPD_AUDITFAIL_LOG) {
-        state = &loginfo.log_auditfail_state;
-    } else {
-        /* How did we even get here! */
-        return 1;
-    }
-
     if (lbackend & LOGGING_BACKEND_INTERNAL) {
-        retval = slapd_log_audit_internal(buffer, buf_len, state);
+        retval = vslapd_log_audit(buffer, json_format);
     }
 
     if (retval != LDAP_SUCCESS) {
@@ -2427,104 +2465,190 @@ slapd_log_audit(
     }
     if (lbackend & LOGGING_BACKEND_SYSLOG) {
         /* This returns void, so we hope it worked */
-        syslog(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            syslog(LOG_NOTICE, "%s\n", buffer);
+        } else {
+            syslog(LOG_NOTICE, "%s", buffer);
+        }
     }
 #ifdef HAVE_JOURNALD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
-        retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            retval = sd_journal_print(LOG_NOTICE, "%s\n", buffer);
+        }else {
+            retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        }
     }
 #endif
     return retval;
 }
 
-int
-slapd_log_audit_internal(
-    char *buffer,
-    int buf_len,
-    int *state)
+static void
+log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
 {
-    if ((*state & LOGGING_ENABLED) && (loginfo.log_audit_file != NULL)) {
-        LOG_AUDIT_LOCK_WRITE();
-        if (log__needrotation(loginfo.log_audit_fdes,
-                              SLAPD_AUDIT_LOG) == LOG_ROTATE) {
-            if (log__open_auditlogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, "slapd_log_audit_internal",
-                              "Unable to open audit file:%s\n", loginfo.log_audit_file);
-                LOG_AUDIT_UNLOCK_WRITE();
-                return 0;
-            }
-            while (loginfo.log_audit_rotationsyncclock <= loginfo.log_audit_ctime) {
-                loginfo.log_audit_rotationsyncclock += PR_ABS(loginfo.log_audit_rotationtime_secs);
-            }
-        }
-        if (*state & LOGGING_NEED_TITLE) {
-            log_write_title(loginfo.log_audit_fdes);
-            *state &= ~LOGGING_NEED_TITLE;
-        }
-        LOG_WRITE_NOW_NO_ERR(loginfo.log_audit_fdes, buffer, buf_len, 0);
-        LOG_AUDIT_UNLOCK_WRITE();
-        return 0;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *insert_point = NULL;
+
+    /* While holding the lock, we determine if there is space in the buffer for our payload,
+       and if we need to flush.
+     */
+    PR_Lock(lbi->lock);
+    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
+        (tnl >= loginfo.log_audit_rotationsyncclock &&
+         loginfo.log_audit_rotationsync_enabled))
+    {
+        log_flush_buffer(lbi, SLAPD_AUDIT_LOG, 0 /* do not sync to disk */, 1);
     }
-    return 0;
+    insert_point = lbi->current;
+    lbi->current += size;
+    /* Increment the copy refcount */
+    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+    PR_Unlock(lbi->lock);
+
+    /* Now we can copy without holding the lock */
+    memcpy(insert_point, msg, size);
+
+    /* Decrement the copy refcount */
+    slapi_atomic_decr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+
+    /* If we are asked to sync to disk immediately, do so */
+    if (!slapdFrontendConfig->auditlogbuffering) {
+        PR_Lock(lbi->lock);
+        log_flush_buffer(lbi, SLAPD_AUDIT_LOG, 1 /* sync to disk now */, 1);
+        PR_Unlock(lbi->lock);
+    }
 }
+
 /******************************************************************************
 * write in the audit fail log
 ******************************************************************************/
+static int
+vslapd_log_auditfail(const char *log_data, PRBool json_format)
+{
+    char buffer[SLAPI_LOG_BUFSIZ];
+    time_t tnl = slapi_current_utc_time();;
+    int32_t blen = TBUFSIZE;
+    int32_t rc = LDAP_SUCCESS;
+    int32_t msg_len = strlen(log_data);
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_auditfail__entry);
+#endif
+
+    /*
+     * An audit entry can be larger than the buffer, flush the current buffer
+     * and write new audit entry directly to the file
+     */
+    if (msg_len > SLAPI_LOG_BUFSIZ) {
+        PR_Lock(loginfo.log_auditfail_buffer->lock);
+        log_flush_buffer(loginfo.log_auditfail_buffer, SLAPD_AUDITFAIL_LOG, 0, 1);
+
+        LogBufferInfo lbi;
+        lbi.top = (char *)log_data;
+        lbi.current = (char *)log_data+msg_len;
+        lbi.maxsize = msg_len;
+        lbi.lock = NULL;
+        lbi.refcount = 0;
+        log_flush_buffer(&lbi, SLAPD_AUDITFAIL_LOG, 0, 1);
+
+        PR_Unlock(loginfo.log_auditfail_buffer->lock);
+        return 0;
+    }
+
+    /* We do this sooner, because that we can use the message in other calls */
+    if (json_format) {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s\n", log_data)) == -1) {
+            log__error_emergency("vslapd_log_auditfail, Unable to format message", 1, 0);
+            return -1;
+        }
+    } else {
+        if ((blen = PR_snprintf(buffer, SLAPI_LOG_BUFSIZ, "%s", log_data)) == -1) {
+            log__error_emergency("vslapd_log_auditfail, Unable to format message", 1, 0);
+            return -1;
+        }
+    }
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_auditfail__prepared);
+#endif
+    log_append_auditfail_buffer(tnl, loginfo.log_auditfail_buffer, buffer, blen);
+
+#ifdef SYSTEMTAP
+    STAP_PROBE(ns-slapd, vslapd_log_auditfail__buffer);
+#endif
+
+    return (rc);
+}
+
 int
-slapd_log_auditfail(
-    char *buffer,
-    int buf_len)
+slapd_log_auditfail(char *buffer, PRBool json_format)
 {
     /* We use this to route audit log entries to where they need to go */
     int retval = LDAP_SUCCESS;
     int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
     if (lbackend & LOGGING_BACKEND_INTERNAL) {
-        retval = slapd_log_auditfail_internal(buffer, buf_len);
+        retval = vslapd_log_auditfail(buffer, json_format);
     }
     if (retval != LDAP_SUCCESS) {
         return retval;
     }
     if (lbackend & LOGGING_BACKEND_SYSLOG) {
         /* This returns void, so we hope it worked */
-        syslog(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            syslog(LOG_NOTICE, "%s\n", buffer);
+        } else {
+            syslog(LOG_NOTICE, "%s", buffer);
+        }
+
     }
 #ifdef HAVE_JOURNALD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
-        retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        if (json_format) {
+            retval = sd_journal_print(LOG_NOTICE, "%s\n", buffer);
+        } else {
+            retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
+        }
     }
 #endif
     return retval;
 }
 
-int
-slapd_log_auditfail_internal(
-    char *buffer,
-    int buf_len)
+static void
+log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
 {
-    if ((loginfo.log_auditfail_state & LOGGING_ENABLED) && (loginfo.log_auditfail_file != NULL)) {
-        LOG_AUDITFAIL_LOCK_WRITE();
-        if (log__needrotation(loginfo.log_auditfail_fdes,
-                              SLAPD_AUDITFAIL_LOG) == LOG_ROTATE) {
-            if (log__open_auditfaillogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, "slapd_log_auditfail_internal",
-                              "Unable to open auditfail file:%s\n", loginfo.log_auditfail_file);
-                LOG_AUDITFAIL_UNLOCK_WRITE();
-                return 0;
-            }
-            while (loginfo.log_auditfail_rotationsyncclock <= loginfo.log_auditfail_ctime) {
-                loginfo.log_auditfail_rotationsyncclock += PR_ABS(loginfo.log_auditfail_rotationtime_secs);
-            }
-        }
-        if (loginfo.log_auditfail_state & LOGGING_NEED_TITLE) {
-            log_write_title(loginfo.log_auditfail_fdes);
-            loginfo.log_auditfail_state &= ~LOGGING_NEED_TITLE;
-        }
-        LOG_WRITE_NOW_NO_ERR(loginfo.log_auditfail_fdes, buffer, buf_len, 0);
-        LOG_AUDITFAIL_UNLOCK_WRITE();
-        return 0;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *insert_point = NULL;
+
+    /* While holding the lock, we determine if there is space in the buffer for our payload,
+       and if we need to flush.
+     */
+    PR_Lock(lbi->lock);
+    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
+        (tnl >= loginfo.log_auditfail_rotationsyncclock &&
+         loginfo.log_auditfail_rotationsync_enabled))
+    {
+        log_flush_buffer(lbi, SLAPD_AUDITFAIL_LOG, 0 /* do not sync to disk */, 1);
     }
-    return 0;
+    insert_point = lbi->current;
+    lbi->current += size;
+    /* Increment the copy refcount */
+    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+    PR_Unlock(lbi->lock);
+
+    /* Now we can copy without holding the lock */
+    memcpy(insert_point, msg, size);
+
+    /* Decrement the copy refcount */
+    slapi_atomic_decr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+
+    /* If we are asked to sync to disk immediately, do so */
+    if (!slapdFrontendConfig->auditlogbuffering) {
+        PR_Lock(lbi->lock);
+        log_flush_buffer(lbi, SLAPD_AUDITFAIL_LOG, 1 /* sync to disk now */, 1);
+        PR_Unlock(lbi->lock);
+    }
 }
+
 /******************************************************************************
 * write in the error log
 ******************************************************************************/
@@ -2624,31 +2748,22 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     char tbuf[TBUFSIZE];
     char buffer[SLAPI_LOG_BUFSIZ];
     int size = TBUFSIZE;
+    struct timespec tsnow;
 
-#ifdef HAVE_CLOCK_GETTIME
-    if (logging_hr_timestamps_enabled == 1) {
-        struct timespec tsnow;
-        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to determine system time for message :: %s\n", msg);
-            return;
-        }
-        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s\n", msg);
-            return;
-        }
-    } else {
-#endif
-        time_t tnl;
-        tnl = slapi_current_utc_time();
-        if (format_localTime_log(tnl, sizeof(tbuf), tbuf, &size) != 0) {
-            syslog(LOG_EMERG, "vslapd_log_emergency_error, Unable to format system time for message :: %s\n", msg);
-            return;
-        }
-#ifdef HAVE_CLOCK_GETTIME
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        syslog(LOG_EMERG,
+               "vslapd_log_emergency_error, Unable to determine system time for message :: %s\n",
+               msg);
+        return;
     }
-#endif
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(tbuf), tbuf, &size) != 0) {
+        syslog(LOG_EMERG,
+               "vslapd_log_emergency_error, Unable to format system time for message :: %s\n",
+               msg);
+        return;
+    }
 
-    PR_snprintf(buffer, sizeof(buffer), "%s- EMERG - %s\n", tbuf, msg);
+    PR_snprintf(buffer, sizeof(buffer), "%s - EMERG - %s\n", tbuf, msg);
     size = strlen(buffer);
 
     if (!locked) {
@@ -2689,6 +2804,44 @@ get_log_sev_name(int loglevel, char *sev_name)
     return "";
 }
 
+static void
+log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, int locked)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *insert_point = NULL;
+
+    /* While holding the lock, we determine if there is space in the buffer for our payload,
+       and if we need to flush.
+     */
+    PR_Lock(lbi->lock);
+    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
+        (tnl >= loginfo.log_error_rotationsyncclock &&
+         loginfo.log_error_rotationsync_enabled))
+    {
+        log_flush_buffer(lbi, SLAPD_ERROR_LOG, 0 /* do not sync to disk */,
+                         locked);
+    }
+    insert_point = lbi->current;
+    lbi->current += size;
+    /* Increment the copy refcount */
+    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+    PR_Unlock(lbi->lock);
+
+    /* Now we can copy without holding the lock */
+    memcpy(insert_point, msg, size);
+
+    /* Decrement the copy refcount */
+    slapi_atomic_decr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+
+    /* If we are asked to sync to disk immediately, do so */
+    if (!slapdFrontendConfig->errorlogbuffering) {
+        PR_Lock(lbi->lock);
+        log_flush_buffer(lbi, SLAPD_ERROR_LOG, 1 /* sync to disk now */,
+                         locked);
+        PR_Unlock(lbi->lock);
+    }
+}
+
 static int
 vslapd_log_error(
     LOGFD fp,
@@ -2698,62 +2851,49 @@ vslapd_log_error(
     va_list ap,
     int locked)
 {
+    time_t tnl = slapi_current_utc_time();
     char buffer[SLAPI_LOG_BUFSIZ];
+    struct timespec tsnow;
     char sev_name[10];
     int blen = TBUFSIZE;
     char *vbuf = NULL;
-    int header_len = 0;
-    int err = 0;
 
     if (vasprintf(&vbuf, fmt, ap) == -1) {
         log__error_emergency("vslapd_log_error, Unable to format message", 1, locked);
         return -1;
     }
 
-#ifdef HAVE_CLOCK_GETTIME
-    if (logging_hr_timestamps_enabled == 1) {
-        struct timespec tsnow;
-        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to determine system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, locked);
-            return -1;
-        }
-        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
-            /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, locked);
-            return -1;
-        }
-    } else {
-#endif
-        time_t tnl;
-        tnl = slapi_current_utc_time();
-        if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_error, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, locked);
-            return -1;
-        }
-#ifdef HAVE_CLOCK_GETTIME
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_error, Unable to determine system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, locked);
+        return -1;
     }
-#endif
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+        /* MSG may be truncated */
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_error, Unable to format system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, locked);
+        return -1;
+    }
 
-    /* Bug 561525: to be able to remove timestamp to not over pollute syslog, we may need
-        to skip the timestamp part of the message.
-      The size of the header is:
-        the size of the time string
-        + size of space
-        + size of one char (sign)
-        + size of 2 char
-        + size of 2 char
-        + size of [
-        + size of ]
-    */
+    /*
+     * To be able to remove timestamp to not over pollute the syslog, we may
+     * need to skip the timestamp part of the message.
+     *
+     *  The size of the header is:
+     *    the size of the time string
+     *    + size of space
+     *    + size of one char (sign)
+     *    + size of 2 char
+     *    + size of 2 char
+     *    + size of [
+     *    + size of ]
+     */
 
-    /* Due to the change to use format_localTime_log, this is now blen */
-    header_len = blen;
-
-    /* blen = strlen(buffer); */
-    /* This truncates again .... But we have the nice smprintf above! */
+    /* This truncates again... But we have the nice smprintf from above! */
     if (subsystem == NULL) {
         snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s",
                  get_log_sev_name(sev_level, sev_name), vbuf);
@@ -2763,28 +2903,12 @@ vslapd_log_error(
     }
 
     buffer[sizeof(buffer) - 1] = '\0';
-
-    if (fp)
-        do {
-            int size = strlen(buffer);
-            (err) = 0;
-            if (slapi_write_buffer((fp), (buffer), (size)) != (size)) {
-                PRErrorCode prerr = PR_GetError();
-                syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer) + (header_len));
-                (err) = prerr;
-            }
-            /* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */
-            PR_Sync(fp);
-        } while (0);
-        else /* stderr is always unbuffered */
-            fprintf(stderr, "%s", buffer);
-
-    if (err) {
-        PR_snprintf(buffer, sizeof(buffer),
-                    "Writing to the errors log failed.  Exiting...");
-        log__error_emergency(buffer, 1, locked);
-        /* failed to write to the errors log.  should not continue. */
-        g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+    if (fp) {
+        log_append_error_buffer(tnl, loginfo.log_error_buffer, buffer,
+                                strlen(buffer), locked);
+    } else {
+        /* stderr is always unbuffered */
+        fprintf(stderr, "%s", buffer);
     }
 
     slapi_ch_free_string(&vbuf);
@@ -2906,7 +3030,6 @@ slapi_log_backtrace(int loglevel)
     }
 }
 
-
 /******************************************************************************
 * write in the access log
 ******************************************************************************/
@@ -2918,6 +3041,7 @@ vslapd_log_access(const char *fmt, va_list ap)
     int32_t blen = TBUFSIZE;
     int32_t vlen;
     int32_t rc = LDAP_SUCCESS;
+    struct timespec tsnow;
     time_t tnl;
 
 #ifdef SYSTEMTAP
@@ -2930,34 +3054,23 @@ vslapd_log_access(const char *fmt, va_list ap)
         return -1;
     }
 
-#ifdef HAVE_CLOCK_GETTIME
-    if (logging_hr_timestamps_enabled == 1) {
-        struct timespec tsnow;
-        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-            /* Make an error */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to determine system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, 0);
-            return -1;
-        }
-        tnl = tsnow.tv_sec;
-        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
-            /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, 0);
-            return -1;
-        }
-    } else {
-#endif
-        tnl = slapi_current_utc_time();
-        if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
-            /* MSG may be truncated */
-            PR_snprintf(buffer, sizeof(buffer), "vslapd_log_access, Unable to format system time for message :: %s", vbuf);
-            log__error_emergency(buffer, 1, 0);
-            return -1;
-        }
-#ifdef HAVE_CLOCK_GETTIME
+    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+        /* Make an error */
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_access, Unable to determine system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, 0);
+        return -1;
     }
-#endif
+    tnl = tsnow.tv_sec;
+    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+        /* MSG may be truncated */
+        PR_snprintf(buffer, sizeof(buffer),
+                    "vslapd_log_access, Unable to format system time for message :: %s",
+                    vbuf);
+        log__error_emergency(buffer, 1, 0);
+        return -1;
+    }
 
     if (SLAPI_LOG_BUFSIZ - blen < vlen) {
         /* We won't be able to fit the message in! Uh-oh! */
@@ -2966,7 +3079,9 @@ vslapd_log_access(const char *fmt, va_list ap)
          * someone is trying to do something bad. */
         vlen = strlen(vbuf);                 /* Truncated length */
         memcpy(&vbuf[vlen-4], "...\n", 4);   /* Replace last characters with three dots and a new line character */
-        slapi_log_err(SLAPI_LOG_ERR, "vslapd_log_access", "Insufficient buffer capacity to fit timestamp and message! The line in the access log was truncated\n");
+        slapi_log_err(SLAPI_LOG_ERR, "vslapd_log_access",
+                      "Insufficient buffer capacity to fit timestamp and message! "
+                      "The line in the access log was truncated\n");
         rc = -1;
     }
 
@@ -2974,7 +3089,7 @@ vslapd_log_access(const char *fmt, va_list ap)
     STAP_PROBE(ns-slapd, vslapd_log_access__prepared);
 #endif
 
-    log_append_buffer2(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);
+    log_append_access_buffer(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);
 
 #ifdef SYSTEMTAP
     STAP_PROBE(ns-slapd, vslapd_log_access__buffer);
@@ -2982,6 +3097,7 @@ vslapd_log_access(const char *fmt, va_list ap)
 
     return (rc);
 }
+
 int
 slapi_log_stat(int loglevel, const char *fmt, ...)
 {
@@ -2997,10 +3113,9 @@ slapi_log_stat(int loglevel, const char *fmt, ...)
     }
     return rc;
 }
+
 int
-slapi_log_access(int level,
-                 const char *fmt,
-                 ...)
+slapi_log_access(int level, const char *fmt, ...)
 {
     va_list ap;
     int rc = 0;
@@ -3097,13 +3212,13 @@ access_log_openf(char *pathname, int locked)
 static int
 log__open_accesslogfile(int logfile_state, int locked)
 {
-
     time_t now;
     LOGFD fp;
     LOGFD fpinfo = NULL;
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
+    int rc;
 
     if (!locked)
         LOG_ACCESS_LOCK_WRITE();
@@ -3133,12 +3248,12 @@ log__open_accesslogfile(int logfile_state, int locked)
             ;
 
         /* close the file */
-        LOG_CLOSE(loginfo.log_access_fdes);
+        PR_Close(loginfo.log_access_fdes);
         /*
          * loginfo.log_access_fdes is not set to NULL here, otherwise
          * slapi_log_access() will not send a message to the access log
          * if it is called between this point and where this field is
-         * set again after calling LOG_OPEN_APPEND.
+         * set again after calling PR_Open.
          */
         if (loginfo.log_access_maxnumlogs > 1) {
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
@@ -3176,7 +3291,9 @@ log__open_accesslogfile(int logfile_state, int locked)
     }
 
     /* open a new log file */
-    if (!LOG_OPEN_APPEND(fp, loginfo.log_access_file, loginfo.log_access_mode)) {
+    if (!(fp = PR_Open(loginfo.log_access_file, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_access_mode)))
+    {
         int oserr = errno;
         loginfo.log_access_fdes = NULL;
         if (!locked)
@@ -3196,7 +3313,10 @@ log__open_accesslogfile(int logfile_state, int locked)
 
     loginfo.log_access_state |= LOGGING_NEED_TITLE;
 
-    if (!LOG_OPEN_WRITE(fpinfo, loginfo.log_accessinfo_file, loginfo.log_access_mode)) {
+    if (!(fpinfo = PR_Open(loginfo.log_accessinfo_file,
+                           PR_WRONLY | PR_TRUNCATE | PR_CREATE_FILE,
+                           loginfo.log_access_mode)))
+    {
         int oserr = errno;
         if (!locked)
             LOG_ACCESS_UNLOCK_WRITE();
@@ -3206,12 +3326,11 @@ log__open_accesslogfile(int logfile_state, int locked)
         return LOG_UNABLE_TO_OPENFILE;
     }
 
-
     /* write the header in the log */
     now = slapi_current_utc_time();
     log_convert_time(now, tbuf, 2 /* long */);
     PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
-    LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+    log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
 
     logp = loginfo.log_access_logchain;
     while (logp) {
@@ -3231,14 +3350,18 @@ log__open_accesslogfile(int logfile_state, int locked)
         }
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 ")\n", PREVLOGFILE, loginfo.log_access_file, tbuf,
                     logp->l_ctime, logp->l_size);
-        LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+        rc = log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
+        if (rc != 0) {
+            break;
+        }
         logp = logp->l_next;
     }
+
     /* Close the info file. We need only when we need to rotate to the
     ** next log file.
     */
     if (fpinfo)
-        LOG_CLOSE(fpinfo);
+        PR_Close(fpinfo);
 
     /* This is now the current access log */
     loginfo.log_access_ctime = now;
@@ -3257,13 +3380,13 @@ log__open_accesslogfile(int logfile_state, int locked)
 static int
 log__open_securitylogfile(int logfile_state, int locked)
 {
-
     time_t now;
     LOGFD fp;
     LOGFD fpinfo = NULL;
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
+    int rc;
 
     if (!locked)
         LOG_SECURITY_LOCK_WRITE();
@@ -3293,12 +3416,12 @@ log__open_securitylogfile(int logfile_state, int locked)
             ;
 
         /* close the file */
-        LOG_CLOSE(loginfo.log_security_fdes);
+        PR_Close(loginfo.log_security_fdes);
         /*
          * loginfo.log_security_fdes is not set to NULL here, otherwise
          * slapi_log_security() will not send a message to the security log
          * if it is called between this point and where this field is
-         * set again after calling LOG_OPEN_APPEND.
+         * set again after calling PR_Open.
          */
         if (loginfo.log_security_maxnumlogs > 1) {
             log = (struct logfileinfo *)slapi_ch_malloc(sizeof(struct logfileinfo));
@@ -3336,7 +3459,10 @@ log__open_securitylogfile(int logfile_state, int locked)
     }
 
     /* open a new log file */
-    if (!LOG_OPEN_APPEND(fp, loginfo.log_security_file, loginfo.log_security_mode)) {
+    if (!(fp = PR_Open(loginfo.log_security_file,
+                       PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_security_mode)))
+    {
         int oserr = errno;
         loginfo.log_security_fdes = NULL;
         if (!locked)
@@ -3358,8 +3484,10 @@ log__open_securitylogfile(int logfile_state, int locked)
      * Do not write the title for the JSON security log
      * loginfo.log_security_state |= LOGGING_NEED_TITLE;
      */
-
-    if (!LOG_OPEN_WRITE(fpinfo, loginfo.log_securityinfo_file, loginfo.log_security_mode)) {
+    if (!(fpinfo = PR_Open(loginfo.log_securityinfo_file,
+                           PR_WRONLY | PR_TRUNCATE | PR_CREATE_FILE,
+                           loginfo.log_security_mode)))
+    {
         int oserr = errno;
         if (!locked)
             LOG_SECURITY_UNLOCK_WRITE();
@@ -3369,12 +3497,11 @@ log__open_securitylogfile(int logfile_state, int locked)
         return LOG_UNABLE_TO_OPENFILE;
     }
 
-
     /* write the header in the log */
     now = slapi_current_utc_time();
     log_convert_time(now, tbuf, 2 /* long */);
     PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
-    LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+    log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
 
     logp = loginfo.log_security_logchain;
     while (logp) {
@@ -3395,14 +3522,18 @@ log__open_securitylogfile(int logfile_state, int locked)
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 ")\n",
                     PREVLOGFILE, loginfo.log_security_file, tbuf,
                     logp->l_ctime, logp->l_size);
-        LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+        rc = log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
+        if (rc != 0) {
+            break;
+        }
         logp = logp->l_next;
     }
+
     /* Close the info file. We need only when we need to rotate to the
     ** next log file.
     */
     if (fpinfo)
-        LOG_CLOSE(fpinfo);
+        PR_Close(fpinfo);
 
     /* This is now the current security log */
     loginfo.log_security_ctime = now;
@@ -3421,11 +3552,9 @@ log__open_securitylogfile(int logfile_state, int locked)
 *
 *    Assumption: A WRITE lock has been acquired for the ACCESS
 ******************************************************************************/
-
 static int
 log__delete_security_logfile(void)
 {
-
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
     struct logfileinfo *p_delete_logp = NULL;
@@ -3441,7 +3570,7 @@ log__delete_security_logfile(void)
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_security_maxnumlogs == 1) {
-        LOG_CLOSE(loginfo.log_security_fdes);
+        PR_Close(loginfo.log_security_fdes);
         loginfo.log_security_fdes = NULL;
         PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_security_file);
         if (PR_Delete(buffer) != PR_SUCCESS) {
@@ -3706,14 +3835,16 @@ log_update_securitylogdir(char *pathname, int apply)
     LOGFD fp;
 
     /* try to open the file, we may have a incorrect path */
-    if (!LOG_OPEN_APPEND(fp, pathname, loginfo.log_security_mode)) {
+    if (!(fp = PR_Open(pathname, PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_security_mode)))
+    {
         slapi_log_err(SLAPI_LOG_WARNING,
                 "log_update_securitylogdir - Can't open file %s. errno %d (%s)\n",
                 pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
         return LDAP_UNWILLING_TO_PERFORM;
     }
-    LOG_CLOSE(fp);
+    PR_Close(fp);
 
     /* skip the rest if we aren't doing this for real */
     if (!apply) {
@@ -3733,7 +3864,7 @@ log_update_securitylogdir(char *pathname, int apply)
                       "Moving to a new security log file (%s)\n",
                       pathname, 0, 0);
 
-        LOG_CLOSE(loginfo.log_security_fdes);
+        PR_Close(loginfo.log_security_fdes);
         loginfo.log_security_fdes = 0;
         loginfo.log_security_ctime = 0;
         logp = loginfo.log_security_logchain;
@@ -3812,7 +3943,7 @@ log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t siz
         (tnl >= loginfo.log_security_rotationsyncclock &&
          loginfo.log_security_rotationsync_enabled))
     {
-        log_flush_buffer(lbi, SLAPD_SECURITY_LOG, 0 /* do not sync to disk */);
+        log_flush_buffer(lbi, SLAPD_SECURITY_LOG, 0 /* do not sync to disk */, 1);
     }
     insert_point = lbi->current;
     lbi->current += size;
@@ -3829,7 +3960,7 @@ log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t siz
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->securitylogbuffering) {
         PR_Lock(lbi->lock);
-        log_flush_buffer(lbi, SLAPD_SECURITY_LOG, 1 /* sync to disk now */);
+        log_flush_buffer(lbi, SLAPD_SECURITY_LOG, 1 /* sync to disk now */, 1);
         PR_Unlock(lbi->lock);
     }
 }
@@ -3892,6 +4023,7 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
     int isroot = 0;
     int rc = 0;
     uint64_t conn_id = 0;
+    uint32_t operation_notes = 0;
     int32_t op_id = 0;
     json_object *log_json = NULL;
 
@@ -3916,6 +4048,8 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
     client_ip = pb_conn->c_ipaddr;
     server_ip = pb_conn->c_serveripaddr;
     ldap_version = pb_conn->c_ldapversion;
+    operation_notes = slapi_pblock_get_operation_notes(pb);
+
     if (saslmech) {
         external_bind = !strcasecmp(saslmech, LDAP_SASL_EXTERNAL);
     }
@@ -3982,7 +4116,8 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
         break;
     default:
         /* Simple auth */
-        PR_snprintf(method_and_mech, sizeof(method_and_mech), "SIMPLE");
+        PR_snprintf(method_and_mech, sizeof(method_and_mech), "%s",
+                    (operation_notes & SLAPI_OP_NOTE_MFA_AUTH) ? "SIMPLE/MFA" : "SIMPLE");
     }
 
     /* Get the time */
@@ -3999,7 +4134,6 @@ slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg)
         log__error_emergency(local_time, 1, 0);
         return -1;
     }
-
 
     /* Truncate the bind dn if it's too long */
     if (strlen(binddn) > 512) {
@@ -4054,12 +4188,12 @@ slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode 
         return 0;
     }
 
-    /* 
+    /*
      * Continue (not return 0) if the event is either SECURITY_TCP_ERROR
      * with one of the specified error codes, or SECURITY_HAPROXY_SUCCESS.
      */
     if (!((strcmp(event_type, SECURITY_TCP_ERROR) == 0) &&
-          (error == SLAPD_DISCONNECT_BAD_BER_TAG || 
+          (error == SLAPD_DISCONNECT_BAD_BER_TAG ||
            error == SLAPD_DISCONNECT_BER_TOO_BIG ||
            error == SLAPD_DISCONNECT_BER_PEEK ||
            error == SLAPD_DISCONNECT_PROXY_UNKNOWN ||
@@ -4257,11 +4391,9 @@ log_rotate:
 *
 *    Assumption: A WRITE lock has been acquired for the ACCESS
 ******************************************************************************/
-
 static int
 log__delete_access_logfile(void)
 {
-
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
     struct logfileinfo *p_delete_logp = NULL;
@@ -4277,7 +4409,7 @@ log__delete_access_logfile(void)
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_access_maxnumlogs == 1) {
-        LOG_CLOSE(loginfo.log_access_fdes);
+        PR_Close(loginfo.log_access_fdes);
         loginfo.log_access_fdes = NULL;
         PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_access_file);
         if (PR_Delete(buffer) != PR_SUCCESS) {
@@ -4399,7 +4531,6 @@ delete_logfile:
     } else {
         p_delete_logp->l_next = delete_logp->l_next;
     }
-
 
     /* Delete the access file */
     log_convert_time(delete_logp->l_ctime, tbuf, 1 /*short */);
@@ -4681,6 +4812,7 @@ log__fix_rotationinfof(char *pathname)
         }
     }
     rval = LOG_SUCCESS;
+
 done:
     if (NULL != dirptr)
         PR_CloseDir(dirptr);
@@ -4852,6 +4984,7 @@ log__check_prevlogs(FILE *fp, char *pathname)
             }
         }
     }
+
 done:
     if (NULL != dirptr)
         PR_CloseDir(dirptr);
@@ -4941,7 +5074,6 @@ log__extract_logheader(FILE *fp, long *f_ctime, PRInt64 *f_size, PRBool *compres
             *compressed = PR_TRUE;
         }
     }
-
     return LOG_CONTINUE;
 }
 
@@ -5021,6 +5153,7 @@ log__enough_freespace(char *path)
     }
     return 1;
 }
+
 /******************************************************************************
 * log_get_loglist
 *  Update the previous access files in the slapdFrontendConfig_t.
@@ -5107,11 +5240,9 @@ log_get_loglist(int logtype)
 *
 *    Assumption: A WRITE lock has been acquired for the error log.
 ******************************************************************************/
-
 static int
 log__delete_error_logfile(int locked)
 {
-
     struct logfileinfo *logp = NULL;
     struct logfileinfo *delete_logp = NULL;
     struct logfileinfo *p_delete_logp = NULL;
@@ -5127,7 +5258,7 @@ log__delete_error_logfile(int locked)
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_error_maxnumlogs == 1) {
-        LOG_CLOSE(loginfo.log_error_fdes);
+        PR_Close(loginfo.log_error_fdes);
         loginfo.log_error_fdes = NULL;
         PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_error_file);
         if (PR_Delete(buffer) != PR_SUCCESS) {
@@ -5290,7 +5421,6 @@ delete_logfile:
 *
 *    Assumption: A WRITE lock has been acquired for the audit
 ******************************************************************************/
-
 static int
 log__delete_audit_logfile(void)
 {
@@ -5309,7 +5439,7 @@ log__delete_audit_logfile(void)
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_audit_maxnumlogs == 1) {
-        LOG_CLOSE(loginfo.log_audit_fdes);
+        PR_Close(loginfo.log_audit_fdes);
         loginfo.log_audit_fdes = NULL;
         PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_audit_file);
         if (PR_Delete(buffer) != PR_SUCCESS) {
@@ -5474,7 +5604,6 @@ delete_logfile:
 *
 *    Assumption: A WRITE lock has been acquired for the auditfail log
 ******************************************************************************/
-
 static int
 log__delete_auditfail_logfile(void)
 {
@@ -5493,7 +5622,7 @@ log__delete_auditfail_logfile(void)
 
     /* If we have only one log, then  will delete this one */
     if (loginfo.log_auditfail_maxnumlogs == 1) {
-        LOG_CLOSE(loginfo.log_auditfail_fdes);
+        PR_Close(loginfo.log_auditfail_fdes);
         loginfo.log_auditfail_fdes = NULL;
         PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_auditfail_file);
         if (PR_Delete(buffer) != PR_SUCCESS) {
@@ -5773,8 +5902,9 @@ log__audit_rotationinfof(char *pathname)
     */
     while ((rval = log__extract_logheader(fp, &f_ctime, &f_size, &compressed)) == LOG_CONTINUE) {
         /* first we would get the main log info */
-        if (f_ctime == 0 && f_size == 0)
+        if (f_ctime == 0 && f_size == 0) {
             continue;
+        }
 
         time(&now);
         if (main_log) {
@@ -5932,10 +6062,12 @@ log__error_emergency(const char *errstr, int reopen, int locked)
         LOG_ERROR_LOCK_WRITE();
     }
     if (NULL != loginfo.log_error_fdes) {
-        LOG_CLOSE(loginfo.log_error_fdes);
+        PR_Close(loginfo.log_error_fdes);
     }
-    if (!LOG_OPEN_APPEND(loginfo.log_error_fdes,
-                         loginfo.log_error_file, loginfo.log_error_mode)) {
+    if (!(loginfo.log_error_fdes = PR_Open(loginfo.log_error_file,
+                                           PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                                           loginfo.log_error_mode)))
+    {
         PRErrorCode prerr = PR_GetError();
         syslog(LOG_ERR, "Failed to reopen errors log file, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", prerr, slapd_pr_strerror(prerr));
     } else {
@@ -5956,7 +6088,6 @@ log__error_emergency(const char *errstr, int reopen, int locked)
 static int
 log__open_errorlogfile(int logfile_state, int locked)
 {
-
     time_t now;
     LOGFD fp = NULL;
     LOGFD fpinfo = NULL;
@@ -6005,7 +6136,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 
         /* close the file */
         if (loginfo.log_error_fdes != NULL) {
-            LOG_CLOSE(loginfo.log_error_fdes);
+            PR_Close(loginfo.log_error_fdes);
         }
         loginfo.log_error_fdes = NULL;
 
@@ -6046,7 +6177,10 @@ log__open_errorlogfile(int logfile_state, int locked)
     }
 
     /* open a new log file */
-    if (!LOG_OPEN_APPEND(fp, loginfo.log_error_file, loginfo.log_error_mode)) {
+    if (!(fp = PR_Open(loginfo.log_error_file,
+                       PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_error_mode)))
+    {
         PR_snprintf(buffer, sizeof(buffer),
                     "Failed to open errors log file %s: error %d (%s); Exiting...",
                     loginfo.log_error_file, errno, slapd_system_strerror(errno));
@@ -6087,12 +6221,15 @@ log__open_errorlogfile(int logfile_state, int locked)
         /* we have all the information */
         if (!locked)
             LOG_ERROR_UNLOCK_WRITE();
+
         return LOG_SUCCESS;
     }
 
     loginfo.log_error_state |= LOGGING_NEED_TITLE;
-
-    if (!LOG_OPEN_WRITE(fpinfo, loginfo.log_errorinfo_file, loginfo.log_error_mode)) {
+    if (!(fpinfo = PR_Open(loginfo.log_errorinfo_file,
+                           PR_WRONLY | PR_TRUNCATE | PR_CREATE_FILE,
+                           loginfo.log_error_mode)))
+    {
         PR_snprintf(buffer, sizeof(buffer),
                     "Failed to open/write to errors log file %s: error %d (%s). Exiting...",
                     loginfo.log_error_file, errno, slapd_system_strerror(errno));
@@ -6106,7 +6243,7 @@ log__open_errorlogfile(int logfile_state, int locked)
     now = slapi_current_utc_time();
     log_convert_time(now, tbuf, 2 /*long */);
     PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
-    LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+    log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
 
     logp = loginfo.log_error_logchain;
     while (logp) {
@@ -6126,14 +6263,18 @@ log__open_errorlogfile(int logfile_state, int locked)
         }
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 "d)\n", PREVLOGFILE, loginfo.log_error_file, tbuf,
                     logp->l_ctime, logp->l_size);
-        LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+        rc = log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
+        if (rc != 0) {
+            break;
+        }
         logp = logp->l_next;
     }
+
     /* Close the info file. We need only when we need to rotate to the
     ** next log file.
     */
     if (fpinfo)
-        LOG_CLOSE(fpinfo);
+        PR_Close(fpinfo);
 
     /* This is now the current error log */
     loginfo.log_error_ctime = now;
@@ -6152,13 +6293,13 @@ log__open_errorlogfile(int logfile_state, int locked)
 static int
 log__open_auditlogfile(int logfile_state, int locked)
 {
-
     time_t now;
     LOGFD fp;
     LOGFD fpinfo = NULL;
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
+    int rc;
 
     if (!locked)
         LOG_AUDIT_LOCK_WRITE();
@@ -6186,7 +6327,7 @@ log__open_auditlogfile(int logfile_state, int locked)
             ;
 
         /* close the file */
-        LOG_CLOSE(loginfo.log_audit_fdes);
+        PR_Close(loginfo.log_audit_fdes);
         loginfo.log_audit_fdes = NULL;
 
         if (loginfo.log_audit_maxnumlogs > 1) {
@@ -6225,7 +6366,10 @@ log__open_auditlogfile(int logfile_state, int locked)
     }
 
     /* open a new log file */
-    if (!LOG_OPEN_APPEND(fp, loginfo.log_audit_file, loginfo.log_audit_mode)) {
+    if (!(fp = PR_Open(loginfo.log_audit_file,
+                       PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_audit_mode)))
+    {
         slapi_log_err(SLAPI_LOG_ERR, "log__open_auditlogfile",
                       "can't open file %s - errno %d (%s)\n",
                       loginfo.log_audit_file, errno, slapd_system_strerror(errno));
@@ -6248,7 +6392,10 @@ log__open_auditlogfile(int logfile_state, int locked)
 
     loginfo.log_audit_state |= LOGGING_NEED_TITLE;
 
-    if (!LOG_OPEN_WRITE(fpinfo, loginfo.log_auditinfo_file, loginfo.log_audit_mode)) {
+    if (!(fpinfo = PR_Open(loginfo.log_auditinfo_file,
+                           PR_WRONLY | PR_TRUNCATE | PR_CREATE_FILE,
+                           loginfo.log_audit_mode)))
+    {
         slapi_log_err(SLAPI_LOG_ERR, "log__open_auditlogfile",
                       "Can't open file %s - errno %d (%s)\n",
                       loginfo.log_auditinfo_file, errno, slapd_system_strerror(errno));
@@ -6261,7 +6408,7 @@ log__open_auditlogfile(int logfile_state, int locked)
     now = slapi_current_utc_time();
     log_convert_time(now, tbuf, 2 /*long */);
     PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
-    LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+    log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
 
     logp = loginfo.log_audit_logchain;
     while (logp) {
@@ -6281,14 +6428,18 @@ log__open_auditlogfile(int logfile_state, int locked)
         }
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 "d)\n", PREVLOGFILE, loginfo.log_audit_file, tbuf,
                     logp->l_ctime, logp->l_size);
-        LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+        rc = log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
+        if (rc != 0) {
+            break;
+        }
         logp = logp->l_next;
     }
+
     /* Close the info file. We need only when we need to rotate to the
     ** next log file.
     */
     if (fpinfo)
-        LOG_CLOSE(fpinfo);
+        PR_Close(fpinfo);
 
     /* This is now the current audit log */
     loginfo.log_audit_ctime = now;
@@ -6297,6 +6448,7 @@ log__open_auditlogfile(int logfile_state, int locked)
         LOG_AUDIT_UNLOCK_WRITE();
     return LOG_SUCCESS;
 }
+
 /******************************************************************************
 * log__open_auditfaillogfile
 *
@@ -6306,13 +6458,13 @@ log__open_auditlogfile(int logfile_state, int locked)
 static int
 log__open_auditfaillogfile(int logfile_state, int locked)
 {
-
     time_t now;
     LOGFD fp;
     LOGFD fpinfo = NULL;
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
+    int rc;
 
     if (!locked)
         LOG_AUDITFAIL_LOCK_WRITE();
@@ -6340,7 +6492,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
             ;
 
         /* close the file */
-        LOG_CLOSE(loginfo.log_auditfail_fdes);
+        PR_Close(loginfo.log_auditfail_fdes);
         loginfo.log_auditfail_fdes = NULL;
 
         if (loginfo.log_auditfail_maxnumlogs > 1) {
@@ -6379,7 +6531,10 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     }
 
     /* open a new log file */
-    if (!LOG_OPEN_APPEND(fp, loginfo.log_auditfail_file, loginfo.log_auditfail_mode)) {
+    if (!(fp = PR_Open(loginfo.log_auditfail_file,
+                       PR_WRONLY | PR_APPEND | PR_CREATE_FILE,
+                       loginfo.log_auditfail_mode)))
+    {
         slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
                       "Can't open file %s - errno %d (%s)\n",
                       loginfo.log_auditfail_file, errno, slapd_system_strerror(errno));
@@ -6402,7 +6557,10 @@ log__open_auditfaillogfile(int logfile_state, int locked)
 
     loginfo.log_auditfail_state |= LOGGING_NEED_TITLE;
 
-    if (!LOG_OPEN_WRITE(fpinfo, loginfo.log_auditfailinfo_file, loginfo.log_auditfail_mode)) {
+    if (!(fpinfo = PR_Open(loginfo.log_auditfailinfo_file,
+                           PR_WRONLY | PR_TRUNCATE | PR_CREATE_FILE,
+                           loginfo.log_auditfail_mode)))
+    {
         slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
                       "Can't open file %s - errno %d (%s)\n",
                       loginfo.log_auditfailinfo_file, errno, slapd_system_strerror(errno));
@@ -6415,7 +6573,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     now = slapi_current_utc_time();
     log_convert_time(now, tbuf, 2 /*long */);
     PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
-    LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+    log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
 
     logp = loginfo.log_auditfail_logchain;
     while (logp) {
@@ -6435,14 +6593,18 @@ log__open_auditfaillogfile(int logfile_state, int locked)
         }
         PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" PRId64 "d)\n", PREVLOGFILE, loginfo.log_auditfail_file, tbuf,
                     logp->l_ctime, logp->l_size);
-        LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+        rc = log_write(fpinfo, buffer, strlen(buffer), 0, NO_FLUSH);
+        if (rc != 0) {
+            break;
+        }
         logp = logp->l_next;
     }
+
     /* Close the info file. We need only when we need to rotate to the
     ** next log file.
     */
     if (fpinfo)
-        LOG_CLOSE(fpinfo);
+        PR_Close(fpinfo);
 
     /* This is now the current audit log */
     loginfo.log_auditfail_ctime = now;
@@ -6453,10 +6615,8 @@ log__open_auditfaillogfile(int logfile_state, int locked)
 }
 
 /*
-** Log Buffering
-** only supports access log at this time
-*/
-
+ * Log Buffering
+ */
 static LogBufferInfo *
 log_create_buffer(size_t sz)
 {
@@ -6488,7 +6648,7 @@ log_create_buffer(size_t sz)
  * systems.
  */
 static void
-log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2)
+log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     size_t size = size1 + size2;
@@ -6503,7 +6663,7 @@ log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, cha
          loginfo.log_access_rotationsync_enabled)) {
 
         log_flush_buffer(lbi, SLAPD_ACCESS_LOG,
-                         0 /* do not sync to disk right now */);
+                         0 /* do not sync to disk right now */, 1);
     }
     insert_point = lbi->current;
     lbi->current += size;
@@ -6521,90 +6681,211 @@ log_append_buffer2(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, cha
     /* If we are asked to sync to disk immediately, do so */
     if (!slapdFrontendConfig->accesslogbuffering) {
         PR_Lock(lbi->lock);
-        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, 1 /* sync to disk now */);
+        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, 1 /* sync to disk now */, 1);
         PR_Unlock(lbi->lock);
     }
 }
 
+static time_t
+log_update_sync_clock(int32_t log_type, int32_t secs)
+{
+    switch (log_type) {
+    case SLAPD_ACCESS_LOG:
+        loginfo.log_access_rotationsyncclock += PR_ABS(secs);
+        return loginfo.log_access_rotationsyncclock;
+    case SLAPD_SECURITY_LOG:
+        loginfo.log_security_rotationsyncclock += PR_ABS(secs);
+        return loginfo.log_security_rotationsyncclock;
+    case SLAPD_AUDIT_LOG:
+        loginfo.log_audit_rotationsyncclock += PR_ABS(secs);
+        return loginfo.log_audit_rotationsyncclock;
+    case SLAPD_AUDITFAIL_LOG:
+        loginfo.log_auditfail_rotationsyncclock += PR_ABS(secs);
+        return loginfo.log_auditfail_rotationsyncclock;
+    case SLAPD_ERROR_LOG:
+        loginfo.log_error_rotationsyncclock += PR_ABS(secs);
+        return loginfo.log_error_rotationsyncclock;
+    default:
+        return 0;
+    }
+}
+
+static void
+log_state_remove_need_title(int32_t log_type)
+{
+    switch (log_type) {
+    case SLAPD_ACCESS_LOG:
+        loginfo.log_access_state &= ~LOGGING_NEED_TITLE;
+        break;
+    case SLAPD_SECURITY_LOG:
+        loginfo.log_security_state &= ~LOGGING_NEED_TITLE;
+        break;
+    case SLAPD_AUDIT_LOG:
+        loginfo.log_audit_state &= ~LOGGING_NEED_TITLE;
+        break;
+    case SLAPD_AUDITFAIL_LOG:
+        loginfo.log_auditfail_state &= ~LOGGING_NEED_TITLE;
+        break;
+    case SLAPD_ERROR_LOG:
+        loginfo.log_error_state &= ~LOGGING_NEED_TITLE;
+        break;
+    }
+}
+
+static int32_t
+log_refresh_state(int32_t log_type)
+{
+    switch (log_type) {
+    case SLAPD_ACCESS_LOG:
+        return loginfo.log_access_state;
+    case SLAPD_SECURITY_LOG:
+        return loginfo.log_security_state;
+    case SLAPD_AUDIT_LOG:
+        return loginfo.log_audit_state;
+    case SLAPD_AUDITFAIL_LOG:
+        return loginfo.log_auditfail_state;
+    case SLAPD_ERROR_LOG:
+        return loginfo.log_error_state;
+    default:
+        return 0;
+    }
+}
 
 /* this function assumes the lock is already acquired */
 /* if sync_now is non-zero, data is flushed to physical storage */
 static void
-log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
+log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    LOGFD fd;
+    char *log_name;
+    char *log_file = NULL;
+    time_t rotation_sync_clock;
+    time_t log_ctime;
+    int32_t rotationtime_secs;
+    int32_t log_state;
+    PRBool log_buffering = PR_FALSE;
+    open_log *open_log_file = NULL;
+    int rc = 0;
 
-    if (type == SLAPD_ACCESS_LOG) {
-        /* It is only safe to flush once any other threads which are copying are finished */
-        while (slapi_atomic_load_64(&(lbi->refcount), __ATOMIC_ACQUIRE) > 0) {
-            /* It's ok to sleep for a while because we only flush every second or so */
-            DS_Sleep(PR_MillisecondsToInterval(1));
-        }
+    /*
+     * It is only safe to flush once all other threads which are copying are
+     * finished
+     */
+    while (slapi_atomic_load_64(&(lbi->refcount), __ATOMIC_ACQUIRE) > 0) {
+        /* It's ok to sleep for a while because we only flush every second or so */
+        DS_Sleep(PR_MillisecondsToInterval(1));
+    }
 
-        if ((lbi->current - lbi->top) == 0)
+    if ((lbi->current - lbi->top) == 0) {
+        return;
+    }
+
+    switch (log_type) {
+    case SLAPD_ACCESS_LOG:
+        open_log_file = &log__open_accesslogfile;
+        fd = loginfo.log_access_fdes;
+        log_file = loginfo.log_access_file;
+        rotation_sync_clock = loginfo.log_access_rotationsyncclock;
+        log_ctime = loginfo.log_access_ctime;
+        rotationtime_secs = loginfo.log_access_rotationtime_secs;
+        log_state = loginfo.log_access_state;
+        log_buffering = slapdFrontendConfig->accesslogbuffering ? PR_TRUE : PR_FALSE;
+        log_name = "access";
+        break;
+
+    case SLAPD_SECURITY_LOG:
+        open_log_file = &log__open_securitylogfile;
+        fd = loginfo.log_security_fdes;
+        log_file = loginfo.log_security_file;
+        rotation_sync_clock = loginfo.log_security_rotationsyncclock;
+        log_ctime = loginfo.log_security_ctime;
+        rotationtime_secs = loginfo.log_security_rotationtime_secs;
+        log_state = loginfo.log_security_state;
+        log_buffering = slapdFrontendConfig->securitylogbuffering ? PR_TRUE : PR_FALSE;
+        log_name = "security audit";
+        break;
+
+    case SLAPD_AUDIT_LOG:
+        open_log_file = &log__open_auditlogfile;
+        fd = loginfo.log_audit_fdes;
+        log_file = loginfo.log_audit_file;
+        rotation_sync_clock = loginfo.log_audit_rotationsyncclock;
+        log_ctime = loginfo.log_audit_ctime;
+        rotationtime_secs = loginfo.log_audit_rotationtime_secs;
+        log_state = loginfo.log_audit_state;
+        log_buffering = slapdFrontendConfig->auditlogbuffering ? PR_TRUE : PR_FALSE;
+        log_name = "audit";
+        break;
+
+    case SLAPD_AUDITFAIL_LOG:
+        open_log_file = &log__open_auditfaillogfile;
+        fd = loginfo.log_auditfail_fdes;
+        log_file = loginfo.log_auditfail_file;
+        rotation_sync_clock = loginfo.log_auditfail_rotationsyncclock;
+        log_ctime = loginfo.log_auditfail_ctime;
+        rotationtime_secs = loginfo.log_auditfail_rotationtime_secs;
+        log_state = loginfo.log_auditfail_state;
+        /* Audit fail log still uses the audit log buffering setting */
+        log_buffering = slapdFrontendConfig->auditlogbuffering ? PR_TRUE : PR_FALSE;
+        log_name = "audit fail";
+        break;
+
+    case SLAPD_ERROR_LOG:
+        open_log_file = &log__open_errorlogfile;
+        fd = loginfo.log_error_fdes;
+        log_file = loginfo.log_error_file;
+        rotation_sync_clock = loginfo.log_error_rotationsyncclock;
+        log_ctime = loginfo.log_error_ctime;
+        rotationtime_secs = loginfo.log_error_rotationtime_secs;
+        log_state = loginfo.log_error_state;
+        log_buffering = slapdFrontendConfig->errorlogbuffering ? PR_TRUE : PR_FALSE;
+        log_name = "error";
+        break;
+
+    default:
+        return;
+    }
+
+    if (log__needrotation(fd, log_type) == LOG_ROTATE) {
+        if (open_log_file(LOGFILE_NEW, 1) != LOG_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                          "log_flush_buffer", "Unable to open %s file: %s\n",
+                          log_name, log_file);
+            /* reset counter to prevent overwriting rest of lbi struct */
+            lbi->current = lbi->top;
             return;
+        }
+        while (rotation_sync_clock <= log_ctime) {
+            rotation_sync_clock = log_update_sync_clock(log_type,
+                                                        rotationtime_secs);
+        }
+        log_state = log_refresh_state(log_type);
+    }
 
-        if (log__needrotation(loginfo.log_access_fdes,
-                              SLAPD_ACCESS_LOG) == LOG_ROTATE) {
-            if (log__open_accesslogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "log_flush_buffer", "Unable to open access file:%s\n",
-                              loginfo.log_access_file);
-                lbi->current = lbi->top; /* reset counter to prevent overwriting rest of lbi struct */
-                return;
-            }
-            while (loginfo.log_access_rotationsyncclock <= loginfo.log_access_ctime) {
-                loginfo.log_access_rotationsyncclock += PR_ABS(loginfo.log_access_rotationtime_secs);
-            }
-        }
+    if (log_state & LOGGING_NEED_TITLE) {
+        log_write_title(fd);
+        log_state_remove_need_title(log_type);
+    }
 
-        if (loginfo.log_access_state & LOGGING_NEED_TITLE) {
-            log_write_title(loginfo.log_access_fdes);
-            loginfo.log_access_state &= ~LOGGING_NEED_TITLE;
-        }
-        if (!sync_now && slapdFrontendConfig->accesslogbuffering) {
-            LOG_WRITE(loginfo.log_access_fdes, lbi->top, lbi->current - lbi->top, 0);
-        } else {
-            LOG_WRITE_NOW_NO_ERR(loginfo.log_access_fdes, lbi->top,
-                                 lbi->current - lbi->top, 0);
-        }
-        lbi->current = lbi->top;
-    } else if (type == SLAPD_SECURITY_LOG) {
-        /* It is only safe to flush once any other threads which are copying are finished */
-        while (slapi_atomic_load_64(&(lbi->refcount), __ATOMIC_ACQUIRE) > 0) {
-            /* It's ok to sleep for a while because we only flush every second or so */
-            DS_Sleep(PR_MillisecondsToInterval(1));
-        }
+    if (!sync_now && log_buffering) {
+        rc = log_write(fd, lbi->top, lbi->current - lbi->top, 0, NO_FLUSH);
+    } else {
+        rc = log_write(fd, lbi->top, lbi->current - lbi->top, 0, FLUSH);
+    }
+    lbi->current = lbi->top;
 
-        if ((lbi->current - lbi->top) == 0) {
-            return;
-        }
-
-        if (log__needrotation(loginfo.log_security_fdes, SLAPD_SECURITY_LOG) == LOG_ROTATE) {
-            if (log__open_securitylogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "log_flush_buffer", "Unable to open security audit file:%s\n",
-                              loginfo.log_security_file);
-                lbi->current = lbi->top; /* reset counter to prevent overwriting rest of lbi struct */
-                return;
-            }
-            while (loginfo.log_security_rotationsyncclock <= loginfo.log_security_ctime) {
-                loginfo.log_security_rotationsyncclock += PR_ABS(loginfo.log_security_rotationtime_secs);
-            }
-        }
-
-        if (loginfo.log_security_state & LOGGING_NEED_TITLE) {
-            log_write_title(loginfo.log_security_fdes);
-            loginfo.log_security_state &= ~LOGGING_NEED_TITLE;
-        }
-
-        if (!sync_now && slapdFrontendConfig->securitylogbuffering) {
-            LOG_WRITE(loginfo.log_security_fdes, lbi->top, lbi->current - lbi->top, 0);
-        } else {
-            LOG_WRITE_NOW_NO_ERR(loginfo.log_security_fdes, lbi->top,
-                                 lbi->current - lbi->top, 0);
-        }
-        lbi->current = lbi->top;
+    /*
+     * If we fail to write to the error log we must shutdown the server.
+     * The LOG_WRITE macros set "rc"
+     */
+    if (log_type == SLAPD_ERROR_LOG && rc != 0) {
+        char buffer[SLAPI_LOG_BUFSIZ];
+        PR_snprintf(buffer, sizeof(buffer),
+                    "Writing to the errors log failed.  Exiting...");
+        log__error_emergency(buffer, 1, locked);
+        /* failed to write to the errors log.  should not continue. */
+        g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
     }
 }
 
@@ -6613,12 +6894,24 @@ logs_flush()
 {
     LOG_ACCESS_LOCK_WRITE();
     log_flush_buffer(loginfo.log_access_buffer, SLAPD_ACCESS_LOG,
-                     1 /* sync to disk now */);
+                     1 /* sync to disk now */, 1 /* locked*/);
     LOG_ACCESS_UNLOCK_WRITE();
     LOG_SECURITY_LOCK_WRITE();
     log_flush_buffer(loginfo.log_security_buffer, SLAPD_SECURITY_LOG,
-                     1 /* sync to disk now */);
+                     1 /* sync to disk now */, 1 /* locked*/);
     LOG_SECURITY_UNLOCK_WRITE();
+    LOG_AUDIT_LOCK_WRITE();
+    log_flush_buffer(loginfo.log_audit_buffer, SLAPD_AUDIT_LOG,
+                     1 /* sync to disk now */, 1 /* locked*/);
+    LOG_AUDIT_UNLOCK_WRITE();
+    LOG_AUDITFAIL_LOCK_WRITE();
+    log_flush_buffer(loginfo.log_auditfail_buffer, SLAPD_AUDITFAIL_LOG,
+                     1 /* sync to disk now */, 1 /* locked*/);
+    LOG_AUDITFAIL_UNLOCK_WRITE();
+    LOG_ERROR_LOCK_WRITE();
+    log_flush_buffer(loginfo.log_error_buffer, SLAPD_ERROR_LOG,
+                     1 /* sync to disk now */, 1 /* locked*/);
+    LOG_ERROR_UNLOCK_WRITE();
 }
 
 /*
@@ -6762,7 +7055,35 @@ check_log_max_size(char *maxdiskspace_str,
     return rc;
 }
 
+void
+slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock *pb)
+{
+    Slapi_Operation *op = NULL;
+    Connection *conn = NULL;
 
-/************************************************************************************/
-/*                E    N    D                    */
-/************************************************************************************/
+    if (pb) {
+        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+        slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    }
+
+    logpb->log_format = log_format;
+    logpb->pb = pb;
+    logpb->op_internal_id = -1;
+    logpb->op_nested_count = -1;
+
+    if (conn) {
+        logpb->conn_time = conn->c_starttime;
+        logpb->conn_id = conn->c_connid;
+    } else if (op) {
+        logpb->conn_time = op->o_conn_starttime;
+        logpb->conn_id = op->o_connid;
+    } else {
+        logpb->conn_time = slapi_current_utc_time();
+    }
+
+    if (op) {
+        logpb->op_id = op->o_opid;
+        logpb->request_controls = operation_get_req_controls(op);
+        logpb->result_controls = operation_get_result_controls(op);
+    }
+}

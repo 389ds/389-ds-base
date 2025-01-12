@@ -14,11 +14,7 @@ import {
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from "@patternfly/react-icons";
 
 const _ = cockpit.gettext;
 
@@ -361,30 +357,30 @@ export class ReplRUV extends React.Component {
                 <TextContent>
                     <Text component={TextVariants.h3}>
                         {_("Local RUV")}
-                        <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title={_("RRefresh the RUV for this suffixs")}
+                        <Button 
+                            variant="plain"
+                            aria-label={_("Refresh the RUV for this suffix")}
                             onClick={() => {
                                 this.props.reload(this.props.suffix);
                             }}
-                        />
+                        >
+                            <SyncAltIcon />
+                        </Button>
                     </Text>
                 </TextContent>
                 {localRUV}
                 <TextContent className="ds-margin-top-xlg">
                     <Text component={TextVariants.h3}>
                         {_("Remote RUV's")}
-                        <FontAwesomeIcon
-                            size="lg"
-                            className="ds-left-margin ds-refresh"
-                            icon={faSyncAlt}
-                            title={_("Refresh the remote RUVs for this suffixs")}
+                        <Button 
+                            variant="plain"
+                            aria-label={_("Refresh the remote RUVs for this suffix")}
                             onClick={() => {
                                 this.props.reload(this.props.suffix);
                             }}
-                        />
+                        >
+                            <SyncAltIcon />
+                        </Button>
                     </Text>
                 </TextContent>
                 <div className="ds-left-indent-md">
@@ -460,7 +456,7 @@ export class ReplRUV extends React.Component {
                     checked={this.state.modalChecked}
                     mTitle={_("Initialize Replication Changelog From LDIF")}
                     mMsg={_("Are you sure you want to attempt to initialize the changelog from LDIF?  This will reject all operations during during the initialization.")}
-                    mSpinningMsg={_("Initialzing Replication Change Log ...")}
+                    mSpinningMsg={_("Initializing Replication Change Log ...")}
                     mBtnName={_("Import Changelog LDIF")}
                 />
                 <ExportCLModal

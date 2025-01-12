@@ -257,35 +257,59 @@ op_shared_delete(Slapi_PBlock *pb)
     proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
 
     if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
+        int32_t log_format = config_get_accesslog_log_format();
+        slapd_log_pblock logpb = {0};
+
         if (proxydn) {
             proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
+        /* Prep log pblock */
+        logpb.log_format = log_format;
+        logpb.authzid = proxydn;
+        logpb.request_controls = operation_get_req_controls(operation);
+        logpb.target_dn = slapi_sdn_get_dn(sdn);
+
         if (!internal_op) {
             Connection *pb_conn = NULL;
-            Operation *pb_op = NULL;
+
             slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-            slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d DEL dn=\"%s\"%s\n",
-                             pb_conn ? pb_conn->c_connid : -1,
-                             pb_op ? pb_op->o_opid : -1,
-                             slapi_sdn_get_dn(sdn),
-                             proxystr ? proxystr : "");
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                slapd_log_pblock_init(&logpb, log_format, pb);
+                slapd_log_access_delete(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d DEL dn=\"%s\"%s\n",
+                                 pb_conn ? pb_conn->c_connid : -1,
+                                 operation->o_opid,
+                                 slapi_sdn_get_dn(sdn),
+                                 proxystr ? proxystr : "");
+            }
         } else {
             uint64_t connid;
             int32_t op_id;
             int32_t op_internal_id;
             int32_t op_nested_count;
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
-            slapi_log_access(LDAP_DEBUG_ARGS,
-                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) DEL dn=\"%s\"%s\n" :
-                                         "conn=%" PRId64 " (Internal) op=%d(%d)(%d) DEL dn=\"%s\"%s\n",
-                             connid,
-                             op_id,
-                             op_internal_id,
-                             op_nested_count,
-                             slapi_sdn_get_dn(sdn),
-                             proxystr ? proxystr : "");
+            time_t start_time;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
+
+            if (log_format != LOG_FORMAT_DEFAULT) {
+                logpb.conn_time = start_time;
+                logpb.conn_id = connid;
+                logpb.op_id = op_id;
+                logpb.op_internal_id = op_internal_id;
+                logpb.op_nested_count = op_nested_count;
+                slapd_log_access_delete(&logpb);
+            } else {
+                slapi_log_access(LDAP_DEBUG_ARGS,
+                                 connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) DEL dn=\"%s\"%s\n" :
+                                             "conn=%" PRId64 " (Internal) op=%d(%d)(%d) DEL dn=\"%s\"%s\n",
+                                 connid,
+                                 op_id,
+                                 op_internal_id,
+                                 op_nested_count,
+                                 slapi_sdn_get_dn(sdn),
+                                 proxystr ? proxystr : "");
+            }
         }
     }
 
@@ -381,6 +405,7 @@ free_and_return:
         slapi_entry_free(eparent);
         slapi_pblock_get(pb, SLAPI_URP_NAMING_COLLISION_DN, &coldn);
         slapi_ch_free_string(&coldn);
+        slapi_pblock_set(pb, SLAPI_URP_NAMING_COLLISION_DN, NULL);
     }
 
     slapi_pblock_get(pb, SLAPI_DELETE_TARGET_SDN, &sdn);

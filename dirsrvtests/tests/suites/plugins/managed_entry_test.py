@@ -65,7 +65,6 @@ def _create_user(inst, name):
     })
 
 
-@pytest.mark.ds1870
 @pytest.mark.xfail(reason='https://github.com/389ds/389-ds-base/issues/1870')
 def test_overlapping_scope(topo):
     """Test overlapping scopes in Managed Entries

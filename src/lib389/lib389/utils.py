@@ -27,9 +27,11 @@ except ImportError:
 import json
 import re
 import os
+import glob
 import logging
 import shutil
 import ldap
+import mmap
 import socket
 import time
 import stat
@@ -187,6 +189,10 @@ _chars = {
 SIZE_UNITS = { 't': 2**40, 'g': 2**30, 'm': 2**20, 'k': 2**10, '': 1, }
 SIZE_PATTERN = r'\s*(\d*\.?\d*)\s*([tgmk]?)b?\s*'
 
+RPM_TOOL = '/usr/bin/rpm'
+LDD_TOOL = '/usr/bin/ldd'
+OBJDUMP_TOOL = '/usr/bin/objdump'
+
 #
 # Utilities
 #
@@ -194,7 +200,7 @@ SIZE_PATTERN = r'\s*(\d*\.?\d*)\s*([tgmk]?)b?\s*'
 
 def selinux_present():
     """
-    Determine if selinux libraries are on a system, and if so, if we are in
+    Determine if SELinux libraries are on a system, and if so, if we are in
     a state to consume them (enabled, disabled).
 
     :returns: bool
@@ -204,20 +210,20 @@ def selinux_present():
     try:
         import selinux
         if selinux.is_selinux_enabled():
-            # We have selinux, lets see if we are allowed to configure it.
+            # We have SELinux, lets see if we are allowed to configure it.
             # (just checking the uid for now - we may rather check if semanage command success)
             if os.geteuid() != 0:
-                log.info('Non privileged user cannot use semanage, will not relabel ports or files.' )
+                log.info('Non-privileged user cannot use semanage, will not relabel ports or files.' )
             elif not os.path.exists('/usr/sbin/semanage'):
                 log.info('semanage command is not installed, will not relabel ports or files. Please install policycoreutils-python-utils.' )
             else:
                 status = True
         else:
             # We have the module, but it's disabled.
-            log.info('selinux is disabled, will not relabel ports or files.' )
+            log.info('SELinux is disabled, will not relabel ports or files.' )
     except ImportError:
         # No python module, so who knows what state we are in.
-        log.error('selinux python module not found, will not relabel files.' )
+        log.error('SELinux python module not found, will not relabel files.' )
 
     return status
 
@@ -233,11 +239,11 @@ def selinux_restorecon(path):
     try:
         import selinux
     except ImportError:
-        log.debug('selinux python module not found, skipping relabel path %s' % path)
+        log.debug('SELinux python module not found, skipping relabel path %s' % path)
         return
 
     if not selinux.is_selinux_enabled():
-        log.debug('selinux is disabled, skipping relabel path %s' % path)
+        log.debug('SELinux is disabled, skipping relabel path %s' % path)
         return
 
     try:
@@ -320,7 +326,7 @@ def selinux_label_file(path, label):
         rc = 0
         for i in range(5):
             try:
-                log.debug(f"Setting label {label} in SELinux file context {path}.  Attempt {i}")
+                log.debug(f"Setting label {label} in SELinux file context {path}. Attempt {i}")
                 result = subprocess.run(["semanage", "fcontext", "-a", "-t", label, path],
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
@@ -375,7 +381,7 @@ def selinux_clean_ports_label():
 
 
 def _get_selinux_port_policies(port):
-    """Get a list of selinux port policies for the specified port, 'tcp' protocol and
+    """Get a list of SELinux port policies for the specified port, 'tcp' protocol and
     excluding 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t' labels"""
 
     # [2:] - cut first lines containing the headers. [:-1] - empty line
@@ -413,11 +419,11 @@ def selinux_label_port(port, remove_label=False):
     try:
         import selinux
     except ImportError:
-        log.debug('selinux python module not found, skipping port labeling.')
+        log.debug('SELinux python module not found, skipping port labeling.')
         return
 
     if not selinux_present():
-        log.debug('selinux is disabled, skipping port relabel')
+        log.debug('SELinux is disabled, skipping port relabel')
         return
 
     # We only label ports that ARE NOT in the default policy that comes with
@@ -618,7 +624,7 @@ def valgrind_enable(sbin_dir, wrapper=None):
     (making a backup of the original ns-slapd binary).
 
     The script calling valgrind_enable() must be run as the 'root' user
-    as selinux needs to be disabled for valgrind to work
+    as SELinux needs to be disabled for valgrind to work
 
     The server instance(s) should be stopped prior to calling this function.
     Then after calling valgrind_enable():
@@ -685,7 +691,7 @@ def valgrind_enable(sbin_dir, wrapper=None):
         raise IOError('failed to copy valgrind wrapper to ns-slapd, error: %s' %
                       e.strerror)
 
-    # Disable selinux
+    # Disable SELinux
     if os.geteuid() == 0:
         os.system('setenforce 0')
 
@@ -709,7 +715,7 @@ def valgrind_disable(sbin_dir):
     Restore the ns-slapd binary to its original state - the server instances
     are expected to be stopped.
 
-    Note - selinux is enabled at the end of this process.
+    Note - SELinux is enabled at the end of this process.
 
     :param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
     :raise ValueError
@@ -742,7 +748,7 @@ def valgrind_disable(sbin_dir):
         raise ValueError('Failed to delete backup ns-slapd, error: %s' %
                          e.strerror)
 
-    # Enable selinux
+    # Enable SELinux
     if os.geteuid() == 0:
         os.system('setenforce 1')
 
@@ -1718,7 +1724,7 @@ def parse_size(size):
     :raise ValueError: if the string cannot be parsed.
     """
     try:
-        val,unit = re.fullmatch(SIZE_PATTERN, size, flags=re.IGNORECASE).groups()
+        val,unit = re.fullmatch(SIZE_PATTERN, str(size), flags=re.IGNORECASE).groups()
         return round(float(val) * SIZE_UNITS[unit.lower()])
     except AttributeError:
         raise ValueError(f'Unable to parse "{size}" as a size.')
@@ -1759,7 +1765,7 @@ def get_default_mdb_max_size(paths):
     # otherwise decrease the value
     dbdir = paths.db_dir
     # dbdir may not exists because:
-    #  - paths instance name has not been expanded 
+    #  - paths instance name has not been expanded
     #  - dscreate has not yet created it.
     # so let use the first existing parent in that case.
     while not os.path.exists(dbdir):
@@ -1769,7 +1775,7 @@ def get_default_mdb_max_size(paths):
         avail = statvfs.f_frsize * statvfs.f_bavail
         avail *= 0.8 # Reserve 20% as margin
         if size > avail:
-            mdb_max_size = str(avail)
+            mdb_max_size = format_size(avail)
     except (TimeoutError, InterruptedError) as e:
         raise e
     except OSError as e:
@@ -1984,3 +1990,26 @@ def get_passwd_from_file(passwd_file):
             passwd = f.readline().strip()
             return passwd
     raise ValueError(f"The password file '{passwd_file}' does not exist, or can not be read.")
+
+
+def find_plugin_path(plugin_name):
+    p = Paths()
+    plugin = None
+    for ppath in glob.glob(f'{p.plugin_dir}/{plugin_name}.*'):
+        if not ppath.endswith('.la'):
+            plugin = ppath
+    return plugin
+
+
+def check_plugin_strings(plugin_name, tested_strings):
+    """
+    Returns a dict mapping each tested symbol to True, False or None
+    """
+    plugin = find_plugin_path(plugin_name)
+    if plugin:
+        # Otherwise looks directly for the string in the plugin
+        with open(plugin, "rb") as f:
+            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                return { astring:(mm.find(astring.encode()) >=0) for astring in tested_strings }
+    return { astring:None for astring in tested_strings }
+

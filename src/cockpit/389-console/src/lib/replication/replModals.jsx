@@ -1,33 +1,35 @@
 import React from "react";
 import cockpit from "cockpit";
 import {
-    Button,
-    Checkbox,
-    Form,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
-    Grid,
-    GridItem,
-    Modal,
-    ModalVariant,
-    NumberInput,
-    Radio,
-    Select,
-    SelectVariant,
-    SelectOption,
-    Spinner,
-    Tab,
-    Tabs,
-    TabTitleIcon,
-    TabTitleText,
-    TextInput,
-    Text,
-    TextContent,
-    TextVariants,
-    TimePicker,
-    ValidatedOptions,
-} from "@patternfly/react-core";
+	Button,
+	Checkbox,
+	Form,
+	FormHelperText,
+	FormSelect,
+	FormSelectOption,
+	Grid,
+	GridItem,
+	Modal,
+	ModalVariant,
+	NumberInput,
+	Radio,
+	Spinner,
+	Tab,
+	Tabs,
+	TabTitleIcon,
+	TabTitleText,
+	TextInput,
+	Text,
+	TextContent,
+	TextVariants,
+	TimePicker,
+	ValidatedOptions
+} from '@patternfly/react-core';
+import {
+	Select,
+	SelectVariant,
+	SelectOption
+} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 
@@ -168,7 +170,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <FormSelect
                             value={agmtInit}
                             id="agmtInit"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 handleChange(e);
                             }}
                             aria-label="FormSelect Input"
@@ -193,7 +195,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncMon"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -205,7 +207,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncFri"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -219,7 +221,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncTue"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -231,7 +233,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncSat"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -245,7 +247,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncWed"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -257,7 +259,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncSun"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -271,7 +273,7 @@ export class WinsyncAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncThu"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -297,7 +299,7 @@ export class WinsyncAgmtModal extends React.Component {
                             direction="up"
                             is24Hour
                         />
-                        <FormHelperText isError isHidden={!error.agmtStartTime}>
+                        <FormHelperText  >
                             {_("Start time must be before the End time")}
                         </FormHelperText>
                     </GridItem>
@@ -317,7 +319,7 @@ export class WinsyncAgmtModal extends React.Component {
                             direction="up"
                             is24Hour
                         />
-                        <FormHelperText isError isHidden={!error.agmtEndTime}>
+                        <FormHelperText  >
                             {_("End time must be after the Start time")}
                         </FormHelperText>
                     </GridItem>
@@ -371,7 +373,7 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtName"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtName"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             isDisabled={this.props.edit}
@@ -390,7 +392,7 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtHost"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtHost"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
@@ -408,7 +410,7 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtPort"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtPort"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
@@ -426,12 +428,12 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtBindDN"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtBindDN"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtBindDN || agmtBindDN === ""}>
+                                        <FormHelperText  >
                                             {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
@@ -447,12 +449,12 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtBindPW"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtBindPW"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtBindPW || agmtBindPW === "" || agmtBindPWConfirm === ""}>
+                                        <FormHelperText  >
                                             {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
@@ -468,12 +470,12 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtBindPWConfirm"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtBindPWConfirm"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm === ""}>
+                                        <FormHelperText  >
                                             {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
@@ -492,7 +494,7 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtWinDomain"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtWinDomain"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtWinDomain ? ValidatedOptions.error : ValidatedOptions.default}
@@ -510,13 +512,13 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtWinSubtree"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtWinSubtree"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             placeholder={_("e.g. cn=Users,dc=domain,dc=com")}
                                             validated={error.agmtWinSubtree ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtWinSubtree || agmtWinSubtree === ""}>
+                                        <FormHelperText  >
                                             Value must be a valid DN
                                         </FormHelperText>
                                     </GridItem>
@@ -532,13 +534,13 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtDSSubtree"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtDSSubtree"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             placeholder={_("e.g. ou=People,dc=domain,dc=com")}
                                             validated={error.agmtDSSubtree ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtDSSubtree || agmtDSSubtree === ""}>
+                                        <FormHelperText  >
                                             {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
@@ -553,7 +555,7 @@ export class WinsyncAgmtModal extends React.Component {
                                         <FormSelect
                                             value={agmtProtocol}
                                             id="agmtProtocol"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             aria-label="FormSelect Input"
@@ -571,7 +573,7 @@ export class WinsyncAgmtModal extends React.Component {
                                         <FormSelect
                                             value={agmtOneWaySync}
                                             id="agmtOneWaySync"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             aria-label="FormSelect Input"
@@ -593,7 +595,7 @@ export class WinsyncAgmtModal extends React.Component {
                                             id="agmtSyncInterval"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtSyncInterval"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtSyncInterval ? ValidatedOptions.error : ValidatedOptions.default}
@@ -630,7 +632,7 @@ export class WinsyncAgmtModal extends React.Component {
                                     <GridItem>
                                         <Checkbox
                                             id="agmtSyncGroups"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 handleChange(e);
                                             }}
                                             name={name}
@@ -643,7 +645,7 @@ export class WinsyncAgmtModal extends React.Component {
                                     <GridItem>
                                         <Checkbox
                                             id="agmtSyncUsers"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 handleChange(e);
                                             }}
                                             name={name}
@@ -659,7 +661,7 @@ export class WinsyncAgmtModal extends React.Component {
                                     <GridItem span={12}>
                                         <TextContent>
                                             <Text component={TextVariants.h5}>
-                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certains days and within certain windows of time then you can setup a custom replication schedule.")}
+                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certain days and within certain windows of time then you can setup a custom replication schedule.")}
                                             </Text>
                                         </TextContent>
                                     </GridItem>
@@ -667,7 +669,7 @@ export class WinsyncAgmtModal extends React.Component {
                                         <Checkbox
                                             id="agmtSync"
                                             isChecked={agmtSync}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 handleChange(e);
                                             }}
                                             name={name}
@@ -834,7 +836,7 @@ export class ReplAgmtModal extends React.Component {
                         <FormSelect
                             value={agmtInit}
                             id="agmtInit"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 handleChange(e);
                             }}
                             aria-label="FormSelect Input"
@@ -860,12 +862,12 @@ export class ReplAgmtModal extends React.Component {
                             id="agmtBootstrapBindDN"
                             aria-describedby="horizontal-form-name-helper"
                             name="agmtBootstrapBindDN"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 handleChange(e);
                             }}
                             validated={error.agmtBootstrapBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                         />
-                        <FormHelperText isError isHidden={!error.agmtBootstrapBindDN || agmtBootstrapBindDN === ""}>
+                        <FormHelperText  >
                             {_("Value must be a valid DN")}
                         </FormHelperText>
                     </GridItem>
@@ -881,12 +883,12 @@ export class ReplAgmtModal extends React.Component {
                             id="agmtBootstrapBindPW"
                             aria-describedby="horizontal-form-name-helper"
                             name="agmtBootstrapBindPW"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 handleChange(e);
                             }}
                             validated={error.agmtBootstrapBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                         />
-                        <FormHelperText isError isHidden={!error.agmtBootstrapBindPW || agmtBootstrapBindPW === "" || error.agmtBootstrapBindPWConfirm === ""}>
+                        <FormHelperText  >
                             {_("Password must match")}
                         </FormHelperText>
                     </GridItem>
@@ -902,12 +904,12 @@ export class ReplAgmtModal extends React.Component {
                             id="agmtBootstrapBindPWConfirm"
                             aria-describedby="horizontal-form-name-helper"
                             name="agmtBootstrapBindPWConfirm"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 handleChange(e);
                             }}
                             validated={error.agmtBootstrapBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                         />
-                        <FormHelperText isError isHidden={!error.agmtBootstrapBindPWConfirm || agmtBootstrapBindPWConfirm === ""}>
+                        <FormHelperText  >
                             {_("Passwords must match")}
                         </FormHelperText>
                     </GridItem>
@@ -920,7 +922,7 @@ export class ReplAgmtModal extends React.Component {
                         <FormSelect
                             value={agmtBootstrapProtocol}
                             id="agmtBootstrapProtocol"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 handleChange(e);
                             }}
                             aria-label="FormSelect Input"
@@ -940,7 +942,7 @@ export class ReplAgmtModal extends React.Component {
                         <FormSelect
                             value={agmtBootstrapBindMethod}
                             id="agmtBootstrapBindMethod"
-                            onChange={(str, e) => {
+                            onChange={(e, str) => {
                                 handleChange(e);
                             }}
                             aria-label="FormSelect Input"
@@ -967,7 +969,7 @@ export class ReplAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncMon"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -979,7 +981,7 @@ export class ReplAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncFri"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -993,7 +995,7 @@ export class ReplAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncTue"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -1005,7 +1007,7 @@ export class ReplAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncSat"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -1019,7 +1021,7 @@ export class ReplAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncWed"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -1031,7 +1033,7 @@ export class ReplAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncSun"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -1045,7 +1047,7 @@ export class ReplAgmtModal extends React.Component {
                         <GridItem span={3}>
                             <Checkbox
                                 id="agmtSyncThu"
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 name={name}
@@ -1070,7 +1072,7 @@ export class ReplAgmtModal extends React.Component {
                             stepMinutes={5}
                             is24Hour
                         />
-                        <FormHelperText isError isHidden={!error.agmtStartTime}>
+                        <FormHelperText  >
                             {_("Start time must be before the End time")}
                         </FormHelperText>
                     </GridItem>
@@ -1089,7 +1091,7 @@ export class ReplAgmtModal extends React.Component {
                             stepMinutes={5}
                             is24Hour
                         />
-                        <FormHelperText isError isHidden={!error.agmtEndTime}>
+                        <FormHelperText  >
                             {_("End time must be after the Start time")}
                         </FormHelperText>
                     </GridItem>
@@ -1145,13 +1147,13 @@ export class ReplAgmtModal extends React.Component {
                                             id="agmtName"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtName"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             isDisabled={this.props.edit}
                                             validated={error.agmtName ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtName || agmtName === ""}>
+                                        <FormHelperText  >
                                             {_("Required field")}
                                         </FormHelperText>
                                     </GridItem>
@@ -1167,12 +1169,12 @@ export class ReplAgmtModal extends React.Component {
                                             id="agmtHost"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtHost"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtHost ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtHost || agmtHost === ""}>
+                                        <FormHelperText  >
                                             {_("Required field")}
                                         </FormHelperText>
                                     </GridItem>
@@ -1188,12 +1190,12 @@ export class ReplAgmtModal extends React.Component {
                                             id="agmtPort"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtPort"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtPort ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtPort}>
+                                        <FormHelperText  >
                                             {_("Port must be between 1 and 65535")}
                                         </FormHelperText>
                                     </GridItem>
@@ -1209,12 +1211,12 @@ export class ReplAgmtModal extends React.Component {
                                             id="agmtBindDN"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtBindDN"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtBindDN ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtBindDN}>
+                                        <FormHelperText  >
                                             {_("Value must be a valid DN")}
                                         </FormHelperText>
                                     </GridItem>
@@ -1230,12 +1232,12 @@ export class ReplAgmtModal extends React.Component {
                                             id="agmtBindPW"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtBindPW"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtBindPW ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtBindPW || error.agmtBindPW === "" || error.agmtBindPWConfirm === ""}>
+                                        <FormHelperText  >
                                             {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
@@ -1251,12 +1253,12 @@ export class ReplAgmtModal extends React.Component {
                                             id="agmtBindPWConfirm"
                                             aria-describedby="horizontal-form-name-helper"
                                             name="agmtBindPWConfirm"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             validated={error.agmtBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                         />
-                                        <FormHelperText isError isHidden={!error.agmtBindPWConfirm || agmtBindPWConfirm === ""}>
+                                        <FormHelperText  >
                                             {_("Passwords must match")}
                                         </FormHelperText>
                                     </GridItem>
@@ -1269,7 +1271,7 @@ export class ReplAgmtModal extends React.Component {
                                         <FormSelect
                                             value={agmtProtocol}
                                             id="agmtProtocol"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             aria-label="FormSelect Input"
@@ -1289,7 +1291,7 @@ export class ReplAgmtModal extends React.Component {
                                         <FormSelect
                                             value={agmtBindMethod}
                                             id="agmtBindMethod"
-                                            onChange={(str, e) => {
+                                            onChange={(e, str) => {
                                                 handleChange(e);
                                             }}
                                             aria-label="FormSelect Input"
@@ -1355,7 +1357,7 @@ export class ReplAgmtModal extends React.Component {
                                         </Select>
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-top" title={_("Attributes to strip from a replicatio<Selectn update")}>
+                                <Grid className="ds-margin-top" title={_("Attributes to strip from a replication update")}>
                                     <GridItem className="ds-label" span={3}>
                                         {_("Strip Attributes")}
                                     </GridItem>
@@ -1388,7 +1390,7 @@ export class ReplAgmtModal extends React.Component {
                                         <Checkbox
                                             id="agmtBootstrap"
                                             isChecked={agmtBootstrap}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 handleChange(e);
                                             }}
                                             name={name}
@@ -1404,7 +1406,7 @@ export class ReplAgmtModal extends React.Component {
                                     <GridItem span={12}>
                                         <TextContent>
                                             <Text component={TextVariants.h5}>
-                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certains days and within certain windows of time then you can setup a custom replication schedule.")}
+                                                {_("By default replication updates are sent to the replica as soon as possible, but if there is a need for replication updates to only be sent on certain days and within certain windows of time then you can setup a custom replication schedule.")}
                                             </Text>
                                         </TextContent>
                                     </GridItem>
@@ -1412,7 +1414,7 @@ export class ReplAgmtModal extends React.Component {
                                         <Checkbox
                                             id="agmtSync"
                                             isChecked={agmtSync}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 handleChange(e);
                                             }}
                                             name={name}
@@ -1549,7 +1551,7 @@ export class ChangeReplRoleModal extends React.Component {
                             <FormSelect
                                 value={newRole}
                                 id="newRole"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 aria-label="FormSelect Input"
@@ -1566,7 +1568,7 @@ export class ChangeReplRoleModal extends React.Component {
                             <Checkbox
                                 id="modalChecked"
                                 isChecked={checked}
-                                onChange={(checked, e) => {
+                                onChange={(e, checked) => {
                                     handleChange(e);
                                 }}
                                 label={<><b>{_("Yes")}</b>{_(", I am sure.")}</>}
@@ -1640,7 +1642,7 @@ export class AddManagerModal extends React.Component {
                                 id="manager"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="manager"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.manager ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1658,7 +1660,7 @@ export class AddManagerModal extends React.Component {
                                 id="manager_passwd"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="manager_passwd"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.manager_passwd ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1676,7 +1678,7 @@ export class AddManagerModal extends React.Component {
                                 id="manager_passwd_confirm"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="manager_passwd_confirm"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.manager_passwd_confirm ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1778,7 +1780,7 @@ export class EnableReplModal extends React.Component {
                             <FormSelect
                                 id="enableRole"
                                 value={enableRole}
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 aria-label="FormSelect Input"
@@ -1807,7 +1809,7 @@ export class EnableReplModal extends React.Component {
                                 id="enableBindDN"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="enableBindDN"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.enableBindDN ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1825,7 +1827,7 @@ export class EnableReplModal extends React.Component {
                                 id="enableBindPW"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="enableBindPW"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.enableBindPW ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1843,7 +1845,7 @@ export class EnableReplModal extends React.Component {
                                 id="enableBindPWConfirm"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="enableBindPWConfirm"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.enableBindPWConfirm ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1861,7 +1863,7 @@ export class EnableReplModal extends React.Component {
                                 id="enableBindGroupDN"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="enableBindGroupDN"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleChange(e);
                                 }}
                                 validated={error.enableBindGroupDN ? ValidatedOptions.error : ValidatedOptions.default}
@@ -1938,7 +1940,7 @@ export class ExportCLModal extends React.Component {
                                 id="ldifFile"
                                 aria-describedby="horizontal-form-name-helper"
                                 name="ldifFile"
-                                onChange={(str, e) => {
+                                onChange={(e, str) => {
                                     handleLDIFChange(e);
                                 }}
                             />
@@ -1949,7 +1951,7 @@ export class ExportCLModal extends React.Component {
                             id="decodeCL"
                             isChecked={decodeCL}
                             isDisabled={exportCSN}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                             label={_("Decode base64 changes")}
@@ -1960,7 +1962,7 @@ export class ExportCLModal extends React.Component {
                             id="exportCSN"
                             isChecked={exportCSN}
                             isDisabled={decodeCL}
-                            onChange={(checked, e) => {
+                            onChange={(e, checked) => {
                                 handleChange(e);
                             }}
                             label={_("Only Export CSN's")}

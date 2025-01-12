@@ -343,14 +343,17 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         len = bvp->bv_len;
         if (len < sizeof(buf)) {
             realval = buf;
-            strcpy(realval, bvp->bv_val);
+            memcpy(realval, bvp->bv_val, bvp->bv_len);
+            realval[bvp->bv_len] = 0;
         } else if (len < tmpbufsize) {
             realval = tmpbuf;
-            strncpy(realval, bvp->bv_val, tmpbufsize);
+            memcpy(realval, bvp->bv_val, bvp->bv_len);
+            realval[bvp->bv_len] = 0;
         } else {
             tmpbufsize = len + 1;
             realval = tmpbuf = (char *)slapi_ch_realloc(tmpbuf, tmpbufsize);
-            strncpy(realval, bvp->bv_val, tmpbufsize);
+            memcpy(realval, bvp->bv_val, bvp->bv_len);
+            realval[bvp->bv_len] = 0;
         }
         /* 3rd arg: 1 - trim leading blanks */
         if (!(slapi_value_get_flags(bvals[j]) & SLAPI_ATTR_FLAG_NORMALIZED)) {

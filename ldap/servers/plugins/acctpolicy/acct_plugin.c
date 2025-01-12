@@ -272,7 +272,6 @@ acct_update_login_history(const char *dn, char *timestr)
         }
         /* first time round */
     } else if (cfg->login_history_size > 0) {
-        login_hist = (char **)slapi_ch_calloc(2, sizeof(char *));
         /* alloc new array and append latest value */
         login_hist = (char **)slapi_ch_realloc((char *)login_hist, sizeof(char *) * (num_entries + 2));
         login_hist[num_entries] = slapi_ch_smprintf("%s", timestr);
@@ -290,7 +289,8 @@ acct_update_login_history(const char *dn, char *timestr)
         list_of_mods[1] = NULL;
 
         mod_pb = slapi_pblock_new();
-        slapi_modify_internal_set_pb(mod_pb, dn, list_of_mods, NULL, NULL, plugin_id, 0);
+        slapi_modify_internal_set_pb(mod_pb, dn, list_of_mods, NULL, NULL, plugin_id,
+                                     SLAPI_OP_FLAG_NO_ACCESS_CHECK |SLAPI_OP_FLAG_BYPASS_REFERRALS);
         slapi_modify_internal_pb(mod_pb);
         slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
         if (rc != LDAP_SUCCESS) {
@@ -372,7 +372,9 @@ acct_record_login(const char *dn)
                       "acct_record_login - Recorded %s=%s on \"%s\"\n", cfg->always_record_login_attr, timestr, dn);
 
         /* update login history */
-        acct_update_login_history(dn, timestr);
+        if (cfg->login_history_attr) {
+            acct_update_login_history(dn, timestr);
+        }
     }
 
 done:

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2021-2024 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -13,6 +13,7 @@
 
 #ifndef _PROTO_SLAP
 #define _PROTO_SLAP
+
 
 /*
  * Forward structure declarations
@@ -384,7 +385,9 @@ int config_set_minssf(const char *attrname, char *value, char *errorbuf, int app
 int config_set_minssf_exclude_rootdse(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_validate_cert_switch(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_securitylogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_errorlogbuffering(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_entryusn_global(const char *attrname, char *value, char *errorbuf, int apply);
@@ -396,8 +399,12 @@ int config_set_disk_threshold(const char *attrname, char *value, char *errorbuf,
 int config_set_disk_grace_period(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_disk_logging_critical(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditlog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_auditlog_display_attrs(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_accesslog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_accesslog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
@@ -419,12 +426,6 @@ int config_set_maxsimplepaged_per_conn(const char *attrname, char *value, char *
 
 int log_external_libs_debug_set_log_fn(void);
 int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
-
-#ifdef HAVE_CLOCK_GETTIME
-int config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply);
-void log_enable_hr_timestamps(void);
-void log_disable_hr_timestamps(void);
-#endif
 
 int config_get_SSLclientAuth(void);
 int config_get_ssl_check_hostname(void);
@@ -524,6 +525,10 @@ int config_get_securitylog_level(void);
 int config_get_auditlog_logging_enabled(void);
 int config_get_auditfaillog_logging_enabled(void);
 char *config_get_auditlog_display_attrs(void);
+int config_get_auditlog_log_format(void);
+char *config_get_auditlog_time_format(void);
+int config_get_accesslog_log_format(void);
+char *config_get_accesslog_time_format(void);
 char *config_get_referral_mode(void);
 int config_get_num_listeners(void);
 int config_check_referral_mode(void);
@@ -668,6 +673,7 @@ int get_ldapmessage_controls(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***c
 int get_ldapmessage_controls_ext(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***controls, int ignore_criticality);
 int write_controls(BerElement *ber, LDAPControl **ctrls);
 void add_control(LDAPControl ***ctrlsp, LDAPControl *newctrl);
+void slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, PRBool *isCritical);
 
 /*
  * daemon.c
@@ -854,10 +860,8 @@ int slapi_log_access(int level, const char *fmt, ...)
 #endif
 int slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg);
 int slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode error, const char *msg);
-int slapd_log_audit(char *buffer, int buf_len, int sourcelog);
-int slapd_log_audit_internal(char *buffer, int buf_len, int *state);
-int slapd_log_auditfail(char *buffer, int buf_len);
-int slapd_log_auditfail_internal(char *buffer, int buf_len);
+int slapd_log_audit(char *buffer, PRBool json);
+int slapd_log_auditfail(char *buffer, PRBool json);
 void logs_flush(void);
 
 int access_log_openf(char *pathname, int locked);
@@ -901,11 +905,11 @@ int check_log_max_size(
     char *returntext,
     int logtype);
 
-
 void g_set_accesslog_level(int val);
 void g_set_statlog_level(int val);
 void g_set_securitylog_level(int val);
 void log__delete_rotated_logs(void);
+void slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock *pb);
 
 /*
  * util.c
@@ -969,7 +973,8 @@ void operation_set_target_spec_str(Slapi_Operation *op, const char *target_spec)
 unsigned long operation_get_abandoned_op(const Slapi_Operation *op);
 void operation_set_abandoned_op(Slapi_Operation *op, unsigned long abndoned_op);
 void operation_set_type(Slapi_Operation *op, unsigned long type);
-
+LDAPControl **operation_get_req_controls(const Operation *o);
+LDAPControl **operation_get_result_controls(const Operation *o);
 
 /*
  * plugin.c
@@ -1161,6 +1166,7 @@ void do_search(Slapi_PBlock *pb);
 char *check_private_certdir(void);
 int slapd_nss_init(int init_ssl, int config_available);
 int slapd_ssl_init(void);
+void slapd_ssl_destroy(void);
 int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
 int slapd_security_library_is_initialized(void);
 int slapd_ssl_listener_is_initialized(void);
@@ -1373,11 +1379,11 @@ void g_set_global_mrl(struct matchingRuleList *newglobalmrl);
 /*
  * generation.c
  */
+void free_server_dataversion(void);
 
 /*
  * factory.c
  */
-
 int factory_register_type(const char *name, size_t offset);
 void *factory_create_extension(int type, void *object, void *parent);
 void factory_destroy_extension(int type, void *object, void *parent, void **extension);
@@ -1542,6 +1548,7 @@ int connection_is_free(Connection *conn, int user_lock);
 int connection_is_active_nolock(Connection *conn);
 ber_slen_t openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len);
 int32_t connection_has_psearch(Connection *c);
+void free_worker_thread_indexes(void);
 
 /*
  * saslbind.c

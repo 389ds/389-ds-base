@@ -12,6 +12,7 @@
 
 import argparse
 import argcomplete
+import json
 import signal
 import sys
 from lib389 import DirSrv
@@ -19,7 +20,8 @@ from lib389.cli_base import (
     connect_instance,
     disconnect_instance,
     setup_script_logger,
-    format_error_to_dict)
+    format_error_to_dict,
+    format_pretty_error)
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389._constants import DSRC_HOME
 
@@ -254,6 +256,8 @@ if __name__ == '__main__':
         if args.json:
             sys.stderr.write(f"{json.dumps(msg, indent=4)}\n")
         else:
+            if not args.verbose:
+                msg = format_pretty_error(msg)
             log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
     disconnect_instance(inst)

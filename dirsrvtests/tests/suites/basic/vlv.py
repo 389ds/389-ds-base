@@ -81,7 +81,6 @@ def add_users(topology_st, users_num):
         })
 
 
-@pytest.mark.DS47966
 def test_vlv(topology_st):
     """
     Testing bulk import when the backend with VLV was recreated.

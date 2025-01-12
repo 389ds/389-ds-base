@@ -129,6 +129,7 @@ PRUint32 vlvIndex_get_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db,
 void vlvIndex_increment_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn);
 void vlvIndex_decrement_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn);
 void vlvIndex_incrementUsage(struct vlvIndex *p);
+char *vlvIndex_build_filename(const char *vlvname);
 const char *vlvIndex_filename(const struct vlvIndex *p);
 int vlvIndex_enabled(const struct vlvIndex *p);
 int vlvIndex_online(const struct vlvIndex *p);

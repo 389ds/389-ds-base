@@ -24,6 +24,8 @@ from lib389.topologies import topology_st
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
+from time import sleep
+
 pytestmark = pytest.mark.tier1
 
 CMD_OUTPUT = 'No issues found.'
@@ -40,6 +42,11 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.check = ['config', 'refint', 'backends', 'monitor-disk-space', 'logs', 'memberof']
     args.dry_run = False
 
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
+    if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
+       (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
+        searched_code = 'DSBLE0006'
+
     if json:
         log.info('Use healthcheck with --json option')
         args.json = json
@@ -54,6 +61,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
         log.info('Use healthcheck without --json option')
         args.json = json
         health_check_run(instance, topology.logcap.log, args)
+
         assert topology.logcap.contains(searched_code)
         log.info('Healthcheck returned searched code: %s' % searched_code)
 
@@ -80,52 +88,6 @@ def setup_ldif(topology_st, request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
-def test_healthcheck_logging_format_should_be_revised(topology_st):
-    """Check if HealthCheck returns DSCLE0001 code
-
-    :id: 277d7980-123b-481b-acba-d90921b9f5ac
-    :setup: Standalone instance
-    :steps:
-        1. Create DS instance
-        2. Set nsslapd-logging-hr-timestamps-enabled to 'off'
-        3. Use HealthCheck without --json option
-        4. Use HealthCheck with --json option
-        5. Set nsslapd-logging-hr-timestamps-enabled to 'on'
-        6. Use HealthCheck without --json option
-        7. Use HealthCheck with --json option
-    :expectedresults:
-        1. Success
-        2. Success
-        3. Healthcheck reports DSCLE0001 code and related details
-        4. Healthcheck reports DSCLE0001 code and related details
-        5. Success
-        6. Healthcheck reports no issue found
-        7. Healthcheck reports no issue found
-    """
-
-    RET_CODE = 'DSCLE0001'
-
-    standalone = topology_st.standalone
-
-    log.info('Set nsslapd-logging-hr-timestamps-enabled to off')
-    standalone.config.set('nsslapd-logging-hr-timestamps-enabled', 'off')
-    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
-
-    log.info('Set nsslapd-logging-hr-timestamps-enabled to off')
-    standalone.config.set('nsslapd-logging-hr-timestamps-enabled', 'on')
-
-    run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
-    run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
-
-
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_RI_plugin_is_misconfigured(topology_st):
     """Check if HealthCheck returns DSRILE0001 code
@@ -156,6 +118,8 @@ def test_healthcheck_RI_plugin_is_misconfigured(topology_st):
 
     standalone = topology_st.standalone
 
+    standalone.config.set("nsslapd-accesslog-logbuffering", "on")
+
     plugin = ReferentialIntegrityPlugin(standalone)
     plugin.disable()
     plugin.enable()
@@ -173,8 +137,6 @@ def test_healthcheck_RI_plugin_is_misconfigured(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_RI_plugin_missing_indexes(topology_st):
     """Check if HealthCheck returns DSRILE0002 code
@@ -274,8 +236,6 @@ def test_healthcheck_MO_plugin_missing_indexes(topology_st):
     standalone.restart()
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_virtual_attr_incorrectly_indexed(topology_st):
     """Check if HealthCheck returns DSVIRTLE0001 code
@@ -334,8 +294,6 @@ def test_healthcheck_virtual_attr_incorrectly_indexed(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
 @pytest.mark.xfail(ds_is_older("1.4.2.4"), reason="May fail because of bug 1796050")
 def test_healthcheck_low_disk_space(topology_st):
@@ -381,8 +339,6 @@ def test_healthcheck_low_disk_space(topology_st):
 
 
 @pytest.mark.flaky(max_runs=2, min_passes=1)
-@pytest.mark.ds50791
-@pytest.mark.bz1843567
 @pytest.mark.xfail(ds_is_older("1.4.3.8"), reason="Not implemented")
 def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     """Check if HealthCheck returns DSLOGNOTES0001 code
@@ -415,7 +371,6 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     db_cfg = DatabaseConfig(standalone)
     db_cfg.set([('nsslapd-idlistscanlimit', '100')])
 
-
     log.info('Stopping the server and running offline import...')
     standalone.stop()
     assert standalone.ldif2db(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], encrypt=None, excludeSuffixes=None,
@@ -425,6 +380,7 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     log.info('Use filters to reproduce "notes=A" in access log')
     accounts = Accounts(standalone, DEFAULT_SUFFIX)
     accounts.filter('(uid=test*)')
+    sleep(1)
 
     log.info('Check that access log contains "notes=A"')
     assert standalone.ds_access_log.match(r'.*notes=A.*')
@@ -435,8 +391,6 @@ def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
 
-@pytest.mark.ds50791
-@pytest.mark.bz1843567
 @pytest.mark.xfail(ds_is_older("1.4.3.8"), reason="Not implemented")
 def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     """Check if HealthCheck returns DSLOGNOTES0002 code
@@ -478,6 +432,7 @@ def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     log.info('Use filters to reproduce "notes=F" in access log')
     accounts = Accounts(standalone, DEFAULT_SUFFIX)
     accounts.filter('(unknown=test)')
+    sleep(1)
 
     log.info('Check that access log contains "notes=F"')
     assert standalone.ds_access_log.match(r'.*notes=F.*')
@@ -485,6 +440,7 @@ def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
     standalone.config.set("nsslapd-accesslog-logbuffering", "on")
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+
 
 def test_healthcheck_unauth_binds(topology_st):
     """Check if HealthCheck returns DSCLE0003 code when unauthorized binds are
@@ -518,8 +474,9 @@ def test_healthcheck_unauth_binds(topology_st):
     log.info('Reset nsslapd-allow-unauthenticated-binds to off')
     inst.config.set("nsslapd-allow-unauthenticated-binds", "off")
 
+
 def test_healthcheck_accesslog_buffering(topology_st):
-    """Check if HealthCheck returns DSCLE0004 code when acccess log biffering
+    """Check if HealthCheck returns DSCLE0004 code when acccess log buffering
     is disabled
 
     :id: 5a6512fd-1c7b-4557-9278-45150423148b
@@ -550,8 +507,9 @@ def test_healthcheck_accesslog_buffering(topology_st):
     log.info('Reset nsslapd-accesslog-logbuffering to on')
     inst.config.set("nsslapd-accesslog-logbuffering", "on")
 
+
 def test_healthcheck_securitylog_buffering(topology_st):
-    """Check if HealthCheck returns DSCLE0005 code when security log biffering
+    """Check if HealthCheck returns DSCLE0005 code when security log buffering
     is disabled
 
     :id: 9b84287a-e022-4bdc-8c65-2276b37371b5
@@ -581,6 +539,42 @@ def test_healthcheck_securitylog_buffering(topology_st):
     # reset setting
     log.info('Reset nnsslapd-securitylog-logbuffering to on')
     inst.config.set("nsslapd-securitylog-logbuffering", "on")
+
+
+def test_healthcheck_auditlog_buffering(topology_st):
+    """Check if HealthCheck returns DSCLE0006 code when audit log buffering
+    is disabled
+
+    :id: f030c9f3-0ce7-4156-ba70-81ef3ac82867
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-auditlog-logbuffering to off
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports DSCLE0006
+        4. Healthcheck reports DSCLE0006
+    """
+
+    RET_CODE = 'DSCLE0006'
+
+    inst = topology_st.standalone
+    enabled = inst.config.get_attr_val_utf8('nsslapd-auditlog-logging-enabled')
+
+    log.info('nsslapd-auditlog-logbuffering to off')
+    inst.config.set('nsslapd-auditlog-logging-enabled', 'on')
+    inst.config.set('nsslapd-auditlog-logbuffering', 'off')
+
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, inst, RET_CODE, json=True)
+
+    # reset setting
+    log.info('Reset nnsslapd-auditlog-logbuffering to on')
+    inst.config.set('nsslapd-auditlog-logbuffering', 'on')
+    inst.config.set('nsslapd-auditlog-logging-enabled', enabled)
 
 
 if __name__ == '__main__':

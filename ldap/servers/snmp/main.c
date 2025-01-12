@@ -337,6 +337,7 @@ load_config(char *conf_path)
             /* free the default logdir setting */
             if (agent_logdir != NULL) {
                 free(agent_logdir);
+                agent_logdir = NULL;
             }
 
             /* load agent-logdir setting */

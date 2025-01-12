@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.idm.group import UniqueGroup, UniqueGroups, MUST_ATTRIBUTES
-from lib389.cli_base import populate_attr_arguments, _generic_modify
+from lib389.cli_base import populate_attr_arguments, _generic_modify, CustomHelpFormatter
 from lib389.cli_idm import (
     _generic_list,
     _generic_get,
@@ -102,46 +102,46 @@ def create_parser(subparsers):
                                               '"uniquemember"')
     subcommands = group_parser.add_subparsers(help='action')
 
-    list_parser = subcommands.add_parser('list', help='list')
+    list_parser = subcommands.add_parser('list', help='list', formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list)
 
-    get_parser = subcommands.add_parser('get', help='get')
+    get_parser = subcommands.add_parser('get', help='get', formatter_class=CustomHelpFormatter)
     get_parser.set_defaults(func=get)
     get_parser.add_argument('selector', nargs='?', help='The term to search for')
 
-    get_dn_parser = subcommands.add_parser('get_dn', help='get_dn')
+    get_dn_parser = subcommands.add_parser('get_dn', help='get_dn', formatter_class=CustomHelpFormatter)
     get_dn_parser.set_defaults(func=get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The dn to get')
 
-    create_parser = subcommands.add_parser('create', help='create')
+    create_parser = subcommands.add_parser('create', help='create', formatter_class=CustomHelpFormatter)
     create_parser.set_defaults(func=create)
     populate_attr_arguments(create_parser, MUST_ATTRIBUTES)
 
-    delete_parser = subcommands.add_parser('delete', help='deletes the object')
+    delete_parser = subcommands.add_parser('delete', help='deletes the object', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=delete)
     delete_parser.add_argument('dn', nargs='?', help='The dn to delete')
 
-    modify_parser = subcommands.add_parser('modify', help='modify <add|delete|replace>:<attribute>:<value> ...')
+    modify_parser = subcommands.add_parser('modify', help='modify <add|delete|replace>:<attribute>:<value> ...', formatter_class=CustomHelpFormatter)
     modify_parser.set_defaults(func=modify)
     modify_parser.add_argument('selector', nargs=1, help='The %s to modify' % RDN)
     modify_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
 
-    rename_parser = subcommands.add_parser('rename', help='rename the object')
+    rename_parser = subcommands.add_parser('rename', help='rename the object', formatter_class=CustomHelpFormatter)
     rename_parser.set_defaults(func=rename)
     rename_parser.add_argument('selector', help='The %s to rename' % RDN)
     rename_parser.add_argument('new_name', help='A new group name')
     rename_parser.add_argument('--keep-old-rdn', action='store_true', help="Specify whether the old RDN (i.e. 'cn: old_group') should be kept as an attribute of the entry or not")
 
-    members_parser = subcommands.add_parser('members', help="List member dns of a group")
+    members_parser = subcommands.add_parser('members', help="List member dns of a group", formatter_class=CustomHelpFormatter)
     members_parser.set_defaults(func=members)
     members_parser.add_argument('cn', nargs='?', help="cn of group to list members of")
 
-    add_member_parser = subcommands.add_parser('add_member', help="Add a member to a group")
+    add_member_parser = subcommands.add_parser('add_member', help="Add a member to a group", formatter_class=CustomHelpFormatter)
     add_member_parser.set_defaults(func=add_member)
     add_member_parser.add_argument('cn', nargs='?', help="cn of group to add member to")
     add_member_parser.add_argument('dn', nargs='?', help="dn of object to add to group as member")
 
-    remove_member_parser = subcommands.add_parser('remove_member', help="Remove a member from a group")
+    remove_member_parser = subcommands.add_parser('remove_member', help="Remove a member from a group", formatter_class=CustomHelpFormatter)
     remove_member_parser.set_defaults(func=remove_member)
     remove_member_parser.add_argument('cn', nargs='?', help="cn of group to remove member from")
     remove_member_parser.add_argument('dn', nargs='?', help="dn of object to remove from group as member")

@@ -1,17 +1,23 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2020-2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import ldap
 import logging
-
 import pytest
+import time
+from ldap import SCOPE_SUBTREE
+from lib389.dirsrv_log import DirsrvAccessLog
 from lib389.tasks import *
+from lib389.backend import Backends, Backend
+from lib389.dbgen import dbgen_users, dbgen_groups
 from lib389.topologies import topology_st
-from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX
+from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX, DN_CONFIG_LDBM
+from lib389.idm.user import UserAccount, UserAccounts
 from lib389.utils import *
 
 pytestmark = pytest.mark.tier1
@@ -22,8 +28,6 @@ log = logging.getLogger(__name__)
 ENTRY_NAME = 'test_entry'
 
 
-@pytest.mark.bz918686
-@pytest.mark.ds497
 def test_filter_escaped(topology_st):
     """Test we can search for an '*' in a attribute value.
 
@@ -107,7 +111,7 @@ def test_filter_search_original_attrs(topology_st):
 
     log.info('test_filter_search_original_attrs: PASSED')
 
-@pytest.mark.bz1511462
+
 def test_filter_scope_one(topology_st):
     """Test ldapsearch with scope one gives only single entry
 
@@ -129,7 +133,7 @@ def test_filter_scope_one(topology_st):
     log.info('Search should only have one entry')
     assert len(results) == 1
 
-@pytest.mark.ds47313
+
 def test_filter_with_attribute_subtype(topology_st):
     """Adds 2 test entries and Search with
     filters including subtype and !
@@ -181,10 +185,12 @@ def test_filter_with_attribute_subtype(topology_st):
     entry_en_only.setValues('cn', entry_name_en_only)
     entry_en_only.setValues('cn;en', entry_name_en)
 
-    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_both, entry_both))
+    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_both,
+                                                               entry_both))
     topology_st.standalone.add_s(entry_both)
 
-    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_en_only, entry_en_only))
+    topology_st.standalone.log.info("Try to add Add %s: %r" % (entry_dn_en_only,
+                                                               entry_en_only))
     topology_st.standalone.add_s(entry_en_only)
 
     topology_st.standalone.log.info("\n\n######################### SEARCH ######################\n")
@@ -222,7 +228,7 @@ def test_filter_with_attribute_subtype(topology_st):
 
     log.info('Testcase PASSED')
 
-@pytest.mark.bz1615155
+
 def test_extended_search(topology_st):
     """Test we can search with equality extended matching rule
 
@@ -303,6 +309,260 @@ def test_extended_search(topology_st):
     topology_st.standalone.log.info("Try to search with filter %s" % myfilter)
     ents = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
     assert len(ents) == 1
+
+
+def test_match_large_valueset(topology_st):
+    """Test that when returning a big number of entries
+    and that we need to match the filter from a large valueset
+    we get benefit to use the sorted valueset
+
+    :id: 7db5aa88-50e0-4c31-85dd-1d2072cb674c
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Create a users and groups backends and tune them
+         2. Generate a test ldif (2k users and 1K groups with all users)
+         3. Import test ldif file using Offline import (ldif2db).
+         4. Prim the 'groups' entrycache with a "fast" search
+         5. Search the 'groups' with a difficult matching value
+         6. check that etime from step 5 is less than a second
+
+    :expectedresults:
+         1. Create a users and groups backends should PASS
+         2. Generate LDIF should PASS.
+         3. Offline import should PASS.
+         4. Priming should PASS.
+         5. Performance search should PASS.
+         6. Etime of performance search should PASS.
+    """
+
+    log.info('Running test_match_large_valueset...')
+    #
+    # Test online/offline LDIF imports
+    #
+    inst = topology_st.standalone
+    inst.start()
+    backends = Backends(inst)
+    users_suffix = "ou=users,%s" % DEFAULT_SUFFIX
+    users_backend = 'users'
+    users_ldif = 'users_import.ldif'
+    groups_suffix = "ou=groups,%s" % DEFAULT_SUFFIX
+    groups_backend = 'groups'
+    groups_ldif = 'groups_import.ldif'
+    groups_entrycache = '200000000'
+    users_number = 2000
+    groups_number = 1000
+
+
+    # For priming the cache we just want to be fast
+    # taking the first value in the valueset is good
+    # whether the valueset is sorted or not
+    priming_user_rdn = "user0001"
+
+    # For performance testing, this is important to use
+    # user1000 rather then user0001
+    # Because user0001 is the first value in the valueset
+    # whether we use the sorted valuearray or non sorted
+    # valuearray the performance will be similar.
+    # With middle value user1000, the performance boost of
+    # the sorted valuearray will make the difference.
+    perf_user_rdn = "user1000"
+
+    # Step 1. Prepare the backends and tune the groups entrycache
+    backends.create(properties={'parent': DEFAULT_SUFFIX,
+                                'nsslapd-suffix': users_suffix,
+                                'name': users_backend})
+    be_groups = backends.create(properties={'parent': DEFAULT_SUFFIX,
+                                            'nsslapd-suffix': groups_suffix,
+                                            'name': groups_backend})
+
+    # Set the entry cache to 200Mb as the 1K groups of 2K users require at
+    # least 170Mb
+    if get_default_db_lib() == "bdb":
+        config_ldbm = DSLdapObject(inst, DN_CONFIG_LDBM)
+        config_ldbm.set('nsslapd-cache-autosize', '0')
+    be_groups.replace('nsslapd-cachememsize', groups_entrycache)
+
+    # Step 2. Generate a test ldif (10k users entries)
+    log.info("Generating users LDIF...")
+    ldif_dir = inst.get_ldif_dir()
+    users_import_ldif = "%s/%s" % (ldif_dir, users_ldif)
+    groups_import_ldif = "%s/%s" % (ldif_dir, groups_ldif)
+    dbgen_users(inst, users_number, users_import_ldif, suffix=DEFAULT_SUFFIX,
+                generic=True, parent=users_suffix)
+
+    # Generate a test ldif (800 groups with 10k members) that fit in 700Mb entry cache
+    props = {
+        "name": "group",
+        "suffix": groups_suffix,
+        "parent": groups_suffix,
+        "number": groups_number,
+        "numMembers": users_number,
+        "createMembers": False,
+        "memberParent": users_suffix,
+        "membershipAttr": "uniquemember",
+    }
+    dbgen_groups(inst, groups_import_ldif, props)
+
+    # Step 3. Do the both offline imports
+    inst.stop()
+    if not inst.ldif2db(users_backend, None, None, None, users_import_ldif):
+        log.fatal('test_basic_import_export: Offline users import failed')
+        assert False
+    if not inst.ldif2db(groups_backend, None, None, None, groups_import_ldif):
+        log.fatal('test_basic_import_export: Offline groups import failed')
+        assert False
+    inst.start()
+
+    # Step 4. first prime the cache
+    # Just request the 'DN'. We are interested by the time of matching not by the time of transfert
+    entries = topology_st.standalone.search_s(groups_suffix, ldap.SCOPE_SUBTREE, "(&(objectclass=groupOfUniqueNames)(uniquemember=uid=%s,%s))" % (priming_user_rdn, users_suffix), ['dn'])
+    assert len(entries) == groups_number
+
+    # Step 5. Now do the real performance checking it should take less than a second
+    # Just request the 'DN'. We are interested by the time of matching not by the time of transfert
+    search_start = time.time()
+    entries = topology_st.standalone.search_s(groups_suffix, ldap.SCOPE_SUBTREE, "(&(objectclass=groupOfUniqueNames)(uniquemember=uid=%s,%s))" % (perf_user_rdn, users_suffix), ['dn'])
+    duration = time.time() - search_start
+    log.info("Duration of the search was %f", duration)
+
+    # Step 6. Gather the etime from the access log
+    inst.stop()
+    access_log = DirsrvAccessLog(inst)
+    search_result = access_log.match(".*RESULT err=0 tag=101 nentries=%s.*" %
+                                     groups_number)
+    log.info("Found patterns are %s", search_result[0])
+    log.info("Found patterns are %s", search_result[1])
+    etime = float(search_result[1].split('etime=')[1])
+    log.info("Duration of the search from access log was %f", etime)
+    assert len(entries) == groups_number
+    assert etime < 5
+
+
+def test_filter_not_operator(topology_st, request):
+    """Test ldapsearch with scope one gives only single entry
+
+    :id: b3711e02-7e76-444d-82f3-495c6dadd97f
+    :setup: Standalone instance
+    :steps:
+         1. Creating user1..user9
+         2. Adding specific 'telephonenumber' to the users
+         3. Check returned set (5 users) with the first filter
+         4. Check returned set (4 users) with the second filter
+    :expectedresults:
+         1. This should pass
+         2. This should pass
+         3. This should pass
+         4. This should pass
+    """
+
+    topology_st.standalone.start()
+    # Creating Users
+    log.info('Create users from user1 to user9')
+    users = UserAccounts(topology_st.standalone, "ou=people,%s" % DEFAULT_SUFFIX, rdn=None)
+
+    for user in ['user1',
+                 'user2',
+                 'user3',
+                 'user4',
+                 'user5',
+                 'user6',
+                 'user7',
+                 'user8',
+                 'user9']:
+        users.create(properties={
+            'mail': f'{user}@redhat.com',
+            'uid': user,
+            'givenName': user.title(),
+            'cn': f'bit {user}',
+            'sn': user.title(),
+            'manager': f'uid={user},{SUFFIX}',
+            'userpassword': "password",
+            'homeDirectory': '/home/' + user,
+            'uidNumber': '1000',
+            'gidNumber': '2000',
+        })
+    # Adding specific values to the users
+    log.info('Adding telephonenumber values')
+    user = UserAccount(topology_st.standalone,
+                       'uid=user1, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '2345'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user2, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '4567'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user3, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '4567'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user4, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user5, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['2345'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user6, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['3456'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user7, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['4567'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user8, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234'])
+
+    user = UserAccount(topology_st.standalone,
+                       'uid=user9, ou=people, %s' % DEFAULT_SUFFIX)
+    user.add('telephonenumber', ['1234', '4567'])
+
+    # Do a first test of filter containing a NOT
+    # and check the expected values are retrieved
+    log.info('Search with filter containing NOT')
+    log.info('expect user2, user3, user6, user8 and user9')
+    filter1 = "(|(telephoneNumber=3456)(&(telephoneNumber=1234)(!(|(uid=user1)(uid=user4)))))"
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, SCOPE_SUBTREE,
+                                              filter1)
+    uids = []
+    for entry in entries:
+        assert entry.hasAttr('uid')
+        uids.append(entry.getValue('uid'))
+
+    assert len(uids) == 5
+    for uid in [b'user2', b'user3', b'user6', b'user8', b'user9']:
+        assert uid in uids
+
+    # Do a second test of filter containing a NOT
+    # and check the expected values are retrieved
+    log.info('Search with a second filter containing NOT')
+    log.info('expect user2, user3, user8 and user9')
+    filter1 = "(|(&(telephoneNumber=1234)(!(|(uid=user1)(uid=user4)))))"
+    entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, SCOPE_SUBTREE,
+                                              filter1)
+    uids = []
+    for entry in entries:
+        assert entry.hasAttr('uid')
+        uids.append(entry.getValue('uid'))
+
+    assert len(uids) == 4
+    for uid in [b'user2', b'user3', b'user8', b'user9']:
+        assert uid in uids
+
+    def fin():
+        """
+        Deletes entries after the test.
+        """
+        for user in users.list():
+            pass
+            user.delete()
+
+    request.addfinalizer(fin)
+
 
 if __name__ == '__main__':
     # Run isolated

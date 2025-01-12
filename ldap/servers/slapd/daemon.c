@@ -817,7 +817,6 @@ accept_thread(void *vports)
     PRErrorCode prerr;
     int last_accept_new_connections = -1;
     PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_accept_wakeup_timer);
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     PRFileDesc **n_tcps = NULL;
     PRFileDesc **s_tcps = NULL;
     PRFileDesc **i_unix = NULL;
@@ -830,8 +829,8 @@ accept_thread(void *vports)
     num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, &fds);
 
     while (!g_get_shutdown()) {
-        /* Do we need to accept new connections? */
-        int accept_new_connections = ((ct->size - g_get_current_conn_count()) > slapdFrontendConfig->reservedescriptors);
+        /* Do we need to accept new connections, account for ct->size including list heads. */
+        int accept_new_connections = ((ct->size - ct->list_num) > ct->conn_next_offset);
         if (!accept_new_connections) {
             if (last_accept_new_connections) {
                 slapi_log_err(SLAPI_LOG_ERR, "accept_thread",
@@ -869,6 +868,8 @@ accept_thread(void *vports)
     slapi_ch_free((void **)&listener_idxs);
     slapd_sockets_ports_free(ports);
     slapi_ch_free((void **)&fds);
+    g_decr_active_threadcnt();
+    slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon", "slapd shutting down - accept_thread\n");
 }
 
 void
@@ -1159,6 +1160,8 @@ slapd_daemon(daemon_ports_t *ports)
         slapi_log_err(SLAPI_LOG_EMERG, "slapd_daemon", "Unable to fd accept thread - Shutting Down (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                       errorCode, slapd_pr_strerror(errorCode));
         g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+    } else{
+        g_incr_active_threadcnt();
     }
 
 #ifdef WITH_SYSTEMD
@@ -1324,8 +1327,12 @@ slapd_daemon(daemon_ports_t *ports)
             slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "Failed to remove pid file %s\n", get_pid_file());
         }
     }
-}
 
+    /* final cleanup for ASAN and other analyzers */
+    PR_JoinThread(accept_thread_p);
+    free_worker_thread_indexes();
+    free_server_dataversion();
+}
 
 void
 ct_thread_cleanup(void)
@@ -1568,9 +1575,9 @@ setup_pr_read_pds(Connection_Table *ct, int listnum)
                     int add_fd = 1;
                     /* check timeout for PAGED RESULTS */
                     if (pagedresults_is_timedout_nolock(c)) {
-                        /* Exceeded the timelimit; disconnect the client */
+                        /* Exceeded the paged search timelimit; disconnect the client */
                         disconnect_server_nomutex(c, c->c_connid, -1,
-                                                  SLAPD_DISCONNECT_IO_TIMEOUT,
+                                                  SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT,
                                                   0);
                         connection_table_move_connection_out_of_active_list(ct,
                                                                             c);
@@ -1644,7 +1651,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                 continue;
             }
 
-            /* Try to get connection mutex, if not available just skip the connection and 
+            /* Try to get connection mutex, if not available just skip the connection and
              * process other connections events. May generates cpu load for listening thread
              * if connection mutex is held for a long time
              */
@@ -2082,8 +2089,8 @@ unfurl_banners(Connection_Table *ct, daemon_ports_t *ports, PRFileDesc **n_tcps,
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     char addrbuf[256];
     int isfirsttime = 1;
-
-    if (ct->size <= slapdFrontendConfig->reservedescriptors) {
+    /* Take into account that ct->size includes a list head for each listener. */
+    if ((ct->size - ct->list_num) > (slapdFrontendConfig->maxdescriptors - slapdFrontendConfig->reservedescriptors)) {
         slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon",
                       "Not enough descriptors to accept any connections. "
                       "This may be because the maxdescriptors configuration "
@@ -2331,7 +2338,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr, int secure __attrib
     if (local) { /* ldapi */
         if (chmod((*listenaddr)->local.path,
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)) {
-            slapi_log_err(SLAPI_LOG_ERR, logname, "err: %d", errno);
+            slapi_log_err(SLAPI_LOG_ERR, logname, "err: %d\n", errno);
         }
     }
 #endif /* ENABLE_LDAPI */

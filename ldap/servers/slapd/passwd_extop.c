@@ -287,7 +287,9 @@ passwd_modify_generate_policy_passwd(passwdPolicy *pwpolicy,
 
     /* if only minalphas is set, divide it into minuppers and minlowers. */
     if (pwpolicy->pw_minalphas > 0 &&
-        (my_policy[idx_minuppers] == 0 && my_policy[idx_minlowers] == 0)) {
+        (my_policy[idx_minuppers] == 0 && my_policy[idx_minlowers] == 0))
+    {
+        /* coverity[store_truncates_time_t] */
         unsigned int x = (unsigned int)time(NULL);
         my_policy[idx_minuppers] = slapi_rand_r(&x) % pwpolicy->pw_minalphas;
         my_policy[idx_minlowers] = pwpolicy->pw_minalphas - my_policy[idx_minuppers];
@@ -346,6 +348,7 @@ passwd_modify_generate_policy_passwd(passwdPolicy *pwpolicy,
     /* if password length is longer the sum of my_policy's,
        let them share the burden */
     if (passlen > tmplen) {
+        /* coverity[store_truncates_time_t] */
         unsigned int x = (unsigned int)time(NULL);
         int delta = passlen - tmplen;
         for (i = 0; i < delta; i++) {
@@ -493,7 +496,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
      * connections using SASL privacy layers */
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     if (conn == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "conn is NULL");
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "conn is NULL\n");
         goto free_and_return;
     }
     if (slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
@@ -734,7 +737,7 @@ parse_req_done:
     Operation *pb_op = NULL;
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     if (pb_op == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL");
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL\n");
         goto free_and_return;
     }
 

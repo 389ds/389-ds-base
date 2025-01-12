@@ -1,28 +1,44 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-    Alert,
-    BadgeToggle,
-    Bullseye,
-    Card, CardBody, CardTitle,
-    Dropdown, DropdownItem, DropdownPosition,
-    Grid, GridItem,
-    Label, LabelGroup,
-    Pagination,
-    SearchInput,
-    SimpleList, SimpleListItem,
-    Spinner,
-    Text, TextContent, TextVariants,
-    Title,
-    Wizard,
+	Alert,
+	Bullseye,
+	Card,
+	CardBody,
+	CardTitle,
+	Grid,
+	GridItem,
+	Label,
+	LabelGroup,
+	Pagination,
+	SearchInput,
+	SimpleList,
+	SimpleListItem,
+	Spinner,
+	Text,
+	TextContent,
+	TextVariants,
+	Title
 } from '@patternfly/react-core';
+import {
+	BadgeToggle,
+	Dropdown,
+	DropdownItem,
+	DropdownPosition,
+	Wizard
+} from '@patternfly/react-core/deprecated';
 import {
     InfoCircleIcon,
 } from '@patternfly/react-icons';
 import {
-    Table, TableHeader, TableBody, TableVariant,
-    breakWord,
-    headerCol,
+	breakWord,
+	headerCol,
+    Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
 } from '@patternfly/react-table';
 import {
     b64DecodeUnicode,
@@ -904,16 +920,16 @@ class EditLdapEntry extends React.Component {
                 }
                 statementRows.push({
                     cells: [
-                        { title: (<Label color="orange">_("Replace")</Label>) },
+                        { title: (<Label color="orange">{_("Replace")}</Label>) },
                         myAttr,
                         {
                             title: (
                                 <LabelGroup isVertical>
                                     <Label variant="outline" color="red">
-                                        <em>_("old:")</em>&ensp;{myVal}
+                                        <em>{_("old:")}</em>&ensp;{myVal}
                                     </Label>
-                                    <Label variant="outline" color="blue" isTruncated>
-                                        <em>_("new:")</em>&ensp;{datum.new}
+                                    <Label variant="outline" color="blue" >
+                                        <em>{_("new:")}</em>&ensp;{datum.new}
                                     </Label>
                                 </LabelGroup>
                             )
@@ -979,7 +995,7 @@ class EditLdapEntry extends React.Component {
                     myAttr,
                     {
                         title: (
-                            <Label variant="outline" color="blue" isTruncated>
+                            <Label variant="outline" color="blue" >
                                 {myVal}
                             </Label>
                         )
@@ -1042,7 +1058,7 @@ class EditLdapEntry extends React.Component {
                     myAttr,
                     {
                         title: (
-                            <Label variant="outline" color="blue" isTruncated>
+                            <Label variant="outline" color="blue" >
                                 {myVal}
                             </Label>
                         )
@@ -1066,11 +1082,11 @@ class EditLdapEntry extends React.Component {
                 cleanLdifArray.push('objectClass: ' + oldOC);
                 statementRows.push({
                     cells: [
-                        { title: (<Label color="red">_("Delete")</Label>) },
+                        { title: (<Label color="red">{_("Delete")}</Label>) },
                         'objectClass',
                         {
                             title: (
-                                <Label variant="outline" color="blue" isTruncated>
+                                <Label variant="outline" color="blue" >
                                     {oldOC}
                                 </Label>
                             )
@@ -1096,7 +1112,7 @@ class EditLdapEntry extends React.Component {
                         'objectClass',
                         {
                             title: (
-                                <Label variant="outline" color="blue" isTruncated>
+                                <Label variant="outline" color="blue" >
                                     {newOC}
                                 </Label>
                             )
@@ -1122,9 +1138,9 @@ class EditLdapEntry extends React.Component {
     };
 
     handleOCDropDownSelect = event => {
-        this.setState((prevState, props) => {
-            return { isOCDropDownOpen: !prevState.isOCDropDownOpen };
-        });
+        this.setState((prevState) => ({
+            isOCDropDownOpen: !prevState.isOCDropDownOpen
+        }));
     };
 
     buildOCDropdown = () => {
@@ -1140,7 +1156,7 @@ class EditLdapEntry extends React.Component {
             <Dropdown
                 className="ds-dropdown-padding"
                 onSelect={this.handleOCDropDownSelect}
-                position={DropdownPosition.left}
+                position="left"
                 toggle={
                     <BadgeToggle id="toggle-oc-select" onToggle={this.handleOCDropDownToggle}>
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
@@ -1159,14 +1175,14 @@ class EditLdapEntry extends React.Component {
     };
 
     handleAttrDropDownSelect = event => {
-        this.setState((prevState, props) => {
-            return { isAttrDropDownOpen: !prevState.isAttrDropDownOpen };
-        });
+        this.setState((prevState) => ({
+            isAttrDropDownOpen: !prevState.isAttrDropDownOpen
+        }));
     };
 
     buildAttrDropdown = () => {
         const { isAttrDropDownOpen, selectedAttributes } = this.state;
-        const numSelected = this.state.selectedAttributes.length;
+        const numSelected = selectedAttributes.length;
         const attrs = selectedAttributes.map((attr) => attr[0]);
         attrs.sort();
         const items = attrs.map((attr) =>
@@ -1177,9 +1193,12 @@ class EditLdapEntry extends React.Component {
             <Dropdown
                 className="ds-dropdown-padding"
                 onSelect={this.handleAttrDropDownSelect}
-                position={DropdownPosition.left}
+                position="left"
                 toggle={
-                    <BadgeToggle id="toggle-attr-select" onToggle={this.handleAttrDropDownToggle}>
+                    <BadgeToggle 
+                        id="toggle-attr-select" 
+                        onToggle={this.handleAttrDropDownToggle}
+                    >
                         {numSelected !== 0 ? <>{numSelected} {_("selected")} </> : <>0 {_("selected")} </>}
                     </BadgeToggle>
                 }
@@ -1207,52 +1226,73 @@ class EditLdapEntry extends React.Component {
                     </TextContent>
                     {this.buildOCDropdown()}
                 </div>
-                { loading &&
+                {loading ? (
+                    <Bullseye className="ds-margin-top-xlg">
+                        <Title headingLevel="h3" size="lg">
+                            {_("Loading ...")}
+                        </Title>
+                        <Spinner className="ds-center" size="lg" />
+                    </Bullseye>
+                ) : (
                     <div>
-                        <Bullseye className="ds-margin-top-xlg" key="add-entry-bulleye">
-                            <Title headingLevel="h3" size="lg" key="loading-title">
-                                {_("Loading ...")}
-                            </Title>
-                        </Bullseye>
-                        <Spinner className="ds-center" size="lg" key="loading-spinner" />
-                    </div>}
-                <div className={loading ? "ds-hidden" : ""}>
-                    <Grid className="ds-margin-top-lg">
-                        <GridItem span={5}>
-                            <SearchInput
-                                className="ds-font-size-md"
-                                placeholder={_("Search Objectclasses")}
-                                value={this.state.searchOCValue}
-                                onChange={this.handleOCSearchChange}
-                                onClear={(evt, val) => this.handleOCSearchChange(evt, '')}
-                            />
-                        </GridItem>
-                        <GridItem span={7}>
-                            <Pagination
-                                value="ObjectClassTable"
-                                itemCount={this.state.itemCountOc}
-                                page={this.state.pageOc}
-                                perPage={this.state.perPageOc}
-                                onSetPage={this.handleSetPageOc}
-                                widgetId="pagination-step-objectclass"
-                                onPerPageSelect={this.handlePerPageSelectOc}
-                                variant="top"
-                                isCompact
-                            />
-                        </GridItem>
-                    </Grid>
-                    <Table
-                        cells={columnsOc}
-                        rows={pagedRowsOc}
-                        canSelectAll={false}
-                        onSelect={this.handleSelectOc}
-                        variant={TableVariant.compact}
-                        aria-label="Pagination All ObjectClasses"
-                    >
-                        <TableHeader />
-                        <TableBody />
-                    </Table>
-                </div>
+                        <Grid className="ds-margin-top-lg">
+                            <GridItem span={5}>
+                                <SearchInput
+                                    className="ds-font-size-md"
+                                    placeholder={_("Search Objectclasses")}
+                                    value={this.state.searchOCValue}
+                                    onChange={this.handleOCSearchChange}
+                                    onClear={(evt) => this.handleOCSearchChange(evt, '')}
+                                />
+                            </GridItem>
+                            <GridItem span={7}>
+                                <Pagination
+                                    itemCount={this.state.itemCountOc}
+                                    page={this.state.pageOc}
+                                    perPage={this.state.perPageOc}
+                                    onSetPage={this.handleSetPageOc}
+                                    widgetId="pagination-step-objectclass"
+                                    onPerPageSelect={this.handlePerPageSelectOc}
+                                    variant="top"
+                                    isCompact
+                                />
+                            </GridItem>
+                        </Grid>
+                        <Table aria-label="Pagination All ObjectClasses" variant="compact">
+                            <Thead>
+                                <Tr>
+                                    <Th screenReaderText="Selection column" />
+                                    {columnsOc.map((column, columnIndex) => (
+                                        <Th key={columnIndex}>
+                                            {typeof column === 'object' ? column.title : column}
+                                        </Th>
+                                    ))}
+                                </Tr>
+                            </Thead>
+                            <Tbody>
+                                {pagedRowsOc.map((row, rowIndex) => (
+                                    <Tr key={rowIndex}>
+                                        <Td
+                                            select={{
+                                                rowIndex,
+                                                onSelect: this.handleSelectOc,
+                                                isSelected: row.selected
+                                            }}
+                                        />
+                                        {row.cells.map((cell, cellIndex) => (
+                                            <Td 
+                                                key={`${rowIndex}_${cellIndex}`}
+                                                dataLabel={columnsOc[cellIndex]?.title || columnsOc[cellIndex]}
+                                            >
+                                                {cell}
+                                            </Td>
+                                        ))}
+                                    </Tr>
+                                ))}
+                            </Tbody>
+                        </Table>
+                    </div>
+                )}
             </>
         );
 
@@ -1273,7 +1313,7 @@ class EditLdapEntry extends React.Component {
                             placeholder={_("Search Attributes")}
                             value={this.state.searchValue}
                             onChange={this.handleAttrSearchChange}
-                            onClear={(evt, val) => this.handleAttrSearchChange(evt, '')}
+                            onClear={(evt) => this.handleAttrSearchChange(evt, '')}
                         />
                     </GridItem>
                     <GridItem span={7}>
@@ -1289,19 +1329,45 @@ class EditLdapEntry extends React.Component {
                         />
                     </GridItem>
                 </Grid>
-                <Table
+                <Table 
+                    aria-label="Pagination Attributes" 
+                    variant="compact"
                     className="ds-margin-top"
-                    cells={columnsAttr}
-                    rows={pagedRowsAttr}
-                    onSelect={this.handleSelectAttr}
-                    variant={TableVariant.compact}
-                    aria-label="Pagination Attributes"
-                    canSelectAll={false}
                 >
-                    <TableHeader />
-                    <TableBody />
-                </Table>
+                    <Thead>
+                        <Tr>
+                            <Th screenReaderText="Selection column" />
+                            {columnsAttr.map((column, columnIndex) => (
+                                <Th key={columnIndex}>
+                                    {typeof column === 'object' ? column.title : column}
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {pagedRowsAttr.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td
+                                    select={{
+                                        rowIndex,
+                                        onSelect: this.handleSelectAttr,
+                                        isSelected: row.selected,
+                                        isDisabled: row.disableCheckbox
 
+                                    }}
+                                />
+                                {row.cells.map((cell, cellIndex) => (
+                                    <Td 
+                                        key={`${rowIndex}_${cellIndex}`}
+                                        dataLabel={columnsAttr[cellIndex]?.title || columnsAttr[cellIndex]}
+                                    >
+                                        {typeof cell === 'object' ? cell.title : cell}
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
             </>
         );
 
@@ -1427,11 +1493,40 @@ class EditLdapEntry extends React.Component {
                     <Table
                         aria-label="Statement Table"
                         variant="compact"
-                        cells={this.operationColumns}
-                        rows={statementRows}
+                        borders={true}
                     >
-                        <TableHeader />
-                        <TableBody />
+                        <Thead>
+                            <Tr>
+                                {this.operationColumns.map((column, columnIndex) => (
+                                    <React.Fragment key={columnIndex}>
+                                        {typeof column === 'object' ? (
+                                            <Th>{column.title}</Th>
+                                        ) : (
+                                            <Th>{column}</Th>
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </Tr>
+                        </Thead>
+                        <Tbody>
+                            {statementRows.map((row, rowIndex) => (
+                                <Tr key={rowIndex}>
+                                    {row.cells.map((cell, cellIndex) => (
+                                        <React.Fragment key={cellIndex}>
+                                            <Td>
+                                                {cell.title ? 
+                                                    // For cells with React element content
+                                                    cell.title.props.children
+                                                    : 
+                                                    // For simple string cells
+                                                    cell
+                                                }
+                                            </Td>
+                                        </React.Fragment>
+                                    ))}
+                                </Tr>
+                            ))}
+                        </Tbody>
                     </Table>
                 ),
                 canJumpTo: stepIdReached >= 4 && stepIdReached < 6,

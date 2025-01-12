@@ -36,8 +36,6 @@ else:
 log = logging.getLogger(__name__)
 
 
-@pytest.mark.ds2790
-@pytest.mark.bz1780842
 def test_check_db_home_dir_in_config(topo):
     """Test to check nsslapd-db-home-directory is set to /dev/shm/slapd-instance in cn=config
 
@@ -64,8 +62,6 @@ def test_check_db_home_dir_in_config(topo):
     assert bdb_ldbmconfig.get_attr_val_utf8('nsslapd-db-home-directory') == dbhome_value
 
 
-@pytest.mark.ds2790
-@pytest.mark.bz1780842
 def test_check_db_home_dir_contents(topo):
     """Test to check contents of /dev/shm/slapd-instance
 
@@ -106,8 +102,6 @@ def test_check_db_home_dir_contents(topo):
         assert item not in old_location_files
 
 
-@pytest.mark.ds2790
-@pytest.mark.bz1780842
 def test_check_db_home_dir_in_dse(topo):
     """Test to check nsslapd-db-home-directory is set to /dev/shm/slapd-instance in dse.ldif
 
@@ -135,8 +129,6 @@ def test_check_db_home_dir_in_dse(topo):
     assert dse_value == dbhome_value
 
 
-@pytest.mark.ds2790
-@pytest.mark.bz1780842
 def test_check_db_home_dir_in_defaults(topo):
     """Test to check nsslapd-db-home-directory is set to /dev/shm/slapd-instance in defaults.inf file
 
@@ -165,8 +157,6 @@ def test_check_db_home_dir_in_defaults(topo):
         assert dbhome_value in f.read()
 
 
-@pytest.mark.ds2790
-@pytest.mark.bz1780842
 def test_delete_db_home_dir(topo):
     """Test to check behaviour when deleting contents of /dev/shm/slapd-instance/ and restarting the instance
 

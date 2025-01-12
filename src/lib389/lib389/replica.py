@@ -1262,7 +1262,7 @@ class Replica(DSLdapObject):
                             report['detail'] = report['detail'].replace('MSG', status['reason'])
                             report['check'] = f'replication:agmts_status'
                             yield report
-                except ldap.LDAPError as e:
+                except (ldap.LDAPError, TypeError, ValueError, KeyError) as e:
                     report = copy.deepcopy(DSREPLLE0004)
                     report['detail'] = report['detail'].replace('SUFFIX', suffix)
                     report['detail'] = report['detail'].replace('AGMT', agmt_name)

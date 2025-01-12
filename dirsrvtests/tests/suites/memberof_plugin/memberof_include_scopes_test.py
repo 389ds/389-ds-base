@@ -9,6 +9,7 @@
 import pytest
 import os
 import ldap
+import time
 from lib389.utils import ensure_str
 from lib389.topologies import topology_st as topo
 from lib389._constants import *
@@ -81,6 +82,10 @@ def test_multiple_scopes(topo):
     memberof.enable()
     memberof.add('memberOfEntryScope', SUBTREE_1)
     memberof.add('memberOfEntryScope', SUBTREE_2)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
     inst.restart()
 
     # Add setup entries
@@ -113,6 +118,7 @@ def test_multiple_scopes(topo):
     user = UserAccount(topo.standalone, dn=INCLUDED_USER)
     user.rename("uid=test_m1", newsuperior=EXCLUDED_SUBTREE)
 
+    time.sleep(delay)
     # Check memberOf and group are cleaned up
     check_membership(inst, EXCLUDED_USER, GROUP_DN, False)
     group = Group(topo.standalone,  dn=GROUP_DN)

@@ -650,7 +650,6 @@ def test_go_straight_below_4kb(topo, setup, reset_logs):
 
 
 @disk_monitoring_ack
-@pytest.mark.bz982325
 def test_threshold_to_overflow_value(topo, setup, reset_logs):
     """Overflow in nsslapd-disk-monitoring-threshold
 
@@ -670,7 +669,6 @@ def test_threshold_to_overflow_value(topo, setup, reset_logs):
 
 
 @disk_monitoring_ack
-@pytest.mark.bz970995
 def test_threshold_is_reached_to_half(topo, setup, reset_logs):
     """RHDS not shutting down when disk monitoring threshold is reached to half.
 

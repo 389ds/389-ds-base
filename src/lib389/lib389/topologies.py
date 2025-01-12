@@ -124,6 +124,7 @@ def _create_instances(topo_dict, suffix):
             instance.use_ldap_uri()
             instance.open()
             instance.config.set('nsslapd-accesslog-logbuffering','off')
+            instance.config.set('nsslapd-auditlog-logbuffering','off')
             if role == ReplicaRole.STANDALONE:
                 ins[instance.serverid] = instance
                 instances.update(ins)
@@ -511,6 +512,17 @@ def topology_m4(request):
 
 
 @pytest.fixture(scope="module")
+def topology_m2c1(request):
+    """Create Replication Deployment with two suppliers and one consumers"""
+
+    topology = create_topology({ReplicaRole.SUPPLIER: 2,
+                                ReplicaRole.CONSUMER: 1}, request=request)
+
+    topology.logcap = LogCapture()
+    return topology
+
+
+@pytest.fixture(scope="module")
 def topology_m2c2(request):
     """Create Replication Deployment with two suppliers and two consumers"""
 
@@ -528,7 +540,7 @@ def topology_m1h1c1(request):
     topo_roles = {ReplicaRole.SUPPLIER: 1, ReplicaRole.HUB: 1, ReplicaRole.CONSUMER: 1}
     topology = create_topology(topo_roles, request=request)
 
-    # Since topology implements timeout, create_topology supports hub 
+    # Since topology implements timeout, create_topology supports hub
     # but hub and suppliers are fully meshed while historically this topology
     # did not have hub->master agreement.
     # ==> we must remove hub->master agmt that breaks some test (like promote_demote)

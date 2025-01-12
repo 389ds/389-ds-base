@@ -106,7 +106,6 @@ def _add_user(request, topo):
     request.addfinalizer(fin)
 
 
-@pytest.mark.bz1044164
 def test_local_password_policy(topo, _add_user):
     """Regression test for bz1044164 part 1.
 
@@ -157,7 +156,6 @@ def test_local_password_policy(topo, _add_user):
                          f'passwords";allow (write)(userdn = "ldap:///{user.dn}");)')
 
 
-@pytest.mark.bz1118006
 def test_passwordexpirationtime_attribute(topo, _add_user):
     """Regression test for bz1118006.
 
@@ -180,8 +178,6 @@ def test_passwordexpirationtime_attribute(topo, _add_user):
     time.sleep(1)
 
 
-@pytest.mark.bz1118007
-@pytest.mark.bz1044164
 def test_admin_group_to_modify_password(topo, _add_user):
     """Regression test for bz1044164 part 2.
 
@@ -417,7 +413,6 @@ def test_admin_group_to_modify_password(topo, _add_user):
                                 f'uid=pwadm_admin_1,{DEFAULT_SUFFIX}')
 
 
-@pytest.mark.bz834060
 def test_password_max_failure_should_lockout_password(topo):
     """Regression test for bz834060.
 
@@ -452,7 +447,6 @@ def test_password_max_failure_should_lockout_password(topo):
     config.replace('nsslapd-pwpolicy-local', 'on')
 
 
-@pytest.mark.bz834063
 def test_pwd_update_time_attribute(topo):
     """Regression test for bz834063
 
@@ -597,7 +591,6 @@ def test_password_track_update_time(topo):
     assert last_login_time_user2 != last_login_time_user2_last
 
 
-@pytest.mark.bz834063
 def test_signal_11(topo):
     """ns-slapd instance crashed with signal 11 SIGSEGV
 

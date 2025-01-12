@@ -11,6 +11,7 @@ import json
 from lib389.backend import Backends
 from lib389.plugins import ManagedEntriesPlugin, MEPConfig, MEPConfigs, MEPTemplate, MEPTemplates
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'config_area': 'nsslapd-pluginconfigarea'
@@ -201,15 +202,15 @@ def _add_parser_args_template(parser):
 
 
 def create_parser(subparsers):
-    mep = subparsers.add_parser('managed-entries', help='Manage and configure Managed Entries Plugin')
+    mep = subparsers.add_parser('managed-entries', help='Manage and configure Managed Entries Plugin', formatter_class=CustomHelpFormatter)
     subcommands = mep.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, ManagedEntriesPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin settings')
+    edit = subcommands.add_parser('set', help='Edit the plugin settings', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=mep_edit)
     edit.add_argument('--config-area', help='Sets the value of the nsslapd-pluginConfigArea attribute')
 
-    list = subcommands.add_parser('list', help='List Managed Entries Plugin configs and templates')
+    list = subcommands.add_parser('list', help='List Managed Entries Plugin configs and templates', formatter_class=CustomHelpFormatter)
     subcommands_list = list.add_subparsers(help='action')
     list_configs = subcommands_list.add_parser('configs', help='List Managed Entries Plugin configs (list config-area '
                                                                'if specified in the main plugin entry)')
@@ -219,30 +220,30 @@ def create_parser(subparsers):
     list_templates.add_argument('BASEDN', nargs='?', help='The base DN where to search the templates')
     list_templates.set_defaults(func=mep_template_list)
 
-    config = subcommands.add_parser('config', help='Handle Managed Entries Plugin configs')
+    config = subcommands.add_parser('config', help='Handle Managed Entries Plugin configs', formatter_class=CustomHelpFormatter)
     config.add_argument('NAME', help='The config entry CN')
     config_subcommands = config.add_subparsers(help='action')
-    add = config_subcommands.add_parser('add', help='Add the config entry')
+    add = config_subcommands.add_parser('add', help='Add the config entry', formatter_class=CustomHelpFormatter)
     add.set_defaults(func=mep_config_add)
     _add_parser_args_config(add)
-    edit = config_subcommands.add_parser('set', help='Edit the config entry')
+    edit = config_subcommands.add_parser('set', help='Edit the config entry', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=mep_config_edit)
     _add_parser_args_config(edit)
-    show = config_subcommands.add_parser('show', help='Display the config entry')
+    show = config_subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show.set_defaults(func=mep_config_show)
-    delete = config_subcommands.add_parser('delete', help='Delete the config entry')
+    delete = config_subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
     delete.set_defaults(func=mep_config_del)
 
-    template = subcommands.add_parser('template', help='Handle Managed Entries Plugin templates')
+    template = subcommands.add_parser('template', help='Handle Managed Entries Plugin templates', formatter_class=CustomHelpFormatter)
     template.add_argument('DN', help='The template entry DN.')
     template_subcommands = template.add_subparsers(help='action')
-    add = template_subcommands.add_parser('add', help='Add the template entry')
+    add = template_subcommands.add_parser('add', help='Add the template entry', formatter_class=CustomHelpFormatter)
     add.set_defaults(func=mep_template_add)
     _add_parser_args_template(add)
-    edit = template_subcommands.add_parser('set', help='Edit the template entry')
+    edit = template_subcommands.add_parser('set', help='Edit the template entry', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=mep_template_edit)
     _add_parser_args_template(edit)
-    show = template_subcommands.add_parser('show', help='Display the template entry')
+    show = template_subcommands.add_parser('show', help='Display the template entry', formatter_class=CustomHelpFormatter)
     show.set_defaults(func=mep_template_show)
-    delete = template_subcommands.add_parser('delete', help='Delete the template entry')
+    delete = template_subcommands.add_parser('delete', help='Delete the template entry', formatter_class=CustomHelpFormatter)
     delete.set_defaults(func=mep_template_del)

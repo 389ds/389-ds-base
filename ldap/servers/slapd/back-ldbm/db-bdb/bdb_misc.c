@@ -382,7 +382,7 @@ bdb_start_autotune(struct ldbminfo *li)
         slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
         slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "Total entry cache size: %" PRIu64 " B; dbcache size: %" PRIu64 " B; available memory size: %" PRIu64 " B; \n",
                       total_cache_size, (uint64_t)li->li_dbcachesize, mi->system_available_bytes);
-        slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "%s\n", msg);
+        slapi_log_err(SLAPI_LOG_WARNING, "bdb_start_autotune", "%s", msg);
         /* WB 2016 - This should be UNCOMMENTED in a future release */
         /* return SLAPI_FAIL_GENERAL; */
     }

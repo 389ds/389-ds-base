@@ -998,7 +998,7 @@ export function showCertificate (certificate, showCertCallback) {
         'echo ' + certificate +
     ' | base64 --decode | openssl x509 -inform DER -noout -subject -issuer -dates -serial ;' +
     // ' echo HOST_TIME_GMT=`TZ=GMT date "+%Y-%m-%d %H:%M:%S %Z"` ' // Issue with Firefox and Safari.
-    ' echo HOST_TIME_GMT=`TZ=GMT date`'
+    ' echo HOST_TIME_GMT=`date -Iminutes`'
     ];
 
     let result = {};

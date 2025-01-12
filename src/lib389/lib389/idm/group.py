@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,6 +16,8 @@ MUST_ATTRIBUTES = [
     'cn',
 ]
 RDN = 'cn'
+DEFAULT_BASEDN_RDN = 'ou=Groups'
+DEFAULT_BASEDN_RDN_ADMIN_GROUPS = 'ou=People'
 
 
 class Group(DSLdapObject):
@@ -93,7 +95,7 @@ class Groups(DSLdapObjects):
     :type basedn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=Groups'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(Groups, self).__init__(instance)
         self._objectclasses = [
             'groupOfNames',
@@ -140,7 +142,7 @@ class UniqueGroup(DSLdapObject):
 class UniqueGroups(DSLdapObjects):
     # WARNING!!!
     # Use group, not unique group!!!
-    def __init__(self, instance, basedn, rdn='ou=Groups'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN):
         super(UniqueGroups, self).__init__(instance)
         self._objectclasses = [
             'groupOfUniqueNames',
@@ -203,7 +205,7 @@ class nsAdminGroups(DSLdapObjects):
     :type rdn: str
     """
 
-    def __init__(self, instance, basedn, rdn='ou=People'):
+    def __init__(self, instance, basedn, rdn=DEFAULT_BASEDN_RDN_ADMIN_GROUPS):
         super(nsAdminGroups, self).__init__(instance)
         self._objectclasses = [
             'nsAdminGroup'

@@ -23,7 +23,7 @@ class CoSEntryWizard extends React.Component {
         };
     }
 
-    handleOnChange = (_, event) => {
+    handleOnChange = (event, _) => {
         // console.log('event.currentTarget.value = ' + event.currentTarget.value);
         this.setState({ getStartedStepRadio: event.currentTarget.value });
     };
@@ -57,7 +57,7 @@ class CoSEntryWizard extends React.Component {
                           className="ds-margin-top-lg"
                           value="CoSDefinition"
                           isChecked={this.state.getStartedStepRadio === 'CoSDefinition'}
-                          onChange={this.handleOnChange}
+                          onChange={(event, _) => this.handleOnChange(event, _)}
                           label={_("Create a new CoS Definition")}
                           description={_("The CoS definition entry identifies the type of CoS used. The CoS definition entry is below the branch at which it is effective.")}
                           name="radio-new-step-start"
@@ -67,7 +67,7 @@ class CoSEntryWizard extends React.Component {
                           className="ds-margin-top-lg"
                           value="CoSTemplate"
                           isChecked={this.state.getStartedStepRadio === 'CoSTemplate'}
-                          onChange={this.handleOnChange}
+                          onChange={(event, _) => this.handleOnChange(event, _)}
                           label={_("Create a new CoS Template")}
                           description={_("The CoS template entry contains a list of the shared attribute values. Changes to the template entry attribute values are automatically applied to all the entries within the scope of the CoS.")}
                           name="radio-new-step-start"

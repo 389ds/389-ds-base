@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 from lib389.plugins import RetroChangelogPlugin
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add_attr, generic_object_del_attr
+from lib389.cli_base import CustomHelpFormatter
 
 arg_to_attr = {
     'is_replicated': 'isReplicated',
@@ -58,18 +59,18 @@ def _add_parser_args(parser):
 
 
 def create_parser(subparsers):
-    retrochangelog = subparsers.add_parser('retro-changelog', help='Manage and configure Retro Changelog plugin')
+    retrochangelog = subparsers.add_parser('retro-changelog', help='Manage and configure Retro Changelog plugin', formatter_class=CustomHelpFormatter)
     subcommands = retrochangelog.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, RetroChangelogPlugin)
 
-    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit = subcommands.add_parser('set', help='Edit the plugin', formatter_class=CustomHelpFormatter)
     edit.set_defaults(func=retrochangelog_edit)
     _add_parser_args(edit)
 
-    addp = subcommands.add_parser('add', help='Add attributes to the plugin')
+    addp = subcommands.add_parser('add', help='Add attributes to the plugin', formatter_class=CustomHelpFormatter)
     addp.set_defaults(func=retrochangelog_add)
     _add_parser_args(addp)
 
-    delp = subcommands.add_parser('del', help='Delete an attribute from plugin scope')
+    delp = subcommands.add_parser('del', help='Delete an attribute from plugin scope', formatter_class=CustomHelpFormatter)
     delp.set_defaults(func=retrochangelog_del)
     _add_parser_args(delp)

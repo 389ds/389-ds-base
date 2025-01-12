@@ -218,6 +218,7 @@ pblock_done(Slapi_PBlock *pb)
     if (pb->pb_intop != NULL) {
         delete_passwdPolicy(&pb->pb_intop->pwdpolicy);
         slapi_ch_free((void **)&(pb->pb_intop->pb_result_text));
+        slapi_ch_free_string(&pb->pb_intop->pb_session_tracking_id);
     }
     slapi_ch_free((void **)&(pb->pb_intop));
     if (pb->pb_intplugin != NULL) {
@@ -435,13 +436,16 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
          * a pointer that could be freed out from under them.
          */
         if (pblock->pb_conn == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR,
+            slapi_log_err(SLAPI_LOG_TRACE,
                           "slapi_pblock_get", "Connection is NULL and hence cannot access SLAPI_CONN_DN \n");
             return (-1);
         }
         pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
         (*(char **)value) = (NULL == pblock->pb_conn->c_dn ? NULL : slapi_ch_strdup(pblock->pb_conn->c_dn));
         pthread_mutex_unlock(&(pblock->pb_conn->c_mutex));
+        break;
+    case SLAPI_DEFERRED_MEMBEROF:
+        (*(int *)value) = pblock->pb_deferred_memberof;
         break;
     case SLAPI_CONN_AUTHTYPE: /* deprecated */
         if (pblock->pb_conn == NULL) {
@@ -1549,6 +1553,13 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(int *)value) = 0;
         }
         break;
+    case SLAPI_SESSION_TRACKING:
+        if (pblock->pb_intop != NULL) {
+            (*(char **)value) = pblock->pb_intop->pb_session_tracking_id;
+        } else {
+            (*(char **)value) = 0;
+        }
+        break;
     case SLAPI_PWPOLICY:
         if (pblock->pb_intop != NULL) {
             (*(int *)value) = pblock->pb_intop->pb_pwpolicy_ctrl;
@@ -2493,6 +2504,13 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(int *)value) = 0;
         }
         break;
+    case SLAPI_MEMBEROF_DEFERRED_TASK:
+        if (pblock->pb_intop != NULL) {
+            (*(void **)value) = pblock->pb_intop->memberof_deferred_task;
+        } else {
+            (*(void **)value) = NULL;
+        }
+        break;
 
     case SLAPI_USN_INCREMENT_FOR_TOMBSTONE:
         if (pblock->pb_intop != NULL) {
@@ -2510,7 +2528,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(int *)value) = 0;
         }
         break;
-
     default:
         slapi_log_err(SLAPI_LOG_ERR, "slapi_pblock_get", "Unknown parameter block argument %d\n", arg);
         PR_ASSERT(0);
@@ -2588,6 +2605,9 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         bind_credentials_set(pblock->pb_conn, authtype,
                              (char *)value, NULL, NULL, NULL, NULL);
         slapi_ch_free((void **)&authtype);
+        break;
+    case SLAPI_DEFERRED_MEMBEROF:
+        pblock->pb_deferred_memberof = *((int *)value);
         break;
     case SLAPI_CONN_AUTHTYPE: /* deprecated */
     case SLAPI_CONN_AUTHMETHOD:
@@ -3472,6 +3492,10 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         _pblock_assert_pb_intop(pblock);
         pblock->pb_intop->pb_managedsait = *((int *)value);
         break;
+    case SLAPI_SESSION_TRACKING:
+        _pblock_assert_pb_intop(pblock);
+        pblock->pb_intop->pb_session_tracking_id = (char *)value;
+        break;
     case SLAPI_PWPOLICY:
         _pblock_assert_pb_intop(pblock);
         pblock->pb_intop->pb_pwpolicy_ctrl = *((int *)value);
@@ -4176,6 +4200,10 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
 
     case SLAPI_PAGED_RESULTS_COOKIE:
         pblock->pb_intop->pb_paged_results_cookie = *(int *)value;
+        break;
+    case SLAPI_MEMBEROF_DEFERRED_TASK:
+        _pblock_assert_pb_intop(pblock);
+        pblock->pb_intop->memberof_deferred_task = (void *)value;
         break;
 
     case SLAPI_USN_INCREMENT_FOR_TOMBSTONE:

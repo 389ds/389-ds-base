@@ -25,10 +25,14 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-@pytest.fixture(params=[(None, (4, 11)),
+# Expected minimum and maximum number of async result in usual cases
+USUAL_MIN_AP = 3
+USUAL_MAX_AP = 11
+
+@pytest.fixture(params=[(None, (USUAL_MIN_AP, USUAL_MAX_AP)),
                         ('2000', (0, 2)),
-                        ('0', (4, 11)),
-                        ('-5', (4, 11))])
+                        ('0', (USUAL_MIN_AP, USUAL_MAX_AP)),
+                        ('-5', (USUAL_MIN_AP, USUAL_MAX_AP))])
 def waitfor_async_attr(topology_m2, request):
     """Sets attribute on all replicas"""
 
@@ -153,15 +157,13 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
         None, '2000', '0', '-5'
     :steps:
         1. Set Replication Debugging loglevel for the errorlog
-        2. Set nsslapd-logging-hr-timestamps-enabled to 'off' on both suppliers
-        3. Gather all sync attempts,  group by timestamp
-        4. Take the most common timestamp and assert it has appeared
+        2. Gather all sync attempts,  group by timestamp
+        3. Take the most common timestamp and assert it has appeared
            in the set range
     :expectedresults:
         1. Replication Debugging loglevel should be set
-        2. nsslapd-logging-hr-timestamps-enabled  should be set
-        3. Operation should be successful
-        4. Errors log should have all timestamp appear
+        2. Operation should be successful
+        3. Errors log should have all timestamp appear
     """
 
     supplier1 = topology_m2.ms["supplier1"]

@@ -11,7 +11,7 @@ import json
 import os
 from lib389.config import Config, Encryption, RSA
 from lib389.nss_ssl import NssSsl, CERT_NAME, CA_NAME
-from lib389.cli_base import _warn
+from lib389.cli_base import _warn, CustomHelpFormatter
 
 
 Props = namedtuple('Props', ['cls', 'attr', 'help', 'values'])
@@ -103,13 +103,13 @@ def _security_generic_set(inst, basedn, log, args, attrs_map):
 
 
 def _security_generic_get_parser(parent, attrs_map, help):
-    p = parent.add_parser('get', help=help)
+    p = parent.add_parser('get', help=help, formatter_class=CustomHelpFormatter)
     p.set_defaults(func=lambda *args: _security_generic_get(*args, attrs_map))
     return p
 
 
 def _security_generic_set_parser(parent, attrs_map, help, description):
-    p = parent.add_parser('set', help=help, description=description)
+    p = parent.add_parser('set', help=help, description=description, formatter_class=CustomHelpFormatter)
     p.set_defaults(func=lambda *args: _security_generic_set(*args, attrs_map))
     for opt, params in attrs_map.items():
         p.add_argument(f'--{opt}', help=f'{params[2]} ({params[1]})')
@@ -133,7 +133,7 @@ def _security_generic_toggle(inst, basedn, log, args, cls, attr, value, thing):
 
 def _security_generic_toggle_parsers(parent, cls, attr, help_pattern):
     def add_parser(action, value):
-        p = parent.add_parser(action.lower(), help=help_pattern.format(action))
+        p = parent.add_parser(action.lower(), help=help_pattern.format(action), formatter_class=CustomHelpFormatter)
         p.set_defaults(func=lambda *args: _security_generic_toggle(*args, cls, attr, value, action))
         return p
 
@@ -476,7 +476,7 @@ def export_cert(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    security = subparsers.add_parser('security', help='Manage security settings')
+    security = subparsers.add_parser('security', help='Manage security settings', formatter_class=CustomHelpFormatter)
     security_sub = security.add_subparsers(help='security')
 
     # Core security management
@@ -499,7 +499,7 @@ def create_parser(subparsers):
     security_disable_plain_parser.set_defaults(func=security_disable_plaintext_port)
 
     # Server certificate management
-    certs = security_sub.add_parser('certificate', help='Manage TLS certificates')
+    certs = security_sub.add_parser('certificate', help='Manage TLS certificates', formatter_class=CustomHelpFormatter)
     certs_sub = certs.add_subparsers(help='certificate')
     cert_add_parser = certs_sub.add_parser('add', help='Add a server certificate', description=(
         'Add a server certificate to the NSS database'))
@@ -533,7 +533,7 @@ def create_parser(subparsers):
     cert_list_parser.set_defaults(func=cert_list)
 
     # CA certificate management
-    cacerts = security_sub.add_parser('ca-certificate', help='Manage TLS certificate authorities')
+    cacerts = security_sub.add_parser('ca-certificate', help='Manage TLS certificate authorities', formatter_class=CustomHelpFormatter)
     cacerts_sub = cacerts.add_subparsers(help='ca-certificate')
     cacert_add_parser = cacerts_sub.add_parser('add', help='Add a Certificate Authority', description=(
         'Add a Certificate Authority to the NSS database'))
@@ -566,7 +566,7 @@ def create_parser(subparsers):
     cacert_list_parser.set_defaults(func=cacert_list)
 
     # RSA management
-    rsa = security_sub.add_parser('rsa', help='Query and update RSA security options')
+    rsa = security_sub.add_parser('rsa', help='Query and update RSA security options', formatter_class=CustomHelpFormatter)
     rsa_sub = rsa.add_subparsers(help='rsa')
     _security_generic_set_parser(rsa_sub, RSA_ATTRS_MAP, 'Set RSA security options',
         ('Use this command for setting RSA (private key) related options located in cn=RSA,cn=encryption,cn=config.'
@@ -575,7 +575,7 @@ def create_parser(subparsers):
     _security_generic_toggle_parsers(rsa_sub, RSA, 'nsSSLActivation', '{} RSA')
 
     # Cipher management
-    ciphers = security_sub.add_parser('ciphers', help='Manage secure ciphers')
+    ciphers = security_sub.add_parser('ciphers', help='Manage secure ciphers', formatter_class=CustomHelpFormatter)
     ciphers_sub = ciphers.add_subparsers(help='ciphers')
 
     ciphers_enable = ciphers_sub.add_parser('enable', help='Enable ciphers', description=(
@@ -612,7 +612,7 @@ def create_parser(subparsers):
                                     help='Lists only supported ciphers but without enabled ciphers')
 
     # Certificate Signing Request Management
-    csr = security_sub.add_parser('csr', help='Manage certificate signing requests')
+    csr = security_sub.add_parser('csr', help='Manage certificate signing requests', formatter_class=CustomHelpFormatter)
     csr_sub = csr.add_subparsers(help='csr')
 
     csr_list_parser = csr_sub.add_parser('list', help='List CSRs', description=('List all CSR files in instance'
@@ -633,15 +633,15 @@ def create_parser(subparsers):
          help="CSR alternative names. These are auto-detected if not provided")
     csr_req_parser.set_defaults(func=csr_gen)
 
-    csr_delete_parser = csr_sub.add_parser('del', help='Delete a CSR file', description=('Delete a CSR file'))
+    csr_delete_parser = csr_sub.add_parser('del', help='Delete a CSR file', description=('Delete a CSR file'), formatter_class=CustomHelpFormatter)
     csr_delete_parser.add_argument('name', help="Name of the CSR file to delete")
     csr_delete_parser.set_defaults(func=csr_del)
 
     # Key Management
-    key = security_sub.add_parser('key', help='Manage keys in NSS DB')
+    key = security_sub.add_parser('key', help='Manage keys in NSS DB', formatter_class=CustomHelpFormatter)
     key_sub = key.add_subparsers(help='key')
 
-    key_list_parser = key_sub.add_parser('list', help='List all keys in NSS DB')
+    key_list_parser = key_sub.add_parser('list', help='List all keys in NSS DB', formatter_class=CustomHelpFormatter)
     key_list_parser.add_argument('--orphan', action='store_true', help='List orphan keys (An orphan key is'
         ' a private key in the NSS DB for which there is NO cert with the corresponding '
         ' public key). An orphan key is created during CSR generation, when the associated certificate is imported'

@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 import ldap
 from lib389 import ensure_list_str
+from lib389.cli_base import CustomHelpFormatter
 
 
 def _args_to_attrs(args, arg_to_attr):
@@ -155,16 +156,16 @@ def generic_status(inst, basedn, log, args):
 
 
 def add_generic_plugin_parsers(subparser, plugin_cls):
-    show_parser = subparser.add_parser('show', help='Displays the plugin configuration')
+    show_parser = subparser.add_parser('show', help='Displays the plugin configuration', formatter_class=CustomHelpFormatter)
     show_parser.set_defaults(func=generic_show, plugin_cls=plugin_cls)
 
-    enable_parser = subparser.add_parser('enable', help='Enables the plugin')
+    enable_parser = subparser.add_parser('enable', help='Enables the plugin', formatter_class=CustomHelpFormatter)
     enable_parser.set_defaults(func=generic_enable, plugin_cls=plugin_cls)
 
-    disable_parser = subparser.add_parser('disable', help='Disables the plugin')
+    disable_parser = subparser.add_parser('disable', help='Disables the plugin', formatter_class=CustomHelpFormatter)
     disable_parser.set_defaults(func=generic_disable, plugin_cls=plugin_cls)
 
-    status_parser = subparser.add_parser('status', help='Displays the plugin status')
+    status_parser = subparser.add_parser('status', help='Displays the plugin status', formatter_class=CustomHelpFormatter)
     status_parser.set_defaults(func=generic_status, plugin_cls=plugin_cls)
 
 

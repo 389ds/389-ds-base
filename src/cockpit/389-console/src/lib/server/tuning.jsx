@@ -15,11 +15,7 @@ import {
     TextVariants,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faSyncAlt
-} from '@fortawesome/free-solid-svg-icons';
-import '@fortawesome/fontawesome-svg-core/styles.css';
+import { SyncAltIcon } from '@patternfly/react-icons';
 
 const tuning_attrs = [
     'nsslapd-ndn-cache-enabled',
@@ -56,7 +52,7 @@ export class ServerTuning extends React.Component {
             isExpanded: false,
         };
 
-        this.handleOnToggle = (isExpanded) => {
+        this.handleOnToggle = (_event, isExpanded) => {
             this.setState({
                 isExpanded
             });
@@ -279,15 +275,15 @@ export class ServerTuning extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Tuning & Limits")}
-                                    <FontAwesomeIcon
-                                        size="lg"
-                                        className="ds-left-margin ds-refresh"
-                                        icon={faSyncAlt}
-                                        title={_("Refresh settings")}
+                                    <Button 
+                                        variant="plain"
+                                        aria-label={_("Refresh settings")}
                                         onClick={() => {
                                             this.loadConfig(1);
                                         }}
-                                    />
+                                    >
+                                        <SyncAltIcon size="lg" />
+                                    </Button>
                                 </Text>
                             </TextContent>
                         </GridItem>
@@ -430,7 +426,7 @@ export class ServerTuning extends React.Component {
                     <ExpandableSection
                         className="ds-margin-top-xlg"
                         toggleText={this.state.isExpanded ? _("Hide Advanced Settings") : _("Show Advanced Settings")}
-                        onToggle={this.handleOnToggle}
+                        onToggle={(event, isExpanded) => this.handleOnToggle(event, isExpanded)}
                         isExpanded={this.state.isExpanded}
                     >
                         <div className="ds-margin-top ds-indent">
@@ -553,7 +549,7 @@ export class ServerTuning extends React.Component {
                                         <Checkbox
                                             id="nsslapd-connection-nocanon"
                                             isChecked={this.state['nsslapd-connection-nocanon']}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             label={_("Disable Reverse DNS Lookups")}
@@ -567,7 +563,7 @@ export class ServerTuning extends React.Component {
                                         <Checkbox
                                             id="nsslapd-enable-turbo-mode"
                                             isChecked={this.state['nsslapd-enable-turbo-mode']}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             label={_("Enable Connection Turbo Mode")}
@@ -581,7 +577,7 @@ export class ServerTuning extends React.Component {
                                         <Checkbox
                                             id="nsslapd-ignore-virtual-attrs"
                                             isChecked={this.state['nsslapd-ignore-virtual-attrs']}
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             label={_("Disable Virtual Attribute Lookups")}
@@ -595,7 +591,7 @@ export class ServerTuning extends React.Component {
                                         <Checkbox
                                             isChecked={this.state['nsslapd-ndn-cache-enabled']}
                                             id="nsslapd-ndn-cache-enabled"
-                                            onChange={(checked, e) => {
+                                            onChange={(e, checked) => {
                                                 this.handleChange(e);
                                             }}
                                             label={_("Enable Normalized DN Cache")}

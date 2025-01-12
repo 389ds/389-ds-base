@@ -38,6 +38,15 @@ do_abandon(Slapi_PBlock *pb)
     Connection *pb_conn = NULL;
     Operation *pb_op = NULL;
     Operation *o;
+    char *sessionTrackingId;
+    /* Should fit
+     *  - ~10chars for ' sid=\"..\"'
+     *  - 15+3 for the truncated sessionID
+     * Need to sync with SESSION_ID_STR_SZ
+     */
+    char session_str[30] = {0};
+    int32_t log_format = config_get_accesslog_log_format();
+    slapd_log_pblock logpb = {0};
     /* Keep a copy of some data because o may vanish once conn is unlocked */
     struct {
         struct timespec hr_time_end;
@@ -86,6 +95,26 @@ do_abandon(Slapi_PBlock *pb)
     }
 
     slapi_log_err(SLAPI_LOG_ARGS, "do_abandon", "id %d\n", id);
+
+    slapi_pblock_get(pb, SLAPI_SESSION_TRACKING, &sessionTrackingId);
+
+    /* prepare session_str to be logged */
+    if (sessionTrackingId) {
+        if (sizeof(session_str) < (strlen(sessionTrackingId) + 10 + 1)) {
+            /* The session tracking string is too large to fit in 'session_str'
+             * Likely SESSION_ID_STR_SZ was changed without increasing the size of session_str.
+             * Just ignore the session string.
+             */
+            session_str[0] = '\0';
+            slapi_log_err(SLAPI_LOG_ERR, "do_abandon", "Too large session tracking string (%ld) - It is ignored\n",
+                          strlen(sessionTrackingId));
+            sessionTrackingId = NULL; /* set to NULL for JSON logging */
+        } else {
+            snprintf(session_str, sizeof(session_str), " sid=\"%s\"", sessionTrackingId);
+        }
+    } else {
+        session_str[0] = '\0';
+    }
 
     /*
      * find the operation being abandoned and set the o_abandon
@@ -141,23 +170,63 @@ do_abandon(Slapi_PBlock *pb)
     }
 
     pthread_mutex_unlock(&(pb_conn->c_mutex));
+
+    /* Prep the log block */
+    slapd_log_pblock_init(&logpb, log_format, pb);
+    logpb.msgid = id;
+    logpb.sid = sessionTrackingId;
+    logpb.nentries = -1;
+    logpb.tv_sec = -1;
+    logpb.tv_nsec = -1;
+
     if (0 == pagedresults_free_one_msgid(pb_conn, id, pageresult_lock_get_addr(pb_conn))) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64
-                                           " op=%d ABANDON targetop=Simple Paged Results msgid=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, id);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.target_op = "Simple Paged Results";
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64
+                             " op=%d ABANDON targetop=Simple Paged Results msgid=%d%s\n",
+                             pb_conn->c_connid, pb_op->o_opid, id, session_str);
+        }
     } else if (NULL == o) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
-                                           " targetop=NOTFOUND msgid=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, id);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.target_op = "NOTFOUND";
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
+                             " targetop=NOTFOUND msgid=%d%s\n",
+                             pb_conn->c_connid, pb_op->o_opid, id, session_str);
+        }
     } else if (suppressed_by_plugin) {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
-                                           " targetop=SUPPRESSED-BY-PLUGIN msgid=%d\n",
-                         pb_conn->c_connid, pb_op->o_opid, id);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            logpb.target_op = "SUPPRESSED-BY-PLUGIN";
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
+                             " targetop=SUPPRESSED-BY-PLUGIN msgid=%d%s\n",
+                             pb_conn->c_connid, pb_op->o_opid, id, session_str);
+        }
     } else {
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
-                                           " targetop=%d msgid=%d nentries=%d etime=%" PRId64 ".%010" PRId64 "\n",
-                         pb_conn->c_connid, pb_op->o_opid, o_copy.opid, id,
-                         o_copy.nentries, (int64_t)o_copy.hr_time_end.tv_sec, (int64_t)o_copy.hr_time_end.tv_nsec);
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            char targetop[11] = {0};
+
+            PR_snprintf(targetop, sizeof(targetop), "%d", o_copy.opid);
+            logpb.target_op = targetop;
+            logpb.nentries = o_copy.nentries;
+            logpb.tv_sec = (int64_t)o_copy.hr_time_end.tv_sec;
+            logpb.tv_nsec = (int64_t)o_copy.hr_time_end.tv_nsec;
+            slapd_log_access_abandon(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d ABANDON"
+                             " targetop=%d msgid=%d nentries=%d etime=%" PRId64 ".%010" PRId64 "%s\n",
+                             pb_conn->c_connid, pb_op->o_opid, o_copy.opid, id,
+                             o_copy.nentries, (int64_t)o_copy.hr_time_end.tv_sec,
+                             (int64_t)o_copy.hr_time_end.tv_nsec, session_str);
+        }
     }
     /*
      * Wake up the persistent searches, so they

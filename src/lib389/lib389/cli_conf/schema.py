@@ -8,7 +8,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from json import dumps as dump_json
-from lib389.cli_base import _get_arg
+from lib389.cli_base import _get_arg, CustomHelpFormatter
 from lib389.schema import Schema, AttributeUsage, ObjectclassKind
 from lib389.migrate.openldap.config import olSchema
 from lib389.migrate.plan import Migration
@@ -334,59 +334,59 @@ def _add_parser_args(parser, type):
 
 
 def create_parser(subparsers):
-    schema_parser = subparsers.add_parser('schema', help='Manage the directory schema')
+    schema_parser = subparsers.add_parser('schema', help='Manage the directory schema', formatter_class=CustomHelpFormatter)
 
     schema_subcommands = schema_parser.add_subparsers(help='schema')
-    schema_list_parser = schema_subcommands.add_parser('list', help='List all schema objects on this system')
+    schema_list_parser = schema_subcommands.add_parser('list', help='List all schema objects on this system', formatter_class=CustomHelpFormatter)
     schema_list_parser.set_defaults(func=list_all)
 
-    attributetypes_parser = schema_subcommands.add_parser('attributetypes', help='Work with attribute types on this system')
+    attributetypes_parser = schema_subcommands.add_parser('attributetypes', help='Work with attribute types on this system', formatter_class=CustomHelpFormatter)
     attributetypes_subcommands = attributetypes_parser.add_subparsers(help='schema')
-    at_get_syntaxes_parser = attributetypes_subcommands.add_parser('get_syntaxes', help='List all available attribute type syntaxes')
+    at_get_syntaxes_parser = attributetypes_subcommands.add_parser('get_syntaxes', help='List all available attribute type syntaxes', formatter_class=CustomHelpFormatter)
     at_get_syntaxes_parser.set_defaults(func=get_syntaxes)
-    at_list_parser = attributetypes_subcommands.add_parser('list', help='List available attribute types on this system')
+    at_list_parser = attributetypes_subcommands.add_parser('list', help='List available attribute types on this system', formatter_class=CustomHelpFormatter)
     at_list_parser.set_defaults(func=list_attributetypes)
-    at_query_parser = attributetypes_subcommands.add_parser('query', help='Query an attribute to determine object classes that may or must take it')
+    at_query_parser = attributetypes_subcommands.add_parser('query', help='Query an attribute to determine object classes that may or must take it', formatter_class=CustomHelpFormatter)
     at_query_parser.set_defaults(func=query_attributetype)
     at_query_parser.add_argument('name', nargs='?', help='Attribute type to query')
-    at_add_parser = attributetypes_subcommands.add_parser('add', help='Add an attribute type to this system')
+    at_add_parser = attributetypes_subcommands.add_parser('add', help='Add an attribute type to this system', formatter_class=CustomHelpFormatter)
     at_add_parser.set_defaults(func=add_attributetype)
     _add_parser_args(at_add_parser, 'attributetypes')
     at_add_parser.add_argument('--syntax', required=True, help='OID of the LDAP syntax assigned to the attribute')
-    at_edit_parser = attributetypes_subcommands.add_parser('replace', help='Replace an attribute type on this system')
+    at_edit_parser = attributetypes_subcommands.add_parser('replace', help='Replace an attribute type on this system', formatter_class=CustomHelpFormatter)
     at_edit_parser.set_defaults(func=edit_attributetype)
     _add_parser_args(at_edit_parser, 'attributetypes')
     at_edit_parser.add_argument('--syntax', help='OID of the LDAP syntax assigned to the attribute')
-    at_remove_parser = attributetypes_subcommands.add_parser('remove', help='Remove an attribute type on this system')
+    at_remove_parser = attributetypes_subcommands.add_parser('remove', help='Remove an attribute type on this system', formatter_class=CustomHelpFormatter)
     at_remove_parser.set_defaults(func=remove_attributetype)
     at_remove_parser.add_argument('name', help='NAME of the object')
 
-    objectclasses_parser = schema_subcommands.add_parser('objectclasses', help='Work with objectClasses on this system')
+    objectclasses_parser = schema_subcommands.add_parser('objectclasses', help='Work with objectClasses on this system', formatter_class=CustomHelpFormatter)
     objectclasses_subcommands = objectclasses_parser.add_subparsers(help='schema')
-    oc_list_parser = objectclasses_subcommands.add_parser('list', help='List available objectClasses on this system')
+    oc_list_parser = objectclasses_subcommands.add_parser('list', help='List available objectClasses on this system', formatter_class=CustomHelpFormatter)
     oc_list_parser.set_defaults(func=list_objectclasses)
-    oc_query_parser = objectclasses_subcommands.add_parser('query', help='Query an objectClass')
+    oc_query_parser = objectclasses_subcommands.add_parser('query', help='Query an objectClass', formatter_class=CustomHelpFormatter)
     oc_query_parser.set_defaults(func=query_objectclass)
     oc_query_parser.add_argument('name', nargs='?', help='ObjectClass to query')
-    oc_add_parser = objectclasses_subcommands.add_parser('add', help='Add an objectClass to this system')
+    oc_add_parser = objectclasses_subcommands.add_parser('add', help='Add an objectClass to this system', formatter_class=CustomHelpFormatter)
     oc_add_parser.set_defaults(func=add_objectclass)
     _add_parser_args(oc_add_parser, 'objectclasses')
-    oc_edit_parser = objectclasses_subcommands.add_parser('replace', help='Replace an objectClass on this system')
+    oc_edit_parser = objectclasses_subcommands.add_parser('replace', help='Replace an objectClass on this system', formatter_class=CustomHelpFormatter)
     oc_edit_parser.set_defaults(func=edit_objectclass)
     _add_parser_args(oc_edit_parser, 'objectclasses')
-    oc_remove_parser = objectclasses_subcommands.add_parser('remove', help='Remove an objectClass on this system')
+    oc_remove_parser = objectclasses_subcommands.add_parser('remove', help='Remove an objectClass on this system', formatter_class=CustomHelpFormatter)
     oc_remove_parser.set_defaults(func=remove_objectclass)
     oc_remove_parser.add_argument('name', help='NAME of the object')
 
-    matchingrules_parser = schema_subcommands.add_parser('matchingrules', help='Work with matching rules on this system')
+    matchingrules_parser = schema_subcommands.add_parser('matchingrules', help='Work with matching rules on this system', formatter_class=CustomHelpFormatter)
     matchingrules_subcommands = matchingrules_parser.add_subparsers(help='schema')
-    mr_list_parser = matchingrules_subcommands.add_parser('list', help='List available matching rules on this system')
+    mr_list_parser = matchingrules_subcommands.add_parser('list', help='List available matching rules on this system', formatter_class=CustomHelpFormatter)
     mr_list_parser.set_defaults(func=list_matchingrules)
-    mr_query_parser = matchingrules_subcommands.add_parser('query', help='Query a matching rule')
+    mr_query_parser = matchingrules_subcommands.add_parser('query', help='Query a matching rule', formatter_class=CustomHelpFormatter)
     mr_query_parser.set_defaults(func=query_matchingrule)
     mr_query_parser.add_argument('name', nargs='?', help='Matching rule to query')
 
-    reload_parser = schema_subcommands.add_parser('reload', help='Dynamically reload schema while server is running')
+    reload_parser = schema_subcommands.add_parser('reload', help='Dynamically reload schema while server is running', formatter_class=CustomHelpFormatter)
     reload_parser.set_defaults(func=reload_schema)
     reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")
     reload_parser.add_argument('--wait', action='store_true', default=False, help="Wait for the reload task to complete")

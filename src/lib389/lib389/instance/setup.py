@@ -10,6 +10,7 @@
 import os
 import sys
 import shutil
+import stat
 import pwd
 import grp
 import re
@@ -318,7 +319,7 @@ class SetupDs(object):
 
         # Let them know about the selinux status
         if not selinux_present():
-            val = input('\nSelinux support will be disabled, continue? [yes]: ')
+            val = input('\nSELinux labels will not be applied, continue? [yes]: ')
             if val.strip().lower().startswith('n'):
                 return
 
@@ -861,6 +862,10 @@ class SetupDs(object):
                 ldapi_autobind="on",
             )
             file_dse.write(dse_fmt)
+            # Set minimum permission required by snmp ldap-agent
+            status = os.fstat(file_dse.fileno())
+            os.fchmod(file_dse.fileno(), status.st_mode | stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
+        os.chown(os.path.join(slapd['config_dir'], 'dse.ldif'), slapd['user_uid'], slapd['group_gid'])
 
         self.log.info("Create file system structures ...")
         # Create all the needed paths
@@ -977,7 +982,7 @@ class SetupDs(object):
         # Create a certificate database.
         tlsdb = NssSsl(dirsrv=ds_instance, dbpath=slapd['cert_dir'])
         if not tlsdb._db_exists():
-            tlsdb.reinit()
+            tlsdb.reinit(uid=slapd['user_uid'], gid=slapd['group_gid'])
 
         if slapd['self_sign_cert']:
             self.log.info("Create self-signed certificate database ...")
@@ -1008,22 +1013,23 @@ class SetupDs(object):
         # Do selinux fixups
         if general['selinux'] and selinux_present():
             self.log.info("Perform SELinux labeling ...")
-            # Since there may be some custom path, we must explicitly set the labels
-            selinux_labels = {
-                                'backup_dir': 'dirsrv_var_lib_t',
-                                'cert_dir': 'dirsrv_config_t',
-                                'config_dir': 'dirsrv_config_t',
-                                'db_dir': 'dirsrv_var_lib_t',
-                                'ldif_dir': 'dirsrv_var_lib_t',
-                                'lock_dir': 'dirsrv_var_lock_t',
-                                'log_dir': 'dirsrv_var_log_t',
-                                'db_home_dir': 'dirsrv_tmpfs_t',
-                                'run_dir': 'dirsrv_var_run_t',
-                                'schema_dir': 'dirsrv_config_t',
-                                'tmp_dir': 'tmp_t',
-            }
-            for k, label in selinux_labels.items():
-                selinux_label_file(resolve_selinux_path(slapd[k]), label)
+            # We must explicitly set the labels for non-default prefix installs
+            if ds_instance.ds_paths.prefix != '/usr':
+                selinux_labels = {
+                                    'backup_dir': 'dirsrv_var_lib_t',
+                                    'cert_dir': 'dirsrv_config_t',
+                                    'config_dir': 'dirsrv_config_t',
+                                    'db_dir': 'dirsrv_var_lib_t',
+                                    'ldif_dir': 'dirsrv_var_lib_t',
+                                    'lock_dir': 'dirsrv_var_lock_t',
+                                    'log_dir': 'dirsrv_var_log_t',
+                                    'db_home_dir': 'dirsrv_tmpfs_t',
+                                    'run_dir': 'dirsrv_var_run_t',
+                                    'schema_dir': 'dirsrv_config_t',
+                                    'tmp_dir': 'tmp_t',
+                }
+                for k, label in selinux_labels.items():
+                    selinux_label_file(resolve_selinux_path(slapd[k]), label)
 
             selinux_label_port(slapd['port'])
 

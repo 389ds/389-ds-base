@@ -285,7 +285,7 @@ msgstr "接続名"
 
 #: src/lib/monitor/monitorModals.jsx:634
 msgid ""
-"Bind password for the specified instance.  You can also speciy a password "
+"Bind password for the specified instance.  You can also specify a password "
 "file but the filename needs to be inside of brackets [/PATH/FILE]"
 msgstr ""
 "指定されたインスタンスのバインドパスワードを入力してください。または、パス"
@@ -1813,9 +1813,9 @@ msgstr "レプリカDSRC情報を読み込んでいます ..."
 
 #: src/lib/monitor/replMonitor.jsx:1501
 msgid ""
-"Only one monitor configuraton can be saved in the server's '~/.dsrc' file.  "
+"Only one monitor configuration can be saved in the server's '~/.dsrc' file.  "
 "There is already an existing monitor configuration, and if you proceed it "
-"will be completely overwritten with the new configuraton."
+"will be completely overwritten with the new configuration."
 msgstr ""
 "サーバの '~/.dsrc' ファイルに保存できる監視設定は1つだけです。すでに既存"
 "の監視設定がありますが、このまま進むと新しい設定で完全に上書きされます。"
@@ -3361,7 +3361,7 @@ msgid "Suffix is required."
 msgstr "サフィックスが必要です。"
 
 #: src/lib/plugins/usn.jsx:221
-msgid "Cleanup USN Tombstones task was successfull"
+msgid "Cleanup USN Tombstones task was successful"
 msgstr "USN Tombstonesのクリーンアップタスクが正常に終了しました"
 
 #: src/lib/plugins/usn.jsx:232
@@ -3584,7 +3584,7 @@ msgid "Fixup DN is required."
 msgstr "修正DNは必須です。"
 
 #: src/lib/plugins/memberOf.jsx:624
-msgid "Fixup task for $0 was successfull"
+msgid "Fixup task for $0 was successful"
 msgstr "$0 の修正タスクが成功しました"
 
 #: src/lib/plugins/memberOf.jsx:780
@@ -4320,7 +4320,7 @@ msgid "Error during the pamConfig entry $0 operation - $1"
 msgstr "pamConfigエントリの$0に失敗しました - $1"
 
 #: src/lib/plugins/pamPassThru.jsx:651
-msgid "$0 PAM Passthough Auth Config Entry"
+msgid "$0 PAM Passthrough Auth Config Entry"
 msgstr "PAMパススルー認証の設定を$0"
 
 #: src/lib/plugins/pamPassThru.jsx:702
@@ -4708,7 +4708,7 @@ msgstr "サフィックスの作成"
 #: src/lib/database/databaseModal.jsx:286
 msgid ""
 "Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP "
-"Distiguished Name (DN)"
+"Distinguished Name (DN)"
 msgstr ""
 "データベースのサフィックスは 'dc=example,dc=com' のようなものです。サフィック"
 "スは有効なLDAPの識別名(DN)でなければなりません。"
@@ -5466,7 +5466,7 @@ msgstr "パスワードの有効期限を設定する"
 #: src/lib/database/localPwp.jsx:349 src/lib/database/localPwp.jsx:2732
 #: src/lib/database/globalPwp.jsx:1176
 msgid ""
-"The maxiumum age of a password in seconds before it expires (passwordMaxAge)."
+"The maximum age of a password in seconds before it expires (passwordMaxAge)."
 msgstr "パスワードの有効期限の最大値を秒単位で指定します。(passwordMaxAge)"
 
 #: src/lib/database/localPwp.jsx:353 src/lib/database/localPwp.jsx:2734
@@ -6821,7 +6821,7 @@ msgid "Index Types"
 msgstr "インデックスタイプ"
 
 #: src/lib/database/indexes.jsx:875 src/lib/database/indexes.jsx:1015
-msgid "Equailty Indexing"
+msgid "Equality Indexing"
 msgstr "等価性インデックス化"
 
 #: src/lib/database/indexes.jsx:887 src/lib/database/indexes.jsx:1025
@@ -7689,7 +7689,7 @@ msgstr "バインドDNグループ"
 
 #: src/lib/replication/replConfig.jsx:630
 msgid ""
-"The interval to check for any changes in the group memebrship specified in "
+"The interval to check for any changes in the group membership specified in "
 "the Bind DN Group and automatically rebuilds the list for the replication "
 "managers accordingly.  (nsds5replicabinddngroupcheckinterval)."
 msgstr ""
@@ -7853,7 +7853,7 @@ msgid "Local RUV"
 msgstr "ローカルRUV"
 
 #: src/lib/replication/replTasks.jsx:365
-msgid "RRefresh the RUV for this suffixs"
+msgid "Refresh the RUV for this suffix"
 msgstr "このサフィックスのRUVを更新します"
 
 #: src/lib/replication/replTasks.jsx:375 src/lib/replication/replTables.jsx:290
@@ -7861,7 +7861,7 @@ msgid "Remote RUV's"
 msgstr "リモートRUV"
 
 #: src/lib/replication/replTasks.jsx:379
-msgid "Refresh the remote RUVs for this suffixs"
+msgid "Refresh the remote RUVs for this suffix"
 msgstr "このサフィックスのリモートRUVを更新します"
 
 #: src/lib/replication/replTasks.jsx:394
@@ -8330,7 +8330,7 @@ msgstr "スケジュール"
 #: src/lib/replication/replModals.jsx:1402
 msgid ""
 "By default replication updates are sent to the replica as soon as possible, "
-"but if there is a need for replication updates to only be sent on certains "
+"but if there is a need for replication updates to only be sent on certain "
 "days and within certain windows of time then you can setup a custom "
 "replication schedule."
 msgstr ""
@@ -8427,7 +8427,7 @@ msgid "Exclude Init Attributes"
 msgstr "初期化から除外する属性"
 
 #: src/lib/replication/replModals.jsx:1353
-msgid "Attributes to strip from a replicatio<Selectn update"
+msgid "Attributes to strip from a replication update"
 msgstr "レプリケーションの更新から削除する属性を設定します。"
 
 #: src/lib/replication/replModals.jsx:1355
@@ -9823,7 +9823,7 @@ msgid "User DN Aliases (userdn)"
 msgstr "ユーザDNエイリアス"
 
 #: src/lib/ldap_editor/wizards/operations/aciNew.jsx:1470
-msgid "Special bind rules for user DN catagories"
+msgid "Special bind rules for user DN categories"
 msgstr "ユーザDNカテゴリに特別なバインドルールを設定"
 
 #: src/lib/ldap_editor/wizards/operations/aciNew.jsx:1473
@@ -10114,15 +10114,15 @@ msgid "Choose The New CoS Template Parent DN"
 msgstr "新しいCoSテンプレートの親DNを選択してください"
 
 #: src/lib/ldap_editor/wizards/operations/addCosDefinition.jsx:992
-msgid "Leaving CoS Definiton Creation Wizard"
+msgid "Leaving CoS Definition Creation Wizard"
 msgstr "CoS定義作成ウィザードを終了します"
 
 #: src/lib/ldap_editor/wizards/operations/addCosDefinition.jsx:1004
 msgid ""
-"You are about to leave CoS Definiton creation wizard. After you click "
+"You are about to leave CoS Definition creation wizard. After you click "
 "'Confirm', you'll appear in CoS Template creation wizard and you won't able "
 "to return from there until the process is finished. Then you'll be able to "
-"use the created entry in the CoS definiton creation. It'll be preselected "
+"use the created entry in the CoS definition creation. It'll be preselected "
 "for you automatically."
 msgstr ""
 "CoS定義作成ウィザードを終了し、CoSテンプレート作成ウィザードに移動します。移"
@@ -11644,11 +11644,11 @@ msgid "Upload PEM File"
 msgstr "PEMファイルをアップロード"
 
 #: src/lib/security/securityModals.jsx:290
-msgid "Choose a cerificate from the server's certificate directory"
+msgid "Choose a certificate from the server's certificate directory"
 msgstr "サーバの証明書ディレクトリから証明書を選択してください"
 
 #: src/lib/security/securityModals.jsx:294
-msgid "Choose Cerificate From Server"
+msgid "Choose Certificate From Server"
 msgstr "サーバから証明書を選択"
 
 #: src/lib/security/securityModals.jsx:313
@@ -12004,7 +12004,7 @@ msgid "Loading Certificates ..."
 msgstr "証明書を読み込んでいます..."
 
 #: src/lib/security/certificateManagement.jsx:1245
-msgid "Trusted Certificate Authorites"
+msgid "Trusted Certificate Authorities"
 msgstr "信頼された認証局"
 
 #: src/lib/security/certificateManagement.jsx:1261
@@ -12075,7 +12075,7 @@ msgstr "警告 - CA証明書のプロパティを変更しています"
 
 #: src/lib/security/certificateManagement.jsx:1466
 msgid ""
-"Removing the 'C' or 'T' flags from the SSL trust catagory could break all "
+"Removing the 'C' or 'T' flags from the SSL trust category could break all "
 "TLS connectivity to and from the server, are you sure you want to proceed?"
 msgstr ""
 "SSL信頼カテゴリから 'C' または 'T' フラグを削除すると、サーバとのすべてのTLS"
@@ -14119,7 +14119,7 @@ msgstr "サフィックスDN"
 #: src/database.jsx:1431
 msgid ""
 "Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP "
-"Distiguished Name (DN)."
+"Distinguished Name (DN)."
 msgstr ""
 "'dc=example,dc=com'のようなデータベースサフィックスを設定します。サフィックス"
 "には有効なLDAP識別名(DN)を設定してください。"
@@ -14406,7 +14406,7 @@ msgstr "データベースを作成する"
 #: src/dsModals.jsx:559
 msgid ""
 "Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP "
-"Distiguished Name (DN)"
+"Distinguished Name (DN)"
 msgstr ""
 "'dc=example,dc=com'のようなデータベースサフィックスを設定します。サフィックス"
 "には有効なLDAP識別名(DN)を設定してください。"
@@ -14807,7 +14807,7 @@ msgid "ObjectClass Name is required."
 msgstr "オブジェクトクラス名は必須です。"
 
 #: src/schema.jsx:764
-msgid "ObjectClass $0 - $1 operation was successfull"
+msgid "ObjectClass $0 - $1 operation was successful"
 msgstr "オブジェクトクラス $0 の $1 を行いました"
 
 #: src/schema.jsx:779
@@ -14823,7 +14823,7 @@ msgid "Error during Attribute removal operation - $0"
 msgstr "属性の削除に失敗しました - $0"
 
 #: src/schema.jsx:1081
-msgid "Attribute $0 - add operation was successfull"
+msgid "Attribute $0 - add operation was successful"
 msgstr "属性 $0 を追加しました"
 
 #: src/schema.jsx:1096
@@ -14831,7 +14831,7 @@ msgid "Error during the Attribute add operation - $0"
 msgstr "属性の追加に失敗しました - $0"
 
 #: src/schema.jsx:1192
-msgid "Attribute $0 - replace operation was successfull"
+msgid "Attribute $0 - replace operation was successful"
 msgstr "属性 $0 を置き換えました"
 
 #: src/schema.jsx:1207
