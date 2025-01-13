@@ -528,30 +528,18 @@ compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s, baggage_carrier *bc, int *e
             valuearray_get_bervalarray(valueset_get_valuearray(&attr_b->a_present_values), &value_b);
         } else {
             /* Match rule case */
-            struct berval **actual_value_a = NULL;
-            struct berval **actual_value_b = NULL;
-            struct berval **temp_value = NULL;
+            Slapi_Value **va_a = valueset_get_valuearray(&attr_a->a_present_values);
+            Slapi_Value **va_b = valueset_get_valuearray(&attr_b->a_present_values);
 
-            valuearray_get_bervalarray(valueset_get_valuearray(&attr_a->a_present_values), &actual_value_a);
-            valuearray_get_bervalarray(valueset_get_valuearray(&attr_b->a_present_values), &actual_value_b);
-            matchrule_values_to_keys(this_one->mr_pb, actual_value_a, &temp_value);
-            /* Now copy it, so the second call doesn't crap on it */
-            value_a = slapi_ch_bvecdup(temp_value); /* Really, we'd prefer to not call the chXXX variant...*/
-            matchrule_values_to_keys(this_one->mr_pb, actual_value_b, &value_b);
+            matchrule_values_to_keys(this_one->mr_pb, va_a, &value_a);
+            /* Plugin owns the memory ==> duplicate the key before next call garble it */
+            value_a = slapi_ch_bvecdup(value_a);
+            matchrule_values_to_keys(this_one->mr_pb, va_b, &value_b);
 
-            if ((actual_value_a && !value_a) ||
-                (actual_value_b && !value_b)) {
-                ber_bvecfree(actual_value_a);
-                ber_bvecfree(actual_value_b);
-                CACHE_RETURN(&inst->inst_cache, &a);
-                CACHE_RETURN(&inst->inst_cache, &b);
-                *error = 1;
-                return 0;
+            if ((va_a && !value_a) || (va_b && !value_b)) {
+                result = 0;
+                goto bail;
             }
-            if (actual_value_a)
-                ber_bvecfree(actual_value_a);
-            if (actual_value_b)
-                ber_bvecfree(actual_value_b);
         }
         /* Compare them */
         if (!order) {
@@ -574,9 +562,10 @@ compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s, baggage_carrier *bc, int *e
         }
         /* If so, proceed to the next attribute for comparison */
     }
+    *error = 0;
+bail:
     CACHE_RETURN(&inst->inst_cache, &a);
     CACHE_RETURN(&inst->inst_cache, &b);
-    *error = 0;
     return result;
 }
 
