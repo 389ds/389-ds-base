@@ -142,7 +142,7 @@ def add_users(inst, users_num, suffix=DEFAULT_SUFFIX):
 
 
 def create_vlv_search_and_index(inst, basedn=DEFAULT_SUFFIX, bename='userRoot',
-                                scope=ldap.SCOPE_SUBTREE, prefix="vlv"):
+                                scope=ldap.SCOPE_SUBTREE, prefix="vlv", vlvsort="cn"):
     vlv_searches = VLVSearch(inst)
     vlv_search_properties = {
         "objectclass": ["top", "vlvSearch"],
@@ -160,7 +160,7 @@ def create_vlv_search_and_index(inst, basedn=DEFAULT_SUFFIX, bename='userRoot',
     vlv_index_properties = {
         "objectclass": ["top", "vlvIndex"],
         "cn": f"{prefix}Idx",
-        "vlvsort": "cn",
+        "vlvsort": vlvsort,
     }
     vlv_index.create(
         basedn=f"cn={prefix}Srch,cn={bename},cn=ldbm database,cn=plugins,cn=config",
@@ -310,6 +310,40 @@ def vlv_setup_nested_backends(topology_st, request):
     beh.setup()
     topology_st.beh = beh
     return topology_st
+
+
+@pytest.fixture
+def vlv_setup_with_uid_mr(topology_st, request):
+    inst = topology_st.standalone
+    bename = 'be1'
+    besuffix = f'o={bename}'
+    beh = BackendHandler(inst, { bename: besuffix })
+
+    def fin():
+        # Cleanup function
+        if not DEBUGGING and inst.exists() and inst.status():
+            beh.cleanup()
+
+    request.addfinalizer(fin)
+
+    # Make sure that our backend are not already present.
+    beh.cleanup()
+
+    # Then add the new backend
+    beh.setup()
+
+    index = Index(inst, f'cn=uid,cn=index,cn={bename},cn=ldbm database,cn=plugins,cn=config')
+    index.add('nsMatchingRule', '2.5.13.2')
+    reindex_task = Tasks(inst)
+    assert reindex_task.reindex(
+        suffix=besuffix,
+        attrname='uid',
+        args={TASK_WAIT: True}
+    ) == 0
+
+    topology_st.beh = beh
+    return topology_st
+
 
 
 @pytest.fixture
@@ -1085,6 +1119,50 @@ def test_vlv_logs(vlv_setup_nested_backends):
     assert 'SORT' in res
     assert 'VLV' in res
     assert 'err=0 ' in res
+
+
+def test_vlv_with_mr(vlv_setup_with_uid_mr):
+    """
+    Testing vlv having specific matching rule
+
+    :id: 5e04afe2-beec-11ef-aa84-482ae39447e5
+    :setup: Standalone with uid have a matching rule index
+    :steps:
+        1. Append vlvIndex entries then vlvSearch entry in the dse.ldif
+        2. Restart the server
+    :expectedresults:
+        1. Should Success.
+        2. Should Success.
+    """
+    inst = vlv_setup_with_uid_mr.standalone
+    beh = vlv_setup_with_uid_mr.beh
+    bename, besuffix = next(iter(beh.bedict.items()))
+    vlv_searches, vlv_index = create_vlv_search_and_index(
+                                inst, basedn=besuffix, bename=bename,
+                                vlvsort="uid:2.5.13.2")
+    # Reindex the vlv
+    reindex_task = Tasks(inst)
+    assert reindex_task.reindex(
+        suffix=besuffix,
+        attrname=vlv_index.rdn,
+        args={TASK_WAIT: True},
+        vlv=True
+    ) == 0
+
+    inst.restart()
+    users = UserAccounts(inst, besuffix)
+    user_properties = {
+        'uid': f'a new testuser',
+        'cn': f'a new testuser',
+        'sn': 'user',
+        'uidNumber': '0',
+        'gidNumber': '0',
+        'homeDirectory': 'foo'
+    }
+    user = users.create(properties=user_properties)
+    user.delete()
+    assert inst.status()
+
 
 
 if __name__ == "__main__":

@@ -1105,6 +1105,16 @@ class Backends(DSLdapObjects):
         for be in sorted(self.list(), key=lambda be: len(be.get_suffix()), reverse=True):
             be.delete()
 
+    def get_backend(self, suffix):
+        """
+        Return the backend associated with the provided suffix.
+        """
+        suffix_l = suffix.lower()
+        for be in self.list():
+            if be.get_attr_val_utf8_l('nsslapd-suffix') == suffix_l:
+                return be
+        return None
+
 
 class DatabaseConfig(DSLdapObject):
     """Backend Database configuration
