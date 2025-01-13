@@ -261,6 +261,35 @@ def test_reject_virtual_attr_for_indexing(topo):
             break
 
 
+def test_reindex_extended_matching_rule(topo, add_backend_and_ldif_50K_users):
+    """Check that index with extended matching rule are reindexed properly.
+
+    :id: 8a3198e8-cc5a-11ef-a3e7-482ae39447e5
+    :setup: Standalone instance + a second backend with 50K users
+    :steps:
+        1. Configure uid with 2.5.13.2 matching rule
+        1. Configure cn with 2.5.13.2 matching rule
+        2. Reindex
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topo.standalone
+    tasks = Tasks(inst)
+    be2 = Backends(topo.standalone).get_backend(SUFFIX2)
+    index = be2.get_index('uid')
+    index.replace('nsMatchingRule', '2.5.13.2')
+    index = be2.get_index('cn')
+    index.replace('nsMatchingRule', '2.5.13.2')
+
+    assert tasks.reindex(
+        suffix=SUFFIX2,
+        args={TASK_WAIT: True}
+    ) == 0
+
+
+
 if __name__ == "__main__":
     # Run isolated
     # -s for DEBUG mode

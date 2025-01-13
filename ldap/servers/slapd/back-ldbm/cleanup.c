@@ -15,12 +15,14 @@
 
 #include "back-ldbm.h"
 #include "dblayer.h"
+#include "vlv_srch.h"
 
 int
 ldbm_back_cleanup(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
     Slapi_Backend *be;
+    struct vlvSearch *nextp;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_cleanup", "ldbm backend cleaning up\n");
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -43,6 +45,12 @@ ldbm_back_cleanup(Slapi_PBlock *pb)
                       be->be_state);
         PR_Unlock(be->be_state_lock);
         return 0;
+    }
+
+    /* Release the vlv list */
+    for (struct vlvSearch *p=be->vlvSearchList; p; p=nextp) {
+        nextp = p->vlv_next;
+        vlvSearch_delete(&p);
     }
 
     /*

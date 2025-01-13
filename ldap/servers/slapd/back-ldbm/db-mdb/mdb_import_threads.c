@@ -23,6 +23,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <assert.h>
 #include "mdb_import.h"
 #include "../vlv_srch.h"
@@ -141,6 +142,9 @@ static int cmp_mii(caddr_t data1, caddr_t data2);
 static void dbmdb_import_writeq_push(ImportCtx_t *ctx, WriterQueueData_t *wqd);
 static int have_workers_finished(ImportJob *job);
 struct backentry *dbmdb_import_prepare_worker_entry(WorkerQueueData_t *wqelmnt);
+
+/* Mutex needed for extended matching rules */
+static pthread_mutex_t extended_mr_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /***************************************************************************/
 /**************************** utility functions ****************************/
@@ -3091,6 +3095,23 @@ attr_in_list(const char *search, char **list)
     return NULL;
 }
 
+/*
+ * Determine if vlv require extended matching rule evaluation
+ */
+static bool
+vlv_has_emr(struct vlvIndex *p)
+{
+    if (p->vlv_sortkey != NULL) {
+        /* Foreach sorted attribute... */
+        for (int sortattr = 0; p->vlv_sortkey[sortattr] != NULL; sortattr++) {
+            if (p->vlv_sortkey[sortattr]->sk_matchruleoid != NULL) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 static void
 process_vlv_index(backentry *ep, ImportWorkerInfo *info)
 {
@@ -3112,7 +3133,18 @@ process_vlv_index(backentry *ep, ImportWorkerInfo *info)
         Slapi_PBlock *pb = slapi_pblock_new();
         slapi_pblock_set(pb, SLAPI_BACKEND, be);
         if (vlv_index && (ctx->indexAttrs==NULL || attr_in_list(vlv_index->vlv_name, ctx->indexAttrs))) {
-            ret = vlv_update_index(vlv_index, (dbi_txn_t*)&txn, inst->inst_li, pb, NULL, ep);
+            if (vlv_has_emr(vlv_index)) {
+                /*
+                 * Serialize if there is an extended matching rule
+                 * Because matchrule_values_to_keys is not thread safe when indexing
+                 *  because new mr_indexer are created) but that need to be double checked)
+                 */
+                pthread_mutex_lock(&extended_mr_mutex);
+                ret = vlv_update_index(vlv_index, (dbi_txn_t*)&txn, inst->inst_li, pb, NULL, ep);
+                pthread_mutex_unlock(&extended_mr_mutex);
+            } else {
+                ret = vlv_update_index(vlv_index, (dbi_txn_t*)&txn, inst->inst_li, pb, NULL, ep);
+            }
         }
         if (0 != ret) {
             /* Something went wrong, eg disk filled up */

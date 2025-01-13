@@ -88,6 +88,7 @@ int dblayer_erase_index_file(backend *be, struct attrinfo *a, PRBool use_lock, i
 int dblayer_get_id2entry(backend *be, dbi_db_t **ppDB);
 int dblayer_get_changelog(backend *be, dbi_db_t ** ppDB, int create);
 int dblayer_release_id2entry(backend *be, dbi_db_t *pDB);
+void dblayer_destroy_txn_stack(void);
 int dblayer_txn_init(struct ldbminfo *li, back_txn *txn);
 int dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn);
 int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
@@ -537,7 +538,7 @@ int compute_allids_limit(Slapi_PBlock *pb, struct ldbminfo *li);
  */
 int create_matchrule_indexer(Slapi_PBlock **pb, char *matchrule, char *type);
 int destroy_matchrule_indexer(Slapi_PBlock *pb);
-int matchrule_values_to_keys(Slapi_PBlock *pb, struct berval **input_values, struct berval ***output_values);
+int matchrule_values_to_keys(Slapi_PBlock *pb, Slapi_Value **input_values, struct berval ***output_values);
 int matchrule_values_to_keys_sv(Slapi_PBlock *pb, Slapi_Value **input_values, Slapi_Value ***output_values);
 
 /*

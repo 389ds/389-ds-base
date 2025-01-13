@@ -340,6 +340,7 @@ dbmdb_close(struct ldbminfo *li, int dbmode)
     }
 
     return_value |= dbmdb_post_close(li, dbmode);
+    shutdown_mdbtxn();
 
     return return_value;
 }
