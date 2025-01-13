@@ -191,6 +191,9 @@ vlvSearch_delete(struct vlvSearch **ppvs)
 {
     if (ppvs != NULL && *ppvs != NULL) {
         struct vlvIndex *pi, *ni;
+        if ((*ppvs)->vlv_e) {
+            slapi_entry_free((struct slapi_entry *)((*ppvs)->vlv_e));
+        }
         slapi_sdn_free(&((*ppvs)->vlv_dn));
         slapi_ch_free((void **)&((*ppvs)->vlv_name));
         slapi_sdn_free(&((*ppvs)->vlv_base));
@@ -205,7 +208,6 @@ vlvSearch_delete(struct vlvSearch **ppvs)
             pi = ni;
         }
         slapi_ch_free((void **)ppvs);
-        *ppvs = NULL;
     }
 }
 

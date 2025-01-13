@@ -453,8 +453,12 @@ int
 dblayer_close(struct ldbminfo *li, int dbmode)
 {
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-
-    return priv->dblayer_close_fn(li, dbmode);
+    int rc = priv->dblayer_close_fn(li, dbmode);
+    if (rc == 0) {
+        /* Clean thread specific data */
+        dblayer_destroy_txn_stack();
+    }
+    return rc;
 }
 
 /* Routines for opening and closing random files in the dbi_env_t.
@@ -626,6 +630,9 @@ dblayer_erase_index_file(backend *be, struct attrinfo *a, PRBool use_lock, int n
         return 0;
     }
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    if (NULL == li) {
+        return 0;
+    }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
     return priv->dblayer_rm_db_file_fn(be, a, use_lock, no_force_chkpt);
@@ -1380,6 +1387,17 @@ dblayer_pop_pvt_txn(void)
         slapi_ch_free((void **)&elem);
     }
     return;
+}
+
+void
+dblayer_destroy_txn_stack(void)
+{
+    /*
+     * Cleanup for the main thread to avoid false/positive leaks from libasan
+     * Note: data is freed because PR_SetThreadPrivate calls the
+     * dblayer_cleanup_txn_stack callback
+     */
+    PR_SetThreadPrivate(thread_private_txn_stack, NULL);
 }
 
 const char *
