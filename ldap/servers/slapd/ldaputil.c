@@ -501,20 +501,14 @@ slapi_ldif_parse_line(
 }
 
 static int
-setup_ol_tls_conn(LDAP *ld, int clientauth)
+setup_ol_tls_conn(LDAP *ld, int clientauth, const char **cauris)
 {
     char *certdir;
     int optval = 0;
     int ssl_strength = 0;
     int rc = 0;
     const char *cacert = NULL;
-    char **cauris = NULL;
     char *errmsg = NULL;
-
-    /* if set, cacerturis takes precedence */
-#ifdef LDAP_OPT_X_TLS_CACERTURIS
-    ldap_get_option(ld, LDAP_OPT_X_TLS_CACERTURIS, &cauris);
-#endif
 
     if (config_get_ssl_check_hostname()) {
         ssl_strength = LDAP_OPT_X_TLS_HARD;
@@ -551,9 +545,10 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         }
     }
 
-    /* tell it where our cert db/file is */
-    if (!cauris) {
+    /* if set, cacerturis replaces this, and we only run on first pass */
+    if (!cauris && !clientauth) {
 
+        /* tell it where our cert db/file is */
         if (slapi_client_uses_non_nss(ld) && config_get_extract_pem()) {
             cacert = slapi_get_cacertfile();
             if (cacert) {
@@ -590,12 +585,6 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
 
         slapi_ch_free_string(&certdir);
     }
-
-#ifdef LDAP_OPT_X_TLS_CACERTURIS
-    else {
-        slapi_ch_array_free(cauris);
-    }
-#endif
 
 #if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
     getSSLVersionRangeOL(&optval, NULL);
@@ -666,7 +655,8 @@ slapi_ldap_init_ext(
     int secure,                         /* 0 for ldap, 1 for ldaps, 2 for starttls -
                    override proto in url */
     int shared __attribute__((unused)), /* if true, LDAP* will be shared among multiple threads */
-    const char *ldapi_socket            /* for ldapi */
+    const char *ldapi_socket,           /* for ldapi */
+    const char **cauris                 /* for TLS */
     )
 {
     LDAPURLDesc *ludp = NULL;
@@ -821,7 +811,7 @@ slapi_ldap_init_ext(
          * Set SSL strength (server certificate validity checking).
          */
         if (secure > 0) {
-            if (setup_ol_tls_conn(ld, 0)) {
+            if (setup_ol_tls_conn(ld, 0, cauris)) {
                 slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                               "failed: unable to set SSL/TLS options\n");
             }
@@ -912,7 +902,7 @@ ldaputil_get_saslpath()
 LDAP *
 slapi_ldap_init(char *ldaphost, int ldapport, int secure, int shared)
 {
-    return slapi_ldap_init_ext(NULL, ldaphost, ldapport, secure, shared, NULL /*, NULL*/);
+    return slapi_ldap_init_ext(NULL, ldaphost, ldapport, secure, shared, NULL, NULL);
 }
 
 static PRCallOnceType krb5_callOnce = {0, 0, 0};
@@ -985,7 +975,7 @@ slapi_ldap_bind(
          * we already set up a tls context in slapi_ldap_init_ext() - this will
          * free those old settings and context and create a new one
          */
-        rc = setup_ol_tls_conn(ld, 1);
+        rc = setup_ol_tls_conn(ld, 1, NULL);
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_bind",
                           "Error: could not configure the server for cert "

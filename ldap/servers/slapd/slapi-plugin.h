@@ -6236,14 +6236,15 @@ void slapi_ldap_unbind(LDAP *ld);
  * \see slapi_ldap_init()
  */
 LDAP *slapi_ldap_init_ext(
-    const char *ldapurl,    /* full ldap url */
-    const char *hostname,   /* can also use this to override
-                             host in url */
-    int port,               /* can also use this to override port in url */
-    int secure,             /* 0 for ldap, 1 for ldaps, 2 for starttls -
-                   override proto in url */
-    int shared,             /* if true, LDAP* will be shared among multiple threads */
-    const char *ldap_socket /* ldapi socket path */
+    const char *ldapurl,     /* full ldap url */
+    const char *hostname,    /* can also use this to override
+                                host in url */
+    int port,                /* can also use this to override port in url */
+    int secure,              /* 0 for ldap, 1 for ldaps, 2 for starttls -
+                                override proto in url */
+    int shared,              /* if true, LDAP* will be shared among multiple threads */
+    const char *ldap_socket, /* ldapi socket path */
+    const char **cauris      /* for TLS */
     );
 /**
  * The LDAP bind request - this function handles all of the different types of mechanisms

@@ -1197,7 +1197,7 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
             /* ldap_unbind internally calls ldap_ld_free */
             slapi_ldap_unbind(conn->ld);
         }
-        conn->ld = slapi_ldap_init_ext(NULL, conn->hostname, conn->port, secure, 1, NULL);
+        conn->ld = slapi_ldap_init_ext(NULL, conn->hostname, conn->port, secure, 1, NULL, conn->transport_ca_uris);
         if (NULL == conn->ld) {
             return_value = CONN_OPERATION_FAILED;
             conn->state = STATE_DISCONNECTED;
