@@ -98,9 +98,13 @@ get_server_dataversion()
     lenstr *l = NULL;
     Slapi_Backend *be;
     char *cookie;
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+    /* Serialize to avoid race condition */
+    pthread_mutex_lock(&mutex);
     /* we already cached the copy - just return it */
     if (server_dataversion_id != NULL) {
+        pthread_mutex_unlock(&mutex);
         return server_dataversion_id;
     }
 
@@ -135,5 +139,6 @@ get_server_dataversion()
         server_dataversion_id = slapi_ch_strdup(l->ls_buf);
     }
     lenstr_free(&l);
+    pthread_mutex_unlock(&mutex);
     return server_dataversion_id;
 }
