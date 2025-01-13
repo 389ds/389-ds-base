@@ -1061,21 +1061,25 @@ entryrdn_lookup_dn(backend *be,
     /* Setting the bulk fetch buffer */
     dblayer_value_init(be, &data);
 
-    /* Just in case the suffix ID is not '1' retrieve it from the database */
-    keybuf = slapi_ch_strdup(slapi_sdn_get_ndn(be->be_suffix));
-    dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
-    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY, &key, &data);
-    if (rc) {
-        slapi_log_err(SLAPI_LOG_WARNING, "entryrdn_lookup_dn",
-                      "Fails to retrieve the ID of suffix %s - keep the default value '%d'\n",
-                      slapi_sdn_get_ndn(be->be_suffix),
-                      suffix_id);
-    } else {
-        elem = (rdn_elem *)data.data;
-        suffix_id = id_stored_to_internal(elem->rdn_elem_id);
+    /* Just in case the suffix ID is not '1' retrieve it from the database
+     * if the suffix is not defined suffix_id remains '1'
+     */
+    if (be->be_suffix) {
+        keybuf = slapi_ch_strdup(slapi_sdn_get_ndn(be->be_suffix));
+        dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
+        rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY, &key, &data);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_WARNING, "entryrdn_lookup_dn",
+                    "Fails to retrieve the ID of suffix %s - keep the default value '%d'\n",
+                    slapi_sdn_get_ndn(be->be_suffix),
+                    suffix_id);
+        } else {
+            elem = (rdn_elem *) data.data;
+            suffix_id = id_stored_to_internal(elem->rdn_elem_id);
+        }
+        dblayer_value_free(be, &data);
+        dblayer_value_free(be, &key);
     }
-    dblayer_value_free(be, &data);
-    dblayer_value_free(be, &key);
 
     do {
         /* Setting up a key for the node to get its parent */
