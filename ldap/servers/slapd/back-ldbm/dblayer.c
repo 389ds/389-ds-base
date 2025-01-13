@@ -1424,8 +1424,11 @@ dblayer_pop_pvt_txn(void)
 void
 dblayer_destroy_txn_stack(void)
 {
-    /* Cleanup for the main thread to avoid false/positive leaks from libasan */
-    void *txn_stack = PR_GetThreadPrivate(thread_private_txn_stack);
+    /*
+     * Cleanup for the main thread to avoid false/positive leaks from libasan
+     * Note: data is freed because PR_SetThreadPrivate calls the
+     * dblayer_cleanup_txn_stack callback
+     */
     PR_SetThreadPrivate(thread_private_txn_stack, NULL);
 }
 

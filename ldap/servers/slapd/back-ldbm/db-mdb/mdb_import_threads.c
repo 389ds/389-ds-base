@@ -23,6 +23,7 @@
  */
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <assert.h>
 #include "mdb_import.h"
 #include "../vlv_srch.h"
@@ -3187,18 +3188,18 @@ is_reindexed_attr(const char *attrname, const ImportCtx_t *ctx, char **list)
 /*
  * Determine if vlv require extended matching rule evaluation
  */
-static int
+static bool
 vlv_has_emr(struct vlvIndex *p)
 {
     if (p->vlv_sortkey != NULL) {
         /* Foreach sorted attribute... */
         for (int sortattr = 0; p->vlv_sortkey[sortattr] != NULL; sortattr++) {
             if (p->vlv_sortkey[sortattr]->sk_matchruleoid != NULL) {
-                return 1;
+                return true;
             }
         }
     }
-    return 0;
+    return false;
 }
 
 static void
