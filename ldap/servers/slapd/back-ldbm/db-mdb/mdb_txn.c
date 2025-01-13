@@ -41,8 +41,10 @@ cleanup_mdbtxn_stack(void *arg)
     dbmdb_txn_t *txn2;
 
     *anchor = NULL;
+    if (anchor == (dbmdb_txn_t **) PR_GetThreadPrivate(thread_private_mdb_txn_stack)) {
+        PR_SetThreadPrivate(thread_private_mdb_txn_stack, NULL);
+    }
     slapi_ch_free((void**)&anchor);
-    PR_SetThreadPrivate(thread_private_mdb_txn_stack, NULL);
     while (txn) {
         txn2 = txn->parent;
         TXN_ABORT(TXN(txn));
@@ -66,6 +68,14 @@ static dbmdb_txn_t **get_mdbtxnanchor(void)
         PR_SetThreadPrivate(thread_private_mdb_txn_stack, anchor);
     }
     return anchor;
+}
+
+void shutdown_mdbtxn(void)
+{
+    dbmdb_txn_t **anchor = (dbmdb_txn_t **) PR_GetThreadPrivate(thread_private_mdb_txn_stack);
+    if (anchor) {
+        PR_SetThreadPrivate(thread_private_mdb_txn_stack, NULL);
+    }
 }
 
 static void push_mdbtxn(dbmdb_txn_t *txn)
