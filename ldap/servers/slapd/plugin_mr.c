@@ -391,28 +391,18 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock *pb)
     return rc;
 }
 
-/* this function takes SLAPI_PLUGIN_MR_VALUES as struct berval ** and
+/* this function takes SLAPI_PLUGIN_MR_VALUES as Slapi_Value ** and
    returns SLAPI_PLUGIN_MR_KEYS as struct berval **
 */
 static int
 mr_wrap_mr_index_fn(Slapi_PBlock *pb)
 {
     int rc = -1;
-    struct berval **in_vals = NULL;
     struct berval **out_vals = NULL;
     struct mr_private *mrpriv = NULL;
-    Slapi_Value **in_vals_sv = NULL;
     Slapi_Value **out_vals_sv = NULL;
 
-    slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &in_vals); /* get bervals */
-    /* convert bervals to sv ary */
-    valuearray_init_bervalarray(in_vals, &in_vals_sv);
-    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals_sv); /* use sv */
     rc = mr_wrap_mr_index_sv_fn(pb);
-    /* clean up in_vals_sv */
-    valuearray_free(&in_vals_sv);
-    /* restore old in_vals */
-    slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, in_vals);
     /* get result sv keys */
     slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &out_vals_sv);
     /* convert to bvec */

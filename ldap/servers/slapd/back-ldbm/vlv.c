@@ -605,7 +605,7 @@ vlv_getindices(IFP callback_fn, void *param, backend *be)
  * generate the same composite key, so we append the EntryID
  * to ensure the uniqueness of the key.
  *
- * Always creates a key. Never returns NULL.
+ * May return NULL in case of errors (typically in some configuration error cases)
  */
 static struct vlv_key *
 vlv_create_key(struct vlvIndex *p, struct backentry *e)
@@ -659,10 +659,8 @@ vlv_create_key(struct vlvIndex *p, struct backentry *e)
                         /* Matching rule. Do the magic mangling. Plugin owns the memory. */
                         if (p->vlv_mrpb[sortattr] != NULL) {
                             /* xxxPINAKI */
-                            struct berval **bval = NULL;
                             Slapi_Value **va = valueset_get_valuearray(&attr->a_present_values);
-                            valuearray_get_bervalarray(va, &bval);
-                            matchrule_values_to_keys(p->vlv_mrpb[sortattr], bval, &value);
+                            matchrule_values_to_keys(p->vlv_mrpb[sortattr], va, &value);
                         }
                     }
 
@@ -779,6 +777,13 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li __attribute__((unused)), 
     }
 
     key = vlv_create_key(pIndex, entry);
+    if (key == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "vlv_create_key", "Unable to generate vlv %s index key."
+                      " There may be a configuration issue.\n", pIndex->vlv_name);
+        dblayer_release_index_file(be, pIndex->vlv_attrinfo, db);
+        return rc;
+    }
+
     if (NULL != txn) {
         db_txn = txn->back_txn_txn;
     } else {
@@ -949,11 +954,11 @@ vlv_create_matching_rule_value(Slapi_PBlock *pb, struct berval *original_value)
     struct berval **value = NULL;
     if (pb != NULL) {
         struct berval **outvalue = NULL;
-        struct berval *invalue[2];
-        invalue[0] = original_value; /* jcm: cast away const */
-        invalue[1] = NULL;
+        Slapi_Value v_in = {0};
+        Slapi_Value *va_in[2] = { &v_in, NULL };
+        slapi_value_init_berval(&v_in, original_value);
         /* The plugin owns the memory it returns in outvalue */
-        matchrule_values_to_keys(pb, invalue, &outvalue);
+        matchrule_values_to_keys(pb, va_in, &outvalue);
         if (outvalue != NULL) {
             value = slapi_ch_bvecdup(outvalue);
         }
@@ -1610,11 +1615,8 @@ retry:
                 PRBool needFree = PR_FALSE;
 
                 if (sort_control->mr_pb != NULL) {
-                    struct berval **tmp_entry_value = NULL;
-
-                    valuearray_get_bervalarray(csn_value, &tmp_entry_value);
                     /* Matching rule. Do the magic mangling. Plugin owns the memory. */
-                    matchrule_values_to_keys(sort_control->mr_pb, /* xxxPINAKI needs modification attr->a_vals */ tmp_entry_value, &entry_value);
+                    matchrule_values_to_keys(sort_control->mr_pb, csn_value, &entry_value);
                 } else {
                     valuearray_get_bervalarray(csn_value, &entry_value);
                     needFree = PR_TRUE; /* entry_value is a copy */

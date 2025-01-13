@@ -54,7 +54,7 @@ attrinfo_delete(struct attrinfo **pp)
         idl_release_private(*pp);
         (*pp)->ai_key_cmp_fn = NULL;
         slapi_ch_free((void **)&((*pp)->ai_type));
-        slapi_ch_free((void **)(*pp)->ai_index_rules);
+        charray_free((*pp)->ai_index_rules);
         slapi_ch_free((void **)&((*pp)->ai_attrcrypt));
         attr_done(&((*pp)->ai_sattr));
         attrinfo_delete_idlistinfo(&(*pp)->ai_idlistinfo);
