@@ -504,6 +504,7 @@ void dbmdb_free_stats(dbmdb_stats_t **stats);
 int dbmdb_reset_vlv_file(backend *be, const char *filename);
 
 /* mdb_txn.c */
+void shutdown_mdbtxn(void);
 int dbmdb_start_txn(const char *funcname, dbi_txn_t *parent_txn, int flags, dbi_txn_t **txn);
 int dbmdb_end_txn(const char *funcname, int rc, dbi_txn_t **txn);
 void init_mdbtxn(dbmdb_ctx_t *ctx);
