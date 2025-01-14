@@ -501,7 +501,7 @@ slapi_ldif_parse_line(
 }
 
 static int
-setup_ol_tls_conn(LDAP *ld, int clientauth, const char **cauris)
+setup_ol_tls_conn(LDAP *ld, int clientauth, char **cauris)
 {
     char *certdir;
     int optval = 0;
