@@ -19,7 +19,7 @@ from lib389._constants import DIRSRV_STATE_ONLINE
 from lib389._mapped_object_lint import DSLint, DSLints
 from lib389.utils import (
         ensure_bytes, ensure_str, ensure_int, ensure_list_bytes, ensure_list_str,
-        ensure_list_int, display_log_value, display_log_data
+        ensure_list_int, display_log_value, display_log_data, is_a_dn, normalizeDN
         )
 
 # This function filter and term generation provided thanks to
@@ -292,15 +292,28 @@ class DSLdapObject(DSLogging, DSLint):
         _search_ext_s(self._instance,self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[attr, ],
                                         serverctrls=self._server_controls, clientctrls=self._client_controls,
                                         escapehatch='i am sure')[0]
-        values = self.get_attr_vals_bytes(attr)
+        values = self.get_attr_vals_utf8(attr)
         self._log.debug("%s contains %s" % (self._dn, values))
 
         if value is None:
             # We are just checking if SOMETHING is present ....
             return len(values) > 0
+        
+        # Otherwise, we are checking a specific value
+        if is_a_dn(value):
+            normalized_value = normalizeDN(value)
         else:
-            # Check if a value really does exist.
-            return ensure_bytes(value).lower() in [x.lower() for x in values]
+            normalized_value = ensure_bytes(value).lower()
+
+        # Normalize each returned value depending on whether it is a DN
+        normalized_values = []
+        for v in values:
+            if is_a_dn(v):
+                normalized_values.append(normalizeDN(v))
+            else:
+                normalized_values.append(ensure_bytes(v.lower()))
+
+        return normalized_value in normalized_values
 
     def add(self, key, value):
         """Add an attribute with a value
