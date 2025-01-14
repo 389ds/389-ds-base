@@ -317,19 +317,19 @@ impl PwdChanCrypto {
         Self::set_pbkdf2_rounds(digest, rounds)?;
 
         let digest_name = if digest == MessageDigest::sha1() {
-            "SHA1"
+            "PBKDF2-SHA1"
         } else if digest == MessageDigest::sha256() {
-            "SHA256"
+            "PBKDF2-SHA256"
         } else if digest == MessageDigest::sha512() {
-            "SHA512"
+            "PBKDF2-SHA512"
         } else {
             "Unknown"
         };
 
-        log_error!(
-            ErrorLevel::Plugin,
-            "handle_pbkdf2_rounds_config -> Number of iterations for PBKDF2-{} password scheme set to {} from {}",
+        log_error_ext!(
+            ErrorLevel::Info,
             digest_name,
+            "Number of iterations set to {} from {}",
             rounds,
             source
         );
