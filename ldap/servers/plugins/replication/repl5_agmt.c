@@ -56,6 +56,7 @@
 #include "repl5_prot_private.h"
 #include "cl5_api.h"
 #include "slapi-plugin.h"
+#include "slap.h"
 #include "../../slapd/back-ldbm/dbimpl.h"          /* for dblayer_is_lmdb */
 
 #define DEFAULT_TIMEOUT 120                  /* (seconds) default outbound LDAP connection */
@@ -532,9 +533,32 @@ agmt_new_from_entry(Slapi_Entry *e)
     ra->last_update_status[0] = '\0';
     ra->update_in_progress = PR_FALSE;
     ra->stop_in_progress = PR_FALSE;
-    ra->last_init_end_time = 0UL;
-    ra->last_init_start_time = 0UL;
-    ra->last_init_status[0] = '\0';
+    val = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaLastInitEnd);
+    if (val) {
+        time_t init_end_time;
+
+        init_end_time = parse_genTime((char *) val);
+        if (init_end_time == NO_TIME || init_end_time == SLAPD_END_TIME) {
+            ra->last_init_end_time = 0UL;
+        } else {
+            ra->last_init_end_time = init_end_time;
+        }
+    }
+    val = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaLastInitStart);
+    if (val) {
+        time_t init_start_time;
+
+        init_start_time = parse_genTime((char *) val);
+        if (init_start_time == NO_TIME || init_start_time == SLAPD_END_TIME) {
+            ra->last_init_start_time = 0UL;
+        } else {
+            ra->last_init_start_time = init_start_time;
+        }
+    }
+    val = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaLastInitStatus);
+    if (val) {
+        strcpy(ra->last_init_status, val);
+    }
     ra->changecounters = (struct changecounter **)slapi_ch_calloc(MAX_NUM_OF_SUPPLIERS + 1,
                                                                   sizeof(struct changecounter *));
     ra->num_changecounters = 0;
@@ -2528,6 +2552,113 @@ agmt_set_consumer_ruv(Repl_Agmt *ra, RUV *ruv)
 }
 
 void
+agmt_update_init_status(Repl_Agmt *ra)
+{
+    int rc;
+    Slapi_PBlock *pb;
+    LDAPMod **mods;
+    int nb_mods = 0;
+    int mod_idx;
+    Slapi_Mod smod_start_time = {0};
+    Slapi_Mod smod_end_time = {0};
+    Slapi_Mod smod_status = {0};
+
+    PR_ASSERT(ra);
+    PR_Lock(ra->lock);
+
+    if (ra->last_init_start_time) {
+        nb_mods++;
+    }
+    if (ra->last_init_end_time) {
+        nb_mods++;
+    }
+    if (ra->last_init_status[0] != '\0') {
+        nb_mods++;
+    }
+    if (nb_mods == 0) {
+        /* shortcut. no need to go further */
+        PR_Unlock(ra->lock);
+        return;
+    }
+    mods = (LDAPMod **) slapi_ch_malloc((nb_mods + 1) * sizeof(LDAPMod *));
+    mod_idx = 0;
+    if (ra->last_init_start_time) {
+        struct berval val;
+        char *time_tmp = NULL;
+        slapi_mod_init(&smod_start_time, 1);
+        slapi_mod_set_type(&smod_start_time, type_nsds5ReplicaLastInitStart);
+        slapi_mod_set_operation(&smod_start_time, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
+        time_tmp = format_genTime(ra->last_init_start_time);
+        val.bv_val = time_tmp;
+        val.bv_len = strlen(time_tmp);
+        slapi_mod_add_value(&smod_start_time, &val);
+        slapi_ch_free((void **)&time_tmp);
+        mods[mod_idx] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_start_time);
+        mod_idx++;
+    }
+    if (ra->last_init_end_time) {
+        struct berval val;
+        char *time_tmp = NULL;
+        slapi_mod_init(&smod_end_time, 1);
+        slapi_mod_set_type(&smod_end_time, type_nsds5ReplicaLastInitEnd);
+        slapi_mod_set_operation(&smod_end_time, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
+        time_tmp = format_genTime(ra->last_init_end_time);
+        val.bv_val = time_tmp;
+        val.bv_len = strlen(time_tmp);
+        slapi_mod_add_value(&smod_end_time, &val);
+        slapi_ch_free((void **)&time_tmp);
+        mods[mod_idx] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_end_time);
+        mod_idx++;
+    }
+    if (ra->last_init_status[0] != '\0') {
+        struct berval val;
+        char *init_status = NULL;
+        slapi_mod_init(&smod_status, 1);
+        slapi_mod_set_type(&smod_status, type_nsds5ReplicaLastInitStatus);
+        slapi_mod_set_operation(&smod_status, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+
+        init_status = slapi_ch_strdup(ra->last_init_status);
+        val.bv_val = init_status;
+        val.bv_len = strlen(init_status);
+        slapi_mod_add_value(&smod_status, &val);
+        slapi_ch_free((void **)&init_status);
+        mods[mod_idx] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_status);
+        mod_idx++;
+    }
+
+    if (nb_mods) {
+        /* it is ok to release the lock here because we are done with the agreement data.
+           we have to do it before issuing the modify operation because it causes
+           agmtlist_notify_all to be called which uses the same lock - hence the deadlock */
+        PR_Unlock(ra->lock);
+
+        pb = slapi_pblock_new();
+        mods[nb_mods] = NULL;
+
+        slapi_modify_internal_set_pb_ext(pb, ra->dn, mods, NULL, NULL,
+                                         repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
+        slapi_modify_internal_pb(pb);
+
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_ATTRIBUTE) {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_update_consumer_ruv - "
+                                                           "%s: agmt_update_consumer_ruv: "
+                                                           "failed to update consumer's RUV; LDAP error - %d\n",
+                          ra->long_name, rc);
+        }
+
+        slapi_pblock_destroy(pb);
+    } else {
+        PR_Unlock(ra->lock);
+    }
+    slapi_mod_done(&smod_start_time);
+    slapi_mod_done(&smod_end_time);
+    slapi_mod_done(&smod_status);
+}
+
+void
 agmt_update_consumer_ruv(Repl_Agmt *ra)
 {
     int rc;
@@ -3146,6 +3277,7 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext)
                 PR_Unlock(ra->lock);
                 agmt_stop(ra);
                 agmt_update_consumer_ruv(ra);
+                agmt_update_init_status(ra);
                 agmt_set_last_update_status(ra, 0, 0, "agreement disabled");
                 return rc;
             }
