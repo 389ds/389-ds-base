@@ -1,16 +1,16 @@
 #[macro_export]
 #[cfg(not(feature = "test_log_direct"))]
-macro_rules! log_error {
-    ($level:expr, $($arg:tt)*) => ({
+macro_rules! log_error_ext {
+    ($level:expr, $source:expr, $($arg:tt)*) => ({
         use std::fmt;
         match log_error(
             $level,
-            format!("{}:{}", file!(), line!()),
+            $source.to_string(),
             format!("{}\n", fmt::format(format_args!($($arg)*)))
         ) {
             Ok(_) => {},
             Err(e) => {
-                eprintln!("A logging error occured {}, {} -> {:?}", file!(), line!(), e);
+                eprintln!("A logging error occurred {}, {} -> {:?}", file!(), line!(), e);
             }
         };
     })
@@ -18,10 +18,24 @@ macro_rules! log_error {
 
 #[macro_export]
 #[cfg(feature = "test_log_direct")]
+macro_rules! log_error_ext {
+    ($level:expr, $source:expr, $($arg:tt)*) => ({
+        use std::fmt;
+        eprintln!("{} -> {}", $source, fmt::format(format_args!($($arg)*)));
+    })
+}
+
+#[macro_export]
 macro_rules! log_error {
     ($level:expr, $($arg:tt)*) => ({
-        use std::fmt;
-        eprintln!("{}:{} -> {}", file!(), line!(), fmt::format(format_args!($($arg)*)));
+        log_error_ext!($level, format!("{}:{}", file!(), line!()), $($arg)*)
+    })
+}
+
+#[macro_export]
+macro_rules! log_error_fn {
+    ($level:expr, $funcname:expr, $($arg:tt)*) => ({
+        log_error_ext!($level, $funcname, $($arg)*)
     })
 }
 
