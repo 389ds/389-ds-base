@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn, isValidIpAddress } from "../tools.jsx";
+import { log_cmd, valid_dn, isValidIpAddress, is_port_in_use } from "../tools.jsx";
 import {
 	Button,
 	Checkbox,
@@ -189,11 +189,14 @@ export class ServerSettings extends React.Component {
         this.reloadDiskMonitoring = this.reloadDiskMonitoring.bind(this);
         this.handleSaveAdvanced = this.handleSaveAdvanced.bind(this);
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
+        this.validateSaveBtn = this.validateSaveBtn.bind(this);
+
         this.onMinusConfig = (id, nav_tab) => {
             this.setState({
                 [id]: Number(this.state[id]) - 1
             }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
-        };
+        }
+
         this.onConfigChange = (event, id, min, max, nav_tab) => {
             let maxValue = this.maxValue;
             if (max !== 0) {
@@ -203,14 +206,14 @@ export class ServerSettings extends React.Component {
             newValue = newValue > maxValue ? maxValue : newValue < min ? min : newValue;
             this.setState({
                 [id]: newValue
-            }, () => { this.validateSaveBtn(nav_tab, id, newValue) });
-        };
+            }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
+        }
+
         this.onPlusConfig = (id, nav_tab) => {
             this.setState({
                 [id]: Number(this.state[id]) + 1
             }, () => { this.validateSaveBtn(nav_tab, id, Number(this.state[id])) });
-        };
-        this.validateSaveBtn = this.validateSaveBtn.bind(this);
+        }
     }
 
     componentDidMount() {
@@ -253,7 +256,7 @@ export class ServerSettings extends React.Component {
         }
     }
 
-    validateSaveBtn(nav_tab, attr, value) {
+async validateSaveBtn(nav_tab, attr, value) {
         let disableSaveBtn = true;
         let disableBtnName = "";
         let config_attrs = [];
@@ -299,6 +302,25 @@ export class ServerSettings extends React.Component {
                 // Only listenhost is allowed to be blank
                 valueErr = true;
                 disableSaveBtn = true;
+            }
+            if (attr === 'nsslapd-port' || attr === 'nsslapd-secureport') {
+                const portValue = Number(value)
+                if (!isNaN(portValue)) {
+                    try {
+                        // Check port value is not already in use.
+                        const portInUse = await is_port_in_use(portValue);
+                        if (portInUse) {
+                            disableSaveBtn = true;
+                            if (portValue !== Number(this.state['_' + attr])) {
+                                valueErr = true;
+                            }
+                        }
+                    } catch (error) {
+                        console.error("Error checking port:", error);
+                        disableSaveBtn = true;
+                        valueErr = true;
+                    }
+                }
             }
         } else if (nav_tab === "rootdn") {
             // Handle validating passwords are in sync

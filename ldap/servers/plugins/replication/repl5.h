@@ -173,6 +173,9 @@ extern const char *type_nsds5ReplicaBootstrapTransportInfo;
 extern const char *type_nsds5ReplicaBootstrapTransportUri;
 extern const char *type_nsds5ReplicaBootstrapTransportCAUri;
 extern const char *type_replicaKeepAliveUpdateInterval;
+extern const char *type_nsds5ReplicaLastInitStart;
+extern const char *type_nsds5ReplicaLastInitEnd;
+extern const char *type_nsds5ReplicaLastInitStatus;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -445,6 +448,7 @@ void agmt_notify_change(Repl_Agmt *ra, Slapi_PBlock *pb);
 Object *agmt_get_consumer_ruv(Repl_Agmt *ra);
 ReplicaId agmt_get_consumer_rid(Repl_Agmt *ra, void *conn);
 int agmt_set_consumer_ruv(Repl_Agmt *ra, RUV *ruv);
+void agmt_update_init_status(Repl_Agmt *ra);
 void agmt_update_consumer_ruv(Repl_Agmt *ra);
 CSN *agmt_get_consumer_schema_csn(Repl_Agmt *ra);
 void agmt_set_consumer_schema_csn(Repl_Agmt *ra, CSN *csn);
