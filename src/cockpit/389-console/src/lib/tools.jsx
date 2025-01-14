@@ -212,6 +212,32 @@ export function valid_port(val) {
     return result;
 }
 
+export function is_port_in_use(port) {
+    // Check if a port number is being used
+    return new Promise((resolve, reject) => {
+        // First check port number is within range
+        if (!valid_port(port)) {
+            reject('Invalid port number');
+            return;
+        }
+
+        let cmd = ['bash', '-c', `sudo lsof -i :${port} || echo "free"`];
+        log_cmd("is_port_in_use", cmd);
+
+        cockpit
+            .spawn(cmd, { superuser: true, err: "message" })
+            .done((result) => {
+                const isPortInUse = result.trim() !== "free";
+                // Resolve the promise with a result
+                resolve(isPortInUse);
+            })
+            .fail((error) => {
+                // Reject the promise on error
+                reject('Error checking port');
+            });
+    });
+}
+
 export function valid_dn(dn) {
     // Validate value is a valid DN (sanity validation)
     if (dn === "" || dn.endsWith(",")) {
