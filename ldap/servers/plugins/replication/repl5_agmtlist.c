@@ -782,6 +782,7 @@ agmtlist_shutdown()
         ra = (Repl_Agmt *)object_get_data(ro);
         agmt_stop(ra);
         agmt_update_consumer_ruv(ra);
+        agmt_update_init_status(ra);
         next_ro = objset_next_obj(agmt_set, ro);
         /* Object ro was released in objset_next_obj,
          * but the address ro can be still used to remove ro from objset. */

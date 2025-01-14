@@ -2006,6 +2006,7 @@ clean_agmts(cleanruv_data *data)
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Cleaning agmt...");
         agmt_stop(agmt);
         agmt_update_consumer_ruv(agmt);
+	agmt_update_init_status(agmt);
         agmt_start(agmt);
         agmt_obj = agmtlist_get_next_agreement_for_replica(data->replica, agmt_obj);
     }
