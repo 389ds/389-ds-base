@@ -68,7 +68,7 @@ class _AgmtHelper:
             self.binddn = f'cn={cn},cn=config'
         else:
             self.usedn = False
-            self.cn = f'{self.from_inst.host}:{self.from_inst.sslport}'
+            self.cn = ldap.dn.escape_dn_chars(f'{DEFAULT_SUFFIX}:{self.from_inst.host}:{self.from_inst.sslport}')
             self.binddn = f'cn={self.cn}, ou=Services, {DEFAULT_SUFFIX}'
         self.original_state = []
         self._pass = False
