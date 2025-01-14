@@ -656,7 +656,7 @@ slapi_ldap_init_ext(
                    override proto in url */
     int shared __attribute__((unused)), /* if true, LDAP* will be shared among multiple threads */
     const char *ldapi_socket,           /* for ldapi */
-    const char **cauris                 /* for TLS */
+    char **cauris                       /* for TLS */
     )
 {
     LDAPURLDesc *ludp = NULL;

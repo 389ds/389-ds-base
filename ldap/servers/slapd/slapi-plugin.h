@@ -6244,7 +6244,7 @@ LDAP *slapi_ldap_init_ext(
                                 override proto in url */
     int shared,              /* if true, LDAP* will be shared among multiple threads */
     const char *ldap_socket, /* ldapi socket path */
-    const char **cauris      /* for TLS */
+    char **cauris            /* for TLS */
     );
 /**
  * The LDAP bind request - this function handles all of the different types of mechanisms
