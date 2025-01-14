@@ -147,7 +147,7 @@ def test_pbkdf2_default_rounds(topo, new_user, scheme_name, plugin_class, defaul
         topo.standalone.simple_bind_s(new_user.dn, 'Secret123')
         
         assert topo.standalone.searchErrorsLog(
-            f'Number of iterations for {scheme_name} password scheme set to {default_rounds} from default'
+            f'{scheme_name} - Number of iterations set to {default_rounds} from default'
         )
     finally:
         topo.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -205,7 +205,7 @@ def test_pbkdf2_rounds_reset(topo, new_user, scheme_name, plugin_class, default_
         topo.standalone.simple_bind_s(new_user.dn, 'Secret123')
         
         assert topo.standalone.searchErrorsLog(
-            f'Number of iterations for {scheme_name} password scheme set to {default_rounds} from default'
+            f'{scheme_name} - Number of iterations set to {default_rounds} from default'
         )
     finally:
         topo.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -256,7 +256,7 @@ def test_pbkdf2_custom_rounds(topo, new_user, scheme_name, plugin_class, _, roun
         topo.standalone.simple_bind_s(new_user.dn, 'Secret123')
         
         assert topo.standalone.searchErrorsLog(
-            f'Number of iterations for {scheme_name}'
+            f'{scheme_name} - Number of iterations set'
         )
     finally:
         topo.standalone.simple_bind_s(DN_DM, PASSWORD)
