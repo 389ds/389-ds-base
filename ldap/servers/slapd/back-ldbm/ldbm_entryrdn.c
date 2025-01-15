@@ -1769,7 +1769,7 @@ retry_get0:
     } while (0 == rc);
 
 bail:
-    if (RDN_IS_REDIRECT(childelem)) {
+    if (childelem && RDN_IS_REDIRECT(childelem)) {
         slapi_ch_free((void **)&childelem);
     }
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_get_tombstone_elem",
