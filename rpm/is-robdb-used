@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Determine if Read Only Berkeley Database  is needed.
+
+BUNDLE_LIBDB="$1"
+
+rc()
+{
+    echo $1
+    exit 0
+}
+
+# Not needed if libdb is bundled (Typically on RHEL)
+[ x$BUNDLE_LIBDB = x1 ] && rc 0
+# Needed if libdb is not available
+[ ! -f /usr/include/db.h ] && rc 1
+# Needed on Fedora and CentOs
+[ -f /etc/fedora-release ] && rc 1
+[ -f /etc/centos-release ] && rc 1
+# Still support full bdb 
+rc 0
+
+

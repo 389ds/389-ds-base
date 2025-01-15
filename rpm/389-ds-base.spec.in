@@ -178,7 +178,7 @@ Requires:         cyrus-sasl-md5
 Requires:         cyrus-sasl-plain
 # this is needed for backldbm
 %if %{with libbdb_ro}
-Requires:         %{name}-robdb-libs-%{version}
+Requires:         %{name}-robdb-libs= %{version}-%{release}
 %else
 %if %{without bundle_libdb}
 Requires:         libdb
@@ -454,6 +454,8 @@ autoreconf -fiv
 %configure \
 %if %{with libbdb_ro}
           --with-libbdb-ro \
+%else
+          --without-libbdb-ro \
 %endif
 %if %{with bundle_libdb}
            --with-bundle-libdb=%{_builddir}/%{libdb_base_version}/BUILD/%{libdb_base_dir}/dist/dist-tls \
@@ -561,10 +563,7 @@ popd
 %endif
 
 %if %{with libbdb_ro}
-mkdir -p ../robdb
-pushd ../robdb
-tar -xjf %{_sourcedir}/%{name}-%{version}.tar.bz2 --transform "s,^%{name}-%{version}/lib/librobdb,.," %{name}-%{version}/lib/librobdb/*
-cp -pa COPYING COPYING.librobdb
+pushd lib/librobdb
 cp -pa COPYING %{_builddir}/%{name}-%{version}/COPYING.librobdb
 cp -pa COPYING.RPM %{_builddir}/%{name}-%{version}/COPYING.RPM
 install -m 0755 -d %{buildroot}/%{_libdir}
@@ -574,8 +573,8 @@ install -m 0755 -d %{buildroot}/%{_licensedir}/%{name}-robdb-libs
 install -m 0644 $PWD/README.md %{buildroot}/%{_docdir}/%{name}-robdb-libs/README.md
 install -m 0644 $PWD/COPYING %{buildroot}/%{_licensedir}/%{name}-robdb-libs/COPYING
 install -m 0644 $PWD/COPYING.RPM %{buildroot}/%{_licensedir}/%{name}-robdb-libs/COPYING.RPM
-install -m 0644 $PWD/COPYING.librobdb %{buildroot}/%{_licensedir}/%{name}/COPYING.librobdb
-install -m 0644 $PWD/COPYING %{buildroot}/%{_licensedir}/%{name}/COPYING.RPM
+install -m 0644 $PWD/COPYING %{buildroot}/%{_licensedir}/%{name}/COPYING.librobdb
+install -m 0644 $PWD/COPYING.RPM %{buildroot}/%{_licensedir}/%{name}/COPYING.RPM
 popd
 %endif
 
@@ -747,6 +746,9 @@ fi
 %exclude %{_libdir}/%{pkgname}/lib/libjemalloc_pic.a
 %exclude %{_libdir}/%{pkgname}/lib/pkgconfig
 %endif
+%if %{with libbdb_ro}
+%exclude %{_libdir}/%{pkgname}/librobdb.so
+%endif
 
 %files devel
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
@@ -824,10 +826,11 @@ fi
 %files robdb-libs
 %license COPYING.librobdb COPYING.RPM
 %doc %{_defaultdocdir}/%{name}-robdb-libs/README.md
-/usr/lib64/dirsrv/librobdb.so
+%{_libdir}/%{pkgname}/librobdb.so
 %{_licensedir}/%{name}-robdb-libs/COPYING
 %{_licensedir}/%{name}/COPYING.RPM
 %{_licensedir}/%{name}/COPYING.librobdb
+
 %endif
 
 %changelog

@@ -26,17 +26,9 @@ RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_LIBDB)),--with bundle_libdb,--with
 LIBDB_URL ?= $(shell rpmspec $(RPMBUILD_OPTIONS) -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
 LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
 
-# Enable BUNDLE_BDBREADERS if neither BUNDLE_LIBDB nor /usr/include/db.h is available
-ifeq ($(BUNDLE_LIBDB), 1)
-BUNDLE_BDBREADERS ?= 0
-else
-ifeq (,$(wildcard /usr/include/db.h))
-BUNDLE_BDBREADERS ?= 1
-else
-BUNDLE_BDBREADERS ?= 0
-endif
-endif
-RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_BDBREADERS)),--with libbdb-ro,--without libbdb-ro)
+# Check if BUNDLE_BDBREADERS is enabled.
+BUNDLE_BDBREADERS = $(shell ./rpm/is-robdb-used $(BUNDLE_LIBDB))
+RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_BDBREADERS)),--with libbdb_ro,--without libbdb_ro)
 
 
 # Some sanitizers are supported only by clang
