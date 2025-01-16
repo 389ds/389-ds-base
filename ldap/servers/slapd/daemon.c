@@ -1502,7 +1502,29 @@ setup_pr_read_pds(Connection_Table *ct, int listnum)
         if (c->c_state == CONN_STATE_FREE) {
             connection_table_move_connection_out_of_active_list(ct, c);
         } else {
-            /* we try to acquire the connection mutex, if it is already
+            /* Check for a timeout for PAGED RESULTS */
+            if (pagedresults_is_timedout_nolock(c)) {
+                /*
+                 * There could be a race condition so lets try again with the
+                 * right lock
+                 */
+                pthread_mutex_t *pr_mutex = pageresult_lock_get_addr(c);
+                if (pthread_mutex_trylock(pr_mutex) == EBUSY) {
+                    c = next;
+                    continue;
+                }
+                if (pagedresults_is_timedout_nolock(c)) {
+                    pthread_mutex_unlock(pr_mutex);
+                    disconnect_server(c, c->c_connid, -1,
+                                      SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT,
+                                      0);
+                } else {
+                    pthread_mutex_unlock(pr_mutex);
+                }
+            }
+
+            /*
+             * we try to acquire the connection mutex, if it is already
              * acquired by another thread, don't wait
              */
             if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
@@ -1510,35 +1532,24 @@ setup_pr_read_pds(Connection_Table *ct, int listnum)
                 continue;
             }
             if (c->c_flags & CONN_FLAG_CLOSING) {
-                /* A worker thread has marked that this connection
-                 * should be closed by calling disconnect_server.
-                 * move this connection out of the active list
-                 * the last thread to use the connection will close it
+                /*
+                 * A worker thread, or paged result timeout, has marked that
+                 * this connection should be closed by calling
+                 * disconnect_server(). Move this connection out of the active
+                 * list then the last thread to use the connection will close
+                 * it.
                  */
                 connection_table_move_connection_out_of_active_list(ct, c);
             } else if (c->c_sd == SLAPD_INVALID_SOCKET) {
                 connection_table_move_connection_out_of_active_list(ct, c);
             } else if (c->c_prfd != NULL) {
                 if ((!c->c_gettingber) && (c->c_threadnumber < c->c_max_threads_per_conn)) {
-                    int add_fd = 1;
-                    /* check timeout for PAGED RESULTS */
-                    if (pagedresults_is_timedout_nolock(c)) {
-                        /* Exceeded the paged search timelimit; disconnect the client */
-                        disconnect_server_nomutex(c, c->c_connid, -1,
-                                                  SLAPD_DISCONNECT_PAGED_SEARCH_LIMIT,
-                                                  0);
-                        connection_table_move_connection_out_of_active_list(ct,
-                                                                            c);
-                        add_fd = 0; /* do not poll on this fd */
-                    }
-                    if (add_fd) {
-                        ct->fd[listnum][count].fd = c->c_prfd;
-                        ct->fd[listnum][count].in_flags = SLAPD_POLL_FLAGS;
-                        /* slot i of the connection table is mapped to slot
-                         * count of the fds array */
-                        c->c_fdi = count;
-                        count++;
-                    }
+                    ct->fd[listnum][count].fd = c->c_prfd;
+                    ct->fd[listnum][count].in_flags = SLAPD_POLL_FLAGS;
+                    /* slot i of the connection table is mapped to slot
+                        * count of the fds array */
+                    c->c_fdi = count;
+                    count++;
                 } else {
                     if (c->c_threadnumber >= c->c_max_threads_per_conn) {
                         c->c_maxthreadsblocked++;
