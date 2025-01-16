@@ -178,7 +178,7 @@ Requires:         cyrus-sasl-md5
 Requires:         cyrus-sasl-plain
 # this is needed for backldbm
 %if %{with libbdb_ro}
-Requires:         %{name}-robdb-libs= %{version}-%{release}
+Requires:         %{name}-robdb-libs = %{version}-%{release}
 %else
 %if %{without bundle_libdb}
 Requires:         libdb
