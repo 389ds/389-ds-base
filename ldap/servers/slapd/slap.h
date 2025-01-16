@@ -74,7 +74,7 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
+#include <stdbool.h>
 #include <time.h> /* For timespec definitions */
 
 /* Provides our int types and platform specific requirements. */

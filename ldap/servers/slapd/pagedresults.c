@@ -121,12 +121,15 @@ pagedresults_parse_control_value(Slapi_PBlock *pb,
     if (ber_scanf(ber, "{io}", pagesize, &cookie) == LBER_ERROR) {
         slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
                       "<= corrupted control value\n");
+        ber_free(ber, 1);
         return LDAP_PROTOCOL_ERROR;
     }
     if (!maxreqs) {
         slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
                       "Simple paged results requests per conn exceeded the limit: %d\n",
                       maxreqs);
+        ber_free(ber, 1);
+        slapi_ch_free_string(&cookie.bv_val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
 
@@ -376,6 +379,10 @@ pagedresults_free_one_msgid(Connection *conn, ber_int_t msgid, pthread_mutex_t *
                     }
                     prp->pr_flags |= CONN_FLAG_PAGEDRESULTS_ABANDONED;
                     prp->pr_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
+                    if (conn->c_pagedresults.prl_count > 0) {
+                        _pr_cleanup_one_slot(prp);
+                        conn->c_pagedresults.prl_count--;
+                    }
                     rc = 0;
                     break;
                 }
@@ -940,7 +947,9 @@ pagedresults_is_timedout_nolock(Connection *conn)
             return 1;
         }
     }
+
     slapi_log_err(SLAPI_LOG_TRACE, "<-- pagedresults_is_timedout", "<= false 2\n");
+
     return 0;
 }
 
