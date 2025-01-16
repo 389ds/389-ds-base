@@ -251,7 +251,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     char *errtext = NULL;
     int nentries, pnentries;
     int flag_search_base_found = 0;
-    int flag_no_such_object = 0;
+    bool flag_no_such_object = false;
     int flag_referral = 0;
     int flag_psearch = 0;
     int err_code = LDAP_SUCCESS;
@@ -876,7 +876,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     /* may be the object exist somewhere else
                      * wait the end of the loop to send back this error
                      */
-                    flag_no_such_object = 1;
+                    flag_no_such_object = true;
                 } else {
                     /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will
                      * have sent the result -
@@ -886,35 +886,35 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 /* fall through */
 
             case -1: /* an error occurred */
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
                 /* PAGED RESULTS */
                 if (op_is_pagedresults(operation)) {
                     /* cleanup the slot */
                     pthread_mutex_lock(pagedresults_mutex);
+                    if (err != LDAP_NO_SUCH_OBJECT && !flag_no_such_object) {
+                        /* Free the results if not "no_such_object" */
+                        void *sr = NULL;
+                        slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+                        be->be_search_results_release(&sr);
+                    }
                     pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
                     rc = pagedresults_set_current_be(pb_conn, NULL, pr_idx, 1);
                     pthread_mutex_unlock(pagedresults_mutex);
                 }
-                if (1 == flag_no_such_object) {
-                    break;
-                }
-                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
-                if (err == LDAP_NO_SUCH_OBJECT) {
-                    /* may be the object exist somewhere else
-                     * wait the end of the loop to send back this error
-                     */
-                    flag_no_such_object = 1;
+
+                if (err == LDAP_NO_SUCH_OBJECT || flag_no_such_object) {
+                    /* Maybe the object exists somewhere else, wait to the end
+                     * of the loop to send back this error */
+                    flag_no_such_object = true;
                     break;
                 } else {
-                    /* for error other than LDAP_NO_SUCH_OBJECT
-                     * the error has already been sent
-                     * stop the search here
-                     */
+                    /* For error other than LDAP_NO_SUCH_OBJECT the error has
+                     * already been sent stop the search here */
                     cache_return_target_entry(pb, be, operation);
                     goto free_and_return;
                 }
 
             /* when rc == SLAPI_FAIL_DISKFULL this case is executed */
-
             case SLAPI_FAIL_DISKFULL:
                 operation_out_of_disk_space();
                 cache_return_target_entry(pb, be, operation);
