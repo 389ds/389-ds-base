@@ -246,6 +246,29 @@ def test_dbscan_destructive_actions(paths, request):
         assert diffs is None
 
 
+def test_dbscan_changelog_dump(paths, request):
+    """Test that dbscan remove/import actions
+
+    :id: b6cf7922-d4c7-11ef-a028-482ae39447e5
+    :setup: Stopped standalone instance
+    :steps:
+         1. Export chanmgelog instance with dbscan
+         2. Check that replace kweyword is present in the changelog
+    :expectedresults:
+         1. Success
+         2. Success
+    """
+
+    # Export changelog with dbscan
+    cldbi = paths.get_dbi('replication_changelog')
+    inst = paths.inst
+    dblib = paths.dblib
+    exportok = False
+    result = dbscan(['-D', dblib,  '-f', cldbi], inst=inst)
+    log.info(result.stdout)
+    assert 'replace: description' in result.stdout
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

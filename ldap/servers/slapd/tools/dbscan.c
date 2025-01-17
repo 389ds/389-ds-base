@@ -20,6 +20,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
@@ -414,10 +415,10 @@ print_attr(const char *attrname, char **buff)
    {<4 byte size><value1><4 byte size><value2>... ||
         <null terminated str1> <null terminated str2>...}
  */
-void _cl5ReadMod(char **buff);
+void _cl5ReadMod(char **buff, bool print_op);
 
 void
-_cl5ReadMods(char **buff)
+_cl5ReadMods(char **buff, bool print_op)
 {
     char *pos = *buff;
     ID i;
@@ -431,7 +432,10 @@ _cl5ReadMods(char **buff)
 
 
     for (i = 0; i < mod_count; i++) {
-        _cl5ReadMod(&pos);
+        if (print_op && i>0) {
+            db_printf("\t\t-\n");
+        }
+        _cl5ReadMod(&pos, print_op);
     }
 
     *buff = pos;
@@ -500,14 +504,15 @@ id_internal_to_stored(ID i, char *b)
 }
 
 void
-_cl5ReadMod(char **buff)
+_cl5ReadMod(char **buff, bool print_op)
 {
+    static const char *ops[] = { "add", "delete", "replace" };
     char *pos = *buff;
     uint32_t i;
     uint32_t val_count;
     char *type = NULL;
+    PRUint8 op = *pos++;
 
-    pos++;
     _cl5ReadString(&type, &pos);
 
     /* need to do the copy first, to skirt around alignment problems on
@@ -516,6 +521,10 @@ _cl5ReadMod(char **buff)
     val_count = ntohl(val_count);
     pos += sizeof(uint32_t);
 
+    op &= LDAP_MOD_OP;
+    if (print_op && op < PR_ARRAY_SIZE(ops)) {
+        db_printf("\t\t%s: %s\n", ops[op], type);
+    }
     for (i = 0; i < val_count; i++) {
         print_ber_attr(type, &pos);
     }
@@ -609,13 +618,13 @@ print_changelog(unsigned char *data, int len __attribute__((unused)))
         print_attr("dn", &pos);
         /* convert mods to entry */
         db_printf("\toperation: add\n");
-        _cl5ReadMods(&pos);
+        _cl5ReadMods(&pos, false);
         break;
 
     case SLAPI_OPERATION_MODIFY:
         print_attr("dn", &pos);
         db_printf("\toperation: modify\n");
-        _cl5ReadMods(&pos);
+        _cl5ReadMods(&pos, true);
         break;
 
     case SLAPI_OPERATION_MODRDN: {
@@ -624,7 +633,7 @@ print_changelog(unsigned char *data, int len __attribute__((unused)))
         print_attr("newrdn", &pos);
         db_printf("\tdeleteoldrdn: %d\n", (int)(*pos++));
         print_attr("newsuperior", &pos);
-        _cl5ReadMods(&pos);
+        _cl5ReadMods(&pos, false);
         break;
     }
     case SLAPI_OPERATION_DELETE:
