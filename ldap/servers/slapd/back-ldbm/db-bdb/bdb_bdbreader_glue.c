@@ -9,6 +9,8 @@
 #include "bdb_layer.h"
 #include <robdb.h>
 
+int db_close(DB *, u_int32_t);
+
 /*
  * This file contains the stub that transform usual bdb API (limited to the function 389-ds needs to export a db and a changelog
  * to  bdb_ro callbacks
@@ -121,9 +123,9 @@ void* bdbreader_realloc(void* pt, size_t size)
     return slapi_ch_realloc(pt, size);
 }
 
-static void bdbreader_free(void *pt)
+static void bdbreader_free(void **pt)
 {
-    slapi_ch_free(&pt);
+    slapi_ch_free(pt);
 }
 
 static void bdbreader_log(const char *msg, ...)
@@ -139,7 +141,10 @@ static void bdbreader_log(const char *msg, ...)
 
 int dbenv_open(DB_ENV *dbenv, const char *db_home, int flags, int mode)
 {
-    dbenv->db_home = slapi_ch_strdup(db_home);
+    if (dbenv->db_home == NULL) {
+        /* If not set by dbenv->set_dir_lg() */
+        dbenv->db_home = slapi_ch_strdup(db_home);
+    }
     /* Initialize libbdbreader callbacks */
     bdbreader_set_calloc_cb(bdbreader_calloc);
     bdbreader_set_malloc_cb(bdbreader_malloc);
@@ -178,6 +183,13 @@ char *db_strerror(int err)
     }
 }
 
+/* lg_dir is used to store the database directory */
+static void
+db_set_lg_dir(DB_ENV *penv, const char *lg_dir)
+{
+    penv->db_home = slapi_ch_strdup(lg_dir);
+}
+
 int db_env_create(DB_ENV **penv, u_int32_t flags)
 {
     DB_ENV *env = (void*)slapi_ch_calloc(1, sizeof *env);
@@ -198,7 +210,7 @@ int db_env_create(DB_ENV **penv, u_int32_t flags)
     env->set_errcall = (void*)nothing;
     env->set_errpfx = (void*)nothing;
     env->set_lg_bsize = (void*)nothing;
-    env->set_lg_dir = (void*)nothing;
+    env->set_lg_dir = db_set_lg_dir;
     env->set_lg_max = (void*)nothing;
     env->set_lg_regionmax = (void*)nothing;
     env->set_lk_max_lockers = (void*)nothing;
@@ -222,20 +234,37 @@ int db_env_create(DB_ENV **penv, u_int32_t flags)
 int db_open(DB *db, DB_TXN *txnid, const char *file,
             const char *database, DBTYPE type, u_int32_t flags, int mode)
 {
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_ro", "%s: db=%p txnid=%p file=%s database=%s "
+                  "type=0x%x flags=0x%x mode=0x%x\n", __FUNCTION__, db, 
+                   txnid, file, database, type, flags, mode);
     if (*file == '/') {
         db->fname = slapi_ch_strdup(file);
     } else {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_ro",
+                  "%s: db_home=%s\n", __FUNCTION__, db->env->db_home);
         db->fname = slapi_ch_smprintf("%s/%s", db->env->db_home, file);
     }
+    slapi_log_err(SLAPI_LOG_ERR, "bdb_ro", "%s: db->fname=%s\n", __FUNCTION__, db->fname);
     db->impl = bdbreader_bdb_open(db->fname);
     db->open_flags = OPEN_FLAGS_OPEN;
-    db_cursor(db, NULL, &db->cur, 0);
-    return (db->impl == NULL) ? DB_OSERROR : DB_SUCCESS;
+    if (db->impl) {
+        if (db_cursor(db, NULL, &db->cur, 0) != DB_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_ro",
+                          "%s: Failed to create cursor for %s database\n",
+                          __FUNCTION__, db->fname);
+            db_close(db, flags);
+            return DB_OSERROR;
+        }
+        return DB_SUCCESS;
+    }
+    slapi_log_err(SLAPI_LOG_ERR, "bdb_ro",
+                  "%s: Failed to open %s database\n", __FUNCTION__, db->fname);
+    return DB_OSERROR;
 }
 
 int db_close(DB *db, u_int32_t flags)
 {
-    bdbreader_bdb_close(db->impl);
+    bdbreader_bdb_close((struct bdb_db **)&db->impl);
     db->impl = NULL;
     db->open_flags = OPEN_FLAGS_CLOSED;
     dbc_close(db->cur);
@@ -246,10 +275,10 @@ int db_close(DB *db, u_int32_t flags)
 
 int dbc_close(DBC *dbc)
 {
-     bdbreader_cur_close(dbc->impl);
-     dbc->impl = NULL;
-     slapi_ch_free((void **)&dbc);
-     return DB_SUCCESS;
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_ro", "%s: dbc=%p dbc->impl=%p\n", __FUNCTION__, dbc, dbc->impl);
+    bdbreader_cur_close((struct bdb_cur **)&dbc->impl);
+    slapi_ch_free((void **)&dbc);
+    return DB_SUCCESS;
 }
 
 int dbc_del(DBC *dbc, u_int32_t flags)
@@ -327,7 +356,7 @@ int dbc_get(DBC *dbc, DBT *key, DBT *data, u_int32_t flags)
 
     switch (flags) {
         case DB_FIRST:
-            rc = bdbreader_cur_lookup(dbc->impl, NULL, 0);
+            rc = bdbreader_cur_lookup_ge(dbc->impl, NULL, 0);
             if (rc == DB_NOTFOUND) {
                 rc = bdbreader_cur_next(dbc->impl);
             }
@@ -441,6 +470,7 @@ int db_cursor(DB *db, DB_TXN *txnid, DBC **cursorp, u_int32_t flags)
     dbc->c_count = dbc_count;
     dbc->impl = bdbreader_cur_open(db->impl);
 
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_ro", "%s: dbc=%p dbc->impl=%p\n", __FUNCTION__, dbc, dbc->impl);
     return (db->impl == NULL) ? DB_OSERROR : DB_SUCCESS;
 }
 

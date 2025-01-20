@@ -13,6 +13,8 @@ from contextlib import suppress
 from lib389.topologies import topology_i2
 from lib389.config import Config
 from lib389.dseldif import DSEldif
+from lib389.cli_ctl.dblib import get_bdb_impl_status
+from lib389._constants import BDB_IMPL_STATUS
 
 pytestmark = pytest.mark.tier1
 
@@ -47,7 +49,6 @@ def test_config_compare(topology_i2):
 
     assert Config.compare(st1_config, st2_config)
 
-
 @pytest.fixture(scope="function", params=db_types_and_states)
 def set_db_type_and_state(topology_i2, request):
     """
@@ -72,6 +73,7 @@ def set_db_type_and_state(topology_i2, request):
     return (dbtype,state)
 
 
+@pytest.mark.skipif(get_bdb_impl_status() == BDB_IMPL_STATUS.READ_ONLY, reason="This test cannot run if bdb is read-only")
 def test_get_db_lib(request, topology_i2, set_db_type_and_state):
     """
     Check that get_db_lib() returns the configured database type.

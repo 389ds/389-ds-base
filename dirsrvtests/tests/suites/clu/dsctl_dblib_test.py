@@ -11,13 +11,14 @@ import pytest
 import ldap
 import os
 import time
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, BDB_IMPL_STATUS
 from lib389.backend import DatabaseConfig
 from lib389.cli_ctl.dblib import (FakeArgs, dblib_bdb2mdb, dblib_mdb2bdb, dblib_cleanup)
 from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager
 from lib389.topologies import topology_m2 as topo_m2, topology_st as topo_st
 from lib389.utils import check_plugin_strings
+from lib389.cli_ctl.dblib import get_bdb_impl_status
 
 
 log = logging.getLogger(__name__)
@@ -86,7 +87,7 @@ def _check_db(inst, log, impl):
         assert db_files != bdb_list
         assert db_files == mdb_list
 
-
+@pytest.mark.skipif(get_bdb_impl_status() == BDB_IMPL_STATUS.READ_ONLY, reason = 'Cannot read with read-only bdb')
 def test_dblib_migration(init_user):
     """
     Verify dsctl dblib xxxxxxx sub commands (migration between bdb and lmdb)
