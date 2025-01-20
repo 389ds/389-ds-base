@@ -141,7 +141,7 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
     o = mc.get(dn=dn)
-    o_str = o.__unicode__()
+    o_str = o.display()
     log.info(o_str)
 
 

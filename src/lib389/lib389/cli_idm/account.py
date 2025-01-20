@@ -12,10 +12,12 @@ import ldap
 import math
 from datetime import datetime
 from lib389.idm.account import Account, Accounts, AccountState
-from lib389.cli_base import (
-    _generic_get_dn,
+from lib389.cli_idm import (
     _generic_list,
     _generic_delete,
+    _generic_get_dn
+)
+from lib389.cli_base import (
     _generic_modify_dn,
     _get_arg,
     _get_dn_arg,
