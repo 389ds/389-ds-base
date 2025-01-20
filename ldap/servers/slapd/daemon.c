@@ -1620,8 +1620,8 @@ setup_pr_read_pds(Connection_Table *ct)
                 connection_table_move_connection_out_of_active_list(ct, c);
             } else if (c->c_prfd != NULL) {
                 if ((!c->c_gettingber) && (c->c_threadnumber < c->c_max_threads_per_conn)) {
-                    ct->fd[listnum][count].fd = c->c_prfd;
-                    ct->fd[listnum][count].in_flags = SLAPD_POLL_FLAGS;
+                    ct->fd[count].fd = c->c_prfd;
+                    ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
                     /* slot i of the connection table is mapped to slot
                      * count of the fds array */
                     c->c_fdi = count;
