@@ -105,7 +105,13 @@ jobs:
         sudo docker exec $CID sh -c "systemctl enable --now cockpit.socket"
         sudo docker exec $CID sh -c "mkdir -p /workspace/assets/cores && chmod 777 /workspace{,/assets{,/cores}}"
         sudo docker exec $CID sh -c "echo '/workspace/assets/cores/core.%e.%P' > /proc/sys/kernel/core_pattern"
-        sudo docker exec -e WEBUI=1 -e NSSLAPD_DB_LIB=bdb -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        if sudo docker exec $CID sh -c "test -f /usr/lib64/dirsrv/librobdb.so"
+        then
+            echo "Tests skipped because read-only Berkeley Database is installed." > pytest.html
+            echo "<?xml version="1.0" encoding="utf-8"?>'Tests skipped because read-only Berkeley Database is installed.'" > pytest.xml
+        else
+            sudo docker exec -e WEBUI=1 -e NSSLAPD_DB_LIB=bdb -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        fi
 
     - name: Make the results file readable by all
       if: always()

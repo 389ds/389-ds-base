@@ -103,8 +103,10 @@ enum {
     DB_VERB_DEADLOCK,
     DB_VERB_RECOVERY,
     DB_VERB_WAITSFOR,
-    DB_LOCK_YOUNGEST=9,
 };
+
+/* DB_LOCK_YOUNGEST mustt be a define because it is used in STRINGIFYDEFINE */
+#define DB_LOCK_YOUNGEST 9
 
 typedef struct db DB;
 typedef struct db_env DB_ENV;

@@ -22,6 +22,7 @@ from lib389.replica import Agreements, ReplicationManager, Replicas
 from lib389.nss_ssl import NssSsl
 from lib389._constants import *
 from lib389.cli_base import LogCapture
+from lib389.cli_ctl.dblib import get_bdb_impl_status
 
 TLS_HOSTNAME_CHECK = os.getenv('TLS_HOSTNAME_CHECK', default=True)
 HAPROXY_TRUSTED_IP = os.getenv('HAPROXY_TRUSTED_IP', default='')

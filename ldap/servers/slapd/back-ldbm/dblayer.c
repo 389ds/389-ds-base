@@ -164,8 +164,21 @@ dblayer_init(struct ldbminfo *li)
     return ret;
 }
 
-
-
+/* Check that export locking file is not set */
+static bool
+not_exporting(void)
+{
+    pid_t pid = getpid();
+    struct stat astat;
+    bool res = true;
+    char *export_lock = slapi_ch_smprintf("%s/exports/%d",  getFrontendConfig()->lockdir, pid);
+    if (stat(export_lock, &astat) == 0) {
+        res = false;
+    }
+    slapi_ch_free_string(&export_lock);
+    return res;
+}
+        
 /* Get the db implementation plugin path (either libback-ldbm.so or libback-bdb.so) */
 char *
 backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
@@ -177,11 +190,11 @@ backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
         /* mdb ==> lets use default (libback-ldbm.so) */
         return li->li_plugin->plg_libpath;
     }
-    if (PR_FindSymbolAndLibrary("bdbro_getcb_vector", &lib)) {
+    if (PR_FindSymbolAndLibrary("bdbreader_bdb_open", &lib)) {
         /* read-only bdb is used ==> should be using dbscan or ns-slapd db2ldif
          * bdb_init is within libback-ldbm.so ==> lets use default (libback-ldbm.so)
          */
-        if ((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) == 0) {
+        if (((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) == 0) && not_exporting()) {
             slapi_log_error(SLAPI_LOG_FATAL, "dblayer_setup",
                             "bdb implementation is no more supported."
                             " Directory server cannot be started without migrating to lmdb first."

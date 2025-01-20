@@ -1224,6 +1224,7 @@ if WITH_LIBBDB_RO
   # db-bdb sources are compiled within libback-ldbm.so and linked to librobdb
   DB_BDB_SRCS += @db_bdb_srcdir@/bdb_bdbreader_glue.c
   DB_BDB_WITHIN_BACKLDBM = $(DB_BDB_SRCS)
+  ROBDB_INC = -I$(srcdir)/lib/librobdb/lib
 else
 if BUNDLE_LIBDB
   # db-bdb sources are compiled within libback-bdb.so
@@ -1328,7 +1329,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	$(DB_BDB_WITHIN_BACKLDBM)
 
 
-libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)
+libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC) $(ROBDB_INC)
 libback_ldbm_la_DEPENDENCIES = libslapd.la
 libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
 libback_ldbm_la_LDFLAGS = -avoid-version

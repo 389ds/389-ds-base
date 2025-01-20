@@ -33,6 +33,13 @@ void mylog(const char *msg, ...)
     va_end(ap);
 }
 
+void myfree(void **data)
+{
+    if (*data) {
+        free(*data);
+        *data = NULL;
+    }
+}
 
 int main()
 {
@@ -52,7 +59,7 @@ int main()
     bdbreader_set_calloc_cb(calloc);
     bdbreader_set_malloc_cb(malloc);
     bdbreader_set_realloc_cb(realloc);
-    bdbreader_set_free_cb(free);
+    bdbreader_set_free_cb(myfree);
     bdbreader_set_log_cb(mylog);
 
     db = bdbreader_bdb_open("test.db");

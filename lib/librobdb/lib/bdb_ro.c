@@ -21,12 +21,12 @@
 static void* (*bdbreader_calloc_cb)(size_t, size_t);
 static void* (*bdbreader_malloc_cb)(size_t);
 static void* (*bdbreader_realloc_cb)(void*, size_t);
-static void (*bdbreader_free_cb)(void *);
+static void (*bdbreader_free_cb)(void **);
 static void (*bdbreader_log_cb)(const char*, ...);
 
 #define NEW(structname)	bdbreader_calloc_cb(1, sizeof (struct structname))
-#define DELETE(var)	bdbreader_free_cb((void*)var)
-#define free(var) bdbreader_free_cb((void*)var)
+#define DELETE(var)	free(var)
+#define free(var) bdbreader_free_cb((void**)&var)
 #define xmalloc(size) bdbreader_malloc_cb(size)
 #define xrealloc(ptr, size) bdbreader_realloc_cb((void*)(ptr),(size))
 
@@ -701,7 +701,7 @@ void bdbreader_set_realloc_cb(void* (*realloc_cb)(void*, size_t))
     bdbreader_realloc_cb = realloc_cb;
 }
 
-void bdbreader_set_free_cb(void (*free_cb)(void *))
+void bdbreader_set_free_cb(void (*free_cb)(void **))
 {
     bdbreader_free_cb = free_cb;
 }

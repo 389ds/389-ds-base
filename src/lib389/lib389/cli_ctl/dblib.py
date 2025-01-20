@@ -445,6 +445,9 @@ def dblib_bdb2mdb(inst, log, args):
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
         inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
+        if not os.path.isfile(be['ldifname']):
+            raise RuntimeError(f"Failed to export backend {bename} into {be['ldifname']}.")
+
         be['cl5'] = export_changelog(be, 'bdb')
         progress += be['dbsize']
     log.info("Backends exportation 100%")

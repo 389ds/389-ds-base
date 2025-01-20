@@ -18,7 +18,7 @@ void bdbreader_set_malloc_cb(void* (*malloc_cb)(size_t));
 void bdbreader_set_realloc_cb(void* (*realloc_cb)(void*, size_t));
 
 /* Set callback for the free function */
-void bdbreader_set_free_cb(void (*free_cb)(void *));
+void bdbreader_set_free_cb(void (*free_cb)(void **));
 
 /* Set callback for the log function */
 void bdbreader_set_log_cb(void (*log_cb)(const char*, ...));
