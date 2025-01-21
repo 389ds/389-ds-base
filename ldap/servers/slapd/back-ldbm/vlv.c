@@ -673,11 +673,11 @@ vlv_getindexnames(backend *be)
 /* Return the list of VLV indices to the import code. Added read lock */
 
 void
-vlv_getindices(IFP callback_fn, void *param, backend *be)
+vlv_getindices(int32_t (*callback_fn)(struct attrinfo * ,void *), void *param, backend *be)
 {
     /* Traverse the list, calling the import code's callback function */
     struct vlvSearch *ps = NULL;
-
+// MARK (*callback_fn)(struct attrinfo * ,void *)
     slapi_rwlock_rdlock(be->vlvSearchList_lock);
     ps = (struct vlvSearch *)be->vlvSearchList;
     for (; ps != NULL; ps = ps->vlv_next) {

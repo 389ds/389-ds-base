@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2005-2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -95,7 +95,7 @@ plugin_call_syntax_filter_ava_sv(
     int useDeletedValues)
 {
     int rc;
-    IFP ava_fn = NULL;
+    int32_t (*ava_fn)(Slapi_PBlock *, struct berval *, Slapi_Value **, int32_t, Slapi_Value **) = NULL;
 
     slapi_log_err(SLAPI_LOG_FILTER,
                   "plugin_call_syntax_filter_ava_sv", "=> %s=%s\n", ava->ava_type,
@@ -207,7 +207,7 @@ plugin_call_syntax_filter_sub_sv(
     struct subfilt *fsub)
 {
     int rc;
-    IFP sub_fn = NULL;
+    int32_t (*sub_fn)(Slapi_PBlock *, char *, char **, char*, Slapi_Value **) = NULL;
     int filter_normalized = 0;
 
     slapi_log_err(SLAPI_LOG_FILTER,
@@ -396,7 +396,7 @@ slapi_entry_syntax_check(
                 /* iterate through each value to check if it's valid */
                 while (val != NULL) {
                     bval = slapi_value_get_berval(val);
-                    if ((a->a_plugin->plg_syntax_validate(bval)) != 0) {
+                    if ((a->a_plugin->plg_syntax_validate((struct berval *)bval)) != 0) {
                         if (syntaxlogging) {
                             slapi_log_err(SLAPI_LOG_ERR, "slapi_entry_syntax_check",
                                           "\"%s\": (%s) value #%d invalid per syntax\n",
@@ -586,7 +586,7 @@ slapi_attr_values2keys_sv_pb(
 {
     int rc;
     struct slapdplugin *pi = NULL;
-    IFP v2k_fn = NULL;
+    int32_t (*v2k_fn)(Slapi_PBlock*, Slapi_Value**, Slapi_Value***, int32_t) = NULL;
 
     if ((sattr->a_plugin == NULL)) {
         /* could be lazy plugin initialization, get it now */
@@ -748,7 +748,7 @@ slapi_attr_assertion2keys_ava_sv(
 {
     int rc;
     struct slapdplugin *pi = NULL;
-    IFP a2k_fn = NULL;
+    int32_t (*a2k_fn)(Slapi_PBlock *, Slapi_Value *, Slapi_Value ***, int32_t) = NULL;
 
     slapi_log_err(SLAPI_LOG_FILTER,
                   "slapi_attr_assertion2keys_ava_sv", "=>\n");
@@ -880,7 +880,7 @@ slapi_attr_assertion2keys_sub_sv_pb(
     Slapi_PBlock *work_pb = NULL;
     struct slapdplugin *pi = NULL;
     struct slapdplugin *origpi = NULL;
-    IFP a2k_fn = NULL;
+    int32_t (*a2k_fn)(Slapi_PBlock *, char *, char **, char *, Slapi_Value ***) = NULL;
 
     slapi_log_err(SLAPI_LOG_FILTER,
                   "slapi_attr_assertion2keys_sub_sv_pb", "=>\n");
@@ -951,7 +951,7 @@ slapi_attr_value_normalize_ext(
     unsigned long filter_type)
 {
     Slapi_Attr myattr = {0};
-    VFPV norm_fn = NULL;
+    void (*norm_fn)(Slapi_PBlock *, char *, int32_t, char **) = NULL;
 
     if (!sattr) {
         sattr = slapi_attr_init(&myattr, type);

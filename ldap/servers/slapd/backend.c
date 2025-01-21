@@ -682,7 +682,7 @@ slapi_back_ctrl_info(Slapi_Backend *be, int cmd, void *info)
 int
 slapi_back_transaction_begin(Slapi_PBlock *pb)
 {
-    IFP txn_begin;
+    int32_t (*txn_begin)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_BEGIN_FN, (void *)&txn_begin) ||
         !txn_begin) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
@@ -695,7 +695,7 @@ slapi_back_transaction_begin(Slapi_PBlock *pb)
 int
 slapi_back_transaction_commit(Slapi_PBlock *pb)
 {
-    IFP txn_commit;
+    int32_t (*txn_commit)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_COMMIT_FN, (void *)&txn_commit) ||
         !txn_commit) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;
@@ -708,7 +708,7 @@ slapi_back_transaction_commit(Slapi_PBlock *pb)
 int
 slapi_back_transaction_abort(Slapi_PBlock *pb)
 {
-    IFP txn_abort;
+    int32_t (*txn_abort)(Slapi_PBlock *);
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ABORT_FN, (void *)&txn_abort) ||
         !txn_abort) {
         return SLAPI_BACK_TRANSACTION_NOT_SUPPORTED;

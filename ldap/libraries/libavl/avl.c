@@ -69,8 +69,8 @@ ravl_insert(
     Avlnode **iroot,
     caddr_t data,
     int *taller,
-    IFP fcmp, /* comparison function */
-    IFP fdup, /* function to call for duplicates */
+    int32_t (*fcmp)(caddr_t, caddr_t), /* comparison function */
+    int32_t (*fdup)(caddr_t, caddr_t), /* function to call for duplicates */
     int depth)
 {
     int rc, cmp, tallersub;
@@ -374,7 +374,7 @@ static caddr_t
 ravl_delete(
     Avlnode **root,
     caddr_t data,
-    IFP fcmp,
+    int32_t (*fcmp)(caddr_t, caddr_t),
     int *shorter)
 {
     int shortersubtree = 0;
@@ -472,7 +472,7 @@ avl_delete(Avlnode **root, void *data, IFP fcmp)
 }
 
 static int
-avl_inapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
+avl_inapply(Avlnode *root, int32_t(*fn)(caddr_t, caddr_t), caddr_t arg, int stopflag)
 {
     if (root == 0)
         return (AVL_NOMORE);
@@ -491,7 +491,7 @@ avl_inapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
 }
 
 static int
-avl_postapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
+avl_postapply(Avlnode *root, int32_t(*fn)(caddr_t, caddr_t), caddr_t arg, int stopflag)
 {
     if (root == 0)
         return (AVL_NOMORE);
@@ -508,7 +508,7 @@ avl_postapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
 }
 
 static int
-avl_preapply(Avlnode *root, IFP fn, caddr_t arg, int stopflag)
+avl_preapply(Avlnode *root, int32_t(*fn)(caddr_t, caddr_t), caddr_t arg, int stopflag)
 {
     if (root == 0)
         return (AVL_NOMORE);
@@ -572,9 +572,9 @@ int
 avl_prefixapply(
     Avlnode *root,
     caddr_t data,
-    IFP fmatch,
+    int32_t (*fmatch)(caddr_t, caddr_t),
     caddr_t marg,
-    IFP fcmp,
+    int32_t (*fcmp)(caddr_t, caddr_t, caddr_t),
     caddr_t carg,
     int stopflag)
 {
@@ -619,7 +619,7 @@ avl_prefixapply(
  */
 
 int
-avl_free(Avlnode *root, IFP dfree)
+avl_free(Avlnode *root, int32_t (*dfree)(caddr_t))
 {
     int nleft, nright;
 
@@ -649,7 +649,7 @@ avl_free(Avlnode *root, IFP dfree)
  */
 
 caddr_t
-avl_find(Avlnode *root, void *data, IFP fcmp)
+avl_find(Avlnode *root, void *data, int32_t (*fcmp)(caddr_t, caddr_t))
 {
     int cmp;
 
@@ -671,7 +671,7 @@ avl_find(Avlnode *root, void *data, IFP fcmp)
  */
 
 caddr_t
-avl_find_lin(Avlnode *root, caddr_t data, IFP fcmp)
+avl_find_lin(Avlnode *root, caddr_t data, int32_t (*fcmp)(caddr_t, caddr_t))
 {
     caddr_t res;
 

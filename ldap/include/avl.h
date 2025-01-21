@@ -66,12 +66,12 @@ typedef int (*IFP)(); /* takes undefined arguments */
 #define avl_onenode(x) (x == 0 || ((x)->avl_left == 0 && (x)->avl_right == 0))
 extern int avl_insert(Avlnode **root, void *data, IFP fcmp, IFP fdup);
 extern caddr_t avl_delete(Avlnode **root, void *data, IFP fcmp);
-extern caddr_t avl_find(Avlnode *root, void *data, IFP fcmp);
+extern caddr_t avl_find(Avlnode *root, void *data, int32_t (*fcmp)(caddr_t, caddr_t));
 extern caddr_t avl_getfirst(Avlnode *root);
 extern caddr_t avl_getnext(void);
 extern int avl_dup_error(void);
 extern int avl_apply(Avlnode *root, IFP fn, void *arg, int stopflag, int type);
-extern int avl_free(Avlnode *root, IFP dfree);
+extern int avl_free(Avlnode *root, int32_t (*dfree)(caddr_t));
 
 /* apply traversal types */
 #define AVL_PREORDER 1
@@ -80,6 +80,6 @@ extern int avl_free(Avlnode *root, IFP dfree);
 /* what apply returns if it ran out of nodes */
 #define AVL_NOMORE -6
 
-caddr_t avl_find_lin(Avlnode *root, caddr_t data, IFP fcmp);
+caddr_t avl_find_lin(Avlnode *root, caddr_t data, int32_t (*fcmp)(caddr_t, caddr_t));
 
 #endif /* _AVL */

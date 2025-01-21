@@ -68,7 +68,7 @@ attrinfo_delete(struct attrinfo **pp)
 }
 
 static int
-attrinfo_internal_delete(caddr_t data, caddr_t arg __attribute__((unused)))
+attrinfo_internal_delete(caddr_t data)
 {
     struct attrinfo *n = (struct attrinfo *)data;
     attrinfo_delete(&n);
@@ -85,8 +85,9 @@ attrinfo_deletetree(ldbm_instance *inst)
 static int
 ainfo_type_cmp(
     char *type,
-    struct attrinfo *a)
+    caddr_t val)
 {
+    struct attrinfo *a = (struct attrinfo *)val;
     return (strcasecmp(type, a->ai_type));
 }
 
@@ -203,7 +204,7 @@ attr_index_parse_idlistsize_values(Slapi_Attr *attr, struct index_idlistsizeinfo
     char *lasts = NULL;
     char *val;
     int syntaxcheck = config_get_syntaxcheck();
-    IFP syntax_validate_fn = syntaxcheck ? attr->a_plugin->plg_syntax_validate : NULL;
+    int32_t (*syntax_validate_fn)(struct berval *) = syntaxcheck ? attr->a_plugin->plg_syntax_validate : NULL;
     char staticfiltstrbuf[1024];                     /* for small filter strings */
     char *filtstrbuf = staticfiltstrbuf;             /* default if not malloc'd */
     size_t filtstrbuflen = sizeof(staticfiltstrbuf); /* default if not malloc'd */
@@ -880,7 +881,7 @@ attr_index_config(
                 *  It would improve speed to save the indexer, for future use.
                 * But, for simplicity, we destroy it now:
                 */
-                IFP mrDESTROY = NULL;
+                int32_t (*mrDESTROY)(Slapi_PBlock *) = NULL;
                 if (!slapi_pblock_get(pb, SLAPI_PLUGIN_DESTROY_FN, &mrDESTROY) &&
                     mrDESTROY != NULL) {
                     mrDESTROY(pb);
