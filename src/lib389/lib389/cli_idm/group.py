@@ -78,7 +78,7 @@ def members(inst, basedn, log, args):
 
 
 def add_member(inst, basedn, log, args):
-    cn = _get_arg( args.cn, msg="Enter %s of group to add member too" % RDN)
+    cn = _get_arg( args.cn, msg="Enter %s of group to add member to" % RDN)
     dn = _get_arg( args.dn, msg="Enter dn to add as member")
     groups = MANY(inst, basedn)
     group = groups.get(cn)
