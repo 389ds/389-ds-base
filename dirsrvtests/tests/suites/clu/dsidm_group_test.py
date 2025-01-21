@@ -12,7 +12,8 @@ import logging
 import os
 
 from lib389 import DEFAULT_SUFFIX
-from lib389.cli_idm.group import list, get, get_dn, create, delete, modify, rename
+from lib389.cli_idm.group import (list, get, get_dn, create, delete, modify, rename,
+                                  members, add_member, remove_member)
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.utils import ds_is_older, ensure_str
@@ -412,6 +413,59 @@ def test_dsidm_group_rename_keep_old_rdn(topology_st, create_test_group, add_des
 
     log.info('Clean up')
     new_group.delete()
+
+
+@pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
+def test_dsidm_group_members_add_remove(topology_st, create_test_group):
+    """ Test dsidm group members, add_member and remove_members options
+
+    :id: c0839a0a-5519-4762-927c-6cb2accff2fe
+    :setup: Standalone instance
+    :steps:
+        1. Show members of a group using dsidm group members
+        2. Add member to the group using dsidm group add_member
+        3. Verify the added member is associated with the group using dsidm group member
+        4. Remove the member from the group using dsidm group remove_member
+        5. Verify the member is no longer associated with the group using dsidm group member
+    :expectedresults:
+        1. Group has no members
+        2. Member is successfully added
+        3. Shows previously added member
+        4. Member is successfully removed
+        5. Group has no members
+    """
+
+    standalone = topology_st.standalone
+
+    member = 'uid=new_member'
+    output_no_member = 'No members to display'
+    output_with_member = 'dn: {}'.format(member)
+    output_add_member = 'added member: {}'.format(member)
+    output_remove_member = 'removed member: {}'.format(member)
+
+    args = FakeArgs()
+    args.cn = group_name
+
+    log.info('Test dsidm group members to show no associated members')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_no_member)
+
+    log.info('Test dsidm group add_member')
+    args.dn = member
+    add_member(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_add_member)
+
+    log.info('Verify the added member is associated with the group')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_with_member)
+
+    log.info('Test dsidm group remove_member')
+    remove_member(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_remove_member)
+
+    log.info('Verify the added member is no longer associated with the group')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_no_member)
 
 
 if __name__ == '__main__':
