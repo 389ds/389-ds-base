@@ -42,13 +42,14 @@ SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_DB_LIB: 'nsslapd-backend-implement',
                             }
 #
-# Those WITHOUT related attribute name
+# Properties that are not associated with an attribute in cn=config entry
 #
 SER_SERVERID_PROP = 'server-id'
 SER_GROUP_ID = 'group-id'
 SER_DEPLOYED_DIR = 'deployed-dir'
 SER_BACKUP_INST_DIR = 'inst-backupdir'
 SER_STRICT_HOSTNAME_CHECKING = 'strict_hostname_checking'
+SER_MDB_MAX_SIZE = 'mdb_max_size'
 
 ####################################
 #

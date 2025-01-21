@@ -537,6 +537,8 @@ class DirSrv(SimpleLDAPObject, object):
                    SER_DEPLOYED_DIR: directory where 389-ds is deployed
                    SER_BACKUP_INST_DIR: directory where instances will be
                                         backed up
+                   SER_DB_LIB: database implementation: bdb/mdb
+                   SER_MDB_MAX_SIZE: lmdb map initial maximum size
 
            @return None
 
@@ -566,6 +568,10 @@ class DirSrv(SimpleLDAPObject, object):
             self.host = args.get(SER_HOST, socket.gethostname())
             self.port = args.get(SER_PORT, DEFAULT_PORT)
         self.sslport = args.get(SER_SECURE_PORT)
+
+        self.dblib = args.get(SER_DB_LIB, get_default_db_lib())
+        if self.dblib == 'mdb':
+            self.initial_mdb_max_size = args.get(SER_MDB_MAX_SIZE, DEFAULT_LMDB_SIZE)
 
         self.inst_scripts = args.get(SER_INST_SCRIPTS_ENABLED, None)
 
@@ -812,6 +818,11 @@ class DirSrv(SimpleLDAPObject, object):
         # We disable TLS during setup, we use a function in tests to enable instead.
         slapd_options.set('self_sign_cert', False)
         slapd_options.set('defaults', version)
+        try:
+            if self.dblib == 'mdb':
+                slapd_options.set('mdb_max_size', self.initial_mdb_max_size)
+        except AttributeError:
+            pass
 
         slapd_options.verify()
         slapd = slapd_options.collect()

@@ -15,7 +15,7 @@ from signal import SIGALRM, alarm, signal
 from datetime import timedelta
 import pytest
 from lib389 import DirSrv
-from lib389.utils import generate_ds_params, is_fips
+from lib389.utils import generate_ds_params, is_fips, get_default_db_lib
 from lib389.mit_krb5 import MitKrb5
 from lib389.saslmap import SaslMappings
 from lib389.replica import Agreements, ReplicationManager, Replicas
@@ -80,6 +80,7 @@ def _create_instances(topo_dict, suffix):
     :return - TopologyMain object
     """
 
+    nbinsts = sum(topo_dict.values())
     instances = {}
     ms = {}
     cs = {}
@@ -103,6 +104,8 @@ def _create_instances(topo_dict, suffix):
             args_instance[SER_PORT] = instance_data[SER_PORT]
             args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
             args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
+            if nbinsts > 3 and get_default_db_lib() == "mdb":
+                args_instance[SER_MDB_MAX_SIZE] = '10g'
             # It's required to be able to make a suffix-less install for
             # some cli tests. It's invalid to require replication with
             # no suffix however ....
