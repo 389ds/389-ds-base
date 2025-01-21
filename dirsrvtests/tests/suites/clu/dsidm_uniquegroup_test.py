@@ -12,7 +12,8 @@ import logging
 import os
 
 from lib389 import DEFAULT_SUFFIX
-from lib389.cli_idm.uniquegroup import list, get, get_dn, create, delete, modify, rename
+from lib389.cli_idm.uniquegroup import (list, get, get_dn, create, delete, modify, rename,
+                                        members, add_member, remove_member)
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.utils import ds_is_older, ensure_str
@@ -412,6 +413,59 @@ def test_dsidm_uniquegroup_get_rename_keep_old_rdn(topology_st, create_test_uniq
 
     log.info('Clean up')
     new_uniquegroup.delete()
+
+
+@pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
+def test_dsidm_uniquegroup_members_add_remove(topology_st, create_test_uniquegroup):
+    """ Test dsidm uniquegroup members, add_member and remove_members options
+
+    :id: 4903f069-c7b7-4b80-844c-6fb4b320a5b4
+    :setup: Standalone instance
+    :steps:
+        1. Show members of a uniquegroup using dsidm uniquegroup members
+        2. Add member to the uniquegroup using dsidm uniquegroup add_member
+        3. Verify the added member is associated with the uniquegroup using dsidm uniquegroup member
+        4. Remove the member from the uniquegroup using dsidm uniquegroup remove_member
+        5. Verify the member is no longer associated with the uniquegroup using dsidm uniquegroup member
+    :expectedresults:
+        1. Uniquegroup has no members
+        2. Member is successfully added
+        3. Shows previously added member
+        4. Member is successfully removed
+        5. Uniquegroup has no members
+    """
+
+    standalone = topology_st.standalone
+
+    member = 'uid=new_member'
+    output_no_member = 'No members to display'
+    output_with_member = 'dn: {}'.format(member)
+    output_add_member = 'added member: {}'.format(member)
+    output_remove_member = 'removed member: {}'.format(member)
+
+    args = FakeArgs()
+    args.cn = uniquegroup_name
+
+    log.info('Test dsidm uniquegroup members to show no associated members')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_no_member)
+
+    log.info('Test dsidm uniquegroup add_member')
+    args.dn = member
+    add_member(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_add_member)
+
+    log.info('Verify the added member is associated with the uniquegroup')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_with_member)
+
+    log.info('Test dsidm uniquegroup remove_member')
+    remove_member(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_remove_member)
+
+    log.info('Verify the added member is no longer associated with the uniquegroup')
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=output_no_member)
 
 
 if __name__ == '__main__':

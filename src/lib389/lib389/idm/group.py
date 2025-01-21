@@ -128,6 +128,12 @@ class UniqueGroup(DSLdapObject):
             self._create_objectclasses.append('nsMemberOf')
         self._protected = False
 
+    def list_members(self):
+        """List the members of this group.
+
+        """
+        return self.get_attr_vals_utf8('uniquemember')
+
     def is_member(self, dn):
         # Check if dn is a member
         return self.present('uniquemember', dn)
