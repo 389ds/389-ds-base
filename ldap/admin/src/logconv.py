@@ -1,46 +1,30 @@
+#!/usr/bin/python3
+
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
-# 
-
-"""
-OPENS
-
-- datetime doesnt support nano seconds so we normalise all parsed timestamps to micro seconds, a 
-downside of this is that when we write stats to csv file we use the "normalised" timestamp.
-Original: 04/Jun/2024:10:39:11.833513398 +0200
-Modified: 2024-06-04 08:39:11.833513
-
-- In the reworked code, we separate the handling of the match group from the processing of the
-associated statistics. While this modular approach improves clarity and future proofs the tool,
-it comes with the downside of increased memory use, memory consumption has grown from 80MB to 129MB 
-when used on a 100MB access log. Need to look into this.
-"""
+#
 
 import os
-import psutil
-import magic
 import gzip
 import re
 import argparse
 import logging
 import sys
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import heapq
 from collections import Counter
 from collections import defaultdict
 from typing import Optional
-
-# Used for profiling, will be removed post code review
-import cProfile
+import magic
 
 # Globals
-latency_groups = {
+LATENCY_GROUPS = {
     "<= 1": 0,
     "== 2": 0,
     "== 3": 0,
@@ -50,14 +34,14 @@ latency_groups = {
     "> 15": 0
 }
 
-disconnect_errors = {
+DISCONNECT_ERRORS = {
     '32': 'broken_pipe',
     '11': 'resource_unavail',
     '131': 'connection_reset',
     '-5961': 'connection_reset'
 }
 
-ldap_error_codes = {
+LDAP_ERR_CODES = {
     '0': "Successful Operations",
     '1': "Operations Error(s)",
     '2': "Protocol Errors",
@@ -121,7 +105,7 @@ ldap_error_codes = {
     '97': "Referral Limit Exceeded"
 }
 
-disconnect_msg = {
+DISCONNECT_MSG = {
     "A1": "Client Aborted Connections",
     "B1": "Bad Ber Tag Encountered",
     "B4": "Server failed to flush data (response) back to Client",
@@ -136,7 +120,7 @@ disconnect_msg = {
     "U1": "Cleanly Closed Connections"
 }
 
-oid_messages = {
+OID_MSG = {
     "2.16.840.1.113730.3.5.1": "Transaction Request",
     "2.16.840.1.113730.3.5.2": "Transaction Response",
     "2.16.840.1.113730.3.5.3": "Start Replication Request (incremental update)",
@@ -167,11 +151,16 @@ oid_messages = {
     "2.16.840.1.113730.3.4.20": "MTN Control Use One Backend",
 }
 
-scope_dict = {
+SCOPE_LABEL = {
     0: "0 (base)",
     1: "1 (one)",
     2: "2 (subtree)"
 }
+
+STLS_OID = '1.3.6.1.4.1.1466.20037'
+
+# Version
+logAnalyzerVersion = "8.3"
 
 
 class logAnalyser:
@@ -180,57 +169,56 @@ class logAnalyser:
 
     Attributes:
         verbose (Optional[bool]): Enable verbose data gathering and reporting.
+        recommends (Optional[bool]): Provide some recommendations post analysis.
         size_limit (Optional[int]): Maximum size of entries to report.
         root_dn (Optional[str]): Directory Managers DN.
         exclude_ip (Optional[str]): IPs to exclude from analysis.
         stats_file_sec (Optional[str]): Interval (in seconds) for statistics reporting.
         stats_file_min (Optional[str]): Interval (in minutes) for statistics reporting.
+        report_dn (Optional[str]): Generate a report on DN activity.
     """
-    def __init__(self, verbose: Optional[bool] = False,
+    def __init__(self,
+                 verbose: Optional[bool] = False,
                  recommends: Optional[bool] = False,
-                 size_limit: Optional[int] = None, 
+                 size_limit: Optional[int] = None,
                  root_dn: Optional[str] = None,
                  exclude_ip: Optional[str] = None,
-                 stats_file_sec: Optional[str] = None, 
-                 stats_file_min: Optional[str] = None):
-        
-        self.version = 8.3
-        self.timeformat = "%d/%b/%Y:%H:%M:%S.%f"
+                 stats_file_sec: Optional[str] = None,
+                 stats_file_min: Optional[str] = None,
+                 report_dn: Optional[str] = None):
+
         self.verbose = verbose
         self.recommends = recommends
         self.size_limit = size_limit
         self.root_dn = root_dn
         self.exclude_ip = exclude_ip
         self.file_size = 0
-
         # Stats reporting
         self.prev_stats = None
-        self.stats_interval, self.stats_file = self._configure_stats(stats_file_sec, stats_file_min)
+        (self.stats_interval, self.stats_file) = self._get_stats_info(stats_file_sec, stats_file_min)
         self.csv_writer = self._init_csv_writer(self.stats_file) if self.stats_file else None
-
+        # Bind reporting
+        self.report_dn = report_dn
         # Init internal data structures
         self._init_data_structures()
-
         # Init regex patterns and corresponding actions
         self.regexes = self._init_regexes()
-
         # Init logger
         self.logger = self._setup_logger()
 
-
-    def _configure_stats(self, 
-                         report_stats_sec: str, 
-                         report_stats_min: str):
+    def _get_stats_info(self,
+                        report_stats_sec: str,
+                        report_stats_min: str):
         """
-        Configure reporting interval for statistics.
+        Get the configured interval for statistics.
 
         Args:
             report_stats_sec (str): Statistic reporting interval in seconds.
             report_stats_min (str): Statistic reporting interval in minutes.
 
         Returns:
-            A tuple where the first element indicates the multiplier for the interval 
-            (1 for seconds, 60 for minutes), and the second element is the file to 
+            A tuple where the first element indicates the multiplier for the interval
+            (1 for seconds, 60 for minutes), and the second element is the file to
             write statistics to. Returns (None, None) if no interval is provided.
         """
         if report_stats_sec:
@@ -239,7 +227,6 @@ class logAnalyser:
             return 60, report_stats_min
         else:
             return None, None
-    
 
     def _init_csv_writer(self, stats_file: str):
         """
@@ -260,15 +247,28 @@ class logAnalyser:
         except IOError as io_err:
             raise IOError(f"Failed to open file '{stats_file}' for writing: {io_err}")
 
+    def _setup_logger(self):
+        """
+        Setup logging
+        """
+        logger = logging.getLogger("logAnalyser")
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+
+        logger.setLevel(logging.WARNING)
+        logger.addHandler(handler)
+
+        return logger
 
     def _init_data_structures(self):
         """
         Set up data structures for parsing and storing log data.
         """
-        self.pending_conns = {}
-
         self.notesA = {}
         self.notesF = {}
+        self.notesM = {}
         self.notesP = {}
         self.notesU = {}
 
@@ -317,7 +317,6 @@ class logAnalyser:
             'ldapi_ctr': 0,
             'ldaps_ctr': 0,
             'start_time': {},
-            'end_time': {},
             'open_conns': {},
             'exclude_ip_map': {},
             'broken_pipe': {},
@@ -342,6 +341,7 @@ class logAnalyser:
             'sasl_mech_freq': {},
             'sasl_map_co': {},
             'root_dn': {},
+            'report_dn': defaultdict(lambda: defaultdict(int, conn=set(), ips=set()))
         }
 
         self.result = {
@@ -376,7 +376,7 @@ class logAnalyser:
             'nentries_num': [],
             'nentries_set': set(),
             'nentries_returned': [],
-            'error_freq': {},
+            'error_freq': defaultdict(str),
             'bad_pwd_map': {}
         }
 
@@ -403,13 +403,12 @@ class logAnalyser:
             'auth_info': {}
         }
 
-
     def _init_regexes(self):
         """
-        Initialises a dictionary of regex patterns and their associated processing methods.
+        Initialise a dictionary of regex patterns and their match processing methods.
 
         Returns:
-            dict: A mapping of regex pattern key to (compiled regex, handler function) value.
+            dict: A mapping of regex pattern key to (compiled regex, match handler function) value.
         """
 
         # Reusable patterns
@@ -419,168 +418,174 @@ class logAnalyser:
         CONN_ID_PATTERN = r'\sconn=(?P<conn_id>\d+)'
         CONN_ID_INTERNAL_PATTERN = r'\sconn=(?P<conn_id>\d+|Internal\(\d+\))'
         OP_ID_PATTERN = r'\sop=(?P<op_id>\d+)'
-        
-        return {
-        'RESULT_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_INTERNAL_PATTERN}                          # conn=int | conn=Internal(int)
-                        (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
-                        \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
-                        \sRESULT                                            # RESULT
-                        \serr=(?P<err>\d+)                                  # err=int
-                        \stag=(?P<tag>\d+)                                  # tag=int
-                        \snentries=(?P<nentries>\d+)                        # nentries=int
-                        \swtime=(?P<wtime>\d+\.\d+)                         # wtime=float
-                        \soptime=(?P<optime>\d+\.\d+)                       # optime=float
-                        \setime=(?P<etime>\d+\.\d+)                         # etime=float
-                        (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="strings"
-                        (?:,\s+(?P<sasl_msg>SASL\s+bind\s+in\s+progress))?  # Optional: SASL bind in progress
-                        (?:\s+notes=(?P<notes>[A-Z]))?                      # Optional: notes[A-Z]
-                        (?:\s+details=(?P<details>"[^"]*"|))?               # Optional: details="string"
-                        (?:\s+pr_idx=(?P<pr_idx>\d+))?                      # Optional: pr_idx=int
-                        (?:\s+pr_cookie=(?P<pr_cookie>-?\d+))?              # Optional: pr_cookie=int, -int
-                        ''', re.VERBOSE), self.process_result_match),
-        'SEARCH_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int | conn=Internal(int)            
-                        (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
-                        \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
-                        \sSRCH                                              # SRCH
-                        \sbase="(?P<search_base>[^"]*)"                     # base="", "string"
-                        \sscope=(?P<search_scope>\d+)                       # scope=int
-                        \sfilter="(?P<search_filter>[^"]+)"                 # filter="string"
-                        (?:\s+attrs=(?P<search_attrs>ALL|\"[^"]*\"))?       # Optional: attrs=ALL | attrs="strings"
-                        (\s+options=(?P<options>\S+))?                      # Optional: options=persistent
-                        (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
-                        ''', re.VERBOSE), self.process_search_match),
-        'BIND_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int 
-                        {OP_ID_PATTERN}                                     # op=int
-                        \sBIND                                              # BIND
-                        \sdn="(?P<bind_dn>.*?)"                             # Optional: dn=string
-                        (?:\smethod=(?P<bind_method>sasl|\d+))?             # Optional: method=int|sasl
-                        (?:\sversion=(?P<bind_version>\d+))?                # Optional: version=int
-                        (?:\smech=(?P<sasl_mech>[\w-]+))?                   # Optional: mech=string
-                        (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: authzid=string
-                        ''', re.VERBOSE), self.process_bind_match),
-        'UNBIND_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        (?:\sop=(?P<op_id>\d+))?                            # Optional: op=int
-                        \sUNBIND                                            # UNBIND
-                        ''', re.VERBOSE), self.process_unbind_match),
-        'CONNECT_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        \sfd=(?P<fd>\d+)                                    # fd=int 
-                        \sslot=(?P<slot>\d+)                                # slot=int
-                        \s(?P<ssl>SSL\s)?                                   # Optional: SSL
-                        connection\sfrom\s                                  # connection from
-                        (?P<src_ip>\S+)\sto\s                               # IP to
-                        (?P<dst_ip>\S+)                                     # IP
-                        ''', re.VERBOSE), self.process_connect_match),
-        'DISCONNECT_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        \s+op=(?P<op_id>-?\d+)                              # op=int
-                        \s+fd=(?P<fd>\d+)                                   # fd=int 
-                        \s*(?P<status>closed|Disconnect)                    # closed|Disconnect
-                        \s(?: [^ ]+)*                                       # 
-                        \s(?:\s*(?P<error_code>-?\d+))?                     # Optional: 
-                        \s*(?:.*-\s*(?P<disconnect_code>[A-Z]\d))?          # Optional: [A-Z]int
-                        ''', re.VERBOSE), self.process_disconnect_match),
-        'EXTEND_OP_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        {OP_ID_PATTERN}                                     # op=int
-                        \sEXT                                               # EXT
-                        \soid="(?P<oid>[^"]+)"                              # oid="string"
-                        \sname="(?P<name>[^"]+)"                            # namme="string"
-                        ''', re.VERBOSE), self.process_extend_op_match),
-        'AUTOBIND_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        \s+AUTOBIND                                         # AUTOBIND
-                        \sdn="(?P<bind_dn>.*?)"                             # Optional: dn="strings"
-                        ''', re.VERBOSE), self.process_autobind_match),
-        'AUTH_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        \s+(?P<auth_protocol>SSL|TLS)                       # Match SSL or TLS
-                        (?P<auth_version>\d(?:\.\d)?)?                      # Capture the version (X.Y)
-                        \s+                                                 # Match one or more spaces
-                        (?P<auth_message>.+)                                   # Capture an associated message
-                        ''', re.VERBOSE), self.process_auth_match),
-        'VLV_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        {OP_ID_PATTERN}                                     # op=int
-                        \sVLV\s                                             # VLV
-                        (?P<result_code>\d+):                               # Currently not used
-                        (?P<target_pos>\d+):                                # Currently not used
-                        (?P<context_id>[A-Z0-9]+)                           # Currently not used
-                        (?::(?P<list_size>\d+))?\s                          # Currently not used
-                        (?P<first_index>\d+):                               # Currently not used
-                        (?P<last_index>\d+)\s                               # Currently not used
-                        \((?P<list_count>\d+)\)                             # Currently not used
-                        ''', re.VERBOSE), self.process_vlv_match), 
-        'ABANDON_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        {OP_ID_PATTERN}                                     # op=int
-                        \sABANDON                                           # ABANDON
-                        \stargetop=(?P<targetop>[\w\s]+)                    # targetop=string
-                        \smsgid=(?P<msgid>\d+)                              # msgid=int
-                        ''', re.VERBOSE), self.process_abandon_match),
-        'SORT_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        {OP_ID_PATTERN}                                     # op=int
-                        \sSORT                                              # SORT
-                        \s+(?P<attribute>\w+)                               # Currently not used
-                        (?:\s+\((?P<status>\d+)\))?                         # Currently not used
-                        ''', re.VERBOSE), self.process_sort_match),
-        'CRUD_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_INTERNAL_PATTERN}                          # conn=int | conn=Internal(int)
-                        (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
-                        \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
-                        \s(?P<op_type>ADD|CMP|MOD|DEL|MODRDN)               # ADD|CMP|MOD|DEL|MODRDN
-                        \sdn="(?P<dn>[^"]*)"                                # dn="", dn="strings"
-                        (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
-                        ''', re.VERBOSE), self.process_crud_match),
 
-        'ENTRY_REFERRAL_REGEX': (re.compile(rf'''
-                        {TIMESTAMP_PATTERN}
-                        {CONN_ID_PATTERN}                                   # conn=int  
-                        {OP_ID_PATTERN}                                     # op=int
-                        \s(?P<op_type>ENTRY|REFERRAL)                       # ENTRY|REFERRAL
-                        (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="string"
-                        ''', re.VERBOSE), self.process_entry_referral_match)
+        return {
+            'RESULT_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_INTERNAL_PATTERN}                          # conn=int | conn=Internal(int)
+                (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
+                \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
+                \sRESULT                                            # RESULT
+                \serr=(?P<err>\d+)                                  # err=int
+                \stag=(?P<tag>\d+)                                  # tag=int
+                \snentries=(?P<nentries>\d+)                        # nentries=int
+                \swtime=(?P<wtime>\d+\.\d+)                         # wtime=float
+                \soptime=(?P<optime>\d+\.\d+)                       # optime=float
+                \setime=(?P<etime>\d+\.\d+)                         # etime=float
+                (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="strings"
+                (?:,\s+(?P<sasl_msg>SASL\s+bind\s+in\s+progress))?  # Optional: SASL bind in progress
+                (?:\s+notes=(?P<notes>[A-Z]))?                      # Optional: notes[A-Z]
+                (?:\s+details=(?P<details>"[^"]*"|))?               # Optional: details="string"
+                (?:\s+pr_idx=(?P<pr_idx>\d+))?                      # Optional: pr_idx=int
+                (?:\s+pr_cookie=(?P<pr_cookie>-?\d+))?              # Optional: pr_cookie=int, -int
+            ''', re.VERBOSE), self._process_result_stats),
+            'SEARCH_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int | conn=Internal(int)
+                (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
+                \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
+                \sSRCH                                              # SRCH
+                \sbase="(?P<search_base>[^"]*)"                     # base="", "string"
+                \sscope=(?P<search_scope>\d+)                       # scope=int
+                \sfilter="(?P<search_filter>[^"]+)"                 # filter="string"
+                (?:\s+attrs=(?P<search_attrs>ALL|\"[^"]*\"))?       # Optional: attrs=ALL | attrs="strings"
+                (\s+options=(?P<options>\S+))?                      # Optional: options=persistent
+                (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
+            ''', re.VERBOSE), self._process_search_stats),
+            'BIND_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                {OP_ID_PATTERN}                                     # op=int
+                \sBIND                                              # BIND
+                \sdn="(?P<bind_dn>.*?)"                             # Optional: dn=string
+                (?:\smethod=(?P<bind_method>sasl|\d+))?             # Optional: method=int|sasl
+                (?:\sversion=(?P<bind_version>\d+))?                # Optional: version=int
+                (?:\smech=(?P<sasl_mech>[\w-]+))?                   # Optional: mech=string
+                (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: authzid=string
+            ''', re.VERBOSE), self._process_bind_stats),
+            'UNBIND_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                (?:\sop=(?P<op_id>\d+))?                            # Optional: op=int
+                \sUNBIND                                            # UNBIND
+            ''', re.VERBOSE), self._process_unbind_stats),
+            'CONNECT_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                \sfd=(?P<fd>\d+)                                    # fd=int
+                \sslot=(?P<slot>\d+)                                # slot=int
+                \s(?P<ssl>SSL\s)?                                   # Optional: SSL
+                connection\sfrom\s                                  # connection from
+                (?P<src_ip>\S+)\sto\s                               # IP to
+                (?P<dst_ip>\S+)                                     # IP
+            ''', re.VERBOSE), self._process_connect_stats),
+            'DISCONNECT_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                \s+op=(?P<op_id>-?\d+)                              # op=int
+                \s+fd=(?P<fd>\d+)                                   # fd=int
+                \s*(?P<status>closed|Disconnect)                    # closed|Disconnect
+                \s(?: [^ ]+)*
+                \s(?:\s*(?P<error_code>-?\d+))?                     # Optional:
+                \s*(?:.*-\s*(?P<disconnect_code>[A-Z]\d))?          # Optional: [A-Z]int
+            ''', re.VERBOSE), self._process_disconnect_stats),
+            'EXTEND_OP_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                {OP_ID_PATTERN}                                     # op=int
+                \sEXT                                               # EXT
+                \soid="(?P<oid>[^"]+)"                              # oid="string"
+                \sname="(?P<name>[^"]+)"                            # namme="string"
+            ''', re.VERBOSE), self._process_extend_op_stats),
+            'AUTOBIND_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                \s+AUTOBIND                                         # AUTOBIND
+                \sdn="(?P<bind_dn>.*?)"                             # Optional: dn="strings"
+            ''', re.VERBOSE), self._process_autobind_stats),
+            'AUTH_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                \s+(?P<auth_protocol>SSL|TLS)                       # Match SSL or TLS
+                (?P<auth_version>\d(?:\.\d)?)?                      # Capture the version (X.Y)
+                \s+                                                 # Match one or more spaces
+                (?P<auth_message>.+)                                # Capture an associated message
+            ''', re.VERBOSE), self._process_auth_stats),
+            'VLV_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                {OP_ID_PATTERN}                                     # op=int
+                \sVLV\s                                             # VLV
+                (?P<result_code>\d+):                               # Currently not used
+                (?P<target_pos>\d+):                                # Currently not used
+                (?P<context_id>[A-Z0-9]+)                           # Currently not used
+                (?::(?P<list_size>\d+))?\s                          # Currently not used
+                (?P<first_index>\d+):                               # Currently not used
+                (?P<last_index>\d+)\s                               # Currently not used
+                \((?P<list_count>\d+)\)                             # Currently not used
+            ''', re.VERBOSE), self._process_vlv_stats),
+            'ABANDON_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                {OP_ID_PATTERN}                                     # op=int
+                \sABANDON                                           # ABANDON
+                \stargetop=(?P<targetop>[\w\s]+)                    # targetop=string
+                \smsgid=(?P<msgid>\d+)                              # msgid=int
+            ''', re.VERBOSE), self._process_abandon_stats),
+            'SORT_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                {OP_ID_PATTERN}                                     # op=int
+                \sSORT                                              # SORT
+                \s+(?P<attribute>\w+)                               # Currently not used
+                (?:\s+\((?P<status>\d+)\))?                         # Currently not used
+            ''', re.VERBOSE), self._process_sort_stats),
+            'CRUD_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_INTERNAL_PATTERN}                          # conn=int | conn=Internal(int)
+                (\s\((?P<internal>Internal)\))?                     # Optional: (Internal)
+                \sop=(?P<op_id>\d+)(?:\(\d+\)\(\d+\))?              # Optional: op=int, op=int(int)(int)
+                \s(?P<op_type>ADD|CMP|MOD|DEL|MODRDN)               # ADD|CMP|MOD|DEL|MODRDN
+                \sdn="(?P<dn>[^"]*)"                                # dn="", dn="strings"
+                (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
+            ''', re.VERBOSE), self._process_crud_stats),
+            'ENTRY_REFERRAL_REGEX': (re.compile(rf'''
+                {TIMESTAMP_PATTERN}
+                {CONN_ID_PATTERN}                                   # conn=int
+                {OP_ID_PATTERN}                                     # op=int
+                \s(?P<op_type>ENTRY|REFERRAL)                       # ENTRY|REFERRAL
+                (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="string"
+            ''', re.VERBOSE), self._process_entry_referral_stats)
         }
 
-
-    def _setup_logger(self):
+    def display_bind_report(self):
         """
-        Class logging
+        Display info on the tracked DNs.
         """
-        logger =  logging.getLogger("logAnalyser")
-        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
+        print("\nBind Report")
+        print("====================================================================\n")
+        for k, v in self.bind['report_dn'].items():
+            print(f"\nBind DN: {k}")
+            print("--------------------------------------------------------------------\n")
+            print("   Client Addresses:\n")
+            ips = self.bind['report_dn'][k].get('ips', set())
+            for i, ip in enumerate(ips, start=1):
+                print(f"        {i}:      {ip}")
+            print("\n   Operations Performed:\n")
+            print(f"        Binds:      {self.bind['report_dn'][k].get('bind', 0)}")
+            print(f"        Searches:   {self.bind['report_dn'][k].get('srch', 0)}")
+            print(f"        Modifies:   {self.bind['report_dn'][k].get('mod', 0)}")
+            print(f"        Adds:       {self.bind['report_dn'][k].get('add', 0)}")
+            print(f"        Deletes:    {self.bind['report_dn'][k].get('del', 0)}")
+            print(f"        Compares:   {self.bind['report_dn'][k].get('cmp', 0)}")
+            print(f"        ModRDNs:    {self.bind['report_dn'][k].get('modrdn', 0)}")
+            print(f"        Ext Ops:    {self.bind['report_dn'][k].get('ext', 0)}")
 
-        logger.setLevel(logging.WARNING)
-        logger.addHandler(handler)
+        print("Done.")
 
-        return logger
-        
-
-    def match_line(self, line: str, bytes_read: int):
+    def _match_line(self, line: str, bytes_read: int):
         """
-        Matches a log line against predefined regex patterns, processes the match,
-        and collect relevant stats.
+        Do some general maintance on the match and pass it to its match handler function.
 
         Args:
             line (str): A single line from the access log.
@@ -601,11 +606,9 @@ class logAnalyser:
                 if not timestamp:
                     self.logger.error(f"Timestamp missing in line: {line}")
                     return False
-                
-                # datetime library doesnt support nano seconds so we need to "normalise"
-                # the timestamp and write it back to groups dict for subsequent processing.
+
+                # datetime library doesnt support nano seconds so we need to "normalise"the timestamp
                 norm_timestamp = self._convert_timestamp_to_datetime(timestamp)
-                groups['timestamp'] = norm_timestamp
 
                 # Add server restart count to groups for connection tracking
                 groups['restart_ctr'] = self.server.get('restart_ctr', 0)
@@ -614,15 +617,20 @@ class logAnalyser:
                 parse_start = self.server.get('parse_start_time')
                 parse_stop = self.server.get('parse_stop_time')
                 if parse_start and parse_stop:
-                    if not parse_start <= norm_timestamp <= parse_stop:
-                        print(f"Timestamp outside of range: {line}. Timestamp: {timestamp}")
-                        return False
-                    
+                    if parse_start.microsecond or parse_stop.microsecond:
+                        if not parse_start <= norm_timestamp <= parse_stop:
+                            self.logger.error(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
+                            return False
+                    else:
+                        norm_timestamp = norm_timestamp.replace(microsecond=0)
+                        if not parse_start <= norm_timestamp <= parse_stop:
+                            self.logger.error(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
+                            return False
+
                 # Get the first and last timestamps
-                self.server['first_time'] = (
-                    self.server['first_time'] or norm_timestamp
-                )
-                self.server['last_time'] = norm_timestamp
+                if self.server['first_time'] is None:
+                    self.server['first_time'] = timestamp
+                self.server['last_time'] = timestamp
 
                 # Bump lines parsed
                 self.server['lines_parsed'] = self.server.get('lines_parsed', 0) + 1
@@ -632,50 +640,14 @@ class logAnalyser:
 
                 # Should we gather stats for this match
                 if self.stats_interval and self.stats_file:
-                    self.process_and_write_stats(norm_timestamp, bytes_read)
+                    self._process_and_write_stats(norm_timestamp, bytes_read)
                 return True
-            
+
             except IndexError as exc:
                 self.logger.error(f"Error processing log line: {line}. Exception: {exc}")
                 return False
-            
 
-    def process_result_match(self, groups: dict):
-        """
-        Processes a result match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
-
-        # Process stats for this match
-        self.process_result_stats(groups)
-
-
-    def process_result_stats(self, groups: dict):
+    def _process_result_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -698,7 +670,7 @@ class logAnalyser:
                 - 'internal': Server internal operation.
 
         Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.   
+            KeyError: If required keys are missing in the `groups` dictionary.
         """
         try:
             timestamp = groups.get('timestamp')
@@ -724,10 +696,10 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Bump global result count
         self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
-        
+
         # Bump global result count
         self.result['timestamp_ctr'] = self.result.get('timestamp_ctr', 0) + 1
 
@@ -778,8 +750,8 @@ class logAnalyser:
 
             # Construct the notes dict
             note_dict = getattr(self, f'notes{notes}')
-            
-            # Exclude VLV 
+
+            # Exclude VLV
             if restart_conn_op_key not in self.vlv['vlv_map_rco']:
                 if restart_conn_op_key in note_dict:
                     note_dict[restart_conn_op_key]['time'] = timestamp
@@ -823,20 +795,23 @@ class logAnalyser:
 
         # Process bind response based on the tag and error code.
         if tag == '97':
-            if err == '49': # Invalid credentials|Entry does not exist
-                if self.verbose:
-                    bad_pwd_dn = self.bind['dn_map_rc'].get(restart_conn_key, None)
-                    bad_pwd_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key, None)
-                    self.result['bad_pwd_map'][(bad_pwd_dn, bad_pwd_ip)] = (
-                        self.result['bad_pwd_map'].get((bad_pwd_dn, bad_pwd_ip), 0) + 1
-                    )
-                    # Trim items to size_limit
-                    if len(self.result['bad_pwd_map']) > self.size_limit:
-                        within_size_limit = dict(sorted(self.result['bad_pwd_map'].items(),
-                                            key=lambda item: item[1],
-                                            reverse=True
-                                            )[:self.size_limit])
-                        self.result['bad_pwd_map'] = within_size_limit
+            # Invalid credentials|Entry does not exist
+            if err == '49':
+                # if self.verbose:
+                bad_pwd_dn = self.bind['dn_map_rc'].get(restart_conn_key, None)
+                bad_pwd_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key, None)
+                self.result['bad_pwd_map'][(bad_pwd_dn, bad_pwd_ip)] = (
+                    self.result['bad_pwd_map'].get((bad_pwd_dn, bad_pwd_ip), 0) + 1
+                )
+                # Trim items to size_limit
+                if len(self.result['bad_pwd_map']) > self.size_limit:
+                    within_size_limit = dict(
+                        sorted(
+                            self.result['bad_pwd_map'].items(),
+                            key=lambda item: item[1],
+                            reverse=True
+                        )[:self.size_limit])
+                    self.result['bad_pwd_map'] = within_size_limit
 
             # Ths result is involved in the SASL bind process, decrement bind count, etc
             elif err == '14':
@@ -856,17 +831,11 @@ class logAnalyser:
                     if result_dn != "":
                         # If this is a result of a sasl bind, grab the dn
                         if conn_op_key in self.bind['sasl_map_co']:
-                            if result_dn == self.root_dn:
-                                self.bind['rootdn_bind_ctr'] = (
-                                self.bind.get('rootdn_bind_ctr', 0) + 1
-                            )
-                            if self.verbose:
-                                result_dn = result_dn.lower()
-                                if result_dn is not None:
-                                    self.bind['dn_map_rc'][restart_conn_key] = result_dn
-                                    self.bind['dn_freq'][result_dn] = (
-                                        self.bind['dn_freq'].get(result_dn, 0) + 1
-                                    )
+                            if result_dn is not None:
+                                self.bind['dn_map_rc'][restart_conn_key] = result_dn.lower()
+                                self.bind['dn_freq'][result_dn] = (
+                                    self.bind['dn_freq'].get(result_dn, 0) + 1
+                                )
         # Handle other tag values
         elif tag in ['100', '101', '111', '115']:
 
@@ -880,43 +849,7 @@ class logAnalyser:
                 removed = heapq.heappop(self.result['nentries_num'])
                 self.result['nentries_set'].remove(removed)
 
-
-    def process_search_match(self, groups: dict):
-        """
-        Processes a search match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}    
-
-        # Process stats for this match
-        self.process_search_stats(groups)
-
-
-    def process_search_stats(self, groups: dict):
+    def _process_search_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -931,7 +864,7 @@ class logAnalyser:
                 - 'search_filter':  Search filter.
 
         Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.   
+            KeyError: If required keys are missing in the `groups` dictionary.
         """
         try:
             conn_id = groups.get('conn_id')
@@ -944,7 +877,7 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-                    
+
         # Create a tracking keys for this entry
         restart_conn_op_key = (restart_ctr, conn_id, op_id)
         restart_conn_key = (restart_ctr, conn_id)
@@ -952,7 +885,7 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Bump search and global op count
         self.search['search_ctr'] = self.search.get('search_ctr', 0) + 1
         self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
@@ -965,6 +898,14 @@ class logAnalyser:
                 for attr in search_attrs.split():
                     attr = attr.strip('"')
                     self.search['attr_dict'][attr] += 1
+
+        # If the associated conn id for the bind DN matches update op counter
+        for dn in self.bind['report_dn']:
+            conns = self.bind['report_dn'][dn]['conn']
+            if conn_id in conns:
+                bind_dn_key = self._report_dn_key(dn, self.report_dn)
+                if bind_dn_key:
+                    self.bind['report_dn'][bind_dn_key]['srch'] = self.bind['report_dn'][bind_dn_key].get('srch', 0) + 1
 
         # Search base
         if search_base is not None:
@@ -982,7 +923,7 @@ class logAnalyser:
         # Search scope
         if search_scope is not None:
             if self.verbose:
-                self.search['scope_map_rco'][restart_conn_op_key] = scope_dict[int(search_scope)]
+                self.search['scope_map_rco'][restart_conn_op_key] = SCOPE_LABEL[int(search_scope)]
 
         # Search filter
         if search_filter is not None:
@@ -997,7 +938,7 @@ class logAnalyser:
                         self.search['filter_list'][idx] = (self.search['filter_dict'][search_filter] + 1, search_filter)
                         heapq.heapify(self.search['filter_list'])
                         break
-                
+
                 if not found:
                     if len(self.search['filter_list']) < self.size_limit:
                         heapq.heappush(self.search['filter_list'], (1, search_filter))
@@ -1005,7 +946,7 @@ class logAnalyser:
                         heapq.heappushpop(self.search['filter_list'], (self.search['filter_dict'][search_filter], search_filter))
 
         # Check for an entire base search
-        if "objectclass=*" in search_filter or "objectclass=top" in search_filter:
+        if "objectclass=*" in search_filter.lower() or "objectclass=top" in search_filter.lower():
             if search_scope == '2':
                 self.search['base_search_ctr'] = self.search.get('base_search_ctr', 0) + 1
 
@@ -1017,46 +958,9 @@ class logAnalyser:
 
         # Authorization identity
         if groups['authzid_dn'] is not None:
-            #authzid = groups['authzid_dn']
             self.search['authzid'] = self.search.get('authzid', 0) + 1
 
-
-    def process_bind_match(self, groups: dict):
-        """
-        Processes a bind match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}      
-
-        # Process stats for this match
-        self.process_bind_stats(groups)
-
-
-    def process_bind_stats(self, groups: dict):
+    def _process_bind_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1070,7 +974,7 @@ class logAnalyser:
                 - 'bind_version': Bind version.
 
         Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.   
+            KeyError: If required keys are missing in the `groups` dictionary.
         """
         try:
             conn_id = groups.get('conn_id')
@@ -1082,7 +986,11 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-        
+
+        # If this is the first connection (indicating a server restart), increment restart counter
+        if conn_id == '1':
+            self.server['restart_ctr'] = self.server.get('restart_ctr', 0) + 1
+
         # Create a tracking keys for this entry
         restart_conn_key = (restart_ctr, conn_id)
         conn_op_key = (conn_id, op_id)
@@ -1090,19 +998,27 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Bump bind and global op count
         self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
         self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
 
         # Update bind version count
         self.bind['version'][bind_version] = self.bind['version'].get(bind_version, 0) + 1
+        if bind_dn == "":
+            bind_dn = 'Anonymous'
 
-        # If this is the first connection (indicating a server restart), increment restart counter
-        if conn_id == '1':
-            self.server['restart_ctr']  = self.server.get('restart_ctr', 0) + 1
-            if self.verbose:
-                self.connection['open_conns'] = {}
+        # If we need to report on this DN, capture some info for tracking
+        bind_dn_key = self._report_dn_key(bind_dn, self.report_dn)
+        if bind_dn_key:
+            # Update bind count
+            self.bind['report_dn'][bind_dn_key]['bind'] = self.bind['report_dn'][bind_dn_key].get('bind', 0) + 1
+            # Connection ID
+            self.bind['report_dn'][bind_dn_key]['conn'].add(conn_id)
+            # Loop over IPs captured at connection time to find the associated IP
+            for (ip, ip_info) in self.connection['ip_map'].items():
+                if restart_conn_key in ip_info['keys']:
+                    self.bind['report_dn'][bind_dn_key]['ips'].add(ip)
 
         # sasl or simple bind
         if bind_method == 'sasl':
@@ -1111,68 +1027,31 @@ class logAnalyser:
             if sasl_mech is not None:
                 # Bump sasl mechanism count
                 self.bind['sasl_mech_freq'][sasl_mech] = self.bind['sasl_mech_freq'].get(sasl_mech, 0) + 1
-                
+
                 # Keep track of bind key to handle sasl result later
                 self.bind['sasl_map_co'][conn_op_key] = sasl_mech
 
-            if bind_dn == "":
-                if bind_dn == self.root_dn:
+            if bind_dn != "Anonymous":
+                if bind_dn.casefold() == self.root_dn.casefold():
                     self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
-            else:
-                if self.verbose:
-                        bind_dn = bind_dn.lower()
-                        self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
-                        self.bind['dn_map_rc'][restart_conn_key] = bind_dn
+
+                # if self.verbose:
+                self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
+                self.bind['dn_map_rc'][restart_conn_key] = bind_dn.lower()
         else:
-            if bind_dn == "":
+            if bind_dn == "Anonymous":
                 self.bind['anon_bind_ctr'] = self.bind.get('anon_bind_ctr', 0) + 1
                 self.bind['dn_freq']['Anonymous'] = self.bind['dn_freq'].get('Anonymous', 0) + 1
-                self.bind['dn_map_rc'][restart_conn_key] = ""
+                self.bind['dn_map_rc'][restart_conn_key] = "anonymous"
             else:
-                if bind_dn == self.root_dn:
+                if bind_dn.casefold() == self.root_dn.casefold():
                     self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
-                if self.verbose:
-                    bind_dn = bind_dn.lower()
-                    self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
-                    self.bind['dn_map_rc'][restart_conn_key] = bind_dn
 
+                # if self.verbose:
+                self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
+                self.bind['dn_map_rc'][restart_conn_key] = bind_dn.lower()
 
-    def process_unbind_match(self, groups: dict):
-        """
-        Processes an unbind match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}   
-
-        # Process stats for this match
-        self.process_unbind_stats(groups)
-
-
-    def process_unbind_stats(self, groups: dict):
+    def _process_unbind_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1180,7 +1059,7 @@ class logAnalyser:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
                 - 'restart_ctr': Server restart count.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1190,47 +1069,18 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-        
+
         # Create a tracking key for this entry
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Bump unbind count
         self.bind['unbind_ctr'] = self.bind.get('unbind_ctr', 0) + 1
 
-
-    def process_connect_match(self, groups: dict):
-        """
-        Processes a connect match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        self.pending_conns[conn_key] = {'ops': {}}
-
-        # Process stats for this match
-        self.process_connect_stats(groups)
-
-
-    def process_connect_stats(self, groups: dict):
+    def _process_connect_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1238,7 +1088,7 @@ class logAnalyser:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
                 - 'restart_ctr': Server restart count.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1252,7 +1102,7 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-        
+
         # Create a tracking key for this entry
         restart_conn_key = (restart_ctr, conn_id)
 
@@ -1265,8 +1115,8 @@ class logAnalyser:
             # Update open connection count
             self.connection['open_conns'][src_ip] = self.connection['open_conns'].get(src_ip, 0) + 1
 
-            # Grab the start time for latency report
-            self.connection['start_time'][conn_id] = timestamp
+            # Track the connection start normalised datetime object for latency report
+            self.connection['start_time'][conn_id] = groups.get('timestamp')
 
         # Update general connection counters
         for key in ['conn_ctr', 'sim_conn_ctr']:
@@ -1274,7 +1124,7 @@ class logAnalyser:
 
         # Update the maximum number of simultaneous connections seen
         self.connection['max_sim_conn_ctr'] = max(
-            self.connection.get('max_sim_conn_ctr', 0), 
+            self.connection.get('max_sim_conn_ctr', 0),
             self.connection['sim_conn_ctr']
         )
 
@@ -1282,15 +1132,15 @@ class logAnalyser:
         src_ip_tmp = 'local' if src_ip == 'local' else 'ldap'
         if ssl:
             stat_count_key = 'ldaps_ctr'
-        else: 
+        else:
             stat_count_key = 'ldapi_ctr' if src_ip_tmp == 'local' else 'ldap_ctr'
         self.connection[stat_count_key] = self.connection.get(stat_count_key, 0) + 1
-    
+
         # Track file descriptor counters
-        self.connection['fd_max_ctr']  = (
+        self.connection['fd_max_ctr'] = (
             max(self.connection.get('fd_max_ctr', 0), int(fd))
         )
-        self.connection['fd_taken_ctr']  = (
+        self.connection['fd_taken_ctr'] = (
             self.connection.get('fd_taken_ctr', 0) + 1
         )
 
@@ -1298,39 +1148,18 @@ class logAnalyser:
         self.connection['restart_conn_ip_map'][restart_conn_key] = src_ip
 
         # Update the count of connections seen from this IP
-        self.connection['ip_map'][src_ip] = self.connection['ip_map'].get(src_ip, 0) + 1
+        if src_ip not in self.connection['ip_map']:
+            self.connection['ip_map'][src_ip] = {}
 
+        self.connection['ip_map'][src_ip]['count'] = self.connection['ip_map'][src_ip].get('count', 0) + 1
 
-    def process_auth_match(self, groups: dict):
-        """
-        Processes an auth match and associate it with the corresponding connection.
+        if 'keys' not in self.connection['ip_map'][src_ip]:
+            self.connection['ip_map'][src_ip]['keys'] = set()
 
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
+        self.connection['ip_map'][src_ip]['keys'].add(restart_conn_key)
+        # self.connection['ip_map']['ip_key'] = restart_conn_key
 
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        # With an auth match we do nothing, i think
-        self.pending_conns[conn_key] = {'ops': {}}  
-
-        # Process stats for this match
-        self.process_auth_stats(groups)
-
-        
-    def process_auth_stats(self, groups: dict):
+    def _process_auth_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1341,7 +1170,7 @@ class logAnalyser:
                 - 'auth_protocol': Auth protocol (SSL, TLS).
                 - 'auth_version': Auth version.
                 - 'auth_message': Optional auth message.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1354,19 +1183,19 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-        
+
         # Create a tracking key for this entry
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         if auth_protocol:
             if restart_conn_key not in self.auth['auth_info']:
                 self.auth['auth_info'][restart_conn_key] = {
-                    'proto': auth_protocol, 
-                    'version': auth_version, 
+                    'proto': auth_protocol,
+                    'version': auth_version,
                     'count': 0,
                     'message': []
                     }
@@ -1378,52 +1207,16 @@ class logAnalyser:
             # Bump auth related counters
             self.auth['cipher_ctr'] = self.auth.get('cipher_ctr', 0) + 1
             self.auth['auth_info'][restart_conn_key]['count'] = (
-                self.auth['auth_info'][restart_conn_key].get('count', 0) + 1        
+                self.auth['auth_info'][restart_conn_key].get('count', 0) + 1
             )
 
         if auth_message:
             if auth_message == 'client bound as':
-                self.auth['ssl_client_bind_ctr'] = self.auth.get('ssl_client_bind_ctr', 0) + 1 
+                self.auth['ssl_client_bind_ctr'] = self.auth.get('ssl_client_bind_ctr', 0) + 1
             elif auth_message == 'failed to map client certificate to LDAP DN':
-                self.auth['ssl_client_bind_failed_ctr'] = self.auth.get('ssl_client_bind_failed_ctr', 0) + 1 
+                self.auth['ssl_client_bind_failed_ctr'] = self.auth.get('ssl_client_bind_failed_ctr', 0) + 1
 
-
-    def process_vlv_match(self, groups: dict):
-        """
-        Processes a vlv match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}} 
-
-        # Process stats for this match
-        self.process_vlv_stats(groups)
-
-
-    def process_vlv_stats(self, groups: dict):
+    def _process_vlv_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1432,7 +1225,7 @@ class logAnalyser:
                 - 'conn_id': Connection identifier.
                 - 'op_id': Operation identifier.
                 - 'restart_ctr': Server restart count.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1443,7 +1236,7 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-            
+
         # Create tracking keys
         restart_conn_op_key = (restart_ctr, conn_id, op_id)
         restart_conn_key = (restart_ctr, conn_id)
@@ -1451,7 +1244,7 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Bump vlv and global op stats
         self.vlv['vlv_ctr'] = self.vlv.get('vlv_ctr', 0) + 1
         self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
@@ -1459,43 +1252,7 @@ class logAnalyser:
         # Key and value are the same, makes set operations easier later on
         self.vlv['vlv_map_rco'][restart_conn_op_key] = restart_conn_op_key
 
-
-    def process_abandon_match(self, groups: dict):
-        """
-        Processes an abandon match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}   
-
-        # Process stats for this match
-        self.process_abandon_stats(groups)
-
-
-    def process_abandon_stats(self, groups: dict):
+    def _process_abandon_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1506,7 +1263,7 @@ class logAnalyser:
                 - 'restart_ctr': Server restart count.
                 - 'targetop': The target operation.
                 - 'msgid': Message ID.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1519,7 +1276,7 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-    
+
         # Create a tracking keys
         restart_conn_op_key = (restart_ctr, conn_id, op_id)
         restart_conn_key = (restart_ctr, conn_id)
@@ -1527,7 +1284,7 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Bump some stats
         self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
         self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
@@ -1536,43 +1293,7 @@ class logAnalyser:
         # Track abandoned operation for later processing
         self.operation['abandoned_map_rco'][restart_conn_op_key] = (conn_id, op_id, targetop, msgid)
 
-
-    def process_sort_match(self, groups: dict):
-        """
-        Processes a sort match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-        
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
-
-        # Process stats for this match
-        self.process_sort_stats(groups)
-
-
-    def process_sort_stats(self, groups: dict):
+    def _process_sort_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1580,7 +1301,7 @@ class logAnalyser:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
                 - 'restart_ctr': Server restart count.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1590,53 +1311,17 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-    
+
         # Create a tracking key for this entry
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         self.operation['sort_op_ctr'] = self.operation.get('sort_op_ctr', 0) + 1
 
-
-    def process_extend_op_match(self, groups: dict):
-        """
-        Processes an extended operation match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-        
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
-
-        # Process stats for this match
-        self.process_extend_op_stats(groups)
-
-
-    def process_extend_op_stats(self, groups: dict):
+    def _process_extend_op_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1646,7 +1331,7 @@ class logAnalyser:
                 - 'op_id': Operation identifier.
                 - 'restart_ctr': Server restart count.
                 - 'oid': Extended operation identifier.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1666,7 +1351,7 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Increment global operation counters
         self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
         self.operation['extnd_op_ctr'] = self.operation.get('extnd_op_ctr', 0) + 1
@@ -1674,41 +1359,19 @@ class logAnalyser:
         # Track extended operation data if an OID is present
         if oid is not None:
             self.operation['extop_dict'][oid] = self.operation['extop_dict'].get(oid, 0) + 1
-            self.operation['extop_map_rco'][restart_conn_op_key] = ( 
+            self.operation['extop_map_rco'][restart_conn_op_key] = (
                 self.operation['extop_map_rco'].get(restart_conn_op_key, 0) + 1
             )
 
+        # If the conn_id is associated with this DN, update op counter
+        for dn in self.bind['report_dn']:
+            conns = self.bind['report_dn'][dn]['conn']
+            if conn_id in conns:
+                bind_dn_key = self._report_dn_key(dn, self.report_dn)
+                if bind_dn_key:
+                    self.bind['report_dn'][bind_dn_key]['ext'] = self.bind['report_dn'][bind_dn_key].get('ext', 0) + 1
 
-    def process_autobind_match(self, groups: dict):
-        """
-        Processes an autobind match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        # Create a new entry with an empty ops dict
-        self.pending_conns[conn_key] = {'ops': {}}     
-
-        # Process stats for this match
-        self.process_autobind_stats(groups)
-
-
-    def process_autobind_stats(self, groups: dict):
+    def _process_autobind_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1717,7 +1380,7 @@ class logAnalyser:
                 - 'conn_id': Connection identifier.
                 - 'restart_ctr': Server restart count.
                 - 'bind_dn': Bind DN ("cn=Directory Manager")
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1735,7 +1398,7 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Bump relevant counters
         self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
         self.bind['autobind_ctr'] = self.bind.get('autobind_ctr', 0) + 1
@@ -1748,42 +1411,12 @@ class logAnalyser:
             # Process non-anonymous binds, does the bind_dn if exist in dn_map_rc
             bind_dn = self.bind['dn_map_rc'].get(restart_conn_key, bind_dn)
             if bind_dn:
-                if bind_dn == self.root_dn:
+                if bind_dn.casefold() == self.root_dn.casefold():
                     self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
                 bind_dn = bind_dn.lower()
                 self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
 
-
-    def process_disconnect_match(self, groups: dict):
-        """
-        Processes a disconnect match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-
-        if conn_key in self.pending_conns:
-            del self.pending_conns[conn_key]
-
-        # Process stats for this match
-        self.process_disconnect_stats(groups)
-
-
-    def process_disconnect_stats(self, groups: dict):
+    def _process_disconnect_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1794,7 +1427,7 @@ class logAnalyser:
                 - 'timestamp': The timestamp of the disconnect event.
                 - 'error_code': Error code associated with the disconnect, if any.
                 - 'disconnect_code': Disconnect code, if any.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1807,14 +1440,14 @@ class logAnalyser:
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
-    
+
         # Create a tracking key for this entry
         restart_conn_key = (restart_ctr, conn_id)
-        
+
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         if self.verbose:
             # Handle verbose logging for open connections and IP addresses
             src_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key)
@@ -1829,23 +1462,22 @@ class logAnalyser:
         if self.verbose:
             start_time = self.connection['start_time'].get(conn_id, None)
             if start_time and timestamp:
-                latency = self._get_elapsed_time(start_time, timestamp, "seconds")
+                latency = self.get_elapsed_time(start_time, groups.get('timestamp'), "seconds")
                 bucket = self._group_latencies(latency)
-                latency_groups[bucket] += 1
+                LATENCY_GROUPS[bucket] += 1
 
-                # Reset start and end times for the connection after processing
+                # Reset start time for the connection
                 self.connection['start_time'][conn_id] = None
-                self.connection['end_time'][conn_id] = None
 
         # Update connection stats
         self.connection['sim_conn_ctr'] = self.connection.get('sim_conn_ctr', 0) - 1
-        self.connection['fd_returned_ctr']  = (
+        self.connection['fd_returned_ctr'] = (
             self.connection.get('fd_returned_ctr', 0) + 1
         )
 
         # Track error and disconnect codes if provided
         if error_code is not None:
-            error_type = disconnect_errors.get(error_code, 'unknown')
+            error_type = DISCONNECT_ERRORS.get(error_code, 'unknown')
             if disconnect_code is not None:
                 # Increment the count for the specific error and disconnect code
                 error_map = self.connection.setdefault(error_type, {})
@@ -1858,45 +1490,32 @@ class logAnalyser:
             )
             self.connection['disconnect_code_map'][restart_conn_key] = disconnect_code
 
-
-    # Process a CRUD operation
-    def process_crud_match(self, groups):
+    def _group_latencies(self, latency_seconds: int):
         """
-        Processes a CRUD (ADD,CMP,MOD,DEL,MODRDN) match and associate it with the corresponding connection.
+        Group latency values into predefined categories.
 
         Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
+            latency_seconds (int): The latency in seconds.
 
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
+        Returns:
+            str: A group corresponding to the latency.
         """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-        
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
+        if latency_seconds <= 1:
+            return "<= 1"
+        elif latency_seconds == 2:
+            return "== 2"
+        elif latency_seconds == 3:
+            return "== 3"
+        elif 4 <= latency_seconds <= 5:
+            return "4-5"
+        elif 6 <= latency_seconds <= 10:
+            return "6-10"
+        elif 11 <= latency_seconds <= 15:
+            return "11-15"
         else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
+            return "> 15"
 
-        # Process stats for this match
-        self.process_crud_stats(groups)
-
-
-    # Processes a match entry for Create, Read, Update, Delete operations
-    def process_crud_stats(self, groups):
+    def _process_crud_stats(self, groups):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1905,7 +1524,7 @@ class logAnalyser:
                 - 'conn_id': Connection identifier.
                 - 'restart_ctr': Server restart count.
                 - 'op_id': Operation identifier.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -1924,7 +1543,7 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
 
         # Use operation type as key for stats
@@ -1934,49 +1553,20 @@ class logAnalyser:
             self.operation[f"{op_key}_map_rco"][restart_conn_key] = (
                 self.operation[f"{op_key}_map_rco"].get(restart_conn_key, 0) + 1
             )
-        
+
+        # If the conn_id is associated with this DN, update op counter
+        for dn in self.bind['report_dn']:
+            conns = self.bind['report_dn'][dn]['conn']
+            if conn_id in conns:
+                bind_dn_key = self._report_dn_key(dn, self.report_dn)
+                if bind_dn_key:
+                    self.bind['report_dn'][bind_dn_key][op_key] = self.bind['report_dn'][bind_dn_key].get(op_key, 0) + 1
+
         # Authorization identity
         if groups['authzid_dn'] is not None:
-            #authzid = groups['authzid_dn']
             self.operation['authzid'] = self.operation.get('authzid', 0) + 1
 
-
-    def process_entry_referral_match(self, groups: dict):
-        """
-        Processes an ENTRY or REFERRAL match and associate it with the corresponding connection.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-        
-        # Unique key for this connection
-        conn_key = f"{restart_ctr}_{conn_id}"
-        
-        if conn_key in self.pending_conns:
-            # Update existing connection entry
-            self.pending_conns[conn_key]['ops'][op_id] = groups
-        else:
-            # Create a new connection entry
-            self.pending_conns[conn_key] = {'ops': {op_id: groups}}  
-
-        # Process stats for this match
-        self.process_entry_referral_stats(groups)
-
-
-    def process_entry_referral_stats(self, groups: dict):
+    def _process_entry_referral_stats(self, groups: dict):
         """
         Process and update statistics based on the parsed result group.
 
@@ -1985,7 +1575,7 @@ class logAnalyser:
                 - 'conn_id': Connection identifier.
                 - 'restart_ctr': Server restart count.
                 - 'op_id': Operation identifier.
-        
+
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
@@ -2003,7 +1593,7 @@ class logAnalyser:
         # Should we ignore this operation
         if restart_conn_key in self.connection['exclude_ip_map']:
             return None
-        
+
         # Process operation type
         if op_type is not None:
             if op_type == 'ENTRY':
@@ -2011,14 +1601,13 @@ class logAnalyser:
             elif op_type == 'REFERRAL':
                 self.result['referral_count'] = self.result.get('referral_count', 0) + 1
 
-
-    def process_and_write_stats(self, norm_timestamp: str, bytes_read: int):
+    def _process_and_write_stats(self, norm_timestamp: str, bytes_read: int):
         """
         Processes statistics and writes them to the CSV file at defined intervals.
 
-        Args: 
+        Args:
             norm_timestamp: Normalized datetime for the current match
-            param bytes_read: Number of bytes read in the current file
+            bytes_read: Number of bytes read in the current file
 
         Returns:
             None
@@ -2062,6 +1651,7 @@ class logAnalyser:
 
             # Prepare the output block
             out_stat_block = [prev_stat_block[0], int(prev_time.timestamp())]
+            # out_stat_block = [prev_stat_block[0], prev_time]
 
             # Get the time difference, check is it > the specified interval
             time_diff = (curr_time - prev_time).total_seconds()
@@ -2074,7 +1664,10 @@ class logAnalyser:
                 out_stat_block.extend(diff_stats)
 
                 # Write the stat block to csv and reset elapsed time for the next interval
+
+                # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
                 self.csv_writer.writerow(out_stat_block)
+
                 self.result['etime_stat'] = 0.0
 
                 # Update previous stats for the next interval
@@ -2083,9 +1676,10 @@ class logAnalyser:
         else:
             # This is the first run, add the csv header for each column
             stats_header = [
-            'Time', 'time_t', 'Results', 'Search', 'Add', 'Mod', 'Modrdn', 'Compare',
-            'Delete', 'Abandon', 'Connections', 'SSL Conns', 'Bind', 'Anon Bind', 'Unbind', 
-            'Unindexed search', 'Unindexed component', 'Invalid filter', 'ElapsedTime']
+                'Time', 'time_t', 'Results', 'Search', 'Add', 'Mod', 'Modrdn', 'Compare',
+                'Delete', 'Abandon', 'Connections', 'SSL Conns', 'Bind', 'Anon Bind', 'Unbind',
+                'Unindexed search', 'Unindexed component', 'Invalid filter', 'ElapsedTime'
+            ]
             self.csv_writer.writerow(stats_header)
             self.prev_stats = curr_stat_block
 
@@ -2101,111 +1695,11 @@ class logAnalyser:
             out_stat_block.extend(diff_stats)
 
             # Write the stat block to csv and reset elapsed time for the next interval
+            # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
             self.csv_writer.writerow(out_stat_block)
             self.result['etime_stat'] = 0.0
 
-   
-    # Group connection latencies into 6 time ranges
-    def _group_latencies(self, latency_seconds: int):
-        """
-        Group latency values into predefined categories.
-
-        Args:
-            latency_seconds (int): The latency in seconds.
-
-        Returns:
-            str: A group corresponding to the latency.
-        """
-        if latency_seconds <= 1:
-            return "<= 1"
-        elif latency_seconds == 2:
-            return "== 2"
-        elif latency_seconds == 3:
-            return "== 3"
-        elif 4 <= latency_seconds <= 5:
-            return "4-5"
-        elif 6 <= latency_seconds <= 10:
-            return "6-10"
-        elif 11 <= latency_seconds <= 15:
-            return "11-15"
-        else:
-            return "> 15"
-    
-    # Determines if a file is compressed based on its MIME type
-    def _is_file_compressed(self, filepath):
-        """
-        Determines if a file is compressed based on its MIME type.
-
-        Args:
-            filepath (str): The path to the file.
-
-        Returns:
-            TrueCompressionStatus | str: 
-                - CompressionStatus.COMPRESSED and the MIME type if compressed.
-                - CompressionStatus.NOT_COMPRESSED if not compressed.
-                - CompressionStatus.FILE_NOT_FOUND if the file does not exist.
-        Returns:
-            A tuple where the first element indicates if the file is compressed with a supported
-            method, the second element is the supported compression method.
-            False, when a non supported compression method is detected.
-            None, If the file does not exist or on exception.
-        """
-        if not os.path.exists(filepath):
-            self.logger.error(f"File not found: {filepath}")
-            return None
-    
-        try:
-            mime = magic.Magic(mime=True)
-            filetype = mime.from_file(filepath)
-
-            # List of supported compression types
-            compressed_mime_types = [
-                'application/gzip',             # gz, tar.gz, tgz
-                'application/x-gzip',           # gz, tgz
-            ]
-
-            if filetype in compressed_mime_types:
-                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype})")
-                return True, filetype
-            else:
-                self.logger.info(f"File is not compressed: {filepath}")
-                return False
-            
-        except Exception as e:
-            self.logger.error(f"Error while determining compression for file {filepath}: {e}")
-            return None
-
-    # Validate and set log parse start and stop times
-    def _set_parse_times(self, start_time, stop_time):
-        """
-        Validate and set log parse start and stop times.
-
-        Args:
-            start_time (str): The start time as a timestamp string.
-            stop_time (str): The stop time as a timestamp string.
-
-        Raises:
-            ValueError: If stop_time is earlier than start_time or timestamps are invalid.
-        """
-        try:
-            # Convert timestamps to datetime objects
-            norm_start_time = self._convert_timestamp_to_datetime(start_time)
-            norm_stop_time = self._convert_timestamp_to_datetime(stop_time)
-
-            # Validate time order
-            if norm_stop_time <= norm_start_time:
-                raise ValueError("End time is before or equal to start time. Please check the input timestamps.")
-
-            # Store the parse times as datetime objects
-            self.server['parse_start_time'] = norm_start_time
-            self.server['parse_stop_time'] = norm_stop_time
-
-        except ValueError as e:
-            print(f"Error setting parse times: {e}")
-            raise
-
-    # Process a log file line by line
-    def _process_file(self, log_num, filepath):
+    def process_file(self, log_num: str, filepath: str):
         """
         Process a file line by line, supporting both compressed and uncompressed formats.
 
@@ -2222,7 +1716,7 @@ class logAnalyser:
         block_count = 0
         block_count_limit = 0
         # Percentage of file size to trigger progress updates
-        update_precent = 10
+        update_percent = 5
 
         self.logger.info(f"Processing file: {filepath}")
 
@@ -2241,23 +1735,24 @@ class logAnalyser:
                 filehandle = open(filepath, 'rb')
 
             with filehandle:
-                # Seek to the end to get file size
+                # Seek to the end
                 filehandle.seek(0, os.SEEK_END)
                 file_size = filehandle.tell()
                 self.file_size = file_size
                 self.logger.info(f"{filehandle.name} size (bytes): {file_size}")
 
                 # Back to the start
-                filehandle.seek(0) 
+                filehandle.seek(0)
                 print(f"[{log_num:03d}] {filehandle.name:<30}\tsize (bytes): {file_size:>12}")
 
-                # Calculate progress interval
-                block_count_limit = int(file_size * update_precent/100)
+                # Progress interval
+                block_count_limit = int(file_size * update_percent/100)
                 for line in filehandle:
                     try:
                         line_content = line.decode('utf-8').strip()
                         if line_content.startswith('['):
-                            proceed = self.match_line(line_content, filehandle.tell())
+                            # Entry to parsing logic
+                            proceed = self._match_line(line_content, filehandle.tell())
                             if proceed is False:
                                 self.logger.info("Processing stopped, outside parse time range.")
                                 break
@@ -2278,94 +1773,198 @@ class logAnalyser:
         except FileNotFoundError:
             self.logger.error(f"File not found: {filepath}")
         except IOError as ie:
-            self.logger.error(f"IO error processing file {filepath}: {ie}")        
-        
+            self.logger.error(f"IO error processing file {filepath}: {ie}")
 
-    # Converts a timestamp to a Python datetime object
-    def _convert_timestamp_to_datetime(self, timestamp):
+    def _is_file_compressed(self, filepath: str):
         """
-        Converts a timestamp in the format '[04/Jun/2024:10:31:20.015139771 +0200]'
+        Determines if a file is compressed based on its MIME type.
+
+        Args:
+            filepath (str): The path to the file.
+
+        Returns:
+            TrueCompressionStatus | str:
+                - CompressionStatus.COMPRESSED and the MIME type if compressed.
+                - CompressionStatus.NOT_COMPRESSED if not compressed.
+                - CompressionStatus.FILE_NOT_FOUND if the file does not exist.
+        Returns:
+            A tuple where the first element indicates if the file is compressed with a supported
+            method, the second element is the supported compression method.
+            False, when a non supported compression method is detected.
+            None, If the file does not exist or on exception.
+        """
+        if not os.path.exists(filepath):
+            self.logger.error(f"File not found: {filepath}")
+            return None
+
+        try:
+            mime = magic.Magic(mime=True)
+            filetype = mime.from_file(filepath)
+
+            # List of supported compression types
+            compressed_mime_types = [
+                'application/gzip',             # gz, tar.gz, tgz
+                'application/x-gzip',           # gz, tgz
+            ]
+
+            if filetype in compressed_mime_types:
+                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype})")
+                return True, filetype
+            else:
+                self.logger.info(f"File is not compressed: {filepath}")
+                return False
+
+        except Exception as e:
+            self.logger.error(f"Error while determining compression for file {filepath}: {e}")
+            return None
+
+    def _report_dn_key(self, dn_to_check: str, report_dn: str):
+        """
+        Check if we need to report on this DN
+
+        Args:
+            dn_to_check (str): DN to check.
+            report_dn (str): Report DN specified as argument.
+
+        Returns:
+            str: The DN key or None
+        """
+        if dn_to_check and report_dn:
+            norm_dn_to_check = dn_to_check.lower()
+            norm_report_dn_key = report_dn.lower()
+
+            if norm_report_dn_key == 'all':
+                if norm_dn_to_check == 'anonymous':
+                    return 'Anonymous'
+                return norm_dn_to_check
+
+            if norm_report_dn_key == 'anonymous' and norm_dn_to_check == "anonymous":
+                return 'Anonymous'
+
+            if norm_report_dn_key == norm_dn_to_check:
+                return norm_dn_to_check
+
+        return None
+
+    def _convert_timestamp_to_datetime(self, timestamp: str):
+        """
+        Converts a timestamp in the formats:
+        '[28/Mar/2002:13:14:22 -0800]' or
+        '[07/Jun/2023:09:55:50.638781270 +0000]'
         to a Python datetime object. Nanoseconds are truncated to microseconds.
-        
+
         Args:
             timestamp (str): The timestamp string to convert.
 
         Returns:
             datetime: The equivalent datetime object with timezone.
         """
-
         timestamp = timestamp.strip("[]")
-
         # Separate datetime and timezone components
         datetime_part, tz_offset = timestamp.rsplit(" ", 1)
 
-        # Separate seconds and nanoseconds
-        datetime_part, nanos = datetime_part.rsplit(".", 1)
-        
-        # Truncate nano to micro
-        nanos = nanos[:6]
-        
-        # Reconstruct datetime string with microseconds
-        datetime_with_micros = f"{datetime_part}.{nanos}"
-        
-        # Create a datetime object
-        dt = datetime.strptime(datetime_with_micros, self.timeformat)
+        # Timestamp includes nanoseconds
+        if '.' in datetime_part:
+            datetime_part, nanos = datetime_part.rsplit(".", 1)
+            # Truncate
+            nanos = nanos[:6]
+            datetime_with_micros = f"{datetime_part}.{nanos}"
+            timeformat = "%d/%b/%Y:%H:%M:%S.%f"
+        else:
+            datetime_with_micros = datetime_part
+            timeformat = "%d/%b/%Y:%H:%M:%S"
+
+        # Parse the datetime component
+        dt = datetime.strptime(datetime_with_micros, timeformat)
 
         # Calc the timezone offset
         if tz_offset[0] == "+":
-            sign = 1 
+            sign = 1
         else:
             sign = -1
 
         hours_offset = int(tz_offset[1:3])
         minutes_offset = int(tz_offset[3:5])
         delta = timedelta(hours=hours_offset, minutes=minutes_offset)
-        
+
         # Apply the timezone offset
-        return dt - sign * delta
+        dt_with_tz = dt.replace(tzinfo=timezone(sign * delta))
+        return dt_with_tz
 
+    def convert_timestamp_to_string(self, timestamp: str):
+        """
+        Truncate an access log timestamp and convert to datetime
+        the timestamp '[07/Jun/2023:09:55:50.638781123 +0000]' to '[07/Jun/2023:09:55:50.638781 +0000]'
+        '[28/Mar/2002:13:14:22 -0800]' or
+        '[07/Jun/2023:09:55:50.638781 +0000]' or
+        '[07/Jun/2023:09:55:50.638781123 +0000]'
 
-    # Calculates the elapsed time between start and finish datetimes
-    def _get_elapsed_time(self, start, finish, time_format="seconds"):
+        Args:
+            timestamp (str): Access log timestamp.
+
+        Returns:
+            str: The formatted timestamp string.
+        """
+        if not timestamp:
+            raise ValueError("The datetime object must be timezone-aware and nont None.")
+        else:
+            timestamp = timestamp[:26] + timestamp[29:]
+            dt = datetime.strptime(timestamp, "%d/%b/%Y:%H:%M:%S.%f %z")
+            formatted_timestamp = dt.strftime("%d/%b/%Y:%H:%M:%S")
+
+        return formatted_timestamp
+
+    def get_elapsed_time(self, start: datetime, finish: datetime, time_format=None):
         """
         Calculates the elapsed time between start and finish datetimes.
 
         Args:
-            start (datetime): The start timestamp.
-            finish (datetime): The finish timestamp.
+            start (datetime): The start time.
+            finish (datetime): The finish time.
             time_format (str): Output format ("seconds" or "hms").
 
         Returns:
-            float | tuple: Elapsed time in seconds or as (hours, minutes, seconds).
+            float:Elapsed time in seconds or tuple:(hours, minutes, seconds).
 
         Raises:
             ValueError: If non datetime object used.
             ValueError: If invalid time formatting used.
         """
-        if start == None or finish == None:
+        if not start or not finish:
+            return 0 if time_format == "seconds" else "0 hours, 0 minutes, 0 seconds"
+
+        first_time = self._convert_timestamp_to_datetime(start)
+        last_time = self._convert_timestamp_to_datetime(finish)
+
+        if first_time is None or last_time is None:
             if time_format == "seconds":
                 return (0)
-            elif time_format == "hms":
+            else:
                 return (0, 0, 0)
-                    
-        # Validate start and finish inputs
-        if not (isinstance(start, datetime) and isinstance(finish, datetime)):
-            raise TypeError("start and finish must be datetime objects or None.")
-            
-        # Get elapsed time, format for output
-        elapsed_time = finish - start
-        if time_format == "seconds":
-            return elapsed_time.total_seconds()
-        elif time_format == "hms":
-            secs = elapsed_time.total_seconds()
-            hours, remainder = divmod(secs, 3600)
-            mins, secs = divmod(remainder, 60)
-            return (hours, mins, secs)
-        else:
-            raise ValueError("Invalid format. Use 'seconds' or 'hms'.")
 
-    # Calculate the overall performance as a percentage
-    def _get_overall_perf(self, num_results, num_ops):
+        # Validate start and finish inputs
+        if not (isinstance(first_time, datetime) and isinstance(last_time, datetime)):
+            raise TypeError("start and finish must be datetime objects.")
+
+        # Get elapsed time, format for output
+        elapsed_time = (last_time - first_time)
+        days = elapsed_time.days
+        total_seconds = elapsed_time.total_seconds()
+
+        # Convert to hours, minutes, and seconds
+        remainder_seconds = total_seconds - (days * 24 * 3600)
+        hours, remainder = divmod(remainder_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        if time_format == "seconds":
+            return total_seconds
+        else:
+            if days > 0:
+                return f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
+            else:
+                return f"{int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
+
+    def get_overall_perf(self, num_results: int, num_ops: int):
         """
         Calculate the overall performance as a percentage.
 
@@ -2375,92 +1974,252 @@ class logAnalyser:
 
         Returns:
             float: Performance percentage, limited to a maximum of 100.0
-        
+
         Raises:
             ValueError: On negative args.
         """
         if num_results < 0 or num_ops < 0:
             raise ValueError("Inputs num_results and num_ops must be non-negative.")
-    
+
         if num_ops == 0:
             return 0.0
 
         perf = min((num_results / num_ops) * 100, 100.0)
         return round(perf, 1)
-    
+
+    def set_parse_times(self, start_time: str, stop_time: str):
+        """
+        Validate and set log parse start and stop times.
+
+        Args:
+            start_time (str): The start time as a timestamp string.
+            stop_time (str): The stop time as a timestamp string.
+
+        Raises:
+            ValueError: If stop_time is earlier than start_time or timestamps are invalid.
+        """
+        try:
+            # Convert timestamps to datetime objects
+            norm_start_time = self._convert_timestamp_to_datetime(start_time)
+            norm_stop_time = self._convert_timestamp_to_datetime(stop_time)
+
+            # No timetravel
+            if norm_stop_time <= norm_start_time:
+                raise ValueError("End time is before or equal to start time. Please check the input timestamps.")
+
+            # Store the parse times
+            self.server['parse_start_time'] = norm_start_time
+            self.server['parse_stop_time'] = norm_stop_time
+
+        except ValueError as e:
+            print(f"Error setting parse times: {e}")
+            raise
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze one or more server access logs")
-    parser.add_argument('logs', type=str, nargs='+', help='Single or multiple (*) access logs')
-    parser.add_argument('-d', '--rootDN', type=str, default="cn=directory manager", 
-                        help='Directory Managers DN, default is "cn=directory manager"')
-    parser.add_argument('-X', '--exclude_ip', action='append', help='IP address to exclude from connection stats')
-    parser.add_argument('-s', '--sizeLimit', type=int, default=10, 
-                        help='Number of results to return per category (default: 10)')
-    parser.add_argument('-S', '--startTime', action='store', 
-                        help='Time to begin analyzing logfile from, E.g -S "[04/Jun/2024:10:31:20.014629085 +0200]"')
-    parser.add_argument('-E', '--endTime', action='store', 
-                        help='Time to stop analyzing logfile. E.g.  -E "[04/Jun/2024:10:38:59.763138314 +0200]"')
-    parser.add_argument("-m", '--reportFileSecs', metavar="STATS FILENAME", type=str, 
-                        help="Write performance stats to CSV file at second intervals")
-    parser.add_argument("-M", '--reportFileMins', metavar="STATS FILENAME", type=str, 
-                        help="Write performance stats to CSV file at minute intervals")
-    parser.add_argument('-j', '--recommends', action='store_true', help='Display recomendations')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')
+    """
+    Entry point for the Access Log Analyzer script.
+
+    Processes server access logs to generate performance
+    metrics and statistical reports based on the provided options.
+
+    Raises:
+        SystemExit: If no valid logs are provided we exit.
+
+    Outputs:
+        - Performance metrics and statistics to the console.
+        - Optional CSV files for second and minute based performance stats.
+    """
+    parser = argparse.ArgumentParser(
+        description="Analyze server access logs to generate statistics and reports.",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog="""
+    Examples:
+
+    Analyze logs in verbose mode:
+        logconv.py -V /var/log/dirsrv/slapd-host/access*
+
+    Specify a custom root DN:
+        logconv.py --rootDN "cn=custom manager" /var/log/dirsrv/slapd-host/access*
+
+    Generate a report for anonymous binds:
+        logconv.py -B ANONYMOUS /var/log/dirsrv/slapd-host/access*
+
+    Exclude specific IP address(s) from log analysis:
+        logconv.py -X 192.168.1.1 --exclude_ip 11.22.33.44 /var/log/dirsrv/slapd-host/access*
+
+    Analyze logs within a specific time range:
+        logconv.py -S "[04/Jun/2024:10:31:20.014629085 +0200]" --endTime "[04/Jun/2024:11:30:05 +0200]" /var/log/dirsrv/slapd-host/access*
+
+    Limit results to 10 entries per category:
+        logconv.py --sizeLimit 10 /var/log/dirsrv/slapd-host/access*
+
+    Generate performance stats at second intervals:
+        logconv.py -m log-second-stats.csv /var/log/dirsrv/slapd-host/access*
+
+    Generate performance stats at minute intervals:
+        logconv.py -M log-minute-stats.csv /var/log/dirsrv/slapd-host/access*
+
+    Display recommendations for log analysis:
+        logconv.py -j /var/log/dirsrv/slapd-host/access*
+    """
+    )
+
+    parser.add_argument(
+        'logs',
+        type=str,
+        nargs='*',
+        help='Single or multiple (*) access logs'
+    )
+
+    general_group = parser.add_argument_group("General options")
+    general_group.add_argument(
+        '-v', '--version',
+        action='store_true',
+        help='Display log analyzer version'
+    )
+    general_group.add_argument(
+        '-V', '--verbose',
+        action='store_true',
+        help='Enable verbose mode for detailed statistic processing'
+    )
+    general_group.add_argument(
+        '-s', '--sizeLimit',
+        type=int,
+        metavar="SIZE_LIMIT",
+        default=20,
+        help="Number of results to return per category."
+    )
+
+    connection_group = parser.add_argument_group("Connection options")
+    connection_group.add_argument(
+        '-d', '--rootDN',
+        type=str,
+        metavar="ROOT_DN",
+        default="cn=Directory Manager",
+        help="Specify the Directory Managers DN.\nDefault: \"cn=Directory Manager\""
+    )
+    connection_group.add_argument(
+        '-B', '--bind',
+        type=str,
+        metavar="BIND_DN",
+        help='Generate a bind report for specified DN.\nOptions: [ALL | ANONYMOUS | Actual bind DN]'
+    )
+    connection_group.add_argument(
+        '-X', '--exclude_ip',
+        type=list,
+        metavar="EXCLUDE_IP",
+        action='append',
+        help='Exclude specific IP address(s) from log analysis'
+    )
+
+    time_group = parser.add_argument_group("Time options")
+    time_group.add_argument(
+        '-S', '--startTime',
+        type=str,
+        metavar="START_TIME",
+        action='store',
+        help='Start analyzing logfile from a specific time.'
+                '\nE.g. "[04/Jun/2024:10:31:20.014629085 +0200]"\nE.g. "[04/Jun/2024:10:31:20 +0200]"'
+    )
+    time_group.add_argument(
+        '-E', '--endTime',
+        type=str,
+        metavar="END_TIME",
+        action='store',
+        help='Stop analyzing logfile at this time.'
+                '\nE.g. "[04/Jun/2024:11:30:05.435779416 +0200]"\nE.g. "[04/Jun/2024:11:30:05 +0200]"'
+    )
+
+    report_group = parser.add_argument_group("Reporting options")
+    report_group.add_argument(
+        "-m", '--reportFileSecs',
+        type=str,
+        metavar="SEC_STATS_FILENAME",
+        help="Capture operation stats at second intervals and write to csv file"
+    )
+    report_group.add_argument(
+        "-M", '--reportFileMins',
+        type=str,
+        metavar="MIN_STATS_FILENAME",
+        help="Capture operation stats at minute intervals and write to csv file"
+    )
+
+    misc_group = parser.add_argument_group("Miscellaneous options")
+    misc_group.add_argument(
+        '-j', '--recommends',
+        action='store_true',
+        help='Display log analysis recommendations'
+    )
+
     args = parser.parse_args()
 
+    if args.version:
+        print(f"Access Log Analyzer v{logAnalyzerVersion}")
+        sys.exit(0)
+
+    if not args.logs:
+        print("No logs provided. Use '-h' for help.")
+        sys.exit(1)
 
     try:
-        # Initialize log analyser
         db = logAnalyser(
-            verbose=args.verbose, 
-            size_limit=args.sizeLimit, 
-            root_dn=args.rootDN, 
-            exclude_ip=args.exclude_ip, 
-            stats_file_sec=args.reportFileSecs, 
+            verbose=args.verbose,
+            size_limit=args.sizeLimit,
+            root_dn=args.rootDN,
+            exclude_ip=args.exclude_ip,
+            stats_file_sec=args.reportFileSecs,
             stats_file_min=args.reportFileMins,
+            report_dn=args.bind,
             recommends=args.recommends)
 
         if args.startTime and args.endTime:
-            db._set_parse_times(args.startTime, args.endTime)
-    
-        print(f"Access Log Analyser {db.version}")
+            db.set_parse_times(args.startTime, args.endTime)
+
+        print(f"Access Log Analyzer v{logAnalyzerVersion}")
         print(f"Command: {' '.join(sys.argv)}")
 
         # Sanitise list of log files
-        access_logs = [file for file in args.logs if not re.search(r'access\.rotationinfo', file)]
-        # Sort by creation time
-        access_logs.sort(key=lambda x: os.path.getctime(x))
-        # We shoud never reach here, if we do put access and the end of the log file list
-        if 'access'  in access_logs:
-            access_logs.append(access_logs.pop(access_logs.index('access')))
+        existing_logs = [
+            file for file in args.logs
+            if not re.search(r'access\.rotationinfo', file) and os.path.isfile(file)
+        ]
 
-        num_logs = len(access_logs)
+        if not existing_logs:
+            db.logger.error("No log files provided.")
+            sys.exit(1)
+
+        # Sort by creation time
+        existing_logs.sort(key=lambda x: os.path.getctime(x), reverse=True)
+        # We shoud never reach here, if we do put "access" and the end of the log file list
+        if 'access' in existing_logs:
+            existing_logs.append(existing_logs.pop(existing_logs.index('access')))
+
+        num_logs = len(existing_logs)
         print(f"Processing {num_logs} access log{'s' if num_logs > 1 else ''}...\n")
 
-        # Main file handling
-        for num, accesslog in enumerate(access_logs, start = 1):
+        # File processing loop
+        for (num, accesslog) in enumerate(existing_logs, start=1):
             if os.path.isfile(accesslog):
-                db._process_file(num, accesslog)
+                db.process_file(num, accesslog)
             else:
-                print(f"Invalid file: {accesslog}")
+                # print(f"Invalid file: {accesslog}")
                 db.logger.error(f"Invalid file:{accesslog}")
 
     except Exception as e:
-        db.logger.error("An error occurred: %s", e, exc_info=args.verbose)
+        print("An error occurred: %s", e)
         sys.exit(1)
 
     # Prep for display
-    hrs, mins, secs = db._get_elapsed_time(db.server['first_time'], db.server['last_time'], "hms")
-    elapsed_secs = db._get_elapsed_time(db.server['first_time'], db.server['last_time'], "seconds")
+    elapsed_time = db.get_elapsed_time(db.server['first_time'], db.server['last_time'])
+    elapsed_secs = db.get_elapsed_time(db.server['first_time'], db.server['last_time'], "seconds")
     num_ops = db.operation.get('all_op_ctr', 0)
     num_results = db.result.get('result_ctr', 0)
     num_conns = db.connection.get('conn_ctr', 0)
     num_ldap = db.connection.get('ldap_ctr', 0)
     num_ldapi = db.connection.get('ldapi_ctr', 0)
     num_ldaps = db.connection.get('ldaps_ctr', 0)
-    stlsoid = '1.3.6.1.4.1.1466.20037'
-    num_startls = db.operation['extop_dict'].get(stlsoid, 0)
+    num_startls = db.operation['extop_dict'].get(STLS_OID, 0)
     num_search = db.search.get('search_ctr', 0)
     num_mod = db.operation.get('mod_op_ctr', 0)
     num_add = db.operation.get('add_op_ctr', 0)
@@ -2471,23 +2230,34 @@ def main():
     num_unbind = db.bind.get('unbind_ctr', 0)
     num_proxyd_auths = db.operation.get('authzid', 0) + db.search.get('authzid', 0)
     num_time_count = db.result.get('timestamp_ctr')
+    if num_time_count:
+        avg_wtime = round(db.result.get('total_wtime', 0)/num_time_count, 9)
+        avg_optime = round(db.result.get('total_optime', 0)/num_time_count, 9)
+        avg_etime = round(db.result.get('total_etime', 0)/num_time_count, 9)
     num_fd_taken = db.connection.get('fd_taken_ctr', 0)
     num_fd_rtn = db.connection.get('fd_returned_ctr', 0)
+
     num_DM_binds = db.bind.get('rootdn_bind_ctr', 0)
-    avg_wtime = round(db.result.get('total_wtime', 0)/num_time_count, 9)
-    avg_optime = round(db.result.get('total_optime', 0)/num_time_count, 9)
-    avg_etime = round(db.result.get('total_etime', 0)/num_time_count, 9)
     num_base_search = db.search.get('base_search_ctr', 0)
+    try:
+        log_start_time = db.convert_timestamp_to_string(db.server['first_time'])
+        log_end_time = db.convert_timestamp_to_string(db.server['last_time'])
+    except ValueError as e:
+        db.logger.error(f"Converting timestamp to datetime object failed")
+        log_start_time = 'Error'
+        log_end_time = 'Error'
 
     print(f"\nTotal Log Lines Analysed:{db.server['lines_parsed']}\n")
     print("\n----------- Access Log Output ------------\n")
-    print(f"Start of Logs:                  {db.server['first_time']}")
-    print(f"End of Logs:                    {db.server['last_time']}")
-    print(f"\nProcessed Log Time:             {hrs:.0f} Hour{'s' if hrs > 1 else ''},"
-        f"{mins:.0f} Minute{'s' if mins > 1 else ''}, {secs:.0f} Seconds\n")
-    if db.stats_interval is not None:
-        sys.exit()
-    print(f"Restarts:                       {db.server.get('restart_ctr', 0)}")    
+    print(f"Start of Logs:                  {log_start_time}")
+    print(f"End of Logs:                    {log_end_time}")
+    print(f"\nProcessed Log Time:             {elapsed_time}")
+    # Display DN report
+    if db.report_dn:
+        db.display_bind_report()
+        sys.exit(1)
+
+    print(f"\nRestarts:                       {db.server.get('restart_ctr', 0)}")
     if db.auth.get('cipher_ctr', 0) > 0:
         print(f"Secure Protocol Versions:")
         # Group data by protocol + version + unique message
@@ -2501,40 +2271,42 @@ def main():
 
             for message in details['message']:
                 # Unique key for protocol-version and message
-                unique_key = (proto_version, message)  
+                unique_key = (proto_version, message)
                 grouped_data[unique_key]['count'] += details['count']
                 grouped_data[unique_key]['messages'].add(message)
 
         for ((proto_version, message), data) in grouped_data.items():
             print(f"  - {proto_version} {message} ({data['count']} connection{'s' if data['count'] > 1 else ''})")
 
-    print(f"\nPeak Concurrent connections:    {db.connection.get('max_sim_conn_ctr', 0)}")
+    print(f"Peak Concurrent connections:    {db.connection.get('max_sim_conn_ctr', 0)}")
     print(f"Total Operations:               {num_ops}")
     print(f"Total Results:                  {num_results}")
-    print(f"Overall Performance:            {db._get_overall_perf(num_results, num_ops)}%")
-    print(f"\nTotal connections:              {num_conns:<10}{num_conns/elapsed_secs:>10.2f}/sec {(num_conns/elapsed_secs) * 60:>10.2f}/min")
-    print(f"- LDAP connections:             {num_ldap:<10}{num_ldap/elapsed_secs:>10.2f}/sec {(num_ldap/elapsed_secs) * 60:>10.2f}/min")
-    print(f"- LDAPI connections:            {num_ldapi:<10}{num_ldapi/elapsed_secs:>10.2f}/sec {(num_ldapi/elapsed_secs) * 60:>10.2f}/min")
-    print(f"- LDAPS connections:            {num_ldaps:<10}{num_ldaps/elapsed_secs:>10.2f}/sec {(num_ldaps/elapsed_secs) * 60:>10.2f}/min")
-    print(f"- StartTLS Extended Ops         {num_startls:<10}{num_startls/elapsed_secs:>10.2f}/sec {(num_startls/elapsed_secs) * 60:>10.2f}/min")
-    print(f"\nSearches:                       {num_search:<10}{num_search/elapsed_secs:>10.2f}/sec {(num_search/elapsed_secs) * 60:>10.2f}/min")
-    print(f"Modifications:                  {num_mod:<10}{num_mod/elapsed_secs:>10.2f}/sec {(num_mod/elapsed_secs) * 60:>10.2f}/min")
-    print(f"Adds:                           {num_add:<10}{num_add/elapsed_secs:>10.2f}/sec {(num_add/elapsed_secs) * 60:>10.2f}/min")
-    print(f"Deletes:                        {num_del:<10}{num_del/elapsed_secs:>10.2f}/sec {(num_del/elapsed_secs) * 60:>10.2f}/min")
-    print(f"Mod RDNs:                       {num_modrdn:<10}{num_modrdn/elapsed_secs:>10.2f}/sec {(num_modrdn/elapsed_secs) * 60:>10.2f}/min")
-    print(f"Compares:                       {num_cmp:<10}{num_cmp/elapsed_secs:>10.2f}/sec {(num_cmp/elapsed_secs) * 60:>10.2f}/min")
-    print(f"Binds:                          {num_bind:<10}{num_bind/elapsed_secs:>10.2f}/sec {(num_bind/elapsed_secs) * 60:>10.2f}/min")
-    print(f"\nAverage wtime (wait time):      {avg_wtime:.9f}")
-    print(f"Average optime (op time):       {avg_optime:.9f}")
-    print(f"Average etime (elapsed time):   {avg_etime:.9f}")
+    print(f"Overall Performance:            {db.get_overall_perf(num_results, num_ops)}%")
+    if elapsed_secs:
+        print(f"\nTotal connections:              {num_conns:<10}{num_conns/elapsed_secs:>10.2f}/sec {(num_conns/elapsed_secs) * 60:>10.2f}/min")
+        print(f"- LDAP connections:             {num_ldap:<10}{num_ldap/elapsed_secs:>10.2f}/sec {(num_ldap/elapsed_secs) * 60:>10.2f}/min")
+        print(f"- LDAPI connections:            {num_ldapi:<10}{num_ldapi/elapsed_secs:>10.2f}/sec {(num_ldapi/elapsed_secs) * 60:>10.2f}/min")
+        print(f"- LDAPS connections:            {num_ldaps:<10}{num_ldaps/elapsed_secs:>10.2f}/sec {(num_ldaps/elapsed_secs) * 60:>10.2f}/min")
+        print(f"- StartTLS Extended Ops         {num_startls:<10}{num_startls/elapsed_secs:>10.2f}/sec {(num_startls/elapsed_secs) * 60:>10.2f}/min")
+        print(f"\nSearches:                       {num_search:<10}{num_search/elapsed_secs:>10.2f}/sec {(num_search/elapsed_secs) * 60:>10.2f}/min")
+        print(f"Modifications:                  {num_mod:<10}{num_mod/elapsed_secs:>10.2f}/sec {(num_mod/elapsed_secs) * 60:>10.2f}/min")
+        print(f"Adds:                           {num_add:<10}{num_add/elapsed_secs:>10.2f}/sec {(num_add/elapsed_secs) * 60:>10.2f}/min")
+        print(f"Deletes:                        {num_del:<10}{num_del/elapsed_secs:>10.2f}/sec {(num_del/elapsed_secs) * 60:>10.2f}/min")
+        print(f"Mod RDNs:                       {num_modrdn:<10}{num_modrdn/elapsed_secs:>10.2f}/sec {(num_modrdn/elapsed_secs) * 60:>10.2f}/min")
+        print(f"Compares:                       {num_cmp:<10}{num_cmp/elapsed_secs:>10.2f}/sec {(num_cmp/elapsed_secs) * 60:>10.2f}/min")
+        print(f"Binds:                          {num_bind:<10}{num_bind/elapsed_secs:>10.2f}/sec {(num_bind/elapsed_secs) * 60:>10.2f}/min")
+    if num_time_count:
+        print(f"\nAverage wtime (wait time):      {avg_wtime:.9f}")
+        print(f"Average optime (op time):       {avg_optime:.9f}")
+        print(f"Average etime (elapsed time):   {avg_etime:.9f}")
     print(f"\nMulti-factor Authentications:   {db.result.get('notesM_ctr', 0)}")
     print(f"Proxied Auth Operations:        {num_proxyd_auths}")
     print(f"Persistent Searches:            {db.search.get('persistent_ctr', 0)}")
     print(f"Internal Operations:            {db.server.get('internal_op_ctr', 0)}")
     print(f"Entry Operations:               {db.result.get('entry_count', 0)}")
-    print(f"Extended Operations:            {db.operation.get('extnd_op_ctr', 0)}") 
+    print(f"Extended Operations:            {db.operation.get('extnd_op_ctr', 0)}")
     print(f"Abandoned Requests:             {db.operation.get('abandon_op_ctr', 0)}")
-    print(f"Smart Referrals Received:       {db.result.get('referral_count', 0)}") 
+    print(f"Smart Referrals Received:       {db.result.get('referral_count', 0)}")
     print(f"\nVLV Operations:                 {db.vlv.get('vlv_ctr', 0)}")
     print(f"VLV Unindexed Searches:         {len([key for key, value in db.vlv['vlv_map_rco'].items() if value == 'A'])}")
     print(f"VLV Unindexed Components:       {len([key for key, value in db.vlv['vlv_map_rco'].items() if value == 'U'])}")
@@ -2545,7 +2317,7 @@ def main():
     print(f"Unindexed Searches:             {num_unindexed_search}")
     if db.verbose:
         if num_unindexed_search > 0:
-            for num, key in enumerate(db.notesA, start = 1):
+            for num, key in enumerate(db.notesA, start=1):
                 src, conn, op = key
                 restart_conn_op_key = (src, conn, op)
                 print(f"\nUnindexed Search #{num} (notes=A)")
@@ -2564,7 +2336,7 @@ def main():
     print(f"Unindexed Components:           {num_unindexed_component}")
     if db.verbose:
         if num_unindexed_component > 0:
-            for num, key in enumerate(db.notesU, start = 1):
+            for num, key in enumerate(db.notesU, start=1):
                 src, conn, op = key
                 restart_conn_op_key = (src, conn, op)
                 print(f"\nUnindexed Component #{num} (notes=U)")
@@ -2583,7 +2355,7 @@ def main():
     print(f"Invalid Attribute Filters:      {num_invalid_filter}")
     if db.verbose:
         if num_invalid_filter > 0:
-            for num, key in enumerate(db.notesF, start = 1):
+            for num, key in enumerate(db.notesF, start=1):
                 src, conn, op = key
                 restart_conn_op_key = (src, conn, op)
                 print(f"\nInvalid Attribute Filter #{num} (notes=F)")
@@ -2599,23 +2371,23 @@ def main():
     print(f"FDs Returned:                   {num_fd_rtn}")
     print(f"Highest FD Taken:               {db.connection.get('fd_max_ctr', 0)}\n")
     num_broken_pipe = len(db.connection['broken_pipe'])
-    print(f"Broken Pipes:                    {num_broken_pipe}")
+    print(f"Broken Pipes:                   {num_broken_pipe}")
     if num_broken_pipe > 0:
         for code, count in db.connection['broken_pipe'].items():
-            print(f"    - {count} ({code}) {disconnect_msg.get(code, 'unknown')}")
-
+            print(f"    - {count} ({code}) {DISCONNECT_MSG.get(code, 'unknown')}")
+        print()
     num_reset_peer = len(db.connection['connection_reset'])
     print(f"Connection Reset By Peer:       {num_reset_peer}")
     if num_reset_peer > 0:
         for code, count in db.connection['connection_reset'].items():
-            print(f"    - {count} ({code}) {disconnect_msg.get(code, 'unknown')}")
-
+            print(f"    - {count} ({code}) {DISCONNECT_MSG.get(code, 'unknown')}")
+        print()
     num_resource_unavail = len(db.connection['resource_unavail'])
     print(f"Resource Unavailable:           {num_resource_unavail}")
     if num_resource_unavail > 0:
         for code, count in db.connection['resource_unavail'].items():
-            print(f"    - {count} ({code}) {disconnect_msg.get(code, 'unknown')}")
-
+            print(f"    - {count} ({code}) {DISCONNECT_MSG.get(code, 'unknown')}")
+        print()
     print(f"Max BER Size Exceeded:          {db.connection['disconnect_code'].get('B2', 0)}\n")
     print(f"Binds:                          {db.bind.get('bind_ctr', 0)}")
     print(f"Unbinds:                        {db.bind.get('unbind_ctr', 0)}")
@@ -2637,69 +2409,72 @@ def main():
         print(f"\n ----- Connection Latency Details -----\n")
         print(f" (in seconds){' ' * 10}{'<=1':^7}{'2':^7}{'3':^7}{'4-5':^7}{'6-10':^7}{'11-15':^7}{'>15':^7}")
         print('-' * 72)
-        print(f"{' (# of connections)    ':<17}"
-            f"{latency_groups['<= 1']:^7}"
-            f"{latency_groups['== 2']:^7}"
-            f"{latency_groups['== 3']:^7}"
-            f"{latency_groups['4-5']:^7}"
-            f"{latency_groups['6-10']:^7}"
-            f"{latency_groups['11-15']:^7}"
-            f"{latency_groups['> 15']:^7}")
+        print(
+            f"{' (# of connections)    ':<17}"
+            f"{LATENCY_GROUPS['<= 1']:^7}"
+            f"{LATENCY_GROUPS['== 2']:^7}"
+            f"{LATENCY_GROUPS['== 3']:^7}"
+            f"{LATENCY_GROUPS['4-5']:^7}"
+            f"{LATENCY_GROUPS['6-10']:^7}"
+            f"{LATENCY_GROUPS['11-15']:^7}"
+            f"{LATENCY_GROUPS['> 15']:^7}")
 
         # Open Connections
         open_conns = db.connection['open_conns']
         if len(open_conns) > 0:
             print(f"\n ----- Current Open Connection IDs -----\n")
             for conn in sorted(open_conns.keys(), key=lambda k: open_conns[k], reverse=True):
-                print(f"{conn:<16} {open_conns[conn]:>10}")    
+                print(f"{conn:<16} {open_conns[conn]:>10}")
 
         # Error Codes
         print(f"\n----- Errors -----\n")
         error_freq = db.result['error_freq']
         for err in sorted(error_freq.keys(), key=lambda k: error_freq[k], reverse=True):
-            print(f"err={err:<2} {error_freq[err]:>10}  {ldap_error_codes[err]:<30}")
-        
+            print(f"err={err:<2} {error_freq[err]:>10}  {LDAP_ERR_CODES[err]:<30}")
+
         # Failed Logins
         bad_pwd_map = db.result['bad_pwd_map']
-        if len(bad_pwd_map) > 0:
+        bad_pwd_map_len = len(bad_pwd_map)
+        if bad_pwd_map_len > 0:
             print(f"\n----- Top {db.size_limit} Failed Logins ------\n")
             for num, (dn, ip) in enumerate(bad_pwd_map):
                 if num > db.size_limit:
                     break
                 count = bad_pwd_map.get((dn, ip))
                 print(f"{count:<10} {dn}")
-            print(f"\nFrom the IP address(s) :\n")
+            print(f"\nFrom IP address:{'s' if bad_pwd_map_len > 1 else ''}\n")
             for num, (dn, ip) in enumerate(bad_pwd_map):
                 if num > db.size_limit:
                     break
                 count = bad_pwd_map.get((dn, ip))
                 print(f"{count:<10} {ip}")
-        
+
         # Connection Codes
         disconnect_codes = db.connection['disconnect_code']
         if len(disconnect_codes) > 0:
             print(f"\n----- Total Connection Codes ----\n")
             for code in disconnect_codes:
-                print(f"{code:<2} {disconnect_codes[code]:>10}  {disconnect_msg.get(code, 'unknown'):<30}")
-        
+                print(f"{code:<2} {disconnect_codes[code]:>10}  {DISCONNECT_MSG.get(code, 'unknown'):<30}")
+
         # Unique IPs
         restart_conn_ip_map = db.connection['restart_conn_ip_map']
         ip_map = db.connection['ip_map']
-        if len(ip_map) > 0:
+        ips_len = len(ip_map)
+        if ips_len > 0:
             print(f"\n----- Top {db.size_limit} Clients -----\n")
-            print(f"Number of Clients:  {len(ip_map)}\n")
-            for num, (outer_ip, count) in enumerate(ip_map.items(), start = 1):
+            print(f"Number of Clients:  {ips_len}")
+            for num, (outer_ip, ip_info) in enumerate(ip_map.items(), start=1):
                 temp = {}
-                print(f"[{num}] Client: {outer_ip}")
-                print(f"    {count} - Connection{'s' if count > 1 else ''}")
+                print(f"\n[{num}] Client: {outer_ip}")
+                print(f"    {ip_info['count']} - Connection{'s' if ip_info['count'] > 1 else ''}")
                 for id, inner_ip in restart_conn_ip_map.items():
                     (src, conn) = id
                     if outer_ip == inner_ip:
                         code = db.connection['disconnect_code_map'].get((src, conn), 0)
                         if code:
-                                temp[code] = temp.get(code, 0) + 1
+                            temp[code] = temp.get(code, 0) + 1
                 for code, count in temp.items():
-                    print(f"    {count} - {code} ({disconnect_msg.get(code, 'unknown')})\n")
+                    print(f"    {count} - {code} ({DISCONNECT_MSG.get(code, 'unknown')})")
                 if num > db.size_limit - 1:
                     break
 
@@ -2713,7 +2488,7 @@ def main():
                 if num >= db.size_limit:
                     break
                 print(f"{db.bind['dn_freq'][bind]:<10}  {bind:<30}")
-        
+
         # Unique search bases
         bases = db.search['base_map']
         num_bases = len(bases)
@@ -2784,7 +2559,7 @@ def main():
             for num, oid in enumerate(sorted(oids, key=lambda k: oids[k], reverse=True)):
                 if num >= db.size_limit:
                     break
-                print(f"{oids[oid]:<12} {oid:<30} {oid_messages.get(oid, "Other"):<60}")
+                print(f"{oids[oid]:<12} {oid:<30} {OID_MSG.get(oid, 'Other'):<60}")
 
         # Commonly requested attributes
         attrs = db.search['attr_dict']
@@ -2801,10 +2576,10 @@ def main():
         num_abandoned = len(abandoned)
         if num_abandoned > 0:
             print(f"\n----- Abandon Request Stats -----\n")
-            for num, abandon in enumerate(abandoned, start = 1):
+            for num, abandon in enumerate(abandoned, start=1):
                 (restart, conn, op) = abandon
                 conn, op, target_op, msgid = db.operation['abandoned_map_rco'][(restart, conn, op)]
-                print(f"{num:<6} conn={conn} op={op} msgid={msgid} target_op:{target_op} client={db.connection['restart_conn_ip_map'].get((restart, conn), '"Unknown"')}")
+                print(f"{num:<6} conn={conn} op={op} msgid={msgid} target_op:{target_op} client={db.connection['restart_conn_ip_map'].get((restart, conn), 'Unknown')}")
             print()
 
     if db.recommends or db.verbose:
@@ -2840,10 +2615,10 @@ def main():
             rec_count += 1
 
         if num_DM_binds > (num_bind * 0.2):
-                print(f"\n {rec_count}. You have a high number of Directory Manager binds. The Directory Manager account should only be used under certain circumstances. Avoid using this account for client applications.\n")
-                rec_count += 1
+            print(f"\n {rec_count}. You have a high number of Directory Manager binds. The Directory Manager account should only be used under certain circumstances. Avoid using this account for client applications.\n")
+            rec_count += 1
 
-        num_success = db.result['error_freq'].get('0')
+        num_success = db.result['error_freq'].get('0', 0)
         num_err = sum(v for k, v in db.result['error_freq'].items() if k != '0')
         if num_err > num_success:
             print(f"\n {rec_count}. You have more unsuccessful operations than successful operations. You should investigate this difference.\n")
@@ -2855,17 +2630,18 @@ def main():
             print(f"\n {rec_count}. You have more abnormal connection codes than cleanly closed connections. You may want to investigate this difference.\n")
             rec_count += 1
 
-        if round(avg_etime, 1) > 0:
-            print(f"\n {rec_count}. Your average etime is {avg_etime:.1f}. You may want to investigate this performance problem.\n")
-            rec_count += 1
+        if num_time_count:
+            if round(avg_etime, 1) > 0:
+                print(f"\n {rec_count}. Your average etime is {avg_etime:.1f}. You may want to investigate this performance problem.\n")
+                rec_count += 1
 
-        if round(avg_wtime, 1) > 0.5:
-            print(f"\n {rec_count}. Your average wtime is {avg_wtime:.1f}. You may need to increase the number of worker threads (nsslapd-threadnumber).\n")
-            rec_count += 1
+            if round(avg_wtime, 1) > 0.5:
+                print(f"\n {rec_count}. Your average wtime is {avg_wtime:.1f}. You may need to increase the number of worker threads (nsslapd-threadnumber).\n")
+                rec_count += 1
 
-        if round(avg_optime, 1) > 0:
-            print(f"\n {rec_count}. Your average optime is {avg_optime:.1f}. You may want to investigate this performance problem.\n")
-            rec_count += 1
+            if round(avg_optime, 1) > 0:
+                print(f"\n {rec_count}. Your average optime is {avg_optime:.1f}. You may want to investigate this performance problem.\n")
+                rec_count += 1
 
         if num_base_search > (num_search * 0.25):
             print(f"\n {rec_count}. You have a high number of searches that query the entire search base. Although this is not necessarily bad, it could be resource-intensive if the search base contains many entries.\n")
@@ -2876,13 +2652,6 @@ def main():
 
     print("Done.")
 
-    # Used for measuring memory consumption, will be removed post code review
-    process = psutil.Process(os.getpid())
-    print(f"Memory usage: {process.memory_info().rss / 1024 ** 2} MB")
 
-            
 if __name__ == "__main__":
-    # Used for profiling, will be removed post code review
-    #cProfile.run('main()', 'main.prof', sort='cumtime') 
     main()
-    
