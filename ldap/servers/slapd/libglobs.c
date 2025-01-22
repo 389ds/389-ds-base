@@ -1418,6 +1418,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.enable_upgrade_hash,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_upgrade_hash, &init_enable_upgrade_hash, NULL},
+    {CONFIG_SCHEME_LIST_NO_UPGRADE_HASH, config_set_scheme_list_no_upgrade_hash,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.scheme_list_no_upgrade_hash,
+     CONFIG_STRING_OR_EMPTY, NULL, SLAPD_DEFAULT_PWD_SCHEME_LIST_NO_UPGRADE_HASH, NULL},
     {CONFIG_VERIFY_FILTER_SCHEMA, config_set_verify_filter_schema,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.verify_filter_schema,
@@ -2018,6 +2022,7 @@ FrontendConfig_init(void)
      * scheme set in cn=config
      */
     init_enable_upgrade_hash = cfg->enable_upgrade_hash = LDAP_ON;
+    cfg->scheme_list_no_upgrade_hash = slapi_ch_strdup(SLAPD_DEFAULT_PWD_SCHEME_LIST_NO_UPGRADE_HASH);
     init_verify_filter_schema = cfg->verify_filter_schema = SLAPI_WARN_SAFE;
     /*
      * Default to enabled ldapssotoken, but if no secret is given we generate one
@@ -8787,6 +8792,51 @@ config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->enable_upgrade_hash),
                               errorbuf, apply);
+    return retVal;
+}
+
+int32_t
+config_set_scheme_list_no_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free((void **)&(slapdFrontendConfig->scheme_list_no_upgrade_hash));
+        if (value) {
+            char *shrink_lower;
+            int32_t len, idx;
+            /* Craft the input string to remove spaces,
+             * lowercase char, add heading/leading ',' (separator)
+             * This is helpful to check if the current hash
+             * is present in the configuration attribute
+             *
+             * "Hash_1 , hasH_2, HASH_3 ,hash_4 " creates
+             * ",hash_1,hash_2,hash_3,hash_4,"
+             */
+            len = strlen(value);
+            shrink_lower = slapi_ch_malloc(len + 1);
+            idx = 0;
+            for(int32_t i = 0; i < len; i++) {
+                if (isascii(value[i])) {
+                    /* skip spaces */
+                    if (! isspace(value[i])) {
+                        if (isupper(value[i])) {
+                            shrink_lower[idx++] = tolower(value[i]);
+                        } else {
+                            shrink_lower[idx++] = value[i];
+                        }
+                    }
+                }
+            }
+            shrink_lower[idx] = '\0';
+            slapdFrontendConfig->scheme_list_no_upgrade_hash = shrink_lower;
+        } else {
+            slapdFrontendConfig->scheme_list_no_upgrade_hash = NULL;
+        }
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
     return retVal;
 }
 

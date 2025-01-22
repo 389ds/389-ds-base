@@ -316,6 +316,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_LDAPI_AUTO_DN     "cn=peercred,cn=external,cn=auth"
 #define SLAPD_DEFAULT_LDAPI_MAPPING_DN  "cn=auto_bind,cn=config"
 
+#define SLAPD_DEFAULT_PWD_SCHEME_LIST_NO_UPGRADE_HASH "CRYPT,CLEAR"
+
 #define SLAPD_SCHEMA_DN  "cn=schema"
 #define SLAPD_CONFIG_DN  "cn=config"
 
@@ -2346,6 +2348,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_GLOBAL_BACKEND_LOCK "nsslapd-global-backend-lock"
 #define CONFIG_ENABLE_NUNC_STANS "nsslapd-enable-nunc-stans"
 #define CONFIG_ENABLE_UPGRADE_HASH "nsslapd-enable-upgrade-hash"
+#define CONFIG_SCHEME_LIST_NO_UPGRADE_HASH "nsslapd-scheme-list-no-upgrade-hash"
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
 #define CONFIG_SCHEMADIR_ATTRIBUTE "nsslapd-schemadir"
@@ -2723,6 +2726,9 @@ typedef struct _slapdFrontendConfig
 #endif
     slapi_onoff_t extract_pem; /* If "on", export key/cert as pem files */
     slapi_onoff_t enable_upgrade_hash; /* If on, upgrade hashes for PW at bind */
+    char *scheme_list_no_upgrade_hash; /* It contains the list of password storage scheme
+                                        * that are not updated (at bind)
+                                        */
     /*
      * Do we verify the filters we recieve by schema?
      * reject-invalid - reject filter if there is anything invalid
