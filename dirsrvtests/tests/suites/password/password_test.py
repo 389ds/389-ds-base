@@ -77,6 +77,19 @@ def pbkdf2_sha512_scheme(request, topology_st):
 
     request.addfinalizer(fin)
 
+@pytest.fixture(scope="function")
+def crypt_scheme(request, topology_st):
+    """Set default password storage scheme to CRYPT"""
+
+    inst = topology_st.standalone
+    default_scheme = inst.config.get_attr_val_utf8('passwordStorageScheme')
+    inst.config.set('passwordStorageScheme', 'CRYPT')
+
+    def fin():
+        inst.config.set('passwordStorageScheme', default_scheme)
+
+    request.addfinalizer(fin)
+
 
 def test_password_modify_non_utf8(topology_st, pbkdf2_sha512_scheme):
     """Attempt a modify of the userPassword attribute with
@@ -133,6 +146,73 @@ def test_password_modify_non_utf8(topology_st, pbkdf2_sha512_scheme):
         assert False
 
     log.info('test_password_modify_non_utf8: PASSED')
+
+
+@pytest.mark.parametrize('no_upgrade_hash, expected_hash',
+                         [('CRYPT,CLEAR', '{crypt}'),
+                          ('CrYpT,CLEAR', '{crypt}'),
+                          ('PBKDF2-SHA512', '{PBKDF2-SHA512}'),
+                          ('clear', '{PBKDF2-SHA512}')])
+def test_pwd_scheme_no_upgrade_on_bind(topology_st, crypt_scheme, request, no_upgrade_hash, expected_hash):
+    """Check that password is/is_not updated on bind weither
+    the current hash is in nsslapd-scheme-list-no-upgrade-hash
+
+    :id: b4d2c525-a239-4ca6-a168-5126da7abedd
+    :setup: Standalone instance
+    :steps:
+        1. Create a user with userpassword stored as CRYPT
+        2. Make sure configured stored hash is set to PBKDF2-SHA512
+        3. Make sure that the configuration skips update on bind for
+           CRYPT,CLEAR original hashes and set it to no_upgrade_hash value
+        4. Bind and check the hash password starts with expected_hash
+    :expectedresults:
+        1. The user with userPassword should be added successfully
+        2. Operation should be successful
+        3. Operation should be successful
+        4. After bind, the password has the expected hash
+     """
+
+    log.info('test_pwd_scheme_crypt_upgraded_on_bind...')
+
+    # Create user and set password with CRYPT
+    standalone = topology_st.standalone
+    users = UserAccounts(standalone, DEFAULT_SUFFIX)
+    if not users.exists(TEST_USER_PROPERTIES['uid'][0]):
+        user = users.create(properties=TEST_USER_PROPERTIES)
+    else:
+        user = users.get(TEST_USER_PROPERTIES['uid'][0])
+
+    # Check that the password is stored as CRYPT
+    user.set('userpassword', PASSWORD)
+    value_crypt = user.get_attr_val_utf8('userpassword')
+    assert value_crypt.startswith('{crypt}')
+
+    # change the default password Scheme to PBKDF2-SHA512
+    standalone.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
+
+    # Check that default no upgrade hash is CRYPT,CLEAR
+    # and set it to no_upgrade_hash parameter value
+    original_no_upgrade_hash = standalone.config.get_attr_val_utf8('nsslapd-scheme-list-no-upgrade-hash')
+    assert original_no_upgrade_hash.lower() == "CRYPT,CLEAR".lower()
+    standalone.config.set('nsslapd-scheme-list-no-upgrade-hash', no_upgrade_hash)
+    new_no_upgrade_hash = standalone.config.get_attr_val_utf8('nsslapd-scheme-list-no-upgrade-hash')
+    assert new_no_upgrade_hash.lower() == no_upgrade_hash.lower()
+
+    # Authenticate user and check its password
+    # hash starts with expected_hash
+    user.bind(PASSWORD)
+    standalone.simple_bind_s(DN_DM, PASSWORD)
+    pwd_hashed_value = user.get_attr_val_utf8('userpassword')
+    assert pwd_hashed_value.startswith(expected_hash)
+
+    log.info('test_pwd_scheme_upgrade_on_bind PASSED')
+
+    def fin():
+        user.delete()
+        standalone.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
+        standalone.config.set('nsslapd-scheme-list-no-upgrade-hash', 'CRYPT,CLEAR')
+
+    request.addfinalizer(fin)
 
 if __name__ == '__main__':
     # Run isolated

@@ -625,6 +625,7 @@ int config_get_extract_pem(void);
 
 int32_t config_get_enable_upgrade_hash(void);
 int32_t config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_scheme_list_no_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply);
 
 
 int32_t config_get_enable_ldapssotoken(void);
