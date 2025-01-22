@@ -3593,17 +3593,38 @@ int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn,
      */
     curpwsp = pw_val2scheme((char *)slapi_value_get_string(password_values[0]), NULL, 1);
     if (curpwsp != NULL) {
+        slapdFrontendConfig_t *slapdFrontendConfig = NULL;
+
         if (strcmp(curpwsp->pws_name, pwpolicy->pw_storagescheme->pws_name) == 0) {
             res = 0; // Nothing to do
             goto free_and_return;
         }
-        /*
-         * If the scheme is clear or crypt, we also do nothing to prevent breaking some application
-         * integrations. See pwdstorage.h
+
+        /* For some specific original hashes there is no upgrade
+         * By default 'crypt' and 'clear' hashes are not upgraded.
+         * This was to prevent breaking some application integrations.
          */
-        if (strcmp(curpwsp->pws_name, "CLEAR") == 0 || strcmp(curpwsp->pws_name, "CRYPT") == 0) {
-            res = 0; // Nothing to do
-            goto free_and_return;
+        slapdFrontendConfig = getFrontendConfig();
+        if (slapdFrontendConfig->scheme_list_no_upgrade_hash) {
+            char *no_upgrade_hashes;
+            char *saveptr = NULL;
+            int32_t ignore_upgrade = 0;
+
+            no_upgrade_hashes = slapi_ch_strdup(slapdFrontendConfig->scheme_list_no_upgrade_hash);
+            /* Check if the current hash is in the list of non upgradable hashes */
+            for (char *hash = strtok_r(no_upgrade_hashes, ", \t\n", &saveptr);
+                 hash; hash = strtok_r(NULL, ", \t\n", &saveptr)) {
+                if (strcasecmp(hash, curpwsp->pws_name) == 0) {
+                    ignore_upgrade = 1;
+                    break;
+                }
+            }
+            slapi_ch_free_string(&no_upgrade_hashes);
+
+            if (ignore_upgrade) {
+                res = 0; // Nothing to do
+                goto free_and_return;
+            }
         }
     }
 
