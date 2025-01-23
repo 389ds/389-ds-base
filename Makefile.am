@@ -693,6 +693,7 @@ dist_bin_SCRIPTS = ldap/admin/src/scripts/ds-replcheck \
 	ldap/admin/src/scripts/ds-logpipe.py
 
 dist_bin_SCRIPTS += ldap/admin/src/logconv.pl
+dist_bin_SCRIPTS += ldap/admin/src/logconv.py
 
 python_DATA = ldap/admin/src/scripts/failedbinds.py \
 	ldap/admin/src/scripts/logregex.py
@@ -751,6 +752,7 @@ dist_man_MANS = man/man1/dbscan.1 \
 	man/man1/ldap-agent.1 \
 	man/man1/ldclt.1 \
 	man/man1/logconv.pl.1 \
+	man/man1/logconv.py.1 \
 	man/man1/pwdhash.1 \
 	man/man5/99user.ldif.5 \
 	man/man8/ns-slapd.8 \
