@@ -199,8 +199,11 @@ Requires:         cracklib-dicts
 Requires:         json-c
 # Log compression
 Requires:         zlib-devel
+# logconv.py, MIME type
+Requires:         python-magic
 # Picks up our systemd deps.
 %{?systemd_requires}
+
 
 Source0:          %{name}-%{version}.tar.bz2
 Source2:          %{name}-devel.README
@@ -658,6 +661,8 @@ fi
 %{_mandir}/man1/ldclt.1.gz
 %{_bindir}/logconv.pl
 %{_mandir}/man1/logconv.pl.1.gz
+%{_bindir}/logconv.py
+%{_mandir}/man1/logconv.py.1.gz
 %{_bindir}/pwdhash
 %{_mandir}/man1/pwdhash.1.gz
 %{_sbindir}/ns-slapd
