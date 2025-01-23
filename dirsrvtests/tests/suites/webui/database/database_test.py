@@ -52,7 +52,7 @@ def test_global_database_configuration_availability(topology_st, page, browser_n
         :id: d0efda45-4e8e-4703-b9c0-ab53249dafc3
         :setup: Standalone instance
         :steps:
-             1. Click on Database tab and check if ID List Scan Limit label is visible.
+             1. Click on Database tab, click on Limits tab and check if ID List Scan Limit label is visible.
              2. Click on Database Cache tab and check if Automatic Cache Tuning checkbox is visible.
              3. Click on Import Cache tab and check if Automatic Import Cache Tuning checkbox is visible.
              4. Click on NDN Cache tab and check if Normalized DN Cache Max Size label is visible.
@@ -69,31 +69,52 @@ def test_global_database_configuration_availability(topology_st, page, browser_n
     setup_login(page)
     time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
+    instance = topology_st.standalone
 
-    log.info('Check if element on Limits tab is loaded.')
-    frame.get_by_role('tab', name='Database', exact=True).click()
-    frame.get_by_text('ID List Scan Limit', exact=True).wait_for()
-    assert frame.get_by_text('ID List Scan Limit', exact=True).is_visible()
+    if instance.get_db_lib() is 'mdb':
+        log.info('Check if element on Limits tab is loaded.')
+        frame.get_by_role('tab', name='Database', exact=True).click()
 
-    log.info('Click on Database Cache tab and check if element is loaded')
-    frame.get_by_role('tab', name='Database Cache', exact=True).click()
-    assert frame.locator('#db_cache_auto').is_visible()
+        frame.get_by_role('tab', name='Database Size', exact=True).click()
+        frame.get_by_text('Database Maximum Size', exact=True).wait_for()
+        assert frame.get_by_text('Database Maximum Size', exact=True).is_visible()
 
-    log.info('Click on Import Cache tab and check if element is loaded')
-    frame.get_by_role('tab', name='Import Cache', exact=True).click()
-    assert frame.locator('#import_cache_auto').is_visible()
+        frame.get_by_role('tab', name='Limits', exact=True).click()
+        frame.get_by_text('ID List Scan Limit', exact=True).wait_for()
+        assert frame.get_by_text('ID List Scan Limit', exact=True).is_visible()
 
-    log.info('Click on NDN Cache tab and check if element is loaded')
-    frame.get_by_role('tab', name='NDN Cache', exact=True).click()
-    assert frame.get_by_text('Normalized DN Cache Max Size').is_visible()
+        log.info('Click on NDN Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='NDN Cache', exact=True).click()
+        assert frame.get_by_text('Normalized DN Cache Max Size').is_visible()
 
-    log.info('Click on Database Locks tab and check if element is loaded')
-    frame.get_by_role('tab', name='Database Locks', exact=True).click()
-    assert frame.locator('#dblocksMonitoring').is_visible()
+        log.info('Click on Advanced Settings tab and check if element is loaded')
+        frame.get_by_role('tab', name='Advanced Settings', exact=True).click()
+        assert frame.locator('#dbhomedir').is_visible()
+    elif instance.get_db_lib() is 'bdb':
+        log.info('Check if element on Limits tab is loaded.')
+        frame.get_by_role('tab', name='Database', exact=True).click()
+        frame.get_by_text('ID List Scan Limit', exact=True).wait_for()
+        assert frame.get_by_text('ID List Scan Limit', exact=True).is_visible()
 
-    log.info('Click on Advanced Settings tab and check if element is loaded')
-    frame.get_by_role('tab', name='Advanced Settings', exact=True).click()
-    assert frame.locator('#txnlogdir').is_visible()
+        log.info('Click on Database Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='Database Cache', exact=True).click()
+        assert frame.locator('#db_cache_auto').is_visible()
+
+        log.info('Click on Import Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='Import Cache', exact=True).click()
+        assert frame.locator('#import_cache_auto').is_visible()
+
+        log.info('Click on NDN Cache tab and check if element is loaded')
+        frame.get_by_role('tab', name='NDN Cache', exact=True).click()
+        assert frame.get_by_text('Normalized DN Cache Max Size').is_visible()
+
+        log.info('Click on Database Locks tab and check if element is loaded')
+        frame.get_by_role('tab', name='Database Locks', exact=True).click()
+        assert frame.locator('#dblocksMonitoring').is_visible()
+
+        log.info('Click on Advanced Settings tab and check if element is loaded')
+        frame.get_by_role('tab', name='Advanced Settings', exact=True).click()
+        assert frame.locator('#txnlogdir').is_visible()
 
 
 def test_chaining_configuration_availability(topology_st, page, browser_name):
