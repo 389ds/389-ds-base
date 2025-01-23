@@ -132,6 +132,7 @@ def test_replication_visibility(topology_st, page, browser_name):
     assert frame.locator('#replication-suffix-dc\\=example\\,dc\\=com').is_visible()
 
 
+@pytest.mark.xfail(reason="DS6557")
 def test_database_visibility(topology_st, page, browser_name):
     """ Test Database monitoring visibility
 
@@ -247,7 +248,7 @@ def test_create_credential_and_alias(topology_st, page, browser_name):
 
     log.info('Click on Monitoring tab, click on replication button, create new credential and check if it is created')
     frame.get_by_role('tab', name='Monitoring', exact=True).click()
-    frame.locator('#replication-monitor').click()
+    frame.locator('#sync-report').click()
     frame.locator('#pf-tab-1-prepare-new-report').click()
     frame.get_by_role('button', name='Add Credentials').click()
     frame.locator('#credsHostname').fill('credential.test')
