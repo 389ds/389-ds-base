@@ -447,6 +447,9 @@ autoreconf -fiv
 %endif
 
 # lib389
+%if 0%{?fedora} >= 42 || 0%{?rhel} >= 11
+  sed -i "/prefix/s@sbin@bin@g" src/lib389/setup.py.in
+%endif
 make src/lib389/setup.py
 pushd ./src/lib389
 %py3_build
