@@ -1372,6 +1372,7 @@ def test_acct_policy_consumer(topology_m1c1, request):
     time.sleep(2)
     user_supplier = users_supplier.get("test_user_1000")
     user_supplier.bind(USER_PW)
+    time.sleep(2)
 
     # Verify there is no referral error
     results = supplier.ds_error_log.match('.*.acct_update_login_history - Modify error 10 on entry*')
@@ -1391,6 +1392,7 @@ def test_acct_policy_consumer(topology_m1c1, request):
     time.sleep(2)
     user_consumer = users_supplier.get("test_user_1000")
     user_consumer.bind(USER_PW)
+    time.sleep(2)
 
     # Verify there is no referral error
     results = consumer.ds_error_log.match('.*.acct_update_login_history - Modify error 10 on entry*')
