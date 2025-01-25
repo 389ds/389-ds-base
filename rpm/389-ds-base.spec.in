@@ -298,7 +298,7 @@ Requires:         json-c
 # Log compression
 Requires:         zlib-devel
 # logconv.py, MIME type
-Requires:         python-magic
+Requires:         python3-file-magic
 # Picks up our systemd deps.
 %{?systemd_requires}
 
