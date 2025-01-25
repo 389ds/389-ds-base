@@ -1798,8 +1798,7 @@ class logAnalyser:
             return None
 
         try:
-            mime = magic.Magic(mime=True)
-            filetype = mime.from_file(filepath)
+            filetype = magic.detect_from_filename(filepath).mime_type
 
             # List of supported compression types
             compressed_mime_types = [
