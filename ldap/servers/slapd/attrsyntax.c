@@ -608,10 +608,11 @@ attr_syntax_exists(const char *attr_name)
 
 static void default_dirstring_normalize_int(char *s, int trim_spaces);
 
-static int
-default_dirstring_filter_ava(struct berval *bvfilter __attribute__((unused)),
-                             Slapi_Value **bvals __attribute__((unused)),
-                             int ftype __attribute__((unused)),
+static int32_t
+default_dirstring_filter_ava(Slapi_PBlock *pb __attribute__((unused)),
+                             const struct berval *bv __attribute__((unused)),
+                             Slapi_Value **vals __attribute__((unused)),
+                             int32_t ftype __attribute__((unused)),
                              Slapi_Value **retVal __attribute__((unused)))
 {
     return (0);
@@ -621,7 +622,7 @@ static int
 default_dirstring_values2keys(Slapi_PBlock *pb __attribute__((unused)),
                               Slapi_Value **bvals,
                               Slapi_Value ***ivals,
-                              int ftype)
+                              int32_t ftype)
 {
     int numbvals = 0;
     Slapi_Value **nbvals, **nbvlp;
@@ -664,11 +665,11 @@ default_dirstring_values2keys(Slapi_PBlock *pb __attribute__((unused)),
     return (0);
 }
 
-static int
+static int32_t
 default_dirstring_assertion2keys_ava(Slapi_PBlock *pb __attribute__((unused)),
                                      Slapi_Value *val __attribute__((unused)),
                                      Slapi_Value ***ivals __attribute__((unused)),
-                                     int ftype __attribute__((unused)))
+                                     int32_t ftype __attribute__((unused)))
 {
     return (0);
 }
@@ -759,11 +760,11 @@ attr_syntax_default_plugin(const char *nameoroid)
     pi->plg_syntax_oid = slapi_ch_strdup(nameoroid);
 
 
-    pi->plg_syntax_filter_ava = (IFP)default_dirstring_filter_ava;
-    pi->plg_syntax_values2keys = (IFP)default_dirstring_values2keys;
-    pi->plg_syntax_assertion2keys_ava = (IFP)default_dirstring_assertion2keys_ava;
+    pi->plg_syntax_filter_ava = default_dirstring_filter_ava;
+    pi->plg_syntax_values2keys = default_dirstring_values2keys;
+    pi->plg_syntax_assertion2keys_ava = default_dirstring_assertion2keys_ava;
     pi->plg_syntax_compare = (IFP)default_dirstring_cmp;
-    pi->plg_syntax_normalize = (VFPV)default_dirstring_normalize;
+    pi->plg_syntax_normalize = default_dirstring_normalize;
 
     return (pi);
 }

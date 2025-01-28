@@ -663,7 +663,7 @@ slapi_send_ldap_intermediate(Slapi_PBlock *pb, LDAPControl **ectrls, char *respo
 int
 slapi_send_ldap_search_entry(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls, char **attrs, int attrsonly)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock *, Slapi_Entry *, LDAPControl **, char **, int32_t) = NULL;
     slapi_pblock_get(pb, SLAPI_PLUGIN_DB_ENTRY_FN, (void *)&fn);
     if (NULL == fn) {
         return -1;
@@ -698,7 +698,7 @@ slapi_send_ldap_result_from_pb(Slapi_PBlock *pb)
     int err;
     char *matched;
     char *text;
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, int32_t, char*, char*, int32_t, struct berval **) = NULL;
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
     slapi_pblock_get(pb, SLAPI_RESULT_TEXT, &text);
@@ -718,7 +718,7 @@ slapi_send_ldap_result_from_pb(Slapi_PBlock *pb)
 void
 slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int nentries, struct berval **urls)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, int32_t, char*, char*, int32_t, struct berval **) = NULL;
     Slapi_Operation *operation;
     long op_type;
 
@@ -756,7 +756,7 @@ slapi_send_ldap_result(Slapi_PBlock *pb, int err, char *matched, char *text, int
 int
 slapi_send_ldap_referral(Slapi_PBlock *pb, Slapi_Entry *e, struct berval **refs, struct berval ***urls)
 {
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock*, Slapi_Entry*, struct berval **, struct berval ***) = NULL;
     slapi_pblock_get(pb, SLAPI_PLUGIN_DB_REFERRAL_FN, (void *)&fn);
     if (NULL == fn) {
         return -1;
@@ -1969,7 +1969,7 @@ plugin_call_func(struct slapdplugin *list, int operation, Slapi_PBlock *pb, int 
     int count = 0;
 
     for (; list != NULL; list = list->plg_next) {
-        IFP func = NULL;
+        int32_t (*func)(Slapi_PBlock *) = NULL;
 
         slapi_pblock_set(pb, SLAPI_PLUGIN, list);
         set_db_default_result_handlers(pb); /* JCM: What's this do? Is it needed here? */

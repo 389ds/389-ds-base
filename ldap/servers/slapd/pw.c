@@ -3243,7 +3243,7 @@ slapi_pw_set_entry_ext(Slapi_Entry *entry, Slapi_Value **vals, int flags)
 }
 
 int
-pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
+pw_copy_entry_ext(const Slapi_Entry *src_e, Slapi_Entry *dest_e)
 {
     struct slapi_pw_entry_ext *src_extp = NULL;
     struct slapi_pw_entry_ext *dest_extp = NULL;
@@ -3254,7 +3254,7 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
 
     src_extp = (struct slapi_pw_entry_ext *)slapi_get_object_extension(
         pw_entry_objtype,
-        src_e,
+        (void *)src_e,
         pw_entry_handle);
     if (NULL == src_extp) {
         return LDAP_NO_SUCH_ATTRIBUTE;

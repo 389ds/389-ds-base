@@ -14,6 +14,7 @@ import pytest
 import time
 import subprocess
 import glob
+import re
 from lib389.properties import TASK_WAIT
 from lib389.replica import Replicas
 from lib389.idm.user import UserAccounts
@@ -46,10 +47,11 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+
 def _check_repl_changelog_backup(instance, backup_dir):
     # Note: there is no way to check dbi on lmdb backup
     # That said dbscan may perhaps do it ...
-    if instance.get_db_lib() is 'bdb':
+    if instance.get_db_lib() == 'bdb':
         if ds_supports_new_changelog():
             backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
         else:
@@ -59,6 +61,7 @@ def _check_repl_changelog_backup(instance, backup_dir):
         else:
             log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
             assert False
+
 
 def _perform_ldap_operations(topo):
     """Add a test user, modify description, modrdn user and delete it"""
@@ -751,7 +754,7 @@ def test_changelog_pagesize(topo):
          3. Should not have any 4K page size in db_stat output
     """
 
-    s1=topo.ms["supplier1"]
+    s1 = topo.ms["supplier1"]
     fs_pagesize = os.statvfs(s1.ds_paths.db_home_dir).f_bsize
     if fs_pagesize != 4096:
         pytest.skip("This test requires that database filesystem prefered block size is 4K.")
@@ -761,8 +764,8 @@ def test_changelog_pagesize(topo):
         log.debug(f"DEBUG: Running {cmd}")
         output = subprocess.check_output(cmd, universal_newlines=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
-        self.log.error(f'Failed to gather db statistics {cmd}: "{e.output.decode()}')
-        self.log.error(e)
+        log.error(f'Failed to gather db statistics {cmd}: "{e.output.decode()}')
+        log.error(e)
         raise e
     assert not re.match("^4096 *Page size", output, flags=re.MULTILINE)
 
