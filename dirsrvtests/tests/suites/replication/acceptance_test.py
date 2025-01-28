@@ -597,7 +597,7 @@ def test_double_delete(topo_m4, create_entry):
         time.sleep(5)
     else:
         time.sleep(1)
-        
+
     log.info('Make searches to check if server is alive')
     entries = get_repl_entries(topo_m4, TEST_ENTRY_NAME, ["uid"])
     assert not entries, "Entry deletion {} wasn't replicated successfully".format(TEST_ENTRY_DN)
@@ -688,7 +688,7 @@ def test_invalid_agmt(topo_m4):
         assert False
 
 
-def test_warining_for_invalid_replica(topo_m4):
+def test_warning_for_invalid_replica(topo_m4):
     """Testing logs to indicate the inconsistency when configuration is performed.
 
     :id: dd689d03-69b8-4bf9-a06e-2acd19d5e2c8

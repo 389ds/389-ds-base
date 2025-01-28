@@ -54,7 +54,7 @@ typedef struct or_filter_t
 static or_filter_t *
 or_filter_get(Slapi_PBlock *pb)
 {
-    auto void *obj = NULL;
+    void *obj = NULL;
     if (!slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &obj)) {
         return (or_filter_t *)obj;
     }
@@ -64,7 +64,7 @@ or_filter_get(Slapi_PBlock *pb)
 static int
 or_filter_destroy(Slapi_PBlock *pb)
 {
-    auto or_filter_t * or = or_filter_get(pb);
+    or_filter_t * or = or_filter_get(pb);
     slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
                   "or_filter_destroy - (%p)\n", (void *) or);
     if (or != NULL) {
@@ -105,10 +105,10 @@ ss_match(struct berval *value,
  *          -1  nothing in value will match; give up
  */
 {
-    auto struct berval *vals[2];
-    auto struct berval val;
-    auto struct berval key;
-    auto size_t attempts = MAX_CHAR_COMBINING;
+    struct berval *vals[2];
+    struct berval val;
+    struct berval key;
+    size_t attempts = MAX_CHAR_COMBINING;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -117,9 +117,9 @@ ss_match(struct berval *value,
     key.bv_val = key0->bv_val;
     key.bv_len = key0->bv_len - 1;
     while (1) {
-        auto struct berval **vkeys = ix->ix_index(ix, vals, NULL);
+        struct berval **vkeys = ix->ix_index(ix, vals, NULL);
         if (vkeys && vkeys[0]) {
-            auto const struct berval *vkey = vkeys[0];
+            const struct berval *vkey = vkeys[0];
             if (vkey->bv_len > key.bv_len) {
                 if (--attempts <= 0) {
                     break; /* No match at this starting point */
@@ -138,7 +138,7 @@ ss_match(struct berval *value,
         val.bv_len += LDAP_UTF8LEN(val.bv_val + val.bv_len);
     }
     if (value->bv_len > 0) {
-        auto size_t one = LDAP_UTF8LEN(value->bv_val);
+        size_t one = LDAP_UTF8LEN(value->bv_val);
         value->bv_len -= one;
         value->bv_val += one;
         return 1;
@@ -153,12 +153,12 @@ ss_filter_match(or_filter_t * or, struct berval **vals)
  *          >0  an LDAP error code
  */
 {
-    auto int rc = -1; /* no match */
-    auto indexer_t *ix = or->or_indexer;
+    int rc = -1; /* no match */
+    indexer_t *ix = or->or_indexer;
     if (vals != NULL)
         for (; *vals; ++vals) {
-            auto struct berval v;
-            auto struct berval **k = or->or_match_keys;
+            struct berval v;
+            struct berval **k = or->or_match_keys;
             if (k == NULL || *k == NULL) {
                 rc = 0; /* present */
                 break;
@@ -180,12 +180,12 @@ ss_filter_match(or_filter_t * or, struct berval **vals)
                         break;
                     }
                 } else { /* final */
-                    auto size_t attempts = MAX_CHAR_COMBINING;
-                    auto char *limit = v.bv_val;
-                    auto char *end;
-                    auto struct berval **vkeys;
-                    auto struct berval *final_vals[2];
-                    auto struct berval key;
+                    size_t attempts = MAX_CHAR_COMBINING;
+                    char *limit = v.bv_val;
+                    char *end;
+                    struct berval **vkeys;
+                    struct berval *final_vals[2];
+                    struct berval key;
 
                     rc = -1;
                     final_vals[0] = &v;
@@ -211,7 +211,7 @@ ss_filter_match(or_filter_t * or, struct berval **vals)
                         v.bv_len = end - v.bv_val + 1;
                         vkeys = ix->ix_index(ix, final_vals, NULL);
                         if (vkeys && vkeys[0]) {
-                            auto const struct berval *vkey = vkeys[0];
+                            const struct berval *vkey = vkeys[0];
                             if (vkey->bv_len > key.bv_len) {
                                 if (--attempts <= 0) {
                                     break;
@@ -239,11 +239,11 @@ ss_filter_match(or_filter_t * or, struct berval **vals)
 static int
 op_filter_match(or_filter_t * or, struct berval **vals)
 {
-    auto indexer_t *ix = or->or_indexer;
-    auto struct berval **v = ix->ix_index(ix, vals, NULL);
+    indexer_t *ix = or->or_indexer;
+    struct berval **v = ix->ix_index(ix, vals, NULL);
     if (v != NULL)
         for (; *v; ++v) {
-            auto struct berval **k = or->or_match_keys;
+            struct berval **k = or->or_match_keys;
             if (k != NULL)
                 for (; *k; ++k) {
                     switch (or->or_op) {
@@ -282,11 +282,11 @@ or_filter_match(void *obj, Slapi_Entry *entry, Slapi_Attr *attr)
  *        >0  an LDAP error code
  */
 {
-    auto int rc = -1; /* no match */
-    auto or_filter_t * or = (or_filter_t *)obj;
+    int rc = -1; /* no match */
+    or_filter_t * or = (or_filter_t *)obj;
     for (; attr != NULL; slapi_entry_next_attr(entry, attr, &attr)) {
-        auto char *type = NULL;
-        auto struct berval **vals = NULL;
+        char *type = NULL;
+        struct berval **vals = NULL;
 
         /*
  * XXXmcs 1-March-2001: This code would perform better if it did not make
@@ -352,7 +352,7 @@ static struct berval *
 slapi_ch_bvdup0(struct berval *val)
 /* Return a copy of val, with a 0 byte following the end. */
 {
-    auto struct berval *result = (struct berval *)
+    struct berval *result = (struct berval *)
         slapi_ch_malloc(sizeof(struct berval));
     slapi_ber_bvcpy(result, val);
     return result;
@@ -372,12 +372,12 @@ static struct berval **
 ss_filter_values(struct berval *pattern, int *query_op)
 /* Split the pattern into its substrings and return them. */
 {
-    auto struct berval **result;
-    auto struct berval val;
-    auto size_t n;
-    auto char *s;
-    auto char *p;
-    auto char *plimit = pattern->bv_val + pattern->bv_len;
+    struct berval **result;
+    struct berval val;
+    size_t n;
+    char *s;
+    char *p;
+    char *plimit = pattern->bv_val + pattern->bv_len;
 
     /* Compute the length of the result array, and
        the maximum bv_len of any of its elements. */
@@ -389,7 +389,7 @@ ss_filter_values(struct berval *pattern, int *query_op)
         case WILDCARD:
             ++n;
             {
-                auto const size_t len = (p - s);
+                const size_t len = (p - s);
                 if (val.bv_len < len)
                     val.bv_len = len;
             }
@@ -402,8 +402,8 @@ ss_filter_values(struct berval *pattern, int *query_op)
         }
     }
     if (n == 2) { /* no wildcards in pattern */
-        auto struct berval **pvec = (struct berval **)slapi_ch_malloc(sizeof(struct berval *) * 2);
-        auto struct berval *pv = slapi_ch_bvdup(pattern);
+        struct berval **pvec = (struct berval **)slapi_ch_malloc(sizeof(struct berval *) * 2);
+        struct berval *pv = slapi_ch_bvdup(pattern);
         pvec[0] = pv;
         pvec[1] = NULL;
         ss_unescape(pv);
@@ -413,7 +413,7 @@ ss_filter_values(struct berval *pattern, int *query_op)
         return NULL;                             /* presence */
     }
     {
-        auto const size_t len = (p - s);
+        const size_t len = (p - s);
         if (val.bv_len < len)
             val.bv_len = len;
     }
@@ -449,7 +449,7 @@ ss_filter_key(indexer_t *ix, struct berval *val)
     struct berval *key = (struct berval *)slapi_ch_calloc(1, sizeof(struct berval));
     if (val->bv_len > 0) {
         struct berval **keys = NULL;
-        auto struct berval *vals[2];
+        struct berval *vals[2];
         vals[0] = val;
         vals[1] = NULL;
         keys = ix->ix_index(ix, vals, NULL);
@@ -477,10 +477,10 @@ ss_filter_keys(indexer_t *ix, struct berval **values)
        an empty key definitely implies an absent value.
     */
 {
-    auto struct berval **keys = NULL;
+    struct berval **keys = NULL;
     if (values != NULL) {
-        auto size_t n; /* how many substring values */
-        auto struct berval **val;
+        size_t n; /* how many substring values */
+        struct berval **val;
         for (n = 0, val = values; *val != NULL; ++n, ++val)
             ;
         keys = (struct berval **)slapi_ch_malloc((n + 1) * sizeof(struct berval *));
@@ -497,25 +497,25 @@ static int or_filter_index(Slapi_PBlock *pb);
 static int
 or_filter_create(Slapi_PBlock *pb)
 {
-    auto int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
-    auto char *mrOID = NULL;
-    auto char *mrTYPE = NULL;
-    auto struct berval *mrVALUE = NULL;
-    auto or_filter_t * or = NULL;
+    int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
+    char *mrOID = NULL;
+    char *mrTYPE = NULL;
+    struct berval *mrVALUE = NULL;
+    or_filter_t * or = NULL;
 
     if (!slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID) && mrOID != NULL &&
         !slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE) && mrTYPE != NULL &&
         !slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUE, &mrVALUE) && mrVALUE != NULL) {
-        auto size_t len = mrVALUE->bv_len;
-        auto indexer_t *ix = NULL;
-        auto int op = SLAPI_OP_EQUAL;
-        auto struct berval bv;
-        auto int reusable = MRF_ANY_TYPE;
+        size_t len = mrVALUE->bv_len;
+        indexer_t *ix = NULL;
+        int op = SLAPI_OP_EQUAL;
+        struct berval bv;
+        int reusable = MRF_ANY_TYPE;
 
         slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
                       "or_filter_create - (oid %s; type %s)\n", mrOID, mrTYPE);
         if (len > 1 && (ix = indexer_create(mrOID)) != NULL) {
-            auto char *val = mrVALUE->bv_val;
+            char *val = mrVALUE->bv_val;
             switch (val[0]) {
             case '=':
                 break;
@@ -537,7 +537,7 @@ or_filter_create(Slapi_PBlock *pb)
             bv.bv_val = (len > 0) ? val : NULL;
         } else { /* mrOID does not identify an ordering rule. */
             /* Is it an ordering rule OID with a relational operator suffix? */
-            auto size_t oidlen = strlen(mrOID);
+            size_t oidlen = strlen(mrOID);
             if (oidlen > 2 && mrOID[oidlen - 2] == '.') {
                 op = atoi(mrOID + oidlen - 1);
                 switch (op) {
@@ -547,7 +547,7 @@ or_filter_create(Slapi_PBlock *pb)
                 case SLAPI_OP_GREATER_OR_EQUAL:
                 case SLAPI_OP_GREATER:
                 case SLAPI_OP_SUBSTRING: {
-                    auto char *or_oid = slapi_ch_strdup(mrOID);
+                    char *or_oid = slapi_ch_strdup(mrOID);
                     or_oid[oidlen - 2] = '\0';
                     ix = indexer_create(or_oid);
                     if (ix != NULL) {
@@ -575,7 +575,7 @@ or_filter_create(Slapi_PBlock *pb)
                 or->or_values[1] = NULL;
             }
             {
-                auto struct berval **val = or->or_values;
+                struct berval **val = or->or_values;
                 if (val)
                     for (; *val; ++val) {
                         slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
@@ -607,7 +607,7 @@ or_filter_create(Slapi_PBlock *pb)
 static indexer_t *
 op_indexer_get(Slapi_PBlock *pb)
 {
-    auto void *obj = NULL;
+    void *obj = NULL;
     if (!slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &obj)) {
         return (indexer_t *)obj;
     }
@@ -617,7 +617,7 @@ op_indexer_get(Slapi_PBlock *pb)
 static int
 op_indexer_destroy(Slapi_PBlock *pb)
 {
-    auto indexer_t *ix = op_indexer_get(pb);
+    indexer_t *ix = op_indexer_get(pb);
     slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
                   "op_indexer_destroy - (%p)\n", (void *)ix);
     if (ix != NULL) {
@@ -632,8 +632,8 @@ static int
 op_index_entry(Slapi_PBlock *pb)
 /* Compute collation keys (when writing an entry). */
 {
-    auto indexer_t *ix = op_indexer_get(pb);
-    auto int rc;
+    indexer_t *ix = op_indexer_get(pb);
+    int rc;
     struct berval **values;
     if (ix != NULL && ix->ix_index != NULL &&
         !slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &values) &&
@@ -651,10 +651,10 @@ static int
 op_index_search(Slapi_PBlock *pb)
 /* Compute collation keys (when searching for entries). */
 {
-    auto or_filter_t * or = or_filter_get(pb);
-    auto int rc = LDAP_OPERATIONS_ERROR;
+    or_filter_t * or = or_filter_get(pb);
+    int rc = LDAP_OPERATIONS_ERROR;
     if (or != NULL) {
-        auto indexer_t *ix = or->or_indexer;
+        indexer_t *ix = or->or_indexer;
         struct berval **values;
         if (or->or_index_keys == NULL && ix != NULL && ix->ix_index != NULL && !slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &values)) {
             or->or_index_keys = slapi_ch_bvecdup(ix->ix_index(ix, values, NULL));
@@ -688,7 +688,7 @@ ss_indexer_free(ss_indexer_t *ss)
 static ss_indexer_t *
 ss_indexer_get(Slapi_PBlock *pb)
 {
-    auto void *obj = NULL;
+    void *obj = NULL;
     if (!slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &obj)) {
         return (ss_indexer_t *)obj;
     }
@@ -698,7 +698,7 @@ ss_indexer_get(Slapi_PBlock *pb)
 static void
 ss_indexer_destroy(Slapi_PBlock *pb)
 {
-    auto ss_indexer_t *ss = ss_indexer_get(pb);
+    ss_indexer_t *ss = ss_indexer_get(pb);
     slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
                   "ss_indexer_destroy - (%p)\n", (void *)ss);
     if (ss) {
@@ -722,9 +722,9 @@ static int
 long_enough(struct berval *bval, size_t enough)
 {
     if (bval) {
-        auto size_t len = 0;
-        auto char *next = bval->bv_val;
-        auto char *last = next + bval->bv_len;
+        size_t len = 0;
+        char *next = bval->bv_val;
+        char *last = next + bval->bv_len;
         while (next < last) {
             LDAP_UTF8INC(next);
             if (++len >= enough) {
@@ -742,23 +742,23 @@ static int
 ss_index_entry(Slapi_PBlock *pb)
 /* Compute substring index keys (when writing an entry). */
 {
-    auto int rc = LDAP_OPERATIONS_ERROR;
-    auto size_t substringsLen = 0;
+    int rc = LDAP_OPERATIONS_ERROR;
+    size_t substringsLen = 0;
     struct berval **values;
-    auto ss_indexer_t *ss = ss_indexer_get(pb);
-    auto indexer_t *ix = ss ? ss->ss_indexer : NULL;
+    ss_indexer_t *ss = ss_indexer_get(pb);
+    indexer_t *ix = ss ? ss->ss_indexer : NULL;
     if (ix != NULL && ix->ix_index != NULL &&
         !slapi_pblock_get(pb, SLAPI_PLUGIN_MR_VALUES, &values)) {
-        auto struct berval *substrings = NULL;
-        auto struct berval **prefixes = NULL;
-        auto struct berval **value;
+        struct berval *substrings = NULL;
+        struct berval **prefixes = NULL;
+        struct berval **value;
         for (value = values; *value != NULL; ++value) {
-            auto struct berval substring;
+            struct berval substring;
             substring.bv_val = (*value)->bv_val;
             substring.bv_len = (*value)->bv_len;
             if (long_enough(&substring, SS_INDEX_LENGTH - 1)) {
-                auto struct berval *prefix = &ss_index_initial;
-                auto size_t offset;
+                struct berval *prefix = &ss_index_initial;
+                size_t offset;
                 for (offset = 0; 1; ++offset) {
                     ++substringsLen;
                     substrings = (struct berval *)
@@ -782,9 +782,9 @@ ss_index_entry(Slapi_PBlock *pb)
             }
         }
         if (substrings != NULL) {
-            auto struct berval **vector = (struct berval **)
+            struct berval **vector = (struct berval **)
                 slapi_ch_malloc((substringsLen + 1) * sizeof(struct berval *));
-            auto size_t i;
+            size_t i;
             for (i = 0; i < substringsLen; ++i)
                 vector[i] = &(substrings[i]);
             vector[substringsLen] = NULL;
@@ -804,21 +804,21 @@ static int
 ss_index_search(Slapi_PBlock *pb)
 /* Compute substring search keys (when searching for entries). */
 {
-    auto int rc = LDAP_OPERATIONS_ERROR;
-    auto or_filter_t * or = or_filter_get(pb);
+    int rc = LDAP_OPERATIONS_ERROR;
+    or_filter_t * or = or_filter_get(pb);
     if (or) {
         if (or->or_index_keys == NULL /* not yet computed */ &&
             or->or_values && or->or_indexer && or->or_indexer->ix_index) {
-            auto size_t substringsLen = 0;
-            auto struct berval *substrings = NULL;
-            auto struct berval **prefixes = NULL;
-            auto struct berval **value;
+            size_t substringsLen = 0;
+            struct berval *substrings = NULL;
+            struct berval **prefixes = NULL;
+            struct berval **value;
             for (value = or->or_values; *value != NULL; ++value) {
-                auto size_t offset;
-                auto struct berval substring;
+                size_t offset;
+                struct berval substring;
                 substring.bv_val = (*value)->bv_val;
                 for (offset = 0; 1; ++offset, LDAP_UTF8INC(substring.bv_val)) {
-                    auto struct berval *prefix = NULL;
+                    struct berval *prefix = NULL;
                     substring.bv_len = (*value)->bv_len - (substring.bv_val - (*value)->bv_val);
                     if (offset == 0 && value == or->or_values) {
                         if (long_enough(&substring, SS_INDEX_LENGTH - 1)) {
@@ -845,10 +845,10 @@ ss_index_search(Slapi_PBlock *pb)
                 }
             }
             if (substrings != NULL) {
-                auto indexer_t *ix = or->or_indexer;
-                auto struct berval **vector = (struct berval **)
+                indexer_t *ix = or->or_indexer;
+                struct berval **vector = (struct berval **)
                     slapi_ch_malloc((substringsLen + 1) * sizeof(struct berval *));
-                auto size_t i;
+                size_t i;
                 for (i = 0; i < substringsLen; ++i)
                     vector[i] = &(substrings[i]);
                 vector[substringsLen] = NULL;
@@ -872,10 +872,10 @@ static int
 ss_indexable(struct berval **values)
 /* at least one of the values is long enough to index */
 {
-    auto struct berval **val = values;
+    struct berval **val = values;
     if (val)
         for (; *val; ++val) {
-            auto struct berval value;
+            struct berval value;
             value.bv_val = (*val)->bv_val;
             value.bv_len = (*val)->bv_len;
             if (val == values) { /* initial */
@@ -899,12 +899,12 @@ static int
 or_filter_index(Slapi_PBlock *pb)
 /* Return an indexer and values that accelerate the given filter. */
 {
-    auto or_filter_t * or = or_filter_get(pb);
-    auto int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
-    auto IFP mrINDEX_FN = NULL;
-    auto struct berval **mrVALUES = NULL;
-    auto char *mrOID = NULL;
-    auto int mrQUERY_OPERATOR;
+    or_filter_t * or = or_filter_get(pb);
+    int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+    int32_t (*mrINDEX_FN)(Slapi_PBlock *) = NULL;
+    struct berval **mrVALUES = NULL;
+    char *mrOID = NULL;
+    int mrQUERY_OPERATOR;
     if (or && or->or_indexer && or->or_indexer->ix_index) {
         switch (or->or_op) {
         case SLAPI_OP_LESS:
@@ -920,7 +920,7 @@ or_filter_index(Slapi_PBlock *pb)
         case SLAPI_OP_SUBSTRING:
             if (ss_indexable(or->or_values)) {
                 if (or->or_oid == NULL) {
-                    auto const size_t len = strlen(or->or_indexer->ix_oid);
+                    const size_t len = strlen(or->or_indexer->ix_oid);
                     or->or_oid = slapi_ch_malloc(len + 3);
                     memcpy(or->or_oid, or->or_indexer->ix_oid, len);
                     sprintf(or->or_oid + len, ".%1i", SLAPI_OP_SUBSTRING);
@@ -952,15 +952,15 @@ or_filter_index(Slapi_PBlock *pb)
 static int
 or_indexer_create(Slapi_PBlock *pb)
 {
-    auto int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
-    auto char *mrOID = NULL;
-    auto void *mrOBJECT = NULL;
+    int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
+    char *mrOID = NULL;
+    void *mrOBJECT = NULL;
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID) || mrOID == NULL) {
         slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
                       "or_indexer_create - No OID parameter\n");
     } else {
-        auto indexer_t *ix = indexer_create(mrOID);
-        auto char *mrTYPE = NULL;
+        indexer_t *ix = indexer_create(mrOID);
+        char *mrTYPE = NULL;
         slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
         slapi_log_err(SLAPI_LOG_FILTER, "or_indexer_create", "(oid %s; type %s)\n",
                       mrOID, mrTYPE ? mrTYPE : "<NULL>");
@@ -977,14 +977,14 @@ or_indexer_create(Slapi_PBlock *pb)
             }
         } else { /* mrOID does not identify an ordering rule. */
             /* Is it an ordering rule OID with the substring suffix? */
-            auto size_t oidlen = strlen(mrOID);
+            size_t oidlen = strlen(mrOID);
             if (oidlen > 2 && mrOID[oidlen - 2] == '.' &&
                 atoi(mrOID + oidlen - 1) == SLAPI_OP_SUBSTRING) {
-                auto char *or_oid = slapi_ch_strdup(mrOID);
+                char *or_oid = slapi_ch_strdup(mrOID);
                 or_oid[oidlen - 2] = '\0';
                 ix = indexer_create(or_oid);
                 if (ix != NULL) {
-                    auto ss_indexer_t *ss = (ss_indexer_t *)slapi_ch_malloc(sizeof(ss_indexer_t));
+                    ss_indexer_t *ss = (ss_indexer_t *)slapi_ch_malloc(sizeof(ss_indexer_t));
                     ss->ss_indexer = ix;
                     oidlen = strlen(ix->ix_oid);
                     ss->ss_oid = slapi_ch_malloc(oidlen + 3);

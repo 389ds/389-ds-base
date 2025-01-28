@@ -1298,8 +1298,10 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
 
 /* Function used to gather a list of indexed attrs */
 static int
-bdb_import_attr_callback(void *node, void *param)
+bdb_import_attr_callback(caddr_t n, caddr_t p)
 {
+    void *node = (void *)n;
+    void *param  = (void *)p;
     ImportJob *job = (ImportJob *)param;
     struct attrinfo *a = (struct attrinfo *)node;
 
@@ -2215,9 +2217,9 @@ bdb_public_bdb_import_main(void *arg)
         /* Here, we get an AVL tree which contains nodes for all attributes
          * in the schema.  Given this tree, we need to identify those nodes
          * which are marked for indexing. */
-        avl_apply(job->inst->inst_attrs, (IFP)bdb_import_attr_callback,
+        avl_apply(job->inst->inst_attrs, bdb_import_attr_callback,
                   (caddr_t)job, -1, AVL_INORDER);
-        vlv_getindices((IFP)bdb_import_attr_callback, (void *)job, be);
+        vlv_getindices(bdb_import_attr_callback, (void *)job, be);
     }
 
     /* Determine how much index buffering space to allocate to each index */

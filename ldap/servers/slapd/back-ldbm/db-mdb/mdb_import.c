@@ -347,9 +347,11 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
 }
 
 /* Function used to gather a list of indexed attrs */
-static int
-dbmdb_import_attr_callback(void *node, void *param)
+static int32_t
+dbmdb_import_attr_callback(caddr_t n, caddr_t p)
 {
+    void *node = (void *)n;
+    void *param  = (void *)p;
     ImportJob *job = (ImportJob *)param;
     struct attrinfo *a = (struct attrinfo *)node;
 
@@ -788,11 +790,11 @@ dbmdb_import_all_done(ImportJob *job, int ret)
             /* Bring backend online again:
              * In lmdb case, the import framework is also used for reindexing
              * while in bdb case reindexing uses its own code.
-             * So dbmdb_import_all_done is called either after 
+             * So dbmdb_import_all_done is called either after
              * dbmdb_ldif2db or after dbmdb_db2index while
              * bdb_import_all_done is only called after bdb_ldif2db.
              *
-             * dbmdb_db2index uses instance_set_busy_and_readonly 
+             * dbmdb_db2index uses instance_set_busy_and_readonly
              * while dbmdb_ldif2db uses slapi_mtn_be_disable
              * and these functions have to be reverted accordingly.
              */
@@ -821,9 +823,12 @@ dbmdb_import_all_done(ImportJob *job, int ret)
 
 /* vlv_getindices callback that truncate vlv index (in reindex case) */
 static int
-truncate_index_dbi(struct attrinfo *ai, ImportCtx_t *ctx)
+truncate_index_dbi(caddr_t a, caddr_t c)
 {
+    struct attrinfo *ai = (struct attrinfo *)a;
+    ImportCtx_t *ctx = (ImportCtx_t *)c;
     int rc = 0;
+
     if (is_reindexed_attr(ai->ai_type, ctx, ctx->indexVlvs)) {
         backend *be = ctx->job->inst->inst_be;
         dbmdb_dbi_t *dbi = NULL;
@@ -878,9 +883,9 @@ dbmdb_public_dbmdb_import_main(void *arg)
         /* Here, we get an AVL tree which contains nodes for all attributes
          * in the schema.  Given this tree, we need to identify those nodes
          * which are marked for indexing. */
-        avl_apply(job->inst->inst_attrs, (IFP)dbmdb_import_attr_callback,
+        avl_apply(job->inst->inst_attrs, dbmdb_import_attr_callback,
                   (caddr_t)job, -1, AVL_INORDER);
-        vlv_getindices((IFP)dbmdb_import_attr_callback, (void *)job, be);
+        vlv_getindices(dbmdb_import_attr_callback, (void *)job, be);
     }
 
     /* insure all dbi get open */
@@ -901,7 +906,7 @@ dbmdb_public_dbmdb_import_main(void *arg)
             pthread_mutex_unlock(&job->wire_lock);
             break;
         case IM_INDEX:
-            vlv_getindices((IFP)truncate_index_dbi, ctx, job->inst->inst_be);
+            vlv_getindices(truncate_index_dbi, ctx, job->inst->inst_be);
         default:
             break;
     }
