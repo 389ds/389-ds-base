@@ -1,7 +1,7 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
+ * Copyright (C) 2009-2025 Red Hat, Inc.
  * All rights reserved.
  *
  * Contributors:
@@ -866,10 +866,10 @@ struct slapi_entry
 struct attrs_in_extension
 {
     char *ext_type;
-    IFP ext_get;
-    IFP ext_set;
-    IFP ext_copy;
-    IFP ext_get_size;
+    int32_t (*ext_get)(Slapi_Entry *, Slapi_Value ***);
+    int32_t (*ext_set)(Slapi_Entry *, Slapi_Value **, int32_t);
+    int32_t (*ext_copy)(const Slapi_Entry *, Slapi_Entry *);
+    int32_t (*ext_get_size)(Slapi_Entry *, size_t *);
 };
 
 extern struct attrs_in_extension attrs_in_extension[];
@@ -1041,7 +1041,7 @@ struct slapdplugin
     int plg_precedence;                     /* for plugin execution ordering */
     struct slapdplugin *plg_group;          /* pointer to the group to which this plugin belongs */
     struct pluginconfig plg_conf;           /* plugin configuration parameters */
-    IFP plg_cleanup;                        /* cleanup function */
+    int32_t (*plg_cleanup)(Slapi_PBlock *); /* cleanup function */
     IFP plg_start;                          /* start function */
     IFP plg_poststart;                      /* poststart function */
     int plg_closed;                         /* mark plugin as closed */
@@ -1051,47 +1051,47 @@ struct slapdplugin
     Slapi_Counter *plg_op_counter;          /* operation counter, used for shutdown */
 
     /* NOTE: These LDIF2DB and DB2LDIF fn pointers are internal only for now.
-   I don't believe you can get these functions from a plug-in and
-   then call them without knowing what IFP or VFP0 are.  (These aren't
-   declared in slapi-plugin.h.)  More importantly, it's a pretty ugly
-   way to get to these functions. (Do we want people to get locked into
-   this?)
-
-   The correct way to do this would be to expose these functions as
-   front-end API functions. We can fix this for the next release.
-   (No one has the time right now.)
- */
+     * I don't believe you can get these functions from a plug-in and
+     * then call them without knowing what IFP or VFP0 are.  (These aren't
+     * declared in slapi-plugin.h.)  More importantly, it's a pretty ugly
+     * way to get to these functions. (Do we want people to get locked into
+     * this?)
+     *
+     * The correct way to do this would be to expose these functions as
+     * front-end API functions. We can fix this for the next release.
+     * (No one has the time right now.)
+     */
     union
     { /* backend database plugin structure */
         struct plg_un_database_backend
         {
-            IFP plg_un_db_bind;              /* bind */
-            IFP plg_un_db_unbind;            /* unbind */
-            IFP plg_un_db_search;            /* search */
-            IFP plg_un_db_next_search_entry; /* iterate */
+            int32_t (*plg_un_db_bind)(Slapi_PBlock *);                  /* bind */
+            int32_t (*plg_un_db_unbind)(Slapi_PBlock *);                /* undbind */
+            int32_t (*plg_un_db_search)(Slapi_PBlock *);                /* search */
+            int32_t (*plg_un_db_next_search_entry)(Slapi_PBlock *);     /* iterate */
             IFP plg_un_db_next_search_entry_ext;
-            VFPP plg_un_db_search_results_release; /* PAGED RESULTS */
-            VFP plg_un_db_prev_search_results;     /* PAGED RESULTS */
-            IFP plg_un_db_entry_release;
-            IFP plg_un_db_compare;              /* compare */
-            IFP plg_un_db_modify;               /* modify */
-            IFP plg_un_db_modrdn;               /* modrdn */
-            IFP plg_un_db_add;                  /* add */
-            IFP plg_un_db_delete;               /* delete */
-            IFP plg_un_db_abandon;              /* abandon */
-            IFP plg_un_db_config;               /* config */
-            IFP plg_un_db_seq;                  /* sequence */
-            IFP plg_un_db_entry;                /* entry send */
-            IFP plg_un_db_referral;             /* referral send */
-            IFP plg_un_db_result;               /* result send */
-            IFP plg_un_db_ldif2db;              /* ldif 2 database */
-            IFP plg_un_db_db2ldif;              /* database 2 ldif */
-            IFP plg_un_db_db2index;             /* database 2 index */
-            IFP plg_un_db_dbcompact;            /* compact database */
-            IFP plg_un_db_archive2db;           /* ldif 2 database */
-            IFP plg_un_db_db2archive;           /* database 2 ldif */
-            IFP plg_un_db_upgradedb;            /* convert old idl to new */
-            IFP plg_un_db_upgradednformat;      /* convert old dn format to new */
+            VFPP plg_un_db_search_results_release;                      /* Paged results */
+            VFP plg_un_db_prev_search_results;                          /* Paged results */
+            int32_t (*plg_un_db_entry_release)(Slapi_PBlock *, void *); /* Releas entry from cache */
+            int32_t (*plg_un_db_compare)(Slapi_PBlock *);               /* compare */
+            int32_t (*plg_un_db_modify)(Slapi_PBlock *);                /* modify */
+            int32_t (*plg_un_db_modrdn)(Slapi_PBlock *);                /* modrdn */
+            int32_t (*plg_un_db_add)(Slapi_PBlock *);                   /* add */
+            int32_t (*plg_un_db_delete)(Slapi_PBlock *);                /* delete */
+            int32_t (*plg_un_db_abandon)(Slapi_PBlock *);               /* abandon */
+            IFP plg_un_db_config;                                       /* config */
+            int32_t (*plg_un_db_seq)(Slapi_PBlock *);                   /* sequence */
+            IFP plg_un_db_entry;                                        /* entry send */
+            IFP plg_un_db_referral;                                     /* referral send */
+            IFP plg_un_db_result;
+            int32_t (*plg_un_db_ldif2db)(Slapi_PBlock *);               /* ldif 2 database */
+            int32_t (*plg_un_db_db2ldif)(Slapi_PBlock *);               /* database 2 ldif */
+            int32_t (*plg_un_db_db2index)(Slapi_PBlock *);              /* database 2 index */
+            int32_t (*plg_un_db_dbcompact)(Slapi_Backend *, bool);      /* compact database */
+            int32_t (*plg_un_db_archive2db)(Slapi_PBlock *);            /* ldif 2 database */
+            int32_t (*plg_un_db_db2archive)(Slapi_PBlock *);            /* database 2 ldif */
+            int32_t (*plg_un_db_upgradedb)(Slapi_PBlock *);             /* convert old idl to new */
+            int32_t (*plg_un_db_upgradednformat)(Slapi_PBlock *);       /* convert old dn format to new */
             IFP plg_un_db_begin;                /* dbase txn begin */
             IFP plg_un_db_commit;               /* dbase txn commit */
             IFP plg_un_db_abort;                /* dbase txn abort */
@@ -1101,12 +1101,12 @@ struct slapdplugin
             IFP plg_un_db_register_dn_callback; /* Register a function to call when a operation is applied to a given DN */
             IFP plg_un_db_register_oc_callback; /* Register a function to call when a operation is applied to a given ObjectClass */
             IFP plg_un_db_init_instance;        /* initializes new db instance */
-            IFP plg_un_db_wire_import;          /* fast replica update */
-            IFP plg_un_db_verify;               /* verify db files */
-            IFP plg_un_db_add_schema;           /* add schema */
-            IFP plg_un_db_get_info;             /* get info */
-            IFP plg_un_db_set_info;             /* set info */
-            IFP plg_un_db_ctrl_info;            /* ctrl info */
+            int32_t (*plg_un_db_wire_import)(Slapi_PBlock *); /* fast replica update */
+            int32_t (*plg_un_db_verify)(Slapi_PBlock *);      /* verify db files */
+            IFP plg_un_db_add_schema;                         /* add schema */
+            int32_t (*plg_un_db_get_info)(Slapi_Backend *, int32_t, void **);  /* get info */
+            int32_t (*plg_un_db_set_info)(Slapi_Backend *, int32_t, void **);  /* set info */
+            int32_t (*plg_un_db_ctrl_info)(Slapi_Backend *, int32_t, void **); /* ctrl info */
         } plg_un_db;
 #define plg_bind plg_un.plg_un_db.plg_un_db_bind
 #define plg_unbind plg_un.plg_un_db.plg_un_db_unbind
@@ -1151,10 +1151,10 @@ struct slapdplugin
         {
             char **plg_un_pe_exoids;      /* exop oids */
             char **plg_un_pe_exnames;     /* exop names (may be NULL) */
-            IFP plg_un_pe_exhandler;      /* handler */
+            int32_t (*plg_un_pe_exhandler)(Slapi_PBlock *); /* handler */
             IFP plg_un_pe_pre_exhandler;  /* pre extop */
             IFP plg_un_pe_post_exhandler; /* post extop */
-            IFP plg_un_pe_be_exhandler;   /* handler to retrieve the be name for the operation */
+            int32_t (*plg_un_pe_be_exhandler)(Slapi_PBlock *, Slapi_Backend **); /* handler to retrieve the be name for the operation */
         } plg_un_pe;
 #define plg_exoids plg_un.plg_un_pe.plg_un_pe_exoids
 #define plg_exnames plg_un.plg_un_pe.plg_un_pe_exnames
@@ -1290,20 +1290,20 @@ struct slapdplugin
         /* matching rule plugin structure */
         struct plg_un_matching_rule
         {
-            IFP plg_un_mr_filter_create;  /* factory function */
-            IFP plg_un_mr_indexer_create; /* factory function */
+            int32_t (*plg_un_mr_filter_create)(Slapi_PBlock *);  /* factory function */
+            int32_t (*plg_un_mr_indexer_create)(Slapi_PBlock *);  /* factory function */
             /* new style syntax plugin functions */
             /* not all functions will apply to all matching rule types */
             /* e.g. a SUBSTR rule will not have a filter_ava func */
-            IFP plg_un_mr_filter_ava;
-            IFP plg_un_mr_filter_sub;
-            IFP plg_un_mr_values2keys;
-            IFP plg_un_mr_assertion2keys_ava;
-            IFP plg_un_mr_assertion2keys_sub;
+            int32_t (*plg_un_mr_filter_ava)(Slapi_PBlock *, const struct berval *, Slapi_Value **, int32_t, Slapi_Value **);
+            int32_t (*plg_un_mr_filter_sub)(Slapi_PBlock *, char *, char **, char*, Slapi_Value **);
+            int32_t (*plg_un_mr_values2keys)(Slapi_PBlock *, Slapi_Value **, Slapi_Value ***, int32_t);
+            int32_t (*plg_un_mr_assertion2keys_ava)(Slapi_PBlock *, Slapi_Value *, Slapi_Value ***, int32_t);
+            int32_t (*plg_un_mr_assertion2keys_sub)(Slapi_PBlock *, char *, char **, char *, Slapi_Value ***);
             int plg_un_mr_flags;
             char **plg_un_mr_names;
-            IFP plg_un_mr_compare; /* only for ORDERING */
-            VFPV plg_un_mr_normalize;
+            int32_t (*plg_un_mr_compare)(struct berval *, struct berval *); /* only for ORDERING */
+            void (*plg_un_mr_normalize)(Slapi_PBlock *, char *, int32_t,  char **);
         } plg_un_mr;
 #define plg_mr_filter_create plg_un.plg_un_mr.plg_un_mr_filter_create
 #define plg_mr_indexer_create plg_un.plg_un_mr.plg_un_mr_indexer_create
@@ -1320,25 +1320,25 @@ struct slapdplugin
         /* syntax plugin structure */
         struct plg_un_syntax_struct
         {
-            IFP plg_un_syntax_filter_ava;
+            int32_t (*plg_un_syntax_filter_ava)(Slapi_PBlock *, const struct berval *, Slapi_Value **, int32_t, Slapi_Value **);
             IFP plg_un_syntax_filter_ava_sv;
-            IFP plg_un_syntax_filter_sub;
+            int32_t (*plg_un_syntax_filter_sub)(Slapi_PBlock*, char *, char **, char *, Slapi_Value**);
             IFP plg_un_syntax_filter_sub_sv;
-            IFP plg_un_syntax_values2keys;
+            int32_t (*plg_un_syntax_values2keys)(Slapi_PBlock*, Slapi_Value**, Slapi_Value***, int32_t);
             IFP plg_un_syntax_values2keys_sv;
-            IFP plg_un_syntax_assertion2keys_ava;
-            IFP plg_un_syntax_assertion2keys_sub;
+            int32_t (*plg_un_syntax_assertion2keys_ava)(Slapi_PBlock*, Slapi_Value*, Slapi_Value***, int32_t);
+            int32_t (*plg_un_syntax_assertion2keys_sub)(Slapi_PBlock*, char*, char**, char*, Slapi_Value***);
             int plg_un_syntax_flags;
             /*
-   from slapi-plugin.h
-#define SLAPI_PLUGIN_SYNTAX_FLAG_ORKEYS        1
-#define SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING    2
-*/
+             * from slapi-plugin.h
+#define SLAPI_PLUGIN_SYNTAX_FLAG_ORKEYS    1
+#define SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING  2
+             */
             char **plg_un_syntax_names;
             char *plg_un_syntax_oid;
             IFP plg_un_syntax_compare;
-            IFP plg_un_syntax_validate;
-            VFPV plg_un_syntax_normalize;
+            int32_t (*plg_un_syntax_validate)(struct berval *);
+            void (*plg_un_syntax_normalize)(Slapi_PBlock *, char *, int32_t,  char **);
         } plg_un_syntax;
 #define plg_syntax_filter_ava plg_un.plg_un_syntax.plg_un_syntax_filter_ava
 #define plg_syntax_filter_sub plg_un.plg_un_syntax.plg_un_syntax_filter_sub
@@ -1355,10 +1355,11 @@ struct slapdplugin
         struct plg_un_acl_struct
         {
             IFP plg_un_acl_init;
-            IFP plg_un_acl_syntax_check;
-            IFP plg_un_acl_access_allowed;
-            IFP plg_un_acl_mods_allowed;
-            IFP plg_un_acl_mods_update;
+            int32_t (*plg_un_acl_syntax_check)(Slapi_PBlock *, Slapi_Entry *, char **);
+            int32_t (*plg_un_acl_access_allowed)(Slapi_PBlock *, Slapi_Entry*, char **, struct berval *, int32_t, int32_t, char **);
+            int32_t (*plg_un_acl_mods_allowed)(Slapi_PBlock *, Slapi_Entry *, LDAPMod **, void *);
+            int32_t (*plg_un_acl_mods_update)(Slapi_PBlock *, int32_t, Slapi_DN *, void *);
+
         } plg_un_acl;
 #define plg_acl_init plg_un.plg_un_acl.plg_un_acl_init
 #define plg_acl_syntax_check plg_un.plg_un_acl.plg_un_acl_syntax_check
@@ -1368,8 +1369,8 @@ struct slapdplugin
 
         struct plg_un_mmr_struct
         {
-            IFP plg_un_mmr_betxn_preop;
-            IFP plg_un_mmr_betxn_postop;
+            int32_t (*plg_un_mmr_betxn_preop)(Slapi_PBlock *, int32_t);
+            int32_t (*plg_un_mmr_betxn_postop)(Slapi_PBlock *, int32_t);
         } plg_un_mmr;
 #define plg_mmr_betxn_preop 		plg_un.plg_un_mmr.plg_un_mmr_betxn_preop
 #define plg_mmr_betxn_postop 		plg_un.plg_un_mmr.plg_un_mmr_betxn_postop
@@ -1390,8 +1391,8 @@ struct slapdplugin
         /* entry fetch/store */
         struct plg_un_entry_fetch_store_struct
         {
-            IFP plg_un_entry_fetch_func;
-            IFP plg_un_entry_store_func;
+            int32_t (*plg_un_entry_fetch_func)(char **, uint32_t *);
+            int32_t (*plg_un_entry_store_func)(char **, uint32_t *);
         } plg_un_entry_fetch_store;
 #define plg_entryfetchfunc plg_un.plg_un_entry_fetch_store.plg_un_entry_fetch_func
 #define plg_entrystorefunc plg_un.plg_un_entry_fetch_store.plg_un_entry_store_func

@@ -120,7 +120,7 @@ typedef struct dse_search_set
 
 static int dse_permission_to_write(struct dse *pdse, int loglevel);
 static int dse_write_file_nolock(struct dse *pdse);
-static int dse_apply_nolock(struct dse *pdse, IFP fp, caddr_t arg);
+static int dse_apply_nolock(struct dse *pdse, int32_t (*fp)(caddr_t, caddr_t), caddr_t arg);
 static int dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock);
 static dse_search_set *dse_search_set_new(void);
 static void dse_search_set_delete(dse_search_set *ss);
@@ -257,7 +257,7 @@ dse_find_node(struct dse *pdse, const Slapi_DN *dn)
         slapi_entry_set_sdn(fe, dn);
         searchNode.entry = fe;
 
-        n = (struct dse_node *)avl_find(pdse->dse_tree, &searchNode, entry_dn_cmp);
+        n = (struct dse_node *)avl_find(pdse->dse_tree, (caddr_t)&searchNode, entry_dn_cmp);
 
         slapi_entry_free(fe);
     }
@@ -491,7 +491,7 @@ dse_new_with_filelist(char *filename, char *tmpfilename, char *backfilename, cha
 }
 
 static int
-dse_internal_delete_entry(caddr_t data, caddr_t arg __attribute__((unused)))
+dse_internal_delete_entry(caddr_t data)
 {
     struct dse_node *n = (struct dse_node *)data;
     dse_node_delete(&n);
@@ -1182,9 +1182,9 @@ dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb)
     /* keep write lock during both tree update and file write operations */
     dse_lock_write(pdse, DSE_USE_LOCK);
     if (merge) {
-        rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_merge);
+        rc = avl_insert(&(pdse->dse_tree), (caddr_t)n, entry_dn_cmp, dupentry_merge);
     } else {
-        rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_disallow);
+        rc = avl_insert(&(pdse->dse_tree), (caddr_t)n, entry_dn_cmp, dupentry_disallow);
     }
     if (-1 != rc) {
         /* update num sub of parent with no lock; we already hold the write lock */
@@ -1371,7 +1371,7 @@ dse_replace_entry(struct dse *pdse, Slapi_Entry *e, int write_file, int use_lock
     if (NULL != e) {
         struct dse_node *n = dse_node_new(e);
         dse_lock_write(pdse, use_lock);
-        rc = avl_insert(&(pdse->dse_tree), n, entry_dn_cmp, dupentry_replace);
+        rc = avl_insert(&(pdse->dse_tree), (caddr_t)n, entry_dn_cmp, dupentry_replace);
         if (write_file)
             dse_write_file_nolock(pdse);
         /* If the entry was replaced i.e. not added as a new entry, we need to
@@ -1446,7 +1446,7 @@ dse_read_next_entry(char *buf, char **lastp)
  * searching, a read lock, for modifying in place, a write lock
  */
 static int
-dse_apply_nolock(struct dse *pdse, IFP fp, caddr_t arg)
+dse_apply_nolock(struct dse *pdse, int32_t (*fp)(caddr_t, caddr_t), caddr_t arg)
 {
     avl_apply(pdse->dse_tree, fp, arg, STOP_TRAVERSAL, AVL_INORDER);
     return 1;
@@ -1468,7 +1468,7 @@ dse_delete_entry(struct dse *pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
 
     /* keep write lock for both tree deleting and file writing */
     dse_lock_write(pdse, DSE_USE_LOCK);
-    if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree, n, entry_dn_cmp))) {
+    if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree, (caddr_t)n, entry_dn_cmp))) {
         dse_node_delete(&deleted_node);
     }
     dse_node_delete(&n);
