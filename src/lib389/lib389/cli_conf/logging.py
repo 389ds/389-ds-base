@@ -236,19 +236,20 @@ def get_log_config(inst, basedn, log, args):
     attr_map = {}
     levels = {}
 
-    match args.logtype:
-        case "access":
-            attr_map = ACCESS_ATTR_MAP
-            levels = ACCESS_LEVELS
-        case "error":
-            attr_map = ERROR_ATTR_MAP
-            levels = ERROR_LEVELS
-        case "security":
-            attr_map = SECURITY_ATTR_MAP
-        case "audit":
-            attr_map = AUDIT_ATTR_MAP
-        case "auditfail":
-            attr_map = AUDITFAIL_ATTR_MAP
+    if args.logtype == "access":
+        attr_map = ACCESS_ATTR_MAP
+        levels = ACCESS_LEVELS
+    elif args.logtype == "error":
+        attr_map = ERROR_ATTR_MAP
+        levels = ERROR_LEVELS
+    elif args.logtype == "security":
+        attr_map = SECURITY_ATTR_MAP
+    elif args.logtype == "audit":
+        attr_map = AUDIT_ATTR_MAP
+    elif args.logtype == "auditfail":
+        attr_map = AUDITFAIL_ATTR_MAP
+    else:
+        raise ValueError(f"Unknown logtype: {args.logtype}")
 
     sorted_results = []
     for attr, value in attrs.items():
