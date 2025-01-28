@@ -496,7 +496,7 @@ int vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_sp
 int vlv_trim_candidates(backend *be, const IDList *candidates, const sort_spec *sort_control, const struct vlv_request *vlv_request_control, IDList **filteredCandidates, struct vlv_response *pResponse);
 int vlv_parse_request_control(backend *be, struct berval *vlv_spec_ber, struct vlv_request *vlvp);
 int vlv_make_response_control(Slapi_PBlock *pb, const struct vlv_response *vlvp);
-void vlv_getindices(IFP callback_fn, void *param, backend *be);
+void vlv_getindices(int32_t (*callback_fn)(caddr_t, caddr_t),  void *param, backend *be);
 void vlv_print_access_log(Slapi_PBlock *pb, struct vlv_request *vlvi, struct vlv_response *vlvo, sort_spec_thing *sort_control);
 void vlv_grok_new_import_entry(const struct backentry *e, backend *be, int *seen_them_all);
 IDList *vlv_find_index_by_filter(struct backend *be, const char *base, Slapi_Filter *f);

@@ -329,7 +329,7 @@ ldbm_txn_ruv_modify_context(Slapi_PBlock *pb, modify_context *mc)
     Slapi_Mods *smods = NULL;
     struct backentry *bentry;
     entry_address bentry_addr;
-    IFP fn = NULL;
+    int32_t (*fn)(Slapi_PBlock *, char **, Slapi_Mods **) = NULL;
     int rc = 0;
     back_txn txn = {NULL};
 

@@ -117,7 +117,7 @@ typedef struct _slapi_pblock_intop
     void *op_stack_elem;
 
     void *pb_txn;           /* transaction ID */
-    IFP pb_txn_ruv_mods_fn; /* Function to fetch RUV mods for txn */
+    int32_t (*pb_txn_ruv_mods_fn)(Slapi_PBlock *, char **, Slapi_Mods **); /* Function to fetch RUV mods for txn */
     passwdPolicy *pwdpolicy;
     LDAPControl **pb_ctrls_arg;      /* allows to pass controls as arguments before
                                    operation object is created  */

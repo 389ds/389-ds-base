@@ -2883,7 +2883,7 @@ look4indexinfo(ImportCtx_t *ctx, const char *attrname)
 {
     MdbIndexInfo_t searched_mii = {0};
     searched_mii.name = (char*) attrname;
-    return (MdbIndexInfo_t *)avl_find(ctx->indexes, &searched_mii, cmp_mii);
+    return (MdbIndexInfo_t *)avl_find(ctx->indexes, (caddr_t)&searched_mii, cmp_mii);
 }
 
 /* Prepare key and data for updating parentid or ancestorid indexes */
@@ -3447,7 +3447,7 @@ dbmdb_add_import_index(ImportCtx_t *ctx, const char *name, IndexInfo *ii)
 
     DBG_LOG(DBGMDB_LEVEL_OTHER,"Calling dbmdb_open_dbi_from_filename for %s flags = 0x%x", mii->name, dbi_flags);
     dbmdb_open_dbi_from_filename(&mii->dbi, job->inst->inst_be, mii->name, mii->ai, dbi_flags);
-    avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
+    avl_insert(&ctx->indexes, (caddr_t)mii, cmp_mii, NULL);
 }
 
 /*
@@ -3473,7 +3473,7 @@ dbmdb_open_redirect_db(ImportCtx_t *ctx)
     mii->ai = ai;
     mii->flags = MII_SKIP | MII_NOATTR;
     dbmdb_open_dbi_from_filename(&mii->dbi, be, mii->name, mii->ai, dbi_flags);
-    avl_insert(&ctx->indexes, mii, cmp_mii, NULL);
+    avl_insert(&ctx->indexes, (caddr_t)mii, cmp_mii, NULL);
     ctx->redirect = mii;
 }
 
@@ -3519,11 +3519,13 @@ dbmdb_build_import_index_list(ImportCtx_t *ctx)
 
 }
 
-void
-free_ii(MdbIndexInfo_t *ii)
+static int32_t
+free_ii(caddr_t i)
 {
+    MdbIndexInfo_t *ii = (MdbIndexInfo_t *)i;
     slapi_ch_free_string(&ii->name);
     slapi_ch_free((void**)&ii);
+    return 0;
 }
 
 /*
@@ -4325,7 +4327,7 @@ dbmdb_free_import_ctx(ImportJob *job)
         dbmdb_import_q_destroy(&ctx->bulkq);
         slapi_ch_free((void**)&ctx->id2entry->name);
         slapi_ch_free((void**)&ctx->id2entry);
-        avl_free(ctx->indexes, (IFP) free_ii);
+        avl_free(ctx->indexes, free_ii);
         ctx->indexes = NULL;
         charray_free(ctx->indexAttrs);
         charray_free(ctx->indexVlvs);
