@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2005-2025 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -783,25 +783,25 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_bind;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_bind;
         break;
     case SLAPI_PLUGIN_DB_UNBIND_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_unbind;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_unbind;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_search;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_search;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_next_search_entry;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_next_search_entry;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -825,37 +825,37 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_compare;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_compare;
         break;
     case SLAPI_PLUGIN_DB_MODIFY_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_modify;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_modify;
         break;
     case SLAPI_PLUGIN_DB_MODRDN_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_modrdn;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_modrdn;
         break;
     case SLAPI_PLUGIN_DB_ADD_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_add;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_add;
         break;
     case SLAPI_PLUGIN_DB_DELETE_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_delete;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_delete;
         break;
     case SLAPI_PLUGIN_DB_ABANDON_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_abandon;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_abandon;
         break;
     case SLAPI_PLUGIN_DB_CONFIG_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -867,7 +867,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         (*(IFP *)value) = pblock->pb_plugin->plg_close;
         break;
     case SLAPI_PLUGIN_CLEANUP_FN:
-        (*(IFP *)value) = pblock->pb_plugin->plg_cleanup;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_cleanup;
         break;
     case SLAPI_PLUGIN_START_FN:
         (*(IFP *)value) = pblock->pb_plugin->plg_start;
@@ -876,22 +876,22 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         (*(IFP *)value) = pblock->pb_plugin->plg_poststart;
         break;
     case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
-        (*(IFP *)value) = pblock->pb_plugin->plg_wire_import;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_wire_import;
         break;
     case SLAPI_PLUGIN_DB_GET_INFO_FN:
-        (*(IFP *)value) = pblock->pb_plugin->plg_get_info;
+        (*(int32_t (**)(struct backend *, int32_t,  void **))value) = pblock->pb_plugin->plg_get_info;
         break;
     case SLAPI_PLUGIN_DB_SET_INFO_FN:
-        (*(IFP *)value) = pblock->pb_plugin->plg_set_info;
+        (*(int32_t (**)(struct backend *, int32_t,  void **))value) = pblock->pb_plugin->plg_set_info;
         break;
     case SLAPI_PLUGIN_DB_CTRL_INFO_FN:
-        (*(IFP *)value) = pblock->pb_plugin->plg_ctrl_info;
+        (*(int32_t (**)(struct backend *, int32_t,  void **))value) = pblock->pb_plugin->plg_ctrl_info;
         break;
     case SLAPI_PLUGIN_DB_SEQ_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_seq;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_seq;
         break;
     case SLAPI_PLUGIN_DB_ENTRY_FN:
         (*(IFP *)value) = SLAPI_PBLOCK_GET_PLUGIN_RELATED_POINTER(pblock,
@@ -915,55 +915,55 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_ldif2db;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_ldif2db;
         break;
     case SLAPI_PLUGIN_DB_DB2LDIF_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_db2ldif;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_db2ldif;
         break;
     case SLAPI_PLUGIN_DB_COMPACT_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_dbcompact;
+        (*(int32_t (**)(struct backend *, bool))value) = pblock->pb_plugin->plg_dbcompact;
         break;
     case SLAPI_PLUGIN_DB_DB2INDEX_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_db2index;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_db2index;
         break;
     case SLAPI_PLUGIN_DB_ARCHIVE2DB_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_archive2db;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_archive2db;
         break;
     case SLAPI_PLUGIN_DB_DB2ARCHIVE_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_db2archive;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_db2archive;
         break;
     case SLAPI_PLUGIN_DB_UPGRADEDB_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_upgradedb;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_upgradedb;
         break;
     case SLAPI_PLUGIN_DB_UPGRADEDNFORMAT_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_upgradednformat;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_upgradednformat;
         break;
     case SLAPI_PLUGIN_DB_DBVERIFY_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_dbverify;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_dbverify;
         break;
     case SLAPI_PLUGIN_DB_BEGIN_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -1007,7 +1007,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_exhandler;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_exhandler;
         break;
     case SLAPI_PLUGIN_EXT_OP_OIDLIST:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
@@ -1028,7 +1028,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_be_exhandler;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Backend **))value) = pblock->pb_plugin->plg_be_exhandler;
         break;
 
     /* preoperation plugin functions */
@@ -1474,31 +1474,32 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_syntax_filter_ava;
+        (*(int32_t (**)(Slapi_PBlock *, const struct berval *, Slapi_Value **,
+                        int32_t,  Slapi_Value **))value) = pblock->pb_plugin->plg_syntax_filter_ava;
         break;
     case SLAPI_PLUGIN_SYNTAX_FILTER_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_syntax_filter_sub;
+        (*(int32_t (**)(Slapi_PBlock*, char *, char **, char *, Slapi_Value**))value) = pblock->pb_plugin->plg_syntax_filter_sub;
         break;
     case SLAPI_PLUGIN_SYNTAX_VALUES2KEYS:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_syntax_values2keys;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Value **, Slapi_Value ***, int32_t))value) = pblock->pb_plugin->plg_syntax_values2keys;
         break;
     case SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_AVA:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_syntax_assertion2keys_ava;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Value *, Slapi_Value ***, int32_t))value) = pblock->pb_plugin->plg_syntax_assertion2keys_ava;
         break;
     case SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_syntax_assertion2keys_sub;
+        (*(int32_t (**)(Slapi_PBlock *, char *, char **, char *, Slapi_Value ***))value) = pblock->pb_plugin->plg_syntax_assertion2keys_sub;
         break;
     case SLAPI_PLUGIN_SYNTAX_NAMES:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
@@ -1535,13 +1536,13 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_syntax_validate;
+        (*(int32_t (**)(struct berval *))value) = pblock->pb_plugin->plg_syntax_validate;
         break;
     case SLAPI_PLUGIN_SYNTAX_NORMALIZE:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        (*(VFPV *)value) = pblock->pb_plugin->plg_syntax_normalize;
+        (*(void (**)(Slapi_PBlock *, char *, int32_t,  char **))value) = pblock->pb_plugin->plg_syntax_normalize;
         break;
 
     /* controls we know about */
@@ -1799,11 +1800,12 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
     /* matching rule plugin functions */
     case SLAPI_PLUGIN_MR_FILTER_CREATE_FN:
         SLAPI_PLUGIN_TYPE_CHECK(pblock, SLAPI_PLUGIN_MATCHINGRULE);
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_filter_create;
+
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_mr_filter_create;
         break;
     case SLAPI_PLUGIN_MR_INDEXER_CREATE_FN:
         SLAPI_PLUGIN_TYPE_CHECK(pblock, SLAPI_PLUGIN_MATCHINGRULE);
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_indexer_create;
+        (*(int32_t (**)(Slapi_PBlock *))value) = pblock->pb_plugin->plg_mr_indexer_create;
         break;
     case SLAPI_PLUGIN_MR_FILTER_MATCH_FN:
         if (pblock->pb_mr != NULL) {
@@ -1904,31 +1906,31 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_filter_ava;
+        (*(int32_t (**)(Slapi_PBlock *, const struct berval *, Slapi_Value **, int32_t,  Slapi_Value **))value) = pblock->pb_plugin->plg_mr_filter_ava;
         break;
     case SLAPI_PLUGIN_MR_FILTER_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_filter_sub;
+        (*(int32_t (**)(Slapi_PBlock *, char *, char **, char*, Slapi_Value **))value) = pblock->pb_plugin->plg_mr_filter_sub;
         break;
     case SLAPI_PLUGIN_MR_VALUES2KEYS:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_values2keys;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Value **, Slapi_Value ***, int32_t))value) = pblock->pb_plugin->plg_mr_values2keys;
         break;
     case SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_assertion2keys_ava;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Value *, Slapi_Value ***, int32_t))value) = pblock->pb_plugin->plg_mr_assertion2keys_ava;
         break;
     case SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_assertion2keys_sub;
+        (*(int32_t (**)(Slapi_PBlock *, char *, char **, char *, Slapi_Value ***))value) = pblock->pb_plugin->plg_mr_assertion2keys_sub;
         break;
     case SLAPI_PLUGIN_MR_FLAGS:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
@@ -1946,13 +1948,13 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_mr_compare;
+        (*(int32_t (**)(struct berval *, struct berval *))value) = pblock->pb_plugin->plg_mr_compare;
         break;
     case SLAPI_PLUGIN_MR_NORMALIZE:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        (*(VFPV *)value) = pblock->pb_plugin->plg_mr_normalize;
+        (*(void (**)(Slapi_PBlock *, char *, int32_t,  char **))value) = pblock->pb_plugin->plg_mr_normalize;
         break;
 
     /* seq arguments */
@@ -2145,9 +2147,9 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         break;
     case SLAPI_TXN_RUV_MODS_FN:
         if (pblock->pb_intop != NULL) {
-            (*(IFP *)value) = pblock->pb_intop->pb_txn_ruv_mods_fn;
+            (*(int32_t(**)(Slapi_PBlock *, char **, Slapi_Mods **))value) = pblock->pb_intop->pb_txn_ruv_mods_fn;
         } else {
-            (*(IFP *)value) = NULL;
+            (*(int32_t(**)(Slapi_PBlock *, char **, Slapi_Mods **))value) = NULL;
         }
         break;
 
@@ -2221,24 +2223,25 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         (*(IFP *)value) = pblock->pb_plugin->plg_acl_init;
         break;
     case SLAPI_PLUGIN_ACL_SYNTAX_CHECK:
-        (*(IFP *)value) = pblock->pb_plugin->plg_acl_syntax_check;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Entry *, char **))value) = pblock->pb_plugin->plg_acl_syntax_check;
         break;
     case SLAPI_PLUGIN_ACL_ALLOW_ACCESS:
-        (*(IFP *)value) = pblock->pb_plugin->plg_acl_access_allowed;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Entry *, char **, struct berval *,
+                        int32_t,  int32_t,  char **))value) = pblock->pb_plugin->plg_acl_access_allowed;
         break;
     case SLAPI_PLUGIN_ACL_MODS_ALLOWED:
-        (*(IFP *)value) = pblock->pb_plugin->plg_acl_mods_allowed;
+        (*(int32_t (**)(Slapi_PBlock *, Slapi_Entry *, LDAPMod **, void *))value) = pblock->pb_plugin->plg_acl_mods_allowed;
         break;
     case SLAPI_PLUGIN_ACL_MODS_UPDATE:
-        (*(IFP *)value) = pblock->pb_plugin->plg_acl_mods_update;
+        (*(int32_t (**)(Slapi_PBlock *, int32_t,  Slapi_DN *, void *))value) = pblock->pb_plugin->plg_acl_mods_update;
         break;
     /* MMR Plugin */
     case SLAPI_PLUGIN_MMR_BETXN_PREOP:
-        (*(IFP *)value) = pblock->pb_plugin->plg_mmr_betxn_preop;
-	break;
+        (*(int32_t (**)(Slapi_PBlock *, int32_t))value) = pblock->pb_plugin->plg_mmr_betxn_preop;
+	    break;
     case SLAPI_PLUGIN_MMR_BETXN_POSTOP:
-        (*(IFP *)value) = pblock->pb_plugin->plg_mmr_betxn_postop;
-	break;
+        (*(int32_t (**)(Slapi_PBlock *, int32_t))value) = pblock->pb_plugin->plg_mmr_betxn_postop;
+	    break;
 
     case SLAPI_REQUESTOR_DN:
         /* NOTE: It's not a copy of the DN */
@@ -2362,11 +2365,11 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
 
     /* entry fetch/store plugin */
     case SLAPI_PLUGIN_ENTRY_FETCH_FUNC:
-        (*(IFP *)value) = pblock->pb_plugin->plg_entryfetchfunc;
+        (*(int32_t (**)(char **, uint32_t *))value) = pblock->pb_plugin->plg_entryfetchfunc;
         break;
 
     case SLAPI_PLUGIN_ENTRY_STORE_FUNC:
-        (*(IFP *)value) = pblock->pb_plugin->plg_entrystorefunc;
+        (*(int32_t (**)(char **, uint32_t *))value) = pblock->pb_plugin->plg_entrystorefunc;
         break;
 
     case SLAPI_PLUGIN_ENABLED:
@@ -2723,25 +2726,25 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_bind = (IFP)value;
+        pblock->pb_plugin->plg_bind = value;
         break;
     case SLAPI_PLUGIN_DB_UNBIND_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_unbind = (IFP)value;
+        pblock->pb_plugin->plg_unbind = value;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_search = (IFP)value;
+        pblock->pb_plugin->plg_search = value;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_next_search_entry = (IFP)value;
+        pblock->pb_plugin->plg_next_search_entry = value;
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -2765,37 +2768,37 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_compare = (IFP)value;
+        pblock->pb_plugin->plg_compare = value;
         break;
     case SLAPI_PLUGIN_DB_MODIFY_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_modify = (IFP)value;
+        pblock->pb_plugin->plg_modify = value;
         break;
     case SLAPI_PLUGIN_DB_MODRDN_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_modrdn = (IFP)value;
+        pblock->pb_plugin->plg_modrdn = value;
         break;
     case SLAPI_PLUGIN_DB_ADD_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_add = (IFP)value;
+        pblock->pb_plugin->plg_add = value;
         break;
     case SLAPI_PLUGIN_DB_DELETE_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_delete = (IFP)value;
+        pblock->pb_plugin->plg_delete = value;
         break;
     case SLAPI_PLUGIN_DB_ABANDON_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_abandon = (IFP)value;
+        pblock->pb_plugin->plg_abandon = value;
         break;
     case SLAPI_PLUGIN_DB_CONFIG_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -2807,7 +2810,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         pblock->pb_plugin->plg_close = (IFP)value;
         break;
     case SLAPI_PLUGIN_CLEANUP_FN:
-        pblock->pb_plugin->plg_cleanup = (IFP)value;
+        pblock->pb_plugin->plg_cleanup = value;
         break;
     case SLAPI_PLUGIN_START_FN:
         pblock->pb_plugin->plg_start = (IFP)value;
@@ -2816,22 +2819,22 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         pblock->pb_plugin->plg_poststart = (IFP)value;
         break;
     case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
-        pblock->pb_plugin->plg_wire_import = (IFP)value;
+        pblock->pb_plugin->plg_wire_import = value;
         break;
     case SLAPI_PLUGIN_DB_GET_INFO_FN:
-        pblock->pb_plugin->plg_get_info = (IFP)value;
+        pblock->pb_plugin->plg_get_info = value;
         break;
     case SLAPI_PLUGIN_DB_SET_INFO_FN:
-        pblock->pb_plugin->plg_set_info = (IFP)value;
+        pblock->pb_plugin->plg_set_info = value;
         break;
     case SLAPI_PLUGIN_DB_CTRL_INFO_FN:
-        pblock->pb_plugin->plg_ctrl_info = (IFP)value;
+        pblock->pb_plugin->plg_ctrl_info = value;
         break;
     case SLAPI_PLUGIN_DB_SEQ_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_seq = (IFP)value;
+        pblock->pb_plugin->plg_seq = value;
         break;
     case SLAPI_PLUGIN_DB_ENTRY_FN:
         pblock->pb_plugin->plg_entry = (IFP)value;
@@ -2852,49 +2855,49 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_ldif2db = (IFP)value;
+        pblock->pb_plugin->plg_ldif2db = value;
         break;
     case SLAPI_PLUGIN_DB_DB2LDIF_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_db2ldif = (IFP)value;
+        pblock->pb_plugin->plg_db2ldif = value;
         break;
     case SLAPI_PLUGIN_DB_DB2INDEX_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_db2index = (IFP)value;
+        pblock->pb_plugin->plg_db2index = value;
         break;
     case SLAPI_PLUGIN_DB_ARCHIVE2DB_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_archive2db = (IFP)value;
+        pblock->pb_plugin->plg_archive2db = value;
         break;
     case SLAPI_PLUGIN_DB_DB2ARCHIVE_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_db2archive = (IFP)value;
+        pblock->pb_plugin->plg_db2archive = value;
         break;
     case SLAPI_PLUGIN_DB_UPGRADEDB_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_upgradedb = (IFP)value;
+        pblock->pb_plugin->plg_upgradedb = value;
         break;
     case SLAPI_PLUGIN_DB_UPGRADEDNFORMAT_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_upgradednformat = (IFP)value;
+        pblock->pb_plugin->plg_upgradednformat = value;
         break;
     case SLAPI_PLUGIN_DB_DBVERIFY_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_dbverify = (IFP)value;
+        pblock->pb_plugin->plg_dbverify = value;
         break;
     case SLAPI_PLUGIN_DB_BEGIN_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -2934,7 +2937,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_dbcompact = (IFP)value;
+        pblock->pb_plugin->plg_dbcompact = value;
         break;
 
     /* extendedop plugin functions */
@@ -2943,7 +2946,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP) {
             return (-1);
         }
-        pblock->pb_plugin->plg_exhandler = (IFP)value;
+        pblock->pb_plugin->plg_exhandler = value;
         break;
     case SLAPI_PLUGIN_EXT_OP_OIDLIST:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
@@ -2965,7 +2968,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP) {
             return (-1);
         }
-        pblock->pb_plugin->plg_be_exhandler = (IFP)value;
+        pblock->pb_plugin->plg_be_exhandler = value;
         break;
 
     /* preoperation plugin functions */
@@ -3331,31 +3334,31 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_filter_ava = (IFP)value;
+        pblock->pb_plugin->plg_syntax_filter_ava = value;
         break;
     case SLAPI_PLUGIN_SYNTAX_FILTER_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_filter_sub = (IFP)value;
+        pblock->pb_plugin->plg_syntax_filter_sub = value;
         break;
     case SLAPI_PLUGIN_SYNTAX_VALUES2KEYS:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_values2keys = (IFP)value;
+        pblock->pb_plugin->plg_syntax_values2keys = value;
         break;
     case SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_AVA:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_assertion2keys_ava = (IFP)value;
+        pblock->pb_plugin->plg_syntax_assertion2keys_ava = value;
         break;
     case SLAPI_PLUGIN_SYNTAX_ASSERTION2KEYS_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_assertion2keys_sub = (IFP)value;
+        pblock->pb_plugin->plg_syntax_assertion2keys_sub = value;
         break;
     case SLAPI_PLUGIN_SYNTAX_NAMES:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
@@ -3391,13 +3394,13 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_validate = (IFP)value;
+        pblock->pb_plugin->plg_syntax_validate = value;
         break;
     case SLAPI_PLUGIN_SYNTAX_NORMALIZE:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_normalize = (VFPV)value;
+        pblock->pb_plugin->plg_syntax_normalize = value;
         break;
     case SLAPI_ENTRY_PRE_OP:
         _pblock_assert_pb_intop(pblock);
@@ -3723,11 +3726,11 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
     /* matching rule plugin functions */
     case SLAPI_PLUGIN_MR_FILTER_CREATE_FN:
         SLAPI_PLUGIN_TYPE_CHECK(pblock, SLAPI_PLUGIN_MATCHINGRULE);
-        pblock->pb_plugin->plg_mr_filter_create = (IFP)value;
+        pblock->pb_plugin->plg_mr_filter_create = value;
         break;
     case SLAPI_PLUGIN_MR_INDEXER_CREATE_FN:
         SLAPI_PLUGIN_TYPE_CHECK(pblock, SLAPI_PLUGIN_MATCHINGRULE);
-        pblock->pb_plugin->plg_mr_indexer_create = (IFP)value;
+        pblock->pb_plugin->plg_mr_indexer_create = value;
         break;
     case SLAPI_PLUGIN_MR_FILTER_MATCH_FN:
         _pblock_assert_pb_mr(pblock);
@@ -3789,31 +3792,31 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_filter_ava = (IFP)value;
+        pblock->pb_plugin->plg_mr_filter_ava = value;
         break;
     case SLAPI_PLUGIN_MR_FILTER_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_filter_sub = (IFP)value;
+        pblock->pb_plugin->plg_mr_filter_sub = value;
         break;
     case SLAPI_PLUGIN_MR_VALUES2KEYS:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_values2keys = (IFP)value;
+        pblock->pb_plugin->plg_mr_values2keys = value;
         break;
     case SLAPI_PLUGIN_MR_ASSERTION2KEYS_AVA:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_assertion2keys_ava = (IFP)value;
+        pblock->pb_plugin->plg_mr_assertion2keys_ava = value;
         break;
     case SLAPI_PLUGIN_MR_ASSERTION2KEYS_SUB:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_assertion2keys_sub = (IFP)value;
+        pblock->pb_plugin->plg_mr_assertion2keys_sub = value;
         break;
     case SLAPI_PLUGIN_MR_FLAGS:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
@@ -3832,13 +3835,13 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_compare = (IFP)value;
+        pblock->pb_plugin->plg_mr_compare = value;
         break;
     case SLAPI_PLUGIN_MR_NORMALIZE:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_normalize = (VFPV)value;
+        pblock->pb_plugin->plg_mr_normalize = value;
         break;
 
     /* seq arguments */
@@ -3957,7 +3960,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         break;
     case SLAPI_TXN_RUV_MODS_FN:
         _pblock_assert_pb_intop(pblock);
-        pblock->pb_intop->pb_txn_ruv_mods_fn = (IFP)value;
+        pblock->pb_intop->pb_txn_ruv_mods_fn = value;
         break;
 
     /* Search results set */
@@ -4027,23 +4030,23 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         break;
 
     case SLAPI_PLUGIN_ACL_SYNTAX_CHECK:
-        pblock->pb_plugin->plg_acl_syntax_check = (IFP)value;
+        pblock->pb_plugin->plg_acl_syntax_check = value;
         break;
     case SLAPI_PLUGIN_ACL_ALLOW_ACCESS:
-        pblock->pb_plugin->plg_acl_access_allowed = (IFP)value;
+        pblock->pb_plugin->plg_acl_access_allowed = value;
         break;
     case SLAPI_PLUGIN_ACL_MODS_ALLOWED:
-        pblock->pb_plugin->plg_acl_mods_allowed = (IFP)value;
+        pblock->pb_plugin->plg_acl_mods_allowed = value;
         break;
     case SLAPI_PLUGIN_ACL_MODS_UPDATE:
-        pblock->pb_plugin->plg_acl_mods_update = (IFP)value;
+        pblock->pb_plugin->plg_acl_mods_update = value;
         break;
     /* MMR Plugin */
     case SLAPI_PLUGIN_MMR_BETXN_PREOP:
-	pblock->pb_plugin->plg_mmr_betxn_preop = (IFP) value;
+	pblock->pb_plugin->plg_mmr_betxn_preop = value;
 	break;
     case SLAPI_PLUGIN_MMR_BETXN_POSTOP:
-	pblock->pb_plugin->plg_mmr_betxn_postop = (IFP) value;
+	pblock->pb_plugin->plg_mmr_betxn_postop = value;
 	break;
 
     case SLAPI_CLIENT_DNS:
@@ -4106,11 +4109,11 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
 
     /* entry fetch store */
     case SLAPI_PLUGIN_ENTRY_FETCH_FUNC:
-        pblock->pb_plugin->plg_entryfetchfunc = (IFP)value;
+        pblock->pb_plugin->plg_entryfetchfunc = value;
         break;
 
     case SLAPI_PLUGIN_ENTRY_STORE_FUNC:
-        pblock->pb_plugin->plg_entrystorefunc = (IFP)value;
+        pblock->pb_plugin->plg_entrystorefunc = value;
         break;
 
     case SLAPI_PLUGIN_ENABLED:
