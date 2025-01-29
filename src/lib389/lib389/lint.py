@@ -270,6 +270,21 @@ database after adding the missing index type. Here is an example using dsconf:
 """
 }
 
+DSMOLE0002 = {
+    'dsle': 'DSMOLE0002',
+    'severity': 'LOW',
+    'description': 'Removal of a member can be slow ',
+    'items': ['cn=memberof plugin,cn=plugins,cn=config', ],
+    'detail': """If the substring index is configured for a membership attribute. The removal of a member
+from the large group can be slow.
+
+""",
+    'fix': """If not required, you can remove the substring index type using dsconf:
+
+    # dsconf slapd-YOUR_INSTANCE backend index set --attr=ATTR BACKEND --del-type=sub
+"""
+}
+
 # Disk Space check.  Note - PARTITION is replaced by the calling function
 DSDSLE0001 = {
     'dsle': 'DSDSLE0001',
