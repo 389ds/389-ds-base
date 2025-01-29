@@ -11,12 +11,14 @@ import os
 import json
 import ldap
 import stat
+from datetime import datetime
 from shutil import copyfile
 from getpass import getpass
 from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
 from lib389.cli_base import _get_arg, CustomHelpFormatter
 from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog, get_passwd_from_file
+from lib389.repltools import ReplicationLogAnalyzer
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF, Changelog
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
@@ -504,6 +506,88 @@ def get_repl_monitor_info(inst, basedn, log, args):
 
     if args.json:
         log.info(json.dumps({"type": "list", "items": report_items}, indent=4))
+
+
+def generate_lag_report(inst, basedn, log, args):
+    """Generate detailed replication lag analysis report from server logs."""
+
+    # Validate input parameters
+    if not args.log_dirs:
+        raise ValueError("No log directories specified")
+
+    # Validate log directories
+    for log_dir in args.log_dirs:
+        if not os.path.isdir(log_dir):
+            raise ValueError(f"Log directory not found or not accessible: {log_dir}")
+
+    # Validate output directory
+    if not os.path.exists(args.output_dir):
+        try:
+            os.makedirs(args.output_dir)
+        except OSError as e:
+            raise ValueError(f"Cannot create output directory: {e}")
+    elif not os.access(args.output_dir, os.W_OK):
+        raise ValueError(f"Output directory not writable: {args.output_dir}")
+
+    # Determine output formats
+    formats = []
+    if args.csv:
+        formats.append('csv')
+    if args.html:
+        formats.append('html')
+    if args.png:
+        formats.append('png')
+    if not formats:  # Default to PNG if no format specified
+        formats.append('png')
+
+    # Parse time range if specified
+    time_range = {}
+    try:
+        if args.start_time:
+            time_range['start'] = datetime.strptime(args.start_time, '%Y-%m-%d %H:%M:%S')
+        if args.end_time:
+            time_range['end'] = datetime.strptime(args.end_time, '%Y-%m-%d %H:%M:%S')
+    except ValueError as e:
+        raise ValueError(f"Invalid time format. Use YYYY-MM-DD HH:MM:SS: {e}")
+
+    try:
+        # Initialize ReplicationLogAnalyzer with enhanced options
+        log.info("Initializing replication log analysis...")
+        repl_analyzer = ReplicationLogAnalyzer(
+            log_dirs=args.log_dirs,
+            suffixes=args.suffixes,
+            anonymous=args.anonymous,
+            only_fully_replicated=args.only_fully_replicated,
+            only_not_replicated=args.only_not_replicated,
+            lag_time_lowest=args.lag_time_lowest,
+            etime_lowest=args.etime_lowest,
+            repl_lag_threshold=args.repl_lag_threshold,
+            utc_offset=args.utc_offset,
+            time_range=time_range
+        )
+
+        # Parse logs
+        log.info("Analyzing replication logs...")
+        repl_analyzer.parse_logs()
+
+        # Generate reports
+        log.info("Generating analysis reports...")
+        generated_files = repl_analyzer.generate_report(
+            output_dir=args.output_dir,
+            formats=formats,
+            report_name="replication_analysis"
+        )
+
+        # Report output locations
+        if args.json:
+            log.info(json.dumps({"type": "list", "items": generated_files}, indent=4))
+        else:
+            log.info("Generated report files:")
+            for fmt, path in generated_files.items():
+                log.info(f"  {fmt}: {path}")
+
+    except Exception as e:
+        raise ValueError(f"Failed to generate replication lag report: {e}")
 
 
 # This subcommand is available when 'not ds_supports_new_changelog'
@@ -1452,6 +1536,63 @@ def create_parser(subparsers):
     repl_monitor_parser.add_argument('-a', '--aliases', nargs="*",
                                      help="Enables displaying an alias instead of host:port, if an alias is "
                                           "assigned to a host:port combination. The format: alias=host:port")
+
+    repl_lag_report_parser = repl_subcommands.add_parser('lag-report',
+        help='Generate detailed replication lag monitoring report',
+        formatter_class=CustomHelpFormatter)
+    repl_lag_report_parser.set_defaults(func=generate_lag_report)
+
+    # Input options group
+    input_group = repl_lag_report_parser.add_argument_group('Input options')
+    input_group.add_argument('--log-dirs', nargs='+', required=True,
+        help='List of log directories to analyze')
+    input_group.add_argument('--suffixes', nargs='+', required=True,
+        help='List of suffixes to analyze')
+
+    # Output options group
+    output_group = repl_lag_report_parser.add_argument_group('Output options')
+    output_group.add_argument('--output-dir', required=True,
+        help='Directory for report output files')
+    output_group.add_argument('--html', action='store_true',
+        help='Generate HTML report')
+    output_group.add_argument('--csv', action='store_true',
+        help='Generate CSV report')
+    output_group.add_argument('--png', action='store_true',
+        help='Generate PNG report (default if no format specified)')
+
+    # Filtering options group
+    filter_group = repl_lag_report_parser.add_argument_group('Filtering options')
+
+    # Create mutually exclusive group for replication filters
+    repl_filter_group = filter_group.add_mutually_exclusive_group()
+    repl_filter_group.add_argument('--only-fully-replicated', action='store_true',
+        help='Show only fully replicated entries')
+    repl_filter_group.add_argument('--only-not-replicated', action='store_true',
+        help='Show only entries that failed to replicate')
+
+    # Other filtering options
+    filter_group.add_argument('--lag-time-lowest', type=float,
+        help='Filter entries with lag time above this threshold (seconds)')
+    filter_group.add_argument('--etime-lowest', type=float,
+        help='Filter entries with etime above this threshold (seconds)')
+    filter_group.add_argument('--repl-lag-threshold', type=float,
+        help='Replication lag threshold for highlighting (seconds)')
+
+    # Time range options subgroup
+    time_group = repl_lag_report_parser.add_argument_group('Time range options')
+    time_group.add_argument('--start-time',
+        default='1970-01-01 00:00:00',
+        help='Start time for analysis (YYYY-MM-DD HH:MM:SS)')
+    time_group.add_argument('--end-time',
+        default='9999-12-31 23:59:59',
+        help='End time for analysis (YYYY-MM-DD HH:MM:SS)')
+
+    # Additional options group
+    additional_group = repl_lag_report_parser.add_argument_group('Additional options')
+    additional_group.add_argument('--utc-offset',
+        help='UTC offset in ±HHMM format (e.g., -0400, +0530)')
+    additional_group.add_argument('--anonymous', action='store_true',
+        help='Anonymize server names in the report')
 
     ############################################
     # Replication Agmts
