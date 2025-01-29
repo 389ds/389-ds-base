@@ -24,6 +24,13 @@ from lib389.replica import ReplicationManager
 from lib389.repltools import ReplicationLogAnalyzer
 from lib389._constants import *
 
+try:
+    import plotly
+    import matplotlib
+    HTML_PNG_REPORTS_AVAILABLE = True
+except ImportError:
+    HTML_PNG_REPORTS_AVAILABLE = False
+
 pytestmark = pytest.mark.tier0
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -105,6 +112,7 @@ def _cleanup_multi_suffix_test(test_users_by_suffix, tmp_dir, suppliers, extra_s
         log.error(f"Error cleaning up temporary directory: {e}")
 
 
+@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_basic(topo_m4):
     """Test basic replication log monitoring functionality
 
@@ -195,6 +203,7 @@ def test_replication_log_monitoring_basic(topo_m4):
         _cleanup_test_data(test_users, tmp_dir)
 
 
+@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_advanced(topo_m4):
     """Test advanced replication monitoring features
 
@@ -312,6 +321,7 @@ def test_replication_log_monitoring_advanced(topo_m4):
         _cleanup_test_data(test_users, tmp_dir)
 
 
+@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_multi_suffix(topo_m4):
     """Test multi-suffix replication monitoring
 
@@ -425,6 +435,7 @@ def test_replication_log_monitoring_multi_suffix(topo_m4):
         )
 
 
+@pytest.mark.skipif(not HTML_PNG_REPORTS_AVAILABLE, reason="HTML/PNG report libraries not available")
 def test_replication_log_monitoring_filter_combinations(topo_m4):
     """Test complex combinations of filtering options and interactions
 

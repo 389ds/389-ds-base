@@ -146,9 +146,6 @@ BuildRequires:    python%{python3_pkgversion}-argparse-manpage
 BuildRequires:    python%{python3_pkgversion}-policycoreutils
 BuildRequires:    python%{python3_pkgversion}-libselinux
 BuildRequires:    python%{python3_pkgversion}-cryptography
-BuildRequires:    python%{python3_pkgversion}-numpy
-BuildRequires:    python%{python3_pkgversion}-plotly
-BuildRequires:    python%{python3_pkgversion}-matplotlib
 
 # For cockpit
 %if %{with cockpit}
@@ -324,15 +321,26 @@ Requires: python%{python3_pkgversion}-argcomplete
 Requires: python%{python3_pkgversion}-libselinux
 Requires: python%{python3_pkgversion}-setuptools
 Requires: python%{python3_pkgversion}-cryptography
-Recommends: python%{python3_pkgversion}-numpy
-Recommends: python%{python3_pkgversion}-plotly
-Recommends: python%{python3_pkgversion}-matplotlib
 Recommends: bash-completion
 %{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
 
 %description -n python%{python3_pkgversion}-lib389
 This module contains tools and libraries for accessing, testing,
  and configuring the 389 Directory Server.
+
+%package -n python%{python3_pkgversion}-lib389-repl-reports
+Summary: HTML and PNG report generation for 389 Directory Server replication monitoring tools
+BuildArch: noarch
+Requires: python%{python3_pkgversion}-lib389 = %{version}-%{release}
+Requires: python%{python3_pkgversion}-plotly
+Requires: python%{python3_pkgversion}-matplotlib
+
+%description -n python%{python3_pkgversion}-lib389-repl-reports
+Extended reporting capabilities for 389 Directory Server replication analysis.
+This package provides additional report formats (HTML and PNG) with interactive
+visualizations and graphs for replication lag analysis. These formats require
+additional dependencies and are optional - the base package supports CSV
+reports without this extension.
 
 %if %{with cockpit}
 %package -n cockpit-389-ds
@@ -761,6 +769,9 @@ fi
 %{bash_completions_dir}/dsconf
 %{bash_completions_dir}/dscreate
 %{bash_completions_dir}/dsidm
+
+%files -n python%{python3_pkgversion}-lib389-repl-reports
+# No files needed as this is just a meta-package for dependencies
 
 %if %{with cockpit}
 %files -n cockpit-389-ds -f cockpit.list
