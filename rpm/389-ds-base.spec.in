@@ -242,6 +242,9 @@ BuildRequires:    python%{python3_pkgversion}-argparse-manpage
 BuildRequires:    python%{python3_pkgversion}-policycoreutils
 BuildRequires:    python%{python3_pkgversion}-libselinux
 BuildRequires:    python%{python3_pkgversion}-cryptography
+BuildRequires:    python%{python3_pkgversion}-numpy
+BuildRequires:    python%{python3_pkgversion}-plotly
+BuildRequires:    python%{python3_pkgversion}-matplotlib
 
 # For cockpit
 %if %{use_cockpit}
@@ -424,6 +427,9 @@ Requires: python%{python3_pkgversion}-argcomplete
 Requires: python%{python3_pkgversion}-libselinux
 Requires: python%{python3_pkgversion}-setuptools
 Requires: python%{python3_pkgversion}-cryptography
+Recommends: python%{python3_pkgversion}-numpy
+Recommends: python%{python3_pkgversion}-plotly
+Recommends: python%{python3_pkgversion}-matplotlib
 Recommends: bash-completion
 %{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
 

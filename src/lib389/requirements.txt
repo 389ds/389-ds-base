@@ -7,3 +7,6 @@ python-ldap
 setuptools
 distro
 cryptography
+plotly
+matplotlib
+numpy
