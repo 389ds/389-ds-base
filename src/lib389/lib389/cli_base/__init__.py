@@ -385,8 +385,17 @@ class CustomHelpFormatter(argparse.HelpFormatter):
     description to the full help output
     """
     def add_arguments(self, actions):
-        if len(actions) > 0 and actions[0].option_strings:
-            actions = parent_arguments + actions
+        if len(actions) > 0:
+            # Check if this is the main options section by looking for the help action
+            is_main_section = any(
+                isinstance(action, argparse._HelpAction) 
+                for action in actions
+            )
+            
+            # Only add parent arguments to the main options section
+            if is_main_section:
+                actions = parent_arguments + actions
+        
         super(CustomHelpFormatter, self).add_arguments(actions)
 
     def _format_usage(self, usage, actions, groups, prefix):
