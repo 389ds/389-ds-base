@@ -23,6 +23,18 @@ from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationMan
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
 
+try:
+    import plotly
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+
+try:
+    import matplotlib
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+
 arg_to_attr = {
         # replica config
         'replica_id': 'nsds5replicaid',
