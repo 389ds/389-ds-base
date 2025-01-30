@@ -21,6 +21,11 @@
 %endif
 %endif
 
+%bcond repl_reports 0
+%if 0%{?fedora} >= 40
+%bcond repl_reports 1
+%endif
+
 # This is used in certain builds to help us know if it has extra features.
 %global variant base
 %global prerel __VERSION_PREREL__%{nil}
@@ -328,6 +333,7 @@ Recommends: bash-completion
 This module contains tools and libraries for accessing, testing,
  and configuring the 389 Directory Server.
 
+%if %{with repl_reports}
 %package -n python%{python3_pkgversion}-lib389-repl-reports
 Summary: HTML and PNG report generation for 389 Directory Server replication monitoring tools
 BuildArch: noarch
@@ -341,6 +347,7 @@ This package provides additional report formats (HTML and PNG) with interactive
 visualizations and graphs for replication lag analysis. These formats require
 additional dependencies and are optional - the base package supports CSV
 reports without this extension.
+%endif
 
 %if %{with cockpit}
 %package -n cockpit-389-ds
@@ -770,8 +777,10 @@ fi
 %{bash_completions_dir}/dscreate
 %{bash_completions_dir}/dsidm
 
+%if %{with repl_reports}
 %files -n python%{python3_pkgversion}-lib389-repl-reports
 # No files needed as this is just a meta-package for dependencies
+%endif
 
 %if %{with cockpit}
 %files -n cockpit-389-ds -f cockpit.list
