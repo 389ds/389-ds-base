@@ -27,9 +27,18 @@ struct repl_enum_data
     void *arg;
 };
 
+struct repl_enum_validity
+{
+    Replica *replica;
+    bool is_valid;
+};
+
+
 /* Forward declarations */
 static PRIntn replica_destroy_hash_entry(PLHashEntry *he, PRIntn index, void *arg);
 static PRIntn replica_enumerate(PLHashEntry *he, PRIntn index, void *hash_data);
+static PRIntn replica_validity_cb(PLHashEntry *he, PRIntn index, void *arg);
+
 
 
 int
@@ -192,6 +201,21 @@ replica_enumerate_replicas(FNEnumReplica fn, void *arg)
     slapi_rwlock_unlock(s_lock);
 }
 
+/* Check that the replica still exists */
+bool
+replica_check_validity(Replica *replica)
+{
+    struct repl_enum_validity data = { replica, false };
+
+    if (replica == NULL) {
+        return false;
+    }
+    slapi_rwlock_rdlock(s_lock);
+    PL_HashTableEnumerateEntries(s_hash, replica_validity_cb, &data);
+    slapi_rwlock_unlock(s_lock);
+    return data.is_valid;
+}
+
 /* Helper functions */
 
 /* this function called for each hash node during hash destruction */
@@ -222,5 +246,17 @@ replica_enumerate(PLHashEntry *he, PRIntn index __attribute__((unused)), void *h
 
     data->fn(r, data->arg);
 
+    return HT_ENUMERATE_NEXT;
+}
+
+static PRIntn
+replica_validity_cb(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg)
+{
+    struct repl_enum_validity *data = arg;
+    Replica *r = (Replica *)he->value;
+    if (r == data->replica) {
+        data->is_valid = true;
+        return HT_ENUMERATE_STOP;
+    }
     return HT_ENUMERATE_NEXT;
 }
