@@ -8,7 +8,6 @@
 
 from collections import defaultdict
 from datetime import datetime, timezone, tzinfo, timedelta
-import numpy as np
 from typing import Dict, List, Optional, Tuple, Generator, Any, NamedTuple, Union
 import os
 import re
@@ -1053,7 +1052,7 @@ class ReplicationLogAnalyzer:
 
             elif fmt == 'html':
                 if not PLOTLY_AVAILABLE:
-                    self._logger.warning("Plotly not installed. Skipping HTML report.")
+                    self._logger.warning("Plotly not installed. Skipping HTML report. Please install python3-lib389-repl-reports package to get required dependencies.")
                     continue
                 fig = self._create_plotly_figure(results)
                 self._generate_html(fig, outfile)
@@ -1061,7 +1060,7 @@ class ReplicationLogAnalyzer:
 
             elif fmt == 'png':
                 if not MATPLOTLIB_AVAILABLE:
-                    self._logger.warning("Matplotlib not installed. Skipping PNG report.")
+                    self._logger.warning("Matplotlib not installed. Skipping PNG report. Please install python3-lib389-repl-reports package to get required dependencies.")
                     continue
                 fig = self._create_plotly_figure(results)
                 self._generate_png(fig, outfile)
@@ -1072,7 +1071,7 @@ class ReplicationLogAnalyzer:
 
         return generated_files
 
-    def _create_plotly_figure(self, results: Dict[str, Any]) -> go.Figure:
+    def _create_plotly_figure(self, results: Dict[str, Any]):
         """Create a plotly figure for visualization."""
         if not PLOTLY_AVAILABLE:
             raise ImportError("Plotly is required for figure creation")
@@ -1239,7 +1238,7 @@ class ReplicationLogAnalyzer:
 
         return fig
 
-    def _generate_png(self, fig: go.Figure, outfile: str) -> None:
+    def _generate_png(self, fig, outfile: str) -> None:
         """Generate PNG snapshot of the plotly figure using matplotlib.
         For PNG, we deliberately omit the hop-lag (3rd subplot) data.
         """
@@ -1283,7 +1282,7 @@ class ReplicationLogAnalyzer:
         except Exception as e:
             raise IOError(f"Failed to generate PNG report: {e}")
 
-    def _generate_html(self, fig: go.Figure, outfile: str) -> None:
+    def _generate_html(self, fig, outfile: str) -> None:
         """Generate HTML report from the plotly figure."""
         try:
             pio.write_html(
