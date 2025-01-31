@@ -6750,6 +6750,23 @@ log_refresh_state(int32_t log_type)
         return 0;
     }
 }
+static LOGFD
+log_refresh_fd(int32_t log_type)
+{
+    switch (log_type) {
+    case SLAPD_ACCESS_LOG:
+        return loginfo.log_access_fdes;
+    case SLAPD_SECURITY_LOG:
+        return loginfo.log_security_fdes;
+    case SLAPD_AUDIT_LOG:
+        return loginfo.log_audit_fdes;
+    case SLAPD_AUDITFAIL_LOG:
+        return loginfo.log_auditfail_fdes;
+    case SLAPD_ERROR_LOG:
+        return loginfo.log_error_fdes;
+    }
+    return NULL;
+}
 
 /* this function assumes the lock is already acquired */
 /* if sync_now is non-zero, data is flushed to physical storage */
@@ -6861,6 +6878,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
                                                         rotationtime_secs);
         }
         log_state = log_refresh_state(log_type);
+        fd = log_refresh_fd(log_type);
     }
 
     if (log_state & LOGGING_NEED_TITLE) {
