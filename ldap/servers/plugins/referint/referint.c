@@ -924,6 +924,7 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
 {
     Slapi_Mods *smods = NULL;
     char *newDN = NULL;
+    struct berval bv = {0};
     char **dnParts = NULL;
     char *sval = NULL;
     char *newvalue = NULL;
@@ -984,6 +985,16 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
         /* newRDN and superior are already normalized. */
         newDN = slapi_ch_smprintf("%s,%s", newRDN, superior);
         slapi_dn_ignore_case(newDN);
+
+        /* Check if DN has been updated already (automember) */
+        bv.bv_val = newDN;
+        bv.bv_len = strlen(newDN);
+        if (VALUE_PRESENT == attr_value_find_wsi(attr, &bv, &v)) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
+                          "_update_all_per_mod - Duplicate DN update detected, ignoring %s\n", newDN);
+            bv = (struct berval){0};
+            goto bail;
+        }
         /*
          * Compare the modified dn with the value of
          * the target attribute of referint to find out
