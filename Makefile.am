@@ -99,6 +99,9 @@ else
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
 endif
+if WITH_LIBBDB_RO
+DS_DEFINES += -DWITH_LIBBDB_RO=1
+endif
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 
 
@@ -184,10 +187,14 @@ endif
 ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
+if WITH_LIBBDB_RO
+DB_LINK =  @db_lib@ -llmdb
+else
 if BUNDLE_LIBDB
 DB_LINK = -llmdb
 else
 DB_LINK = @db_lib@ -ldb-@db_libver@ -llmdb
+endif
 endif
 DB_INC = @db_inc@
 DB_IMPL = libback-ldbm.la
@@ -326,6 +333,9 @@ bin_PROGRAMS = dbscan \
 # ----------------------------------------------------------------------------------------
 
 server_LTLIBRARIES = libslapd.la libldaputil.la libns-dshttpd.la librewriters.la
+if WITH_LIBBDB_RO
+server_LTLIBRARIES += librobdb.la
+endif
 
 lib_LTLIBRARIES = libsvrcore.la
 
@@ -1196,19 +1206,26 @@ libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 # libback-bdb
 #------------------------
 DB_BDB_SRCS = \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_instance_config.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_perfctrs.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c
+	@db_bdb_srcdir@/bdb_config.c \
+	@db_bdb_srcdir@/bdb_instance_config.c \
+	@db_bdb_srcdir@/bdb_verify.c \
+	@db_bdb_srcdir@/bdb_layer.c \
+	@db_bdb_srcdir@/bdb_misc.c \
+	@db_bdb_srcdir@/bdb_perfctrs.c \
+	@db_bdb_srcdir@/bdb_upgrade.c \
+	@db_bdb_srcdir@/bdb_version.c \
+	@db_bdb_srcdir@/bdb_monitor.c \
+	@db_bdb_srcdir@/bdb_ldif2db.c \
+	@db_bdb_srcdir@/bdb_import.c \
+	@db_bdb_srcdir@/bdb_import_threads.c
 
+
+if WITH_LIBBDB_RO
+  # db-bdb sources are compiled within libback-ldbm.so and linked to librobdb
+  DB_BDB_SRCS += @db_bdb_srcdir@/bdb_bdbreader_glue.c
+  DB_BDB_WITHIN_BACKLDBM = $(DB_BDB_SRCS)
+  ROBDB_INC = -I$(srcdir)/lib/librobdb/lib
+else
 if BUNDLE_LIBDB
   # db-bdb sources are compiled within libback-bdb.so
   DB_BDB_WITHIN_BACKLDBM =
@@ -1222,6 +1239,20 @@ else
   # db-bdb sources are compiled within libback-ldbm.so
   DB_BDB_WITHIN_BACKLDBM = $(DB_BDB_SRCS)
 endif
+endif
+
+clean-bdb-ro-src:
+	/bin/rm -f $(DB_BDB_RO_BUILT_SRCS)
+
+build-src: $(BUILT_SOURCES)
+echo-src:
+	@echo V2 @db_bdbro_srcdir@
+	@echo V3 @db_bdb_srcdir@
+	@echo V1 $(patsubst %-ro/,%,$(dir $(DB_BDB_RO_BUILT_SRCS)))
+	@echo V4 $(DB_BDB_RO_BUILT_SRCS)
+	@echo V5 $(DB_BDB_WITHIN_BACKLDBM)
+	@echo V6 $(libback_ldbm_la_SOURCES)
+
 
 #------------------------
 # libback-ldbm
@@ -1298,10 +1329,23 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	$(DB_BDB_WITHIN_BACKLDBM)
 
 
-libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC)
+libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DB_INC) $(ROBDB_INC)
 libback_ldbm_la_DEPENDENCIES = libslapd.la
 libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
 libback_ldbm_la_LDFLAGS = -avoid-version
+
+if WITH_LIBBDB_RO
+libback_ldbm_la_LIBADD += librobdb.la
+libback_ldbm_la_DEPENDENCIES += librobdb.la
+
+#------------------------
+# librobdb
+#------------------------
+librobdb_la_SOURCES =  lib/librobdb/lib/bdb_ro.c
+librobdb_la_CPPFLAGS = $(AM_CPPFLAGS) $(DB_INC)
+librobdb_la_LDFLAGS =  -avoid-version
+librobdb_la_LIBADD =
+endif
 
 #------------------------
 # libacctpolicy-plugin
