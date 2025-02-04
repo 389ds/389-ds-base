@@ -730,7 +730,7 @@ void slapi_pblock_init(Slapi_PBlock *pb); /* clear out for re-use */
  * \see slapi_pblock_destroy()
  * \see slapi_pblock_set()
  */
-__ATTRIBUTE__((access (write_only, 3))) int slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
+__ATTRIBUTE__((access (write_only, 3))) int32_t slapi_pblock_get(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Sets the value of a name-value pair in a parameter block.
@@ -782,7 +782,7 @@ __ATTRIBUTE__((access (write_only, 3))) int slapi_pblock_get(Slapi_PBlock *pb, i
  *
  * \see slapi_pblock_get()
  */
-__ATTRIBUTE__((access (read_only, 3))) int slapi_pblock_set(Slapi_PBlock *pb, int arg, void *value);
+__ATTRIBUTE__((access (read_only, 3))) int32_t slapi_pblock_set(Slapi_PBlock *pb, int arg, void *value);
 
 /**
  * Frees the specified parameter block from memory.
