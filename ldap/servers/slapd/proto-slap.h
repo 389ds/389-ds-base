@@ -674,7 +674,7 @@ int get_ldapmessage_controls(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***c
 int get_ldapmessage_controls_ext(Slapi_PBlock *pb, BerElement *ber, LDAPControl ***controls, int ignore_criticality);
 int write_controls(BerElement *ber, LDAPControl **ctrls);
 void add_control(LDAPControl ***ctrlsp, LDAPControl *newctrl);
-void slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, PRBool *isCritical);
+void slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, bool *isCritical);
 
 /*
  * daemon.c
@@ -863,6 +863,7 @@ int slapi_log_security(Slapi_PBlock *pb, const char *event_type, const char *msg
 int slapi_log_security_tcp(Connection *pb_conn, const char *event_type, PRErrorCode error, const char *msg);
 int slapd_log_audit(char *buffer, PRBool json);
 int slapd_log_auditfail(char *buffer, PRBool json);
+int32_t slapd_log_access_json(char *buffer);
 void logs_flush(void);
 
 int access_log_openf(char *pathname, int locked);
@@ -910,6 +911,7 @@ void g_set_accesslog_level(int val);
 void g_set_statlog_level(int val);
 void g_set_securitylog_level(int val);
 void log__delete_rotated_logs(void);
+void log__error_emergency(const char *errstr, int reopen, int locked);
 void slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock *pb);
 
 /*
@@ -1114,7 +1116,7 @@ void g_decrement_current_conn_count(void);
 void g_set_current_conn_count_mutex(PRLock *plock);
 PRLock *g_get_current_conn_count_mutex(void);
 int encode_attr(Slapi_PBlock *pb, BerElement *ber, Slapi_Entry *e, Slapi_Attr *a, int attrsonly, char *type);
-
+void get_notes_info(unsigned int notes, char **note, char **details); /* access json logging */
 
 /*
  * schema.c
@@ -1265,6 +1267,7 @@ time_t poll_current_time(void);
 char *format_localTime(time_t from);
 int format_localTime_log(time_t t, int initsize, char *buf, int *bufsize);
 int format_localTime_hr_log(time_t t, long nsec, int initsize, char *buf, int *bufsize);
+int32_t format_localTime_hr_json_log(struct timespec *ts, char *buf, int *bufsize, char *format);
 time_t parse_localTime(char *from);
 
 #ifndef HAVE_TIME_R

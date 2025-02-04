@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -14,6 +14,7 @@
 /* control.c - routines for dealing with LDAPMessage controls */
 
 #include <stdio.h>
+#include <plbase64.h>
 #include "slap.h"
 
 
@@ -774,11 +775,14 @@ slapi_build_control_from_berval(char *oid, struct berval *bvp, char iscritical, 
 
 /*
  * Parse an LDAP control into its parts
+ * The caller must free "value"
  */
 void
-slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, PRBool *isCritical)
+slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, bool *isCritical)
 {
     *isCritical = ctrl->ldctl_iscritical;
-    *value = ctrl->ldctl_value.bv_val;
+    if (ctrl->ldctl_value.bv_len > 0) {
+        *value = PL_Base64Encode(ctrl->ldctl_value.bv_val, ctrl->ldctl_value.bv_len, NULL);
+    }
     *oid = ctrl->ldctl_oid;
 }

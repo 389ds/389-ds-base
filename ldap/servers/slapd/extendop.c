@@ -339,7 +339,7 @@ do_extended(Slapi_PBlock *pb)
         } else {
             slapd_log_pblock_init(&logpb, log_format, pb);
             logpb.oid = extoid;
-            logpb.msg = name;
+            logpb.name = name;
             slapd_log_access_extop(&logpb);
         }
     }

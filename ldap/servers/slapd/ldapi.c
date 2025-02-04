@@ -393,10 +393,10 @@ done:
         if (log_format != LOG_FORMAT_DEFAULT) {
             /* JSON logging */
             slapd_log_pblock logpb = {0};
-
-            logpb.log_format = log_format;
+            slapd_log_pblock_init(&logpb, log_format, NULL);
             logpb.conn_time = conn->c_starttime;
             logpb.conn_id = conn->c_connid;
+            logpb.op_id = -1;
             logpb.bind_dn = conn->c_dn;
             slapd_log_access_autobind(&logpb);
         } else {

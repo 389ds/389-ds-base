@@ -844,7 +844,7 @@ static struct config_get_and_set
     {CONFIG_ACCESSLOG_TIME_FORMAT_ATTRIBUTE, config_set_accesslog_time_format,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslog_time_format,
-     CONFIG_STRING, NULL, SLAPD_INIT_LOG_TIME_FORMAT, NULL},
+     CONFIG_STRING, NULL, SLAPD_INIT_ACCESS_LOG_TIME_FORMAT, NULL},
     {CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE, config_set_accesslogbuffering,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.accesslogbuffering,
@@ -1888,7 +1888,7 @@ FrontendConfig_init(void)
     cfg->accesslog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->accessloglevel = SLAPD_DEFAULT_ACCESSLOG_LEVEL;
     cfg->accesslog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
-    cfg->accesslog_time_format = slapi_ch_strdup(SLAPD_INIT_LOG_TIME_FORMAT);
+    cfg->accesslog_time_format = slapi_ch_strdup(SLAPD_INIT_ACCESS_LOG_TIME_FORMAT);
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
     init_accesslog_compress_enabled = cfg->accesslog_compress = LDAP_OFF;
