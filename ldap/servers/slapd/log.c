@@ -85,7 +85,6 @@ static int slapi_log_map[] = {
     LDAP_DEBUG_NOTICE,     /* SLAPI_LOG_NOTICE */
     LDAP_DEBUG_INFO,       /* SLAPI_LOG_INFO */
     LDAP_DEBUG_DEBUG       /* SLAPI_LOG_DEBUG */
-
 };
 
 #define SLAPI_LOG_MIN SLAPI_LOG_FATAL /* from slapi-plugin.h */
@@ -127,12 +126,13 @@ static time_t log_reverse_convert_time(char *tbuf);
 static LogBufferInfo *log_create_buffer(size_t sz);
 static void log_append_security_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size1, char *msg2, size_t size2);
+static void log_append_access_json_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_audit_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_auditfail_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size);
 static void log_append_error_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size, int locked);
 static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now, int locked);
 static void log_write_title(LOGFD fp);
-static void log__error_emergency(const char *errstr, int reopen, int locked);
+static void log_write_json_title(LOGFD fp, int32_t log_format);
 static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 static int get_syslog_loglevel(int loglevel);
 static void log_external_libs_debug_openldap_print(char *buffer);
@@ -2238,6 +2238,45 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
  * Write title line in log file
  *****************************************************************************/
 static void
+log_write_json_title(LOGFD fp, int32_t log_format)
+{
+    json_object *json_header = json_object_new_object();
+    json_object *json_obj = json_object_new_object();
+    slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
+    char log_buffer[SLAPI_LOG_BUFSIZ] = {0};
+    char *buildnum = config_get_buildnum();
+    char buff[512] = {0};
+    int bufflen = sizeof(buff);
+    char *msg = NULL;
+
+    PR_snprintf(buff, bufflen, "%s B%s",
+                fe_cfg->versionstring ? fe_cfg->versionstring : CAPBRAND "-Directory/" DS_PACKAGE_VERSION,
+                buildnum ? buildnum : "");
+    json_object_object_add(json_header, "version", json_object_new_string(buff));
+
+    if (fe_cfg->localhost) {
+        PR_snprintf(buff, bufflen, "%s:%d (%s)",
+                    fe_cfg->localhost,
+                    fe_cfg->security ? fe_cfg->secureport : fe_cfg->port,
+                    fe_cfg->configdir ? fe_cfg->configdir : "");
+    } else {
+        PR_snprintf(buff, bufflen, "<host>:<port> (%s)",
+                    fe_cfg->configdir ? fe_cfg->configdir : "");
+    }
+    json_object_object_add(json_header, "instance", json_object_new_string(buff));
+    json_object_object_add(json_obj, "header", json_header);
+    msg = (char *)json_object_to_json_string_ext(json_obj, log_format);
+
+    /* Now write the JSON title */
+    PR_snprintf(log_buffer, sizeof(log_buffer), "%s\n", msg);
+    log_write(fp, log_buffer, strlen(log_buffer), 0, FLUSH);
+
+    /* Free it all */
+    json_object_put(json_obj);
+    slapi_ch_free_string(&buildnum);
+}
+
+static void
 log_write_title(LOGFD fp)
 {
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
@@ -3096,6 +3135,50 @@ vslapd_log_access(const char *fmt, va_list ap)
 #endif
 
     return (rc);
+}
+
+int32_t
+slapd_log_access_json(char *buffer)
+{
+    /* We use this to route audit log entries to where they need to go */
+    int32_t retval = LDAP_SUCCESS;
+    int32_t lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
+
+    if (lbackend & LOGGING_BACKEND_INTERNAL) {
+        char log_buffer[SLAPI_LOG_BUFSIZ] = {0};
+        int32_t buffer_len = strlen(buffer) + 1;
+        time_t tnl = slapi_current_utc_time();
+
+        if (buffer_len > SLAPI_LOG_BUFSIZ) {
+            /*
+             * We won't be able to fit the message in! Uh-oh!
+             * If the issue is not resolved during the fmt string creation (see op_shared_search()),
+             * we truncate the line and still log the message allowing the admin to check if
+             * someone is trying to do something bad.
+             */
+            memcpy(&log_buffer, buffer, SLAPI_LOG_BUFSIZ-6);
+            memcpy(&log_buffer[SLAPI_LOG_BUFSIZ-6], "...\n}\n", 5); /* cap the json event */
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_log_access_json",
+                          "Insufficient buffer capacity to fit message! "
+                          "The line in the access log was truncated\n");
+            buffer_len = strlen(log_buffer);
+            retval = -1;
+        } else {
+            PR_snprintf(log_buffer, sizeof(log_buffer), "%s\n", buffer);
+        }
+        log_append_access_json_buffer(tnl, loginfo.log_access_buffer, log_buffer, buffer_len);
+    }
+
+    if (lbackend & LOGGING_BACKEND_SYSLOG) {
+        /* This returns void, so we hope it worked */
+        syslog(LOG_NOTICE, "%s\n", buffer);
+    }
+#ifdef HAVE_JOURNALD
+    if (lbackend & LOGGING_BACKEND_JOURNALD) {
+        retval = sd_journal_print(LOG_NOTICE, "%s\n", buffer);
+    }
+#endif
+    return retval;
 }
 
 int
@@ -6045,7 +6128,7 @@ log__auditfail_rotationinfof(char *pathname)
     return logfile_type;
 }
 
-static void
+void
 log__error_emergency(const char *errstr, int reopen, int locked)
 {
     syslog(LOG_ERR, "%s\n", errstr);
@@ -6686,6 +6769,43 @@ log_append_access_buffer(time_t tnl, LogBufferInfo *lbi, char *msg1, size_t size
     }
 }
 
+static void
+log_append_access_json_buffer(time_t tnl, LogBufferInfo *lbi, char *msg, size_t size)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *insert_point = NULL;
+
+    /* While holding the lock, we determine if there is space in the buffer for our payload,
+       and if we need to flush.
+     */
+    PR_Lock(lbi->lock);
+    if (((lbi->current - lbi->top) + size > lbi->maxsize) ||
+        (tnl >= loginfo.log_access_rotationsyncclock &&
+         loginfo.log_access_rotationsync_enabled))
+    {
+        log_flush_buffer(lbi, SLAPD_ACCESS_LOG,
+                         0 /* do not sync to disk right now */, 1);
+    }
+    insert_point = lbi->current;
+    lbi->current += size;
+    /* Increment the copy refcount */
+    slapi_atomic_incr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+    PR_Unlock(lbi->lock);
+
+    /* Now we can copy without holding the lock */
+    memcpy(insert_point, msg, size);
+
+    /* Decrement the copy refcount */
+    slapi_atomic_decr_64(&(lbi->refcount), __ATOMIC_RELEASE);
+
+    /* If we are asked to sync to disk immediately, do so */
+    if (!slapdFrontendConfig->accesslogbuffering) {
+        PR_Lock(lbi->lock);
+        log_flush_buffer(lbi, SLAPD_ACCESS_LOG, 1 /* sync to disk now */, 1);
+        PR_Unlock(lbi->lock);
+    }
+}
+
 static time_t
 log_update_sync_clock(int32_t log_type, int32_t secs)
 {
@@ -6882,7 +7002,34 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
     }
 
     if (log_state & LOGGING_NEED_TITLE) {
-        log_write_title(fd);
+        int32_t accesslog_format = config_get_accesslog_log_format();
+        int32_t auditlog_format = config_get_auditlog_log_format();
+        int32_t securitylog_format = LOG_FORMAT_JSON;
+
+        switch (log_type) {
+        case SLAPD_ACCESS_LOG:
+            if (accesslog_format != LOG_FORMAT_DEFAULT) {
+                log_write_json_title(fd, accesslog_format);
+            } else {
+                log_write_title(fd);
+            }
+            break;
+        case SLAPD_AUDIT_LOG:
+        case SLAPD_AUDITFAIL_LOG:
+            if (auditlog_format != LOG_FORMAT_DEFAULT) {
+                log_write_json_title(fd, auditlog_format);
+            } else {
+                log_write_title(fd);
+            }
+            break;
+        case SLAPD_SECURITY_LOG:
+            log_write_json_title(fd, securitylog_format);
+            break;
+        default:
+            /* Error log - standard title */
+            log_write_title(fd);
+        }
+
         log_state_remove_need_title(log_type);
     }
 
@@ -7084,10 +7231,14 @@ slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock 
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     }
 
+    logpb->loginfo = &loginfo;
+    logpb->level = 256; /* default log level */
     logpb->log_format = log_format;
     logpb->pb = pb;
+    logpb->op_id = -1;
     logpb->op_internal_id = -1;
     logpb->op_nested_count = -1;
+    logpb->curr_time = slapi_current_utc_time_hr();
 
     if (conn) {
         logpb->conn_time = conn->c_starttime;
@@ -7102,6 +7253,6 @@ slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock 
     if (op) {
         logpb->op_id = op->o_opid;
         logpb->request_controls = operation_get_req_controls(op);
-        logpb->result_controls = operation_get_result_controls(op);
+        logpb->response_controls = operation_get_result_controls(op);
     }
 }

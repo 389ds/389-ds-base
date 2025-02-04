@@ -658,9 +658,9 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
             proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
 
+        slapd_log_pblock_init(&logpb, log_format, pb);
         if (!internal_op) {
             if (log_format != LOG_FORMAT_DEFAULT) {
-                slapd_log_pblock_init(&logpb, log_format, pb);
                 logpb.target_dn = slapi_sdn_get_dn(sdn);
                 logpb.authzid = proxydn;
                 slapd_log_access_mod(&logpb);
@@ -680,7 +680,6 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
             time_t start_time;
             get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count, &start_time);
             if (log_format != LOG_FORMAT_DEFAULT) {
-                logpb.log_format = log_format;
                 logpb.conn_time = start_time;
                 logpb.conn_id = connid;
                 logpb.op_id = op_id;
@@ -688,6 +687,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
                 logpb.op_nested_count = op_nested_count;
                 logpb.target_dn = slapi_sdn_get_dn(sdn);
                 logpb.authzid = proxydn;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_mod(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,
@@ -1349,6 +1349,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                     logpb.op_nested_count = 0;
                     logpb.authzid = proxydn;
                     logpb.msg = "within password minimum age";
+                    logpb.level = LDAP_DEBUG_ARGS;
                     slapd_log_access_mod(&logpb);
                 } else {
                     slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",
@@ -1399,6 +1400,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
                     logpb.op_nested_count = 0;
                     logpb.authzid = proxydn;
                     logpb.msg = "invalid password syntax";
+                    logpb.level = LDAP_DEBUG_ARGS;
                     slapd_log_access_mod(&logpb);
                 } else {
                     slapi_log_access(LDAP_DEBUG_ARGS, "conn=%s op=%d MOD dn=\"%s\"%s, %s\n",

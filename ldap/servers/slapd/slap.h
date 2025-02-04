@@ -329,6 +329,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT "week"
 #define SLAPD_INIT_LOG_EXPTIMEUNIT           "month"
 #define SLAPD_INIT_LOG_TIME_FORMAT           "%FT%TZ"
+#define SLAPD_INIT_ACCESS_LOG_TIME_FORMAT    "%FT%T"
 #define SLAPD_INIT_LOG_FORMAT                "default"
 #define LOG_FORMAT_DEFAULT 1
 #define LOG_FORMAT_JSON 0

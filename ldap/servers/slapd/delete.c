@@ -265,18 +265,15 @@ op_shared_delete(Slapi_PBlock *pb)
         }
 
         /* Prep log pblock */
-        logpb.log_format = log_format;
+        slapd_log_pblock_init(&logpb, log_format, pb);
         logpb.authzid = proxydn;
-        logpb.request_controls = operation_get_req_controls(operation);
         logpb.target_dn = slapi_sdn_get_dn(sdn);
 
         if (!internal_op) {
             Connection *pb_conn = NULL;
 
             slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-            if (log_format != LOG_FORMAT_DEFAULT) {
-                slapd_log_pblock_init(&logpb, log_format, pb);
-                slapd_log_access_delete(&logpb);
+            if (log_format != LOG_FORMAT_DEFAULT) {                slapd_log_access_delete(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " op=%d DEL dn=\"%s\"%s\n",
                                  pb_conn ? pb_conn->c_connid : -1,
@@ -298,6 +295,7 @@ op_shared_delete(Slapi_PBlock *pb)
                 logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_delete(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,

@@ -571,6 +571,7 @@ op_shared_add(Slapi_PBlock *pb)
                 logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_add(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,
