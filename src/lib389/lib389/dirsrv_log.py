@@ -444,6 +444,9 @@ class DirsrvAuditJSONLog(DirsrvLog):
         """
         line = line.strip()
         action = json.loads(line)
+        if 'header' in action:
+            # This is the log title, return it as is
+            return action
         action['datetime'] = action['gm_time']
         return action
 
