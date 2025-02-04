@@ -252,6 +252,58 @@ format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)
     return 0;
 }
 
+/*
+ * format_localTime_hr_json_log will take a time value, and prepare it for
+ * json log printing.
+ *
+ * \param struct timespec ts - the time to convert
+ * \param char *buf - The destitation string
+ * \param int *bufsize - The size of the resulting buffer
+ * \param char *format - custom strftime format to use
+ *
+ * \return int success - 0 on correct format, >= 1 on error.
+ */
+int
+format_localTime_hr_json_log(struct timespec *ts, char *buf, int *bufsize, char *format)
+{
+    int64_t nsec = ts->tv_nsec;
+    time_t t = ts->tv_sec;
+    int64_t tz;
+    struct tm *tmsp, tms = {0};
+    char tbuf[*bufsize];
+    char sign;
+
+    /* make sure our buffer will be big enough. Need at least 39 */
+    if (*bufsize < 39) {
+        /* Should this set the buffer to be something? */
+        return 1;
+    }
+    (void)localtime_r(&t, &tms);
+    tmsp = &tms;
+
+#ifdef BSD_TIME
+    tz = tmsp->tm_gmtoff;
+#else  /* BSD_TIME */
+    tz = -timezone;
+    if (tmsp->tm_isdst) {
+        tz += 3600;
+    }
+#endif /* BSD_TIME */
+    sign = (tz >= 0 ? '+' : '-');
+    if (tz < 0) {
+        tz = -tz;
+    }
+    if (strftime(tbuf, (size_t)*bufsize, format, tmsp) == 0) {
+        return 1;
+    }
+    if (PR_snprintf(buf, *bufsize, "%s.%09ld %c%02d%02d", tbuf, nsec, sign,
+                    (int)(tz / 3600), (int)(tz % 3600 / 60)) == (PRUint32)-1) {
+        return 1;
+    }
+    *bufsize = strlen(buf);
+    return 0;
+}
+
 void
 slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *diff)
 {

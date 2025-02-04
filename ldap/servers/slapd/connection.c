@@ -425,8 +425,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     /* log useful stuff to our access log */
     if (log_format != LOG_FORMAT_DEFAULT) {
         slapd_log_pblock logpb = {0};
-
-        logpb.log_format = log_format;
+        slapd_log_pblock_init(&logpb, log_format, NULL);
         logpb.conn_time = conn->c_starttime;
         logpb.conn_id = conn->c_connid;
         logpb.fd = conn->c_sd;
@@ -552,13 +551,12 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 
         if (log_format != LOG_FORMAT_DEFAULT) {
             slapd_log_pblock logpb = {0};
-
-            logpb.log_format = log_format;
+            slapd_log_pblock_init(&logpb, log_format, pb);
             logpb.conn_time = conn->c_starttime;
             logpb.conn_id = conn->c_connid;
             logpb.op_id = op->o_opid;
             logpb.request_controls = operation_get_req_controls(op);
-            logpb.result_controls = operation_get_result_controls(op);
+            logpb.response_controls = operation_get_result_controls(op);
             logpb.msg = "UNPROCESSED OPERATION - need new password";
             slapd_log_access_error(&logpb);
         } else {
@@ -621,7 +619,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
     {
         if (log_format != LOG_FORMAT_DEFAULT) {
             slapd_log_pblock logpb = {0};
-            logpb.log_format = log_format;
+            slapd_log_pblock_init(&logpb, log_format, pb);
             logpb.conn_time = conn->c_starttime;
             logpb.conn_id = conn->c_connid;
             logpb.op_id = op->o_opid;
@@ -664,8 +662,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
     {
         if (log_format != LOG_FORMAT_DEFAULT) {
             slapd_log_pblock logpb = {0};
-
-            logpb.log_format = log_format;
+            slapd_log_pblock_init(&logpb, log_format, pb);
             logpb.conn_time = conn->c_starttime;
             logpb.conn_id = conn->c_connid;
             logpb.op_id = op->o_opid;
@@ -1364,13 +1361,13 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 
                         if (log_format != LOG_FORMAT_DEFAULT) {
                             slapd_log_pblock logpb = {0};
-
-                            logpb.log_format = log_format;
+                            slapd_log_pblock_init(&logpb, log_format, NULL);
                             logpb.conn_time = conn->c_starttime;
                             logpb.conn_id =conn->c_connid;
                             logpb.fd = conn->c_sd;
                             logpb.haproxy_ip = str_haproxy_ip;
                             logpb.haproxy_destip = str_haproxy_destip;
+                            logpb.haproxied = true;
                             slapd_log_access_haproxy(&logpb);
                         } else {
                             slapi_log_access(LDAP_DEBUG_STATS,
@@ -2498,7 +2495,7 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
         conn->c_flags |= CONN_FLAG_CLOSING;
         g_decrement_current_conn_count();
 
-        logpb.log_format = log_format;
+        slapd_log_pblock_init(&logpb, log_format, NULL);
         logpb.conn_time = conn->c_starttime;
         logpb.conn_id = conn->c_connid;
         logpb.op_id = opid;
