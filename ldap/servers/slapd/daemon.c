@@ -984,26 +984,24 @@ check_idletimeout(time_t when __attribute__((unused)), void *arg __attribute__((
 {
     Connection_Table *ct = the_connection_table;
     time_t curtime = slapi_current_rel_time_t();
-    /* Walk all active connections of all connection listeners */
-    for (int list_num = 0; list_num < ct->list_num; list_num++) {
-        for (Connection *c = connection_table_get_first_active_connection(ct, list_num);
-             c != NULL; c = connection_table_get_next_active_connection(ct, c)) {
-            if (!has_idletimeout_expired(c, curtime)) {
-                continue;
-            }
-            /* Looks like idletimeout has expired, lets acquire the lock
-             * and double check.
-             */
-            if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
-                continue;
-            }
-            if (has_idletimeout_expired(c, curtime)) {
-                /* idle timeout has expired */
-                disconnect_server_nomutex(c, c->c_connid, -1,
-                                          SLAPD_DISCONNECT_IDLE_TIMEOUT, ETIMEDOUT);
-            }
-            pthread_mutex_unlock(&(c->c_mutex));
+    /* Walk all active connections */
+    for (Connection *c = connection_table_get_first_active_connection(ct);
+         c != NULL; c = connection_table_get_next_active_connection(ct, c)) {
+        if (!has_idletimeout_expired(c, curtime)) {
+            continue;
         }
+        /* Looks like idletimeout has expired, lets acquire the lock
+         * and double check.
+         */
+        if (pthread_mutex_trylock(&(c->c_mutex)) == EBUSY) {
+            continue;
+        }
+        if (has_idletimeout_expired(c, curtime)) {
+            /* idle timeout has expired */
+            disconnect_server_nomutex(c, c->c_connid, -1,
+                                      SLAPD_DISCONNECT_IDLE_TIMEOUT, ETIMEDOUT);
+        }
+        pthread_mutex_unlock(&(c->c_mutex));
     }
 }
 
