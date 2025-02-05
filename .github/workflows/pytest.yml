@@ -26,25 +26,28 @@ jobs:
     name: Build
     runs-on: ubuntu-20.04
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el8test
     outputs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - name: Add GITHUB_WORKSPACE as a safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Get a list of all test suites
         id: set-matrix
-        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py)"
+        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})"
 
       - name: Build RPMs
-        run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
+        run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
 
       - name: Tar build artifacts
         run: tar -cvf dist.tar dist/
 
       - name: Upload RPMs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: rpms
           path: dist.tar
@@ -59,7 +62,13 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
+
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled }}
 
     - name: Install dependencies
       run: |
@@ -68,8 +77,9 @@ jobs:
         sudo cp .github/daemon.json /etc/docker/daemon.json
         sudo systemctl unmask docker
         sudo systemctl start docker
+
     - name: Download RPMs
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: rpms
 
@@ -79,9 +89,21 @@ jobs:
     - name: Run pytest in a container
       run: |
         set -x
-        CID=$(sudo docker run -d -h server.example.com --privileged --rm --shm-size=4gb -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:el8test)
+        until sudo docker exec $CID sh -c "systemctl is-system-running"
+        do
+          echo "Waiting for container to be ready..."
+        done
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
-        sudo docker exec $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        export PASSWD=$(openssl rand -base64 32)
+        sudo docker exec $CID sh -c "echo \"${PASSWD}\" | passwd --stdin root"
+        sudo docker exec $CID sh -c "systemctl start dbus.service"
+        sudo docker exec $CID sh -c "systemctl enable --now cockpit.socket"
+        sudo docker exec $CID sh -c "mkdir -p /workspace/assets/cores && chmod 777 /workspace{,/assets{,/cores}}"
+        sudo docker exec $CID sh -c "echo '/workspace/assets/cores/core.%e.%P' > /proc/sys/kernel/core_pattern"
+        #sudo docker exec -e WEBUI=1 -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        sudo docker exec $CID py.test --suppress-no-test-exit-code -m "not flaky" --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
+
     - name: Make the results file readable by all
       if: always()
       run: |
@@ -93,7 +115,7 @@ jobs:
 
     - name: Upload pytest test results
       if: always()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: pytest-${{ env.PYTEST_SUITE }}
         path: |
