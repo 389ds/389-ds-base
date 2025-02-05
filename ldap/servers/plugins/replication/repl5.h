@@ -29,7 +29,6 @@
 #include "repl5_ruv.h"
 #include "plstr.h"
 #include <pthread.h>
-#include <stdbool.h>
 
 #define START_UPDATE_DELAY                   2 /* 2 second */
 #define REPLICA_TYPE_WINDOWS                 1
@@ -711,8 +710,6 @@ PRBool replica_is_updatedn(Replica *r, const Slapi_DN *sdn);
 void replica_set_updatedn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 void replica_set_groupdn(Replica *r, const Slapi_ValueSet *vs, int mod_op);
 char *replica_get_generation(const Replica *r);
-bool replica_check_validity(Replica *replica);
-
 
 /* currently supported flags */
 #define REPLICA_LOG_CHANGES 0x1 /* enable change logging */
