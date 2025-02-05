@@ -26,7 +26,7 @@ jobs:
     name: Build
     runs-on: ubuntu-22.04
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el9test
     outputs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -38,7 +38,7 @@ jobs:
 
       - name: Get a list of all test suites
         id: set-matrix
-        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})"
+        run: echo "matrix=$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})" >>$GITHUB_OUTPUT
 
       - name: Build RPMs
         run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
@@ -89,7 +89,7 @@ jobs:
     - name: Run pytest in a container
       run: |
         set -x
-        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v ${PWD}:/workspace quay.io/389ds/ci-images:el9test)
         until sudo docker exec $CID sh -c "systemctl is-system-running"
         do
           echo "Waiting for container to be ready..."
