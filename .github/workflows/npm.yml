@@ -1,0 +1,25 @@
+name: npm-audit-ci
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron:  '0 0 * * *'
+
+permissions:
+  actions: read
+  packages: read
+  contents: read
+
+jobs:
+  npm-audit-ci:
+    name: npm-audit-ci
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/389ds/ci-images:el9test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run NPM Audit CI
+        run: cd $GITHUB_WORKSPACE/src/cockpit/389-console && npx --yes audit-ci --config audit-ci.json
