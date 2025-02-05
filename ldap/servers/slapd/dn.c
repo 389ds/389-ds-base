@@ -58,7 +58,7 @@ struct ndn_cache {
 
 /*
  * This means we need 1 MB minimum per thread
- * 
+ *
  */
 #define NDN_CACHE_MINIMUM_CAPACITY 1048576
 /*
@@ -3008,7 +3008,7 @@ ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64_t *m
     uint64_t freq_evicts;
     uint64_t recent_evicts;
     uint64_t p_weight;
-    cache_char_stats(cache, 
+    cache_char_stats(cache,
         &reader_hits,
         &reader_includes,
         &write_hits,
