@@ -4,11 +4,16 @@ on:
   push:
   pull_request:
 
+permissions: 
+  actions: read
+  packages: read
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el9test
     steps:
       - name: Checkout
         uses: actions/checkout@v4

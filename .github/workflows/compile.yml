@@ -3,6 +3,11 @@ on:
   - pull_request
   - push
 
+permissions: 
+  actions: read
+  packages: read
+  contents: read
+
 jobs:
   compile:
     runs-on: ubuntu-latest
@@ -18,13 +23,13 @@ jobs:
 
         include:
           - name: GCC
-            image: quay.io/389ds/ci-images:fedora
+            image: quay.io/389ds/ci-images:el9test
             compiler: gcc
             cpp-compiler: g++
             cflags:  "-O2 -g"
 
           - name: GCC strict
-            image: quay.io/389ds/ci-images:fedora
+            image: quay.io/389ds/ci-images:el9test
             compiler: gcc
             cpp-compiler: g++
             cflags:  "-O2 -g -Wall -Wextra -Wundef -Wpointer-arith -Wfloat-equal \
@@ -32,19 +37,19 @@ jobs:
             -Wuninitialized -Wno-sign-compare -Wshadow -Wformat-security"
 
           - name: GCC Static Analyzer
-            image: quay.io/389ds/ci-images:fedora
+            image: quay.io/389ds/ci-images:el9test
             compiler: gcc
             cpp-compiler: g++
             cflags:  "-O2 -g -fanalyzer"
 
           - name: Clang
-            image: quay.io/389ds/ci-images:fedora
+            image: quay.io/389ds/ci-images:el9test
             compiler: clang
             cpp-compiler: clang++
             cflags: "-O2 -g -Qunused-arguments"
 
           - name: Clang -Weverything
-            image: quay.io/389ds/ci-images:fedora
+            image: quay.io/389ds/ci-images:el9test
             compiler: clang
             cpp-compiler: clang++
             cflags: "-O2 -g -Weverything -Qunused-arguments"
