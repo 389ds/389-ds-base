@@ -26,7 +26,7 @@ jobs:
     name: Build
     runs-on: ubuntu-20.04
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el8test
     outputs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -89,7 +89,7 @@ jobs:
     - name: Run pytest in a container
       run: |
         set -x
-        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:el8test)
         until sudo docker exec $CID sh -c "systemctl is-system-running"
         do
           echo "Waiting for container to be ready..."
@@ -101,7 +101,8 @@ jobs:
         sudo docker exec $CID sh -c "systemctl enable --now cockpit.socket"
         sudo docker exec $CID sh -c "mkdir -p /workspace/assets/cores && chmod 777 /workspace{,/assets{,/cores}}"
         sudo docker exec $CID sh -c "echo '/workspace/assets/cores/core.%e.%P' > /proc/sys/kernel/core_pattern"
-        sudo docker exec -e WEBUI=1 -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        #sudo docker exec -e WEBUI=1 -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        sudo docker exec $CID py.test --suppress-no-test-exit-code -m "not flaky" --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
     - name: Make the results file readable by all
       if: always()
