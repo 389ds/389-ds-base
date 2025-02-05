@@ -16,6 +16,10 @@ on:
         required: false
         default: false
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   actions: read
   packages: read
@@ -24,9 +28,9 @@ permissions:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el8test
     outputs:
         matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -38,7 +42,7 @@ jobs:
 
       - name: Get a list of all test suites
         id: set-matrix
-        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})"
+        run: echo "matrix=$(python3 .github/scripts/generate_matrix.py ${{ github.event.inputs.pytest_tests }})" >>$GITHUB_OUTPUT
 
       - name: Build RPMs
         run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
@@ -54,7 +58,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: build
     strategy:
       fail-fast: false
@@ -78,6 +82,21 @@ jobs:
         sudo systemctl unmask docker
         sudo systemctl start docker
 
+    - name: Free disk space
+      run: |
+        echo "Disk space before cleanup:"
+        df -h
+        sudo rm -rf /usr/local/.ghcup
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo rm -rf /usr/local/lib/android/sdk/ndk
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo docker image prune --all --force
+        sudo apt-get clean
+        echo "Disk space after cleanup:"
+        df -h
+
     - name: Download RPMs
       uses: actions/download-artifact@v4
       with:
@@ -89,7 +108,7 @@ jobs:
     - name: Run pytest in a container
       run: |
         set -x
-        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        CID=$(sudo docker run -d -h server.example.com --ulimit core=-1 --cap-add=SYS_PTRACE --privileged --rm --shm-size=4gb -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:el8test)
         until sudo docker exec $CID sh -c "systemctl is-system-running"
         do
           echo "Waiting for container to be ready..."
@@ -101,7 +120,8 @@ jobs:
         sudo docker exec $CID sh -c "systemctl enable --now cockpit.socket"
         sudo docker exec $CID sh -c "mkdir -p /workspace/assets/cores && chmod 777 /workspace{,/assets{,/cores}}"
         sudo docker exec $CID sh -c "echo '/workspace/assets/cores/core.%e.%P' > /proc/sys/kernel/core_pattern"
-        sudo docker exec -e WEBUI=1 -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        #sudo docker exec -e WEBUI=1 -e DEBUG=pw:api -e PASSWD="${PASSWD}" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html --browser=firefox --browser=chromium -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        sudo docker exec $CID py.test --suppress-no-test-exit-code -m "not flaky" --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
     - name: Make the results file readable by all
       if: always()
