@@ -14,9 +14,11 @@ import os
 import pytest
 import time
 import glob
+import re
 import logging
 from lib389.topologies import topology_st as topo
-from lib389._constants import DEFAULT_SUFFIX, TaskWarning
+from lib389.topologies import topology_m2 as topo_m2
+from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
 from lib389.tasks import ImportTask
 from lib389.index import Indexes
@@ -614,6 +616,81 @@ def test_online_import_under_load(topo):
     import_task.wait()
     assert import_task.get_exit_code() == 0
 
+
+def test_duplicate_nsuniqueid(topo_m2, request):
+    """Test that after an offline import all
+    nsuniqueid are different
+
+    :id: a2541677-a288-4633-bacf-4050cc56016d
+    :setup: MMR with 2 suppliers
+    :steps:
+        1. stop the instance to do offline operations
+        2. Generate a 5K users LDIF file
+        3. Check that no uniqueid are present in the generated file
+        4. import the generated LDIF
+        5. export the database
+        6. Check that that exported LDIF contains more than 5K nsuniqueid
+        7. Check that there is no duplicate nsuniqued in exported LDIF
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+        5. Should succeeds
+        6. Should succeeds
+        7. Should succeeds
+    """
+    m1 = topo_m2.ms["supplier1"]
+
+    # Stop the instance
+    m1.stop()
+
+    # Generate a test ldif (5k entries)
+    log.info("Generating LDIF...")
+    ldif_dir = m1.get_ldif_dir()
+    import_ldif = ldif_dir + '/5k_users_import.ldif'
+    dbgen_users(m1, 5000, import_ldif, DEFAULT_SUFFIX)
+
+    # Check that the generated LDIF does not contain nsuniqueid
+    all_nsuniqueid = []
+    with open(import_ldif, 'r') as file:
+        for line in file:
+            if line.lower().startswith("nsuniqueid: "):
+                all_nsuniqueid.append(line.split(': ')[1])
+    log.info("import file contains " + str(len(all_nsuniqueid)) + " nsuniqueid")
+    assert len(all_nsuniqueid) == 0
+
+    # Import the "nsuniquied free" LDIF file
+    if not m1.ldif2db('userRoot', None, None, None, import_ldif):
+        assert False
+
+    # Export the DB that now should contain nsuniqueid
+    export_ldif = ldif_dir + '/5k_user_export.ldif'
+    log.info("export to file " + export_ldif)
+    m1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
+               excludeSuffixes=None, repl_data=False,
+               outputfile=export_ldif, encrypt=False)
+
+    # Check that the export LDIF contain nsuniqueid
+    all_nsuniqueid = []
+    with open(export_ldif, 'r') as file:
+        for line in file:
+            if line.lower().startswith("nsuniqueid: "):
+                all_nsuniqueid.append(line.split(': ')[1])
+    log.info("export file " + export_ldif + " contains " + str(len(all_nsuniqueid)) + " nsuniqueid")
+    assert len(all_nsuniqueid) >= 5000
+
+    # Check that the nsuniqueid are unique
+    assert len(set(all_nsuniqueid)) == len(all_nsuniqueid)
+
+    def fin():
+        if os.path.exists(import_ldif):
+            os.remove(import_ldif)
+        if os.path.exists(export_ldif):
+            os.remove(export_ldif)
+        m1.start
+
+    request.addfinalizer(fin)
 
 if __name__ == '__main__':
     # Run isolated
