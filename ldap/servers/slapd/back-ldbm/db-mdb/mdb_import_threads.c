@@ -600,9 +600,19 @@ dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 {
     const char *uniqueid = slapi_entry_get_uniqueid(e);
     int rc = UID_SUCCESS;
+    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
     if (!uniqueid && (job->uuid_gen_type != SLAPI_UNIQUEID_GENERATE_NONE)) {
         char *newuniqueid;
+
+        /* With 'mdb' we have several workers generating nsuniqueid
+         * we need to serialize them to prevent generating duplicate value
+         * From performance pov it only impacts import
+         * The default value is SLAPI_UNIQUEID_GENERATE_TIME_BASED so
+         * the only syscall is clock_gettime and then string formating
+         * that should limit contention
+         */
+        pthread_mutex_lock(&mutex);
 
         /* generate id based on dn */
         if (job->uuid_gen_type == SLAPI_UNIQUEID_GENERATE_NAME_BASED) {
@@ -614,6 +624,7 @@ dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
             /* time based */
             rc = slapi_uniqueIDGenerateString(&newuniqueid);
         }
+        pthread_mutex_unlock(&mutex);
 
         if (rc == UID_SUCCESS) {
             slapi_entry_set_uniqueid(e, newuniqueid);
