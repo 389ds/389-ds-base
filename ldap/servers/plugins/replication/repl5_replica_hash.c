@@ -75,9 +75,11 @@ replica_destroy_name_hash()
 
     if (s_hash)
         PL_HashTableDestroy(s_hash);
+    s_hash = NULL;
 
     if (s_lock)
         slapi_destroy_rwlock(s_lock);
+    s_lock = NULL;
 }
 
 int
@@ -207,7 +209,7 @@ replica_check_validity(Replica *replica)
 {
     struct repl_enum_validity data = { replica, false };
 
-    if (replica == NULL) {
+    if (replica == NULL || s_lock == NULL) {
         return false;
     }
     slapi_rwlock_rdlock(s_lock);
