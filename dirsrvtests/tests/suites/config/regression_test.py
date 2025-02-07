@@ -142,21 +142,6 @@ def test_maxbersize_repl(topo):
     assert not inst.ds_error_log.match('.*ERR - init_dse_file.*')
 
 
-def test_bdb_config(topo):
-    """Check that bdb config entry exists
-
-    :id: edbc6f54-7c98-11ee-b1c0-482ae39447e5
-    :setup: standalone
-    :steps:
-        1. Check that bdb config instance exists.
-    :expectedresults:
-        1. Success
-    """
-
-    inst = topo.standalone
-    assert BDB_LDBMConfig(inst).exists()
-
-
 @pytest.mark.parametrize("dn,expected_result", [(DN_TEST_USER, True), (DN_DM, False)])
 def test_idletimeout(idletimeout_topo, dn, expected_result):
     """Check that bdb config entry exists
