@@ -456,7 +456,7 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
     add_entry_attrs_json(entry, log_json);
 
     switch (optype) {
-        case SLAPI_OPERATION_MODIFY:
+        case SLAPI_OPERATION_MODIFY: {
             json_object *mod_list = json_object_new_array();
             mods = change;
             for (size_t j = 0; (mods != NULL) && (mods[j] != NULL); j++) {
@@ -511,8 +511,8 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
             /* Add entire mod list to the main object */
             json_object_object_add(log_json, "modify", mod_list);
             break;
-
-        case SLAPI_OPERATION_ADD:
+        }
+        case SLAPI_OPERATION_ADD: {
             int len;
             e = change;
             tmp = slapi_entry2str(e, &len);
@@ -526,8 +526,8 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
             json_object_object_add(log_json, "add", json_object_new_string(tmp));
             slapi_ch_free_string(&tmpsave);
             break;
-
-        case SLAPI_OPERATION_DELETE:
+        }
+        case SLAPI_OPERATION_DELETE: {
             tmp = change;
             del_obj = json_object_new_object();
             if (tmp && tmp[0]) {
@@ -538,8 +538,8 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
                 json_object_object_add(log_json, "delete", del_obj);
             }
             break;
-
-        case SLAPI_OPERATION_MODDN:
+        }
+        case SLAPI_OPERATION_MODDN: {
             newrdn = ((char **)change)[0];
             modrdn_obj = json_object_new_object();
             json_object_object_add(modrdn_obj, attr_newrdn, json_object_new_string(newrdn));
@@ -551,6 +551,7 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
             }
             json_object_object_add(log_json, "modrdn", modrdn_obj);
             break;
+        }
     }
 
     msg = (char *)json_object_to_json_string_ext(log_json, log_format);
