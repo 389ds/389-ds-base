@@ -16,6 +16,7 @@ import time
 import glob
 import re
 import logging
+import subprocess
 from lib389.topologies import topology_st as topo
 from lib389.topologies import topology_m2 as topo_m2
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX, TaskWarning
