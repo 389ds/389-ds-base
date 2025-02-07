@@ -16,11 +16,15 @@ from lib389.properties import TASK_WAIT
 from lib389.index import *
 from lib389.mappingTree import *
 from lib389.backend import *
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
+from lib389.idm.organization import Organization
+from lib389.idm.organizationalunit import OrganizationalUnits
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
 
 pytestmark = pytest.mark.tier1
+
+DEMO_PW = 'secret12'
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -169,7 +173,7 @@ class BackendHandler:
                     'loginShell': '/bin/false',
                     'userpassword': DEMO_PW })
             # Add regular user
-            add_users(self.inst, 10, suffix=suffix)
+            add_users(self.inst, 10)
             # Removing ou2
             ou2.delete()
             # And export
