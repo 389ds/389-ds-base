@@ -1,0 +1,17 @@
+services:
+  dirsrv:
+    build:
+      context: .
+      dockerfile: Containerfile
+    hostname: dirsrv
+    container_name: dirsrv
+    ports:
+      - "3389:3389"
+      - "3636:3636"
+    cap_add:
+      - SYS_PTRACE
+    env_file:
+      - path: ./overrides.env
+        required: false
+    volumes:
+      - ../:/389-ds-base
