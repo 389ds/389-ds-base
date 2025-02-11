@@ -64,7 +64,7 @@ class MigrationHandler:
                     names.append(match.group(1))
             self.names = names
             log.info(f'MigrationHandler has following instances: {names}')
-        
+
 
     def replace_dse_line(self, line, old_hostname):
         if old_hostname:

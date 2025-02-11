@@ -1,23 +1,46 @@
-#!/bin/bash
+#!/usr/bin/python3
 
 # Determine if Read Only Berkeley Database  is needed.
-
-BUNDLE_LIBDB="$1"
-
-rc()
-{
-    echo $1
-    exit 0
-}
-
-# Not needed if libdb is bundled (Typically on RHEL)
-[ x$BUNDLE_LIBDB = x1 ] && rc 0
-# Needed if libdb is not available
-[ ! -f /usr/include/db.h ] && rc 1
-# Needed on Fedora and CentOs
-[ -f /etc/fedora-release ] && rc 1
-[ -f /etc/centos-release ] && rc 1
-# Still support full bdb 
-rc 0
+#
+# argv[1] is BUNDLE_LIBDB
+import os
+import sys
+import re
+from contextlib import suppress
 
 
+def rc(val):
+    if (val):
+        print("1")
+    else:
+        print("0")
+    sys.exit(0)
+
+def checkVersion(path, version, result):
+    with suppress(FileNotFoundError):
+        with open(path, 'rt') as fd:
+            line = fd.readline().lower()
+            print(f'MYDBG: line={line}')
+            match = re.match(r'.* release (\d+) ', line)
+            print(f'MYDBG: match={match}')
+            if match and int(match.group(1)) >= version:
+                rc(result)
+
+# Not needed if bundled libdb is available (Typically on RHEL)
+with suppress(IndexError):
+    if sys.argv[1] == "1":
+        rc(False)
+
+# Regular bdb is not installed ==> lets use Read Only Berkeley Database
+if not os.path.isfile('/usr/include/db.h'):
+    rc(True)
+
+if os.getenv("WITH_ROBDB") is not None:
+    rc(True)
+
+if os.getenv("WITHOUT_ROBDB") is not None:
+    rc(False)
+
+checkVersion('/etc/fedora-release', 43, True)
+checkVersion('/etc/centos-release', 11, True)
+rc(False)
