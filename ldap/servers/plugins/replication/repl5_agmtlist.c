@@ -466,7 +466,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
                 agmt_remove_maxcsn(agmt);
             }
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
-                                               type_nsds5TransportInfo)) {
+                                               type_nsds5ReplicaTransportInfo)) {
             /* New Transport info */
             if (agmt_set_transportinfo_from_entry(agmt, e, PR_FALSE /* get default value */) != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
@@ -482,6 +482,48 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
             if (agmt_set_transportinfo_from_entry(agmt, e, PR_TRUE /* get bootstrap value */) != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
                         "Failed to update bootstrap transport info for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaTransportUri)) {
+            /* New Transport URI */
+            if (agmt_set_transporturi_from_entry(agmt, e, PR_FALSE /* get default value */) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                        "Transport uri not supported for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaBootstrapTransportUri))
+        {
+            /* Bootstrap Transport URI */
+            if (agmt_set_transporturi_from_entry(agmt, e, PR_TRUE /* get bootstrap value */) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                        "Bootstrap transport uri not supported for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaTransportCAUri)) {
+            /* New Transport CA URI */
+            if (agmt_set_transportcauri_from_entry(agmt, e, PR_FALSE /* get default value */) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                        "Transport CA uri not supported for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaBootstrapTransportCAUri))
+        {
+            /* Bootstrap Transport CA URI */
+            if (agmt_set_transportcauri_from_entry(agmt, e, PR_TRUE /* get bootstrap value */) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                        "Bootstrap transport CA uri not supported for agreement %s\n",
                         agmt_get_long_name(agmt));
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
