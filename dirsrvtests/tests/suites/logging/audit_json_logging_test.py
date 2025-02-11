@@ -57,6 +57,9 @@ def get_log_event(inst, dn, op):
             continue
 
         event = audit_log.parse_line(line)
+        if 'header' in event:
+            # Skip header line
+            continue
         if event['target_dn'].lower() == dn.lower() and op in event:
             return event
 

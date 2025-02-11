@@ -1261,6 +1261,7 @@ char get_sep(char *path);
 int mkdir_p(char *dir, unsigned int mode);
 const char *ldif_getline_ro( const char **next);
 void dup_ldif_line(struct berval *copy, const char *line, const char *endline);
+const char *get_oid_name(const char *oid);
 
 /* slapi-memberof.c */
 int slapi_memberof(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_MemberOfResult *result);
@@ -1528,6 +1529,9 @@ void slapi_log_backtrace(int loglevel);
 typedef struct slapd_log_pblock {
     int32_t log_format;
     Slapi_PBlock *pb;
+    struct logging_opts *loginfo;
+    struct timespec curr_time;
+    uint32_t level; /* log level */
     /* Connection */
     time_t conn_time;
     uint64_t conn_id;
@@ -1541,7 +1545,7 @@ typedef struct slapd_log_pblock {
     char *haproxy_ip;
     char *haproxy_destip;
     PRBool using_tls;
-    PRBool hapoxied;
+    PRBool haproxied;
     const char *bind_dn;
     /* Close connection */
     const char *close_error;
@@ -1574,10 +1578,12 @@ typedef struct slapd_log_pblock {
     char *filter;
     char **attrs;
     PRBool psearch;
+    char *sort_str;
     /* Stat */
     const char *stat_attr;
     const char *stat_key;
     const char *stat_value;
+    const char *stat_etime;
     int32_t stat_count;
     /*
      * VLV request:
@@ -1603,14 +1609,16 @@ typedef struct slapd_log_pblock {
     char *etime;
     char *sid;
     uint32_t notes;
+    uint32_t tag;
     CSN *csn;
     int32_t pr_idx;
     int32_t pr_cookie;
     /* Misc */
     const char *oid;
     const char *msg;
+    const char *name;
     LDAPControl **request_controls;
-    LDAPControl **result_controls;
+    LDAPControl **response_controls;
 } slapd_log_pblock;
 
 int32_t slapd_log_access_abandon(slapd_log_pblock *logpb);
@@ -1634,6 +1642,7 @@ int32_t slapd_log_access_vlv(slapd_log_pblock *logpb);
 int32_t slapd_log_access_entry(slapd_log_pblock *logpb);
 int32_t slapd_log_access_referral(slapd_log_pblock *logpb);
 int32_t slapd_log_access_extop(slapd_log_pblock *logpb);
+int32_t slapd_log_access_sort(slapd_log_pblock *logpb);
 
 #ifdef __cplusplus
 }

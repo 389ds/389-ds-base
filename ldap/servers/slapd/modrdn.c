@@ -507,6 +507,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
                 logpb.op_id = op_id;
                 logpb.op_internal_id = op_internal_id;
                 logpb.op_nested_count = op_nested_count;
+                logpb.level = LDAP_DEBUG_ARGS;
                 slapd_log_access_modrdn(&logpb);
             } else {
                 slapi_log_access(LDAP_DEBUG_ARGS,
