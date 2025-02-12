@@ -1865,7 +1865,11 @@ vlv_print_access_log(Slapi_PBlock *pb,
         logpb.vlv_req_index = vlvi->index;
         logpb.vlv_req_value = vlvi->value.bv_val;
         logpb.vlv_req_value_len = vlvi->value.bv_len;
-        logpb.vlv_sort_str = sort_log_access(pb, sort_control, NULL, PR_TRUE);
+        if (sort_control) {
+            logpb.vlv_sort_str = sort_log_access(pb, sort_control, NULL, PR_TRUE);
+        } else {
+            logpb.vlv_sort_str = slapi_ch_strdup("None ");
+        }
         if (vlvo) {
             logpb.vlv_res_target_position = vlvo->targetPosition;
             logpb.vlv_res_content_count = vlvo->contentCount;
