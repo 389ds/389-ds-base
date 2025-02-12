@@ -7238,6 +7238,8 @@ slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock 
     logpb->op_id = -1;
     logpb->op_internal_id = -1;
     logpb->op_nested_count = -1;
+    logpb->pr_cookie = -1;
+    logpb->pr_idx = -1;
     logpb->curr_time = slapi_current_utc_time_hr();
 
     if (conn) {
