@@ -1571,7 +1571,7 @@ typedef struct slapd_log_pblock {
     /* Modrdn */
     const char *newrdn;
     const char *newsup;
-    PRBool deletoldrdn;
+    PRBool deleteoldrdn;
     /* Search */
     const char *base_dn;
     int32_t scope;

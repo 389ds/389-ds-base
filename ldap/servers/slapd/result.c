@@ -2288,8 +2288,6 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
         logpb.etime = etime;
         logpb.notes = operation_notes;
         logpb.csn = operationcsn;
-        logpb.pr_idx = 0;
-        logpb.pr_cookie = 0;
         logpb.msg = NULL;
         logpb.sid = sessionTrackingId;
         logpb.tag = tag;

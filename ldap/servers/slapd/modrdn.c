@@ -472,7 +472,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
         logpb.target_dn = dn;
         logpb.newrdn = newrdn;
         logpb.newsup = newsuperior;
-        logpb.deletoldrdn = deloldrdn ? PR_TRUE : PR_FALSE;
+        logpb.deleteoldrdn = deloldrdn ? PR_TRUE : PR_FALSE;
         logpb.authzid = proxydn;
 
         if (proxydn) {
