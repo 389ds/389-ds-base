@@ -691,6 +691,12 @@ retrocl_postob(Slapi_PBlock *pb, int optype)
         (void)slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_entry);
         break;
     }
+    if (entry == NULL) {
+        /* To avoid coverity scan warning, but in practice, it should never happen. */
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                      "retrocl_postob - Operation on NULL entry\n", rc);
+        return 0;
+    }
 
     /* check if we should log change to retro changelog, and
      * if so, do it here */

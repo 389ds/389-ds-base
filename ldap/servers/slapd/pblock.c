@@ -501,6 +501,7 @@ slapi_pblock_get_conn_clientnetaddr(Slapi_PBlock *pblock, void *value)
 {
     if (pblock->pb_conn == NULL) {
         memset(value, 0, sizeof(PRNetAddr));
+        return 0;
     }
     pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
     if (pblock->pb_conn->cin_addr == NULL) {
@@ -517,6 +518,7 @@ slapi_pblock_get_conn_servernetaddr(Slapi_PBlock *pblock, void *value)
 {
     if (pblock->pb_conn == NULL) {
         memset(value, 0, sizeof(PRNetAddr));
+        return 0;
     }
     pthread_mutex_lock(&(pblock->pb_conn->c_mutex));
     if (pblock->pb_conn->cin_destaddr == NULL) {

@@ -57,7 +57,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
     int is_ruv = 0; /* True if the current entry is RUV */
     int is_replicated_operation = 0;
     int is_tombstone_entry = 0;     /* True if the current entry is alreday a tombstone        */
-    int is_internal;
+    int is_internal = 0;
 int delete_tombstone_entry = 0; /* We must remove the given tombstone entry from the dbi_db_t    */
     int create_tombstone_entry = 0; /* We perform a "regular" LDAP delete but since we use    */
                                     /* replication, we must create a new tombstone entry    */

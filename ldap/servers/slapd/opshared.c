@@ -555,7 +555,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 pr_be = pagedresults_get_current_be(pb_conn, pr_idx);
                 if (be_name) {
                     if (pr_be != be_single) {
-                        slapi_be_Unlock(be_single);
+                        if (be_single != NULL) {
+                            slapi_be_Unlock(be_single);
+                        }
                         be_single = be = pr_be;
                         slapi_be_Rlock(be_single);
                     }
