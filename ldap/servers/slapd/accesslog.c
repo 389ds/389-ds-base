@@ -602,7 +602,7 @@ slapd_log_access_modrdn(slapd_log_pblock *logpb)
     if (logpb->newsup) {
         json_object_object_add(json_obj, "newsup", json_obj_add_str(logpb->newsup));
     }
-    json_object_object_add(json_obj, "deletoldrdn", json_object_new_boolean(logpb->deletoldrdn));
+    json_object_object_add(json_obj, "deleteoldrdn", json_object_new_boolean(logpb->deleteoldrdn));
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -643,6 +643,7 @@ slapd_log_access_modrdn(slapd_log_pblock *logpb)
 int32_t
 slapd_log_access_result(slapd_log_pblock *logpb)
 {
+    Connection *conn = NULL;
     int32_t rc = 0;
     char *msg = NULL;
     json_object *json_obj = NULL;
@@ -651,23 +652,28 @@ slapd_log_access_result(slapd_log_pblock *logpb)
         return rc;
     }
 
+    slapi_pblock_get(logpb->pb, SLAPI_CONNECTION, &conn); /* For IP addr */
+
     json_object_object_add(json_obj, "tag", json_object_new_int(logpb->tag));
     json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
     json_object_object_add(json_obj, "nentries", json_object_new_int(logpb->nentries));
     json_object_object_add(json_obj, "wtime", json_obj_add_str(logpb->wtime));
     json_object_object_add(json_obj, "optime", json_obj_add_str(logpb->optime));
     json_object_object_add(json_obj, "etime", json_obj_add_str(logpb->etime));
+    if (conn) {
+        json_object_object_add(json_obj, "client_ip", json_obj_add_str(conn->c_ipaddr));
+    } else {
+        json_object_object_add(json_obj, "client_ip", json_obj_add_str("Internal"));
+    }
     if (logpb->csn) {
         char csn_str[CSN_STRSIZE] = {0};
         csn_as_string(logpb->csn, PR_FALSE, csn_str);
         json_object_object_add(json_obj, "csn",
                                json_obj_add_str(csn_str));
     }
-    if (logpb->pr_idx > 0) {
+    if (logpb->pr_idx >= 0) {
         json_object_object_add(json_obj, "pr_idx",
                                json_object_new_int(logpb->pr_idx));
-    }
-    if (logpb->pr_cookie != 0) {
         json_object_object_add(json_obj, "pr_cookie",
                                json_object_new_int(logpb->pr_cookie));
     }
@@ -678,17 +684,15 @@ slapd_log_access_result(slapd_log_pblock *logpb)
 
         get_notes_info(logpb->notes, notes, details);
         for (size_t i = 0; notes[i]; i++) {
+            char *filter_str = NULL;
             json_object *note = json_object_new_object();
             json_object_object_add(note, "note", json_obj_add_str(notes[i]));
             json_object_object_add(note, "description", json_obj_add_str(details[i]));
             if ((strcmp("A", notes[i]) == 0 || strcmp("U", notes[i]) == 0) && logpb->pb) {
                 /* Full/partial unindexed search - log more info */
-                Connection *conn = NULL;
-                char *filter_str;
                 char *base_dn;
                 int32_t scope = 0;
 
-                slapi_pblock_get(logpb->pb, SLAPI_CONNECTION, &conn);
                 slapi_pblock_get(logpb->pb, SLAPI_TARGET_DN, &base_dn);
                 slapi_pblock_get(logpb->pb, SLAPI_SEARCH_STRFILTER, &filter_str);
                 slapi_pblock_get(logpb->pb, SLAPI_SEARCH_SCOPE, &scope);
@@ -696,9 +700,7 @@ slapd_log_access_result(slapd_log_pblock *logpb)
                 json_object_object_add(note, "base_dn", json_obj_add_str(base_dn));
                 json_object_object_add(note, "filter", json_obj_add_str(filter_str));
                 json_object_object_add(note, "scope", json_object_new_int(scope));
-                json_object_object_add(note, "client_ip", json_obj_add_str(conn->c_ipaddr));
             } else if (strcmp("F", notes[i]) == 0 && logpb->pb) {
-                char *filter_str;
                 slapi_pblock_get(logpb->pb, SLAPI_SEARCH_STRFILTER, &filter_str);
                 json_object_object_add(note, "filter", json_obj_add_str(filter_str));
             }

@@ -322,8 +322,8 @@ class DirSrv(SimpleLDAPObject, object):
         from lib389.config import RSA
         from lib389.config import Encryption
         from lib389.dirsrv_log import (
-            DirsrvAccessLog, DirsrvErrorLog, DirsrvAuditLog,
-            DirsrvAuditJSONLog, DirsrvSecurityLog
+            DirsrvAccessLog, DirsrvAccessJSONLog, DirsrvErrorLog,
+            DirsrvAuditLog, DirsrvAuditJSONLog, DirsrvSecurityLog
         )
         from lib389.ldclt import Ldclt
         from lib389.mappingTree import MappingTrees
@@ -368,6 +368,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.rsa = RSA(self)
         self.encryption = Encryption(self)
         self.ds_access_log = DirsrvAccessLog(self)
+        self.ds_access_json_log = DirsrvAccessJSONLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
         self.ds_audit_log = DirsrvAuditLog(self)
         self.ds_audit_json_log = DirsrvAuditJSONLog(self)
