@@ -1913,14 +1913,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
      */
     sslStatus = SSL_VersionRangeGet(pr_sock, &slapdNSSVersions);
     if (sslStatus == SECSuccess) {
-        if (slapdNSSVersions.max > LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 && fipsMode) {
-            /*
-             * FIPS & NSS currently only support a max version of TLS1.2
-             * (although NSS advertises 1.3 as a max range in FIPS mode),
-             * hopefully this code block can be removed soon...
-             */
-            slapdNSSVersions.max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
-        }
         /* Reset request range */
         sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
         if (sslStatus == SECSuccess) {
