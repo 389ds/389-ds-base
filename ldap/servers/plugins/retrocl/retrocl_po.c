@@ -694,7 +694,7 @@ retrocl_postob(Slapi_PBlock *pb, int optype)
     if (entry == NULL) {
         /* To avoid coverity scan warning, but in practice, it should never happen. */
         slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                      "retrocl_postob - Operation on NULL entry\n", rc);
+                      "retrocl_postob - Operation on NULL entry\n");
         return 0;
     }
 
