@@ -180,65 +180,62 @@ class MonitorLDBM(DSLdapObject):
         super(MonitorLDBM, self).__init__(instance=instance)
         self._dn = DN_MONITOR_LDBM
         self._db_mon = MonitorDatabase(instance)
-        self._backend_keys = [
-            'dbcachehits',
-            'dbcachetries',
-            'dbcachehitratio',
-            'dbcachepagein',
-            'dbcachepageout',
-            'dbcacheroevict',
-            'dbcacherwevict',
-        ]
-        self._db_mon_keys = [
-            'nsslapd-db-abort-rate',
-            'nsslapd-db-active-txns',
-            'nsslapd-db-cache-hit',
-            'nsslapd-db-cache-try',
-            'nsslapd-db-cache-region-wait-rate',
-            'nsslapd-db-cache-size-bytes',
-            'nsslapd-db-clean-pages',
-            'nsslapd-db-commit-rate',
-            'nsslapd-db-deadlock-rate',
-            'nsslapd-db-dirty-pages',
-            'nsslapd-db-hash-buckets',
-            'nsslapd-db-hash-elements-examine-rate',
-            'nsslapd-db-hash-search-rate',
-            'nsslapd-db-lock-conflicts',
-            'nsslapd-db-lock-region-wait-rate',
-            'nsslapd-db-lock-request-rate',
-            'nsslapd-db-lockers',
-            'nsslapd-db-configured-locks',
-            'nsslapd-db-current-locks',
-            'nsslapd-db-max-locks',
-            'nsslapd-db-current-lock-objects',
-            'nsslapd-db-max-lock-objects',
-            'nsslapd-db-log-bytes-since-checkpoint',
-            'nsslapd-db-log-region-wait-rate',
-            'nsslapd-db-log-write-rate',
-            'nsslapd-db-longest-chain-length',
-            'nsslapd-db-page-create-rate',
-            'nsslapd-db-page-read-rate',
-            'nsslapd-db-page-ro-evict-rate',
-            'nsslapd-db-page-rw-evict-rate',
-            'nsslapd-db-page-trickle-rate',
-            'nsslapd-db-page-write-rate',
-            'nsslapd-db-pages-in-use',
-            'nsslapd-db-txn-region-wait-rate',
-            'nsslapd-db-mp-pagesize',
-        ]
-        if not ds_is_older("1.4.0", instance=instance):
-            self._backend_keys.extend([
-                'normalizeddncachetries',
-                'normalizeddncachehits',
-                'normalizeddncachemisses',
-                'normalizeddncachehitratio',
-                'normalizeddncacheevictions',
-                'currentnormalizeddncachesize',
-                'maxnormalizeddncachesize',
-                'currentnormalizeddncachecount',
-                'normalizeddncachethreadsize',
-                'normalizeddncachethreadslots'
+        self.inst_db_impl = self._instance.get_db_lib()
+        db_keys = {
+            DB_IMPL_BDB: [
+                'dbcachehits', 'dbcachetries', 'dbcachehitratio',
+                'dbcachepagein', 'dbcachepageout', 'dbcacheroevict',
+                'dbcacherwevict'
+            ],
+            DB_IMPL_MDB: [
+                'normalizeddncachetries', 'normalizeddncachehits',
+                'normalizeddncachemisses', 'normalizeddncachehitratio',
+                'normalizeddncacheevictions', 'currentnormalizeddncachesize',
+                'maxnormalizeddncachesize', 'currentnormalizeddncachecount',
+                'normalizeddncachethreadsize', 'normalizeddncachethreadslots'
+            ]
+        }
+
+        if self.inst_db_impl == DB_IMPL_BDB and not ds_is_older("1.4.0", instance=instance):
+            db_keys[DB_IMPL_BDB].extend([
+                'normalizeddncachetries', 'normalizeddncachehits',
+                'normalizeddncachemisses', 'normalizeddncachehitratio',
+                'normalizeddncacheevictions', 'currentnormalizeddncachesize',
+                'maxnormalizeddncachesize', 'currentnormalizeddncachecount',
+                'normalizeddncachethreadsize', 'normalizeddncachethreadslots'
             ])
+
+        db_monitor_keys = {
+            DB_IMPL_BDB: [
+                'nsslapd-db-abort-rate', 'nsslapd-db-active-txns', 'nsslapd-db-cache-hit',
+                'nsslapd-db-cache-try', 'nsslapd-db-cache-region-wait-rate',
+                'nsslapd-db-cache-size-bytes', 'nsslapd-db-clean-pages', 'nsslapd-db-commit-rate',
+                'nsslapd-db-deadlock-rate', 'nsslapd-db-dirty-pages', 'nsslapd-db-hash-buckets',
+                'nsslapd-db-hash-elements-examine-rate', 'nsslapd-db-hash-search-rate',
+                'nsslapd-db-lock-conflicts', 'nsslapd-db-lock-region-wait-rate',
+                'nsslapd-db-lock-request-rate', 'nsslapd-db-lockers', 'nsslapd-db-configured-locks',
+                'nsslapd-db-current-locks', 'nsslapd-db-max-locks', 'nsslapd-db-current-lock-objects',
+                'nsslapd-db-max-lock-objects', 'nsslapd-db-log-bytes-since-checkpoint',
+                'nsslapd-db-log-region-wait-rate', 'nsslapd-db-log-write-rate',
+                'nsslapd-db-longest-chain-length', 'nsslapd-db-page-create-rate',
+                'nsslapd-db-page-read-rate', 'nsslapd-db-page-ro-evict-rate',
+                'nsslapd-db-page-rw-evict-rate', 'nsslapd-db-page-trickle-rate',
+                'nsslapd-db-page-write-rate', 'nsslapd-db-pages-in-use',
+                'nsslapd-db-txn-region-wait-rate', 'nsslapd-db-mp-pagesize'
+            ],
+            DB_IMPL_MDB: [
+                'dbenvmapmaxsize', 'dbenvmapsize', 'dbenvlastpageno',
+                'dbenvlasttxnid', 'dbenvmaxreaders', 'dbenvnumreaders',
+                'dbenvnumdbis', 'waitingrwtxn', 'activerwtxn',
+                'abortrwtxn', 'commitrwtxn', 'granttimerwtxn',
+                'lifetimerwtxn', 'waitingrotxn', 'activerotxn',
+                'abortrotxn', 'commitrotxn', 'granttimerotxn',
+                'lifetimerotxn'
+            ]
+        }
+
+        self._backend_keys = db_keys.get(self.inst_db_impl, [])
+        self._db_mon_keys = db_monitor_keys.get(self.inst_db_impl, [])
 
     def get_status(self, use_json=False):
         ldbm_dict = self.get_attrs_vals_utf8(self._backend_keys)

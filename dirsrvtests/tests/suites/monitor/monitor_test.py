@@ -101,13 +101,12 @@ def test_monitor_ldbm(topo):
 
     # Check that known attributes exist (only NDN cache stats)
     assert 'normalizeddncachehits' in monitor
-
     # Check for library specific attributes
     if db_lib == 'bdb':
         assert 'dbcachehits' in monitor
         assert 'nsslapd-db-configured-locks' in monitor
     elif db_lib == 'mdb':
-        pass
+        assert not 'dbcachehits' in monitor
     else:
         # Unknown - the server would probably fail to start but check it anyway
         log.fatal(f'Unknown backend library: {db_lib}')
