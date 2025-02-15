@@ -14,11 +14,16 @@ on:
         type: boolean
         default: false
 
+permissions:
+  actions: read
+  packages: read
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: quay.io/389ds/ci-images:test
+      image: quay.io/389ds/ci-images:el9test
     steps:
       - name: Get the version
         id: get_version
