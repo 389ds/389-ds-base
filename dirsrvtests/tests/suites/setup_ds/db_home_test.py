@@ -9,6 +9,7 @@
 
 import pytest
 
+import os
 from lib389.utils import *
 from lib389.topologies import topology_st as topo
 from lib389._constants import *
@@ -22,6 +23,7 @@ from lib389.paths import DEFAULTS_PATH
 container_result = subprocess.run(["systemd-detect-virt", "-c"], stdout=subprocess.PIPE)
 
 pytestmark = [pytest.mark.tier1,
+              pytest.mark.skipif(get_default_db_lib() == "mdb", reason='dbhome is meaningless on lmdb'),
               pytest.mark.skipif(get_rpm_version("selinux-policy") <= "3.14.3-79" or
                                  get_rpm_version("selinux-policy") <= "34.1.19-1",
                                  reason="Will fail because of incorrect selinux labels"),
@@ -34,6 +36,21 @@ if DEBUGGING:
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
+PREFIX = os.getenv('PREFIX')
+
+def expected_dbhome_value(inst):
+    if os.getuid() != 0:
+        log.info('expected_dbhome_value: Non root install')
+        return inst.dbdir
+    if inst.is_in_container():
+        log.info('expected_dbhome_value: Container install')
+        return inst.db_dir
+    if PREFIX is not None:
+        log.info('expected_dbhome_value: Prefixed install')
+        return inst.db_dir
+    log.info('expected_dbhome_value: Standard install')
+    return '/dev/shm/slapd-{}'.format(inst.serverid)
 
 
 def test_check_db_home_dir_in_config(topo):
@@ -51,12 +68,8 @@ def test_check_db_home_dir_in_config(topo):
     """
 
     standalone = topo.standalone
-
-    if standalone.is_in_container():
-        dbhome_value = standalone.db_dir
-    else:
-        dbhome_value = '/dev/shm/slapd-{}'.format(standalone.serverid)
     bdb_ldbmconfig = BDB_LDBMConfig(standalone)
+    dbhome_value = expected_dbhome_value(standalone)
 
     log.info('Check the config value of nsslapd-db-home-directory')
     assert bdb_ldbmconfig.get_attr_val_utf8('nsslapd-db-home-directory') == dbhome_value
@@ -82,13 +95,15 @@ def test_check_db_home_dir_contents(topo):
 
     standalone = topo.standalone
     file_list = ['__db.001', '__db.002', '__db.003', 'DBVERSION']
-    if standalone.is_in_container():
-        dbhome_value = standalone.db_dir
-    else:
-        dbhome_value = '/dev/shm/slapd-{}/'.format(standalone.serverid)
+    dbhome_value = expected_dbhome_value(standalone)
     old_dbhome = '/var/lib/dirsrv/slapd-{}/db'.format(standalone.serverid)
     existing_files = list(next(os.walk(dbhome_value))[2])
-    old_location_files = list(next(os.walk(old_dbhome))[2])
+    try:
+        old_location_files = list(next(os.walk(old_dbhome))[2])
+    except StopIteration:
+        old_location_files = []
+    log.info(f'existing_files = {existing_files}')
+    log.info(f'old_location_files = {old_location_files}')
 
     log.info('Check the directory exists')
     assert os.path.exists(dbhome_value)
@@ -97,9 +112,10 @@ def test_check_db_home_dir_contents(topo):
     for item in file_list:
         assert item in existing_files
 
-    log.info('Check these files are not present in old location')
-    for item in file_list:
-        assert item not in old_location_files
+    if dbhome_value != old_dbhome:
+        log.info('Check these files are not present in old location')
+        for item in file_list:
+            assert item not in old_location_files
 
 
 def test_check_db_home_dir_in_dse(topo):
@@ -118,10 +134,7 @@ def test_check_db_home_dir_in_dse(topo):
 
     standalone = topo.standalone
     bdb_ldbmconfig = BDB_LDBMConfig(standalone)
-    if standalone.is_in_container():
-        dbhome_value = standalone.db_dir
-    else:
-        dbhome_value = '/dev/shm/slapd-{}'.format(standalone.serverid)
+    dbhome_value = expected_dbhome_value(standalone)
     dse_ldif = DSEldif(standalone)
 
     log.info('Check value of nsslapd-db-home-directory in dse.ldif')
@@ -144,10 +157,9 @@ def test_check_db_home_dir_in_defaults(topo):
     """
 
     standalone = topo.standalone
-    if standalone.is_in_container():
-        dbhome_value = 'db_home_dir = ' + standalone.db_dir
-    else:
-        dbhome_value = 'db_home_dir = /dev/shm/slapd-{instance_name}'
+    def_val = expected_dbhome_value(standalone)
+    def_val = def_val.replace(f'slapd-{standalone.serverid}', 'slapd-{instance_name}')
+    dbhome_value = f'db_home_dir = {def_val}'
 
     log.info('Get defaults.inf path')
     def_loc = standalone.ds_paths._get_defaults_loc(DEFAULTS_PATH)
@@ -177,10 +189,7 @@ def test_delete_db_home_dir(topo):
 
     standalone = topo.standalone
     file_list = ['__db.001', '__db.002', '__db.003', 'DBVERSION']
-    if standalone.is_in_container():
-        dbhome_value = standalone.db_dir
-    else:
-        dbhome_value = '/dev/shm/slapd-{}/'.format(standalone.serverid)
+    dbhome_value = expected_dbhome_value(standalone)
     existing_files = list(next(os.walk(dbhome_value))[2])
 
     log.info('Stop the instance')
@@ -188,16 +197,25 @@ def test_delete_db_home_dir(topo):
 
     log.info('Remove contents of /dev/shm/slapd-instance/')
     for f in os.listdir(dbhome_value):
-        os.remove(os.path.join(dbhome_value, f))
+        if f in file_list:
+            os.remove(os.path.join(dbhome_value, f))
 
-    log.info('Check there are no files')
-    assert len(os.listdir(dbhome_value)) == 0
+    if dbhome_value != standalone.dbdir:
+        expected_len = 0
+        expected_len_when_started = 0
+    else:
+        # Should have: 'log.0000000001', 'guardian', 'userRoot'
+        expected_len = 3
+        expected_len_when_started = expected_len -1 # No guardian when started
+
+    log.info('Check there are no unexpected files')
+    assert len(os.listdir(dbhome_value)) == expected_len
 
     log.info('Restart the instance')
     standalone.restart()
 
     log.info('Check number of files')
-    assert len(os.listdir(dbhome_value)) == 4
+    assert len(os.listdir(dbhome_value)) == 4 + expected_len_when_started
 
     log.info('Check the filenames')
     for item in file_list:
