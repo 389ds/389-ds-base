@@ -77,7 +77,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     int rc = 0;
     int addingentry_id_assigned = 0;
     Slapi_DN *sdn = NULL;
-    Slapi_DN parentsdn;
+    Slapi_DN parentsdn = {0};
     Slapi_Operation *operation;
     int is_replicated_operation = 0;
     int is_resurect_operation = 0;
