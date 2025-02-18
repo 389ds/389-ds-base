@@ -1857,7 +1857,7 @@ export class LocalPwPolicy extends React.Component {
                     this.handleLoadPolicies();
                     this.props.addNotification(
                         "success",
-                        _("Successfully deleted password policy")
+                        "Successfully deleted password policy"
                     )
                 })
 
