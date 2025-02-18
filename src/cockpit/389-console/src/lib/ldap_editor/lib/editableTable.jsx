@@ -714,14 +714,14 @@ class EditableTable extends React.Component {
     actionResolver = (rowData, { rowIndex }) => {
         const myAttr = rowData.cells[0].props.value;
         const myName = rowData.cells[0].props.name;
-        
+
         // Early return for DN
         if (myAttr === "dn") {
             return [];
         }
 
         const actions = [];
-        
+
         // Naming Action
         if (!(myName === this.state.namingRowID || this.props.disableNamingChange) &&
             ((this.props.namingAttr && myAttr !== this.props.namingAttr) || this.props.namingAttr === "")) {
@@ -745,7 +745,7 @@ class EditableTable extends React.Component {
         }
 
         // Add separator if needed
-        if (actions.length > 0 && (!this.props.isAttributeSingleValued(myAttr) || 
+        if (actions.length > 0 && (!this.props.isAttributeSingleValued(myAttr) ||
             !(this.state.tableRows.length === 1 || rowData.namingAttr ||
             ((this.props.isAttributeRequired(myAttr) || rowData.required) && this.hasSingleOccurrence(myAttr))))) {
             actions.push({ isSeparator: true });
@@ -889,9 +889,9 @@ class EditableTable extends React.Component {
                             </Button>
                         ]}
                     >
-                        {_("You cannot modify the RDN ( Relative Distinguished Name ) in the <strong>Quick Update</strong> mode.")}
+                        {_("You cannot modify the RDN ( Relative Distinguished Name ) in the edit mode.")}
                         <br />
-                        {_("If you want to modify the RDN, please use the <strong>Quick Update</strong> action option")}
+                        {_("If you want to modify the RDN, please use the Rename action option")}
                     </Modal>}
 
                 {isPasswordField &&
@@ -1023,7 +1023,7 @@ class EditableTable extends React.Component {
                             <Tr key={rowIndex}>
                                 {row.cells.map((cell, cellIndex) => (
                                     <Td key={cellIndex}>
-                                        {typeof cell.title === 'function' 
+                                        {typeof cell.title === 'function'
                                             ? cell.title(cell.props.value, rowIndex, cellIndex, cell.props)
                                             : cell.title}
                                     </Td>

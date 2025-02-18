@@ -721,7 +721,7 @@ export class GlobalPwPolicy extends React.Component {
                     'nsslapd-pwdpbkdf2numiterations': '',
                     '_nsslapd-pwdpbkdf2numiterations': ''
                 };
-                
+
                 if (!skipLoading) {
                     stateUpdates["loading"] = false
                 }
@@ -1393,7 +1393,7 @@ export class GlobalPwPolicy extends React.Component {
                                 onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
-                                label={_("<>Always Send <i>Password Expiring</i>&nbsp; Control</>")}
+                                label={_("Always send Password Expiring Control")}
                             />
                         </GridItem>
                     </Grid>

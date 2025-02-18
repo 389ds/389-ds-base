@@ -783,7 +783,7 @@ class AddLdapEntry extends React.Component {
                                             }}
                                         />
                                         {row.cells.map((cell, cellIndex) => (
-                                            <Td 
+                                            <Td
                                                 key={`${rowIndex}_${cellIndex}`}
                                                 dataLabel={columnsOc[cellIndex]?.title || columnsOc[cellIndex]}
                                             >
@@ -854,7 +854,7 @@ class AddLdapEntry extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={columnsAttr[cellIndex]?.title || columnsAttr[cellIndex]}
                                     >
@@ -902,7 +902,7 @@ class AddLdapEntry extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -1003,7 +1003,7 @@ class AddLdapEntry extends React.Component {
                 component: entryReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding,
             }
         ];
