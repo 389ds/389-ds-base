@@ -111,7 +111,9 @@ class AddGroup extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? _("Group successfully created!") : _("Failed to create group, error: ") + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ?
+                                            _("Group successfully created!") :
+                                            _("Failed to create group: ") + result.output,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -130,12 +132,6 @@ class AddGroup extends React.Component {
                                     this.props.setWizardOperationInfo(opInfo);
                                 }
                 );
-            }
-        };
-
-        this.handleBack = ({ id }) => {
-            if (id === 5) {
-                this.updateValuesTableRows(true);
             }
         };
 
@@ -540,7 +536,7 @@ class AddGroup extends React.Component {
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -636,7 +632,7 @@ class AddGroup extends React.Component {
                 component: groupReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding
             }
         ];
@@ -652,7 +648,6 @@ class AddGroup extends React.Component {
                 isOpen={this.props.isWizardOpen}
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
-                onBack={this.handleBack}
                 title={_("Add A Group")}
                 description={title}
                 steps={addGroupSteps}

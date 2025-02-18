@@ -201,7 +201,9 @@ class AddUser extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? _("Successfully added user!") : _("Failed to add user, error: ") + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ?
+                                            _("Successfully added user!") :
+                                            _("Failed to add user: ") + result.output,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -648,7 +650,7 @@ class AddUser extends React.Component {
                         position="left"
                         onSelect={this.handleAttrDropDownSelect}
                         toggle={
-                            <BadgeToggle 
+                            <BadgeToggle
                                 id="toggle-attr-select"
                                 badgeProps={{
                                     className: this.state.selectedAttributes.length > 0 ? "ds-badge-bgcolor" : undefined,
@@ -710,7 +712,7 @@ class AddUser extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={this.state.columnsUser[cellIndex]?.title || this.state.columnsUser[cellIndex]}
                                     >
@@ -765,7 +767,7 @@ class AddUser extends React.Component {
         );
 
         const ldifListItems = cleanLdifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={(typeof line === 'string' || line instanceof String) && line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -861,7 +863,7 @@ class AddUser extends React.Component {
                 component: userReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 6,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding
             }
         ];

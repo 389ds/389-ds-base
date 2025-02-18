@@ -217,7 +217,9 @@ class AddCosDefinition extends React.Component {
                                 (result) => {
                                     const myDn = myLdifArray[0].substring(4);
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? _("CoS Definition successfully created!") : _("Failed to create cos: ") + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ?
+                                            _("CoS Definition successfully created!") :
+                                            _("Failed to create cos: ") + result.output,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                         createdDefiniton: myDn,
@@ -1224,7 +1226,7 @@ class AddCosDefinition extends React.Component {
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -1374,7 +1376,7 @@ class AddCosDefinition extends React.Component {
                 component: cosReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 8 && stepIdReached < 9,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding
             },
             ...((this.state.cosType === 'classic') && (resultVariant !== 'danger')
@@ -1385,7 +1387,7 @@ class AddCosDefinition extends React.Component {
                         component: cosReviewStep,
                         nextButtonText: _("Finish"),
                         canJumpTo: stepIdReached > 9,
-                        hideBackButton: true,
+                        hideBackButton: this.state.resultVariant === "success" ? true : false,
                         enableNext: !this.state.adding
                     }
                 ]
