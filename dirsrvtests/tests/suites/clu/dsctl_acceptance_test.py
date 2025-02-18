@@ -11,11 +11,10 @@ import pytest
 import os
 import time
 from lib389.topologies import topology_st as topo
+from lib389.paths import Paths
 
 log = logging.getLogger(__name__)
 
-#unstable or unstatus tests, skipped for now
-@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_custom_path(topo):
     """Test that a custom path, backup directory, is correctly used by lib389
     when the server is stopped.
@@ -45,9 +44,13 @@ def test_custom_path(topo):
     time.sleep(.5)
 
     # Stop the server and take a backup
-    topo.standalone.stop()
+    inst = topo.standalone
+    inst.stop()
+    # Refresh ds_paths
+    inst.ds_paths = Paths(inst.serverid, instance=inst, local=inst.isLocal)
+
     time.sleep(.5)
-    topo.standalone.db2bak(None)  # Bug, bak dir is being pulled from defaults.inf, and not from config
+    inst.db2bak(None)  # Bug, bak dir is being pulled from defaults.inf, and not from config
 
     # Verify backup was written to LDIF directory
     log.info("AFTER: ldif dir (new bak dir): " + ldif_dir + " items: " + str(len(os.listdir(ldif_dir))))
