@@ -79,7 +79,9 @@ class DeleteOperationWizard extends React.Component {
                                this.state.numSubordinates,
                                (result) => {
                                    this.setState({
-                                       commandOutput: result.errorCode === 0 ? _("Successfully deleted entry") : _("Failed to delete entry, error: ") + result.errorCode,
+                                       commandOutput: result.errorCode === 0 ?
+                                        _("Successfully deleted entry") :
+                                        _("Failed to delete entry: ") + result.output,
                                        resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                        deleting: false,
                                    }, () => {
@@ -234,7 +236,7 @@ class DeleteOperationWizard extends React.Component {
         );
 
         let reviewInfo = '';
-        if (commandOutput === '') {
+        if (commandOutput === '' || commandOutput === "Successfully deleted entry") {
             reviewInfo = numSubordinates > 0
                 ? _("The entries were")
                 : _("The entry was");

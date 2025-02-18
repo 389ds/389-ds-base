@@ -844,16 +844,16 @@ class AddRole extends React.Component {
                         position="left"
                         onSelect={this.handleAttrDropDownSelect}
                         toggle={
-                            <BadgeToggle 
-                                id="toggle-attr-select" 
+                            <BadgeToggle
+                                id="toggle-attr-select"
                                 badgeProps={{
                                     className: selectedAttributes.length > 0 ? "ds-badge-bgcolor" : undefined,
                                     isRead: selectedAttributes.length === 0
                                 }}
                                 onToggle={(_event, isOpen) => this.handleAttrDropDownToggle(isOpen)}
                             >
-                                {selectedAttributes.length > 0 ? 
-                                    `${selectedAttributes.length} ${_("selected")}` : 
+                                {selectedAttributes.length > 0 ?
+                                    `${selectedAttributes.length} ${_("selected")}` :
                                     `0 ${_("selected")}`}
                             </BadgeToggle>
                         }
@@ -898,7 +898,7 @@ class AddRole extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={columnsRole[cellIndex]?.title || columnsRole[cellIndex]}
                                     >
@@ -952,7 +952,7 @@ class AddRole extends React.Component {
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -1059,7 +1059,7 @@ class AddRole extends React.Component {
                 component: roleReviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 7,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding
             }
         ];

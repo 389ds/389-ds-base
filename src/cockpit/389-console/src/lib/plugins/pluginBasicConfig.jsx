@@ -114,8 +114,9 @@ class PluginBasicConfig extends React.Component {
                                 }
                                 addNotification(
                                     `${!dynamicPluginEnabled ? 'warning' : 'success'}`,
-                                    cockpit.format(_("$0 plugin was successfully $1d."), pluginName, new_status) +
-                                    `${!dynamicPluginEnabled ? _("Please, restart the instance.") : ''}`
+                                    cockpit.format(_("$0 plugin was successfully $1."),
+                                                   pluginName, new_status + "d") +
+                                    `${!dynamicPluginEnabled ? " " + _("Please, restart the instance.") : ''}`
                                 );
                                 toggleLoadingHandler();
                             })
@@ -126,7 +127,8 @@ class PluginBasicConfig extends React.Component {
                                 );
                                 addNotification(
                                     "warning",
-                                    cockpit.format(_("$0 plugin was successfully $1d. Please, restart the instance."), pluginName, new_status)
+                                    cockpit.format(_("$0 plugin was successfully $1. Please, restart the instance."),
+                                                   pluginName, new_status + "d")
                                 );
                                 toggleLoadingHandler();
                             });
