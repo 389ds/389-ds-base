@@ -1393,7 +1393,7 @@ export class GlobalPwPolicy extends React.Component {
                                 onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
-                                label={_("<>Always Send <i>Password Expiring</i>&nbsp; Control</>")}
+                                label={_("Always send Password Expiring Control")}
                             />
                         </GridItem>
                     </Grid>

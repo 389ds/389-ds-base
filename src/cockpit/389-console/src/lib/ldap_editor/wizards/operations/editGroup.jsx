@@ -335,7 +335,7 @@ class EditGroup extends React.Component {
             } else {
                 this.props.addNotification(
                     "error",
-                    _("Failed to update group, error code: ") + result.errorCode
+                    _("Failed to update group: ") + result.output
                 );
             }
             this.setState({
@@ -356,7 +356,7 @@ class EditGroup extends React.Component {
             } else {
                 this.props.addNotification(
                     "error",
-                    _("Failed to update group, error code: ") + result.errorCode
+                    _("Failed to update group: ") + result.output
                 );
             }
             this.setState({

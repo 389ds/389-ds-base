@@ -802,7 +802,7 @@ class ManagedEntries extends React.Component {
                 .done(content => {
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("Config entry $0 was successfully $1ed"), templateDN, action)
+                        cockpit.format(_("Config entry $0 was successfully $1"), templateDN, action + "ed")
                     );
                     this.loadConfigs();
                     this.handleCloseTempModal();
@@ -1058,7 +1058,7 @@ class ManagedEntries extends React.Component {
                                 aria-describedby="originScope"
                                 name="originScope"
                                 onChange={(e, str) => this.handleFieldChange(str, e)}
-                                validated={isOriginScopeValidated 
+                                validated={isOriginScopeValidated
                                         ? ValidatedOptions.error
                                         : ValidatedOptions.default
                                 }
@@ -1101,7 +1101,7 @@ class ManagedEntries extends React.Component {
                                 aria-describedby="managedBase"
                                 name="managedBase"
                                 onChange={(e, str) => this.handleFieldChange(str, e)}
-                                validated={isManagedBaseValidated 
+                                validated={isManagedBaseValidated
                                         ? ValidatedOptions.error
                                         : ValidatedOptions.default
                                 }
@@ -1170,7 +1170,7 @@ class ManagedEntries extends React.Component {
                                 name="templateDN"
                                 onChange={(e, str) => this.handleFieldChange(str, e)}
                                 isDisabled={!newTemplateEntry}
-                                validated={isTemplateDNValidated 
+                                validated={isTemplateDNValidated
                                         ? ValidatedOptions.error
                                         : ValidatedOptions.default
                                 }
@@ -1530,7 +1530,7 @@ class ManagedEntries extends React.Component {
                                         aria-describedby="configArea"
                                         name="configArea"
                                         onChange={(e, str) => this.handleFieldChange(str, e)}
-                                        validated={isConfigAreaValidated 
+                                        validated={isConfigAreaValidated
                                                 ? ValidatedOptions.error
                                                 : ValidatedOptions.default}
                                     />

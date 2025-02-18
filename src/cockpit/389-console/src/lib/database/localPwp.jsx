@@ -409,7 +409,7 @@ class CreatePolicy extends React.Component {
                                                 this.props.handleChange(e);
                                             }}
                                             isDisabled={!this.props.passwordexp}
-                                            label={_("<>Always Send <i>Password Expiring</i> Control</>")}
+                                            label={_("Always send Password Expiring Control")}
                                             className="ds-lower-field"
                                         />
                                     </GridItem>
@@ -2805,7 +2805,7 @@ export class LocalPwPolicy extends React.Component {
                                 onChange={(e, checked) => {
                                     this.handleExpChange(e);
                                 }}
-                                label={_("<>Always Send <i>Password Expiring</i> Control</>")}
+                                label={_("Always send Password Expiring Control")}
                             />
                         </GridItem>
                     </Grid>
@@ -3232,7 +3232,7 @@ export class LocalPwPolicy extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Local Password Policies")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh the local password policies")}
                                     onClick={this.handleLoadPolicies}

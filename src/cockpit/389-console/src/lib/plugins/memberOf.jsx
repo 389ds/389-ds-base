@@ -851,7 +851,7 @@ class MemberOf extends React.Component {
                         const value = action === "set" ? "edit" : "add";
                         this.props.addNotification(
                             "success",
-                            cockpit.format(_("Config entry $0 was successfully $1ed"), configDN, value)
+                            cockpit.format(_("Config entry $0 was successfully $1"), configDN, value + "ed")
                         );
                         this.props.pluginListHandler();
                         this.handleCloseModal();
@@ -903,6 +903,7 @@ class MemberOf extends React.Component {
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
+                    this.closeConfirmDelete();
                     this.setState({
                         modalSpinning: false,
                     });
@@ -915,6 +916,7 @@ class MemberOf extends React.Component {
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
+                    this.closeConfirmDelete();
                     this.setState({
                         modalSpinning: false,
                     });

@@ -108,7 +108,9 @@ class GenericUpdate extends React.Component {
                                 myLdifArray,
                                 (result) => {
                                     this.setState({
-                                        commandOutput: result.errorCode === 0 ? _("Successfully added entry!") : _("Failed to add entry, error: ") + result.errorCode,
+                                        commandOutput: result.errorCode === 0 ?
+                                            _("Successfully added entry!") :
+                                            _("Failed to add entry: ") + result.output,
                                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                                         adding: false,
                                     }, () => {
@@ -528,7 +530,7 @@ class GenericUpdate extends React.Component {
                     isCompact
                 />
                 {/* Updated Table structure for Patternfly 5 */}
-                <Table 
+                <Table
                     aria-label="Attributes Table"
                     variant="compact"
                 >
@@ -554,7 +556,7 @@ class GenericUpdate extends React.Component {
                                     }}
                                 />
                                 {row.cells.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={`${rowIndex}_${cellIndex}`}
                                         dataLabel={columnsAttrs[cellIndex]?.title || columnsAttrs[cellIndex]}
                                     >
@@ -602,7 +604,7 @@ class GenericUpdate extends React.Component {
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -697,7 +699,7 @@ class GenericUpdate extends React.Component {
                 component: reviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached >= 5 && stepIdReached < 5,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding
             }
         ];
