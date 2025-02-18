@@ -542,10 +542,10 @@ class CreatePolicy extends React.Component {
                                             isDisabled={!this.props.passwordchecksyntax}
                                         />
                                     </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}>
+                                    <GridItem className="ds-label" offset={5} span={3}>
                                         {_("Minimum Alpha's")}
                                     </GridItem>
-                                    <GridItem span={1}>
+                                    <GridItem span={1} title={_("Reject passwords with fewer than this many alpha characters (passwordMinAlphas).")}>
                                         <TextInput
                                             type="number"
                                             id="create_passwordminalphas"
@@ -574,10 +574,10 @@ class CreatePolicy extends React.Component {
                                             isDisabled={!this.props.passwordchecksyntax}
                                         />
                                     </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}>
+                                    <GridItem className="ds-label" offset={5} span={3}>
                                         {_("Minimum Special")}
                                     </GridItem>
-                                    <GridItem span={1}>
+                                    <GridItem span={1} title={_("Reject passwords with fewer than this many special non-alphanumeric characters (passwordMinSpecials).")}>
                                         <TextInput
                                             type="number"
                                             id="create_passwordminspecials"
@@ -606,10 +606,10 @@ class CreatePolicy extends React.Component {
                                             isDisabled={!this.props.passwordchecksyntax}
                                         />
                                     </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}>
+                                    <GridItem className="ds-label" offset={5} span={3}>
                                         {_("Minimum Lowercase")}
                                     </GridItem>
-                                    <GridItem span={1}>
+                                    <GridItem span={1} title={_("Reject passwords with fewer than this many lowercase characters (passwordMinLowers).")}>
                                         <TextInput
                                             type="number"
                                             id="create_passwordminlowers"
@@ -638,10 +638,10 @@ class CreatePolicy extends React.Component {
                                             isDisabled={!this.props.passwordchecksyntax}
                                         />
                                     </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}>
+                                    <GridItem className="ds-label" offset={5} span={3}>
                                         {_("Minimum Categories")}
                                     </GridItem>
-                                    <GridItem span={1}>
+                                    <GridItem span={1} title={_("The minimum number of character categories that a password must contain (categories are upper, lower, digit, special, and 8-bit) (passwordMinCategories).")}>
                                         <TextInput
                                             type="number"
                                             id="create_passwordmincategories"
@@ -670,10 +670,10 @@ class CreatePolicy extends React.Component {
                                             isDisabled={!this.props.passwordchecksyntax}
                                         />
                                     </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
+                                    <GridItem className="ds-label" offset={5} span={3}>
                                         {_("Max Repeated Chars")}
                                     </GridItem>
-                                    <GridItem span={1}>
+                                    <GridItem span={1} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
                                         <TextInput
                                             type="number"
                                             id="create_passwordmaxrepeats"
@@ -702,10 +702,10 @@ class CreatePolicy extends React.Component {
                                             isDisabled={!this.props.passwordchecksyntax}
                                         />
                                     </GridItem>
-                                    <GridItem className="ds-label" offset={5} span={3} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
+                                    <GridItem className="ds-label" offset={5} span={3}>
                                         {_("Max Sequence Sets")}
                                     </GridItem>
-                                    <GridItem span={1}>
+                                    <GridItem span={1} title={_("The maximum number of times the same character can sequentially appear in a password (passwordMaxRepeats).")}>
                                         <TextInput
                                             type="number"
                                             id="create_passwordmaxseqsets"
@@ -1855,7 +1855,12 @@ export class LocalPwPolicy extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.handleLoadPolicies();
+                    this.props.addNotification(
+                        "success",
+                        _("Successfully deleted password policy")
+                    )
                 })
+
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.handleLoadPolicies();
