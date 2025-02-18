@@ -1954,7 +1954,7 @@ msgstr "警告! Account Policyの設定エントリ $0 が存在しません!"
 #: src/lib/plugins/accountPolicy.jsx:485
 #: src/lib/plugins/referentialIntegrity.jsx:623
 #: src/lib/plugins/memberOf.jsx:843 src/lib/plugins/managedEntries.jsx:797
-msgid "Config entry $0 was successfully $1ed"
+msgid "Config entry $0 was successfully $1"
 msgstr "構成エントリ $0 の $1 に成功しました"
 
 #: src/lib/plugins/accountPolicy.jsx:503 src/lib/plugins/dna.jsx:575
@@ -2622,7 +2622,7 @@ msgid "Delete Shared Config"
 msgstr "共有設定を削除"
 
 #: src/lib/plugins/pluginBasicConfig.jsx:117
-msgid "$0 plugin was successfully $1d."
+msgid "$0 plugin was successfully $1."
 msgstr "$0プラグインを$1にしました。"
 
 #: src/lib/plugins/pluginBasicConfig.jsx:118
@@ -2630,7 +2630,7 @@ msgid "Please, restart the instance."
 msgstr "インスタンスを再起動してください。"
 
 #: src/lib/plugins/pluginBasicConfig.jsx:129
-msgid "$0 plugin was successfully $1d. Please, restart the instance."
+msgid "$0 plugin was successfully $1. Please, restart the instance."
 msgstr "$0プラグインを$1にしました。インスタンスを再起動してください。"
 
 #: src/lib/plugins/pluginBasicConfig.jsx:138 src/plugins.jsx:384
@@ -5512,7 +5512,7 @@ msgstr ""
 "(passwordSendExpiringTime)"
 
 #: src/lib/database/localPwp.jsx:414 src/lib/database/localPwp.jsx:2791
-msgid "<>Always Send <i>Password Expiring</i> Control</>"
+msgid "Always send Password Expiring Control"
 msgstr "パスワードの有効期限切れを警告する"
 
 #: src/lib/database/localPwp.jsx:425
@@ -7316,7 +7316,7 @@ msgid "Error loading global password policy - $0"
 msgstr "グローバルパスワードポリシーの読み込み中にエラーが発生しました - $0"
 
 #: src/lib/database/globalPwp.jsx:1235
-msgid "<>Always Send <i>Password Expiring</i>&nbsp; Control</>"
+msgid "Always send Password Expiring Control"
 msgstr "パスワードの有効期限切れを警告する"
 
 #: src/lib/database/globalPwp.jsx:1253
@@ -7595,7 +7595,7 @@ msgstr ""
 "してください"
 
 #: src/lib/replication/replConfig.jsx:153
-msgid "Successfully $0d replica to a $1"
+msgid "Successfully $0 replica to a $1"
 msgstr "$1にレプリカを$0しました"
 
 #: src/lib/replication/replConfig.jsx:165
@@ -9082,12 +9082,12 @@ msgstr "DNをリネームする"
 #: src/lib/ldap_editor/lib/editableTable.jsx:734
 msgid ""
 "You cannot modify the RDN ( Relative Distinguished Name ) in the "
-"<strong>Quick Update</strong> mode."
+"edit mode."
 msgstr "クイック更新モードでは、RDN(相対識別名)を変更することはできません。"
 
 #: src/lib/ldap_editor/lib/editableTable.jsx:736
 msgid ""
-"If you want to modify the RDN, please use the <strong>Quick Update</strong> "
+"If you want to modify the RDN, please use the <Rename "
 "action option"
 msgstr ""
 "RDNを変更する場合は、クイック更新アクションオプションを使用してください。"

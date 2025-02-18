@@ -80,7 +80,9 @@ class RenameEntry extends React.Component {
                         result.output = _("Successfully renamed entry");
                     }
                     this.setState({
-                        commandOutput: result.errorCode === 0 ? _("Successfully renamed entry!") : _("Failed to rename entry, error: ") + result.errorCode,
+                        commandOutput: result.errorCode === 0 ?
+                            _("Successfully renamed entry!") :
+                            _("Failed to rename entry: ") + result.output,
                         resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                         renaming: false
                     });
@@ -368,7 +370,7 @@ class RenameEntry extends React.Component {
         );
 
         const ldifListItems = ldifArray.map((line, index) =>
-            <SimpleListItem key={index} isCurrent={line.startsWith('dn: ')}>
+            <SimpleListItem key={index} isActive={line.startsWith('dn: ')}>
                 {line}
             </SimpleListItem>
         );
@@ -462,7 +464,7 @@ class RenameEntry extends React.Component {
                 component: reviewStep,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReached > 5,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.renaming
             }
         ];

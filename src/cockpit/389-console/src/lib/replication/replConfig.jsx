@@ -150,7 +150,8 @@ export class ReplConfig extends React.Component {
                     this.props.reload();
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("Successfully $0d replica to a $1"), action, this.state.newRole)
+                        cockpit.format(_("Successfully $0 replica to a $1"),
+                                       action + "d", this.state.newRole)
                     );
                     this.setState({
                         roleChangeSpinning: false,

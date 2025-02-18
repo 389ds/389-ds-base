@@ -594,7 +594,9 @@ class AddNewAci extends React.Component {
             modifyLdapEntry(params, ldifArray, (result) => {
                 this.props.refreshAciTable();
                 this.setState({
-                    commandOutput: result.errorCode === 0 ? _("Successfully added ACI!") : _("Failed to add ACI, error: ") + result.errorCode,
+                    commandOutput: result.errorCode === 0 ?
+                        _("Successfully added ACI!") :
+                        _("Failed to add ACI: ") + result.output,
                     resultVariant: result.errorCode === 0 ? 'success' : 'danger',
                     adding: false
                 }, () => { this.props.onReload() }); // refreshes tableView
@@ -967,7 +969,7 @@ class AddNewAci extends React.Component {
                     <SelectOption key="allow" value="allow" />
                     <SelectOption key="deny" value="deny" />
                 </Select>
-                <Table 
+                <Table
                     aria-label="Selectable Table User Rights"
                     variant="compact"
                     borders={false}
@@ -1432,7 +1434,7 @@ class AddNewAci extends React.Component {
                 component: resultComponent,
                 nextButtonText: _("Finish"),
                 canJumpTo: stepIdReachedVisual >= 9,
-                hideBackButton: true,
+                hideBackButton: this.state.resultVariant === "success" ? true : false,
                 enableNext: !this.state.adding,
             }];
 
