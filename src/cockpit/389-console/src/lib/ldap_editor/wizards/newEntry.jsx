@@ -33,6 +33,10 @@ class NewEntryWizard extends React.Component {
         this.setState({ getStartedStepRadio: event.currentTarget.value });
     };
 
+    onToggleWizard = () => {
+        this.props.handleToggleWizard();
+    };
+
     createInitialLayout = () => {
         // console.log(`this.props.createRootEntry = ${this.props.createRootEntry}`);
         // Creation of a root entry.
@@ -129,10 +133,6 @@ variant="custom" isInline
             }
         ]);
     };
-
-    onToggleWizard () {
-        this.props.handleToggleWizard();
-    }
 
     render () {
         const {

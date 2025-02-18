@@ -622,7 +622,7 @@ class ReferentialIntegrity extends React.Component {
                     console.info("referintOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("Config entry $0 was successfully $1ed"), configDN, action)
+                        cockpit.format(_("Config entry $0 was successfully $1"), configDN, action + "ed")
                     );
                     this.props.pluginListHandler();
                     this.handleCloseModal();
