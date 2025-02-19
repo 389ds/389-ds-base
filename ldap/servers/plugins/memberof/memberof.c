@@ -2288,6 +2288,44 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn, memberof_get
     return rc;
 }
 
+int 
+check_if_member_is_person(Slapi_Value* member) {
+    int found = 0;
+    if (member == NULL) {
+        return found;
+    }
+    
+    const char * member_str = slapi_value_get_string(member);
+    Slapi_Entry *member_entry = NULL;
+    Slapi_PBlock *member_pb = NULL;
+    Slapi_DN *member_sdn = NULL;
+    member_sdn = slapi_sdn_new_normdn_byref(member_str);
+
+    slapi_search_get_entry(&member_pb, member_sdn, NULL, &member_entry, memberof_get_plugin_id());
+    if (member_entry) {
+        Slapi_Attr *attr = NULL;
+        slapi_entry_attr_find(member_entry, "objectclass", &attr);
+        if (attr) {
+            Slapi_Value *sval = NULL;
+            int i;
+            const struct berval *attrVal;
+            i = slapi_attr_first_value(attr, &sval);
+            while (i != -1) {
+                attrVal = slapi_value_get_berval(sval);
+                if (strcasecmp(attrVal->bv_val, "person") == 0) {
+                    found = 1;
+                    break;
+                }
+                i = slapi_attr_next_value(attr, i, &sval);
+            }
+        }
+    }
+    slapi_sdn_free(&member_sdn);
+    slapi_search_get_entry_done(&member_pb);
+    
+    return found;
+}
+
 /* memberof_get_groups_callback()
  *
  * Callback to perform work of memberof_get_groups()
@@ -2367,8 +2405,10 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
         slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
 
         /* push this ndn to detect group recursion */
-        already_seen_ndn_val = slapi_value_new_string(group_ndn);
-        slapi_valueset_add_value_ext(already_seen_ndn_vals, already_seen_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+        if (check_if_member_is_person(((memberof_get_groups_data *)callback_data)->memberdn_val) == 0) {
+            already_seen_ndn_val = slapi_value_new_string(group_ndn);
+            slapi_valueset_add_value_ext(already_seen_ndn_vals, already_seen_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+        }
     }
     if (!config->skip_nested || config->fixup_task) {
         /* now recurse to find ancestors groups of e */
