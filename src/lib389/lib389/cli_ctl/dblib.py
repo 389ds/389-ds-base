@@ -51,7 +51,7 @@ class FakeArgs(dict):
 
 def get_bdb_impl_status():
     backldbm = 'libback-ldbm'
-    bundledbdb_plugin = 'libback-ldbm'
+    bundledbdb_plugin = 'libback-bdb'
     robdb_symbol = 'bdbro_getcb_vector'
     libdb = 'libdb-'
     plgstrs = check_plugin_strings(backldbm, [bundledbdb_plugin, robdb_symbol, libdb])
@@ -68,6 +68,14 @@ def get_bdb_impl_status():
         return BDB_IMPL_STATUS.STANDARD
     # Unable to find libback-ldbm plugin
     return BDB_IMPL_STATUS.UNKNOWN
+
+
+def is_bdb_supported(read_write=True):
+    bdbok = [BDB_IMPL_STATUS.BUNDLED, BDB_IMPL_STATUS.STANDARD]
+    if not read_write:
+        # READ_MODE is ok too
+        bdbok.append(BDB_IMPL_STATUS.READ_ONLY)
+    return get_bdb_impl_status() in bdbok
 
 
 def get_ldif_dir(instance):
