@@ -239,18 +239,18 @@ connection_cleanup(Connection *conn)
 }
 
 static char *
-get_ip_str(struct sockaddr *addr, char *str)
+get_ip_str(struct sockaddr *addr, char *str, size_t str_size)
 {
     switch(addr->sa_family) {
         case AF_INET:
-            if (sizeof(str) < INET_ADDRSTRLEN) {
+            if (str_size < INET_ADDRSTRLEN) {
                 break;
             }
             inet_ntop(AF_INET, &(((struct sockaddr_in *)addr)->sin_addr), str, INET_ADDRSTRLEN);
             break;
 
         case AF_INET6:
-            if (sizeof(str) < INET6_ADDRSTRLEN) {
+            if (str_size < INET6_ADDRSTRLEN) {
                 break;
             }
             inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)addr)->sin6_addr), str, INET6_ADDRSTRLEN);
@@ -343,7 +343,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
             PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&addr)->sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
             PRLDAP_SET_PORT(conn->cin_addr, ((struct sockaddr_in *)&addr)->sin_port);
-            str_ip = get_ip_str(&addr, buf_ip);
+            str_ip = get_ip_str(&addr, buf_ip, sizeof(buf_ip));
         } else {
             str_ip = str_unknown;
         }
@@ -397,7 +397,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
             PRLDAP_SET_PORT(conn->cin_destaddr, ((struct sockaddr_in *)&destaddr)->sin_port);
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
             PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&destaddr)->sin_addr.s_addr, &(conn->cin_destaddr->ipv6.ip));
-            str_destip = get_ip_str(&destaddr, buf_destip);
+            str_destip = get_ip_str(&destaddr, buf_destip, sizeof(buf_destip));
         } else {
             str_destip = str_unknown;
         }
