@@ -10,6 +10,7 @@ import pytest, time
 import os
 import glob
 import ldap
+import pwd
 from shutil import copyfile, rmtree
 from datetime import datetime
 from contextlib import contextmanager, suppress
@@ -366,7 +367,14 @@ def freeipa(topology_st):
         with open(target, 'a') as fout:
             fout.write(fin.read())
     # import ipaca
-    file = f'{datadir}/ipaca.ldif'
+    # Make the ldif filke readable by ns-slapd process
+    file_ref = f'{datadir}/ipaca.ldif'
+    file = f'{inst.ds_paths.ldif_dir}/ipaca.ldif'
+    log.info(f'Copying ldif {file_ref} to {file}')
+    copyfile(file_ref, file)
+    dirsrv = pwd.getpwnam('dirsrv')
+    os.chown(file, dirsrv.pw_uid, dirsrv.pw_gid)
+    # Then import it
     log.info(f'Importing ldif {file} to ipaca')
     assert inst.ldif2db('ipaca', None, None, None, file)
     # restart instance
