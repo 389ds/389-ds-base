@@ -72,7 +72,7 @@ def get_bdb_impl_status():
 
 def is_bdb_supported(read_write=True):
     bdbok = [BDB_IMPL_STATUS.BUNDLED, BDB_IMPL_STATUS.STANDARD]
-    if noread_write:
+    if not read_write:
         # READ_MODE is ok too
         bdbok.append(BDB_IMPL_STATUS.READ_ONLY)
     return get_bdb_impl_status() in bdbok
