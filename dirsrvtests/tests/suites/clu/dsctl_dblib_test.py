@@ -13,7 +13,11 @@ import os
 import time
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.backend import DatabaseConfig
-from lib389.cli_ctl.dblib import (FakeArgs, dblib_bdb2mdb, dblib_mdb2bdb, dblib_cleanup)
+from lib389.cli_ctl.dblib import (
+    FakeArgs,
+    dblib_bdb2mdb,
+    dblib_cleanup,
+    is_bdb_supported)
 from lib389.idm.user import UserAccounts
 from lib389.replica import ReplicationManager
 from lib389.topologies import topology_m2 as topo_m2, topology_st as topo_st
@@ -87,6 +91,7 @@ def _check_db(inst, log, impl):
         assert db_files == mdb_list
 
 
+@pytest.mark.skipif(is_bdb_supported() is False, reason='This test requires bdb support')
 def test_dblib_migration(init_user):
     """
     Verify dsctl dblib xxxxxxx sub commands (migration between bdb and lmdb)
