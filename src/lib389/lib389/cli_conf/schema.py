@@ -220,8 +220,8 @@ def get_syntaxes(inst, basedn, log, args):
     if args.json:
         print(dump_json(result, indent=4))
     else:
-        for id, name in result.items():
-            print("%s (%s)", name, id)
+        for oid, name in result.items():
+            print(f"{name} ({oid})")
 
 
 def import_openldap_schema_file(inst, basedn, log, args):

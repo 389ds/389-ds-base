@@ -81,7 +81,7 @@ export class ServerAccessLog extends React.Component {
         this.refLevel = <>{_("Entry Access and Referrals")} <font size="1" className="ds-info-color">(level 512)</font></>;
 
         this.state = {
-            loading: true,
+            loading: false,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -218,11 +218,9 @@ export class ServerAccessLog extends React.Component {
         });
     }
 
-    handleTimeChange(time_str) {
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
         let disableSaveBtn = true;
-        const time_parts = time_str.split(":");
-        let hour = time_parts[0];
-        let min = time_parts[1];
+
         if (hour.length === 2 && hour[0] === "0") {
             hour = hour[1];
         }
@@ -304,19 +302,25 @@ export class ServerAccessLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.refreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "success",
                         _("Successfully updated Access Log settings")
                     );
+                    this.setState({
+                        loading: false
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.refreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error saving Access Log settings - $0"), errMsg.desc)
                     );
+                    this.setState({
+                        loading: false
+                    });
                 });
     }
 
@@ -426,6 +430,10 @@ export class ServerAccessLog extends React.Component {
         let compress = false;
         const level_val = parseInt(attrs['nsslapd-accesslog-level'][0]);
         const rows = [...this.state.rows];
+
+        this.setState({
+            loading: true
+        });
 
         if (attrs['nsslapd-accesslog-logging-enabled'][0] === "on") {
             enabled = true;
