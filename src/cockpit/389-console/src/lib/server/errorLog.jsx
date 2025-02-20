@@ -91,7 +91,7 @@ export class ServerErrorLog extends React.Component {
         this.pwdpolicyLevel = <>{_("Password Policy")} <font size="1" className="ds-info-color">{_("(level 1048576)")}</font></>;
 
         this.state = {
-            loading: true,
+            loading: false,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -241,11 +241,9 @@ export class ServerErrorLog extends React.Component {
         });
     }
 
-    handleTimeChange(time_str) {
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
         let disableSaveBtn = true;
-        const time_parts = time_str.split(":");
-        let hour = time_parts[0];
-        let min = time_parts[1];
+
         if (hour.length === 2 && hour[0] === "0") {
             hour = hour[1];
         }
@@ -327,19 +325,25 @@ export class ServerErrorLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.handleRefreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "success",
                         _("Successfully updated Error Log settings")
                     );
+                    this.setState({
+                        loading: false
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.handleRefreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error saving Error Log settings - $0"), errMsg.desc)
                     );
+                    this.setState({
+                        loading: false
+                    });
                 });
     }
 
@@ -442,6 +446,10 @@ export class ServerErrorLog extends React.Component {
         const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
         const rows = [...this.state.rows];
 
+        this.setState({
+            loading: true
+        });
+
         if (attrs['nsslapd-errorlog-logging-enabled'][0] === "on") {
             enabled = true;
         }
@@ -501,7 +509,7 @@ export class ServerErrorLog extends React.Component {
     handleOnSelect = (_event, isSelected, rowIndex) => {
         let disableSaveBtn = true;
         const rows = [...this.state.rows];
-        
+
         // Update the selected row
         rows[rowIndex].selected = isSelected;
 
@@ -610,7 +618,7 @@ export class ServerErrorLog extends React.Component {
                                             <Td
                                                 select={{
                                                     rowIndex,
-                                                    onSelect: (_event, isSelecting) => 
+                                                    onSelect: (_event, isSelecting) =>
                                                         this.handleOnSelect(_event, isSelecting, rowIndex),
                                                     isSelected: row.selected
                                                 }}
@@ -888,7 +896,7 @@ export class ServerErrorLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Error Log Settings")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh log settings")}
                                     onClick={() => {

@@ -17,8 +17,10 @@ import {
     TextVariants,
     TimePicker,
     Tooltip,
+    ValidatedOptions,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
+import { SyncAltIcon } from '@patternfly/react-icons';
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 const _ = cockpit.gettext;
@@ -29,6 +31,7 @@ export class GlobalDatabaseConfig extends React.Component {
         this.state = {
             saving: false,
             saveBtnDisabled: true,
+            error: {},
             activeTabKey:  this.props.data.activeTab,
             db_cache_auto: this.props.data.db_cache_auto,
             import_cache_auto: this.props.data.import_cache_auto,
@@ -86,22 +89,29 @@ export class GlobalDatabaseConfig extends React.Component {
         this.maxValue = 2147483647;
         this.onMinusConfig = (id) => {
             this.setState({
-                [id]: Number(this.state[id]) - 1
+                [id]: Number(this.state[id]) - 1,
             }, () => { this.validateSaveBtn() });
         };
         this.onConfigChange = (event, id, min, max) => {
+            let error = this.state.error;
             let maxValue = this.maxValue;
             if (max !== 0) {
                 maxValue = max;
             }
+            let badValue = false;
             const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+            if (newValue > maxValue || newValue < min) {
+                badValue = true;
+            }
+            error[id] = badValue;
             this.setState({
-                [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+                [id]: newValue,
+                error,
             }, () => { this.validateSaveBtn() });
         };
         this.onPlusConfig = (id) => {
             this.setState({
-                [id]: Number(this.state[id]) + 1
+                [id]: Number(this.state[id]) + 1,
             }, () => { this.validateSaveBtn() });
         };
 
@@ -143,6 +153,15 @@ export class GlobalDatabaseConfig extends React.Component {
                 break;
             }
         }
+
+        // Check if have any errors on our attributes
+        for (const config_attr of check_attrs) {
+            if (config_attr in this.state.error && this.state.error[config_attr]) {
+                saveBtnDisabled = true;
+                break;
+            }
+        }
+
         this.setState({
             saveBtnDisabled,
         });
@@ -153,14 +172,21 @@ export class GlobalDatabaseConfig extends React.Component {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         const attr = e.target.id;
 
+        if (attr === "import_cache_auto" && value) {
+            // We need to set it to -1 if it's already set to 0
+            if (this.state.importcacheauto === "0") {
+                this.setState({ importcacheauto: "-1" });
+            }
+        }
+
         this.setState({
             [attr]: value,
         }, () => { this.validateSaveBtn() });
     }
 
-    handleTimeChange(_event, value) {
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
         this.setState({
-            compacttime: value,
+            compacttime: time,
         }, () => { this.validateSaveBtn() });
     }
 
@@ -400,6 +426,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={10}
                                 unit="%"
+                                validated={'dblocksMonitoringThreshold' in this.state.error &&
+                                    this.state.error['dblocksMonitoringThreshold']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -423,6 +453,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
                                 widthChars={10}
+                                validated={'dblocksMonitoringPause' in this.state.error &&
+                                    this.state.error['dblocksMonitoringPause']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -454,6 +488,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={4}
                                 unit="%"
+                                validated={'autosize' in this.state.error &&
+                                    this.state.error['autosize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -478,6 +516,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={4}
                                 unit="%"
+                                validated={'autosizesplit' in this.state.error &&
+                                    this.state.error['autosizesplit']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -496,17 +538,21 @@ export class GlobalDatabaseConfig extends React.Component {
                         </GridItem>
                         <GridItem span={9}>
                             <NumberInput
-                            value={this.state.dbcachesize}
-                            min={512000}
-                            max={this.maxValue}
-                            onMinus={() => { this.onMinusConfig("dbcachesize") }}
-                            onChange={(e) => { this.onConfigChange(e, "dbcachesize", 512000, 0) }}
-                            onPlus={() => { this.onPlusConfig("dbcachesize") }}
-                            inputName="input"
-                            inputAriaLabel="number input"
-                            minusBtnAriaLabel="minus"
-                            plusBtnAriaLabel="plus"
-                            widthChars={10}
+                                value={this.state.dbcachesize}
+                                min={512000}
+                                max={this.maxValue}
+                                onMinus={() => { this.onMinusConfig("dbcachesize") }}
+                                onChange={(e) => { this.onConfigChange(e, "dbcachesize", 512000, 0) }}
+                                onPlus={() => { this.onPlusConfig("dbcachesize") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={10}
+                                validated={'dbcachesize' in this.state.error &&
+                                    this.state.error['dbcachesize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -539,6 +585,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 plusBtnAriaLabel="plus"
                                 widthChars={4}
                                 unit={this.state.importcacheauto > 0 ? "%" : ""}
+                                validated={'importcacheauto' in this.state.error &&
+                                    this.state.error['importcacheauto']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -568,6 +618,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                 minusBtnAriaLabel="minus"
                                 plusBtnAriaLabel="plus"
                                 widthChars={10}
+                                validated={'importcachesize' in this.state.error &&
+                                    this.state.error['importcachesize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
@@ -604,9 +658,17 @@ export class GlobalDatabaseConfig extends React.Component {
                     <TextContent>
                         <Text className="ds-config-header" component={TextVariants.h2}>
                             {_("Global Database Configuration")}
+                            <Button
+                                variant="plain"
+                                aria-label={_("Refresh config settings")}
+                                onClick={() => {
+                                    this.props.reload(this.state.activeTabKey);
+                                }}
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
-
                     <div className="ds-margin-top-lg">
                         <Tabs isFilled activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
                             <Tab eventKey={0} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
@@ -631,6 +693,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'looklimit' in this.state.error &&
+                                                    this.state.error['looklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -654,6 +720,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'idscanlimit' in this.state.error &&
+                                                    this.state.error['idscanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -677,6 +747,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagelooklimit' in this.state.error &&
+                                                    this.state.error['pagelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -700,6 +774,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagescanlimit' in this.state.error &&
+                                                    this.state.error['pagescanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -723,6 +801,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'rangelooklimit' in this.state.error &&
+                                                    this.state.error['rangelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -790,6 +872,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'ndncachemaxsize' in this.state.error &&
+                                                    this.state.error['ndncachemaxsize']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -818,6 +904,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'dblocks' in this.state.error &&
+                                                    this.state.error['dblocks']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -928,6 +1018,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'compactinterval' in this.state.error &&
+                                                    this.state.error['compactinterval']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -951,6 +1045,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'chxpoint' in this.state.error &&
+                                                    this.state.error['chxpoint']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -999,6 +1097,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             saving: false,
             saveBtnDisabled: true,
             availDbSizeBytes: 0,
+            error: {},
             activeTabKey:  this.props.data.activeTab,
             db_cache_auto: this.props.data.db_cache_auto,
             import_cache_auto: this.props.data.import_cache_auto,
@@ -1034,11 +1133,11 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.onMinusConfig = (id) => {
             if (id === "mdbmaxsize") {
                 this.setState({
-                    [id]: Number(this.state[id]) - (1024 * 1024)
+                    [id]: Number(this.state[id]) - (1024 * 1024),
                 }, () => { this.validateSaveBtn() });
             } else {
                 this.setState({
-                    [id]: Number(this.state[id]) - 1
+                    [id]: Number(this.state[id]) - 1,
                 }, () => { this.validateSaveBtn() });
             }
         };
@@ -1086,8 +1185,17 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                     [id]: (newValueBytes > max ? max : newValueBytes < min ? min : newValueBytes)
                 }, () => { this.validateSaveBtn() });
             } else {
+                let error = this.state.error;
+                let badValue = false;
+                const newValue = isNaN(event.target.value) ? 0 : Number(event.target.value);
+                if (newValue > maxValue || newValue < min) {
+                    badValue = true;
+
+                }
+                error[id] = badValue;
                 this.setState({
-                    [id]: newValue > maxValue ? maxValue : newValue < min ? min : newValue
+                    [id]: newValue,
+                    error,
                 }, () => { this.validateSaveBtn() });
             }
         };
@@ -1095,11 +1203,11 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         this.onPlusConfig = (id) => {
             if (id === "mdbmaxsize") {
                 this.setState({
-                    [id]: Number(this.state[id]) + (1024 * 1024)
+                    [id]: Number(this.state[id]) + (1024 * 1024),
                 }, () => { this.validateSaveBtn() });
             } else {
                 this.setState({
-                    [id]: Number(this.state[id]) + 1
+                    [id]: Number(this.state[id]) + 1,
                 }, () => { this.validateSaveBtn() });
             }
         };
@@ -1150,7 +1258,15 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 break;
             }
         }
-        // jc console.log(saveBtnDisabled);
+
+        // Check if have any errors on our attributes
+        for (const config_attr of check_attrs) {
+            if (config_attr in this.state.error && this.state.error[config_attr]) {
+                saveBtnDisabled = true;
+                break;
+            }
+        }
+
         this.setState({
             saveBtnDisabled
         });
@@ -1338,6 +1454,15 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                     <TextContent>
                         <Text className="ds-config-header" component={TextVariants.h2}>
                             {_("Global Database Configuration")}
+                            <Button
+                                variant="plain"
+                                aria-label={_("Refresh config settings")}
+                                onClick={() => {
+                                    this.props.reload(this.state.activeTabKey);
+                                }}
+                            >
+                                <SyncAltIcon />
+                            </Button>
                         </Text>
                     </TextContent>
 
@@ -1366,6 +1491,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 plusBtnAriaLabel="plus"
                                                 unit="MB"
                                                 widthChars={10}
+                                                validated={'mdbmaxsize' in this.state.error &&
+                                                    this.state.error['mdbmaxsize']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1393,6 +1522,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'looklimit' in this.state.error &&
+                                                    this.state.error['looklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1416,6 +1549,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'idscanlimit' in this.state.error &&
+                                                    this.state.error['idscanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1439,6 +1576,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagelooklimit' in this.state.error &&
+                                                    this.state.error['pagelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1462,6 +1603,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'pagescanlimit' in this.state.error &&
+                                                    this.state.error['pagescanlimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1485,6 +1630,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'rangelooklimit' in this.state.error &&
+                                                    this.state.error['rangelooklimit']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1498,7 +1647,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            {_("Normalized DN Cache Max Size")}
+                                            {_("Normalized DN Cache Max Size") }
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -1513,6 +1662,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'ndncachemaxsize' in this.state.error &&
+                                                           this.state.error['ndncachemaxsize']
+                                                            ? ValidatedOptions.error
+                                                            : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1560,6 +1713,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'mdbmaxreaders' in this.state.error &&
+                                                    this.state.error['mdbmaxreaders']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1584,6 +1741,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
+                                                validated={'mdbmaxdbs' in this.state.error &&
+                                                    this.state.error['mdbmaxdbs']
+                                                     ? ValidatedOptions.error
+                                                     : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>

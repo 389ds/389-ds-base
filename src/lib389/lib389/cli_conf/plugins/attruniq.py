@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,12 +16,14 @@ arg_to_attr = {
     'enabled': 'nsslapd-pluginenabled',
     'attr_name': 'uniqueness-attribute-name',
     'subtree': 'uniqueness-subtrees',
+    'exclude_subtree': 'uniqueness-exclude-subtrees',
     'across_all_subtrees': 'uniqueness-across-all-subtrees',
     'top_entry_oc': 'uniqueness-top-entry-oc',
     'subtree_entries_oc': 'uniqueness-subtree-entries-oc'
 }
 
 PLUGIN_DN = "cn=plugins,cn=config"
+
 
 def attruniq_list(inst, basedn, log, args):
     log = log.getChild('attruniq_list')
@@ -124,6 +126,9 @@ def _add_parser_args(parser):
     parser.add_argument('--subtree', nargs='+',
                         help='Sets the DN under which the plug-in checks for uniqueness of '
                              'the attributes value. This attribute is multi-valued (uniqueness-subtrees)')
+    parser.add_argument('--exclude-subtree', nargs='+',
+                        help='Sets subtrees that should not excludedfrom attribute uniqueness. '
+                             'This attribute is multi-valued (uniqueness-exclude-subtrees)')
     parser.add_argument('--across-all-subtrees', choices=['on', 'off'], type=str.lower,
                         help='If enabled (on), the plug-in checks that the attribute is unique across all subtrees '
                              'set. If you set the attribute to off, uniqueness is only enforced within the subtree '

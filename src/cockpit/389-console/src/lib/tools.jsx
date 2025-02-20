@@ -243,9 +243,48 @@ export function valid_dn(dn) {
     if (dn === "" || dn.endsWith(",")) {
         return false;
     }
-    const dn_regex = /^([A-Za-z])+=\S.*/;
-    const result = dn_regex.test(dn);
-    return result;
+
+    // For validation purposes we can simply replace any escaped sequences with
+    // generic characters
+    if (dn.includes("\\,")) {
+        dn = dn.replace("\\,","ZZ");
+    }
+    if (dn.includes("\\<")) {
+        dn = dn.replace("\\<","ZZ");
+    }
+    if (dn.includes("\\>")) {
+        dn = dn.replace("\\>","ZZ");
+    }
+    if (dn.includes('\\"')) {
+        dn = dn.replace('\\"',"ZZ");
+    }
+    if (dn.includes("\\;")) {
+        dn = dn.replace("\\;","ZZ");
+    }
+    if (dn.includes("\\=")) {
+        dn = dn.replace("\\=","ZZ");
+    }
+    if (dn.includes("\\+")) {
+        dn = dn.replace("\\+","ZZ");
+    }
+    const dn_regex = /^([A-Za-z])+=([A-Za-z0-9 _\-$^*!~.])+$/;
+    const parts = dn.split(",");
+    for (const part of parts) {
+        if (!dn_regex.test(part)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+export function valid_db_name(name) {
+    // Validate name is a valid backend name
+    if (name === "") {
+        return false;
+    }
+
+    const name_regex = /^[A-Za-z][A-Za-z_\-0-9]+$/;
+    return name_regex.test(name);
 }
 
 export function valid_filter(filter) {
