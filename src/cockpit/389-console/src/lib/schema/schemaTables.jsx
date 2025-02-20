@@ -40,9 +40,9 @@ class ObjectClassesTable extends React.Component {
                     title: _("Objectclass Name"),
                     sortable: true
                 },
-                { 
-                    title: _("OID"), 
-                    sortable: true 
+                {
+                    title: _("OID"),
+                    sortable: true
                 },
             ],
         };
@@ -67,7 +67,7 @@ class ObjectClassesTable extends React.Component {
 
     handleSort(_event, columnIndex, direction) {
         const rows = [...this.state.rows];
-        
+
         rows.sort((a, b) => (a.cells[columnIndex].content > b.cells[columnIndex].content) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             rows.reverse();
@@ -96,7 +96,7 @@ class ObjectClassesTable extends React.Component {
 
         for (const row of this.props.rows) {
             // Check for matches of all the parts
-            if (val !== "" && 
+            if (val !== "" &&
                 row.name[0].toLowerCase().indexOf(val) === -1 &&
                 row.oid[0].toLowerCase().indexOf(val) === -1) {
                 continue;
@@ -218,7 +218,7 @@ class ObjectClassesTable extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Table 
+                    <Table
                         aria-label="objectclasses table"
                         variant='compact'
                     >
@@ -257,7 +257,7 @@ class ObjectClassesTable extends React.Component {
                                             </Td>
                                         ))}
                                         <Td isActionCell>
-                                            <ActionsColumn 
+                                            <ActionsColumn
                                                 items={this.getActionsForRow(row)}
                                                 isDisabled={row.disableActions}
                                             />
@@ -422,6 +422,15 @@ class AttributesTable extends React.Component {
         );
     }
 
+    getOIDContent(oid) {
+        for (const syntax of this.props.syntaxes) {
+            if (oid == syntax.id) {
+                return oid + " (" + syntax.label + ")";
+            }
+        }
+        return oid + " (Unknown)";
+    }
+
     componentDidMount() {
         let rows = [];
         let columns = this.state.columns;
@@ -434,7 +443,7 @@ class AttributesTable extends React.Component {
                 cells: [
                     { content: row.name[0] },
                     { content: row.oid[0] },
-                    { content: row.syntax[0] }
+                    { content: this.getOIDContent(row.syntax[0]) }
                 ],
                 disableActions: !user_defined,
                 originalData: row
@@ -465,11 +474,11 @@ class AttributesTable extends React.Component {
 
     handleSearchChange(event, value) {
         const rows = [];
+        const val = value.toLowerCase();
         let count = 0;
 
         for (const row of this.props.rows) {
             let user_defined = false;
-            const val = value.toLowerCase();
 
             // Check for matches of all the parts
             if (val !== "" && row.name[0].toLowerCase().indexOf(val) === -1 &&
@@ -486,16 +495,15 @@ class AttributesTable extends React.Component {
             rows.push(
                 {
                     isOpen: false,
-                    cells: [row.name[0], row.oid[0], row.syntax[0]],
-                    disableActions: !user_defined
-                },
-                {
-                    parent: count,
-                    fullWidth: true,
-                    cells: [{ title: this.getExpandedRow(row) }]
+                    cells: [
+                        { content: row.name[0] },
+                        { content: row.oid[0] },
+                        { content: this.getOIDContent(row.syntax[0]) },
+                    ],
+                    disableActions: !user_defined,
+                    originalData: row
                 },
             );
-            count += 2;
         }
 
         this.setState({
@@ -545,7 +553,7 @@ class AttributesTable extends React.Component {
                             />
                         </GridItem>
                     </Grid>
-                    <Table 
+                    <Table
                         aria-label="attributes table"
                         variant='compact'
                     >
@@ -584,7 +592,7 @@ class AttributesTable extends React.Component {
                                             </Td>
                                         ))}
                                         <Td isActionCell>
-                                            <ActionsColumn 
+                                            <ActionsColumn
                                                 items={this.getActionsForRow(row)}
                                                 isDisabled={row.disableActions}
                                             />

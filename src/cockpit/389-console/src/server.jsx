@@ -13,6 +13,7 @@ import { ServerErrorLog } from "./lib/server/errorLog.jsx";
 import { ServerSecurityLog } from "./lib/server/securityLog.jsx";
 import { Security } from "./security.jsx";
 import {
+    Card,
     Spinner,
     TreeView,
     Text,
@@ -306,6 +307,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "audit-log-config") {
@@ -316,6 +318,7 @@ export class Server extends React.Component {
                         displayAttrs={this.state.displayAttrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "auditfail-log-config") {
@@ -325,6 +328,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "error-log-config") {
@@ -334,6 +338,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
             } else if (this.state.node_name === "security-log-config") {
@@ -343,6 +348,7 @@ export class Server extends React.Component {
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
+                        reload={this.reloadConfig}
                     />
                 );
             }
@@ -350,7 +356,7 @@ export class Server extends React.Component {
             serverPage = (
                 <div className="container-fluid">
                     <div className="ds-container">
-                        <div className="ds-tree">
+                        <Card className="ds-tree">
                             <div
                                 className={disabled}
                                 id="server-tree"
@@ -361,7 +367,7 @@ export class Server extends React.Component {
                                     onSelect={this.handleTreeClick}
                                 />
                             </div>
-                        </div>
+                        </Card>
                         <div className="ds-tree-content">
                             {server_element}
                         </div>
