@@ -25,7 +25,7 @@
     "@typescript-eslint/eslint-plugin": "8.8.0",
     "argparse": "2.0.1",
     "chrome-remote-interface": "^0.32.1",
-    "esbuild": "0.24.0",
+    "esbuild": "0.25.0",
     "esbuild-plugin-copy": "2.1.1",
     "esbuild-plugin-replace": "1.4.0",
     "esbuild-sass-plugin": "3.3.1",
