@@ -324,7 +324,7 @@ export class ServerMonitor extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Server Statistics")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh suffix monitor")}
                                     onClick={this.props.handleReload}
@@ -523,8 +523,8 @@ export class ServerMonitor extends React.Component {
                                 <b>{uptime}</b>
                             </GridItem>
                             <hr />
-                            <GridItem span={3}>
-                                {_("Worker Threads")}
+                            <GridItem span={3} title="Active threads includes worker threads, listener threads, tasks, and persistent searches">
+                                {_("Active Threads")}
                             </GridItem>
                             <GridItem span={2}>
                                 <b>{this.props.data.threads}</b>

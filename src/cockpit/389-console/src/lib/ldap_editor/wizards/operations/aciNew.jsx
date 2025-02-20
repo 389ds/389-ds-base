@@ -1264,7 +1264,7 @@ class AddNewAci extends React.Component {
                             className="ds-left-margin"
                             time={this.state.timeOfDayStart}
                             is24Hour
-                            onChange={(val) => this.handleTimeChange(val, "timeOfDayStart")}
+                            onChange={(_event, time, hour, min, seconds, isValid) => this.handleTimeChange(time, "timeOfDayStart")}
                         />
                     </GridItem>
                 </Grid>
@@ -1292,7 +1292,7 @@ class AddNewAci extends React.Component {
                             className="ds-left-margin"
                             time={this.state.timeOfDayEnd}
                             is24Hour
-                            onChange={(val) => this.handleTimeChange(val, "timeOfDayEnd")}
+                            onChange={(_event, time, hour, min, seconds, isValid) => this.handleTimeChange(time, "timeOfDayEnd")}
                         />
                     </GridItem>
                 </Grid>

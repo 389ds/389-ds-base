@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd, valid_dn } from "./lib/tools.jsx";
+import { log_cmd, valid_dn, valid_db_name } from "./lib/tools.jsx";
 import {
     ChainingConfig,
     ChainingDatabaseConfig
@@ -12,6 +12,7 @@ import { GlobalPwPolicy } from "./lib/database/globalPwp.jsx";
 import { LocalPwPolicy } from "./lib/database/localPwp.jsx";
 import {
     Button,
+    Card,
     Form,
     FormGroup,
     FormSelect,
@@ -714,7 +715,11 @@ export class Database extends React.Component {
         } else if (e.target.id === "createSuffix" && !valid_dn(str)) {
             valueErr = true;
             createNotOK = true;
+        } else if (e.target.id === "createBeName" && !valid_db_name(str)) {
+            valueErr = true;
+            createNotOK = true;
         }
+
         // Check existing values
         if (e.target.id !== "createSuffix") {
             if (!valid_dn(this.state.createSuffix)) {
@@ -723,7 +728,7 @@ export class Database extends React.Component {
             }
         }
         if (e.target.id !== "createBeName") {
-            if (this.state.createBeName === "") {
+            if (this.state.createBeName === "" || !valid_db_name(this.state.createBeName)) {
                 errObj.createBeName = true;
                 createNotOK = true;
             }
@@ -1338,18 +1343,16 @@ export class Database extends React.Component {
             }
             body = (
                 <div className="ds-container">
-                    <div>
-                        <div className="ds-tree">
-                            <div className={disabled} id="db-tree">
-                                <TreeView
-                                    hasSelectableNodes
-                                    data={this.state.nodes}
-                                    activeItems={this.state.activeItems}
-                                    onSelect={this.handleTreeClick}
-                                />
-                            </div>
+                    <Card className="ds-tree">
+                        <div className={disabled} id="db-tree">
+                            <TreeView
+                                hasSelectableNodes
+                                data={this.state.nodes}
+                                activeItems={this.state.activeItems}
+                                onSelect={this.handleTreeClick}
+                            />
                         </div>
-                    </div>
+                    </Card>
                     <div className="ds-tree-content">
                         {db_element}
                     </div>

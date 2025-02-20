@@ -292,8 +292,8 @@ export class WinsyncAgmtModal extends React.Component {
                         <TimePicker
                             time={startTime}
                             id="agmtStartTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", time);
                             }}
                             stepMinutes={5}
                             direction="up"
@@ -312,8 +312,8 @@ export class WinsyncAgmtModal extends React.Component {
                         <TimePicker
                             time={endTime}
                             id="agmtEndTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", time);
                             }}
                             stepMinutes={5}
                             direction="up"
@@ -1066,8 +1066,8 @@ export class ReplAgmtModal extends React.Component {
                         <TimePicker
                             time={startTime}
                             id="agmtStartTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtStartTime", time);
                             }}
                             stepMinutes={5}
                             is24Hour
@@ -1085,8 +1085,8 @@ export class ReplAgmtModal extends React.Component {
                         <TimePicker
                             time={endTime}
                             id="agmtEndTime"
-                            onChange={(val) => {
-                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", val);
+                            onChange={(_event, time, hour, min, seconds, isValid) => {
+                                handleTimeChange(this.props.edit ? "edit" : "create", "agmtEndTime", time);
                             }}
                             stepMinutes={5}
                             is24Hour

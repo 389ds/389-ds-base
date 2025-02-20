@@ -17,6 +17,7 @@ import ReplAgmtWinsync from "./lib/monitor/replMonWinsync.jsx";
 import ReplMonTasks from "./lib/monitor/replMonTasks.jsx";
 import ReplMonConflict from "./lib/monitor/replMonConflict.jsx";
 import {
+    Card,
     Spinner,
     TreeView,
     Text,
@@ -1149,18 +1150,16 @@ export class Monitor extends React.Component {
             monitorPage = (
                 <div className="container-fluid">
                     <div className="ds-container">
-                        <div>
-                            <div className="ds-tree">
-                                <div className={disabled} id="monitor-tree">
-                                    <TreeView
-                                        hasSelectableNodes
-                                        data={nodes}
-                                        activeItems={this.state.activeItems}
-                                        onSelect={this.handleTreeClick}
-                                    />
-                                </div>
+                        <Card className="ds-tree">
+                            <div className={disabled} id="monitor-tree">
+                                <TreeView
+                                    hasSelectableNodes
+                                    data={nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.handleTreeClick}
+                                />
                             </div>
-                        </div>
+                        </Card>
                         <div className="ds-tree-content">
                             {monitor_element}
                         </div>

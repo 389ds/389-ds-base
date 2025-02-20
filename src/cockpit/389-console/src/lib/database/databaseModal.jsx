@@ -17,6 +17,7 @@ import {
 import { LDIFTable } from "./databaseTables.jsx";
 import PropTypes from "prop-types";
 
+
 const _ = cockpit.gettext;
 
 class CreateLinkModal extends React.Component {
