@@ -88,12 +88,12 @@ class ReferralTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedRefs = [...this.props.rows];
-        
+
         sortedRefs.sort();
         if (direction !== 'asc') {
             sortedRefs.reverse();
         }
-        
+
         const rows = sortedRefs.map(refRow => [
             refRow,
             this.getDeleteButton(refRow)
@@ -130,6 +130,7 @@ class ReferralTable extends React.Component {
                                         onSort: this.handleSort,
                                         columnIndex: idx
                                     } : undefined}
+                                    textCenter={idx === 1}
                                 >
                                     {column.title}
                                 </Th>
@@ -140,7 +141,7 @@ class ReferralTable extends React.Component {
                         {displayRows.map((row, rowIndex) => (
                             <Tr key={rowIndex}>
                                 {row.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={cellIndex}
                                         textCenter={cellIndex === 1}
                                     >
@@ -203,10 +204,10 @@ class IndexTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -219,14 +220,15 @@ class IndexTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = [...this.props.rows];
         } else {
             for (const row of this.props.rows) {
+                const mr_row = row[2].length > 0 ? row[2] : "";
                 if (row[0].toLowerCase().includes(val) ||
                     row[1].toLowerCase().includes(val) ||
-                    row[2].toLowerCase().includes(val)) {
+                    mr_row.toLowerCase().includes(val)) {
                     rows.push([row[0], row[1], row[2]]);
                 }
             }
@@ -281,14 +283,14 @@ class IndexTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     aria-label="index table"
                     variant="compact"
                 >
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -309,7 +311,7 @@ class IndexTable extends React.Component {
                                     // Handle array-type rows
                                     row.map((cell, cellIndex) => (
                                         <Td key={cellIndex}>
-                                            {Array.isArray(cell) && cell.length === 0 ? 
+                                            {Array.isArray(cell) && cell.length === 0 ?
                                                 '' : // Handle empty arrays
                                                 String(cell) // Convert any value to string
                                             }
@@ -323,7 +325,7 @@ class IndexTable extends React.Component {
                                 )}
                                 {has_rows && this.props.editable && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={getActionsForRow(row)}
                                         />
                                     </Td>
@@ -415,7 +417,7 @@ class EncryptedAttrTable extends React.Component {
         if (direction !== 'asc') {
             sortedAttrs.reverse();
         }
-        
+
         const rows = sortedAttrs.map(attrRow => [
             attrRow,
             this.getDeleteButton(attrRow)
@@ -452,6 +454,7 @@ class EncryptedAttrTable extends React.Component {
                                         onSort: this.handleSort,
                                         columnIndex: idx
                                     } : undefined}
+                                    textCenter={idx === 1}
                                 >
                                     {column.title}
                                 </Th>
@@ -462,7 +465,7 @@ class EncryptedAttrTable extends React.Component {
                         {displayRows.map((row, rowIndex) => (
                             <Tr key={rowIndex}>
                                 {row.map((cell, cellIndex) => (
-                                    <Td 
+                                    <Td
                                         key={cellIndex}
                                         textCenter={cellIndex === 1}
                                     >
@@ -552,10 +555,10 @@ class LDIFTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -615,7 +618,7 @@ class LDIFTable extends React.Component {
                                 {/* Only render the action column if we have rows */}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -689,7 +692,7 @@ class LDIFManageTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedLDIF = [...this.state.rows];
-        
+
         sortedLDIF.sort((a, b) => {
             const aValue = Array.isArray(a) ? a[index] : a.cells[index];
             const bValue = Array.isArray(b) ? b[index] : b.cells[index];
@@ -726,7 +729,7 @@ class LDIFManageTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         const hasRows = this.props.rows.length > 0;
-        
+
         // Calculate pagination
         const startIdx = (perPage * page) - perPage;
         const tableRows = [...rows].splice(startIdx, perPage);
@@ -769,7 +772,7 @@ class LDIFManageTable extends React.Component {
                                 )}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -842,7 +845,7 @@ class BackupTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedBaks = [...this.state.rows];
-        
+
         sortedBaks.sort((a, b) => {
             const aValue = Array.isArray(a) ? a[index] : a[0];
             const bValue = Array.isArray(b) ? b[index] : b[0];
@@ -879,7 +882,7 @@ class BackupTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         const hasRows = this.props.rows.length > 0;
-        
+
         // Calculate pagination
         const startIdx = (perPage * page) - perPage;
         const tableRows = [...rows].splice(startIdx, perPage);
@@ -922,7 +925,7 @@ class BackupTable extends React.Component {
                                 )}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -995,7 +998,7 @@ class PwpTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedPwp = [...this.state.rows];
-        
+
         sortedPwp.sort((a, b) => {
             const aValue = Array.isArray(a) ? a[index] : a.cells[index];
             const bValue = Array.isArray(b) ? b[index] : b.cells[index];
@@ -1032,7 +1035,7 @@ class PwpTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         const hasRows = this.props.rows.length > 0;
-        
+
         // Calculate pagination
         const startIdx = (perPage * page) - perPage;
         const tableRows = [...rows].splice(startIdx, perPage);
@@ -1075,7 +1078,7 @@ class PwpTable extends React.Component {
                                 )}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -1313,7 +1316,7 @@ class VLVTable extends React.Component {
 
         return (
             <div className={(this.props.saving || this.props.updating) ? "ds-margin-top-lg ds-disabled" : "ds-margin-top-lg"}>
-                <Table 
+                <Table
                     aria-label="vlv table"
                     variant='compact'
                 >
@@ -1321,7 +1324,7 @@ class VLVTable extends React.Component {
                         <Tr>
                             {!noRows && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -1340,7 +1343,7 @@ class VLVTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!noRows && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -1353,7 +1356,7 @@ class VLVTable extends React.Component {
                                     ))}
                                     {!noRows && (
                                         <Td isActionCell>
-                                            <ActionsColumn 
+                                            <ActionsColumn
                                                 items={this.getActions(row)}
                                             />
                                         </Td>
@@ -1362,7 +1365,7 @@ class VLVTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >

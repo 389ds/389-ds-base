@@ -267,7 +267,7 @@ export class DSInstance extends React.Component {
                                                         wasActiveList: [this.state.activeTabKey]
                                                     },
                                                     () => {
-                                                        this.loadBackups();
+                                                        this.loadBackups(true);
                                                     }
                                                 );
                                                 if (action === "restart") {
@@ -302,7 +302,7 @@ export class DSInstance extends React.Component {
                                                                 wasActiveList: []
                                                             },
                                                             () => {
-                                                                this.loadBackups();
+                                                                this.loadBackups(true);
                                                             }
                                                         );
                                                     }
@@ -326,7 +326,7 @@ export class DSInstance extends React.Component {
                                                     wasActiveList: []
                                                 },
                                                 () => {
-                                                    this.loadBackups();
+                                                    this.loadBackups(true);
                                                 }
                                             );
                                         }
@@ -368,7 +368,7 @@ export class DSInstance extends React.Component {
                                     wasActiveList: []
                                 },
                                 () => {
-                                    this.loadBackups();
+                                    this.loadBackups(true);
                                 }
                             );
                         }
@@ -445,7 +445,7 @@ export class DSInstance extends React.Component {
         );
     }
 
-    loadBackups() {
+    loadBackups(initializing) {
         let cmd = ["dsctl", "-j", this.state.serverId, "backups"];
         log_cmd("loadBackups", "Load Backups", cmd);
         cockpit.spawn(cmd, { superuser: true, err: "message" })
@@ -476,10 +476,13 @@ export class DSInstance extends React.Component {
                 .fail(err => {
                     this.updateProgress(25);
                     const errMsg = JSON.parse(err);
-                    this.addNotification(
-                        "error",
-                        cockpit.format(_("Load Backups operation failed - $0"), errMsg.desc)
-                    );
+                    if (!initializing) {
+                        // Don't log an error when first initializing the UI
+                        this.addNotification(
+                            "error",
+                            cockpit.format(_("Load Backups operation failed - $0"), errMsg.desc)
+                        );
+                    }
                     this.setState({
                         backupRows: [],
                     });

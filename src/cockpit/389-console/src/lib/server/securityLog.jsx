@@ -64,7 +64,7 @@ export class ServerSecurityLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            loading: true,
+            loading: false,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -173,11 +173,9 @@ export class ServerSecurityLog extends React.Component {
         });
     }
 
-    handleTimeChange(time_str) {
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
         let disableSaveBtn = true;
-        const time_parts = time_str.split(":");
-        let hour = time_parts[0];
-        let min = time_parts[1];
+
         if (hour.length === 2 && hour[0] === "0") {
             hour = hour[1];
         }
@@ -246,19 +244,25 @@ export class ServerSecurityLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.refreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "success",
                         _("Successfully updated Security Log settings")
                     );
+                    this.setState({
+                        loading: false
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.refreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error saving Security Log settings - $0"), errMsg.desc)
                     );
+                    this.setState({
+                        loading: false
+                    });
                 });
     }
 
@@ -349,6 +353,10 @@ export class ServerSecurityLog extends React.Component {
         let enabled = false;
         let buffering = false;
         let compress = false;
+
+        this.setState({
+            loading: true
+        });
 
         if (attrs['nsslapd-securitylog-logging-enabled'][0] === "on") {
             enabled = true;
@@ -732,7 +740,7 @@ export class ServerSecurityLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Security Log Settings")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh log settings")}
                                     onClick={() => {

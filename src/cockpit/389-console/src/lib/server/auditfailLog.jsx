@@ -62,7 +62,7 @@ export class ServerAuditFailLog extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            loading: true,
+            loading: false,
             loaded: false,
             activeTabKey: 0,
             saveSettingsDisabled: true,
@@ -172,11 +172,9 @@ export class ServerAuditFailLog extends React.Component {
         });
     }
 
-    handleTimeChange(time_str) {
+    handleTimeChange = (_event, time, hour, min, seconds, isValid) => {
         let disableSaveBtn = true;
-        const time_parts = time_str.split(":");
-        let hour = time_parts[0];
-        let min = time_parts[1];
+
         if (hour.length === 2 && hour[0] === "0") {
             hour = hour[1];
         }
@@ -245,19 +243,25 @@ export class ServerAuditFailLog extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    this.refreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "success",
                         _("Successfully updated Audit Fail Log settings")
                     );
+                    this.setState({
+                        loading: false
+                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.refreshConfig();
+                    this.props.reload();
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error saving Audit Fail Log settings - $0"), errMsg.desc)
                     );
+                    this.setState({
+                        loading: false
+                    });
                 });
     }
 
@@ -343,6 +347,10 @@ export class ServerAuditFailLog extends React.Component {
         const attrs = this.state.attrs;
         let enabled = false;
         let compressed = false;
+
+        this.setState({
+            loading: true
+        });
 
         if (attrs['nsslapd-auditfaillog-logging-enabled'][0] === "on") {
             enabled = true;
@@ -709,7 +717,7 @@ export class ServerAuditFailLog extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("Audit Fail Log Settings")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh log settings")}
                                     onClick={() => {
