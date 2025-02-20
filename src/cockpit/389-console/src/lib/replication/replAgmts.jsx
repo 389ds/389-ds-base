@@ -1569,7 +1569,8 @@ export class ReplAgmts extends React.Component {
     onSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        for (const row of this.state.rows) {
+
+        for (const row of this.props.rows) {
             if (val !== "" &&
                 row[0].indexOf(val) === -1 &&
                 row[1].indexOf(val) === -1 &&

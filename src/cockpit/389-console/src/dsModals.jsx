@@ -12,6 +12,8 @@ import {
     FormHelperText,
     FormSelect,
     FormSelectOption,
+    HelperText,
+    HelperTextItem,
     Grid,
     GridItem,
     Modal,
@@ -419,12 +421,18 @@ export class CreateInstanceModal extends React.Component {
                                     }}
                                     validated={errObj.createServerId ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText  >
-                                    {this.state.createServerIdMsg}
-                                </FormHelperText>
+                                {errObj.createServerId &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                {this.state.createServerIdMsg}
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
-                        <Grid title={_("The server port number should be in the range of 0 to 65534.")}>
+                        <Grid title={_("The server port number should be in the range of 0 to 65534")}>
                             <GridItem className="ds-label" span={4}>
                                 {_("Port")}
                             </GridItem>
@@ -443,11 +451,15 @@ export class CreateInstanceModal extends React.Component {
                                     widthChars={8}
                                 />
                                 <FormHelperText className="ds-info-color" >
-                                    {_("Port 0 will disable non-TLS connections")}
+                                    <HelperText>
+                                        <HelperTextItem variant={"indeterminate"}>
+                                            {_("Port 0 will disable non-TLS connections")}
+                                        </HelperTextItem>
+                                    </HelperText>
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
-                        <Grid title={_("The secure port number for TLS connections. It should be in the range of 1 to 65534.")}>
+                        <Grid title={_("The secure port number for TLS connections. It should be in the range of 1 to 65534")}>
                             <GridItem className="ds-label" span={4}>
                                 {_("Secure Port")}
                             </GridItem>
@@ -467,7 +479,7 @@ export class CreateInstanceModal extends React.Component {
                                 />
                             </GridItem>
                         </Grid>
-                        <Grid title={_("Create a self-signed certificate database in /etc/dirsrc/ssca directory.")}>
+                        <Grid title={_("Create a self-signed certificate database in /etc/dirsrc/ssca directory")}>
                             <GridItem className="ds-label-checkbox" span={4}>
                                 {_("Create Self-Signed TLS Certificate")}
                             </GridItem>
@@ -497,12 +509,18 @@ export class CreateInstanceModal extends React.Component {
                                     }}
                                     validated={errObj.createDM ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText  >
-                                    {_("Enter a valid DN")}
-                                </FormHelperText>
+                                {errObj.createDM &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                {_("Enter a valid DN")}
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
-                        <Grid title={_("Directory Manager password must be at least 8 characters in length.")}>
+                        <Grid title={_("Directory Manager password must be at least 8 characters in length")}>
                             <GridItem className="ds-label" span={4}>
                                 {_("Directory Manager Password")}
                             </GridItem>
@@ -518,12 +536,18 @@ export class CreateInstanceModal extends React.Component {
                                     }}
                                     validated={errObj.createDMPassword ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText  >
-                                    {_("Password must be set and it must match the confirmation password.")}
-                                </FormHelperText>
+                                {errObj.createDMPassword &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                Password must be set with at least 8 characters, and it must match the confirmation password
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
-                        <Grid title={_("Confirm the previously entered password.")}>
+                        <Grid title={_("Confirm the previously entered password")}>
                             <GridItem className="ds-label" span={4}>
                                 {_("Confirm Password")}
                             </GridItem>
@@ -539,12 +563,18 @@ export class CreateInstanceModal extends React.Component {
                                     }}
                                     validated={errObj.createDMPasswordConfirm ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText  >
-                                    {_("Confirmation password must be set and it must match the first password.")}
-                                </FormHelperText>
+                                {errObj.createDMPasswordConfirm &&
+                                    <FormHelperText>
+                                        <HelperText>
+                                            <HelperTextItem variant="error">
+                                                Confirmation password must be set with at least 8 characters, and it must match the first password
+                                            </HelperTextItem>
+                                        </HelperText>
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
-                        <Grid className="ds-margin-top" title={_("Create a database during the installation.")}>
+                        <Grid className="ds-margin-top" title={_("Create a database during the installation")}>
                             <Checkbox
                                 id="createDBCheckbox"
                                 label={_("Create Database")}
@@ -573,12 +603,18 @@ export class CreateInstanceModal extends React.Component {
                                         }}
                                         validated={errObj.createDBSuffix ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                    <FormHelperText  >
-                                        {_("Value must be a valid DN")}
-                                    </FormHelperText>
+                                    {errObj.createDBSuffix &&
+                                        <FormHelperText>
+                                            <HelperText>
+                                                <HelperTextItem variant="error">
+                                                    {_("Value must be a valid DN")}
+                                                </HelperTextItem>
+                                            </HelperText>
+                                        </FormHelperText>
+                                    }
                                 </GridItem>
                             </Grid>
-                            <Grid title={_("The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.")}>
+                            <Grid className="ds-margin-top" title={_("The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends")}>
                                 <GridItem className="ds-label" offset={1} span={3}>
                                     {_("Database Name")}
                                 </GridItem>
@@ -596,12 +632,18 @@ export class CreateInstanceModal extends React.Component {
                                         }}
                                         validated={errObj.createDBName ? ValidatedOptions.error : ValidatedOptions.default}
                                     />
-                                    <FormHelperText  >
-                                        {_("Name is required")}
-                                    </FormHelperText>
+                                    {errObj.createDBName &&
+                                        <FormHelperText >
+                                            <HelperText>
+                                                <HelperTextItem variant="error">
+                                                    {_("Name is required")}
+                                                </HelperTextItem>
+                                            </HelperText>
+                                        </FormHelperText>
+                                    }
                                 </GridItem>
                             </Grid>
-                            <Grid>
+                            <Grid className="ds-margin-top" >
                                 <GridItem className="ds-label" offset={1} span={3}>
                                     {_("Database Initialization")}
                                 </GridItem>

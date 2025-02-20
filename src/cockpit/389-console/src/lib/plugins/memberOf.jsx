@@ -225,6 +225,10 @@ class MemberOf extends React.Component {
 
         // Handle scope subtree
         this.handleSubtreeScopeSelect = (event, selection) => {
+            if (selection === "") {
+                this.setState({isSubtreeScopeOpen: false});
+                return;
+            }
             if (this.state.memberOfEntryScope.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -253,7 +257,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateConfig() });
         };
         this.handleSubtreeScopeCreateOption = newValue => {
-            if (!this.state.memberOfEntryScopeOptions.includes(newValue)) {
+            if (newValue && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeOptions: [...this.state.memberOfEntryScopeOptions, newValue],
                     isSubtreeScopeOpen: false
@@ -263,6 +267,10 @@ class MemberOf extends React.Component {
 
         // Handle Exclude Scope subtree
         this.handleExcludeScopeSelect = (event, selection) => {
+            if (selection === "") {
+                this.setState({isExcludeScopeOpen: false});
+                return;
+            }
             if (this.state.memberOfEntryScopeExcludeSubtree.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -291,7 +299,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateConfig() });
         };
         this.handleExcludeCreateOption = newValue => {
-            if (!this.state.memberOfEntryScopeOptions.includes(newValue)) {
+            if (newValue && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeExcludeOptions: [...this.state.memberOfEntryScopeExcludeOptions, newValue],
                     isExcludeScopeOpen: false
@@ -302,6 +310,10 @@ class MemberOf extends React.Component {
         // Modal scope and exclude Scope
         // Handle scope subtree
         this.handleConfigScopeSelect = (event, selection) => {
+            if (selection === "") {
+                this.setState({isConfigSubtreeScopeOpen: false});
+                return;
+            }
             if (this.state.configEntryScope.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -330,7 +342,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateModal() });
         };
         this.handleConfigCreateOption = newValue => {
-            if (!this.state.configEntryScopeOptions.includes(newValue)) {
+            if (newValue && !this.state.configEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeOptions: [...this.state.configEntryScopeOptions, newValue],
                     isConfigSubtreeScopeOpen: false
@@ -340,6 +352,10 @@ class MemberOf extends React.Component {
 
         // Handle Exclude Scope subtree
         this.handleConfigExcludeScopeSelect = (event, selection) => {
+            if (selection === "") {
+                this.setState({isConfigExcludeScopeOpen: false});
+                return;
+            }
             if (this.state.configEntryScopeExcludeSubtree.includes(selection)) {
                 this.setState(
                     (prevState) => ({
@@ -368,7 +384,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateModal() });
         };
         this.handleConfigExcludeCreateOption = newValue => {
-            if (!this.state.configEntryScopeExcludeOptions.includes(newValue)) {
+            if (newValue && !this.state.configEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeExcludeOptions: [...this.state.configEntryScopeExcludeOptions, newValue],
                     isConfigExcludeScopeOpen: false
@@ -395,7 +411,7 @@ class MemberOf extends React.Component {
         ];
 
         const reqLists = [
-            'memberOfGroupAttr', 'memberOfEntryScope',
+            'memberOfGroupAttr',
         ];
 
         const dnAttrs = [
@@ -481,7 +497,7 @@ class MemberOf extends React.Component {
         ];
 
         const reqLists = [
-            'configEntryScope', 'configGroupAttr'
+            'configGroupAttr'
         ];
 
         const dnAttrs = [

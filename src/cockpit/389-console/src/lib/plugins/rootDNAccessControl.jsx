@@ -633,7 +633,7 @@ class RootDNAccessControl extends React.Component {
                             <GridItem span={10}>
                                 <TimePicker
                                     time={openTime}
-                                    onChange={(str) => { this.handleTimeChange("openTime", str) }}
+                                    onChange={(_event, time, hour, min, seconds, isValid) => { this.handleTimeChange("openTime", time) }}
                                     is24Hour
                                 />
                             </GridItem>
@@ -645,7 +645,7 @@ class RootDNAccessControl extends React.Component {
                             <GridItem span={10}>
                                 <TimePicker
                                     time={closeTime}
-                                    onChange={(str) => { this.handleTimeChange("closeTime", str) }}
+                                    onChange={(_event, time, hour, min, seconds, isValid) => { this.handleTimeChange("closeTime", time) }}
                                     is24Hour
                                 />
                             </GridItem>

@@ -195,17 +195,17 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
     slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
     if (argc == 0) {
         /* This is new config style
-                 * uniqueness-attribute-name: uid
-                 * uniqueness-subtrees: dc=people,dc=example,dc=com
-                 * uniqueness-subtrees: dc=sales, dc=example,dc=com
-                 * uniqueness-across-all-subtrees: on
-                 *
-                 * or
-                 *
-                 * uniqueness-attribute-name: uid
-                 * uniqueness-top-entry-oc: organizationalUnit
-                 * uniqueness-subtree-entries-oc: person
-                 */
+         * uniqueness-attribute-name: uid
+         * uniqueness-subtrees: dc=people,dc=example,dc=com
+         * uniqueness-subtrees: dc=sales, dc=example,dc=com
+         * uniqueness-across-all-subtrees: on
+         *
+         * or
+         *
+         * uniqueness-attribute-name: uid
+         * uniqueness-top-entry-oc: organizationalUnit
+         * uniqueness-subtree-entries-oc: person
+         */
 
         /* Attribute name of the attribute we are going to check value uniqueness */
         values = slapi_entry_attr_get_charray(config_entry, ATTR_UNIQUENESS_ATTRIBUTE_NAME);
@@ -293,16 +293,15 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         }
         if (UNTAGGED_PARAMETER == result) {
             /* This is
-                         * nsslapd-pluginarg0: uid
-                         * nsslapd-pluginarg1: dc=people,dc=example,dc=com
-                         * nsslapd-pluginarg2: dc=sales, dc=example,dc=com
-                         *
-                         * config attribute are in argc/argv
-                         *
-                         * attrName is set
-                         * markerObjectClass/requiredObjectClass are NOT set
-                         */
-
+             * nsslapd-pluginarg0: uid
+             * nsslapd-pluginarg1: dc=people,dc=example,dc=com
+             * nsslapd-pluginarg2: dc=sales, dc=example,dc=com
+             *
+             * config attribute are in argc/argv
+             *
+             * attrName is set
+             * markerObjectClass/requiredObjectClass are NOT set
+             */
             if (slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc) || slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv)) {
                 slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "uniqueness_entry_to_config - "
                                                              "Only attribute name is valid\n");

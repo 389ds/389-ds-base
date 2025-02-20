@@ -4,6 +4,7 @@ import { log_cmd } from "./lib/tools.jsx";
 import { ReplSuffix } from "./lib/replication/replSuffix.jsx";
 import PropTypes from "prop-types";
 import {
+    Card,
     Spinner,
     TreeView,
     Text,
@@ -1061,17 +1062,15 @@ export class Replication extends React.Component {
             repl_page = (
                 <div className="container-fluid">
                     <div className="ds-container">
-                        <div>
-                            <div className="ds-tree">
-                                <div className={disabled} id="repl-tree">
-                                    <TreeView
-                                        data={nodes}
-                                        activeItems={this.state.activeItems}
-                                        onSelect={this.handleTreeClick}
-                                    />
-                                </div>
+                        <Card className="ds-tree">
+                            <div className={disabled} id="repl-tree">
+                                <TreeView
+                                    data={nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.handleTreeClick}
+                                />
                             </div>
-                        </div>
+                        </Card>
                         <div className="ds-tree-content">
                             {repl_element}
                         </div>
