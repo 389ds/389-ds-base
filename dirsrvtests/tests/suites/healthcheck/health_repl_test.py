@@ -71,6 +71,21 @@ class LoadInstance(AbstractContextManager):
 
     def __enter__(self):
         self.thread.start()
+        return self
+
+
+class BreakReplication(AbstractContextManager):
+    def __init__(self, inst):
+        self.replica = Replicas(inst).list()[0]
+        self.oldval = None
+
+    def __exit__(self, *args):
+        self.replica.replace('nsds5ReplicaBindDNGroup', self.oldval)
+
+    def __enter__(self):
+        self.oldval = self.replica.get_attr_val_utf8('nsds5ReplicaBindDNGroup')
+        self.replica.replace('nsds5ReplicaBindDNGroup', 'cn=repl')
+        return self
 
 
 def assert_is_in_logcap(logcap, searched_code, isnot=False):
@@ -353,26 +368,20 @@ def test_healthcheck_replication_out_of_sync_broken(topology_m3):
 
     RET_CODE = 'DSREPLLE0001'
 
-    M1 = topology_m3.ms['supplier1']
-    M2 = topology_m3.ms['supplier2']
-    M3 = topology_m3.ms['supplier3']
+    S1 = topology_m3.ms['supplier1']
+    S2 = topology_m3.ms['supplier2']
+    S3 = topology_m3.ms['supplier3']
 
     log.info('Break supplier2 and supplier3')
-    replicas = Replicas(M2)
-    replica = replicas.list()[0]
-    replica.replace('nsds5ReplicaBindDNGroup', 'cn=repl')
+    with BreakReplication(S2), BreakReplication(S3):
+        time.sleep(1)
+        log.info('Perform update on supplier1')
+        test_users_m1 = UserAccounts(S1, DEFAULT_SUFFIX)
+        test_users_m1.create_test_user(1005, 2000)
 
-    replicas = Replicas(M3)
-    replica = replicas.list()[0]
-    replica.replace('nsds5ReplicaBindDNGroup', 'cn=repl')
-
-    log.info('Perform update on supplier1')
-    test_users_m1 = UserAccounts(M1, DEFAULT_SUFFIX)
-    test_users_m1.create_test_user(1005, 2000)
-
-    run_healthcheck_and_flush_log(topology_m3, M1, RET_CODE, json=False)
-    run_healthcheck_and_flush_log(topology_m3, M1, RET_CODE, json=True)
-
+        time.sleep(1)
+        run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=True)
 
 
 if __name__ == '__main__':
