@@ -30,7 +30,7 @@ from lib389.properties import REPLICA_OBJECTCLASS_VALUE, REPLICA_OBJECTCLASS_VAL
 
 from lib389.utils import (normalizeDN, escapeDNValue, ensure_bytes, ensure_str,
                           ensure_list_str, ds_is_older, copy_with_permissions,
-                          ds_supports_new_changelog)
+                          ds_supports_new_changelog, get_timeout_scale)
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
@@ -2074,6 +2074,13 @@ class ReplicationManager(object):
 
         agmt_name = self._inst_to_agreement_name(to_instance)
 
+        # Default timeout
+        timeout = 5
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         # add a temp agreement from A -> B
         from_agreements = from_replica.get_agreements()
         temp_agmt = from_agreements.create(properties={
@@ -2082,7 +2089,7 @@ class ReplicationManager(object):
             'nsDS5ReplicaBindDN': brm.dn,
             'nsDS5ReplicaBindMethod': 'simple' ,
             'nsDS5ReplicaTransportInfo': 'LDAP',
-            'nsds5replicaTimeout': '5',
+            'nsds5replicaTimeout': str(timeout),
             'description': "temp_%s" % agmt_name,
             'nsDS5ReplicaHost': to_instance.host,
             'nsDS5ReplicaPort': str(to_instance.port),
@@ -2362,13 +2369,20 @@ class ReplicationManager(object):
         assert dn is not None
         assert creds is not None
 
+        # Default timeout
+        timeout = 5
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         agmt = from_agmts.create(properties={
             'cn': agmt_name,
             'nsDS5ReplicaRoot': self._suffix,
             'nsDS5ReplicaBindDN': dn,
             'nsDS5ReplicaBindMethod': 'simple' ,
             'nsDS5ReplicaTransportInfo': 'LDAP',
-            'nsds5replicaTimeout': '5',
+            'nsds5replicaTimeout': str(timeout),
             'description': agmt_name,
             'nsDS5ReplicaHost': to_instance.host,
             'nsDS5ReplicaPort': str(to_instance.port),
@@ -2465,6 +2479,11 @@ class ReplicationManager(object):
         :type to_instance: lib389.DirSrv
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         from_replicas = Replicas(from_instance)
         from_r = from_replicas.get(self._suffix)
 
@@ -2495,6 +2514,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         from_replicas = Replicas(from_instance)
         from_r = from_replicas.get(self._suffix)
 
@@ -2534,6 +2558,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         # Touch something then wait_for_replication.
         from_groups = Groups(from_instance, basedn=self._suffix, rdn=None)
         to_groups = Groups(to_instance, basedn=self._suffix, rdn=None)
@@ -2584,6 +2613,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         # It's the same ....
         self.wait_for_replication(from_instance, to_instance, timeout)
 
@@ -2597,6 +2631,11 @@ class ReplicationManager(object):
         :type timeout: int
 
         """
+        # Scaled timeout
+        timeout = round(timeout * get_timeout_scale())
+        # Ensure the timeout is not too small
+        timeout = max(timeout, 1)
+
         for p in permutations(instances, 2):
             a, b = p
             self.test_replication(a, b, timeout)
