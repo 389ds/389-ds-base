@@ -5,29 +5,25 @@ import {
     Grid,
     GridItem,
     Pagination,
-    PaginationVariant,
     SearchInput,
     Text,
     TextContent,
     TextVariants,
 } from '@patternfly/react-core';
 import {
-	expandable,
-	TableVariant,
-	sortable,
-	SortByDirection,
-	Table,
-	Thead,
-	Tr,
-	Th,
-	Tbody,
-	Td,
-	ExpandableRowContent,
+    SortByDirection,
+    Table,
+    Thead,
+    Tr,
+    Th,
+    Tbody,
+    Td,
+    ExpandableRowContent,
     ActionsColumn
 } from '@patternfly/react-table';
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 import PropTypes from "prop-types";
-import { get_date_string } from "../tools.jsx";
+import { get_date_string, numToCommas } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
@@ -72,9 +68,9 @@ class AbortCleanALLRUVTable extends React.Component {
     getLog(log) {
         return (
             <TextContent>
-                <Text 
+                <Text
                     component={TextVariants.pre}
-                    style={{ 
+                    style={{
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word'
                     }}
@@ -88,7 +84,7 @@ class AbortCleanALLRUVTable extends React.Component {
     createRows(tasks) {
         let rows = [];
         let columns = [...this.state.columns];
-        
+
         for (const task of tasks) {
             rows.push({
                 isOpen: false,
@@ -101,12 +97,12 @@ class AbortCleanALLRUVTable extends React.Component {
                 originalData: task
             });
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Tasks")] }];
             columns = [{ title: _("Abort CleanAllRUV Tasks") }];
         }
-        
+
         return { rows, columns };
     }
 
@@ -189,7 +185,7 @@ class AbortCleanALLRUVTable extends React.Component {
                         <Tr>
                             {!hasNoTasks && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -207,7 +203,7 @@ class AbortCleanALLRUVTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoTasks && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -222,7 +218,7 @@ class AbortCleanALLRUVTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -291,9 +287,9 @@ class CleanALLRUVTable extends React.Component {
     getLog(log) {
         return (
             <TextContent>
-                <Text 
+                <Text
                     component={TextVariants.pre}
-                    style={{ 
+                    style={{
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word'
                     }}
@@ -307,7 +303,7 @@ class CleanALLRUVTable extends React.Component {
     createRows(tasks) {
         let rows = [];
         let columns = [...this.state.columns];
-        
+
         for (const task of tasks) {
             rows.push({
                 isOpen: false,
@@ -320,12 +316,12 @@ class CleanALLRUVTable extends React.Component {
                 originalData: task
             });
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Tasks")] }];
             columns = [{ title: _("CleanAllRUV Tasks") }];
         }
-        
+
         return { rows, columns };
     }
 
@@ -408,7 +404,7 @@ class CleanALLRUVTable extends React.Component {
                         <Tr>
                             {!hasNoTasks && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -426,7 +422,7 @@ class CleanALLRUVTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoTasks && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -441,7 +437,7 @@ class CleanALLRUVTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -512,7 +508,7 @@ class WinsyncAgmtTable extends React.Component {
                     <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                     <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
                     <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                    <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                     <hr />
                     <GridItem span={3}>{_("Last Init Started:")}</GridItem>
                     <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
@@ -550,7 +546,7 @@ class WinsyncAgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        
+
         for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
@@ -564,12 +560,12 @@ class WinsyncAgmtTable extends React.Component {
             });
             count += 1;
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Agreements")] }];
             columns = [{ title: _("Winsync Agreements") }];
         }
-        
+
         this.setState({
             rows,
             columns
@@ -599,7 +595,7 @@ class WinsyncAgmtTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_agmts.reverse();
         }
-        
+
         for (let agmt of sorted_agmts) {
             agmt = agmt.agmt;
             rows.push({
@@ -613,7 +609,7 @@ class WinsyncAgmtTable extends React.Component {
                 originalData: agmt
             });
         }
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -640,7 +636,7 @@ class WinsyncAgmtTable extends React.Component {
                         <Tr>
                             {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -658,7 +654,7 @@ class WinsyncAgmtTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoAgreements && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -673,7 +669,7 @@ class WinsyncAgmtTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -742,9 +738,9 @@ class AgmtTable extends React.Component {
                     <GridItem span={3}>{_("Session In Progress:")}</GridItem>
                     <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
                     <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                    <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                     <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
-                    <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
+                    <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
                     <GridItem span={3}>{_("Reap Active:")}</GridItem>
                     <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                     <hr />
@@ -784,7 +780,7 @@ class AgmtTable extends React.Component {
         let rows = [];
         let columns = [...this.state.columns];
         let count = 0;
-        
+
         for (const agmt of this.props.agmts) {
             rows.push({
                 isOpen: false,
@@ -798,12 +794,12 @@ class AgmtTable extends React.Component {
             });
             count += 1;
         }
-        
+
         if (rows.length === 0) {
             rows = [{ cells: [_("No Agreements")] }];
             columns = [{ title: _("Replication Agreements") }];
         }
-        
+
         this.setState({
             rows,
             columns
@@ -833,7 +829,7 @@ class AgmtTable extends React.Component {
         if (direction !== SortByDirection.asc) {
             sorted_agmts.reverse();
         }
-        
+
         for (let agmt of sorted_agmts) {
             agmt = agmt.agmt;
             rows.push({
@@ -847,7 +843,7 @@ class AgmtTable extends React.Component {
                 originalData: agmt
             });
         }
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -874,7 +870,7 @@ class AgmtTable extends React.Component {
                         <Tr>
                             {!hasNoAgreements && <Th screenReaderText="Row expansion" />}
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -893,7 +889,7 @@ class AgmtTable extends React.Component {
                             <React.Fragment key={rowIndex}>
                                 <Tr>
                                     {!hasNoAgreements && (
-                                        <Td 
+                                        <Td
                                             expand={{
                                                 rowIndex,
                                                 isExpanded: row.isOpen,
@@ -908,7 +904,7 @@ class AgmtTable extends React.Component {
                                 {row.isOpen && row.originalData && (
                                     <Tr isExpanded={true}>
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -983,7 +979,7 @@ class ConnectionTable extends React.Component {
 
     getExpandedRow(ip, conn_date, parts) {
         return (
-            <Grid className="ds-indent">
+            <Grid className="ds-indent ds-margin-top ds-margin-bottom">
                 <GridItem span={3}>{_("IP Address:")}</GridItem>
                 <GridItem span={4}><b>{ip}</b></GridItem>
                 <GridItem span={3}>{_("File Descriptor:")}</GridItem>
@@ -991,22 +987,21 @@ class ConnectionTable extends React.Component {
                 <GridItem span={3}>{_("Connection Opened:")}</GridItem>
                 <GridItem span={4}><b>{conn_date}</b></GridItem>
                 <GridItem span={3}>{_("Operations Started:")}</GridItem>
-                <GridItem span={2}><b>{parts[2]}</b></GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[2])}</b></GridItem>
                 <GridItem span={3}>{_("Connection ID:")}</GridItem>
                 <GridItem span={4}><b>{parts[9]}</b></GridItem>
                 <GridItem span={3}>{_("Operations Finished:")}</GridItem>
-                <GridItem span={2}><b>{parts[3]}</b></GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[3])}</b></GridItem>
                 <GridItem span={3}>{_("Bind DN:")}</GridItem>
                 <GridItem span={4}><b>{parts[5]}</b></GridItem>
                 <GridItem span={3}>{_("Read/write Blocked:")}</GridItem>
-                <GridItem span={2}><b>{parts[4]}</b></GridItem>
-                <hr />
-                <GridItem span={6}>{_("Connection Currently At Max Threads:")}</GridItem>
-                <GridItem span={6}><b>{parts[6] === "1" ? _("Yes") : _("No")}</b></GridItem>
-                <GridItem span={6}>{_("Number Of Times Connection Hit Max Threads:")}</GridItem>
-                <GridItem span={6}><b>{parts[7]}</b></GridItem>
-                <GridItem span={6}>{_("Number Of Operations Blocked By Max Threads:")}</GridItem>
-                <GridItem span={6}><b>{parts[8]}</b></GridItem>
+                <GridItem span={2}><b>{numToCommas(parts[4])}</b></GridItem>
+                <GridItem className="ds-margin-top-lg" span={5}>{_("Connection Currently At Max Threads:")}</GridItem>
+                <GridItem className="ds-margin-top-lg" span={7}><b>{parts[6] === "1" ? _("Yes") : _("No")}</b></GridItem>
+                <GridItem span={5}>{_("Number Of Times Connection Hit Max Threads:")}</GridItem>
+                <GridItem span={7}><b>{numToCommas(parts[7])}</b></GridItem>
+                <GridItem span={5}>{_("Number Of Operations Blocked By Max Threads:")}</GridItem>
+                <GridItem span={7}><b>{numToCommas(parts[8])}</b></GridItem>
             </Grid>
         );
     }
@@ -1185,7 +1180,7 @@ class ConnectionTable extends React.Component {
             <div className="ds-margin-top-xlg">
                 <TextContent>
                     <Text component={TextVariants.h4}>
-                        {_("Client Connections:")}<b className="ds-left-margin">{this.props.conns.length}</b>
+                        {_("Client Connections:")}<b className="ds-left-margin">{numToCommas(this.props.conns.length)}</b>
                     </Text>
                 </TextContent>
                 <SearchInput
@@ -1203,7 +1198,7 @@ class ConnectionTable extends React.Component {
                         <Tr>
                             <Th screenReaderText="Row expansion" />
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -1222,12 +1217,12 @@ class ConnectionTable extends React.Component {
                             if (row.parent !== undefined) {
                                 // This is an expanded row
                                 return (
-                                    <Tr 
+                                    <Tr
                                         key={rowIndex}
                                         isExpanded={tableRows[row.parent].isOpen}
                                     >
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -1242,7 +1237,7 @@ class ConnectionTable extends React.Component {
                             // This is a regular row
                             return (
                                 <Tr key={rowIndex}>
-                                    <Td 
+                                    <Td
                                         expand={{
                                             rowIndex,
                                             isExpanded: row.isOpen,
@@ -1321,7 +1316,7 @@ class GlueTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedGlues = [...this.state.rows];
-        
+
         sortedGlues.sort((a, b) => {
             const aValue = a[index];
             const bValue = b[index];
@@ -1358,7 +1353,7 @@ class GlueTable extends React.Component {
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
         const hasRows = this.props.glues.length > 0;
-        
+
         // Calculate pagination
         const startIdx = (perPage * page) - perPage;
         let tableRows = [...rows].splice(startIdx, perPage);
@@ -1401,7 +1396,7 @@ class GlueTable extends React.Component {
                                 ))}
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -1496,7 +1491,7 @@ class ConflictTable extends React.Component {
 
     handleSort(_event, index, direction) {
         const sortedConflicts = [...this.state.rows];
-        
+
         sortedConflicts.sort((a, b) => {
             const aValue = a[index];
             const bValue = b[index];
@@ -1522,7 +1517,7 @@ class ConflictTable extends React.Component {
 
     render() {
         const { columns, rows, perPage, page, sortBy } = this.state;
-        
+
         // Calculate pagination
         const startIdx = (perPage * page) - perPage;
         const tableRows = [...rows].splice(startIdx, perPage);
@@ -1673,7 +1668,7 @@ class ReportAliasesTable extends React.Component {
         let columns = this.state.columns;
         let rows = JSON.parse(JSON.stringify(this.props.rows)); // Deep copy
         const hasRows = rows.length > 0;
-        
+
         if (!hasRows) {
             rows = [[_("No Aliases")]];
             columns = [{ title: _("Instance Aliases") }];
@@ -1710,7 +1705,7 @@ class ReportAliasesTable extends React.Component {
                     <Tbody>
                         {rows.map((row, rowIndex) => (
                             <Tr key={rowIndex}>
-                                {Array.isArray(row) ? 
+                                {Array.isArray(row) ?
                                     row.map((cell, cellIndex) => (
                                         <Td key={cellIndex}>{cell}</Td>
                                     ))
@@ -1719,7 +1714,7 @@ class ReportAliasesTable extends React.Component {
                                 }
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -1773,7 +1768,7 @@ class ReportCredentialsTable extends React.Component {
                 const rowCopy = JSON.parse(JSON.stringify(row)); // Deep copy
                 const pwInteractive = rowCopy.pwInputInterractive;
                 let pwField = <i>{_("Interactive Input is set")}</i>;
-                
+
                 if (!pwInteractive) {
                     if (rowCopy.credsBindpw === "") {
                         pwField = <i>{_("Both Password or Interactive Input flag are not set")}</i>;
@@ -1824,7 +1819,7 @@ class ReportCredentialsTable extends React.Component {
                     <Tbody>
                         {tableRows.map((row, rowIndex) => (
                             <Tr key={rowIndex}>
-                                {Array.isArray(row) ? 
+                                {Array.isArray(row) ?
                                     row.map((cell, cellIndex) => (
                                         <Td key={cellIndex}>{cell}</Td>
                                     ))
@@ -1833,7 +1828,7 @@ class ReportCredentialsTable extends React.Component {
                                 }
                                 {hasRows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActions(row)}
                                         />
                                     </Td>
@@ -1856,8 +1851,8 @@ class ReportSingleTable extends React.Component {
             sortBy: {},
             rows: [],
             columns: [
-                { 
-                    title: _("Supplier"), 
+                {
+                    title: _("Supplier"),
                     sortable: true
                 },
                 { title: _("Agreement"), sortable: true },
@@ -1904,9 +1899,9 @@ class ReportSingleTable extends React.Component {
                 <GridItem span={3}>{_("Consumer:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
                 <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Reap Active:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                 <hr />
@@ -2066,7 +2061,7 @@ class ReportSingleTable extends React.Component {
                         <Tr>
                             <Th screenReaderText="Row expansion" />
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -2084,12 +2079,12 @@ class ReportSingleTable extends React.Component {
                             if (row.parent !== undefined) {
                                 // Expanded row
                                 return (
-                                    <Tr 
+                                    <Tr
                                         key={rowIndex}
                                         isExpanded={rows[row.parent].isOpen}
                                     >
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -2103,7 +2098,7 @@ class ReportSingleTable extends React.Component {
                             // Regular row
                             return (
                                 <Tr key={rowIndex}>
-                                    <Td 
+                                    <Td
                                         expand={{
                                             rowIndex,
                                             isExpanded: row.isOpen,
@@ -2177,9 +2172,9 @@ class ReportConsumersTable extends React.Component {
                 <GridItem span={3}>{_("Consumer:")}</GridItem>
                 <GridItem span={9}><b>{ agmt.replica[0] }</b></GridItem>
                 <GridItem span={3}>{_("Changes Sent:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-sent'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-sent'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Changes Skipped:")}</GridItem>
-                <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
+                <GridItem span={9}><b>{ numToCommas(agmt['number-changes-skipped'][0]) }</b></GridItem>
                 <GridItem span={3}>{_("Reap Active:")}</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
                 <hr />
@@ -2336,7 +2331,7 @@ class ReportConsumersTable extends React.Component {
                         <Tr>
                             <Th screenReaderText="Row expansion" />
                             {columns.map((column, columnIndex) => (
-                                <Th 
+                                <Th
                                     key={columnIndex}
                                     sort={column.sortable ? {
                                         sortBy,
@@ -2353,12 +2348,12 @@ class ReportConsumersTable extends React.Component {
                         {rows.map((row, rowIndex) => {
                             if (row.parent !== undefined) {
                                 return (
-                                    <Tr 
+                                    <Tr
                                         key={rowIndex}
                                         isExpanded={rows[row.parent].isOpen}
                                     >
                                         <Td />
-                                        <Td 
+                                        <Td
                                             colSpan={columns.length + 1}
                                             noPadding
                                         >
@@ -2371,7 +2366,7 @@ class ReportConsumersTable extends React.Component {
                             }
                             return (
                                 <Tr key={rowIndex}>
-                                    <Td 
+                                    <Td
                                         expand={{
                                             rowIndex,
                                             isExpanded: row.isOpen,
@@ -2460,7 +2455,7 @@ class ReplDSRCTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <Table 
+                <Table
                     aria-label="Sortable DSRC Table"
                     variant="compact"
                 >
@@ -2552,7 +2547,7 @@ class ReplDSRCAliasTable extends React.Component {
 
         return (
             <div className="ds-margin-top-xlg">
-                <Table 
+                <Table
                     aria-label="Sortable DSRC Table"
                     variant="compact"
                 >

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import copy
+import psutil
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import (ds_is_older)
@@ -86,8 +87,55 @@ class Monitor(DSLdapObject):
         starttime = self.get_attr_vals_utf8('starttime')
         return (dtablesize, readwaiters, entriessent, bytessent, currenttime, starttime)
 
-    def get_status(self, use_json=False):
-        return self.get_attrs_vals_utf8([
+    def get_resource_stats(self):
+        """
+        Get CPU and memory stats
+        """
+        stats = {}
+        pid = self._instance.get_pid()
+        total_mem = psutil.virtual_memory()[0]
+        p = psutil.Process(pid)
+        memory_stats = p.memory_full_info()
+
+        # Get memory & CPU stats
+        stats['total_mem'] = [str(total_mem)]
+        stats['rss'] = [str(memory_stats[0])]
+        stats['vms'] = [str(memory_stats[1])]
+        stats['swap'] = [str(memory_stats[9])]
+        stats['mem_rss_percent'] = [str(round(p.memory_percent("rss")))]
+        stats['mem_vms_percent'] = [str(round(p.memory_percent("vms")))]
+        stats['mem_swap_percent'] = [str(round(p.memory_percent("swap")))]
+        stats['total_threads'] = [str(p.num_threads())]
+        stats['cpu_usage'] = [str(round(p.cpu_percent(interval=0.1)))]
+
+        # Connections to DS
+        if self._instance.port == "0":
+            port = "ignore"
+        else:
+            port = str(self._instance.port)
+        if self._instance.sslport == "0":
+            sslport = "ignore"
+        else:
+            sslport = str(self._instance.sslport)
+
+        conn_count = 0
+        conns = psutil.net_connections()
+        for conn in conns:
+            if len(conn[4]) > 0:
+                conn_port = str(conn[4][1])
+                if conn_port in (port, sslport):
+                    conn_count += 1
+
+        stats['connection_count'] = [str(conn_count)]
+
+        return stats
+
+    def get_status(self, just_resources=False, use_json=False, ):
+        stats = self.get_resource_stats()
+        if just_resources:
+            return stats
+
+        status = self.get_attrs_vals_utf8([
             'version',
             'threads',
             'connection',
@@ -105,6 +153,9 @@ class Monitor(DSLdapObject):
             'starttime',
             'nbackends',
         ])
+        status.update(stats)
+
+        return status
 
 
 class MonitorLDBM(DSLdapObject):
