@@ -196,6 +196,9 @@ class AddRole extends React.Component {
                 // true ==> Do not check the attribute selection when navigating back.
                 this.updateValuesTableRows(true);
             }
+            this.setState({
+                stepIdReached: id
+            });
         };
 
         this.handleSearchClick = () => {
@@ -1067,6 +1070,11 @@ class AddRole extends React.Component {
         const title = (
             <>
                 {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {stepIdReached >= 2 &&
+                    <>
+                        <br />Role type:&nbsp;&nbsp;&nbsp;&nbsp;<strong>{this.state.roleType}</strong>
+                    </>
+                }
             </>
         );
 

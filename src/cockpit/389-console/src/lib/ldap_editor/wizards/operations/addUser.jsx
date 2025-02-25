@@ -1,32 +1,33 @@
 import cockpit from "cockpit";
 import React from 'react';
 import {
-	Alert,
-	Card,
-	CardBody,
-	CardTitle,
-	Form,
-	Grid,
-	GridItem,
-	Label,
-	Pagination,
-	SearchInput,
-	SimpleList,
-	SimpleListItem,
-	Spinner,
-	Text,
-	TextContent,
-	TextVariants
+    Alert,
+    Card,
+    CardBody,
+    CardTitle,
+    Form,
+    Grid,
+    GridItem,
+    Label,
+    Pagination,
+    SearchInput,
+    Select,
+    SelectOption,
+    SelectList,
+    MenuToggle,
+    SimpleList,
+    SimpleListItem,
+    Spinner,
+    Text,
+    TextContent,
+    TextVariants
 } from '@patternfly/react-core';
 import {
-	BadgeToggle,
-	Dropdown,
-	DropdownItem,
-	DropdownPosition,
-	Select,
-	SelectOption,
-	SelectVariant,
-	Wizard
+    BadgeToggle,
+    Dropdown,
+    DropdownItem,
+    DropdownPosition,
+    Wizard
 } from '@patternfly/react-core/deprecated';
 import {
     InfoCircleIcon,
@@ -38,7 +39,7 @@ import {
     Th,
     Tbody,
     Td,
-	headerCol
+    headerCol
 } from '@patternfly/react-table';
 import EditableTable from '../../lib/editableTable.jsx';
 import {
@@ -63,6 +64,12 @@ class AddUser extends React.Component {
                 'objectClass: nsPerson',
                 'objectClass: nsAccount',
                 'objectClass: nsOrgPerson',
+            ],
+            'Traditional Account': [
+                'objectclass: top',
+                'objectClass: person',
+                'objectClass: organizationalPerson',
+                'objectClass: inetOrgPerson',
             ],
             'Posix Account': [
                 'objectclass: top',
@@ -89,6 +96,21 @@ class AddUser extends React.Component {
                 'uid', 'userCertificate', 'userPassword', 'userSMIMECertificate',
                 'userPKCS12', 'x500UniqueIdentifier'
             ],
+            'Traditional Account': [
+                'userPassword', 'telephoneNumber', 'seeAlso', 'description',
+                'title', 'registeredAddress', 'destinationIndicator',
+                'preferredDeliveryMethod', 'telexNumber', 'teletexTerminalIdentifier',
+                'internationalISDNNumber', 'facsimileTelephoneNumber', 'street',
+                'postOfficeBox', 'postalCode', 'postalAddress',
+                'physicalDeliveryOfficeName', 'ou', 'st', 'l', 'audio',
+                'businessCategory', 'carLicense', 'departmentNumber', 'displayName',
+                'employeeNumber', 'employeeType', 'givenName', 'homePhone',
+                'homePostalAddress', 'initials', 'jpegPhoto', 'labeledURI',
+                'mail', 'manager', 'mobile', 'o', 'pager', 'photo', 'roomNumber',
+                'secretary', 'uid', 'userCertificate', 'preferredLanguage',
+                'userSMIMECertificate', 'userPKCS12', 'x500uniqueIdentifier',
+                'x121Address'
+            ],
             'Posix Account': [
                 'businessCategory', 'carLicense', 'departmentNumber',
                 'description', 'employeeNumber', 'employeeType', 'homePhone',
@@ -109,6 +131,9 @@ class AddUser extends React.Component {
             'Basic Account': [
                 'cn', 'displayName',
             ],
+            'Traditional Account': [
+                'cn', 'sn',
+            ],
             'Posix Account': [
                 'cn', 'uid', 'uidNumber', 'gidNumber', 'homeDirectory',
                 'displayName'
@@ -122,6 +147,10 @@ class AddUser extends React.Component {
             'Basic Account': [
                 'preferredDeliveryMethod', 'displayName', 'employeeNumber',
                 'preferredLanguage', 'userPassword',
+            ],
+            'Traditional Account': [
+                'displayName', 'employeeNumber', 'preferredLanguage',
+                'userPassword', 'preferredDeliveryMethod',
             ],
             'Posix Account': [
                 'preferredDeliveryMethod', 'displayName', 'employeeNumber',
@@ -229,11 +258,15 @@ class AddUser extends React.Component {
                 // true ==> Do not check the attribute selection when navigating back.
                 this.updateValuesTableRows(true);
             }
+            this.setState({
+                stepIdReached: id
+            });
         };
 
-        this.handleToggleType = (_event, isOpenType) => {
+        this.handleToggleType = () => {
+            const open = !this.state.isOpenType;
             this.setState({
-                isOpenType
+                isOpenType: open
             });
         };
         this.handleSelectType = (event, selection) => {
@@ -600,30 +633,36 @@ class AddUser extends React.Component {
                         </Text>
                     </TextContent>
                 </div>
-                <div className="ds-indent">
+                <div className="ds-indent ds-margin-top">
                     <Select
                         id="user-type-select"
                         aria-label="Select user type"
                         toggle={(toggleRef) => (
-                            <SelectToggle
+                            <MenuToggle
                                 ref={toggleRef}
-                                onToggle={(event, isOpen) => this.handleToggleType(event, isOpen)}
+                                onClick={this.handleToggleType}
                                 isExpanded={this.state.isOpenType}
                             >
                                 {this.state.accountType}
-                            </SelectToggle>
+                            </MenuToggle>
                         )}
                         onSelect={this.handleSelectType}
                         selected={this.state.accountType}
                         isOpen={this.state.isOpenType}
                     >
-                        <SelectOption key="user" value="Basic Account" />
-                        <SelectOption key="posix" value="Posix Account" />
-                        <SelectOption key="service" value="Service Account" />
+                        <SelectList>
+                            <SelectOption value="Basic Account">Basic Account</SelectOption>
+                            <SelectOption value="Traditional Account" >Traditional Account</SelectOption>
+                            <SelectOption value="Posix Account" >Posix Account</SelectOption>
+                            <SelectOption value="Service Account" >Service Account</SelectOption>
+                        </SelectList>
                     </Select>
                     <TextContent className="ds-margin-top-xlg">
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
                             <b>{_("Basic Account")}</b>{_(" - This type of user entry uses a common set of objectclasses (nsPerson, nsAccount, and nsOrgPerson).")}
+                        </Text>
+                        <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
+                            <b>Traditional Account</b> - This type of user entry uses a traditional/legacy set of objectclasses (person, organizationalPerson, and inetOrgPerson).
                         </Text>
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
                             <b>{_("Posix Account")}</b>{_(" - This type of user entry uses a similar set of objectclasses as the ")}<i>{_("Basic Account")}</i> {_("(nsPerson, nsAccount, nsOrgPerson, and posixAccount), but it includes POSIX attributes like:")}
@@ -871,6 +910,11 @@ class AddUser extends React.Component {
         const title = (
             <>
                 {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {stepIdReached >= 2 &&
+                    <>
+                        <br />Entry type:&nbsp;&nbsp;&nbsp;<strong>{this.state.accountType}</strong>
+                    </>
+                }
             </>
         );
 
