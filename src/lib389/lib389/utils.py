@@ -2013,3 +2013,21 @@ def check_plugin_strings(plugin_name, tested_strings):
                 return { astring:(mm.find(astring.encode()) >=0) for astring in tested_strings }
     return { astring:None for astring in tested_strings }
 
+
+def get_timeout_scale():
+    """
+    Get the timeout scale factor
+    :return float:
+    """
+    scale_factor = 1.0
+    if Paths().asan_enabled:
+        scale_factor = 2.0
+
+    env_value = os.getenv('DS_TIMEOUT_SCALE', default=str(scale_factor))
+
+    try:
+        return float(env_value)
+    except ValueError:
+        log.error(f"DS_TIMEOUT_SCALE should be a valid float. Using default value: {scale_factor}")
+        return scale_factor
+
