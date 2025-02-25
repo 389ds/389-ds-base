@@ -1356,7 +1356,7 @@ class DirSrv(SimpleLDAPObject, object):
         # First check it if already exists a backup file
         backup_dir, backup_pattern = self._infoBackupFS()
         if not os.path.exists(backup_dir):
-                os.makedirs(backup_dir)
+            os.makedirs(backup_dir)
         # make the backup directory accessible for anybody so that any user can
         # run the tests even if it existed a backup created by somebody else
         os.chmod(backup_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
@@ -3564,3 +3564,13 @@ class DirSrv(SimpleLDAPObject, object):
         if self._containerised or container_result.returncode == 0:
             return True
         return False
+
+    def get_pid(self):
+        """
+        Get the pid of the running server
+        """
+        pid = pid_from_file(self.pid_file())
+        if pid == 0 or pid is None:
+            return 0
+        else:
+            return pid
