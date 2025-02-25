@@ -297,14 +297,18 @@ export function valid_filter(filter) {
 
 export function numToCommas(num) {
     //  Convert a number to have human friendly commas
+    if (num === undefined || num === "") {
+        return num;
+    }
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 export function displayBytes(bytes) {
     // Convert bytes into a more human readable value/unit
-    if (bytes === 0 || isNaN(bytes)) {
+    if (bytes === 0 || bytes === "0" || isNaN(bytes)) {
         return '0 Bytes';
     }
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));

@@ -49,6 +49,7 @@ export class Monitor extends React.Component {
             snmpData: {},
             ldbmData: {},
             serverData: {},
+            serverTab: 0,
             disks: [],
             loadingMsg: "",
             disableTree: false,
@@ -65,6 +66,7 @@ export class Monitor extends React.Component {
             serverLoading: false,
             ldbmLoading: false,
             chainingLoading: false,
+            diskReloadSpinning: false,
             // replication
             replLoading: false,
             replInitLoaded: false,
@@ -484,7 +486,7 @@ export class Monitor extends React.Component {
 
     loadMonitorServer() {
         const cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "dsconf", "-j", this.props.serverId,
             "monitor", "server"
         ];
         log_cmd("loadMonitorServer", "Load server monitor", cmd);
@@ -498,13 +500,12 @@ export class Monitor extends React.Component {
                 }, this.loadMonitorSNMP());
     }
 
-    reloadServer() {
+    reloadServer(tab) {
         this.setState({
             serverLoading: true
         });
         const cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "monitor", "server"
+            "dsconf", "-j", this.props.serverId, "monitor", "server"
         ];
         log_cmd("reloadServer", "Load server monitor", cmd);
         cockpit
@@ -513,7 +514,8 @@ export class Monitor extends React.Component {
                     const config = JSON.parse(content);
                     this.setState({
                         serverLoading: false,
-                        serverData: config.attrs
+                        serverData: config.attrs,
+                        serverTab: tab
                     }, this.reloadDisks());
                 });
     }
@@ -555,6 +557,9 @@ export class Monitor extends React.Component {
     }
 
     reloadDisks () {
+        this.setState({
+            diskReloadSpinning: true
+        });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "disk"
@@ -570,6 +575,7 @@ export class Monitor extends React.Component {
                     }
                     this.setState({
                         disks: rows,
+                        diskReloadSpinning: false
                     });
                 });
     }
@@ -977,9 +983,11 @@ export class Monitor extends React.Component {
                             serverId={this.props.serverId}
                             disks={this.state.disks}
                             handleReloadDisks={this.reloadDisks}
+                            diskReloadSpinning={this.state.diskReloadSpinning}
                             snmpData={this.state.snmpData}
                             snmpReload={this.reloadSNMP}
                             enableTree={this.enableTree}
+                            serverTab={this.state.serverTab}
                         />
                     );
                 }

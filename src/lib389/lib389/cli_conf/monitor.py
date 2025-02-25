@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,16 +10,20 @@
 import datetime
 import json
 import os
-from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace)
+from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP,
+                            MonitorDiskSpace)
 from lib389.chaining import (ChainingLinks)
 from lib389.backend import Backends
 from lib389.utils import convert_bytes
-from lib389.cli_base import _format_status, CustomHelpFormatter
+from lib389.cli_base import (_format_status, _format_status_with_option,
+                             CustomHelpFormatter)
 
 
 def monitor(inst, basedn, log, args):
-    monitor = Monitor(inst)
-    _format_status(log, monitor, args.json)
+    """Server monitor"""
+    server_monitor = Monitor(inst)
+    _format_status_with_option(log, server_monitor, args.json,
+                               args.just_resources)
 
 
 def backend_monitor(inst, basedn, log, args):
@@ -302,6 +306,9 @@ def create_parser(subparsers):
 
     server_parser = subcommands.add_parser('server', help="Displays the server statistics, connections, and operations", formatter_class=CustomHelpFormatter)
     server_parser.set_defaults(func=monitor)
+    server_parser.add_argument('-r', '--just-resources', action='store_true',
+                               default=False,
+                               help="Just display the server resources being consumed")
 
     dbmon_parser = subcommands.add_parser('dbmon', help="Monitor all database statistics in a single report", formatter_class=CustomHelpFormatter)
     dbmon_parser.set_defaults(func=db_monitor)

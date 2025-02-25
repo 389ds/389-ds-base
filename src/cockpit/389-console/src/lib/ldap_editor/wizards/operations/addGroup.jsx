@@ -135,6 +135,12 @@ class AddGroup extends React.Component {
             }
         };
 
+        this.handleBack = ({ id }) => {
+            this.setState({
+                stepIdReached: id
+            });
+        };
+
         this.handleSearchClick = () => {
             this.setState({
                 isSearchRunning: true,
@@ -639,7 +645,12 @@ class AddGroup extends React.Component {
 
         const title = (
             <>
-                {_("Parent DN: ")}&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {_("Parent DN: ")}&nbsp;&nbsp;&nbsp;<strong>{this.props.wizardEntryDn}</strong>
+                {stepIdReached >= 2 &&
+                    <>
+                        <br />Group type:&nbsp;&nbsp;<strong>{this.state.groupType}</strong>
+                    </>
+                }
             </>
         );
 
@@ -648,6 +659,7 @@ class AddGroup extends React.Component {
                 isOpen={this.props.isWizardOpen}
                 onClose={this.props.handleToggleWizard}
                 onNext={this.handleNext}
+                onBack={this.handleBack}
                 title={_("Add A Group")}
                 description={title}
                 steps={addGroupSteps}

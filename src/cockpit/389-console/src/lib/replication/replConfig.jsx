@@ -3,7 +3,7 @@ import React from "react";
 import { log_cmd, valid_dn, callCmdStreamPassword } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { ManagerTable } from "./replTables.jsx";
-import { AddManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
+import { AddEditManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
 import {
     Button,
     Checkbox,
@@ -25,9 +25,10 @@ export class ReplConfig extends React.Component {
         this.state = {
             saving: false,
             showConfirmManagerDelete: false,
-            showAddManagerModal: false,
+            showAddEditManagerModal: false,
             showPromoteDemoteModal: false,
-            addManagerSpinning: false,
+            addEditManagerSpinning: false,
+            editManager: false,
             roleChangeSpinning: false,
             manager: "cn=replication manager,cn=config",
             manager_passwd: "",
@@ -110,7 +111,8 @@ export class ReplConfig extends React.Component {
         this.closeConfirmManagerDelete = this.closeConfirmManagerDelete.bind(this);
         this.deleteManager = this.deleteManager.bind(this);
         this.handleShowAddManager = this.handleShowAddManager.bind(this);
-        this.closeAddManagerModal = this.closeAddManagerModal.bind(this);
+        this.handleShowEditManager = this.handleShowEditManager.bind(this);
+        this.closeAddEditManagerModal = this.closeAddEditManagerModal.bind(this);
         this.addManager = this.addManager.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.onModalChange = this.onModalChange.bind(this);
@@ -185,21 +187,36 @@ export class ReplConfig extends React.Component {
         });
     }
 
-    closeAddManagerModal () {
+    closeAddEditManagerModal () {
         this.setState({
-            showAddManagerModal: false
+            showAddEditManagerModal: false
         });
     }
 
     handleShowAddManager () {
         this.setState({
-            showAddManagerModal: true,
+            showAddEditManagerModal: true,
             manager: "cn=replication manager,cn=config",
             manager_passwd: "",
             manager_passwd_confirm: "",
+            editManager: false,
             errObj: {
                 manager_passwd: true,
                 manager_passwd_confirm: true,
+            }
+        });
+    }
+
+    handleShowEditManager (manager) {
+        this.setState({
+            showAddEditManagerModal: true,
+            manager: manager,
+            manager_passwd: "",
+            manager_passwd_confirm: "",
+            editManager: true,
+            errObj: {
+                manager_passwd: false,
+                manager_passwd_confirm: false,
             }
         });
     }
@@ -228,7 +245,7 @@ export class ReplConfig extends React.Component {
         }
 
         this.setState({
-            addManagerSpinning: true
+            addEditManagerSpinning: true
         });
 
         const cmd = [
@@ -243,18 +260,22 @@ export class ReplConfig extends React.Component {
             passwd: this.state.manager_passwd,
             addNotification: this.props.addNotification,
             msg: _("Replication Manager"),
-            success_msg: _("Successfully added Replication Manager"),
-            error_msg: _("Failure adding Replication Manager"),
+            success_msg: this.state.editManager ?
+                "Successfully edited Replication Manager" :
+                _("Successfully added Replication Manager"),
+            error_msg:this.state.editManager ?
+                "Failure editing Replication Manager" :
+                _("Failure adding Replication Manager"),
             state_callback: () => {
                 this.setState({
-                    addManagerSpinning: false,
-                    showAddManagerModal: false
+                    addEditManagerSpinning: false,
+                    showAddEditManagerModal: false
                 });
             },
             reload_func: this.props.reloadConfig,
             reload_arg: this.props.suffix,
             funcName: "addManager",
-            funcDesc: _("Adding Replication Manager")
+            funcDesc: this.state.editManager ? "Editing Replication Manager" : _("Adding Replication Manager")
         };
         callCmdStreamPassword(config);
     }
@@ -358,6 +379,13 @@ export class ReplConfig extends React.Component {
             } else {
                 errObj[attr] = false;
                 errObj.manager_passwd = false;
+            }
+        }
+        if (attr === "manager") {
+            if (!valid_dn(value)) {
+                valueErr = true;
+            } else {
+                errObj[attr] = false;
             }
         }
 
@@ -586,10 +614,11 @@ export class ReplConfig extends React.Component {
                             <GridItem className="ds-label" span={12}>
                                 {_("Replication Managers")}
                             </GridItem>
-                            <GridItem className="ds-margin-top" span={9}>
+                            <GridItem className="ds-margin-top" span={7}>
                                 <ManagerTable
                                     rows={manager_rows}
                                     confirmDelete={this.confirmManagerDelete}
+                                    showEditManager={this.handleShowEditManager}
                                 />
                             </GridItem>
                         </Grid>
@@ -861,16 +890,17 @@ export class ReplConfig extends React.Component {
                         mSpinningMsg={_("Removing Manager ...")}
                         mBtnName={_("Remove Manager")}
                     />
-                    <AddManagerModal
-                        showModal={this.state.showAddManagerModal}
-                        closeHandler={this.closeAddManagerModal}
+                    <AddEditManagerModal
+                        showModal={this.state.showAddEditManagerModal}
+                        closeHandler={this.closeAddEditManagerModal}
                         handleChange={this.onManagerChange}
                         saveHandler={this.addManager}
-                        spinning={this.state.addManagerSpinning}
+                        spinning={this.state.addEditManagerSpinning}
                         manager={this.state.manager}
                         manager_passwd={this.state.manager_passwd}
                         manager_passwd_confirm={this.state.manager_passwd_confirm}
                         error={this.state.errObj}
+                        edit={this.state.editManager}
                     />
                     <ChangeReplRoleModal
                         showModal={this.state.showPromoteDemoteModal}
