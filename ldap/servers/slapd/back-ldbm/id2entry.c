@@ -71,33 +71,32 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
         slapi_entry_attr_set_charptr(entry_to_use, SLAPI_ATTR_DS_ENTRYDN,
                 entrydn);
 
-        if (entryrdn_get_switch()) {
-            struct backdn *oldbdn = NULL;
-            Slapi_DN *sdn =
-                slapi_sdn_dup(slapi_entry_get_sdn_const(entry_to_use));
-            struct backdn *bdn = backdn_init(sdn, e->ep_id, 0);
-            options |= SLAPI_DUMP_RDN_ENTRY;
+        struct backdn *oldbdn = NULL;
+        Slapi_DN *sdn =
+            slapi_sdn_dup(slapi_entry_get_sdn_const(entry_to_use));
+        struct backdn *bdn = backdn_init(sdn, e->ep_id, 0);
+        options |= SLAPI_DUMP_RDN_ENTRY;
 
-            /* If the ID already exists in the DN cache && the DNs do not match,
-             * replace it. */
-            if (CACHE_ADD(&inst->inst_dncache, bdn, &oldbdn) == 1) {
-                if (slapi_sdn_compare(sdn, oldbdn->dn_sdn)) {
-                    if (cache_replace(&inst->inst_dncache, oldbdn, bdn) != 0) {
-                        /* The entry was not in the cache for some reason (this
-                         * should not happen since CACHE_ADD said it existed above). */
-                        slapi_log_err(SLAPI_LOG_WARNING, "id2entry_add_ext", "Entry disappeared "
-                                                                             "from cache (%s)\n",
-                                      slapi_sdn_get_dn(oldbdn->dn_sdn));
-                    }
+        /* If the ID already exists in the DN cache && the DNs do not match,
+         * replace it. */
+        if (CACHE_ADD(&inst->inst_dncache, bdn, &oldbdn) == 1) {
+            if (slapi_sdn_compare(sdn, oldbdn->dn_sdn)) {
+                if (cache_replace(&inst->inst_dncache, oldbdn, bdn) != 0) {
+                    /* The entry was not in the cache for some reason (this
+                     * should not happen since CACHE_ADD said it existed above). */
+                    slapi_log_err(SLAPI_LOG_WARNING, "id2entry_add_ext",
+                                  "Entry disappeared from cache (%s)\n",
+                                  slapi_sdn_get_dn(oldbdn->dn_sdn));
                 }
-                CACHE_RETURN(&inst->inst_dncache, &oldbdn); /* to free oldbdn */
             }
-
-            CACHE_RETURN(&inst->inst_dncache, &bdn);
-            slapi_log_err(SLAPI_LOG_TRACE,
-                          "id2entry_add_ext", "(dncache) ( %lu, \"%s\" )\n",
-                          (u_long)e->ep_id, slapi_entry_get_dn_const(entry_to_use));
+            CACHE_RETURN(&inst->inst_dncache, &oldbdn); /* to free oldbdn */
         }
+
+        CACHE_RETURN(&inst->inst_dncache, &bdn);
+        slapi_log_err(SLAPI_LOG_TRACE,
+                      "id2entry_add_ext", "(dncache) ( %lu, \"%s\" )\n",
+                      (u_long)e->ep_id, slapi_entry_get_dn_const(entry_to_use));
+
         data.dptr = slapi_entry2str_with_options(entry_to_use, &len, options);
         data.dsize = len + 1;
     }
@@ -126,59 +125,59 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
         int cache_rc = 0;
         /* Putting the entry into the entry cache.
          * We don't use the encrypted entry here. */
-        if (entryrdn_get_switch()) {
-            struct backentry *parententry = NULL;
-            ID parentid = slapi_entry_attr_get_ulong(e->ep_entry, "parentid");
-            const char *myrdn = slapi_entry_get_rdn_const(e->ep_entry);
-            const char *parentdn = NULL;
-            char *myparentdn = NULL;
-            Slapi_Attr *eattr = NULL;
-            /* If the parent is in the cache, check the parent's DN and
-             * adjust to it if they don't match. (bz628300) */
-            if (parentid && myrdn) {
-                parententry = cache_find_id(&inst->inst_cache, parentid);
-                if (parententry) {
-                    parentdn = slapi_entry_get_dn_const(parententry->ep_entry);
-                    if (parentdn) {
-                        int is_tombstone = slapi_entry_flag_is_set(e->ep_entry,
-                                                                   SLAPI_ENTRY_FLAG_TOMBSTONE);
-                        myparentdn = slapi_dn_parent_ext(
-                            slapi_entry_get_dn_const(e->ep_entry),
-                            is_tombstone);
-                        if (myparentdn && PL_strcasecmp(parentdn, myparentdn)) {
-                            Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
-                            char *newdn = NULL;
-                            CACHE_LOCK(&inst->inst_cache);
-                            slapi_sdn_done(sdn);
-                            newdn = slapi_ch_smprintf("%s,%s", myrdn, parentdn);
-                            slapi_sdn_init_dn_passin(sdn, newdn);
-                            slapi_sdn_get_ndn(sdn); /* to set ndn */
-                            CACHE_UNLOCK(&inst->inst_cache);
-                        }
-                        slapi_ch_free_string(&myparentdn);
+
+        struct backentry *parententry = NULL;
+        ID parentid = slapi_entry_attr_get_ulong(e->ep_entry, "parentid");
+        const char *myrdn = slapi_entry_get_rdn_const(e->ep_entry);
+        const char *parentdn = NULL;
+        char *myparentdn = NULL;
+        Slapi_Attr *eattr = NULL;
+        /* If the parent is in the cache, check the parent's DN and
+            * adjust to it if they don't match. (bz628300) */
+        if (parentid && myrdn) {
+            parententry = cache_find_id(&inst->inst_cache, parentid);
+            if (parententry) {
+                parentdn = slapi_entry_get_dn_const(parententry->ep_entry);
+                if (parentdn) {
+                    int is_tombstone = slapi_entry_flag_is_set(e->ep_entry,
+                                                               SLAPI_ENTRY_FLAG_TOMBSTONE);
+                    myparentdn = slapi_dn_parent_ext(
+                        slapi_entry_get_dn_const(e->ep_entry),
+                        is_tombstone);
+                    if (myparentdn && PL_strcasecmp(parentdn, myparentdn)) {
+                        Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
+                        char *newdn = NULL;
+                        CACHE_LOCK(&inst->inst_cache);
+                        slapi_sdn_done(sdn);
+                        newdn = slapi_ch_smprintf("%s,%s", myrdn, parentdn);
+                        slapi_sdn_init_dn_passin(sdn, newdn);
+                        slapi_sdn_get_ndn(sdn); /* to set ndn */
+                        CACHE_UNLOCK(&inst->inst_cache);
                     }
-                    CACHE_RETURN(&inst->inst_cache, &parententry);
+                    slapi_ch_free_string(&myparentdn);
                 }
+                CACHE_RETURN(&inst->inst_cache, &parententry);
             }
-            /*
-             * Adding entrydn attribute value to the entry,
-             * which should be done before adding the entry to the entry cache.
-             * Note: since we removed entrydn from the entry before writing
-             * it to the database, it is guaranteed not in the entry.
-             */
-            /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
-            entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
-            entrydn = slapi_dn_ignore_case(entrydn);
-            slapi_entry_attr_set_charptr(e->ep_entry,
-                                         LDBM_ENTRYDN_STR, entrydn);
-            if (0 == slapi_entry_attr_find(e->ep_entry,
-                                           LDBM_ENTRYDN_STR, &eattr)) {
-                /* now entrydn should exist in the entry */
-                /* Set it to operational attribute */
-                eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
-            }
-            slapi_ch_free_string(&entrydn);
         }
+        /*
+         * Adding entrydn attribute value to the entry,
+         * which should be done before adding the entry to the entry cache.
+         * Note: since we removed entrydn from the entry before writing
+         * it to the database, it is guaranteed not in the entry.
+         */
+        /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
+        entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
+        entrydn = slapi_dn_ignore_case(entrydn);
+        slapi_entry_attr_set_charptr(e->ep_entry,
+                                     LDBM_ENTRYDN_STR, entrydn);
+        if (0 == slapi_entry_attr_find(e->ep_entry,
+                                       LDBM_ENTRYDN_STR, &eattr)) {
+            /* now entrydn should exist in the entry */
+            /* Set it to operational attribute */
+            eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
+        }
+        slapi_ch_free_string(&entrydn);
+
         /*
          * For ldbm_back_add and ldbm_back_modify, this entry had been already
          * reserved as a tentative entry.  So, it should be safe.
@@ -239,16 +238,14 @@ id2entry_delete(backend *be, struct backentry *e, back_txn *txn)
         db_txn = txn->back_txn_txn;
     }
 
-    if (entryrdn_get_switch()) {
-        ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-        struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
-        if (bdn) {
-            slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
-                          "dncache_find_id returned: %s\n",
-                          slapi_sdn_get_dn(bdn->dn_sdn));
-            CACHE_REMOVE(&inst->inst_dncache, bdn);
-            CACHE_RETURN(&inst->inst_dncache, &bdn);
-        }
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
+    if (bdn) {
+        slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
+                      "dncache_find_id returned: %s\n",
+                      slapi_sdn_get_dn(bdn->dn_sdn));
+        CACHE_REMOVE(&inst->inst_dncache, bdn);
+        CACHE_RETURN(&inst->inst_dncache, &bdn);
     }
 
     rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key, 0);
@@ -334,70 +331,66 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     plugin_call_entryfetch_plugins((char **)&data.dptr, &esize);
     data.dsize = esize;
 
-    if (entryrdn_get_switch()) {
-        char *rdn = NULL;
-        int rc = 0;
+    char *rdn = NULL;
+    int rc = 0;
 
-        /* rdn is allocated in get_value_from_string */
-        rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
-        if (rc) {
-            /* data.dptr may not include rdn: ..., try "dn: ..." */
-            ee = slapi_str2entry(data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+    /* rdn is allocated in get_value_from_string */
+    rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
+    if (rc) {
+        /* data.dptr may not include rdn: ..., try "dn: ..." */
+        ee = slapi_str2entry(data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
+    } else {
+        char *normdn = NULL;
+        Slapi_RDN *srdn = NULL;
+        struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
+        if (bdn) {
+            normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
+            slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
+                          "dncache_find_id returned: %s\n", normdn);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
         } else {
-            char *normdn = NULL;
-            Slapi_RDN *srdn = NULL;
-            struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
-            if (bdn) {
-                normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
-                slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
-                              "dncache_find_id returned: %s\n", normdn);
-                CACHE_RETURN(&inst->inst_dncache, &bdn);
+            Slapi_DN *sdn = NULL;
+            if (config_get_return_orig_dn() &&
+                !get_value_from_string((const char *)data.dptr, SLAPI_ATTR_DS_ENTRYDN, &normdn))
+            {
+                srdn = slapi_rdn_new_all_dn(normdn);
             } else {
-                Slapi_DN *sdn = NULL;
-                if (config_get_return_orig_dn() &&
-                    !get_value_from_string((const char *)data.dptr, SLAPI_ATTR_DS_ENTRYDN, &normdn))
-                {
-                    srdn = slapi_rdn_new_all_dn(normdn);
-                } else {
-                    rc = entryrdn_lookup_dn(be, rdn, id, &normdn, &srdn, txn);
-                    if (rc) {
-                        slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,
-                                      "id2entry: entryrdn look up failed "
-                                      "(rdn=%s, ID=%d)\n",
-                                      rdn, id);
-                        /* Try rdn as dn. Could be RUV. */
-                        normdn = slapi_ch_strdup(rdn);
-                    } else if (NULL == normdn) {
-                        slapi_log_err(SLAPI_LOG_ERR, ID2ENTRY,
-                                      "id2entry( %lu ) entryrdn_lookup_dn returned NULL. "
-                                      "Index file may be deleted or corrupted.\n",
-                                      (u_long)id);
-                        goto bail;
-                    }
-                }
-
-                sdn = slapi_sdn_new_normdn_byval((const char *)normdn);
-                bdn = backdn_init(sdn, id, 0);
-                if (CACHE_ADD(&inst->inst_dncache, bdn, NULL)) {
-                    backdn_free(&bdn);
-                    slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
-                                  "%s is already in the dn cache\n", normdn);
-                } else {
-                    CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
-                                  "entryrdn_lookup_dn returned: %s, "
-                                  "and set to dn cache (id %d)\n",
-                                  normdn, id);
+                rc = entryrdn_lookup_dn(be, rdn, id, &normdn, &srdn, txn);
+                if (rc) {
+                    slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,
+                                  "id2entry: entryrdn look up failed "
+                                  "(rdn=%s, ID=%d)\n",
+                                  rdn, id);
+                    /* Try rdn as dn. Could be RUV. */
+                    normdn = slapi_ch_strdup(rdn);
+                } else if (NULL == normdn) {
+                    slapi_log_err(SLAPI_LOG_ERR, ID2ENTRY,
+                                  "id2entry( %lu ) entryrdn_lookup_dn returned NULL. "
+                                  "Index file may be deleted or corrupted.\n",
+                                  (u_long)id);
+                    goto bail;
                 }
             }
-            ee = slapi_str2entry_ext((const char *)normdn, (const Slapi_RDN *)srdn, data.dptr,
-                                     SLAPI_STR2ENTRY_NO_ENTRYDN);
-            slapi_ch_free_string(&rdn);
-            slapi_ch_free_string(&normdn);
-            slapi_rdn_free(&srdn);
+
+            sdn = slapi_sdn_new_normdn_byval((const char *)normdn);
+            bdn = backdn_init(sdn, id, 0);
+            if (CACHE_ADD(&inst->inst_dncache, bdn, NULL)) {
+                backdn_free(&bdn);
+                slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
+                              "%s is already in the dn cache\n", normdn);
+            } else {
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                slapi_log_err(SLAPI_LOG_CACHE, ID2ENTRY,
+                              "entryrdn_lookup_dn returned: %s, "
+                              "and set to dn cache (id %d)\n",
+                              normdn, id);
+            }
         }
-    } else {
-        ee = slapi_str2entry(data.dptr, 0);
+        ee = slapi_str2entry_ext((const char *)normdn, (const Slapi_RDN *)srdn, data.dptr,
+                                 SLAPI_STR2ENTRY_NO_ENTRYDN);
+        slapi_ch_free_string(&rdn);
+        slapi_ch_free_string(&normdn);
+        slapi_rdn_free(&srdn);
     }
 
     if (ee != NULL) {
@@ -426,26 +419,25 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
          * If return entry exists AND entryrdn switch is on,
          * add the entrydn value.
          */
-        if (entryrdn_get_switch()) {
-            Slapi_Attr *eattr = NULL;
-            /* Check if entrydn is in the entry or not */
-            if (slapi_entry_attr_find(e->ep_entry, LDBM_ENTRYDN_STR, &eattr)) {
-                /* entrydn does not exist in the entry */
-                char *entrydn = NULL;
-                /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
-                entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
-                entrydn = slapi_dn_ignore_case(entrydn);
-                slapi_entry_attr_set_charptr(e->ep_entry,
-                                             LDBM_ENTRYDN_STR, entrydn);
-                if (0 == slapi_entry_attr_find(e->ep_entry,
-                                               LDBM_ENTRYDN_STR, &eattr)) {
-                    /* now entrydn should exist in the entry */
-                    /* Set it to operational attribute */
-                    eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
-                }
-                slapi_ch_free_string(&entrydn);
+        Slapi_Attr *eattr = NULL;
+        /* Check if entrydn is in the entry or not */
+        if (slapi_entry_attr_find(e->ep_entry, LDBM_ENTRYDN_STR, &eattr)) {
+            /* entrydn does not exist in the entry */
+            char *entrydn = NULL;
+            /* slapi_ch_strdup and slapi_dn_ignore_case never returns NULL */
+            entrydn = slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry));
+            entrydn = slapi_dn_ignore_case(entrydn);
+            slapi_entry_attr_set_charptr(e->ep_entry,
+                                         LDBM_ENTRYDN_STR, entrydn);
+            if (0 == slapi_entry_attr_find(e->ep_entry,
+                                           LDBM_ENTRYDN_STR, &eattr)) {
+                /* now entrydn should exist in the entry */
+                /* Set it to operational attribute */
+                eattr->a_flags = SLAPI_ATTR_FLAG_OPATTR;
             }
+            slapi_ch_free_string(&entrydn);
         }
+
         retval = CACHE_ADD(&inst->inst_cache, e, &imposter);
         if (1 == retval) {
             /* This means that someone else put the entry in the cache

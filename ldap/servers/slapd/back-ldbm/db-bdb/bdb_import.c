@@ -2443,22 +2443,20 @@ bdb_public_bdb_import_main(void *arg)
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main",
                       "Generating numSubordinates complete.");
 
-    if (!entryrdn_get_noancestorid()) {
-        /* And the ancestorid index */
-        /* Creating ancestorid from the scratch; delete the index file first. */
-        struct attrinfo *ai = NULL;
+    /* And the ancestorid index */
+    /* Creating ancestorid from the scratch; delete the index file first. */
+    struct attrinfo *ai = NULL;
 
-        ainfo_get(be, "ancestorid", &ai);
-        dblayer_erase_index_file(be, ai, PR_TRUE, 0);
-        if ((ret = bdb_ancestorid_create_index(be, job)) != 0) {
-            import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main", "Failed to create ancestorid index");
-            goto error;
-        }
+    ainfo_get(be, "ancestorid", &ai);
+    dblayer_erase_index_file(be, ai, PR_TRUE, 0);
+    if ((ret = bdb_ancestorid_create_index(be, job)) != 0) {
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_public_bdb_import_main", "Failed to create ancestorid index");
+        goto error;
     }
 
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Flushing caches...");
 
-/* New way to exit the routine: check the return code.
+    /* New way to exit the routine: check the return code.
      * If it's non-zero, delete the database files.
      * Otherwise don't, but always close the database layer properly.
      * Then return. This ensures that we can't make a half-good/half-bad
@@ -2469,15 +2467,13 @@ error:
        except dry run mode */
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_public_bdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) {
-        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
+
     if (aborted) {
         /* If aborted, it's safer to rebuild the caches. */
         cache_destroy_please(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
+
         /* initialize the entry cache */
         if (!cache_init(&(inst->inst_cache), inst->inst_cache.c_maxsize,
                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
@@ -2700,17 +2696,7 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
         } else {
             job->flags |= FLAG_REINDEXING; /* call bdb_index_producer */
             if (up_flags & SLAPI_UPGRADEDB_DN2RDN) {
-                if (entryrdn_get_switch()) {
-                    job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
-                } else {
-                    slapi_log_err(SLAPI_LOG_ERR, "bdb_back_ldif2db",
-                                  "DN to RDN option is specified, "
-                                  "but %s is not enabled\n",
-                                  CONFIG_ENTRYRDN_SWITCH);
-                    bdb_import_free_job(job);
-                    FREE(job);
-                    return -1;
-                }
+                job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
             }
         }
     }

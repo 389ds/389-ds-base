@@ -1411,7 +1411,7 @@ dbmdb_import_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
     } else {
         flags = ctx->wgc.str2entry_flags;
     }
-    if (!(ctx->wgc.str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR)) { /* subtree-rename: on */
+    if (!(ctx->wgc.str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR)) {
         char *dn = NULL;
         char *normdn = NULL;
         int rc = 0; /* estr should start with "dn: " or "dn:: " */
@@ -2095,103 +2095,93 @@ dbmdb_upgrade_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
         do_dn_norm_sp = 0;
         rdn_dbmdb_has_spaces = 0;
         dn_in_cache = 0;
-        if (entryrdn_get_switch()) {
 
-            /* original rdn is allocated in get_value_from_string */
-            rc = get_value_from_string(entry_str, "rdn", &rdn);
-            if (rc) {
-                /* data.dptr may not include rdn: ..., try "dn: ..." */
-                e = slapi_str2entry(entry_str, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-            } else {
-                bdn = dncache_find_id(&inst->inst_dncache, temp_id);
-                if (bdn) {
-                    /* don't free normdn */
-                    normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
-                    CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    dn_in_cache = 1;
-                } else {
-                    /* free normdn */
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id,
-                                            (char **)&normdn, NULL, NULL);
-                    if (rc) {
-                        /* We cannot use the entryrdn index;
-                         * Compose dn from the entries in id2entry */
-                        Slapi_RDN psrdn = {0};
-                        char *pid_str = NULL;
-                        char *pdn = NULL;
-
-                        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
-                                      "entryrdn is not available; composing dn (rdn: %s, ID: %d)\n",
-                                      rdn, temp_id);
-                        rc = get_value_from_string(entry_str, LDBM_PARENTID_STR, &pid_str);
-                        if (rc) {
-                            rc = 0; /* assume this is a suffix */
-                        } else {
-                            pid = (ID)strtol(pid_str, (char **)NULL, 10);
-                            slapi_ch_free_string(&pid_str);
-                            /* if pid is larger than the current pid temp_id,
-                             * the parent entry hasn't */
-                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, &db,dbc.txn,
-                                                                pid, &id, &psrdn, &curr_entry);
-                            if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR,
-                                              "upgradedn: Failed to compose dn for "
-                                              "(rdn: %s, ID: %d)\n",
-                                              rdn, temp_id);
-                                slapi_ch_free_string(&rdn);
-                                slapi_rdn_done(&psrdn);
-                                continue;
-                            }
-                            /* Generate DN string from Slapi_RDN */
-                            rc = slapi_rdn_get_dn(&psrdn, &pdn);
-                            slapi_rdn_done(&psrdn);
-                            if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                                              "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
-                                              rdn, temp_id);
-                                slapi_ch_free_string(&rdn);
-                                continue;
-                            }
-                        }
-                        /* free normdn */
-                        normdn = slapi_ch_smprintf("%s%s%s",
-                                                   rdn, pdn ? "," : "", pdn ? pdn : "");
-                        slapi_ch_free_string(&pdn);
-                    }
-                    if (is_dryrun) {
-                        /* if not dryrun, we may change the DN, In such case ,
-                         * we need to put the new value to cache.*/
-                        /* dn is dup'ed in slapi_sdn_new_dn_byval.
-                         * It's set to bdn and put in the dn cache. */
-                        /* normdn is allocated in this scope.
-                         * Thus, we can just passin. */
-                        sdn = slapi_sdn_new_normdn_passin(normdn);
-                        bdn = backdn_init(sdn, temp_id, 0);
-                        CACHE_ADD(&inst->inst_dncache, bdn, NULL);
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        /* don't free this normdn  */
-                        normdn = (char *)slapi_sdn_get_dn(sdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_upgradedn_producer",
-                                      "entryrdn_lookup_dn returned: %s, "
-                                      "and set to dn cache\n",
-                                      normdn);
-                        dn_in_cache = 1;
-                    }
-                }
-                e = slapi_str2entry_ext(normdn, NULL, entry_str,
-                                        SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-                slapi_ch_free_string(&rdn);
-            }
-        } else {
+        /* original rdn is allocated in get_value_from_string */
+        rc = get_value_from_string(entry_str, "rdn", &rdn);
+        if (rc) {
+            /* data.dptr may not include rdn: ..., try "dn: ..." */
             e = slapi_str2entry(entry_str, SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
-            rdn = slapi_ch_strdup(slapi_entry_get_rdn_const(e));
-            if (NULL == rdn) {
-                Slapi_RDN srdn;
-                slapi_rdn_init_dn(&srdn, slapi_entry_get_dn_const(e));
-                rdn = (char *)slapi_rdn_get_rdn(&srdn); /* rdn is allocated in
-                                                         * slapi_rdn_init_dn */
+        } else {
+            bdn = dncache_find_id(&inst->inst_dncache, temp_id);
+            if (bdn) {
+                /* don't free normdn */
+                normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                dn_in_cache = 1;
+            } else {
+                /* free normdn */
+                rc = entryrdn_lookup_dn(be, rdn, temp_id,
+                                        (char **)&normdn, NULL, NULL);
+                if (rc) {
+                    /* We cannot use the entryrdn index;
+                     * Compose dn from the entries in id2entry */
+                    Slapi_RDN psrdn = {0};
+                    char *pid_str = NULL;
+                    char *pdn = NULL;
+
+                    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
+                                  "entryrdn is not available; composing dn (rdn: %s, ID: %d)\n",
+                                  rdn, temp_id);
+                    rc = get_value_from_string(entry_str, LDBM_PARENTID_STR, &pid_str);
+                    if (rc) {
+                        rc = 0; /* assume this is a suffix */
+                    } else {
+                        pid = (ID)strtol(pid_str, (char **)NULL, 10);
+                        slapi_ch_free_string(&pid_str);
+                        /* if pid is larger than the current pid temp_id,
+                         * the parent entry hasn't */
+                        rc = dbmdb_import_get_and_add_parent_rdns(info, inst, &db,dbc.txn,
+                                                                  pid, &id, &psrdn, &curr_entry);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_ERR,
+                                          "upgradedn: Failed to compose dn for "
+                                          "(rdn: %s, ID: %d)\n",
+                                          rdn, temp_id);
+                            slapi_ch_free_string(&rdn);
+                            slapi_rdn_done(&psrdn);
+                            continue;
+                        }
+                        /* Generate DN string from Slapi_RDN */
+                        rc = slapi_rdn_get_dn(&psrdn, &pdn);
+                        slapi_rdn_done(&psrdn);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
+                                          "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
+                                          rdn, temp_id);
+                            slapi_ch_free_string(&rdn);
+                            continue;
+                        }
+                    }
+                    /* free normdn */
+                    normdn = slapi_ch_smprintf("%s%s%s",
+                                               rdn, pdn ? "," : "", pdn ? pdn : "");
+                    slapi_ch_free_string(&pdn);
+                }
+                if (is_dryrun) {
+                    /* if not dryrun, we may change the DN, In such case ,
+                     * we need to put the new value to cache.*/
+                    /* dn is dup'ed in slapi_sdn_new_dn_byval.
+                     * It's set to bdn and put in the dn cache. */
+                    /* normdn is allocated in this scope.
+                     * Thus, we can just passin. */
+                    sdn = slapi_sdn_new_normdn_passin(normdn);
+                    bdn = backdn_init(sdn, temp_id, 0);
+                    CACHE_ADD(&inst->inst_dncache, bdn, NULL);
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    /* don't free this normdn  */
+                    normdn = (char *)slapi_sdn_get_dn(sdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_upgradedn_producer",
+                                  "entryrdn_lookup_dn returned: %s, "
+                                  "and set to dn cache\n",
+                                  normdn);
+                    dn_in_cache = 1;
+                }
             }
+            e = slapi_str2entry_ext(normdn, NULL, entry_str,
+                                    SLAPI_STR2ENTRY_USE_OBSOLETE_DNFORMAT);
+            slapi_ch_free_string(&rdn);
         }
+
         if (NULL == e) {
             if (job->task) {
                 slapi_task_log_notice(job->task,
@@ -2469,23 +2459,6 @@ dbmdb_upgrade_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
                             slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
                                           "%s: Found upgradedn candidate: %s (id %lu)\n",
                                           inst->inst_name, valueptr, (u_long)temp_id);
-                            if (!entryrdn_get_switch() && isentrydn) {
-                                /* entrydn format */
-                                /*
-                                 * In case entrydn is type="<DN>",<REST> or
-                                 *                    type=<\D\N>,<REST>,
-                                 * add the rdn value if it's not there.
-                                 */
-                                rc = slapi_entry_add_rdn_values(e);
-                                if (rc) {
-                                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
-                                                  "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
-                                                  inst->inst_name, normdn, (u_long)temp_id);
-                                    slapi_entry_free(e);
-                                    e = NULL;
-                                    continue;
-                                }
-                            }
                             break;
                         }
                         /*
@@ -2734,8 +2707,7 @@ dbmdb_bulkimport_prepare_worker_entry(WorkerQueueData_t *wqelmnt)
     }
 
     /* Now we have this new entry, all decoded
-     * Is subtree-rename on? And is this a tombstone?
-     * If so, need a special treatment */
+     * Is this a tombstone? If so, need a special treatment */
     if (ep->ep_entry->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
         char *tombstone_rdn =
             slapi_ch_strdup(slapi_entry_get_dn_const(ep->ep_entry));

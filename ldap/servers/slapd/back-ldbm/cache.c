@@ -521,16 +521,16 @@ dbgec_test_if_entry_pointer_is_valid(void *e, void *prev, int slot, int line)
     /* Check if the entry pointer is rightly aligned and crash loudly otherwise */
     if ( ((uint64_t)e) & ((sizeof(long))-1) ) {
         /* If this message occurs, it means that we have reproduced the elusive entry cache corruption
-         * seen first while fixing replication conflict_resolution CI test 
+         * seen first while fixing replication conflict_resolution CI test
          * FYI some debug attempt have been stored in https://github.com/progier389/389-ds-base.git
          * in branches:
-         *  debug-stuff1 (older try with log of debugging trick in slapd/dbgec*) 
+         *  debug-stuff1 (older try with log of debugging trick in slapd/dbgec*)
          *  debug-stuff2: Log the dn associated with backentries in a mmap file and retrieve the
-         *  dn of the corrupted entry. 
+         *  dn of the corrupted entry.
          *   Note: if we are able to reproduce using this debug stuff and if it is always the same entry
-         *   we may catch the issue by adding a watchpoint when adding that backentry 
-         *   Note: you should disable the setuid to be able to use watchpoint 
-         */ 
+         *   we may catch the issue by adding a watchpoint when adding that backentry
+         *   Note: you should disable the setuid to be able to use watchpoint
+         */
         slapi_log_err(SLAPI_LOG_FATAL, "dbgec_test_if_entry_pointer_is_valid", "cache.c[%d]: Wrong entry address: %p Previous entry address is: %p hash table slot is %d\n", line, e, prev, slot);
         slapi_log_backtrace(SLAPI_LOG_FATAL);
         *(char*)23 = 1;   /* abort() somehow corrupt gdb stack backtrace so lets generate a SIGSEGV */
@@ -1782,10 +1782,6 @@ dncache_clear_int(struct cache *cache)
     struct backdn *dnflushtemp = NULL;
     size_t size = cache->c_maxsize;
 
-    if (!entryrdn_get_switch()) {
-        return;
-    }
-
     cache->c_maxsize = 0;
     dnflush = dncache_flush(cache);
     while (dnflush) {
@@ -1813,10 +1809,6 @@ dncache_set_max_size(struct cache *cache, uint64_t bytes)
 {
     struct backdn *dnflush = NULL;
     struct backdn *dnflushtemp = NULL;
-
-    if (!entryrdn_get_switch()) {
-        return;
-    }
 
     if (bytes < MINCACHESIZE) {
         bytes = MINCACHESIZE;
@@ -1862,10 +1854,6 @@ dncache_remove_int(struct cache *cache, struct backdn *bdn)
 {
     int ret = 1; /* assume not in cache */
 
-    if (!entryrdn_get_switch()) {
-        return 0;
-    }
-
     LOG("=> dncache_remove_int (%s)\n", slapi_sdn_get_dn(bdn->dn_sdn));
     if (bdn->ep_state & ENTRY_STATE_NOTINCACHE) {
         return ret;
@@ -1898,10 +1886,6 @@ dncache_return(struct cache *cache, struct backdn **bdn)
 {
     struct backdn *dnflush = NULL;
     struct backdn *dnflushtemp = NULL;
-
-    if (!entryrdn_get_switch()) {
-        return;
-    }
 
     LOG("=> dncache_return (%s) reference count: %d, dn in cache:%ld\n",
         slapi_sdn_get_dn((*bdn)->dn_sdn), (*bdn)->ep_refcnt, cache->c_curentries);
@@ -1944,10 +1928,6 @@ dncache_find_id(struct cache *cache, ID id)
 {
     struct backdn *bdn = NULL;
 
-    if (!entryrdn_get_switch()) {
-        return bdn;
-    }
-
     LOG("=> dncache_find_id (%lu)\n", (u_long)id);
 
     cache_lock(cache);
@@ -1981,10 +1961,6 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backd
     struct backdn *dnflushtemp = NULL;
     struct backdn *my_alt;
     int already_in = 0;
-
-    if (!entryrdn_get_switch()) {
-        return 0;
-    }
 
     LOG("=> dncache_add_int( \"%s\", %ld )\n", slapi_sdn_get_dn(bdn->dn_sdn),
         (long int)bdn->ep_id);
@@ -2086,10 +2062,6 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
 {
     int found;
 
-    if (!entryrdn_get_switch()) {
-        return 0;
-    }
-
     LOG("(%s) -> (%s)\n",
         slapi_sdn_get_dn(olddn->dn_sdn), slapi_sdn_get_dn(newdn->dn_sdn));
 
@@ -2145,10 +2117,6 @@ static struct backdn *
 dncache_flush(struct cache *cache)
 {
     struct backdn *dn = NULL;
-
-    if (!entryrdn_get_switch()) {
-        return dn;
-    }
 
     LOG("->\n");
 

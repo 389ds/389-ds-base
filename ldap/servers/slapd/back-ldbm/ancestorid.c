@@ -122,34 +122,16 @@ ldbm_ancestorid_index_update(
         }
 
         /* Get the id for that DN */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            node_id = 0;
-            err = entryrdn_index_read(be, &sdn, &node_id, txn);
-            if (err) {
-                if (DBI_RC_NOTFOUND != err) {
-                    ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13141, err);
-                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_ancestorid_index_update",
-                                  "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
-                    ret = err;
-                }
-                break;
+        node_id = 0;
+        err = entryrdn_index_read(be, &sdn, &node_id, txn);
+        if (err) {
+            if (DBI_RC_NOTFOUND != err) {
+                ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13141, err);
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_ancestorid_index_update",
+                              "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
+                ret = err;
             }
-        } else {
-            IDList *idl = NULL;
-            struct berval ndnv;
-            ndnv.bv_val = (void *)slapi_sdn_get_ndn(&sdn);
-            ndnv.bv_len = slapi_sdn_get_ndn_len(&sdn);
-            err = 0;
-            idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &ndnv, txn, &err);
-            if (idl == NULL) {
-                if (err != 0 && err != DBI_RC_NOTFOUND) {
-                    ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13140, err);
-                    ret = err;
-                }
-                break;
-            }
-            node_id = idl_firstid(idl);
-            idl_free(&idl);
+            break;
         }
 
         /* Update ancestorid for the base entry */

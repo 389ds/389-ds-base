@@ -1563,17 +1563,9 @@ bdb_instance_start(backend *be, int mode)
                     goto errout;
                 } else if (rval & DBVERSION_NEED_DN2RDN) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "bdb_instance_start", "%s is on, while the instance %s is in the DN format. "
-                                                            "Please run dn2rdn to convert the database format.\n",
-                                  CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
-                    slapi_ch_free_string(&dataversion);
-                    return_value = -1;
-                    goto errout;
-                } else if (rval & DBVERSION_NEED_RDN2DN) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "bdb_instance_start", "%s is off, while the instance %s is in the RDN "
-                                                            "format. Please change the value to on in dse.ldif.\n",
-                                  CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                                  "bdb_instance_start", "The instance %s is in the DN format. "
+                                  "Please run dn2rdn to convert the database format.\n",
+                                  inst->inst_name);
                     slapi_ch_free_string(&dataversion);
                     return_value = -1;
                     goto errout;
@@ -5737,16 +5729,9 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         dbmode = DBLAYER_RESTORE_MODE;
     } else if (action & DBVERSION_NEED_DN2RDN) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "bdb_restore", "%s is on, while the instance %s is in the DN format. "
-                                         "Please run dn2rdn to convert the database format.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
-        return_value = -1;
-        goto error_out;
-    } else if (action & DBVERSION_NEED_RDN2DN) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "bdb_restore", "%s is off, while the instance %s is in the RDN format. "
-                                         "Please change the value to on in dse.ldif.\n",
-                      CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
+                      "bdb_restore", "The instance %s is in the DN format. "
+                      "Please run dn2rdn to convert the database format.\n",
+                      (inst != NULL) ? inst->inst_name : "<Null>");
         return_value = -1;
         goto error_out;
     } else {
@@ -6191,10 +6176,6 @@ bdb_get_info(Slapi_Backend *be, int cmd, void **info)
             *(char **)info = bdb_config_db_logdirectory_get_ext((void *)li);
             rc = 0;
         }
-        break;
-    }
-    case BACK_INFO_IS_ENTRYRDN: {
-        *(int *)info = entryrdn_get_switch();
         break;
     }
     case BACK_INFO_INDEX_KEY : {

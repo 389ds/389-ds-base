@@ -937,15 +937,11 @@ error:
        except dry run mode */
     import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_public_dbmdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) {
-        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
     if (aborted) {
         /* If aborted, it's safer to rebuild the caches. */
         cache_destroy_please(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
         /* initialize the entry cache */
         if (!cache_init(&(inst->inst_cache), inst->inst_cache.c_maxsize,
                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
@@ -1405,9 +1401,7 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
 
     /* shutdown this instance of the db */
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) {
-        cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
     dblayer_instance_close(be);
 
     /* Delete old database files */
