@@ -497,8 +497,8 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             slapi_pblock_get(pb, SLAPI_TARGET_ADDRESS, &old_addr);
             e = find_entry2modify(pb, be, old_addr, &txn, &result_sent);
             if (e == NULL) {
-                ldap_result_code = -1;
-                goto error_return; /* error result sent by find_entry2modify() */
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                goto error_return; /* error result set and sent by find_entry2modify() */
             }
             if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
                 !is_resurect_operation) {
@@ -530,6 +530,11 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 oldparent_addr.uniqueid = NULL;
             }
             parententry = find_entry2modify_only(pb, be, &oldparent_addr, &txn, &result_sent);
+            if (parententry == NULL) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                goto error_return; /* error result set and sent by find_entry2modify() */
+            }
+
             modify_init(&parent_modify_context, parententry);
 
             /* Fetch and lock the new parent of the entry that is moving */
@@ -540,6 +545,10 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 }
                 newparententry = find_entry2modify_only(pb, be, newsuperior_addr, &txn, &result_sent);
                 slapi_ch_free_string(&newsuperior_addr->uniqueid);
+                if (newparententry == NULL) {
+                    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                    goto error_return; /* error result set and sent by find_entry2modify() */
+                }
                 modify_init(&newparent_modify_context, newparententry);
             }
 
