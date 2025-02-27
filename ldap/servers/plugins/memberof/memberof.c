@@ -1949,8 +1949,10 @@ memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
     char *delval[2];
     char *addval[2];
     char *dn = NULL;
+    char *add_oc = NULL;
 
     dn = slapi_entry_get_dn(e);
+    add_oc = ((replace_dn_data *)callback_data)->add_oc;
 
     mods[0] = &delmod;
     mods[1] = &addmod;
@@ -1970,8 +1972,35 @@ memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
     addmod.mod_type = ((replace_dn_data *)callback_data)->type;
     addmod.mod_values = addval;
 
-    rc = memberof_add_memberof_attr(mods, dn,
-                                    ((replace_dn_data *)callback_data)->add_oc);
+    rc = memberof_add_memberof_attr(mods, dn, add_oc);
+
+    if (rc == LDAP_NO_SUCH_ATTRIBUTE || rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+        if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+            /*
+                * For some reason the new modrdn value is present, so retry
+                * the delete by itself and ignore the add op by tweaking
+                * the mod array.
+                */
+            mods[1] = NULL;
+            rc = memberof_add_memberof_attr(mods, dn, add_oc);
+        } else {
+            /*
+                * The memberof value to be replaced does not exist so just
+                * add the new value.  Shuffle the mod array to apply only
+                * the add operation.
+                */
+            mods[0] = mods[1];
+            mods[1] = NULL;
+            rc = memberof_add_memberof_attr(mods, dn, add_oc);
+            if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+                /*
+                    * The entry already has the expected memberOf value, no
+                    * problem just return success.
+                    */
+                rc = LDAP_SUCCESS;
+            }
+        }
+    }
 
     return rc;
 }

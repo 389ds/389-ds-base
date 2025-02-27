@@ -726,6 +726,22 @@ _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
     slapi_modify_internal_pb(mod_pb);
     slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
+    /* Do we need to override the return value */
+    if (rc) {
+        for (size_t i = 0; mods && mods[i] != NULL; i++) {
+            int mod_type = mods[i]->mod_op & LDAP_MOD_OP;
+            if (mod_type == LDAP_MOD_DELETE) {
+                if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
+                    rc = LDAP_SUCCESS;
+                }
+            } else if (mod_type == LDAP_MOD_ADD) {
+                if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+                    rc = LDAP_SUCCESS;
+                }
+            }
+        }
+    }
+
     return rc;
 }
 
@@ -924,7 +940,6 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
 {
     Slapi_Mods *smods = NULL;
     char *newDN = NULL;
-    struct berval bv = {0};
     char **dnParts = NULL;
     char *sval = NULL;
     char *newvalue = NULL;
@@ -1027,30 +1042,21 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
             }
             /* else: normalize_rc < 0) Ignore the DN normalization error for now. */
 
-            bv.bv_val = newDN;
-            bv.bv_len = strlen(newDN);
             p = PL_strstr(sval, slapi_sdn_get_ndn(origDN));
             if (p == sval) {
                 /* (case 1) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
-                /* Add only if the attr value does not exist */
-                if (VALUE_PRESENT != attr_value_find_wsi(attr, &bv, &v)) {
-                    slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newDN);
-                }
+                slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newDN);
             } else if (p) {
                 /* (case 2) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
                 *p = '\0';
                 newvalue = slapi_ch_smprintf("%s%s", sval, newDN);
-                /* Add only if the attr value does not exist */
-                if (VALUE_PRESENT != attr_value_find_wsi(attr, &bv, &v)) {
-                    slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newvalue);
-                }
+                slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newvalue);
                 slapi_ch_free_string(&newvalue);
             }
             /* else: value does not include the modified DN.  Ignore it. */
             slapi_ch_free_string(&sval);
-            bv = (struct berval){0};
         }
         rc = _do_modify(mod_pb, entrySDN, slapi_mods_get_ldapmods_byref(smods));
         if (rc) {
