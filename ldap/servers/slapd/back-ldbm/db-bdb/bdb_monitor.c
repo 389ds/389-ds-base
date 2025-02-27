@@ -102,25 +102,23 @@ bdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     sprintf(buf, "%" PRId64, maxentries);
     MSET("maxEntryCacheCount");
 
-    if (entryrdn_get_switch()) {
-        /* fetch cache statistics */
-        cache_get_stats(&(inst->inst_dncache), &hits, &tries,
-                        &nentries, &maxentries, &size, &maxsize);
-        sprintf(buf, "%" PRIu64, hits);
-        MSET("dnCacheHits");
-        sprintf(buf, "%" PRIu64, tries);
-        MSET("dnCacheTries");
-        sprintf(buf, "%" PRIu64, (uint64_t)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
-        MSET("dnCacheHitRatio");
-        sprintf(buf, "%" PRIu64, size);
-        MSET("currentDnCacheSize");
-        sprintf(buf, "%" PRIu64, maxsize);
-        MSET("maxDnCacheSize");
-        sprintf(buf, "%" PRIu64, nentries);
-        MSET("currentDnCacheCount");
-        sprintf(buf, "%" PRId64, maxentries);
-        MSET("maxDnCacheCount");
-    }
+    /* fetch cache statistics */
+    cache_get_stats(&(inst->inst_dncache), &hits, &tries,
+                    &nentries, &maxentries, &size, &maxsize);
+    sprintf(buf, "%" PRIu64, hits);
+    MSET("dnCacheHits");
+    sprintf(buf, "%" PRIu64, tries);
+    MSET("dnCacheTries");
+    sprintf(buf, "%" PRIu64, (uint64_t)(100.0 * (double)hits / (double)(tries > 0 ? tries : 1)));
+    MSET("dnCacheHitRatio");
+    sprintf(buf, "%" PRIu64, size);
+    MSET("currentDnCacheSize");
+    sprintf(buf, "%" PRIu64, maxsize);
+    MSET("maxDnCacheSize");
+    sprintf(buf, "%" PRIu64, nentries);
+    MSET("currentDnCacheCount");
+    sprintf(buf, "%" PRId64, maxentries);
+    MSET("maxDnCacheCount");
 
 #ifdef DEBUG
     {

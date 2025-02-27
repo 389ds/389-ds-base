@@ -155,19 +155,10 @@ bdb_check_db_version(struct ldbminfo *li, int *action)
         bdb_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_4_5;
     }
-    if (value & DBVERSION_RDN_FORMAT) {
-        if (entryrdn_get_switch()) {
-            /* nothing to do */
-        } else {
-            *action |= DBVERSION_NEED_RDN2DN;
-        }
-    } else {
-        if (entryrdn_get_switch()) {
-            *action |= DBVERSION_NEED_DN2RDN;
-        } else {
-            /* nothing to do */
-        }
+    if (!(value & DBVERSION_RDN_FORMAT)) {
+        *action |= DBVERSION_NEED_DN2RDN;
     }
+
     slapi_ch_free_string(&ldbmversion);
     slapi_ch_free_string(&dataversion);
     return 0;
@@ -241,19 +232,10 @@ bdb_check_db_inst_version(ldbm_instance *inst)
     } else if (value & DBVERSION_UPGRADE_4_5) {
         rval |= DBVERSION_UPGRADE_4_5;
     }
-    if (value & DBVERSION_RDN_FORMAT) {
-        if (entryrdn_get_switch()) {
-            /* nothing to do */
-        } else {
-            rval |= DBVERSION_NEED_RDN2DN;
-        }
-    } else {
-        if (entryrdn_get_switch()) {
-            rval |= DBVERSION_NEED_DN2RDN;
-        } else {
-            /* nothing to do */
-        }
+    if (!(value & DBVERSION_RDN_FORMAT)) {
+        rval |= DBVERSION_NEED_DN2RDN;
     }
+
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
     slapi_ch_free_string(&ldbmversion);

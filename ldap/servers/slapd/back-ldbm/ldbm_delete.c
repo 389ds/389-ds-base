@@ -659,16 +659,15 @@ replace_entry:
                 tombstone = backentry_dup(e);
                 tomb_ep_id = tombstone->ep_id;
                 slapi_entry_set_dn(tombstone->ep_entry, tombstone_dn); /* Consumes DN */
-                if (entryrdn_get_switch())                             /* subtree-rename: on */
-                {
-                    Slapi_RDN *srdn = slapi_entry_get_srdn(tombstone->ep_entry);
-                    char *tombstone_rdn =
-                        compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(e->ep_entry),
-                                                    childuniqueid);
-                    /* e_srdn has "uniaqueid=..., <ORIG RDN>" */
-                    slapi_rdn_replace_rdn(srdn, tombstone_rdn);
-                    slapi_ch_free_string(&tombstone_rdn);
-                }
+
+                Slapi_RDN *srdn = slapi_entry_get_srdn(tombstone->ep_entry);
+                char *tombstone_rdn =
+                    compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(e->ep_entry),
+                                                childuniqueid);
+                /* e_srdn has "uniaqueid=..., <ORIG RDN>" */
+                slapi_rdn_replace_rdn(srdn, tombstone_rdn);
+                slapi_ch_free_string(&tombstone_rdn);
+
                 /* Set tombstone flag on ep_entry */
                 slapi_entry_set_flag(tombstone->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
 
@@ -953,56 +952,57 @@ replace_entry:
                     goto error_return;
                 }
             }
-            if (entryrdn_get_switch()) /* subtree-rename: on */
-            {
-                Slapi_Attr *attr;
-                Slapi_Value **svals;
-                /* To maintain tombstonenumsubordinates,
-                 * parentid is needed for tombstone, as well. */
-                slapi_entry_attr_find(tombstone->ep_entry, LDBM_PARENTID_STR,
-                                      &attr);
-                if (attr) {
-                    svals = attr_get_present_values(attr);
-                    retval = index_addordel_values_sv(be, LDBM_PARENTID_STR,
-                                                      svals, NULL, e->ep_id,
-                                                      BE_INDEX_ADD, &txn);
-                    if (DBI_RC_RETRY == retval) {
-                        slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                      "ldbm_back_delete", "delete (updating " LDBM_PARENTID_STR ") DBI_RC_RETRY\n");
-                        /* Retry txn */
-                        continue;
-                    }
-                    if (retval) {
-                        slapi_log_err(SLAPI_LOG_ERR,
-                                      "ldbm_back_delete", "(deleting %s) failed, err=%d %s\n",
-                                      LDBM_PARENTID_STR, retval,
-                                      (msg = dblayer_strerror(retval)) ? msg : "");
-                        if (LDBM_OS_ERR_IS_DISKFULL(retval))
-                            disk_full = 1;
-                        DEL_SET_ERROR(ldap_result_code,
-                                      LDAP_OPERATIONS_ERROR, retry_count);
-                        goto error_return;
-                    }
-                }
 
-                retval = entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
+            Slapi_Attr *attr;
+            Slapi_Value **svals;
+            /* To maintain tombstonenumsubordinates,
+             * parentid is needed for tombstone, as well. */
+            slapi_entry_attr_find(tombstone->ep_entry, LDBM_PARENTID_STR,
+                                  &attr);
+            if (attr) {
+                svals = attr_get_present_values(attr);
+                retval = index_addordel_values_sv(be, LDBM_PARENTID_STR,
+                                                  svals, NULL, e->ep_id,
+                                                  BE_INDEX_ADD, &txn);
                 if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "(adding tombstone entryrdn) DBI_RC_RETRY\n");
+                                  "ldbm_back_delete", "delete (updating " LDBM_PARENTID_STR ") DBI_RC_RETRY\n");
                     /* Retry txn */
                     continue;
                 }
                 if (retval) {
                     slapi_log_err(SLAPI_LOG_ERR,
-                                  "ldbm_back_delete", "(adding tombstone entryrdn %s) failed, err=%d %s\n",
-                                  slapi_entry_get_dn(tombstone->ep_entry),
-                                  retval, (msg = dblayer_strerror(retval)) ? msg : "");
-                    if (LDBM_OS_ERR_IS_DISKFULL(retval))
+                                  "ldbm_back_delete", "(deleting %s) failed, err=%d %s\n",
+                                  LDBM_PARENTID_STR, retval,
+                                  (msg = dblayer_strerror(retval)) ? msg : "");
+                    if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
                         disk_full = 1;
-                    DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+                    }
+                    DEL_SET_ERROR(ldap_result_code,
+                                    LDAP_OPERATIONS_ERROR, retry_count);
                     goto error_return;
                 }
             }
+
+            retval = entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_BACKLDBM,
+                                "ldbm_back_delete", "(adding tombstone entryrdn) DBI_RC_RETRY\n");
+                /* Retry txn */
+                continue;
+            }
+            if (retval) {
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "ldbm_back_delete", "(adding tombstone entryrdn %s) failed, err=%d %s\n",
+                              slapi_entry_get_dn(tombstone->ep_entry),
+                              retval, (msg = dblayer_strerror(retval)) ? msg : "");
+                if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
+                    disk_full = 1;
+                }
+                DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+                goto error_return;
+            }
+
         } /* create_tombstone_entry */
         else if (delete_tombstone_entry) {
             /*
@@ -1129,27 +1129,27 @@ replace_entry:
                     goto error_return;
                 }
             }
-            if (entryrdn_get_switch()) /* subtree-rename: on */
-            {
-                retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
-                if (DBI_RC_RETRY == retval) {
-                    slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "(deleting entryrdn) DBI_RC_RETRY\n");
-                    /* Retry txn */
-                    continue;
-                }
-                if (0 != retval) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "ldbm_back_delete", "(deleting entryrdn) failed, err=%d %s\n",
-                                  retval,
-                                  (msg = dblayer_strerror(retval)) ? msg : "");
-                    if (LDBM_OS_ERR_IS_DISKFULL(retval))
-                        disk_full = 1;
-                    DEL_SET_ERROR(ldap_result_code,
-                                  LDAP_OPERATIONS_ERROR, retry_count);
-                    goto error_return;
-                }
+
+            retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_BACKLDBM,
+                              "ldbm_back_delete", "(deleting entryrdn) DBI_RC_RETRY\n");
+                /* Retry txn */
+                continue;
             }
+            if (0 != retval) {
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "ldbm_back_delete", "(deleting entryrdn) failed, err=%d %s\n",
+                              retval,
+                              (msg = dblayer_strerror(retval)) ? msg : "");
+                if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
+                    disk_full = 1;
+                }
+                DEL_SET_ERROR(ldap_result_code,
+                              LDAP_OPERATIONS_ERROR, retry_count);
+                goto error_return;
+            }
+
         } /* delete_tombstone_entry */
 
         if (parent_found) {
@@ -1342,7 +1342,7 @@ commit_return:
             e = NULL;
         }
 
-        if (entryrdn_get_switch() && ep_id) { /* subtree-rename: on */
+        if (ep_id) {
             /* since the op was successful, delete the tombstone dn from the dn cache */
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, ep_id);
             if (bdn) { /* in the dncache, remove it. */
@@ -1370,7 +1370,7 @@ error_return:
         if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
             tomb_ep_id = tombstone->ep_id; /* Otherwise, tombstone might have been freed. */
         }
-        if (entryrdn_get_switch() && tomb_ep_id) { /* subtree-rename: on */
+        if (tomb_ep_id) {
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, tombstone->ep_id);
             if (bdn) { /* already in the dncache. Delete it. */
                 CACHE_REMOVE(&inst->inst_dncache, bdn);
@@ -1467,7 +1467,7 @@ common_return:
         slapi_pblock_set(pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry);
     }
     if (inst && tombstone) {
-        if ((0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
+        if (0 == retval) {
             /* since the op was successful, add the addingentry's dn to the dn cache */
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
                                                  tombstone->ep_id);

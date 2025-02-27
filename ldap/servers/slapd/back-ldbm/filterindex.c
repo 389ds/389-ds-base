@@ -667,7 +667,7 @@ range_candidates(
 
     /* Check if it is for bulk import. */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    if (entryrdn_get_switch() && op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+    if (op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         /* parentid is treated specially that is needed for the bulk import. (See #48755) */
         operator= SLAPI_OP_RANGE_NO_IDL_SORT | SLAPI_OP_RANGE_NO_ALLIDS;

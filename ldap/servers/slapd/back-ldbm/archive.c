@@ -77,9 +77,7 @@ ldbm_temporary_close_all_instances(Slapi_PBlock *pb)
         }
         slapi_mtn_be_disable(inst->inst_be);
         cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) {
-            cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
     }
     plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN);
     /* now we know nobody's using any of the backend instances, so we
