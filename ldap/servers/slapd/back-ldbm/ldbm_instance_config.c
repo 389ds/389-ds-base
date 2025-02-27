@@ -1159,9 +1159,8 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__
                   "Removing '%s'.\n", instance_name);
 
     cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) { /* subtree-rename: on */
-        cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
+
     /* call the backend implementation specific callbacks */
     priv = (dblayer_private *)li->li_dblayer_private;
     priv->instance_postdel_config_fn(li, inst);

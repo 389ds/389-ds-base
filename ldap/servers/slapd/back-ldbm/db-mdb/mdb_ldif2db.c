@@ -181,9 +181,7 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
         }
 
         cache_clear(&inst->inst_cache, CACHE_TYPE_ENTRY);
-        if (entryrdn_get_switch()) {
-            cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
-        }
+        cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
         dblayer_instance_close(inst->inst_be);
         dbmdb_delete_indices(inst);
     } else {
@@ -288,8 +286,7 @@ dbmdb_fetch_subtrees(backend *be, char **include, int *err)
     ID id;
     IDList *idltotal = NULL, *idltmp;
     back_txn *txn = NULL;
-    struct berval bv;
-    Slapi_DN sdn; /* Used only if entryrdn_get_switch is true */
+    Slapi_DN sdn;
 
     *err = 0;
     slapi_sdn_init(&sdn);
@@ -335,7 +332,8 @@ dbmdb_fetch_subtrees(backend *be, char **include, int *err)
          */
         parentdn = slapi_ch_strdup(include[i]);
         while (NULL != parentdn &&
-               NULL != (nextdn = slapi_dn_parent(parentdn))) {
+               NULL != (nextdn = slapi_dn_parent(parentdn)))
+        {
             slapi_ch_free_string(&parentdn);
             if (0 == slapi_UTF8CASECMP(nextdn, (char *)suffix)) {
                 matched = 1;
@@ -353,67 +351,41 @@ dbmdb_fetch_subtrees(backend *be, char **include, int *err)
          * First map the suffix to its entry ID.
          * Note that the suffix is already normalized.
          */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            slapi_sdn_set_dn_byval(&sdn, include[i]);
-            *err = entryrdn_index_read(be, &sdn, &id, NULL);
-            if (*err) {
-                if (MDB_NOTFOUND == *err) {
-                    slapi_log_err(SLAPI_LOG_INFO,
-                                  "dbmdb_fetch_subtrees", "entryrdn not indexed on '%s'; "
-                                                         "entry %s may not be added to the database yet.\n",
-                                  include[i], include[i]);
-                    *err = 0; /* not a problem */
-                } else {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_fetch_subtrees", "Reading %s failed on entryrdn; %d\n",
-                                  include[i], *err);
-                }
-                slapi_sdn_done(&sdn);
-                continue;
+        slapi_sdn_set_dn_byval(&sdn, include[i]);
+        *err = entryrdn_index_read(be, &sdn, &id, NULL);
+        if (*err) {
+            if (MDB_NOTFOUND == *err) {
+                slapi_log_err(SLAPI_LOG_INFO,
+                              "dbmdb_fetch_subtrees", "entryrdn not indexed on '%s'; "
+                              "entry %s may not be added to the database yet.\n",
+                              include[i], include[i]);
+                *err = 0; /* not a problem */
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "dbmdb_fetch_subtrees", "Reading %s failed on entryrdn; %d\n",
+                              include[i], *err);
             }
-        } else {
-            bv.bv_val = include[i];
-            bv.bv_len = strlen(include[i]);
-            idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &bv, txn, err);
-            if (idl == NULL) {
-                if (MDB_NOTFOUND == *err) {
-                    slapi_log_err(SLAPI_LOG_INFO,
-                                  "dbmdb_fetch_subtrees", "entrydn not indexed on '%s'; "
-                                                         "entry %s may not be added to the database yet.\n",
-                                  include[i], include[i]);
-                    *err = 0; /* not a problem */
-                } else {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_fetch_subtrees",
-                                  "Reading %s failed on entrydn; %d\n",
-                                  include[i], *err);
-                }
-                continue;
-            }
-            id = idl_firstid(idl);
-            idl_free(&idl);
+            slapi_sdn_done(&sdn);
+            continue;
         }
 
         /*
          * Now get all the descendants of that suffix.
          */
-        if (entryrdn_get_noancestorid()) {
-            /* subtree-rename: on && no ancestorid */
-            *err = entryrdn_get_subordinates(be, &sdn, id, &idl, txn, 0);
-        } else {
-            *err = ldbm_ancestorid_read(be, txn, id, &idl);
-        }
+        *err = ldbm_ancestorid_read(be, txn, id, &idl);
+
         slapi_sdn_done(&sdn);
         if (idl == NULL) {
             if (MDB_NOTFOUND == *err) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                              "dbmdb_fetch_subtrees", "Entry id %u has no descendants according to %s. "
-                                                     "Index file created by this reindex will be empty.\n",
-                              id, entryrdn_get_noancestorid() ? "entryrdn" : "ancestorid");
+                              "dbmdb_fetch_subtrees", "Entry id %u has no descendants according to ancestorid. "
+                              "Index file created by this reindex will be empty.\n",
+                              id);
                 *err = 0; /* not a problem */
             } else {
                 slapi_log_err(SLAPI_LOG_WARNING,
-                              "dbmdb_fetch_subtrees", "%s not indexed on %u\n",
-                              entryrdn_get_noancestorid() ? "entryrdn" : "ancestorid", id);
+                              "dbmdb_fetch_subtrees", "ancestorid not indexed on %u\n",
+                              id);
             }
             continue;
         }
@@ -967,147 +939,143 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
         data.mv_size = size;
 
         ep = backentry_alloc();
-        if (entryrdn_get_switch()) {
-            char *rdn = NULL;
+        char *rdn = NULL;
 
-            /* rdn is allocated in get_value_from_string */
-            rc = get_value_from_string((const char *)data.mv_data, "rdn", &rdn);
+        /* rdn is allocated in get_value_from_string */
+        rc = get_value_from_string((const char *)data.mv_data, "rdn", &rdn);
+        if (rc) {
+            /* data.mv_data may not include rdn: ..., try "dn: ..." */
+            ep->ep_entry = slapi_str2entry(data.mv_data,
+                                           str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
+        } else {
+            char *pid_str = NULL;
+            char *pdn = NULL;
+            ID pid = NOID;
+            char *dn = NULL;
+            struct backdn *bdn = NULL;
+            Slapi_RDN psrdn = {0};
+
+            /* get a parent pid */
+            rc = get_value_from_string((const char *)data.mv_data,
+                                       LDBM_PARENTID_STR, &pid_str);
             if (rc) {
-                /* data.mv_data may not include rdn: ..., try "dn: ..." */
-                ep->ep_entry = slapi_str2entry(data.mv_data,
-                                               str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
-            } else {
-                char *pid_str = NULL;
-                char *pdn = NULL;
-                ID pid = NOID;
-                char *dn = NULL;
-                struct backdn *bdn = NULL;
-                Slapi_RDN psrdn = {0};
-
-                /* get a parent pid */
-                rc = get_value_from_string((const char *)data.mv_data,
-                                           LDBM_PARENTID_STR, &pid_str);
-                if (rc) {
-                    /* this could be a suffix or the RUV entry.
-                     * If it is the ruv and the suffix is not written
-                     * keep the ruv and export as last entry.
-                     *
-                     * The reason for this is that if the RUV entry is in the
-                     * ldif before the suffix entry then at an attempt to import
-                     * that ldif the RUV entry would be skipped because the parent
-                     * does not exist. Later a new RUV would be generated with
-                     * a different database generation and replication is broken
+                /* this could be a suffix or the RUV entry.
+                    * If it is the ruv and the suffix is not written
+                    * keep the ruv and export as last entry.
+                    *
+                    * The reason for this is that if the RUV entry is in the
+                    * ldif before the suffix entry then at an attempt to import
+                    * that ldif the RUV entry would be skipped because the parent
+                    * does not exist. Later a new RUV would be generated with
+                    * a different database generation and replication is broken
+                    */
+                if (suffix_written) {
+                    /* this must be the RUV, just continue and write it */
+                } else if (0 == strcasecmp(rdn, RUVRDN)) {
+                    /* this is the RUV and the suffix is not yet written
+                     * make it pending and continue with next entry
                      */
-                    if (suffix_written) {
-                        /* this must be the RUV, just continue and write it */
-                    } else if (0 == strcasecmp(rdn, RUVRDN)) {
-                        /* this is the RUV and the suffix is not yet written
-                         * make it pending and continue with next entry
-                         */
-                        skip_ruv = 1;
-                    } else {
-                        /* this has to be the suffix */
-                        suffix_written = 1;
-                    }
+                    skip_ruv = 1;
                 } else {
-                    pid = (ID)strtol(pid_str, (char **)NULL, 10);
-                    slapi_ch_free_string(&pid_str);
-                    /* if pid is larger than the current pid temp_id,
-                     * the parent entry has to be exported first. */
-                    if (temp_id < pid &&
-                        !idl_id_is_in_idlist(eargs.pre_exported_idl, pid)) {
+                    /* this has to be the suffix */
+                    suffix_written = 1;
+                }
+            } else {
+                pid = (ID)strtol(pid_str, (char **)NULL, 10);
+                slapi_ch_free_string(&pid_str);
+                /* if pid is larger than the current pid temp_id,
+                 * the parent entry has to be exported first. */
+                if (temp_id < pid &&
+                    !idl_id_is_in_idlist(eargs.pre_exported_idl, pid)) {
 
-                        eargs.idindex = idindex;
-                        eargs.cnt = &cnt;
-                        eargs.lastcnt = &lastcnt;
+                    eargs.idindex = idindex;
+                    eargs.cnt = &cnt;
+                    eargs.lastcnt = &lastcnt;
 
-                        rc = _export_or_index_parents(inst, &cur, temp_id,
-                                                      rdn, temp_id, pid, run_from_cmdline,
-                                                      &eargs, DB2LDIF_ENTRYRDN, &psrdn);
-                        if (rc) {
-                            slapi_rdn_done(&psrdn);
-                            backentry_free(&ep);
-                            continue;
-                        }
+                    rc = _export_or_index_parents(inst, &cur, temp_id,
+                                                  rdn, temp_id, pid, run_from_cmdline,
+                                                  &eargs, DB2LDIF_ENTRYRDN, &psrdn);
+                    if (rc) {
+                        slapi_rdn_done(&psrdn);
+                        backentry_free(&ep);
+                        continue;
                     }
                 }
+            }
 
-                bdn = dncache_find_id(&inst->inst_dncache, temp_id);
-                if (bdn) {
-                    /* don't free dn */
-                    dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
-                    CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    slapi_rdn_done(&psrdn);
-                } else {
-                    int myrc = 0;
-                    Slapi_DN *sdn = NULL;
-                    rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
-                    if (rc) {
-                        /* We cannot use the entryrdn index;
-                         * Compose dn from the entries in id2entry */
-                        slapi_log_err(SLAPI_LOG_TRACE,
-                                      "dbmdb_db2ldif", "entryrdn is not available; "
-                                                             "composing dn (rdn: %s, ID: %d)\n",
-                                      rdn, temp_id);
-                        if (NOID != pid) { /* if not a suffix */
-                            if (NULL == slapi_rdn_get_rdn(&psrdn)) {
-                                /* This time just to get the parents' rdn
-                                 * most likely from dn cache. */
-                                rc = _get_and_add_parent_rdns(be, &cur, pid,
-                                                              &psrdn, NULL, 0,
-                                                              run_from_cmdline, NULL);
-                                if (rc) {
-                                    slapi_log_err(SLAPI_LOG_WARNING,
-                                                  "dbmdb_db2ldif", "Skip ID %d\n", pid);
-                                    slapi_ch_free_string(&rdn);
-                                    slapi_rdn_done(&psrdn);
-                                    backentry_free(&ep);
-                                    continue;
-                                }
-                            }
-                            /* Generate DN string from Slapi_RDN */
-                            rc = slapi_rdn_get_dn(&psrdn, &pdn);
+            bdn = dncache_find_id(&inst->inst_dncache, temp_id);
+            if (bdn) {
+                /* don't free dn */
+                dn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+                slapi_rdn_done(&psrdn);
+            } else {
+                int myrc = 0;
+                Slapi_DN *sdn = NULL;
+                rc = entryrdn_lookup_dn(be, rdn, temp_id, &dn, NULL, NULL);
+                if (rc) {
+                    /* We cannot use the entryrdn index;
+                     * Compose dn from the entries in id2entry */
+                    slapi_log_err(SLAPI_LOG_TRACE,
+                                  "dbmdb_db2ldif", "entryrdn is not available; "
+                                  "composing dn (rdn: %s, ID: %d)\n",
+                                  rdn, temp_id);
+                    if (NOID != pid) { /* if not a suffix */
+                        if (NULL == slapi_rdn_get_rdn(&psrdn)) {
+                            /* This time just to get the parents' rdn
+                             * most likely from dn cache. */
+                            rc = _get_and_add_parent_rdns(be, &cur, pid,
+                                                          &psrdn, NULL, 0,
+                                                          run_from_cmdline, NULL);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_WARNING,
-                                              "dbmdb_db2ldif", "Failed to compose dn for "
-                                                                     "(rdn: %s, ID: %d) from Slapi_RDN\n",
-                                              rdn, temp_id);
+                                              "dbmdb_db2ldif", "Skip ID %d\n", pid);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
                                 backentry_free(&ep);
                                 continue;
                             }
                         }
-                        dn = slapi_ch_smprintf("%s%s%s",
-                                               rdn, pdn ? "," : "", pdn ? pdn : "");
-                        slapi_ch_free_string(&pdn);
+                        /* Generate DN string from Slapi_RDN */
+                        rc = slapi_rdn_get_dn(&psrdn, &pdn);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_WARNING,
+                                          "dbmdb_db2ldif", "Failed to compose dn for "
+                                          "(rdn: %s, ID: %d) from Slapi_RDN\n",
+                                          rdn, temp_id);
+                            slapi_ch_free_string(&rdn);
+                            slapi_rdn_done(&psrdn);
+                            backentry_free(&ep);
+                            continue;
+                        }
                     }
-                    slapi_rdn_done(&psrdn);
-                    /* dn is not dup'ed in slapi_sdn_new_dn_passin.
-                     * It's set to bdn and put in the dn cache. */
-                    /* don't free dn */
-                    sdn = slapi_sdn_new_dn_passin(dn);
-                    bdn = backdn_init(sdn, temp_id, 0);
-                    myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
-                    if (myrc) {
-                        backdn_free(&bdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_db2ldif",
-                                      "%s is already in the dn cache (%d)\n",
-                                      dn, myrc);
-                    } else {
-                        CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_db2ldif",
-                                      "entryrdn_lookup_dn returned: %s, "
-                                      "and set to dn cache\n",
-                                      dn);
-                    }
+                    dn = slapi_ch_smprintf("%s%s%s",
+                                           rdn, pdn ? "," : "", pdn ? pdn : "");
+                    slapi_ch_free_string(&pdn);
                 }
-                ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.mv_data,
-                                                   str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
-                slapi_ch_free_string(&rdn);
+                slapi_rdn_done(&psrdn);
+                /* dn is not dup'ed in slapi_sdn_new_dn_passin.
+                 * It's set to bdn and put in the dn cache. */
+                /* don't free dn */
+                sdn = slapi_sdn_new_dn_passin(dn);
+                bdn = backdn_init(sdn, temp_id, 0);
+                myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
+                if (myrc) {
+                    backdn_free(&bdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_db2ldif",
+                                  "%s is already in the dn cache (%d)\n",
+                                  dn, myrc);
+                } else {
+                    CACHE_RETURN(&inst->inst_dncache, &bdn);
+                    slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_db2ldif",
+                                  "entryrdn_lookup_dn returned: %s, "
+                                  "and set to dn cache\n",
+                                  dn);
+                }
             }
-        } else {
-            ep->ep_entry = slapi_str2entry(data.mv_data, str2entry_options);
+            ep->ep_entry = slapi_str2entry_ext(dn, NULL, data.mv_data,
+                                            str2entry_options | SLAPI_STR2ENTRY_NO_ENTRYDN);
+            slapi_ch_free_string(&rdn);
         }
 
         if ((ep->ep_entry) != NULL) {
@@ -1367,10 +1335,6 @@ _get_and_add_parent_rdns(backend *be,
     ID storedid;
     ID temp_pid = NOID;
 
-    if (!entryrdn_get_switch()) { /* entryrdn specific code */
-        return rc;
-    }
-
     if (NULL == be || NULL == srdn) {
         slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
                       "Empty %s\n", NULL == be ? "be" : "srdn");
@@ -1551,10 +1515,6 @@ _export_or_index_parents(ldbm_instance *inst,
     ID ppid = 0;
     char *pprdn = NULL;
     backend *be = inst->inst_be;
-
-    if (!entryrdn_get_switch()) { /* entryrdn specific code */
-        return rc;
-    }
 
     /* in case the parent is not already exported */
     rc = entryrdn_get_parent(be, rdn, id, &prdn, &temp_pid, NULL);

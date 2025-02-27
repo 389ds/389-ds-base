@@ -626,7 +626,6 @@ objectclass: extensibleObject
 cn: config
 nsslapd-mode: 600
 nsslapd-directory: %db_dir%
-nsslapd-subtree-rename-switch: on
 
 dn: cn=monitor, cn=ldbm database, cn=plugins, cn=config
 objectclass: top

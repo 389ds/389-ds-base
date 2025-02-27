@@ -47,7 +47,6 @@ ldbm_instance_create(backend *be, char *name)
 
     /*
      * initialize the dn cache
-     * We do so, regardless of the subtree-rename value.
      * It is needed when converting the db from DN to RDN format.
      */
     if (!cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
@@ -183,15 +182,9 @@ ldbm_instance_create_default_indexes(backend *be)
      * since they are used by some searches, replication and the
      * ACL routines.
      */
-    if (entryrdn_get_switch()) { /* subtree-rename: on */
-        e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR, "subtree", 0, 0, 0);
-        ldbm_instance_config_add_index_entry(inst, e, flags);
-        slapi_entry_free(e);
-    } else {
-        e = ldbm_instance_init_config_entry(LDBM_ENTRYDN_STR, "eq", 0, 0, 0);
-        ldbm_instance_config_add_index_entry(inst, e, flags);
-        slapi_entry_free(e);
-    }
+    e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR, "subtree", 0, 0, 0);
+    ldbm_instance_config_add_index_entry(inst, e, flags);
+    slapi_entry_free(e);
 
     e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
@@ -228,15 +221,13 @@ ldbm_instance_create_default_indexes(backend *be)
     attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
     slapi_entry_free(e);
 
-    if (!entryrdn_get_noancestorid()) {
-        /*
-         * ancestorid is special, there is actually no such attr type
-         * but we still want to use the attr index file APIs.
-         */
-        e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0);
-        attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
-        slapi_entry_free(e);
-    }
+    /*
+     * ancestorid is special, there is actually no such attr type
+     * but we still want to use the attr index file APIs.
+     */
+    e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0);
+    attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
+    slapi_entry_free(e);
 
     return 0;
 }
@@ -274,9 +265,7 @@ ldbm_instance_stop_cache(backend *be)
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
 
     cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
-    if (entryrdn_get_switch()) { /* subtree-rename: on */
-        cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
-    }
+    cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
 }
 
 static void
