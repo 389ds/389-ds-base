@@ -177,6 +177,12 @@ modify_update_all(backend *be, Slapi_PBlock *pb, modify_context *mc, back_txn *t
         slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
         is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     }
+    if (NULL == mc->new_entry) {
+        /* test entry to avoid crashing in id2entry_add_ext */
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "modify_update_all",
+                      "No entry in modify_context ==> operation is aborted.\n");
+        return -1;
+    }
     /*
      * Update the ID to Entry index.
      * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
