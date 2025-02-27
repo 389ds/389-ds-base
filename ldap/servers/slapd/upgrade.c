@@ -279,6 +279,56 @@ upgrade_205_fixup_repl_dep(void)
     return UPGRADE_SUCCESS;
 }
 
+/*
+ * "nsslapd-subtree-rename-switch" has been removed from the code
+ * so cleanup the ldbm config entry
+ */
+static upgrade_status
+upgrade_remove_subtree_rename(void)
+{
+    struct slapi_pblock *pb = slapi_pblock_new();
+    Slapi_Entry **entries = NULL;
+    const char *base_dn = "cn=config,cn=ldbm database,cn=plugins,cn=config";
+    const char *filter = "(nsslapd-subtree-rename-switch=*)";
+    char *attr = "nsslapd-subtree-rename-switch";
+
+    slapi_search_internal_set_pb(
+            pb, base_dn,
+            LDAP_SCOPE_BASE,
+            filter, NULL, 0, NULL, NULL,
+            plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+
+    if (entries && entries[0]) {
+        /*
+         * The attribute is present, remove it
+         */
+        Slapi_PBlock *mod_pb = slapi_pblock_new();
+        LDAPMod mod_delete;
+        LDAPMod *mods[2];
+        mod_delete.mod_op = LDAP_MOD_DELETE;
+        mod_delete.mod_type = attr;
+        mods[0] = &mod_delete;
+        mods[1] = 0;
+
+        /* Update ldbm config entry */
+        slapi_modify_internal_set_pb(mod_pb, base_dn, mods, 0, 0,
+                                     plugin_get_default_component_id(),
+                                     SLAPI_OP_FLAG_FIXUP);
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_destroy(mod_pb);
+
+        slapi_log_err(SLAPI_LOG_NOTICE, "upgrade_remove_subtree_rename",
+                "Upgrade task: obsolete attribute '%s' removed from '%s'\n",
+                attr, base_dn);
+    }
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+
+    return UPGRADE_SUCCESS;
+}
+
 upgrade_status
 upgrade_server(void)
 {
@@ -303,6 +353,10 @@ upgrade_server(void)
     }
 
     if (upgrade_enable_security_logging() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_remove_subtree_rename() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 

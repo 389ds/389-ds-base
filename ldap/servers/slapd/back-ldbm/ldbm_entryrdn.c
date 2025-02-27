@@ -19,9 +19,6 @@
 
 #include "back-ldbm.h"
 
-static int entryrdn_switch = 0;
-static int entryrdn_noancestorid = 0;
-
 #if LDAP_DEBUG_ENTRYRDN
 /* Lets use SLAPI_LOG_BACKLDBM which is less verbose than DEBUG or TRACE */
 #undef SLAPI_LOG_DEBUG
@@ -147,64 +144,6 @@ static int entryrdn_delete_key(entryrdn_db_ctx_t *ctx, Slapi_RDN *srdn, ID id);
 static int _entryrdn_resolve_redirect(entryrdn_db_ctx_t *ctx, rdn_elem **elem, int canfree);
 
 static int entryrdn_warning_on_encryption = 1;
-
-/*
- * This function sets the integer value val to entryrdn_switch.
- * If val is non-zero, the entryrdn index is used and moving subtree
- * and/or renaming an RDN which has children is enabled.
- * If val is zero, the entrydn index is used.
- */
-void
-entryrdn_set_switch(int val)
-{
-    entryrdn_switch = val;
-
-    if (entryrdn_switch) { /* entryrdn on */
-        /* Don't store entrydn in the db */
-        set_attr_to_protected_list(SLAPI_ATTR_ENTRYDN, 0);
-    } else { /* entryrdn off */
-        /* Store entrydn in the db */
-        set_attr_to_protected_list(SLAPI_ATTR_ENTRYDN, 1);
-    }
-
-    return;
-}
-
-/*
- * This function gets the value of entry_switch.
- * All the entryrdn related codes are supposed to be in the
- * if (entryrdn_get_switch()) clauses.
- */
-int
-entryrdn_get_switch()
-{
-    return entryrdn_switch;
-}
-
-/*
- * Note: nsslapd-noancestorid never be "on" unless nsslapd-subtree-rename-switch
- * is on.
- */
-void
-entryrdn_set_noancestorid(int val)
-{
-    if (entryrdn_switch) {
-        entryrdn_noancestorid = val;
-    } else {
-        entryrdn_noancestorid = 0;
-    }
-    return;
-}
-
-int
-entryrdn_get_noancestorid()
-{
-    if (entryrdn_switch) {
-        return entryrdn_noancestorid;
-    } else {
-        return 0;
-    }
-}
 
 /* Initialize the database resources needed for handling entryrdn index:
  *   database instances / cursor / ...

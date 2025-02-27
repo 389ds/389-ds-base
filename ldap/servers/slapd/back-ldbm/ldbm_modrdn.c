@@ -20,7 +20,6 @@ static const char *moddn_get_newdn(Slapi_PBlock *pb, Slapi_DN *dn_olddn, Slapi_D
 static void moddn_unlock_and_return_entry(backend *be, struct backentry **targetentry);
 static int moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Slapi_Mods *smods_wsi, int is_repl_op);
 static IDList *moddn_get_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, struct backentry *parententry, Slapi_DN *parentdn, struct backentry ***child_entries, struct backdn ***child_dns, int is_resurect_operation);
-static int moddn_rename_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, IDList *children, Slapi_DN *dn_parentdn, Slapi_DN *dn_newsuperiordn, struct backentry *child_entries[]);
 static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3, Slapi_Mods *smods4);
 static void mods_remove_nsuniqueid(Slapi_Mods *smods);
 static int32_t dsentrydn_modrdn_update(backend *be, const char *newdn, struct backentry *e, struct backentry **ec, back_txn *txn);
@@ -188,17 +187,6 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
      */
     if (slapi_sdn_compare(dn_newsuperiordn, &dn_parentdn) == 0) {
         slapi_sdn_done(dn_newsuperiordn);
-    }
-
-    /*
-     * Even if subtree rename is off,
-     * Replicated Operations are allowed to change the superior
-     */
-    if (!entryrdn_get_switch() &&
-        (!is_replicated_operation && !slapi_sdn_isempty(dn_newsuperiordn))) {
-        slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
-                               "server does not support moving of entries", 0, NULL);
-        return (-1);
     }
 
     if (inst && inst->inst_ref_count) {
@@ -634,14 +622,6 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 }
             }
 
-            /* If it is a replicated Operation or "subtree-rename" is on,
-             * it's allowed to rename entries with children */
-            if (!is_replicated_operation && !entryrdn_get_switch() &&
-                slapi_entry_has_children(e->ep_entry)) {
-                ldap_result_code = LDAP_NOT_ALLOWED_ON_NONLEAF;
-                goto error_return;
-            }
-
             /*
              * JCM - All the child entries must be locked in the cache, so the size of
              * subtree that can be renamed is limited by the cache size.
@@ -670,13 +650,12 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
 
             /* Set the new dn to the copy of the entry */
             slapi_entry_set_sdn(ec->ep_entry, &dn_newdn);
-            if (entryrdn_get_switch()) { /* subtree-rename: on */
-                Slapi_RDN srdn;
-                /* Set the new rdn to the copy of the entry; store full dn in e_srdn */
-                slapi_rdn_init_all_sdn(&srdn, &dn_newdn);
-                slapi_entry_set_srdn(ec->ep_entry, &srdn);
-                slapi_rdn_done(&srdn);
-            }
+
+            Slapi_RDN srdn;
+            /* Set the new rdn to the copy of the entry; store full dn in e_srdn */
+            slapi_rdn_init_all_sdn(&srdn, &dn_newdn);
+            slapi_entry_set_srdn(ec->ep_entry, &srdn);
+            slapi_rdn_done(&srdn);
 
             if (is_resurect_operation) {
                 slapi_log_err(SLAPI_LOG_REPL, "ldbm_back_modrdn",
@@ -757,16 +736,6 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 if (ldap_result_code == LDAP_UNWILLING_TO_PERFORM)
                     ldap_result_message = "Modification of old rdn attribute type not allowed.";
                 goto error_return;
-            }
-            if (!entryrdn_get_switch()) /* subtree-rename: off */
-            {
-                /*
-                * Remove the old entrydn index entry, and add the new one.
-                */
-                slapi_mods_add(&smods_generated, LDAP_MOD_DELETE, LDBM_ENTRYDN_STR,
-                               strlen(backentry_get_ndn(e)), backentry_get_ndn(e));
-                slapi_mods_add(&smods_generated, LDAP_MOD_REPLACE, LDBM_ENTRYDN_STR,
-                               strlen(backentry_get_ndn(ec)), backentry_get_ndn(ec));
             }
 
             /*
@@ -920,39 +889,33 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
              */
             if (slapi_entry_has_children_ext(e->ep_entry, 1)) {
                 /* JCM - This is where the subtree lock will appear */
-                if (entryrdn_get_switch()) /* subtree-rename: on */
-                {
-                    if (is_resurect_operation) {
+                if (is_resurect_operation) {
 #if defined(DEBUG)
-                        /* Get the present value of the subcount attr, or 0 if not present */
-                        Slapi_Attr *read_attr = NULL;
-                        int sub_count = -1;
-                        if (0 == slapi_entry_attr_find(parent_modify_context.old_entry->ep_entry,
-                                                       "numsubordinates", &read_attr)) {
-                            /* decode the value */
-                            Slapi_Value *sval;
-                            slapi_attr_first_value(read_attr, &sval);
-                            if (sval) {
-                                const struct berval *bval = slapi_value_get_berval(sval);
-                                if (bval) {
-                                    sub_count = atol(bval->bv_val);
-                                }
+                    /* Get the present value of the subcount attr, or 0 if not present */
+                    Slapi_Attr *read_attr = NULL;
+                    int sub_count = -1;
+                    if (0 == slapi_entry_attr_find(parent_modify_context.old_entry->ep_entry,
+                                                    "numsubordinates", &read_attr)) {
+                        /* decode the value */
+                        Slapi_Value *sval;
+                        slapi_attr_first_value(read_attr, &sval);
+                        if (sval) {
+                            const struct berval *bval = slapi_value_get_berval(sval);
+                            if (bval) {
+                                sub_count = atol(bval->bv_val);
                             }
                         }
-                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
-                                      "parent_update_on_childchange parent %s of %s numsub=%d\n",
-                                      slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
-                                      slapi_entry_get_dn_const(e->ep_entry), sub_count);
-#endif
-                        slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
-                                      "%s has children\n", slapi_entry_get_dn(e->ep_entry));
                     }
-                    children = moddn_get_children(&txn, pb, be, e, sdn,
-                                                  &child_entries, &child_dns, is_resurect_operation);
-                } else {
-                    children = moddn_get_children(&txn, pb, be, e, sdn,
-                                                  &child_entries, NULL, 0);
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
+                                  "parent_update_on_childchange parent %s of %s numsub=%d\n",
+                                  slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
+                                  slapi_entry_get_dn_const(e->ep_entry), sub_count);
+#endif
+                    slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                                  "%s has children\n", slapi_entry_get_dn(e->ep_entry));
                 }
+                children = moddn_get_children(&txn, pb, be, e, sdn,
+                                              &child_entries, &child_dns, is_resurect_operation);
 
                 /* JCM - Shouldn't we perform an access control check on all the children. */
                 /* JCMREPL - But, the replication client has total rights over its subtree, so no access check needed. */
@@ -1130,37 +1093,26 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         /*
          * Update entryrdn index
          */
-        if (entryrdn_get_switch()) /* subtree-rename: on */
-        {
-            const Slapi_DN *oldsdn = slapi_entry_get_sdn_const(e->ep_entry);
-            Slapi_RDN newsrdn;
-            slapi_rdn_init_sdn(&newsrdn, (const Slapi_DN *)&dn_newdn);
-            retval = entryrdn_rename_subtree(be, oldsdn, &newsrdn,
-                                             (const Slapi_DN *)dn_newsuperiordn,
-                                             e->ep_id, &txn, is_tombstone);
-            slapi_rdn_done(&newsrdn);
-            if (retval != 0) {
-                if (retval == DBI_RC_RETRY) {
-                    continue;
-                }
-                if (retval == DBI_RC_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
-                    disk_full = 1;
-                MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
-                              "entryrdn_rename_subtree failed (%d); dn: %s, newsrdn: %s, dn_newsuperiordn: %s\n",
-                              retval, slapi_sdn_get_dn(sdn), slapi_rdn_get_rdn(&newsrdn),
-                              slapi_sdn_get_dn(dn_newsuperiordn));
-                goto error_return;
-            }
-        }
 
-        /*
-         * If the entry has children, then rename them all.
-         */
-        if (!entryrdn_get_switch() && children) /* subtree-rename: off */
-        {
-            retval = moddn_rename_children(&txn, pb, be, children, sdn,
-                                           &dn_newdn, child_entries);
+        const Slapi_DN *oldsdn = slapi_entry_get_sdn_const(e->ep_entry);
+        Slapi_RDN newsrdn;
+        slapi_rdn_init_sdn(&newsrdn, (const Slapi_DN *)&dn_newdn);
+        retval = entryrdn_rename_subtree(be, oldsdn, &newsrdn,
+                                         (const Slapi_DN *)dn_newsuperiordn,
+                                         e->ep_id, &txn, is_tombstone);
+        slapi_rdn_done(&newsrdn);
+        if (retval != 0) {
+            if (retval == DBI_RC_RETRY) {
+                continue;
+            }
+            if (retval == DBI_RC_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
+                disk_full = 1;
+            MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
+                          "entryrdn_rename_subtree failed (%d); dn: %s, newsrdn: %s, dn_newsuperiordn: %s\n",
+                          retval, slapi_sdn_get_dn(sdn), slapi_rdn_get_rdn(&newsrdn),
+                          slapi_sdn_get_dn(dn_newsuperiordn));
+            goto error_return;
         }
 
         /* Update "dsEntryDN" */
@@ -1280,32 +1232,24 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     if (children) {
         int i = 0;
         if (child_entries && *child_entries) {
-            if (entryrdn_get_switch()) /* subtree-rename: on */
-            {
-                /*
-                 * If subtree-rename is on, delete subordinate entries from the
-                 * entry cache.  Next time the entries are read from the db,
-                 * "renamed" dn is generated based upon the moved subtree.
-                 */
-                for (i = 0; child_entries[i] != NULL; i++) {
-                    if (is_resurect_operation) {
-                        slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
-                                      "Calling cache remove & return %s (refcnt: %d)\n",
-                                      slapi_entry_get_dn(child_entries[i]->ep_entry),
-                                      child_entries[i]->ep_refcnt);
-                    }
-                    CACHE_REMOVE(&inst->inst_cache, child_entries[i]);
-                    cache_unlock_entry(&inst->inst_cache, child_entries[i]);
-                    CACHE_RETURN(&inst->inst_cache, &child_entries[i]);
+            /*
+             * Delete subordinate entries from the entry cache.  Next time the
+             * entries are read from the db, "renamed" dn is generated based
+             * upon the moved subtree.
+             */
+            for (i = 0; child_entries[i] != NULL; i++) {
+                if (is_resurect_operation) {
+                    slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
+                                  "Calling cache remove & return %s (refcnt: %d)\n",
+                                  slapi_entry_get_dn(child_entries[i]->ep_entry),
+                                  child_entries[i]->ep_refcnt);
                 }
-            } else {
-                for (; child_entries[i] != NULL; i++) {
-                    cache_unlock_entry(&inst->inst_cache, child_entries[i]);
-                    CACHE_RETURN(&inst->inst_cache, &(child_entries[i]));
-                }
+                CACHE_REMOVE(&inst->inst_cache, child_entries[i]);
+                cache_unlock_entry(&inst->inst_cache, child_entries[i]);
+                CACHE_RETURN(&inst->inst_cache, &child_entries[i]);
             }
         }
-        if (entryrdn_get_switch() && child_dns && *child_dns) {
+        if (child_dns && *child_dns) {
             for (i = 0; child_dns[i] != NULL; i++) {
                 CACHE_REMOVE(&inst->inst_dncache, child_dns[i]);
                 CACHE_RETURN(&inst->inst_dncache, &child_dns[i]);
@@ -1339,27 +1283,19 @@ error_return:
         slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, postentry);
     }
     if (children) {
-        int i = 0;
+        size_t i = 0;
         if (child_entries && *child_entries && inst) {
-            if (entryrdn_get_switch()) /* subtree-rename: on */
-            {
-                /*
-                 * If subtree-rename is on, delete subordinate entries from the
-                 * entry cache even if the procedure was not successful.
-                 */
-                for (i = 0; child_entries[i] != NULL; i++) {
-                    CACHE_REMOVE(&inst->inst_cache, child_entries[i]);
-                    cache_unlock_entry(&inst->inst_cache, child_entries[i]);
-                    CACHE_RETURN(&inst->inst_cache, &child_entries[i]);
-                }
-            } else {
-                for (; child_entries[i] != NULL; i++) {
-                    cache_unlock_entry(&inst->inst_cache, child_entries[i]);
-                    CACHE_RETURN(&inst->inst_cache, &(child_entries[i]));
-                }
+            /*
+             * Delete subordinate entries from the entry cache even if the
+             * procedure was not successful.
+             */
+            for (i = 0; child_entries[i] != NULL; i++) {
+                CACHE_REMOVE(&inst->inst_cache, child_entries[i]);
+                cache_unlock_entry(&inst->inst_cache, child_entries[i]);
+                CACHE_RETURN(&inst->inst_cache, &child_entries[i]);
             }
         }
-        if (entryrdn_get_switch() && child_dns && *child_dns && inst) {
+        if (child_dns && *child_dns && inst) {
             for (i = 0; child_dns[i] != NULL; i++) {
                 CACHE_REMOVE(&inst->inst_dncache, child_dns[i]);
                 CACHE_RETURN(&inst->inst_dncache, &child_dns[i]);
@@ -1444,7 +1380,7 @@ common_return:
                           "Resurrecting an entry %s: result: %d, %d\n",
                           slapi_entry_get_dn(ec->ep_entry), ldap_result_code, retval);
         }
-        if (inst && (0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
+        if (inst && (0 == retval)) {
             /* since the op was successful, add the addingentry's dn to the dn cache */
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, ec->ep_id);
             if (bdn) { /* already in the dncache */
@@ -1482,7 +1418,7 @@ common_return:
     }
 
     if (inst) {
-        if (e && entryrdn_get_switch() && (0 == retval)) {
+        if (e && 0 == retval) {
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
             CACHE_REMOVE(&inst->inst_dncache, bdn);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
@@ -2150,185 +2086,6 @@ error_return:
     return retval;
 }
 
-static int
-moddn_rename_child_entry(
-    back_txn *ptxn,
-    Slapi_PBlock *pb,
-    struct ldbminfo *li,
-    struct backentry *e,
-    struct backentry **ec,
-    int parentdncomps,
-    char **newsuperiordns,
-    int newsuperiordncomps,
-    CSN *opcsn)
-{
-    /*
-     * Construct the new DN for the entry by taking the old DN
-     * excluding the old parent entry DN, and adding the new
-     * superior entry DN.
-     *
-     * slapi_ldap_explode_dn is probably a bit slow, but it knows about
-     * DN escaping which is pretty complicated, and we wouldn't
-     * want to reimplement that here.
-     *
-     * JCM - This was written before Slapi_RDN... so this could be made much neater.
-     */
-    int retval = 0;
-    char *olddn;
-    char *newdn;
-    char **olddns;
-    int olddncomps = 0;
-    int need = 1; /* For the '\0' */
-    int i;
-    olddn = slapi_entry_get_dn((*ec)->ep_entry);
-    if (NULL == olddn) {
-        return retval;
-    }
-    olddns = slapi_ldap_explode_dn(olddn, 0);
-    if (NULL == olddns) {
-        return retval;
-    }
-    for (; olddns[olddncomps] != NULL; olddncomps++)
-        ;
-    for (i = 0; i < olddncomps - parentdncomps; i++) {
-        need += strlen(olddns[i]) + 2; /* For the ", " */
-    }
-    for (i = 0; i < newsuperiordncomps; i++) {
-        need += strlen(newsuperiordns[i]) + 2; /* For the ", " */
-    }
-    need--; /* We don't have a comma on the end of the last component */
-    newdn = slapi_ch_malloc(need);
-    newdn[0] = '\0';
-    for (i = 0; i < olddncomps - parentdncomps; i++) {
-        strcat(newdn, olddns[i]);
-        strcat(newdn, ", ");
-    }
-    for (i = 0; i < newsuperiordncomps; i++) {
-        strcat(newdn, newsuperiordns[i]);
-        if (i < newsuperiordncomps - 1) {
-            /* We don't have a comma on the end of the last component */
-            strcat(newdn, ", ");
-        }
-    }
-    slapi_ldap_value_free(olddns);
-    slapi_entry_set_dn((*ec)->ep_entry, newdn);
-    /* add the entrydn operational attributes */
-    add_update_entrydn_operational_attributes(*ec);
-
-    /*
-     * Update the DN CSN of the entry.
-     */
-    {
-        entry_add_dncsn(e->ep_entry, opcsn);
-        entry_add_rdn_csn(e->ep_entry, opcsn);
-        entry_set_maxcsn(e->ep_entry, opcsn);
-    }
-    {
-        Slapi_Mods smods = {0};
-        Slapi_Mods *smodsp = NULL;
-        slapi_mods_init(&smods, 2);
-        slapi_mods_add(&smods, LDAP_MOD_DELETE, LDBM_ENTRYDN_STR,
-                       strlen(backentry_get_ndn(e)), backentry_get_ndn(e));
-        slapi_mods_add(&smods, LDAP_MOD_REPLACE, LDBM_ENTRYDN_STR,
-                       strlen(backentry_get_ndn(*ec)), backentry_get_ndn(*ec));
-        smodsp = &smods;
-        /*
-         * Update all the indexes.
-         */
-        retval = modrdn_rename_entry_update_indexes(ptxn, pb, li, e, ec,
-                                                    smodsp, NULL, NULL, NULL);
-        /* JCMREPL - Should the children get updated modifiersname and lastmodifiedtime? */
-        slapi_mods_done(&smods);
-    }
-    return retval;
-}
-
-/*
- * Rename all the children of an entry who's name has changed.
- * Called if "subtree-rename: off"
- */
-static int
-moddn_rename_children(
-    back_txn *ptxn,
-    Slapi_PBlock *pb,
-    backend *be,
-    IDList *children,
-    Slapi_DN *dn_parentdn,
-    Slapi_DN *dn_newsuperiordn,
-    struct backentry *child_entries[])
-{
-    /* Iterate over the children list renaming every child */
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    Slapi_Operation *operation;
-    CSN *opcsn;
-    int retval = -1;
-    uint i = 0;
-    char **newsuperiordns = NULL;
-    int newsuperiordncomps = 0;
-    int parentdncomps = 0;
-    NIDS nids = children ? children->b_nids : 0;
-    struct backentry **child_entry_copies = NULL;
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-
-    /*
-     * Break down the parent entry dn into its components.
-     */
-    {
-        char **parentdns = slapi_ldap_explode_dn(slapi_sdn_get_dn(dn_parentdn), 0);
-        if (parentdns) {
-            for (; parentdns[parentdncomps] != NULL; parentdncomps++)
-                ;
-            slapi_ldap_value_free(parentdns);
-        } else {
-            return retval;
-        }
-    }
-
-    /*
-     * Break down the new superior entry dn into its components.
-     */
-    newsuperiordns = slapi_ldap_explode_dn(slapi_sdn_get_dn(dn_newsuperiordn), 0);
-    if (newsuperiordns) {
-        for (; newsuperiordns[newsuperiordncomps] != NULL; newsuperiordncomps++)
-            ;
-    } else {
-        return retval;
-    }
-
-    /* probably, only if "subtree-rename is off */
-    child_entry_copies =
-        (struct backentry **)slapi_ch_calloc(sizeof(struct backentry *), nids + 1);
-    for (i = 0; i <= nids; i++) {
-        child_entry_copies[i] = backentry_dup(child_entries[i]);
-    }
-
-    /*
-     * Iterate over the child entries renaming them.
-     */
-    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
-    opcsn = operation_get_csn(operation);
-    for (i = 0, retval = 0; retval == 0 && child_entries[i] && child_entry_copies[i]; i++) {
-        retval = moddn_rename_child_entry(ptxn, pb, li, child_entries[i],
-                                          &child_entry_copies[i], parentdncomps,
-                                          newsuperiordns, newsuperiordncomps,
-                                          opcsn);
-    }
-    if (0 == retval) /* success */
-    {
-        CACHE_REMOVE(&inst->inst_cache, child_entry_copies[i]);
-        CACHE_RETURN(&inst->inst_cache, &(child_entry_copies[i]));
-    } else /* failure */
-    {
-        while (child_entries[i] != NULL) {
-            backentry_free(&(child_entry_copies[i]));
-            i++;
-        }
-    }
-    slapi_ldap_value_free(newsuperiordns);
-    slapi_ch_free((void **)&child_entry_copies);
-    return retval;
-}
-
 /*
  * Get an IDList of all the children of an entry.
  */
@@ -2346,8 +2103,6 @@ moddn_get_children(back_txn *ptxn,
     int err = 0;
     IDList *candidates;
     IDList *result_idl = NULL;
-    char filterstr[20];
-    Slapi_Filter *filter;
     NIDS nids;
     int entrynum = 0;
     int dnnum = 0;
@@ -2362,29 +2117,14 @@ moddn_get_children(back_txn *ptxn,
     if (child_dns) {
         *child_dns = NULL;
     }
-    if (entryrdn_get_switch()) {
-        err = entryrdn_get_subordinates(be,
-                                        slapi_entry_get_sdn_const(parententry->ep_entry),
-                                        parententry->ep_id, &candidates, ptxn, is_resurect_operation);
-        if (err) {
-            slapi_log_err(SLAPI_LOG_ERR, "moddn_get_children",
-                          "entryrdn_get_subordinates returned %d\n", err);
-            goto bail;
-        }
-    } else {
-        /* Fetch a candidate list of all the entries below the entry
-         * being moved */
-        strcpy(filterstr, "objectclass=*");
-        filter = slapi_str2filter(filterstr);
-        /*
-         * We used to set managedSAIT here, but because the subtree create
-         * referral step is now in build_candidate_list, we can trust the filter
-         * we provide here is exactly as we provide it IE no referrals involved.
-         */
-        candidates = subtree_candidates(pb, be, slapi_sdn_get_ndn(dn_parentdn),
-                                        parententry, filter,
-                                        NULL /* allids_before_scopingp */, &err);
-        slapi_filter_free(filter, 1);
+
+    err = entryrdn_get_subordinates(be,
+                                    slapi_entry_get_sdn_const(parententry->ep_entry),
+                                    parententry->ep_id, &candidates, ptxn, is_resurect_operation);
+    if (err) {
+        slapi_log_err(SLAPI_LOG_ERR, "moddn_get_children",
+                        "entryrdn_get_subordinates returned %d\n", err);
+        goto bail;
     }
 
     if (candidates) {
@@ -2445,7 +2185,7 @@ moddn_get_children(back_txn *ptxn,
                     entrynum++;
                 }
             }
-            if (entryrdn_get_switch() && child_dns) {
+            if (child_dns) {
                 dn = dncache_find_id(&inst->inst_dncache, id);
                 if (dn != NULL) {
                     (*child_dns)[dnnum] = dn;

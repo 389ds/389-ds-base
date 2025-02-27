@@ -536,7 +536,6 @@ typedef struct _db_upgrade_info db_upgrade_info;
                                              */
 #define DBVERSION_UPGRADE_4_5       0x4000  /* bdb 4.X -> 5.X */
 #define DBVERSION_NEED_DN2RDN       0x1000  /* DN to RDN (subtree-rename) format */
-#define DBVERSION_NEED_RDN2DN       0x2000  /* RDN to DN (original) format */
 #define DBVERSION_NOT_SUPPORTED 0x10000000
 
 #define DBVERSION_TYPE   0x1
