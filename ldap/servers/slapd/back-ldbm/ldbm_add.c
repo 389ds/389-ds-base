@@ -435,6 +435,8 @@ ldbm_back_add(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
                                   "find_entry2modify_only returned NULL parententry pdn: %s, uniqueid: %s\n",
                                   slapi_sdn_get_dn(&parentsdn), addr.uniqueid ? addr.uniqueid : "none");
+                    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+                    goto error_return;
                 }
                 modify_init(&parent_modify_c, parententry);
             }
