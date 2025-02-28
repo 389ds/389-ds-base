@@ -338,10 +338,6 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             } else {
                 filter_len = escaped_filter.bv_len;
                 buf = escaped_filter.bv_val;
-                if (buf == NULL) {
-                    slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Attempt to copy from NULL pointer\n");
-                    return -1;
-                }
             }
         }
 
