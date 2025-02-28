@@ -126,10 +126,6 @@ struct config_info
 #define CONFIG_SERIAL_LOCK "nsslapd-serial-lock"
 #define CONFIG_BACKEND_OPT_LEVEL "nsslapd-backend-opt-level"
 
-#define CONFIG_ENTRYRDN_SWITCH "nsslapd-subtree-rename-switch"
-/* nsslapd-noancestorid is ignored unless nsslapd-subtree-rename-switch is on */
-#define CONFIG_ENTRYRDN_NOANCESTORID "nsslapd-noancestorid"
-
 /* instance config options */
 #define CONFIG_INSTANCE_CACHESIZE "nsslapd-cachesize"
 #define CONFIG_INSTANCE_CACHEMEMSIZE "nsslapd-cachememsize"

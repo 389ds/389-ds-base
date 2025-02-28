@@ -1321,7 +1321,7 @@ subtree_candidates(
     slapi_pblock_get(pb, SLAPI_REQUESTOR_ISROOT, &isroot);
     /* Check if it is for bulk import. */
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    if (op && entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+    if (op && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
         operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
         is_bulk_import = PR_TRUE;
     }
@@ -1348,20 +1348,8 @@ subtree_candidates(
         }
 
         slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-        if (entryrdn_get_noancestorid()) {
-            /* subtree-rename: on && no ancestorid */
-            *err = entryrdn_get_subordinates(be,
-                                             slapi_entry_get_sdn_const(e->ep_entry),
-                                             e->ep_id, &descendants, &txn, 0);
-            if (op_stat) {
-                /* record entryrdn lookups */
-                stat_add_srch_lookup(op_stat, LDBM_ENTRYRDN_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
-            }
-            idl_insert(&descendants, e->ep_id);
-            candidates = idl_intersection(be, candidates, descendants);
-            idl_free(&tmp);
-            idl_free(&descendants);
-        } else if (!has_tombstone_filter && !is_bulk_import) {
+
+        if (!has_tombstone_filter && !is_bulk_import) {
             *err = ldbm_ancestorid_read_ext(be, &txn, e->ep_id, &descendants, allidslimit);
             if (op_stat) {
                 /* records ancestorid lookups */
@@ -1371,7 +1359,7 @@ subtree_candidates(
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(&tmp);
             idl_free(&descendants);
-        } /* else == has_tombstone_filter OR is_bulk_import: do nothing */
+        }
     }
 
     return (candidates);
