@@ -98,7 +98,8 @@ setup(
         'python-ldap',
         'setuptools',
         'distro',
-        'cryptography'
+        'cryptography',
+        'psutil'
         ],
 
     cmdclass={

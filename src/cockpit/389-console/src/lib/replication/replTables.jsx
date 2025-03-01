@@ -14,9 +14,8 @@ import {
     Tbody,
     Td,
     ActionsColumn,
-    SortByDirection
+    SortByDirection,
 } from '@patternfly/react-table';
-import { TrashAltIcon } from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -196,30 +195,18 @@ class ManagerTable extends React.Component {
                 {
                     title: 'Manager Name',
                     sortable: true
-                },
-                {
-                    title: 'Actions',
-                    screenReaderText: 'Manager actions'
                 }
             ],
         };
 
         this.handleSort = this.handleSort.bind(this);
-        this.getDeleteButton = this.getDeleteButton.bind(this);
     }
 
     componentDidMount() {
-        let rows = [];
+        let rows = [...this.props.rows];
         let columns = this.state.columns;
 
-        for (const managerRow of this.props.rows) {
-            rows.push([
-                managerRow,
-                this.getDeleteButton(managerRow)
-            ]);
-        }
-
-        if (rows.length === 0) {
+        if (this.props.rows.length === 0) {
             rows = [[_("No Replication Managers")]];
             columns = [{ title: '' }];
         }
@@ -244,19 +231,19 @@ class ManagerTable extends React.Component {
         });
     }
 
-    getDeleteButton(name) {
-        return (
-            <a>
-                <TrashAltIcon
-                    className="ds-center"
-                    onClick={() => {
-                        this.props.confirmDelete(name);
-                    }}
-                    title={_("Delete Replication Manager")}
-                />
-            </a>
-        );
-    }
+    getRowActions = (row) => [
+        {
+            title: 'Change password',
+            onClick: () => this.props.showEditManager(row)
+        },
+        {
+            isSeparator: true
+        },
+        {
+            title: 'Delete manager',
+            onClick: () => this.props.confirmDelete(row)
+        },
+    ];
 
     render() {
         return (
@@ -285,14 +272,16 @@ class ManagerTable extends React.Component {
                 <Tbody>
                     {this.state.rows.map((row, rowIndex) => (
                         <Tr key={rowIndex}>
-                            {row.map((cell, cellIndex) => (
-                                <Td
-                                    key={cellIndex}
-                                    textCenter={cellIndex === 1}
-                                >
-                                    {cell}
+                            <Td key={row}>
+                                {row}
+                            </Td>
+                            {this.props.rows.length !== 0 &&
+                                <Td isActionCell textCenter key={row +"action"}>
+                                    <ActionsColumn
+                                        items={this.getRowActions(row)}
+                                    />
                                 </Td>
-                            ))}
+                            }
                         </Tr>
                     ))}
                 </Tbody>

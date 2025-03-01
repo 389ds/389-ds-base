@@ -1582,7 +1582,7 @@ export class ChangeReplRoleModal extends React.Component {
     }
 }
 
-export class AddManagerModal extends React.Component {
+export class AddEditManagerModal extends React.Component {
     render() {
         const {
             showModal,
@@ -1593,18 +1593,19 @@ export class AddManagerModal extends React.Component {
             manager,
             manager_passwd,
             manager_passwd_confirm,
-            error
+            error,
+            edit,
         } = this.props;
-        let saveBtnName = _("Add Replication Manager");
+        let saveBtnName = this.props.edit ? "Save Replication Manager" : _("Add Replication Manager");
         const extraPrimaryProps = {};
         if (spinning) {
-            saveBtnName = _("Adding Replication Manager ...");
+            saveBtnName = this.props.edit ? "Saving Replication Manager ..." : _("Adding Replication Manager ...");
         }
 
         return (
             <Modal
                 variant={ModalVariant.medium}
-                title={_("Add Replication Manager")}
+                title={this.props.edit ? "Edit Replication Manager" : _("Add Replication Manager")}
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -1628,7 +1629,10 @@ export class AddManagerModal extends React.Component {
                 <Form isHorizontal autoComplete="off">
                     <TextContent>
                         <Text component={TextVariants.h3}>
-                            {_("Create a Replication Manager entry, and add it to the replication configuration for this suffix.  If the entry already exists it will be overwritten with the new credentials.")}
+                            {this.props.edit ?
+                                ""
+                            :
+                                _("Create a Replication Manager entry, and add it to the replication configuration for this suffix.  If the entry already exists it will be overwritten with the new credentials.")}
                         </Text>
                     </TextContent>
                     <Grid className="ds-margin-top-lg" title={_("The DN of the replication manager")}>
@@ -1645,13 +1649,14 @@ export class AddManagerModal extends React.Component {
                                 onChange={(e, str) => {
                                     handleChange(e);
                                 }}
+                                isDisabled={this.props.edit}
                                 validated={error.manager ? ValidatedOptions.error : ValidatedOptions.default}
                             />
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top" title={_("Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            {_("Password")}
+                            {this.props.edit ? "New password" : _("Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -1669,7 +1674,7 @@ export class AddManagerModal extends React.Component {
                     </Grid>
                     <Grid className="ds-margin-top" title={_("Replication Manager password")}>
                         <GridItem className="ds-label" span={3}>
-                            {_("Confirm Password")}
+                            {this.props.edit ? "Confirm new password" : _("Confirm Password")}
                         </GridItem>
                         <GridItem span={9}>
                             <TextInput
@@ -2041,16 +2046,17 @@ EnableReplModal.defaultProps = {
     error: {},
 };
 
-AddManagerModal.propTypes = {
+AddEditManagerModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
     error: PropTypes.object,
+    edit: PropTypes.bool,
 };
 
-AddManagerModal.defaultProps = {
+AddEditManagerModal.defaultProps = {
     showModal: false,
     spinning: false,
     error: {},

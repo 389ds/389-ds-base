@@ -181,6 +181,17 @@ def _format_status(log, mtype, json=False):
                 log.info('{}: {}'.format(k, vi))
 
 
+def _format_status_with_option(log, mtype, json=False, option=False):
+    if json:
+        print(mtype.get_status_json(option))
+    else:
+        status_dict = mtype.get_status(option)
+        log.info('dn: ' + mtype._dn)
+        for k, v in list(status_dict.items()):
+            # For each value in the multivalue attr
+            for vi in v:
+                log.info('{}: {}'.format(k, vi))
+
 def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
     ol = mc.list()
@@ -388,14 +399,14 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         if len(actions) > 0:
             # Check if this is the main options section by looking for the help action
             is_main_section = any(
-                isinstance(action, argparse._HelpAction) 
+                isinstance(action, argparse._HelpAction)
                 for action in actions
             )
-            
+
             # Only add parent arguments to the main options section
             if is_main_section:
                 actions = parent_arguments + actions
-        
+
         super(CustomHelpFormatter, self).add_arguments(actions)
 
     def _format_usage(self, usage, actions, groups, prefix):

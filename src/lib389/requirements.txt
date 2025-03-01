@@ -7,3 +7,4 @@ python-ldap
 setuptools
 distro
 cryptography
+psutil
