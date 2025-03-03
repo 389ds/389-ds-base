@@ -123,8 +123,8 @@ def test_modrdn_of_a_member_of_2_automember_groups(topology_st):
 
     # Create groups
     groups = Groups(inst, DEFAULT_SUFFIX)
-    groups.create(properties={"cn": "userswithA"})
-    groups.create(properties={"cn": "userswithZ"})
+    groupA = groups.create(properties={"cn": "userswithA"})
+    groupZ = groups.create(properties={"cn": "userswithZ"})
 
     # Create users
     users = nsUserAccounts(inst, DEFAULT_SUFFIX)
@@ -156,7 +156,18 @@ def test_modrdn_of_a_member_of_2_automember_groups(topology_st):
         }
     )
     user = users.create(properties=user_props)
+    user_orig_dn = user.dn
 
     # Rename userwithaz
     user.rename(new_rdn="uid=userwith")
+    user_new_dn = user.dn
+
     assert user.get_attr_val_utf8("uid") != "userwithaz"
+
+    # Check groups contain renamed username
+    assert groupA.is_member(user_new_dn)
+    assert groupZ.is_member(user_new_dn)
+
+    # Check groups dont contain original username
+    assert not groupA.is_member(user_orig_dn)
+    assert not groupZ.is_member(user_orig_dn)
