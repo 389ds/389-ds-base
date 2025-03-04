@@ -1606,6 +1606,8 @@ class Replica(DSLdapObject):
                 host = agmt.get_attr_val_utf8("nsDS5ReplicaHost")
                 port = agmt.get_attr_val_utf8("nsDS5ReplicaPort")
                 protocol = agmt.get_attr_val_utf8_l("nsDS5ReplicaTransportInfo")
+                tls_uri = agmt.get_attr_val_utf8_l("nsDS5ReplicaTransportUri")
+                tls_ca_uri = agmt.get_attr_val_utf8_l("nsDS5ReplicaTransportCAUri")
 
                 # The function should be defined outside and
                 # it should have all the logic for figuring out the credentials
