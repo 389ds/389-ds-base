@@ -691,32 +691,31 @@ ldbm_back_add(Slapi_PBlock *pb)
                     slapi_sdn_init(&nscpEntrySDN);
                     slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(addingentry->ep_entry)));
 
-                    if (entryrdn_get_switch()) {
-                        if (is_ruv) {
-                            Slapi_RDN srdn = {0};
-                            rc = slapi_rdn_init_all_dn(&srdn, tombstoned_dn);
-                            if (rc) {
-                                slapi_log_err(SLAPI_LOG_TRACE,
-                                              "ldbm_back_add", "(tombstone_operation): failed to "
-                                              "decompose %s to Slapi_RDN\n", tombstoned_dn);
-                            } else {
-                                slapi_entry_set_srdn(e, &srdn);
-                                slapi_rdn_done(&srdn);
-                            }
+                    if (is_ruv) {
+                        Slapi_RDN srdn = {0};
+                        rc = slapi_rdn_init_all_dn(&srdn, tombstoned_dn);
+                        if (rc) {
+                            slapi_log_err(SLAPI_LOG_TRACE,
+                                          "ldbm_back_add", "(tombstone_operation): failed to "
+                                          "decompose %s to Slapi_RDN\n", tombstoned_dn);
                         } else {
-                            /* immediate entry to tombstone */
-                            Slapi_RDN *srdn = slapi_entry_get_srdn(addingentry->ep_entry);
-                            slapi_rdn_init_all_sdn(srdn, slapi_entry_get_sdn_const(addingentry->ep_entry));
-                            char *tombstone_rdn = compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(addingentry->ep_entry),
-                                                                              entryuniqueid);
-                            slapi_log_err(SLAPI_LOG_DEBUG,
-                                          "ldbm_back_add", "(tombstone_operation for %s): calculated tombstone_rdn "
-                                          "is (%s) \n", entryuniqueid, tombstone_rdn);
-                            /* e_srdn has "uniaqueid=..., <ORIG RDN>" */
-                            slapi_rdn_replace_rdn(srdn, tombstone_rdn);
-                            slapi_ch_free_string(&tombstone_rdn);
+                            slapi_entry_set_srdn(e, &srdn);
+                            slapi_rdn_done(&srdn);
                         }
+                    } else {
+                        /* immediate entry to tombstone */
+                        Slapi_RDN *srdn = slapi_entry_get_srdn(addingentry->ep_entry);
+                        slapi_rdn_init_all_sdn(srdn, slapi_entry_get_sdn_const(addingentry->ep_entry));
+                        char *tombstone_rdn = compute_entry_tombstone_rdn(slapi_entry_get_rdn_const(addingentry->ep_entry),
+                                                                          entryuniqueid);
+                        slapi_log_err(SLAPI_LOG_DEBUG,
+                                      "ldbm_back_add", "(tombstone_operation for %s): calculated tombstone_rdn "
+                                      "is (%s) \n", entryuniqueid, tombstone_rdn);
+                        /* e_srdn has "uniaqueid=..., <ORIG RDN>" */
+                        slapi_rdn_replace_rdn(srdn, tombstone_rdn);
+                        slapi_ch_free_string(&tombstone_rdn);
                     }
+
                     slapi_entry_set_dn(addingentry->ep_entry, tombstoned_dn);
                     /* Work around pb with slapi_entry_add_string (defect 522327)
                      * doesn't check duplicate values */
@@ -1038,16 +1037,14 @@ ldbm_back_add(Slapi_PBlock *pb)
                 goto error_return;
             }
             /* Need to delete the entryrdn index of the resurrected tombstone... */
-            if (entryrdn_get_switch()) { /* subtree-rename: on */
-                if (tombstoneentry) {
-                    retval = entryrdn_index_entry(be, tombstoneentry, BE_INDEX_DEL, &txn);
-                    if (retval) {
-                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
-                                      "Resurrecting %s: failed to remove entryrdn index, err=%d %s\n",
-                                      slapi_entry_get_dn_const(tombstoneentry->ep_entry),
-                                      retval, (msg = dblayer_strerror(retval)) ? msg : "");
-                        goto error_return;
-                    }
+            if (tombstoneentry) {
+                retval = entryrdn_index_entry(be, tombstoneentry, BE_INDEX_DEL, &txn);
+                if (retval) {
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
+                                  "Resurrecting %s: failed to remove entryrdn index, err=%d %s\n",
+                                  slapi_entry_get_dn_const(tombstoneentry->ep_entry),
+                                  retval, (msg = dblayer_strerror(retval)) ? msg : "");
+                    goto error_return;
                 }
             }
         }
@@ -1186,14 +1183,12 @@ ldbm_back_add(Slapi_PBlock *pb)
          * get rid of the entry in the cache now.
          * We cannot expect tombstoneentry exists from now on.
          */
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            /* since the op was successful, delete the tombstone dn from the dn cache */
-            struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
-                                                 tombstoneentry->ep_id);
-            if (bdn) { /* in the dncache, remove it. */
-                CACHE_REMOVE(&inst->inst_dncache, bdn);
-                CACHE_RETURN(&inst->inst_dncache, &bdn);
-            }
+        /* since the op was successful, delete the tombstone dn from the dn cache */
+        struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
+                                             tombstoneentry->ep_id);
+        if (bdn) { /* in the dncache, remove it. */
+            CACHE_REMOVE(&inst->inst_dncache, bdn);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
         }
     }
     if (parent_found) {
@@ -1394,7 +1389,7 @@ common_return:
             CACHE_RETURN(&inst->inst_cache, &tombstoneentry);
         }
         if (addingentry) {
-            if ((0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
+            if (0 == retval) {
                 /* since adding the entry to the entry cache was successful,
                  * let's add the dn to dncache, if not yet done. */
                 struct backdn *bdn = dncache_find_id(&inst->inst_dncache,

@@ -72,12 +72,12 @@ bdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
             len = strlen(buf);
             ptr = buf + len;
         }
-        if (entryrdn_get_switch() && (flags & DBVERSION_RDNFORMAT)) {
-            PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
-                        BDB_RDNFORMAT, BDB_RDNFORMAT_VERSION);
-            len = strlen(buf);
-            ptr = buf + len;
-        }
+
+        PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
+                    BDB_RDNFORMAT, BDB_RDNFORMAT_VERSION);
+        len = strlen(buf);
+        ptr = buf + len;
+
         if (flags & DBVERSION_DNFORMAT) {
             PR_snprintf(ptr, sizeof(buf) - len, "/%s-%s",
                         BDB_DNFORMAT, BDB_DNFORMAT_VERSION);

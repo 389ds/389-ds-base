@@ -446,27 +446,26 @@ index_addordel_entry(
         }
 
         slapi_sdn_done(&parent);
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            Slapi_Attr *attr;
-            /* Even if this is a tombstone, we have to add it to entryrdn
-             * to maintain the full DN
-             */
-            result = entryrdn_index_entry(be, e, flags, txn);
+
+        Slapi_Attr *attr;
+        /* Even if this is a tombstone, we have to add it to entryrdn
+         * to maintain the full DN
+         */
+        result = entryrdn_index_entry(be, e, flags, txn);
+        if (result != 0) {
+            ldbm_nasty("index_addordel_entry", errmsg, 1023, result);
+            return (result);
+        }
+        /* To maintain tombstonenumsubordinates,
+            * parentid is needed for tombstone, as well. */
+        slapi_entry_attr_find(e->ep_entry, LDBM_PARENTID_STR, &attr);
+        if (attr) {
+            svals = attr_get_present_values(attr);
+            result = index_addordel_values_sv(be, LDBM_PARENTID_STR, svals, NULL,
+                                              e->ep_id, flags, txn);
             if (result != 0) {
-                ldbm_nasty("index_addordel_entry", errmsg, 1023, result);
+                ldbm_nasty("index_addordel_entry", errmsg, 1022, result);
                 return (result);
-            }
-            /* To maintain tombstonenumsubordinates,
-             * parentid is needed for tombstone, as well. */
-            slapi_entry_attr_find(e->ep_entry, LDBM_PARENTID_STR, &attr);
-            if (attr) {
-                svals = attr_get_present_values(attr);
-                result = index_addordel_values_sv(be, LDBM_PARENTID_STR, svals, NULL,
-                                                  e->ep_id, flags, txn);
-                if (result != 0) {
-                    ldbm_nasty("index_addordel_entry", errmsg, 1022, result);
-                    return (result);
-                }
             }
         }
     } else { /* NOT a tombstone or delete a tombstone */
@@ -479,14 +478,7 @@ index_addordel_entry(
             svals = attr_get_present_values(attr);
             if (!entryrdn_done && (0 == strcmp(type, LDBM_ENTRYDN_STR))) {
                 entryrdn_done = 1;
-                if (entryrdn_get_switch()) { /* subtree-rename: on */
-                    /* skip "entrydn" */
-                    continue;
-                } else {
-                    /* entrydn is case-normalized */
-                    slapi_values_set_flags(svals,
-                                           SLAPI_ATTR_FLAG_NORMALIZED_CIS);
-                }
+                continue;
             }
             result = index_addordel_values_sv(be, type, svals, NULL,
                                               e->ep_id, flags, txn);
@@ -496,25 +488,23 @@ index_addordel_entry(
             }
         }
 
-        if (!entryrdn_get_noancestorid()) {
-            /* update ancestorid index . . . */
-            /* . . . only if we are not deleting a tombstone entry -
-             * tombstone entries are not in the ancestor id index -
-             * see bug 603279
-             */
-            if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
-                result = ldbm_ancestorid_index_entry(be, e, flags, txn);
-                if (result != 0) {
-                    return (result);
-                }
-            }
-        }
-        if (entryrdn_get_switch()) { /* subtree-rename: on */
-            result = entryrdn_index_entry(be, e, flags, txn);
+        /*
+         * update ancestorid index . . .
+         * . . . only if we are not deleting a tombstone entry -
+         * tombstone entries are not in the ancestor id index -
+         * see bug 603279
+         */
+        if (!((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_DEL))) {
+            result = ldbm_ancestorid_index_entry(be, e, flags, txn);
             if (result != 0) {
-                ldbm_nasty("index_addordel_entry", errmsg, 1031, result);
                 return (result);
             }
+        }
+
+        result = entryrdn_index_entry(be, e, flags, txn);
+        if (result != 0) {
+            ldbm_nasty("index_addordel_entry", errmsg, 1031, result);
+            return (result);
         }
     }
 
@@ -962,9 +952,9 @@ index_read_ext_allids(
     slapi_log_err(SLAPI_LOG_ARGS, "index_read_ext_allids", "indextype: \"%s\" indexmask: 0x%x\n",
                   indextype, ai->ai_indexmask);
 
-    /* If entryrdn switch is on AND the type is entrydn AND the prefix is '=',
+    /* If the type is entrydn AND the prefix is '=',
      * use the entryrdn index directly */
-    if (entryrdn_get_switch() && (*prefix == '=') &&
+    if (*prefix == '=' &&
         (0 == PL_strcasecmp(basetype, LDBM_ENTRYDN_STR))) {
         int rc = 0;
         ID id = 0;

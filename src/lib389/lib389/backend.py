@@ -1145,7 +1145,6 @@ class DatabaseConfig(DSLdapObject):
             'nsslapd-search-use-vlv-index',
             'nsslapd-exclude-from-export',
             'nsslapd-serial-lock',
-            'nsslapd-subtree-rename-switch',
             'nsslapd-pagedlookthroughlimit',
             'nsslapd-pagedidlistscanlimit',
             'nsslapd-rangelookthroughlimit',

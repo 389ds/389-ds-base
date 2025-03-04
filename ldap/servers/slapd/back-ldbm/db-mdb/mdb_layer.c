@@ -1368,10 +1368,6 @@ dbmdb_get_info(Slapi_Backend *be, int cmd, void **info)
         }
         break;
     }
-    case BACK_INFO_IS_ENTRYRDN: {
-        *(int *)info = entryrdn_get_switch();
-        break;
-    }
     case BACK_INFO_INDEX_KEY : {
         rc = get_suffix_key(be, (struct _back_info_index_key *)info);
         break;

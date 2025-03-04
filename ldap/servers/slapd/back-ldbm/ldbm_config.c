@@ -768,44 +768,6 @@ ldbm_config_serial_lock_set(void *arg,
 }
 
 static void *
-ldbm_config_entryrdn_switch_get(void *arg __attribute__((unused)))
-{
-    return (void *)((uintptr_t)entryrdn_get_switch());
-}
-
-static int
-ldbm_config_entryrdn_switch_set(void *arg __attribute__((unused)),
-                                void *value,
-                                char *errorbuf __attribute__((unused)),
-                                int phase __attribute__((unused)),
-                                int apply)
-{
-    if (apply) {
-        entryrdn_set_switch((int)((uintptr_t)value));
-    }
-    return LDAP_SUCCESS;
-}
-
-static void *
-ldbm_config_entryrdn_noancestorid_get(void *arg __attribute__((unused)))
-{
-    return (void *)((uintptr_t)entryrdn_get_noancestorid());
-}
-
-static int
-ldbm_config_entryrdn_noancestorid_set(void *arg __attribute__((unused)),
-                                      void *value,
-                                      char *errorbuf __attribute__((unused)),
-                                      int phase __attribute__((unused)),
-                                      int apply)
-{
-    if (apply) {
-        entryrdn_set_noancestorid((int)((uintptr_t)value));
-    }
-    return LDAP_SUCCESS;
-}
-
-static void *
 ldbm_config_legacy_errcode_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
@@ -980,8 +942,6 @@ static config_info ldbm_config[] = {
     {CONFIG_EXCLUDE_FROM_EXPORT, CONFIG_TYPE_STRING, CONFIG_EXCLUDE_FROM_EXPORT_DEFAULT_VALUE, &ldbm_config_exclude_from_export_get, &ldbm_config_exclude_from_export_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_SERIAL_LOCK, CONFIG_TYPE_ONOFF, "on", &ldbm_config_serial_lock_get, &ldbm_config_serial_lock_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_USE_LEGACY_ERRORCODE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_legacy_errcode_get, &ldbm_config_legacy_errcode_set, 0},
-    {CONFIG_ENTRYRDN_SWITCH, CONFIG_TYPE_ONOFF, "on", &ldbm_config_entryrdn_switch_get, &ldbm_config_entryrdn_switch_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_ENTRYRDN_NOANCESTORID, CONFIG_TYPE_ONOFF, "off", &ldbm_config_entryrdn_noancestorid_get, &ldbm_config_entryrdn_noancestorid_set, 0 /* no show */},
     {CONFIG_PAGEDLOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedlookthroughlimit_get, &ldbm_config_pagedlookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_PAGEDIDLISTSCANLIMIT, CONFIG_TYPE_INT, "0", &ldbm_config_pagedallidsthreshold_get, &ldbm_config_pagedallidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_RANGELOOKTHROUGHLIMIT, CONFIG_TYPE_INT, "5000", &ldbm_config_rangelookthroughlimit_get, &ldbm_config_rangelookthroughlimit_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
