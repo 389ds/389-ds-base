@@ -1257,6 +1257,15 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                 break;
             }
         }
+
+        // Check if have any errors on our attributes
+        for (const config_attr of check_attrs) {
+            if (config_attr in this.state.error && this.state.error[config_attr]) {
+                saveBtnDisabled = true;
+                break;
+            }
+        }
+
         this.setState({
             saveBtnDisabled
         });

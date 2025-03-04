@@ -605,6 +605,13 @@ export class Monitor extends React.Component {
                             dbEngine: attrs['nsslapd-backend-implement'][0],
                         });
                     }
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format("Error detecting DB implementation type - $0", errMsg.desc)
+                    );
                 });
     }
 
