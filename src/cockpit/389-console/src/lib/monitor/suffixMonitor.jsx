@@ -626,4 +626,365 @@ SuffixMonitor.defaultProps = {
     bename: "",
 };
 
-export default SuffixMonitor;
+export class SuffixMonitorMDB extends React.Component {
+    constructor (props) {
+        super(props);
+        this.state = {
+            activeTabKey: 0,
+            data: {},
+            loading: true,
+            // refresh charts
+            cache_refresh: "",
+            count: 10,
+            utilCount: 5,
+            entryCacheList: [],
+            entryUtilCacheList: [],
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
+        this.startCacheRefresh = this.startCacheRefresh.bind(this);
+        this.refreshSuffixCache = this.refreshSuffixCache.bind(this);
+    }
+
+    componentDidMount() {
+        this.resetChartData();
+        this.refreshSuffixCache();
+        this.startCacheRefresh();
+        this.props.enableTree();
+    }
+
+    componentWillUnmount() {
+        this.stopCacheRefresh();
+    }
+
+    resetChartData() {
+        this.setState({
+            data: {
+                // Entry cache
+                entrycachehitratio: [0],
+                entrycachetries: [0],
+                entrycachehits: [0],
+                maxentrycachesize: [0],
+                currententrycachesize: [0],
+                maxentrycachecount: [0],
+                currententrycachecount: [0],
+            },
+            entryCacheList: [
+                { name: "", x: "1", y: 0 },
+                { name: "", x: "2", y: 0 },
+                { name: "", x: "3", y: 0 },
+                { name: "", x: "4", y: 0 },
+                { name: "", x: "5", y: 0 },
+                { name: "", x: "6", y: 0 },
+                { name: "", x: "7", y: 0 },
+                { name: "", x: "8", y: 0 },
+                { name: "", x: "9", y: 0 },
+                { name: "", x: "10", y: 0 },
+            ],
+        });
+    }
+
+    refreshSuffixCache() {
+        // Search for db cache stat and update state
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "monitor", "backend", this.props.suffix
+        ];
+        log_cmd("refreshSuffixCache", "Get suffix monitor", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    let count = this.state.count + 1;
+                    const utilCount = this.state.utilCount + 1;
+                    if (count > 100) {
+                        // Keep progress count in check
+                        count = 1;
+                    }
+
+                    // Build up the Entry Cache chart data
+                    const entryRatio = config.attrs.entrycachehitratio[0];
+                    const entry_data = this.state.entryCacheList;
+                    entry_data.shift();
+                    entry_data.push({ name: _("Cache Hit Ratio"), x: count.toString(), y: parseInt(entryRatio) });
+
+                    // Build up the Entry Util chart data
+                    const entry_util_data = this.state.entryUtilCacheList;
+                    let maxsize = config.attrs.maxentrycachesize[0];
+                    let currsize = config.attrs.currententrycachesize[0];
+                    let utilratio = Math.round((currsize / maxsize) * 100);
+                    if (utilratio === 0) {
+                        utilratio = 1;
+                    }
+                    entry_util_data.shift();
+                    entry_util_data.push({ name: _("Cache Utilization"), x: utilCount.toString(), y: parseInt(utilratio) });
+
+                    this.setState({
+                        data: config.attrs,
+                        loading: false,
+                        entryCacheList: entry_data,
+                        entryUtilCacheList: entry_util_data,
+                        count,
+                        utilCount
+                    });
+                })
+                .fail(() => {
+                    this.resetChartData();
+                });
+    }
+
+    startCacheRefresh() {
+        this.setState({
+            cache_refresh: setInterval(this.refreshSuffixCache, 2000)
+        });
+    }
+
+    stopCacheRefresh() {
+        clearInterval(this.state.cache_refresh);
+    }
+
+    render() {
+        let entryChartColor = ChartThemeColor.green;
+        let entryUtilChartColor = ChartThemeColor.green;
+        let cachehit = 1;
+        let cachemax = 0;
+        let cachecurr = 0;
+        let cachecount = 0;
+        let utilratio = 1;
+        let SuffixIcon = TreeIcon;
+
+        if (this.props.dbtype === "subsuffix") {
+            SuffixIcon = LeafIcon;
+        }
+
+        let content = (
+            <div className="ds-margin-top-xlg ds-center">
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        {_("Loading Suffix Monitor Information ...")}
+                    </Text>
+                </TextContent>
+                <Spinner className="ds-margin-top-lg" size="xl" />
+            </div>
+        );
+
+        if (!this.state.loading) {
+            // Entry cache
+            cachehit = parseInt(this.state.data.entrycachehitratio[0]);
+            cachemax = parseInt(this.state.data.maxentrycachesize[0]);
+            cachecurr = parseInt(this.state.data.currententrycachesize[0]);
+            cachecount = parseInt(this.state.data.currententrycachecount[0]);
+            utilratio = Math.round((cachecurr / cachemax) * 100);
+
+            // Adjust ratios if needed
+            if (utilratio === 0) {
+                utilratio = 1;
+            }
+
+            // Entry cache chart color
+            if (cachehit > 89) {
+                entryChartColor = ChartThemeColor.green;
+            } else if (cachehit > 74) {
+                entryChartColor = ChartThemeColor.orange;
+            } else {
+                entryChartColor = ChartThemeColor.purple;
+            }
+            // Entry cache utilization
+            if (utilratio > 95) {
+                entryUtilChartColor = ChartThemeColor.purple;
+            } else if (utilratio > 90) {
+                entryUtilChartColor = ChartThemeColor.orange;
+            } else {
+                entryUtilChartColor = ChartThemeColor.green;
+            }
+
+            content = (
+                <div id="monitor-suffix-page">
+                    <Tabs activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<TabTitleText>{_("Entry Cache")}</TabTitleText>}>
+                            <div className="ds-margin-top">
+                                <Grid hasGutter>
+                                    <GridItem span={6}>
+                                        <Card isSelectable>
+                                            <CardBody>
+                                                <div className="ds-container">
+                                                    <div className="ds-center">
+                                                        <TextContent title={_("The entry cache hit ratio (entrycachehitratio)")}>
+                                                            <Text className="ds-margin-top" component={TextVariants.h3}>
+                                                                {_("Cache Hit Ratio")}
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top" component={TextVariants.h2}>
+                                                                <b>{cachehit}%</b>
+                                                            </Text>
+                                                        </TextContent>
+                                                    </div>
+                                                    <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
+                                                        <Chart
+                                                            ariaDesc="Entry Cache"
+                                                            ariaTitle={_("Live Entry Cache Statistics")}
+                                                            containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
+                                                            height={200}
+                                                            maxDomain={{ y: 100 }}
+                                                            minDomain={{ y: 0 }}
+                                                            padding={{
+                                                                bottom: 40,
+                                                                left: 60,
+                                                                top: 10,
+                                                                right: 15,
+                                                            }}
+                                                            width={350}
+                                                            themeColor={entryChartColor}
+                                                        >
+                                                            <ChartAxis />
+                                                            <ChartAxis dependentAxis showGrid tickValues={[25, 50, 75, 100]} />
+                                                            <ChartGroup>
+                                                                <ChartArea
+                                                                    data={this.state.entryCacheList}
+                                                                />
+                                                            </ChartGroup>
+                                                        </Chart>
+                                                    </div>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    </GridItem>
+                                    <GridItem span={6}>
+                                        <Card isSelectable>
+                                            <CardBody>
+                                                <div className="ds-container">
+                                                    <div className="ds-center">
+                                                        <TextContent title={_("The amount of the cache that is being used: max size (maxentrycachesize) vs current size (currententrycachesize)")}>
+                                                            <Text className="ds-margin-top" component={TextVariants.h3}>
+                                                                {_("Cache Utilization")}
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text component={TextVariants.h2}>
+                                                                <b>{utilratio}%</b>
+                                                            </Text>
+                                                        </TextContent>
+                                                        <TextContent>
+                                                            <Text className="ds-margin-top-lg" component={TextVariants.h5}>
+                                                                {_("Cached Entries")}
+                                                            </Text>
+                                                        </TextContent>
+                                                        <b>{cachecount}</b>
+                                                    </div>
+                                                    <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
+                                                        <Chart
+                                                            ariaDesc="Entry Cache Utilization"
+                                                            ariaTitle={_("Live Entry Cache Utilization Statistics")}
+                                                            containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
+                                                            height={200}
+                                                            maxDomain={{ y: 100 }}
+                                                            minDomain={{ y: 0 }}
+                                                            padding={{
+                                                                bottom: 40,
+                                                                left: 60,
+                                                                top: 10,
+                                                                right: 15,
+                                                            }}
+                                                            width={350}
+                                                            themeColor={entryUtilChartColor}
+                                                        >
+                                                            <ChartAxis />
+                                                            <ChartAxis dependentAxis showGrid tickValues={[25, 50, 75, 100]} />
+                                                            <ChartGroup>
+                                                                <ChartArea
+                                                                    data={this.state.entryUtilCacheList}
+                                                                />
+                                                            </ChartGroup>
+                                                        </Chart>
+                                                    </div>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    </GridItem>
+                                </Grid>
+                            </div>
+                            <Grid hasGutter className="ds-margin-top-xlg">
+                                <GridItem span={3}>
+                                    {_("Entry Cache Hit Ratio:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{this.state.data.entrycachehitratio[0]}%</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    {_("Entry Cache Max Size:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{displayBytes(cachemax)} </b>
+                                </GridItem>
+
+                                <GridItem span={3}>
+                                    {_("Entry Cache Hits:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.entrycachehits[0])}</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    {_("Entry Cache Current Size:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{displayBytes(cachecurr)}</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    {_("Entry Cache Tries:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.entrycachetries[0])}</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    {_("Entry Cache Max Entries:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.maxentrycachecount[0])}</b>
+                                </GridItem>
+                                <GridItem span={3}>
+                                    {_("Entry Cache Count:")}
+                                </GridItem>
+                                <GridItem span={2}>
+                                    <b>{numToCommas(this.state.data.currententrycachecount[0])}</b>
+                                </GridItem>
+                            </Grid>
+                        </Tab>
+                    </Tabs>
+                </div>
+            );
+        }
+
+        return (
+            <div>
+                <TextContent>
+                    <Text component={TextVariants.h2}>
+                        <SuffixIcon /> {this.props.suffix} (<b>{this.props.bename}</b>)
+                    </Text>
+                </TextContent>
+                <div className="ds-margin-top-lg">
+                    {content}
+                </div>
+            </div>
+        );
+    }
+}
+
+SuffixMonitorMDB.propTypes = {
+    serverId: PropTypes.string,
+    suffix: PropTypes.string,
+    bename: PropTypes.string,
+    enableTree: PropTypes.func,
+};
+
+SuffixMonitorMDB.defaultProps = {
+    serverId: "",
+    suffix: "",
+    bename: "",
+};
