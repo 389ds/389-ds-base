@@ -106,7 +106,7 @@ def test_monitor_ldbm(topo):
         assert 'dbcachehits' in monitor
         assert 'nsslapd-db-configured-locks' in monitor
     elif db_lib == 'mdb':
-        assert not 'dbcachehits' in monitor
+        assert 'dbcachehits' not in monitor
     else:
         # Unknown - the server would probably fail to start but check it anyway
         log.fatal(f'Unknown backend library: {db_lib}')

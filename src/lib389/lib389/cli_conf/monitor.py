@@ -129,7 +129,7 @@ def db_monitor(inst, basedn, log, args):
     # Gather the global DB stats
     report_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ldbm_mon = ldbm_monitor.get_status()
-    if ldbm_monitor.inst_db_impl == DB_IMPL_BDB :
+    if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
         dbcachesize = int(ldbm_mon['nsslapd-db-cache-size-bytes'][0])
         # Warning: there are two different page sizes associated with bdb:
         # - nsslapd-db-mp-pagesize the db mempool (i.e the db cache) page size which is usually 4K
@@ -207,7 +207,7 @@ def db_monitor(inst, basedn, log, args):
         else:
             entsize = int(entcur / entcnt)
 
-        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB :
+        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
             # Process DN cache stats
             dncur = int(all_attrs['currentdncachesize'][0])
             dnmax = int(all_attrs['maxdncachesize'][0])
@@ -230,7 +230,7 @@ def db_monitor(inst, basedn, log, args):
             'entry_cache_hit_ratio': entratio,
             'indexes': []
         }
-        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB :
+        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
             backend = result['backends'][be_name]
             backend['dn_cache_count'] = all_attrs['currentdncachecount'][0]
             backend['dn_cache_free'] = convert_bytes(str(dnfree))
@@ -268,7 +268,7 @@ def db_monitor(inst, basedn, log, args):
     else:
         log.info("DB Monitor Report: " + result['date'])
         log.info("--------------------------------------------------------")
-        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB :
+        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
             log.info("Database Cache:")
             log.info(" - Cache Hit Ratio:     {}%".format(result['dbcache']['hit_ratio']))
             log.info(" - Free Space:          {}".format(result['dbcache']['free']))
@@ -292,7 +292,7 @@ def db_monitor(inst, basedn, log, args):
             log.info("    - Entry Cache Free Space:       {}".format(attr_dict['entry_cache_free']))
             log.info("    - Entry Cache Free Percentage:  {}%".format(attr_dict['entry_cache_free_percentage']))
             log.info("    - Entry Cache Average Size:     {}".format(attr_dict['entry_cache_size']))
-            if ldbm_monitor.inst_db_impl == DB_IMPL_BDB :
+            if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
                 log.info("    - DN Cache Hit Ratio:           {}%".format(attr_dict['dn_cache_hit_ratio']))
                 log.info("    - DN Cache Count:               {}".format(attr_dict['dn_cache_count']))
                 log.info("    - DN Cache Free Space:          {}".format(attr_dict['dn_cache_free']))
