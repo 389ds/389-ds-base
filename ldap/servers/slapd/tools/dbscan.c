@@ -1280,7 +1280,7 @@ removedb(const char *dbimpl_name, const char *filename)
 
     if (!filename) {
         printf("Error: -f option is missing.\n"
-               "Usage: dbscan -D mdb -d -f <db_home_dir>/<backend_name>/<db_name>\n");
+               "Usage: dbscan -D bdb -d -f <db_home_dir>/<backend_name>/<db_name>\n");
         return 1;
     }
 
@@ -1314,7 +1314,7 @@ main(int argc, char **argv)
     char *find_key = NULL;
     uint32_t entry_id = 0xffffffff;
     char *defdbimpl = getenv("NSSLAPD_DB_LIB");
-    char *dbimpl_name = (char*) "mdb";
+    char *dbimpl_name = (char*) "bdb";
     int longopt_idx = 0;
     int c = 0;
     char optstring[2*COUNTOF(options)+1] = {0};
