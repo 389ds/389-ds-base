@@ -4499,15 +4499,13 @@ memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc)
     Slapi_PBlock *mod_pb = NULL;
     int added_oc = 0;
     int rc = 0;
+    int bypass_referral = 1;
 
     while (1) {
         mod_pb = slapi_pblock_new();
-        slapi_modify_internal_set_pb(
-            mod_pb, dn, mods, 0, 0,
-            memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
-        slapi_modify_internal_pb(mod_pb);
-
-        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        slapi_pblock_init(mod_pb);
+        /* Perform modifications with error overrides for specific conditions */
+        rc = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_normdn_byref(dn), mods, memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
         if (rc == LDAP_OBJECT_CLASS_VIOLATION) {
             if (!add_oc || added_oc) {
                 /*
