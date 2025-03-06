@@ -458,7 +458,7 @@ attrcrypt_cipher_init(ldbm_instance *li, attrcrypt_cipher_entry *ace, SECKEYPriv
     /* Try to get the symmetric key for this cipher */
     ret = attrcrypt_keymgmt_get_key(li, acs, private_key, &symmetric_key);
     if (KEYMGMT_ERR_NO_ENTRY == ret) {
-        slapi_log_err(SLAPI_LOG_ERR, "attrcrypt_cipher_init",
+        slapi_log_err(SLAPI_LOG_NOTICE, "attrcrypt_cipher_init",
                       "No symmetric key found for cipher %s in backend %s, "
                       "attempting to create one...\n",
                       acs->cipher_display_name, li->inst_name);

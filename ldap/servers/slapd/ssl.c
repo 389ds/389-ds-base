@@ -1535,7 +1535,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     int slapd_SSLclientAuth;
     char *tmpDir;
     Slapi_Entry *e = NULL;
-    PRBool fipsMode = PR_FALSE;
     PRUint16 NSSVersionMin = defaultNSSVersions.min;
     PRUint16 NSSVersionMax = defaultNSSVersions.max;
     char mymin[VERSION_STR_LENGTH], mymax[VERSION_STR_LENGTH];
@@ -1624,7 +1623,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                               errorCode, slapd_pr_strerror(errorCode));
                 return -1;
             }
-            fipsMode = PR_TRUE;
         }
 
         slapd_pk11_setSlotPWValues(slot, 0, 0);
