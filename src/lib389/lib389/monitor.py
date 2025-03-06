@@ -223,11 +223,11 @@ class MonitorLDBM(DSLdapObject):
         super(MonitorLDBM, self).__init__(instance=instance)
         self._dn = DN_MONITOR_LDBM
         self._db_mon = MonitorDatabase(instance)
-        self._inst_db_impl = self._instance.get_db_lib()
-        self._backend_keys = list(self.DB_KEYS.get(self._inst_db_impl, []))
-        self._db_mon_keys = list(self.DB_MONITOR_KEYS.get(self._inst_db_impl, []))
+        self.inst_db_impl = self._instance.get_db_lib()
+        self._backend_keys = list(self.DB_KEYS.get(self.inst_db_impl, []))
+        self._db_mon_keys = list(self.DB_MONITOR_KEYS.get(self.inst_db_impl, []))
 
-        if self._inst_db_impl == DB_IMPL_BDB and not ds_is_older("1.4.0", instance=instance):
+        if self.inst_db_impl == DB_IMPL_BDB and not ds_is_older("1.4.0", instance=instance):
             self._backend_keys.extend([
                 'normalizeddncachetries', 'normalizeddncachehits',
                 'normalizeddncachemisses', 'normalizeddncachehitratio',
