@@ -1253,7 +1253,6 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         // Check if a setting was changed, if so enable the save button
         for (const config_attr of check_attrs) {
             if (this.state[config_attr] !== this.state['_' + config_attr]) {
-                // jc console.log(config_attr);
                 saveBtnDisabled = false;
                 break;
             }

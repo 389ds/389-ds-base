@@ -3,8 +3,8 @@ import React from "react";
 import { log_cmd } from "./lib/tools.jsx";
 import PropTypes from "prop-types";
 import ServerMonitor from "./lib/monitor/serverMonitor.jsx";
-import DatabaseMonitor from "./lib/monitor/dbMonitor.jsx";
-import SuffixMonitor from "./lib/monitor/suffixMonitor.jsx";
+import { DatabaseMonitor, DatabaseMonitorMDB } from "./lib/monitor/dbMonitor.jsx";
+import { SuffixMonitor, SuffixMonitorMDB } from "./lib/monitor/suffixMonitor.jsx";
 import ChainingMonitor from "./lib/monitor/chainingMonitor.jsx";
 import AccessLogMonitor from "./lib/monitor/accesslog.jsx";
 import AuditLogMonitor from "./lib/monitor/auditlog.jsx";
@@ -34,6 +34,8 @@ import {
 } from '@patternfly/react-icons';
 
 const _ = cockpit.gettext;
+
+const BE_IMPL_MDB = "mdb";
 
 export class Monitor extends React.Component {
     constructor(props) {
@@ -82,6 +84,8 @@ export class Monitor extends React.Component {
             auditlogLocation: "",
             auditfaillogLocation: "",
             securitylogLocation: "",
+            // DB engine, bdb or mdb (default)
+            dbEngine: BE_IMPL_MDB,
         };
 
         // Bindings
@@ -98,6 +102,7 @@ export class Monitor extends React.Component {
         this.loadMonitorChaining = this.loadMonitorChaining.bind(this);
         this.loadDiskSpace = this.loadDiskSpace.bind(this);
         this.reloadDisks = this.reloadDisks.bind(this);
+        this.getDBEngine = this.getDBEngine.bind(this);
         // Replication
         this.onHandleLoadMonitorReplication = this.onHandleLoadMonitorReplication.bind(this);
         this.loadCleanTasks = this.loadCleanTasks.bind(this);
@@ -112,6 +117,10 @@ export class Monitor extends React.Component {
         this.getAgmts = this.getAgmts.bind(this);
         // Logging
         this.loadMonitor = this.loadMonitor.bind(this);
+    }
+
+    componentDidMount() {
+        this.getDBEngine();
     }
 
     componentDidUpdate(prevProps) {
@@ -580,6 +589,32 @@ export class Monitor extends React.Component {
                 });
     }
 
+    getDBEngine () {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "backend", "config", "get"
+        ];
+        log_cmd("getDBEngine", "Get DB Implementation", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const config = JSON.parse(content);
+                    const attrs = config.attrs;
+                    if ('nsslapd-backend-implement' in attrs) {
+                        this.setState({
+                            dbEngine: attrs['nsslapd-backend-implement'][0],
+                        });
+                    }
+                })
+                .fail(err => {
+                    const errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format("Error detecting DB implementation type - $0", errMsg.desc)
+                    );
+                });
+    }
+
     reloadSNMP() {
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -955,13 +990,24 @@ export class Monitor extends React.Component {
                         </div>
                     );
                 } else {
-                    monitor_element = (
-                        <DatabaseMonitor
-                            data={this.state.ldbmData}
-                            enableTree={this.enableTree}
-                            serverId={this.props.serverId}
-                        />
-                    );
+                    if (this.state.dbEngine === BE_IMPL_MDB) {
+                        monitor_element = (
+                            <DatabaseMonitorMDB
+                                data={this.state.ldbmData}
+                                enableTree={this.enableTree}
+                                serverId={this.props.serverId}
+                            />
+                        );
+                    } else {
+                        monitor_element = (
+                            <DatabaseMonitor
+                                data={this.state.ldbmData}
+                                enableTree={this.enableTree}
+                                serverId={this.props.serverId}
+                            />
+                        );
+                    }
+
                 }
             } else if (this.state.node_name === "server-monitor") {
                 if (this.state.serverLoading) {
@@ -1142,16 +1188,29 @@ export class Monitor extends React.Component {
                         );
                     } else {
                         // Suffix
-                        monitor_element = (
-                            <SuffixMonitor
-                                serverId={this.props.serverId}
-                                suffix={this.state.node_text}
-                                bename={this.state.bename}
-                                enableTree={this.enableTree}
-                                key={this.state.node_text}
-                                addNotification={this.props.addNotification}
-                            />
-                        );
+                        if (this.state.dbEngine === BE_IMPL_MDB) {
+                            monitor_element = (
+                                <SuffixMonitorMDB
+                                    serverId={this.props.serverId}
+                                    suffix={this.state.node_text}
+                                    bename={this.state.bename}
+                                    enableTree={this.enableTree}
+                                    key={this.state.node_text}
+                                    addNotification={this.props.addNotification}
+                                />
+                            );
+                        } else {
+                            monitor_element = (
+                                <SuffixMonitor
+                                    serverId={this.props.serverId}
+                                    suffix={this.state.node_text}
+                                    bename={this.state.bename}
+                                    enableTree={this.enableTree}
+                                    key={this.state.node_text}
+                                    addNotification={this.props.addNotification}
+                                />
+                            );
+                        }
                     }
                 }
             }
