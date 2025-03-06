@@ -33,6 +33,7 @@ USER_PROPERTIES = {
 
 def test_modrdn_of_a_member_of_2_automember_groups(topology_st):
     """Test that a member of 2 automember groups can be renamed
+
     :id: 0e40bdc4-a2d2-4bb8-8368-e02c8920bad2
 
     :setup: Standalone instance

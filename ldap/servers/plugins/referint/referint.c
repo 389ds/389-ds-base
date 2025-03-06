@@ -715,31 +715,12 @@ _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
 
     slapi_pblock_init(mod_pb);
 
-    for (size_t i = 0; mods && mods[i] != NULL; i++) {
-        int mod_type = mods[i]->mod_op & LDAP_MOD_OP;
-        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "jc - mod_type:%d \n", mod_type);
-
-        // if (mod_type == LDAP_MOD_DELETE) {
-        //     if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
-        //         rc = LDAP_SUCCESS;
-        //     }
-        // } else if (mod_type == LDAP_MOD_ADD) {
-        //     if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
-        //         rc = LDAP_SUCCESS;
-        //     }
-        // }
-    }
-
+    /* Perform modifications with error overrides for specific conditions */
     if (allow_repl) {
-        /* Must set as a replicated operation */
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, OP_FLAG_REPLICATED);
+        rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mods, referint_plugin_identity, OP_FLAG_REPLICATED);
     } else {
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, 0);
+        rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mods, referint_plugin_identity, 0);
     }
-    slapi_modify_internal_pb(mod_pb);
-    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
     return rc;
 }
