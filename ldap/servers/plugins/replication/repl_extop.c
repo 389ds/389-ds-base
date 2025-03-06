@@ -1134,6 +1134,12 @@ send_response:
         slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, REPL_NSDS50_REPLICATION_RESPONSE_OID);
     }
 
+    /* connext (release our hold on it at least) */
+    if (NULL != connext) {
+        /* don't free it, just let go of it */
+        consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
+    }
+
     slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                   "multimaster_extop_StartNSDS50ReplicationRequest - "
@@ -1250,12 +1256,6 @@ send_response:
     /* ruv_bervals */
     if (NULL != ruv_bervals) {
         ber_bvecfree(ruv_bervals);
-    }
-    /* connext (our hold on it at least) */
-    if (NULL != connext) {
-        /* don't free it, just let go of it */
-        consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
-        connext = NULL;
     }
 
     return return_value;
@@ -1389,6 +1389,13 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
         }
     }
 send_response:
+    /* connext (release our hold on it at least) */
+    if (NULL != connext) {
+        /* don't free it, just let go of it */
+        consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
+        connext = NULL;
+    }
+
     /* Send the response code */
     if ((resp_bere = der_alloc()) == NULL) {
         goto free_and_return;
@@ -1419,11 +1426,10 @@ free_and_return:
     if (NULL != resp_bval) {
         ber_bvfree(resp_bval);
     }
-    /* connext (our hold on it at least) */
+    /* connext (release our hold on it if not already released) */
     if (NULL != connext) {
         /* don't free it, just let go of it */
         consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
-        connext = NULL;
     }
 
     return return_value;
@@ -1516,7 +1522,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
                       rid);
     }
     /*
-     *  Get the replica 
+     *  Get the replica
      */
     if ((r = replica_get_replica_from_root(repl_root)) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "

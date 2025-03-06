@@ -1,5 +1,9 @@
 # --- BEGIN COPYRIGHT BLOCK ---
+<<<<<<< HEAD
 # Copyright (C) 2021 Red Hat, Inc.
+=======
+# Copyright (C) 2025 Red Hat, Inc.
+>>>>>>> a623c3f90 (Issue 6655 - fix replication release replica decoding error)
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -453,6 +457,13 @@ def test_multi_subsuffix_replication(topo_m4):
                             f"User {user_dn} on supplier {user_obj._instance.serverid} "
                             f"still has 'Description {j}'"
                         )
+
+        # Check there are no decoding errors
+        assert not topo_m4.ms["supplier1"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier2"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier3"].ds_error_log.match('.*decoding failed.*')
+        assert not topo_m4.ms["supplier4"].ds_error_log.match('.*decoding failed.*')
+
     finally:
         for suffix, test_users in test_users_by_suffix.items():
             for user in test_users:
@@ -506,6 +517,7 @@ def test_new_suffix(topo_m4, new_suffix):
 
     repl.remove_supplier(m1)
     repl.remove_supplier(m2)
+
 
 def test_many_attrs(topo_m4, create_entry):
     """Check a replication with many attributes (add and delete)
