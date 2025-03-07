@@ -6,15 +6,16 @@ import {
     Checkbox,
     FormSelect,
     FormSelectOption,
-    Grid,
-    GridItem,
+    Toolbar,
+    ToolbarContent,
+    ToolbarItem,
     Spinner,
-    TextArea,
     Text,
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
 import { SyncAltIcon } from '@patternfly/react-icons';
+import { LogViewer, LogViewerSearch } from '@patternfly/react-log-viewer';
 
 const _ = cockpit.gettext;
 
@@ -27,17 +28,13 @@ export class AccessLogMonitor extends React.Component {
             accesslog_cont_refresh: "",
             accessRefreshing: false,
             accessLines: "50",
+            isTextWrapped: false,
         };
 
         this.handleRefreshAccessLog = this.handleRefreshAccessLog.bind(this);
         this.handleAccessChange = this.handleAccessChange.bind(this);
         this.accessRefreshCont = this.accessRefreshCont.bind(this);
-    }
-
-    componentDidUpdate () {
-        // Set the textarea to be scrolled down to the bottom
-        const textarea = document.getElementById('accesslog-area');
-        textarea.scrollTop = textarea.scrollHeight;
+        this.handleTextWrappedChange = this.handleTextWrappedChange.bind(this);
     }
 
     componentDidMount() {
@@ -73,11 +70,25 @@ export class AccessLogMonitor extends React.Component {
         ), this.handleRefreshAccessLog);
     }
 
+    handleTextWrappedChange(_event, checked) {
+        this.setState({
+            isTextWrapped: checked
+        });
+    }
+
     handleRefreshAccessLog () {
         this.setState({
             accessReloading: true
         });
-        const cmd = ["tail", "-" + this.state.accessLines, this.props.logLocation];
+        
+        // Use different command when "no-limit" is selected
+        let cmd;
+        if (this.state.accessLines === "no-limit") {
+            cmd = ["cat", this.props.logLocation];
+        } else {
+            cmd = ["tail", "-" + this.state.accessLines, this.props.logLocation];
+        }
+        
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -95,46 +106,31 @@ export class AccessLogMonitor extends React.Component {
     }
 
     render() {
-        let spinner = "";
+        let spinner = null;
         if (this.state.accessReloading) {
             spinner = (
-                <div>
-                    <Spinner  size="sm" />
+                <ToolbarItem>
+                    <Spinner size="sm" />
                     {_("Reloading access log...")}
-                </div>
+                </ToolbarItem>
             );
         }
 
-        return (
-            <div id="monitor-log-access-page">
-                <Grid>
-                    <GridItem span={3}>
-                        <TextContent>
-                            <Text component={TextVariants.h3}>
-                                {_("Access Log")}
-                                <Button 
-                                    variant="plain"
-                                    aria-label={_("Refresh access log")}
-                                    onClick={this.handleRefreshAccessLog}
-                                >
-                                    <SyncAltIcon />
-                                </Button>
-                            </Text>
-                        </TextContent>
-                    </GridItem>
-                    <GridItem span={9} className="ds-float-left">
-                        {spinner}
-                    </GridItem>
-                </Grid>
-                <Grid className="ds-margin-top-lg ds-indent">
-                    <GridItem span={2}>
+        const logViewerToolbar = (
+            <Toolbar>
+                <ToolbarContent>
+                    <ToolbarItem>
+                        <LogViewerSearch placeholder={_("Search")} />
+                    </ToolbarItem>
+                    <ToolbarItem>
                         <FormSelect
                             id="accessLines"
                             value={this.state.accessLines}
-                            onChange={(event, value) => {
+                            onChange={(event) => {
                                 this.handleAccessChange(event);
                             }}
-                            aria-label="FormSelect Input"
+                            aria-label={_("Lines to display")}
+                            style={{ minWidth: '150px', width: 'auto' }}
                         >
                             <FormSelectOption key="50" value="50" label="50" />
                             <FormSelectOption key="100" value="100" label="100" />
@@ -147,26 +143,54 @@ export class AccessLogMonitor extends React.Component {
                             <FormSelectOption key="5000" value="5000" label="5000" />
                             <FormSelectOption key="10000" value="10000" label="10000" />
                             <FormSelectOption key="50000" value="50000" label="50000" />
+                            <FormSelectOption key="no-limit" value="no-limit" label={_("No Limit")} />
                         </FormSelect>
-                    </GridItem>
-                    <GridItem span={10}>
-                        <div className="ds-float-right">
-                            <Checkbox
-                                id="accessRefreshing"
-                                isChecked={this.state.accessRefreshing}
-                                onChange={(e, checked) => { this.accessRefreshCont(e) }}
-                                label={_("Continuously Refresh")}
-                            />
-                        </div>
-                    </GridItem>
-                    <TextArea
-                        id="accesslog-area"
-                        resizeOrientation="vertical"
-                        className="ds-logarea ds-margin-top-lg"
-                        value={this.state.accesslogData}
-                        aria-label="text area example"
+                    </ToolbarItem>
+                    <ToolbarItem alignSelf="center" className="ds-float-right">
+                        <Checkbox
+                            id="accessRefreshing"
+                            isChecked={this.state.accessRefreshing}
+                            onChange={(e) => { this.accessRefreshCont(e) }}
+                            label={_("Continuously Refresh")}
+                        />
+                    </ToolbarItem>
+                    <ToolbarItem alignSelf="center">
+                        <Checkbox
+                            id="wrapText"
+                            isChecked={this.state.isTextWrapped}
+                            onChange={this.handleTextWrappedChange}
+                            label={_("Wrap text")}
+                            aria-label="wrap text checkbox"
+                        />
+                    </ToolbarItem>
+                    {spinner}
+                </ToolbarContent>
+            </Toolbar>
+        );
+
+        return (
+            <div id="monitor-log-access-page">
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        {_("Access Log")}
+                        <Button 
+                            variant="plain"
+                            aria-label={_("Refresh access log")}
+                            onClick={this.handleRefreshAccessLog}
+                        >
+                            <SyncAltIcon />
+                        </Button>
+                    </Text>
+                </TextContent>
+                <div className="ds-margin-top-lg">
+                    <LogViewer
+                        data={this.state.accesslogData}
+                        isTextWrapped={this.state.isTextWrapped}
+                        toolbar={logViewerToolbar}
+                        scrollToRow={this.state.accesslogData.split('\n').length}
+                        height="600px"
                     />
-                </Grid>
+                </div>
             </div>
         );
     }
