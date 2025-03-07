@@ -6,15 +6,16 @@ import {
     Checkbox,
     FormSelect,
     FormSelectOption,
-    Grid,
-    GridItem,
+    Toolbar,
+    ToolbarContent,
+    ToolbarItem,
     Spinner,
-    TextArea,
     Text,
     TextContent,
     TextVariants,
 } from "@patternfly/react-core";
 import { SyncAltIcon } from '@patternfly/react-icons';
+import { LogViewer, LogViewerSearch } from '@patternfly/react-log-viewer';
 
 const _ = cockpit.gettext;
 
@@ -27,17 +28,13 @@ export class SecurityLogMonitor extends React.Component {
             securitylog_cont_refresh: "",
             securityRefreshing: false,
             securityLines: "50",
+            isTextWrapped: false,
         };
 
         this.handleRefreshSecurityLog = this.handleRefreshSecurityLog.bind(this);
         this.handleSecurityChange = this.handleSecurityChange.bind(this);
         this.securityRefreshCont = this.securityRefreshCont.bind(this);
-    }
-
-    componentDidUpdate () {
-        // Set the textarea to be scrolled down to the bottom
-        const textarea = document.getElementById('securitylog-area');
-        textarea.scrollTop = textarea.scrollHeight;
+        this.handleTextWrappedChange = this.handleTextWrappedChange.bind(this);
     }
 
     componentDidMount() {
@@ -73,11 +70,25 @@ export class SecurityLogMonitor extends React.Component {
         ), this.handleRefreshSecurityLog);
     }
 
+    handleTextWrappedChange(_event, checked) {
+        this.setState({
+            isTextWrapped: checked
+        });
+    }
+
     handleRefreshSecurityLog () {
         this.setState({
             securityReloading: true
         });
-        const cmd = ["tail", "-" + this.state.securityLines, this.props.logLocation];
+        
+        // Use different command when "no-limit" is selected
+        let cmd;
+        if (this.state.securityLines === "no-limit") {
+            cmd = ["cat", this.props.logLocation];
+        } else {
+            cmd = ["tail", "-" + this.state.securityLines, this.props.logLocation];
+        }
+        
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -95,46 +106,31 @@ export class SecurityLogMonitor extends React.Component {
     }
 
     render() {
-        let spinner = "";
+        let spinner = null;
         if (this.state.securityReloading) {
             spinner = (
-                <div>
-                    <Spinner  size="sm" />
+                <ToolbarItem>
+                    <Spinner size="sm" />
                     {_("Reloading security log...")}
-                </div>
+                </ToolbarItem>
             );
         }
 
-        return (
-            <div id="monitor-log-security-page">
-                <Grid>
-                    <GridItem span={3}>
-                        <TextContent>
-                            <Text component={TextVariants.h3}>
-                                {_("Security Log")}
-                                <Button 
-                                    variant="plain"
-                                    aria-label={_("Refresh security log")}
-                                    onClick={this.handleRefreshSecurityLog}
-                                >
-                                    <SyncAltIcon />
-                                </Button>
-                            </Text>
-                        </TextContent>
-                    </GridItem>
-                    <GridItem span={9} className="ds-float-left">
-                        {spinner}
-                    </GridItem>
-                </Grid>
-                <Grid className="ds-margin-top-lg ds-indent">
-                    <GridItem span={2}>
+        const logViewerToolbar = (
+            <Toolbar>
+                <ToolbarContent>
+                    <ToolbarItem>
+                        <LogViewerSearch placeholder={_("Search")} />
+                    </ToolbarItem>
+                    <ToolbarItem>
                         <FormSelect
                             id="securityLines"
                             value={this.state.securityLines}
-                            onChange={(event, value) => {
+                            onChange={(event) => {
                                 this.handleSecurityChange(event);
                             }}
-                            aria-label="FormSelect Input"
+                            aria-label={_("Lines to display")}
+                            style={{ minWidth: '150px', width: 'auto' }}
                         >
                             <FormSelectOption key="50" value="50" label="50" />
                             <FormSelectOption key="100" value="100" label="100" />
@@ -147,26 +143,54 @@ export class SecurityLogMonitor extends React.Component {
                             <FormSelectOption key="5000" value="5000" label="5000" />
                             <FormSelectOption key="10000" value="10000" label="10000" />
                             <FormSelectOption key="50000" value="50000" label="50000" />
+                            <FormSelectOption key="no-limit" value="no-limit" label={_("No Limit")} />
                         </FormSelect>
-                    </GridItem>
-                    <GridItem span={10}>
-                        <div className="ds-float-right">
-                            <Checkbox
-                                id="securityRefreshing"
-                                isChecked={this.state.securityRefreshing}
-                                onChange={(e, checked) => { this.securityRefreshCont(e) }}
-                                label={_("Continuously Refresh")}
-                            />
-                        </div>
-                    </GridItem>
-                    <TextArea
-                        id="securitylog-area"
-                        resizeOrientation="vertical"
-                        className="ds-logarea ds-margin-top-lg"
-                        value={this.state.securitylogData}
-                        aria-label="text area example"
+                    </ToolbarItem>
+                    <ToolbarItem alignSelf="center" className="ds-float-right">
+                        <Checkbox
+                            id="securityRefreshing"
+                            isChecked={this.state.securityRefreshing}
+                            onChange={(e) => { this.securityRefreshCont(e) }}
+                            label={_("Continuously Refresh")}
+                        />
+                    </ToolbarItem>
+                    <ToolbarItem alignSelf="center">
+                        <Checkbox
+                            id="wrapText"
+                            isChecked={this.state.isTextWrapped}
+                            onChange={this.handleTextWrappedChange}
+                            label={_("Wrap text")}
+                            aria-label="wrap text checkbox"
+                        />
+                    </ToolbarItem>
+                    {spinner}
+                </ToolbarContent>
+            </Toolbar>
+        );
+
+        return (
+            <div id="monitor-log-security-page">
+                <TextContent>
+                    <Text component={TextVariants.h3}>
+                        {_("Security Log")}
+                        <Button 
+                            variant="plain"
+                            aria-label={_("Refresh security log")}
+                            onClick={this.handleRefreshSecurityLog}
+                        >
+                            <SyncAltIcon />
+                        </Button>
+                    </Text>
+                </TextContent>
+                <div className="ds-margin-top-lg">
+                    <LogViewer
+                        data={this.state.securitylogData}
+                        isTextWrapped={this.state.isTextWrapped}
+                        toolbar={logViewerToolbar}
+                        scrollToRow={this.state.securitylogData.split('\n').length}
+                        height="600px"
                     />
-                </Grid>
+                </div>
             </div>
         );
     }
