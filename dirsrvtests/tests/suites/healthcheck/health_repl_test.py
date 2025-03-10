@@ -10,7 +10,9 @@
 import pytest
 import os
 import random
+import re
 import string
+import subprocess
 import threading
 import time
 from contextlib import suppress, AbstractContextManager
@@ -20,8 +22,8 @@ from lib389.replica import Changelog, ReplicationManager, Replicas
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
-from lib389.topologies import topology_m2, topology_m3
 from lib389.cli_ctl.health import health_check_run
+from lib389.topologies import topology_m2, topology_m3
 from lib389.paths import Paths
 
 CMD_OUTPUT = 'No issues found.'
@@ -88,7 +90,7 @@ class BreakReplication(AbstractContextManager):
         return self
 
 
-def assert_is_in_logcap(logcap, searched_code, isnot=False):
+def assert_is_in_result(result, searched_code, isnot=False):
     # Assert if searched_code is not in logcap
     if searched_code is None:
         return
@@ -96,36 +98,35 @@ def assert_is_in_logcap(logcap, searched_code, isnot=False):
     # Handle positive and negative tests:
     nomatch, match, f = LOGIC_DICT[bool(isnot)]
     try:
-        assert f(logcap.contains(searched_code))
+        assert f(re.search(re.escape(searched_code), result))
         log.info(f'Searched code {searched_code} is {match}in healthcheck output')
     except AssertionError as exc:
-        output = []
-        logcap.emit(output)
-        output = "\n".join(output)
-        log.error(f'{searched_code} is {nomatch}in healthcheck output:  {output}')
+        log.error(f'{searched_code} is {nomatch}in healthcheck output:  {result}')
         raise
 
 
-def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None, isnot=False):
-    args = FakeArgs()
-    args.instance = instance.serverid
-    args.verbose = instance.verbose
-    args.list_errors = False
-    args.list_checks = False
-    args.check = ['replication', 'backends:userroot:cl_trimming']
-    args.dry_run = False
-    args.json = json
-
+def run_healthcheck_and_check_result(topology, instance, searched_code, json, searched_code2=None, isnot=False):
+    cmd = [ 'dsctl', ]
     if json:
-        log.info('Use healthcheck with --json option')
-    else:
-        log.info('Use healthcheck without --json option')
-    health_check_run(instance, topology.logcap.log, args)
-    assert_is_in_logcap(topology.logcap, searched_code, isnot=isnot)
-    assert_is_in_logcap(topology.logcap, searched_code2, isnot=isnot)
+        cmd.append('--json')
+        if searched_code == CMD_OUTPUT:
+            searched_code = JSON_OUTPUT
+    cmd.append(instance.serverid)
+    cmd.extend(['healthcheck', '--check', 'replication' , 'backends:userroot:cl_trimming'])
 
-    log.info('Clear the log')
-    topology.logcap.flush()
+    result = subprocess.run(cmd, capture_output=True, universal_newlines=True)
+    log.info(f'Running: {cmd}')
+    log.info(f'Stdout: {result.stdout}')
+    log.info(f'Stderr: {result.stdout}')
+    log.info(f'Return code: {result.returncode}')
+    stdout = result.stdout
+
+    # stdout should not be empty
+    assert stdout is not None
+    assert len(stdout) > 0
+    assert_is_in_result(stdout, searched_code, isnot=isnot)
+    assert_is_in_result(stdout, searched_code2, isnot=isnot)
+
 
 
 def set_changelog_trimming(instance):
@@ -179,15 +180,15 @@ def test_healthcheck_replication_replica_not_reachable(topology_m2):
     with suppress(Exception):
         repl.wait_for_replication(M1, M2, timeout=5)
 
-    run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=False)
-    run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=True)
+    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=False)
+    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=True)
 
     log.info('Set nsds5replicaport for the replication agreement to a reachable port')
     agmt_m1.replace('nsDS5ReplicaPort', '{}'.format(M2.port))
     repl.wait_for_replication(M1, M2)
 
-    run_healthcheck_and_flush_log(topology_m2, M1, CMD_OUTPUT, json=False)
-    run_healthcheck_and_flush_log(topology_m2, M1, JSON_OUTPUT, json=True)
+    run_healthcheck_and_check_result(topology_m2, M1, CMD_OUTPUT, json=False)
+    run_healthcheck_and_check_result(topology_m2, M1, JSON_OUTPUT, json=True)
 
 
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
@@ -227,13 +228,13 @@ def test_healthcheck_changelog_trimming_not_configured(topology_m2):
 
     time.sleep(3)
 
-    run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=False)
-    run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=True)
+    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=False)
+    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=True)
 
     set_changelog_trimming(M1)
 
-    run_healthcheck_and_flush_log(topology_m2, M1, CMD_OUTPUT, json=False)
-    run_healthcheck_and_flush_log(topology_m2, M1, JSON_OUTPUT, json=True)
+    run_healthcheck_and_check_result(topology_m2, M1, CMD_OUTPUT, json=False)
+    run_healthcheck_and_check_result(topology_m2, M1, JSON_OUTPUT, json=True)
 
 
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
@@ -275,8 +276,8 @@ def test_healthcheck_replication_presence_of_conflict_entries(topology_m2):
 
     repl.test_replication_topology(topology_m2)
 
-    run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=False)
-    run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=True)
+    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=False)
+    run_healthcheck_and_check_result(topology_m2, M1, RET_CODE, json=True)
 
 
 def test_healthcheck_non_replicated_suffixes(topology_m2):
@@ -312,7 +313,6 @@ def test_healthcheck_non_replicated_suffixes(topology_m2):
     health_check_run(inst, topology_m2.logcap.log, args)
 
 
-@pytest.mark.xfail(ds_is_older("2.7"), reason="Not fixed")
 def test_healthcheck_replica_busy(topology_m3):
     """Check that HealthCheck does not returns DSREPLLE0003 code when a replicva is busy
 
@@ -335,6 +335,8 @@ def test_healthcheck_replica_busy(topology_m3):
     """
 
     RET_CODE = 'DSREPLLE0003'
+    # Is DSREPLLE0003 ignored if replica is busy ?
+    ignored = not ds_is_older("2.7")
 
     S1 = topology_m3.ms['supplier1']
     S2 = topology_m3.ms['supplier2']
@@ -344,8 +346,9 @@ def test_healthcheck_replica_busy(topology_m3):
         time.sleep(10)
         # Create user on S3 then remove it:
         LoadInstance(S3).user.delete()
-        run_healthcheck_and_flush_log(topology_m3, S3, RET_CODE, json=False, isnot=True)
-        run_healthcheck_and_flush_log(topology_m3, S3, RET_CODE, json=True, isnot=True)
+        # S3 agrements should now be in the replica busy state
+        run_healthcheck_and_check_result(topology_m3, S3, RET_CODE, json=False, isnot=ignored)
+        run_healthcheck_and_check_result(topology_m3, S3, RET_CODE, json=True, isnot=ignored)
 
 
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
@@ -379,9 +382,41 @@ def test_healthcheck_replication_out_of_sync_broken(topology_m3):
         test_users_m1 = UserAccounts(S1, DEFAULT_SUFFIX)
         test_users_m1.create_test_user(1005, 2000)
 
-        time.sleep(1)
-        run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=False)
-        run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=True)
+        time.sleep(3)
+        run_healthcheck_and_check_result(topology_m3, S1, RET_CODE, json=False)
+        run_healthcheck_and_check_result(topology_m3, S1, RET_CODE, json=True)
+
+
+def test_healthcheck_replication_out_of_sync_not_broken(topology_m3):
+    """Check that HealthCheck returns no issues when replication is in progress
+
+    :id: 8305000d-ba4d-4c00-8331-be0e8bd92150
+    :setup: 3 MMR topology
+    :steps:
+        1. Create a 3 suppliers full-mesh topology, all replicas being synchronized
+        2. Generate constant load on two supplier
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports no issue found
+        4. Healthcheck reports no issue found
+    """
+
+    RET_CODE = CMD_OUTPUT
+    # Is DSREPLLE0003 ignored if replica is busy ?
+    ignored = not ds_is_older("2.7")
+
+    S1 = topology_m3.ms['supplier1']
+    S2 = topology_m3.ms['supplier2']
+    S3 = topology_m3.ms['supplier3']
+
+    with LoadInstance(S1), LoadInstance(S2):
+        # Wait a bit to let replication starts
+        time.sleep(10)
+        run_healthcheck_and_check_result(topology_m3, S1, RET_CODE, json=False)
+        run_healthcheck_and_check_result(topology_m3, S1, RET_CODE, json=True)
 
 
 if __name__ == '__main__':
