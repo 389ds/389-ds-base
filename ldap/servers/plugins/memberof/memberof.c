@@ -1949,8 +1949,10 @@ memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
     char *delval[2];
     char *addval[2];
     char *dn = NULL;
+    char *add_oc = NULL;
 
     dn = slapi_entry_get_dn(e);
+    add_oc = ((replace_dn_data *)callback_data)->add_oc;
 
     mods[0] = &delmod;
     mods[1] = &addmod;
@@ -1970,8 +1972,35 @@ memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
     addmod.mod_type = ((replace_dn_data *)callback_data)->type;
     addmod.mod_values = addval;
 
-    rc = memberof_add_memberof_attr(mods, dn,
-                                    ((replace_dn_data *)callback_data)->add_oc);
+    rc = memberof_add_memberof_attr(mods, dn, add_oc);
+
+    if (rc == LDAP_NO_SUCH_ATTRIBUTE || rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+        if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+            /*
+                * For some reason the new modrdn value is present, so retry
+                * the delete by itself and ignore the add op by tweaking
+                * the mod array.
+                */
+            mods[1] = NULL;
+            rc = memberof_add_memberof_attr(mods, dn, add_oc);
+        } else {
+            /*
+                * The memberof value to be replaced does not exist so just
+                * add the new value.  Shuffle the mod array to apply only
+                * the add operation.
+                */
+            mods[0] = mods[1];
+            mods[1] = NULL;
+            rc = memberof_add_memberof_attr(mods, dn, add_oc);
+            if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+                /*
+                    * The entry already has the expected memberOf value, no
+                    * problem just return success.
+                    */
+                rc = LDAP_SUCCESS;
+            }
+        }
+    }
 
     return rc;
 }
@@ -4428,15 +4457,13 @@ memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc)
     Slapi_PBlock *mod_pb = NULL;
     int added_oc = 0;
     int rc = 0;
+    int bypass_referral = 1;
 
     while (1) {
         mod_pb = slapi_pblock_new();
-        slapi_modify_internal_set_pb(
-            mod_pb, dn, mods, 0, 0,
-            memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
-        slapi_modify_internal_pb(mod_pb);
-
-        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        slapi_pblock_init(mod_pb);
+        /* Perform modifications with error overrides for specific conditions */
+        rc = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_normdn_byref(dn), mods, memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
         if (rc == LDAP_OBJECT_CLASS_VIOLATION) {
             if (!add_oc || added_oc) {
                 /*
