@@ -312,7 +312,6 @@ def test_healthcheck_non_replicated_suffixes(topology_m2):
     health_check_run(inst, topology_m2.logcap.log, args)
 
 
-@pytest.mark.xfail(ds_is_older("2.7"), reason="Not fixed")
 def test_healthcheck_replica_busy(topology_m3):
     """Check that HealthCheck does not returns DSREPLLE0003 code when a replicva is busy
 
@@ -335,6 +334,8 @@ def test_healthcheck_replica_busy(topology_m3):
     """
 
     RET_CODE = 'DSREPLLE0003'
+    # Is DSREPLLE0003 ignored if replica is busy ?
+    ignored = not ds_is_older("2.7")
 
     S1 = topology_m3.ms['supplier1']
     S2 = topology_m3.ms['supplier2']
@@ -344,8 +345,9 @@ def test_healthcheck_replica_busy(topology_m3):
         time.sleep(10)
         # Create user on S3 then remove it:
         LoadInstance(S3).user.delete()
-        run_healthcheck_and_flush_log(topology_m3, S3, RET_CODE, json=False, isnot=True)
-        run_healthcheck_and_flush_log(topology_m3, S3, RET_CODE, json=True, isnot=True)
+        # S3 agrements should now be in the replica busy state
+        run_healthcheck_and_flush_log(topology_m3, S3, RET_CODE, json=False, isnot=ignored)
+        run_healthcheck_and_flush_log(topology_m3, S3, RET_CODE, json=True, isnot=ignored)
 
 
 @pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
@@ -379,7 +381,39 @@ def test_healthcheck_replication_out_of_sync_broken(topology_m3):
         test_users_m1 = UserAccounts(S1, DEFAULT_SUFFIX)
         test_users_m1.create_test_user(1005, 2000)
 
-        time.sleep(1)
+        time.sleep(3)
+        run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=False)
+        run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=True)
+
+
+def test_healthcheck_replication_out_of_sync_not_broken(topology_m3):
+    """Check that HealthCheck returns no issues when replication is in progress
+
+    :id: 8305000d-ba4d-4c00-8331-be0e8bd92150
+    :setup: 3 MMR topology
+    :steps:
+        1. Create a 3 suppliers full-mesh topology, all replicas being synchronized
+        2. Generate constant load on two supplier
+        3. Use HealthCheck without --json option
+        4. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Healthcheck reports no issue found
+        4. Healthcheck reports no issue found
+    """
+
+    RET_CODE = CMD_OUTPUT
+    # Is DSREPLLE0003 ignored if replica is busy ?
+    ignored = not ds_is_older("2.7")
+
+    S1 = topology_m3.ms['supplier1']
+    S2 = topology_m3.ms['supplier2']
+    S3 = topology_m3.ms['supplier3']
+
+    with LoadInstance(S1), LoadInstance(S2):
+        # Wait a bit to let replication starts
+        time.sleep(10)
         run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=False)
         run_healthcheck_and_flush_log(topology_m3, S1, RET_CODE, json=True)
 
