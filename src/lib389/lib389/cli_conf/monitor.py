@@ -10,8 +10,8 @@
 import datetime
 import json
 import os
-from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP,
-                            MonitorDiskSpace)
+from lib389._constants import (DB_IMPL_BDB, DB_IMPL_MDB)
+from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace)
 from lib389.chaining import (ChainingLinks)
 from lib389.backend import Backends
 from lib389.utils import convert_bytes
@@ -129,27 +129,30 @@ def db_monitor(inst, basedn, log, args):
     # Gather the global DB stats
     report_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ldbm_mon = ldbm_monitor.get_status()
-    dbcachesize = int(ldbm_mon['nsslapd-db-cache-size-bytes'][0])
-    # Warning: there are two different page sizes associated with bdb:
-    # - nsslapd-db-mp-pagesize the db mempool (i.e the db cache) page size which is usually 4K
-    # - nsslapd-db-pagesize the db instances (i.e id2entry, indexes, changelog) page size which
-    #   is usually 8K
-    # To compute the db cache statistics we must use the nsslapd-db-mp-pagesize
-    if 'nsslapd-db-mp-pagesize' in ldbm_mon:
-        pagesize = int(ldbm_mon['nsslapd-db-mp-pagesize'][0])
-    else:
-        # targeting a remote instance that does not have github issue 5550 fix.
-        # So lets use the usual default file system preferred block size
-        # db cache free statistics may be wrong but we gave no way to
-        # compute it rightly.
-        pagesize = 4096
-    dbhitratio = ldbm_mon['dbcachehitratio'][0]
-    dbcachepagein = ldbm_mon['dbcachepagein'][0]
-    dbcachepageout = ldbm_mon['dbcachepageout'][0]
-    dbroevict = ldbm_mon['nsslapd-db-page-ro-evict-rate'][0]
-    dbpages = int(ldbm_mon['nsslapd-db-pages-in-use'][0])
-    dbcachefree = max(int(dbcachesize - (pagesize * dbpages)), 0)
-    dbcachefreeratio = dbcachefree/dbcachesize
+    if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
+        dbcachesize = int(ldbm_mon['nsslapd-db-cache-size-bytes'][0])
+        # Warning: there are two different page sizes associated with bdb:
+        # - nsslapd-db-mp-pagesize the db mempool (i.e the db cache) page size which is usually 4K
+        # - nsslapd-db-pagesize the db instances (i.e id2entry, indexes, changelog) page size which
+        #   is usually 8K
+        # To compute the db cache statistics we must use the nsslapd-db-mp-pagesize
+        if 'nsslapd-db-mp-pagesize' in ldbm_mon:
+            pagesize = int(ldbm_mon['nsslapd-db-mp-pagesize'][0])
+        else:
+            # targeting a remote instance that does not have github issue 5550 fix.
+            # So lets use the usual default file system preferred block size
+            # db cache free statistics may be wrong but we gave no way to
+            # compute it rightly.
+            pagesize = 4096
+
+        dbhitratio = ldbm_mon['dbcachehitratio'][0]
+        dbcachepagein = ldbm_mon['dbcachepagein'][0]
+        dbcachepageout = ldbm_mon['dbcachepageout'][0]
+        dbroevict = ldbm_mon['nsslapd-db-page-ro-evict-rate'][0]
+        dbpages = int(ldbm_mon['nsslapd-db-pages-in-use'][0])
+        dbcachefree = max(int(dbcachesize - (pagesize * dbpages)), 0)
+        dbcachefreeratio = dbcachefree/dbcachesize
+
     ndnratio = ldbm_mon['normalizeddncachehitratio'][0]
     ndncursize = int(ldbm_mon['currentnormalizeddncachesize'][0])
     ndnmaxsize = int(ldbm_mon['maxnormalizeddncachesize'][0])
@@ -165,14 +168,6 @@ def db_monitor(inst, basedn, log, args):
     # Build global cache stats
     result = {
         'date': report_time,
-        'dbcache': {
-            'hit_ratio': dbhitratio,
-            'free': convert_bytes(str(dbcachefree)),
-            'free_percentage': "{:.1f}".format(dbcachefreeratio * 100),
-            'roevicts': dbroevict,
-            'pagein': dbcachepagein,
-            'pageout': dbcachepageout
-        },
         'ndncache': {
             'hit_ratio': ndnratio,
             'free': convert_bytes(str(ndnfree)),
@@ -182,6 +177,16 @@ def db_monitor(inst, basedn, log, args):
         },
         'backends': {},
     }
+
+    if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
+        result['dbcache'] = {
+                'hit_ratio': dbhitratio,
+                'free': convert_bytes(str(dbcachefree)),
+                'free_percentage': "{:.1f}".format(dbcachefreeratio * 100),
+                'roevicts': dbroevict,
+                'pagein': dbcachepagein,
+                'pageout': dbcachepageout
+        }
 
     # Build the backend results
     for be in backend_objs:
@@ -202,17 +207,18 @@ def db_monitor(inst, basedn, log, args):
         else:
             entsize = int(entcur / entcnt)
 
-        # Process DN cache stats
-        dncur = int(all_attrs['currentdncachesize'][0])
-        dnmax = int(all_attrs['maxdncachesize'][0])
-        dncnt = int(all_attrs['currentdncachecount'][0])
-        dnratio = all_attrs['dncachehitratio'][0]
-        dnfree = dnmax - dncur
-        dnfreep = "{:.1f}".format(dnfree / dnmax * 100)
-        if dncnt == 0:
-            dnsize = 0
-        else:
-            dnsize = int(dncur / dncnt)
+        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
+            # Process DN cache stats
+            dncur = int(all_attrs['currentdncachesize'][0])
+            dnmax = int(all_attrs['maxdncachesize'][0])
+            dncnt = int(all_attrs['currentdncachecount'][0])
+            dnratio = all_attrs['dncachehitratio'][0]
+            dnfree = dnmax - dncur
+            dnfreep = "{:.1f}".format(dnfree / dnmax * 100)
+            if dncnt == 0:
+                dnsize = 0
+            else:
+                dnsize = int(dncur / dncnt)
 
         # Build the backend result
         result['backends'][be_name] = {
@@ -222,13 +228,15 @@ def db_monitor(inst, basedn, log, args):
             'entry_cache_free_percentage': entfreep,
             'entry_cache_size': convert_bytes(str(entsize)),
             'entry_cache_hit_ratio': entratio,
-            'dn_cache_count': all_attrs['currentdncachecount'][0],
-            'dn_cache_free': convert_bytes(str(dnfree)),
-            'dn_cache_free_percentage': dnfreep,
-            'dn_cache_size': convert_bytes(str(dnsize)),
-            'dn_cache_hit_ratio': dnratio,
             'indexes': []
         }
+        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
+            backend = result['backends'][be_name]
+            backend['dn_cache_count'] = all_attrs['currentdncachecount'][0]
+            backend['dn_cache_free'] = convert_bytes(str(dnfree))
+            backend['dn_cache_free_percentage'] = dnfreep
+            backend['dn_cache_size'] = convert_bytes(str(dnsize))
+            backend['dn_cache_hit_ratio'] = dnratio
 
         # Process indexes if requested
         if args.indexes:
@@ -260,14 +268,15 @@ def db_monitor(inst, basedn, log, args):
     else:
         log.info("DB Monitor Report: " + result['date'])
         log.info("--------------------------------------------------------")
-        log.info("Database Cache:")
-        log.info(" - Cache Hit Ratio:     {}%".format(result['dbcache']['hit_ratio']))
-        log.info(" - Free Space:          {}".format(result['dbcache']['free']))
-        log.info(" - Free Percentage:     {}%".format(result['dbcache']['free_percentage']))
-        log.info(" - RO Page Drops:       {}".format(result['dbcache']['roevicts']))
-        log.info(" - Pages In:            {}".format(result['dbcache']['pagein']))
-        log.info(" - Pages Out:           {}".format(result['dbcache']['pageout']))
-        log.info("")
+        if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
+            log.info("Database Cache:")
+            log.info(" - Cache Hit Ratio:     {}%".format(result['dbcache']['hit_ratio']))
+            log.info(" - Free Space:          {}".format(result['dbcache']['free']))
+            log.info(" - Free Percentage:     {}%".format(result['dbcache']['free_percentage']))
+            log.info(" - RO Page Drops:       {}".format(result['dbcache']['roevicts']))
+            log.info(" - Pages In:            {}".format(result['dbcache']['pagein']))
+            log.info(" - Pages Out:           {}".format(result['dbcache']['pageout']))
+            log.info("")
         log.info("Normalized DN Cache:")
         log.info(" - Cache Hit Ratio:     {}%".format(result['ndncache']['hit_ratio']))
         log.info(" - Free Space:          {}".format(result['ndncache']['free']))
@@ -283,11 +292,12 @@ def db_monitor(inst, basedn, log, args):
             log.info("    - Entry Cache Free Space:       {}".format(attr_dict['entry_cache_free']))
             log.info("    - Entry Cache Free Percentage:  {}%".format(attr_dict['entry_cache_free_percentage']))
             log.info("    - Entry Cache Average Size:     {}".format(attr_dict['entry_cache_size']))
-            log.info("    - DN Cache Hit Ratio:           {}%".format(attr_dict['dn_cache_hit_ratio']))
-            log.info("    - DN Cache Count:               {}".format(attr_dict['dn_cache_count']))
-            log.info("    - DN Cache Free Space:          {}".format(attr_dict['dn_cache_free']))
-            log.info("    - DN Cache Free Percentage:     {}%".format(attr_dict['dn_cache_free_percentage']))
-            log.info("    - DN Cache Average Size:        {}".format(attr_dict['dn_cache_size']))
+            if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
+                log.info("    - DN Cache Hit Ratio:           {}%".format(attr_dict['dn_cache_hit_ratio']))
+                log.info("    - DN Cache Count:               {}".format(attr_dict['dn_cache_count']))
+                log.info("    - DN Cache Free Space:          {}".format(attr_dict['dn_cache_free']))
+                log.info("    - DN Cache Free Percentage:     {}%".format(attr_dict['dn_cache_free_percentage']))
+                log.info("    - DN Cache Average Size:        {}".format(attr_dict['dn_cache_size']))
             if len(result['backends'][be_name]['indexes']) > 0:
                 log.info("    - Indexes:")
                 for index in result['backends'][be_name]['indexes']:
