@@ -8,13 +8,8 @@ import {
     Card,
     Checkbox,
     DatePicker,
-    Flex,
-    FlexItem,
     Form,
     FormGroup,
-    FormHelperText,
-    FormSelect,
-    FormSelectOption,
     Grid,
     GridItem,
     HelperText,
@@ -26,8 +21,6 @@ import {
     Radio,
     Split,
     SplitItem,
-    Stack,
-    StackItem,
     Text,
     TextContent,
     TextInput,
@@ -57,7 +50,6 @@ import {
     PlusCircleIcon,
     TrashIcon,
     FolderCloseIcon,
-    HistoryIcon
 } from "@patternfly/react-icons";
 import { ReportModal } from "./monitorModals.jsx";
 
@@ -121,6 +113,7 @@ export class ReplLogAnalysis extends React.Component {
             reportError: null,
             startDate: null,
             endDate: null,
+            isReplReportsPackageInstalled: false
         };
 
         // Bind methods
@@ -172,6 +165,8 @@ export class ReplLogAnalysis extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
+        this.validateDirectoryExists("/var/log/dirsrv");
+        this.checkReplReportsPackage();
     }
 
     validateDirectoryExists(path) {
@@ -186,6 +181,27 @@ export class ReplLogAnalysis extends React.Component {
                 .then(() => resolve(true))
                 .catch(() => resolve(false));
         });
+    }
+
+    checkReplReportsPackage() {
+        // Check if python3-lib389-repl-reports package is installed
+        cockpit.spawn(["rpm", "-q", "python3-lib389-repl-reports"], { err: "ignore" })
+            .then(() => {
+                // Package is installed
+                this.setState({ isReplReportsPackageInstalled: true });
+            })
+            .catch(() => {
+                // Package is not installed
+                this.setState(prevState => ({
+                    isReplReportsPackageInstalled: false,
+                    // Disable HTML and PNG format options if package is not installed
+                    formatOptions: {
+                        ...prevState.formatOptions,
+                        html: false,
+                        png: false
+                    }
+                }));
+            });
     }
 
     handleInputChange(event, value) {
@@ -230,7 +246,12 @@ export class ReplLogAnalysis extends React.Component {
     }
 
     handleFormatOptionChange(format) {
-        // Allow all format options to be toggled
+        // For HTML and PNG formats, check if the package is installed
+        if ((format === 'html' || format === 'png') && !this.state.isReplReportsPackageInstalled) {
+            // Don't allow toggling these formats if the package is not installed
+            return;
+        }
+        
         this.setState(prevState => ({
             formatOptions: {
                 ...prevState.formatOptions,
@@ -1613,18 +1634,35 @@ export class ReplLogAnalysis extends React.Component {
                                                     label={_("Interactive Charts and JSON")}
                                                     onChange={() => this.handleFormatOptionChange('json')}
                                                 />
-                                                <Checkbox
-                                                    id="formatHtml"
-                                                    isChecked={this.state.formatOptions.html}
-                                                    label={_("Standalone HTML report")}
-                                                    onChange={() => this.handleFormatOptionChange('html')}
-                                                />
-                                                <Checkbox
-                                                    id="formatPng"
-                                                    isChecked={this.state.formatOptions.png}
-                                                    label={_("PNG image")}
-                                                    onChange={() => this.handleFormatOptionChange('png')}
-                                                />
+                                                <Tooltip
+                                                    content={!this.state.isReplReportsPackageInstalled ? 
+                                                        _("The python3-lib389-repl-reports package must be installed to use this format") : 
+                                                        null}
+                                                    trigger={this.state.isReplReportsPackageInstalled ? "manual" : "mouseenter"}
+                                                >
+                                                    <Checkbox
+                                                        id="formatHtml"
+                                                        isChecked={this.state.formatOptions.html}
+                                                        isDisabled={!this.state.isReplReportsPackageInstalled}
+                                                        label={_("Standalone HTML report")}
+                                                        onChange={() => this.handleFormatOptionChange('html')}
+                                                    />
+                                                </Tooltip>
+                                                <Tooltip
+                                                    content={!this.state.isReplReportsPackageInstalled ? 
+                                                        _("The python3-lib389-repl-reports package must be installed to use this format") : 
+                                                        null}
+                                                    trigger={this.state.isReplReportsPackageInstalled ? "manual" : "mouseenter"}
+                                                >
+                                                    <Checkbox
+                                                        id="formatPng"
+                                                        isChecked={this.state.formatOptions.png}
+                                                        isDisabled={!this.state.isReplReportsPackageInstalled}
+                                                        label={_("PNG image")}
+                                                        onChange={() => this.handleFormatOptionChange('png')}
+                                                    />
+                                                </Tooltip>
+                                                <div className="pf-v5-u-my-md"></div>  {/* PatternFly spacing utility */}
                                                 <Checkbox
                                                     id="formatCsv"
                                                     isChecked={this.state.formatOptions.csv}
@@ -1639,9 +1677,16 @@ export class ReplLogAnalysis extends React.Component {
                                                         {errors.formatOptions}
                                                     </HelperTextItem>
                                                 ) : (
-                                                    <HelperTextItem>
-                                                        {_("Select one or more report formats to generate")}
-                                                    </HelperTextItem>
+                                                    <>
+                                                        <HelperTextItem>
+                                                            {_("Select one or more report formats to generate")}
+                                                        </HelperTextItem>
+                                                        {!this.state.isReplReportsPackageInstalled && (
+                                                            <HelperTextItem variant="indeterminate" icon={<InfoCircleIcon />}>
+                                                                {_("Install the python3-lib389-repl-reports package to enable HTML and PNG report formats")}
+                                                            </HelperTextItem>
+                                                        )}
+                                                    </>
                                                 )}
                                             </HelperText>
                                         </GridItem>

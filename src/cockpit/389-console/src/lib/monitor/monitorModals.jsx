@@ -39,13 +39,11 @@ import {
     CopyIcon,
     OutlinedQuestionCircleIcon,
     DownloadIcon,
-    ExternalLinkAltIcon
 } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
 import {
-    FileIcon,
     ExclamationCircleIcon,
     InfoIcon
 } from "@patternfly/react-icons";
@@ -1483,6 +1481,9 @@ class ReportModal extends React.Component {
         // Load PNG data if available - as a secondary display option
         if (this.props.reportUrls && this.props.reportUrls.png) {
             this.loadPngAsDataUrl(this.props.reportUrls.png);
+        } else {
+            // Make sure pngDataUrl is null if no PNG is available
+            this.setState({ pngDataUrl: null });
         }
 
         // Load CSV preview if available - as a secondary data option
@@ -1508,7 +1509,8 @@ class ReportModal extends React.Component {
                         const data = JSON.parse(content);
                         this.setState({ 
                             summary: data.analysis_summary,
-                            suffixStats: data.suffix_statistics || {}
+                            suffixStats: data.suffix_statistics || {},
+                            activeTabKey: 0
                         });
                     } catch (e) {
                         console.error("Error parsing JSON summary:", e);
@@ -2215,10 +2217,10 @@ class ReportModal extends React.Component {
                                                 onClick={() => this.downloadFile(reportUrls.html, "replication_analysis.html")}
                                                 icon={<DownloadIcon />}
                                             >
-                                                {_("HTML Report")}
+                                                {_("Standalone HTML Report")}
                                             </Button>
                                             <Text component={TextVariants.small} className="ds-margin-left-sm">
-                                                {_("Interactive HTML report with visualizations")}
+                                                {_("Self-contained HTML report with embedded charts")}
                                             </Text>
                                         </ListItem>
                                     )}
@@ -2289,21 +2291,27 @@ class ReportModal extends React.Component {
                                 eventKey={0}
                                 title={<TabTitleText>{_("Summary")}</TabTitleText>}
                             />
-                            <Tab
-                                key={1}
-                                eventKey={1}
-                                title={<TabTitleText>{_("Charts")}</TabTitleText>}
-                            />
-                            <Tab
-                                key={2}
-                                eventKey={2}
-                                title={<TabTitleText>{_("PNG Report")}</TabTitleText>}
-                            />
-                            <Tab
-                                key={3}
-                                eventKey={3}
-                                title={<TabTitleText>{_("CSV Report")}</TabTitleText>}
-                            />
+                            {this.props.reportUrls && this.props.reportUrls.json && (
+                                <Tab
+                                    key={1}
+                                    eventKey={1}
+                                    title={<TabTitleText>{_("Charts")}</TabTitleText>}
+                                />
+                            )}
+                            {this.props.reportUrls && this.props.reportUrls.png && (
+                                <Tab
+                                    key={2}
+                                    eventKey={2}
+                                    title={<TabTitleText>{_("PNG Report")}</TabTitleText>}
+                                />
+                            )}
+                            {this.props.reportUrls && this.props.reportUrls.csv && (
+                                <Tab
+                                    key={3}
+                                    eventKey={3}
+                                    title={<TabTitleText>{_("CSV Report")}</TabTitleText>}
+                                />
+                            )}
                             <Tab
                                 key={4}
                                 eventKey={4}
@@ -2313,9 +2321,9 @@ class ReportModal extends React.Component {
                     </div>
                     <div style={tabContentStyle}>
                         {activeTabKey === 0 && this.renderSummaryTab()}
-                        {activeTabKey === 1 && this.renderChartsTab()}
-                        {activeTabKey === 2 && this.renderPngTab()}
-                        {activeTabKey === 3 && this.renderCsvTab()}
+                        {activeTabKey === 1 && this.props.reportUrls && this.props.reportUrls.json && this.renderChartsTab()}
+                        {activeTabKey === 2 && this.props.reportUrls && this.props.reportUrls.png && this.renderPngTab()}
+                        {activeTabKey === 3 && this.props.reportUrls && this.props.reportUrls.csv && this.renderCsvTab()}
                         {activeTabKey === 4 && this.renderReportFilesTab()}
                     </div>
                 </div>
