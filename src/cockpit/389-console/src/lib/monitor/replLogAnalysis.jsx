@@ -1,6 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, valid_dn } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Alert,
@@ -167,6 +167,13 @@ export class ReplLogAnalysis extends React.Component {
         this.props.enableTree();
         this.validateDirectoryExists("/var/log/dirsrv");
         this.checkReplReportsPackage();
+        
+        // Prepopulate suffixes list with replicatedSuffixes if available
+        if (this.props.replicatedSuffixes && this.props.replicatedSuffixes.length > 0) {
+            this.setState({
+                suffixesList: [...this.state.suffixesList, ...this.props.replicatedSuffixes]
+            });
+        }
     }
 
     validateDirectoryExists(path) {
@@ -288,7 +295,7 @@ export class ReplLogAnalysis extends React.Component {
             currentSuffixInput: value,
             errors: {
                 ...this.state.errors,
-                suffixes: "" // Clear any previous error
+                suffixes: valid_dn(value) || value === "" ? "" : "Invalid DN format" // Validate and clear/set error
             }
         });
     }
@@ -297,7 +304,21 @@ export class ReplLogAnalysis extends React.Component {
         const { suffixesList, currentSuffixInput } = this.state;
         const trimmedSuffix = currentSuffixInput.trim();
         
-        if (trimmedSuffix && !suffixesList.includes(trimmedSuffix)) {
+        if (!trimmedSuffix) {
+            return; // Empty input, do nothing
+        }
+        
+        if (!valid_dn(trimmedSuffix)) {
+            this.setState({
+                errors: {
+                    ...this.state.errors,
+                    suffixes: "Invalid DN format"
+                }
+            });
+            return;
+        }
+        
+        if (!suffixesList.includes(trimmedSuffix)) {
             const newList = [...suffixesList, trimmedSuffix];
             
             this.setState({
@@ -1948,10 +1969,12 @@ ReplLogAnalysis.propTypes = {
     addNotification: PropTypes.func,
     enableTree: PropTypes.func,
     handleReload: PropTypes.func,
+    replicatedSuffixes: PropTypes.array,
 };
 
 ReplLogAnalysis.defaultProps = {
     serverId: "",
+    replicatedSuffixes: [],
 };
 
 export default ReplLogAnalysis;

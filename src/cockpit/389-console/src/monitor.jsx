@@ -1125,6 +1125,7 @@ export class Monitor extends React.Component {
                                     addNotification={this.props.addNotification}
                                     enableTree={this.enableTree}
                                     handleReload={this.onHandleLoadMonitorReplication}
+                                    replicatedSuffixes={this.state.replicatedSuffixes}
                                     key={this.state.node_name}
                                 />
                             </div>
