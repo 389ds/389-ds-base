@@ -39,7 +39,8 @@ import {
     Title,
     Chip,
     ChipGroup,
-    yyyyMMddFormat
+    yyyyMMddFormat,
+    ActionGroup
 } from "@patternfly/react-core";
 import {
     SyncAltIcon,
@@ -51,7 +52,7 @@ import {
     TrashIcon,
     FolderCloseIcon,
 } from "@patternfly/react-icons";
-import { ReportModal } from "./monitorModals.jsx";
+import { LagReportModal, ChooseLagReportModal } from "./monitorModals.jsx";
 
 const _ = cockpit.gettext;
 
@@ -83,6 +84,7 @@ export class ReplLogAnalysis extends React.Component {
             },
             useCustomOutputDir: false,
             customOutputDir: "",
+            reportName: "",
 
             // File browser state
             showFileBrowser: false,
@@ -107,13 +109,14 @@ export class ReplLogAnalysis extends React.Component {
 
             // UI state
             isGeneratingReport: false,
-            showReportModal: false,
+            showLagReportModal: false,
             reportUrls: {},
             tempDirectories: [], // Track temp dirs for cleanup
             reportError: null,
             startDate: null,
             endDate: null,
-            isReplReportsPackageInstalled: false
+            isReplReportsPackageInstalled: false,
+            showChooseLagReportModal: false
         };
 
         // Bind methods
@@ -124,7 +127,7 @@ export class ReplLogAnalysis extends React.Component {
         this.handleSubmit = this.handleSubmit.bind(this);
         this.generateReport = this.generateReport.bind(this);
         this.saveReport = this.saveReport.bind(this);
-        this.closeReportModal = this.closeReportModal.bind(this);
+        this.closeLagReportModal = this.closeLagReportModal.bind(this);
         this.validateForm = this.validateForm.bind(this);
         
         this.openFileBrowser = this.openFileBrowser.bind(this);
@@ -161,6 +164,9 @@ export class ReplLogAnalysis extends React.Component {
         this.handlePathInputChange = this.handlePathInputChange.bind(this);
         this.handlePathInputKeyPress = this.handlePathInputKeyPress.bind(this);
         this.handleCustomOutputDirChange = this.handleCustomOutputDirChange.bind(this);
+        this.handleReportNameChange = this.handleReportNameChange.bind(this);
+        this.openChooseLagReportModal = this.openChooseLagReportModal.bind(this);
+        this.closeChooseLagReportModal = this.closeChooseLagReportModal.bind(this);
     }
 
     componentDidMount() {
@@ -287,6 +293,12 @@ export class ReplLogAnalysis extends React.Component {
                 ...this.state.errors,
                 customOutputDir: ""
             }
+        });
+    }
+
+    handleReportNameChange(event) {
+        this.setState({
+            reportName: event.target.value
         });
     }
 
@@ -431,12 +443,20 @@ export class ReplLogAnalysis extends React.Component {
 
         // Create a unique output directory or use the custom one
         let outputDir;
-        if (this.state.useCustomOutputDir && this.state.customOutputDir) {
-            // Create a timestamped subdirectory in the parent directory
-            const timestamp = Date.now();
-            outputDir = `${this.state.customOutputDir}/repl_report_${timestamp}`;
+        let dirName;
+        
+        // Use custom report name if provided, otherwise use timestamp
+        if (this.state.reportName.trim()) {
+            dirName = this.state.reportName.trim();
         } else {
-            outputDir = `/tmp/repl_report_${Date.now()}`;
+            dirName = `repl_report_${Date.now()}`;
+        }
+        
+        if (this.state.useCustomOutputDir && this.state.customOutputDir) {
+            // Create a subdirectory in the parent directory
+            outputDir = `${this.state.customOutputDir}/${dirName}`;
+        } else {
+            outputDir = `/tmp/${dirName}`;
             // Add to tracked directories (only track temp directories)
             this.setState(prevState => ({
                 tempDirectories: [...prevState.tempDirectories, outputDir]
@@ -603,7 +623,7 @@ export class ReplLogAnalysis extends React.Component {
                         if (Object.keys(reportUrls).length > 0) {
                             this.setState({
                                 isGeneratingReport: false,
-                                showReportModal: true,
+                                showLagReportModal: true,
                                 reportUrls
                             });
                         } else {
@@ -646,9 +666,9 @@ export class ReplLogAnalysis extends React.Component {
             });
     }
 
-    closeReportModal() {
+    closeLagReportModal() {
         this.setState({
-            showReportModal: false,
+            showLagReportModal: false,
             reportUrls: {},
         });
     }
@@ -697,9 +717,10 @@ export class ReplLogAnalysis extends React.Component {
         this.setState({ 
             showFileBrowser: true,
             fileBrowserPurpose: "logDirs",
-            selectedDirectories: [] // Reset selected directories when opening browser
+            selectedDirectories: [], // Reset selected directories when opening browser
+            currentPath: "/var/log/dirsrv" // Always reset to the default log directory path
         }, () => {
-            this.browseDirectory(this.state.currentPath);
+            this.browseDirectory("/var/log/dirsrv"); // Browse to the default path immediately
         });
     }
 
@@ -1130,9 +1151,10 @@ export class ReplLogAnalysis extends React.Component {
         this.setState({ 
             showFileBrowser: true,
             fileBrowserPurpose: "outputDir",
-            selectedDirectories: []
+            selectedDirectories: [],
+            currentPath: "/tmp" // Always reset to the default tmp directory for output
         }, () => {
-            this.browseDirectory("/var");
+            this.browseDirectory("/tmp"); // Browse to the default output directory path immediately
         });
     }
 
@@ -1141,6 +1163,14 @@ export class ReplLogAnalysis extends React.Component {
             customOutputDir: dir,
             showFileBrowser: false
         });
+    }
+
+    openChooseLagReportModal() {
+        this.setState({ showChooseLagReportModal: true });
+    }
+
+    closeChooseLagReportModal() {
+        this.setState({ showChooseLagReportModal: false });
     }
 
     render() {
@@ -1155,7 +1185,7 @@ export class ReplLogAnalysis extends React.Component {
             endDate,
             errors,
             isGeneratingReport,
-            showReportModal,
+            showLagReportModal,
             reportUrls,
             reportError,
             showFileBrowser,
@@ -1763,22 +1793,49 @@ export class ReplLogAnalysis extends React.Component {
                                             </HelperText>
                                         </GridItem>
                                     </Grid>
+
+                                    <Grid className="ds-margin-top">
+                                        <GridItem className="ds-label" span={4}>
+                                            {_("Report Name")}
+                                        </GridItem>
+                                        <GridItem span={8}>
+                                            <TextInput
+                                                id="report-name"
+                                                value={this.state.reportName}
+                                                aria-label={_("Report name")}
+                                                placeholder={_("Enter custom report name (optional)")}
+                                                onChange={this.handleReportNameChange}
+                                            />
+                                            <HelperText>
+                                                <HelperTextItem>
+                                                    {_("A custom name for the report. If left blank, the current timestamp will be used.")}
+                                                </HelperTextItem>
+                                            </HelperText>
+                                        </GridItem>
+                                    </Grid>
                                 </GridItem>
                             </Grid>
 
-                            <Grid>
-                                <GridItem span={12}>
-                                    <Button
-                                        variant="primary"
-                                        type="submit"
-                                        isDisabled={isGeneratingReport || !formIsValid}
-                                        isLoading={isGeneratingReport}
-                                        spinnerAriaValueText={isGeneratingReport ? "Generating" : undefined}
-                                    >
-                                        {isGeneratingReport ? _("Generating...") : _("Generate Report")}
-                                    </Button>
-                                </GridItem>
-                            </Grid>
+                            <div className="ds-inline">
+                                <Button
+                                    variant="primary"
+                                    type="submit"
+                                    id="generate-report-btn"
+                                    isDisabled={!formIsValid || isGeneratingReport}
+                                    isLoading={isGeneratingReport}
+                                    spinnerAriaValueText={isGeneratingReport ? "Generating" : undefined}
+                                >
+                                    {isGeneratingReport ? _("Generating...") : _("Generate Report")}
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    id="choose-existing-report-btn"
+                                    onClick={this.openChooseLagReportModal}
+                                    className="ds-margin-left"
+                                >
+                                    {_("Choose Existing Report")}
+                                </Button>
+                            </div>
                             
                             {/* Empty space to push content up from bottom */}
                             <div style={{ minHeight: "40px" }}></div>
@@ -1953,12 +2010,21 @@ export class ReplLogAnalysis extends React.Component {
                 </Modal>
 
                 {/* Report Modal */}
-                <ReportModal
-                    showModal={showReportModal}
-                    closeHandler={this.closeReportModal}
+                <LagReportModal
+                    showModal={showLagReportModal}
+                    closeHandler={this.closeLagReportModal}
                     saveHandler={this.saveReport}
                     reportUrls={reportUrls}
                 />
+
+                {/* Choose Report Modal */}
+                {this.state.showChooseLagReportModal && (
+                    <ChooseLagReportModal
+                        showing={this.state.showChooseLagReportModal}
+                        onClose={this.closeChooseLagReportModal}
+                        reportDirectory={this.state.customOutputDir ? this.state.customOutputDir : '/tmp'}
+                    />
+                )}
             </div>
         );
     }
@@ -1970,11 +2036,13 @@ ReplLogAnalysis.propTypes = {
     enableTree: PropTypes.func,
     handleReload: PropTypes.func,
     replicatedSuffixes: PropTypes.array,
+    toggleLoadingPage: PropTypes.func,
 };
 
 ReplLogAnalysis.defaultProps = {
     serverId: "",
     replicatedSuffixes: [],
+    toggleLoadingPage: () => {},
 };
 
 export default ReplLogAnalysis;

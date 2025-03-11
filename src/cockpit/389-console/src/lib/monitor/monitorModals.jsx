@@ -42,7 +42,11 @@ import {
 } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
-import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
+import {
+    ReportSingleTable,
+    ReportConsumersTable,
+    ExistingLagReportsTable
+} from "./monitorTables.jsx";
 import {
     ExclamationCircleIcon,
     InfoIcon
@@ -1407,7 +1411,7 @@ ScatterLineChart.propTypes = {
     minY: PropTypes.number
 };
 
-class ReportModal extends React.Component {
+class LagReportModal extends React.Component {
     constructor(props) {
         super(props);
 
@@ -2272,7 +2276,7 @@ class ReportModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
-                    <Button key="close" variant="link" onClick={closeHandler}>
+                    <Button key="close" variant="primary" onClick={closeHandler}>
                         {_("Close")}
                     </Button>
                 ]}
@@ -2328,6 +2332,265 @@ class ReportModal extends React.Component {
                     </div>
                 </div>
             </Modal>
+        );
+    }
+}
+
+class ChooseLagReportModal extends React.Component {
+    constructor(props) {
+        super(props);
+        
+        this.state = {
+            loading: true,
+            reports: [],
+            reportDirectory: props.reportDirectory || '/tmp',
+            error: null,
+            selectedReport: null,
+            showLagReportModal: false,
+            reportUrls: null
+        };
+        
+        this.loadReports = this.loadReports.bind(this);
+        this.handleSelectReport = this.handleSelectReport.bind(this);
+        this.closeLagReportModal = this.closeLagReportModal.bind(this);
+    }
+    
+    componentDidMount() {
+        this.loadReports();
+    }
+    
+    componentDidUpdate(prevProps) {
+        if (prevProps.reportDirectory !== this.props.reportDirectory) {
+            this.setState({ 
+                reportDirectory: this.props.reportDirectory,
+                loading: true
+            }, this.loadReports);
+        }
+    }
+    
+    loadReports() {
+        const { reportDirectory } = this.state;
+        
+        // Reset the state
+        this.setState({ 
+            loading: true,
+            error: null,
+            reports: []
+        });
+        
+        // First get all directories in the specified path
+        cockpit.spawn(["find", reportDirectory, "-maxdepth", "1", "-type", "d"])
+            .then(output => {
+                if (!output.trim()) {
+                    this.setState({ loading: false });
+                    return;
+                }
+                
+                const directories = output.trim().split('\n');
+                const promises = directories.map(dir => {
+                    // Check which report files exist in this directory
+                    return cockpit.spawn(["ls", "-la", dir])
+                        .then(files => {
+                            // Check if this directory contains any report files
+                            const hasJson = files.includes('replication_analysis.json');
+                            const hasHtml = files.includes('replication_analysis.html');
+                            const hasCsv = files.includes('replication_analysis.csv');
+                            const hasPng = files.includes('replication_analysis.png');
+                            const hasSummary = files.includes('replication_analysis_summary.json');
+                            
+                            // Skip directories that don't have any report files
+                            if (!hasJson && !hasHtml && !hasCsv && !hasPng && !hasSummary) {
+                                return null;
+                            }
+                            
+                            const reportName = dir.split('/').pop();
+                            let creationTime = "";
+                            
+                            // Try to get the directory creation time using stat
+                            return cockpit.spawn(["stat", "-c", "%y", dir])
+                                .then(statOutput => {
+                                    // Format the creation time from stat output
+                                    try {
+                                        const timestamp = statOutput.trim();
+                                        creationTime = new Date(timestamp).toLocaleString();
+                                    } catch (e) {
+                                        console.error("Error parsing date from stat:", e);
+                                        creationTime = _("Unknown");
+                                    }
+                                    
+                                    return {
+                                        path: dir,
+                                        name: reportName,
+                                        creationTime,
+                                        hasJson,
+                                        hasHtml,
+                                        hasCsv,
+                                        hasPng,
+                                        hasSummary
+                                    };
+                                })
+                                .catch(statError => {
+                                    console.error("Error getting directory stats:", statError);
+                                    
+                                    // If we can't get the creation time from stat, try to extract it from filename
+                                    // or fall back to using the file listing
+                                    if (reportName.startsWith('repl_report_')) {
+                                        try {
+                                            const timestamp = reportName.replace('repl_report_', '');
+                                            // Check if the timestamp is a pure number (Unix timestamp)
+                                            if (/^\d+$/.test(timestamp)) {
+                                                creationTime = new Date(parseInt(timestamp) * 1000).toLocaleString();
+                                            } else {
+                                                creationTime = cockpit.format(_("Custom: $0"), timestamp);
+                                            }
+                                        } catch (e) {
+                                            creationTime = _("Unknown");
+                                        }
+                                    } else {
+                                        // Try to get file creation time from command output
+                                        const dateMatch = files.match(/\w{3}\s+\d+\s+\d{2}:\d{2}/);
+                                        if (dateMatch) {
+                                            // Use file timestamp as a fallback
+                                            creationTime = dateMatch[0];
+                                        } else {
+                                            creationTime = _("Unknown");
+                                        }
+                                    }
+                                    
+                                    return {
+                                        path: dir,
+                                        name: reportName,
+                                        creationTime,
+                                        hasJson,
+                                        hasHtml,
+                                        hasCsv,
+                                        hasPng,
+                                        hasSummary
+                                    };
+                                });
+                        })
+                        .catch(error => {
+                            console.error("Error checking files in directory:", dir, error);
+                            return null;
+                        });
+                });
+                
+                Promise.all(promises)
+                    .then(results => {
+                        // Filter out null results and directories without report files
+                        const validReports = results.filter(report => report !== null);
+                        
+                        // Sort by creation time, newest first
+                        validReports.sort((a, b) => {
+                            try {
+                                return new Date(b.creationTime) - new Date(a.creationTime);
+                            } catch (e) {
+                                return 0;
+                            }
+                        });
+                        
+                        this.setState({
+                            reports: validReports,
+                            loading: false
+                        });
+                    })
+                    .catch(error => {
+                        console.error("Error processing report directories:", error);
+                        this.setState({
+                            error: _("Error processing report directories: ") + error.message,
+                            loading: false
+                        });
+                    });
+            })
+            .catch(error => {
+                console.error("Error finding report directories:", error);
+                this.setState({
+                    error: _("Error finding report directories: ") + error.message,
+                    loading: false
+                });
+            });
+    }
+    
+    handleSelectReport(report) {
+        // Construct the report URLs
+        const reportUrls = {
+            base: report.path,
+            json: report.hasJson ? `${report.path}/replication_analysis.json` : null,
+            html: report.hasHtml ? `${report.path}/replication_analysis.html` : null,
+            csv: report.hasCsv ? `${report.path}/replication_analysis.csv` : null,
+            png: report.hasPng ? `${report.path}/replication_analysis.png` : null
+        };
+        
+        this.setState({
+            selectedReport: report,
+            showLagReportModal: true,
+            reportUrls
+        });
+    }
+    
+    closeLagReportModal() {
+        this.setState({
+            showLagReportModal: false,
+            selectedReport: null,
+            reportUrls: null
+        });
+    }
+    
+    render() {
+        const { showing, onClose } = this.props;
+        const { loading, reports, error, showLagReportModal, reportUrls } = this.state;
+        
+        return (
+            <>
+                <Modal
+                    variant="large"
+                    title={_("Choose Existing Report")}
+                    isOpen={showing}
+                    onClose={onClose}
+                    actions={[
+                        <Button key="close" variant="primary" onClick={onClose}>
+                            {_("Close")}
+                        </Button>
+                    ]}
+                >
+                    <div>
+                        <Card isFullHeight>
+                            <CardBody>
+                                {error && (
+                                    <Alert
+                                        variant="danger"
+                                        title={_("Error loading reports")}
+                                        isInline
+                                    >
+                                        {error}
+                                    </Alert>
+                                )}
+                                
+                                {loading ? (
+                                    <div className="ds-center">
+                                        <Spinner size="lg" />
+                                        <p className="ds-margin-top">{_("Loading reports...")}</p>
+                                    </div>
+                                ) : (
+                                    <ExistingLagReportsTable
+                                        reports={reports}
+                                        onSelectReport={this.handleSelectReport}
+                                    />
+                                )}
+                            </CardBody>
+                        </Card>
+                    </div>
+                </Modal>
+                
+                {showLagReportModal && (
+                    <LagReportModal
+                        showing={showLagReportModal}
+                        reportName={_("Report")}
+                        reportUrls={reportUrls}
+                        onClose={this.closeLagReportModal}
+                    />
+                )}
+            </>
         );
     }
 }
@@ -2466,16 +2729,28 @@ FullReportContent.defaultProps = {
     reportRefreshing: false
 };
 
-ReportModal.propTypes = {
+LagReportModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
     saveHandler: PropTypes.func,
     reportUrls: PropTypes.object
 };
 
-ReportModal.defaultProps = {
+LagReportModal.defaultProps = {
     showModal: false,
     reportUrls: {}
+};
+
+ChooseLagReportModal.propTypes = {
+    showing: PropTypes.bool,
+    onClose: PropTypes.func,
+    reportDirectory: PropTypes.string
+};
+
+ChooseLagReportModal.defaultProps = {
+    showing: false,
+    onClose: () => {},
+    reportDirectory: '/tmp'
 };
 
 export {
@@ -2487,5 +2762,6 @@ export {
     ReportAliasesModal,
     ReportLoginModal,
     FullReportContent,
-    ReportModal
+    LagReportModal,
+    ChooseLagReportModal
 };

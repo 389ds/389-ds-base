@@ -608,7 +608,6 @@ def generate_lag_report(inst, basedn, log, args):
             report_name="replication_analysis"
         )
 
-        # Debug output to show what files were generated
         # Report output locations - always as JSON if json flag is set
         if json_output_only:
             # Only output pure JSON, no additional messages

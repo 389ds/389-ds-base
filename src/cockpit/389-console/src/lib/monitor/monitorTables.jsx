@@ -9,6 +9,10 @@ import {
     Text,
     TextContent,
     TextVariants,
+    EmptyState,
+    EmptyStateBody,
+    EmptyStateIcon,
+    Title,
 } from '@patternfly/react-core';
 import {
     SortByDirection,
@@ -19,11 +23,18 @@ import {
     Tbody,
     Td,
     ExpandableRowContent,
-    ActionsColumn
+    ActionsColumn,
+    sortable
 } from '@patternfly/react-table';
+import {
+    CheckIcon,
+    MinusIcon,
+    SearchIcon,
+} from '@patternfly/react-icons';
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 import PropTypes from "prop-types";
 import { get_date_string, numToCommas } from "../tools.jsx";
+import { LagReportModal } from "./monitorModals.jsx";
 
 const _ = cockpit.gettext;
 
@@ -2583,6 +2594,227 @@ class ReplDSRCAliasTable extends React.Component {
     }
 }
 
+class ExistingLagReportsTable extends React.Component {
+    constructor(props) {
+        super(props);
+        
+        this.state = {
+            page: 1,
+            perPage: 10,
+            sortBy: {},
+            expandedRows: new Set(),
+            reports: this.props.reports || [],
+            showLagReportModal: false,
+            reportUrls: null,
+            selectedReport: null
+        };
+
+        this.handleSetPage = (_evt, newPage) => {
+            this.setState({ page: newPage });
+        };
+
+        this.handlePerPageSelect = (_evt, newPerPage) => {
+            this.setState({ page: 1, perPage: newPerPage });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+        this.handleViewReport = this.handleViewReport.bind(this);
+        this.closeLagReportModal = this.closeLagReportModal.bind(this);
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.reports !== this.props.reports) {
+            this.setState({ reports: this.props.reports || [] });
+        }
+    }
+
+    handleSort(_event, index, direction) {
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            }
+        });
+    }
+
+    handleViewReport(report) {
+        // Construct the report URLs based on the report data
+        const reportUrls = {
+            base: report.path,
+            json: report.hasJson ? `${report.path}/replication_analysis.json` : null,
+            summary: report.hasJson ? `${report.path}/replication_analysis_summary.json` : null,
+            html: report.hasHtml ? `${report.path}/replication_analysis.html` : null,
+            csv: report.hasCsv ? `${report.path}/replication_analysis.csv` : null,
+            png: report.hasPng ? `${report.path}/replication_analysis.png` : null
+        };
+
+        this.setState({
+            showLagReportModal: true,
+            reportUrls,
+            selectedReport: report
+        });
+        
+        // If there's an onSelectReport prop function, call it too
+        if (this.props.onSelectReport) {
+            this.props.onSelectReport(report);
+        }
+    }
+    
+    closeLagReportModal() {
+        this.setState({
+            showLagReportModal: false,
+            reportUrls: null,
+            selectedReport: null
+        });
+    }
+
+    render() {
+        const { page, perPage, sortBy, reports, showLagReportModal, reportUrls } = this.state;
+        const { onSelectReport } = this.props;
+
+        // Sort reports
+        let sortedReports = [...reports];
+        if (sortBy.index !== undefined) {
+            sortedReports.sort((a, b) => {
+                // Sort by report name
+                if (sortBy.index === 0) {
+                    return sortBy.direction === 'asc' ?
+                        a.name.localeCompare(b.name) :
+                        b.name.localeCompare(a.name);
+                }
+
+                // Sort by creation time
+                if (sortBy.index === 1) {
+                    return sortBy.direction === 'asc' ?
+                        new Date(a.creationTime) - new Date(b.creationTime) :
+                        new Date(b.creationTime) - new Date(a.creationTime);
+                }
+
+                // Sort by JSON
+                if (sortBy.index === 2) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasJson - b.hasJson :
+                        b.hasJson - a.hasJson;
+                }
+
+                // Sort by HTML
+                if (sortBy.index === 3) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasHtml - b.hasHtml :
+                        b.hasHtml - a.hasHtml;
+                }
+
+                // Sort by CSV
+                if (sortBy.index === 4) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasCsv - b.hasCsv :
+                        b.hasCsv - a.hasCsv;
+                }
+
+                // Sort by PNG
+                if (sortBy.index === 5) {
+                    return sortBy.direction === 'asc' ?
+                        a.hasPng - b.hasPng :
+                        b.hasPng - a.hasPng;
+                }
+                return 0;
+            });
+        }
+
+        const startIdx = (page - 1) * perPage;
+        const paginatedReports = sortedReports.slice(startIdx, startIdx + perPage);
+        const columns = [
+            { title: _("Report Name"), transforms: [sortable] },
+            { title: _("Creation Time"), transforms: [sortable] },
+            { title: _("JSON"), transforms: [] },
+            { title: _("HTML"), transforms: [] },
+            { title: _("CSV"), transforms: [] },
+            { title: _("PNG"), transforms: [] },
+            { title: _("Actions"), transforms: [] }
+        ];
+
+        return (
+            <>
+                <div className="ds-margin-top-lg">
+                    {reports.length > 0 ? (
+                        <>
+                            <Table
+                                aria-label={_("Existing Reports")}
+                                variant="compact"
+                            >
+                                <Thead>
+                                    <Tr>
+                                        {columns.map((column, columnIndex) => (
+                                            <Th
+                                                key={columnIndex}
+                                                sort={{
+                                                    columnIndex,
+                                                    sortBy,
+                                                    onSort: this.handleSort
+                                                }}
+                                            >
+                                                {column.title}
+                                            </Th>
+                                        ))}
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                    {paginatedReports.map((report, rowIndex) => (
+                                        <Tr key={rowIndex}>
+                                            <Td>{report.name}</Td>
+                                            <Td>{report.creationTime}</Td>
+                                            <Td>{report.hasJson ? <CheckIcon /> : <MinusIcon />}</Td>
+                                            <Td>{report.hasHtml ? <CheckIcon /> : <MinusIcon />}</Td>
+                                            <Td>{report.hasCsv ? <CheckIcon /> : <MinusIcon />}</Td>
+                                            <Td>{report.hasPng ? <CheckIcon /> : <MinusIcon />}</Td>
+                                            <Td>
+                                                <Button
+                                                    variant="primary"
+                                                    onClick={() => this.handleViewReport(report)}
+                                                    isSmall
+                                                >
+                                                    {_("View Report")}
+                                                </Button>
+                                            </Td>
+                                        </Tr>
+                                    ))}
+                                </Tbody>
+                            </Table>
+                            <Pagination
+                                itemCount={reports.length}
+                                widgetId="pagination-options-menu-bottom"
+                                perPage={perPage}
+                                page={page}
+                                variant="bottom"
+                                onSetPage={this.handleSetPage}
+                                onPerPageSelect={this.handlePerPageSelect}
+                            />
+                        </>
+                    ) : (
+                        <EmptyState>
+                            <EmptyStateIcon icon={SearchIcon} />
+                            <Title headingLevel="h4" size="lg">
+                                {_("No reports found")}
+                            </Title>
+                            <EmptyStateBody>
+                                {_("No replication log analysis reports were found in the selected directory.")}
+                            </EmptyStateBody>
+                        </EmptyState>
+                    )}
+                </div>
+                
+                {showLagReportModal && (
+                    <LagReportModal
+                        showModal={showLagReportModal}
+                        closeHandler={this.closeLagReportModal}
+                        reportUrls={reportUrls}
+                    />
+                )}
+            </>
+        );
+    }
+}
+
 // Proptypes and defaults
 ReplDSRCAliasTable.defaultProps = {
     rows: PropTypes.array
@@ -2705,6 +2937,16 @@ DiskTable.defaultProps = {
     rows: []
 };
 
+ExistingLagReportsTable.propTypes = {
+    reports: PropTypes.array,
+    onSelectReport: PropTypes.func
+};
+
+ExistingLagReportsTable.defaultProps = {
+    reports: [],
+    onSelectReport: () => {}
+};
+
 export {
     ConnectionTable,
     CleanALLRUVTable,
@@ -2720,4 +2962,5 @@ export {
     DiskTable,
     ReplDSRCTable,
     ReplDSRCAliasTable,
+    ExistingLagReportsTable
 };
