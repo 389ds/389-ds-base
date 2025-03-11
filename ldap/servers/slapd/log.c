@@ -2780,7 +2780,12 @@ slapd_log_error_proc_internal(
         }
         if (loginfo.log_error_fdes != NULL) {
             if (loginfo.log_error_state & LOGGING_NEED_TITLE) {
-                log_write_title(loginfo.log_error_fdes);
+                int32_t errorlog_format = config_get_errorlog_log_format();
+                if (errorlog_format != LOG_FORMAT_DEFAULT) {
+                    log_write_json_title(loginfo.log_error_fdes, errorlog_format);
+                } else {
+                    log_write_title(loginfo.log_error_fdes);
+                }
                 loginfo.log_error_state &= ~LOGGING_NEED_TITLE;
             }
             rc = vslapd_log_error(loginfo.log_error_fdes, sev_level, subsystem, fmt, ap_file, 1);
@@ -2905,55 +2910,91 @@ vslapd_log_error(
     va_list ap,
     int locked)
 {
+    int32_t log_format = config_get_errorlog_log_format();
     time_t tnl = slapi_current_utc_time();
     char buffer[SLAPI_LOG_BUFSIZ];
+    char local_time[TBUFSIZE] = {0};
     struct timespec tsnow;
     char sev_name[10];
     int blen = TBUFSIZE;
+    int32_t vlen = 0;
     char *vbuf = NULL;
+    json_object *json_obj = NULL;
 
-    if (vasprintf(&vbuf, fmt, ap) == -1) {
+    if ((vlen = vasprintf(&vbuf, fmt, ap)) == -1) {
         log__error_emergency("vslapd_log_error, Unable to format message", 1, locked);
         return -1;
     }
 
-    if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
-        PR_snprintf(buffer, sizeof(buffer),
-                    "vslapd_log_error, Unable to determine system time for message :: %s",
-                    vbuf);
-        log__error_emergency(buffer, 1, locked);
-        return -1;
-    }
-    if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
-        /* MSG may be truncated */
-        PR_snprintf(buffer, sizeof(buffer),
-                    "vslapd_log_error, Unable to format system time for message :: %s",
-                    vbuf);
-        log__error_emergency(buffer, 1, locked);
-        return -1;
-    }
+    if (log_format != LOG_FORMAT_DEFAULT) {
+        /* JSON format */
+        char *time_format = config_get_errorlog_time_format();
+        int32_t ltlen = TBUFSIZE;
+        struct timespec curr_time =  slapi_current_utc_time_hr();
 
-    /*
-     * To be able to remove timestamp to not over pollute the syslog, we may
-     * need to skip the timestamp part of the message.
-     *
-     *  The size of the header is:
-     *    the size of the time string
-     *    + size of space
-     *    + size of one char (sign)
-     *    + size of 2 char
-     *    + size of 2 char
-     *    + size of [
-     *    + size of ]
-     */
+        if (format_localTime_hr_json_log(&curr_time, local_time, &ltlen,
+                                         time_format) != 0)
+        {
+            /* MSG may be truncated */
+            PR_snprintf(local_time, sizeof(local_time),
+                        "build_base_obj, Unable to format system time");
+            log__error_emergency(local_time, 1, 0);
+            slapi_ch_free_string(&time_format);
+            return -1;
+        }
+        slapi_ch_free_string(&time_format);
 
-    /* This truncates again... But we have the nice smprintf from above! */
-    if (subsystem == NULL) {
-        snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s",
-                 get_log_sev_name(sev_level, sev_name), vbuf);
+        /* strip off "\n" */
+        if (vbuf[vlen-1] == '\n') {
+            vbuf[vlen-1] = '\0';
+        }
+
+        json_obj = json_object_new_object();
+        json_object_object_add(json_obj, "local_time",      json_object_new_string(local_time));
+        json_object_object_add(json_obj, "severity",  json_object_new_string(get_log_sev_name(sev_level, sev_name)));
+        json_object_object_add(json_obj, "subsystem", json_object_new_string(subsystem));
+        json_object_object_add(json_obj, "msg",       json_object_new_string(vbuf));
+
+        PR_snprintf(buffer, sizeof(buffer), "%s\n",
+                    json_object_to_json_string_ext(json_obj, log_format));
     } else {
-        snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s - %s",
-                 get_log_sev_name(sev_level, sev_name), subsystem, vbuf);
+        /* Old format.  This truncates again... But we have the nice smprintf
+         * from above!
+         *
+         * To be able to remove timestamp to not over pollute the syslog, we may
+         * need to skip the timestamp part of the message.
+         *
+         *  The size of the header is:
+         *    the size of the time string
+         *    + size of space
+         *    + size of one char (sign)
+         *    + size of 2 char
+         *    + size of 2 char
+         *    + size of [
+         *    + size of ]
+         */
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+            PR_snprintf(buffer, sizeof(buffer),
+                        "vslapd_log_error, Unable to determine system time for message :: %s",
+                        vbuf);
+            log__error_emergency(buffer, 1, locked);
+            return -1;
+        }
+        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+            /* MSG may be truncated */
+            PR_snprintf(buffer, sizeof(buffer),
+                        "vslapd_log_error, Unable to format system time for message :: %s",
+                        vbuf);
+            log__error_emergency(buffer, 1, locked);
+            return -1;
+        }
+        if (subsystem == NULL) {
+            snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s",
+                    get_log_sev_name(sev_level, sev_name), vbuf);
+        } else {
+            snprintf(buffer + blen, sizeof(buffer) - blen, "- %s - %s - %s",
+                    get_log_sev_name(sev_level, sev_name), subsystem, vbuf);
+        }
     }
 
     buffer[sizeof(buffer) - 1] = '\0';
@@ -2966,6 +3007,9 @@ vslapd_log_error(
     }
 
     slapi_ch_free_string(&vbuf);
+    if (json_obj) {
+        json_object_put(json_obj);
+    }
     return (0);
 }
 
@@ -6900,6 +6944,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
     int32_t log_state;
     PRBool log_buffering = PR_FALSE;
     open_log *open_log_file = NULL;
+    int32_t log_format = 0;
     int rc = 0;
 
     /*
@@ -6926,6 +6971,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_access_state;
         log_buffering = slapdFrontendConfig->accesslogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "access";
+        log_format = config_get_accesslog_log_format();
         break;
 
     case SLAPD_SECURITY_LOG:
@@ -6938,6 +6984,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_security_state;
         log_buffering = slapdFrontendConfig->securitylogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "security audit";
+        log_format = LOG_FORMAT_JSON;
         break;
 
     case SLAPD_AUDIT_LOG:
@@ -6950,6 +6997,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_audit_state;
         log_buffering = slapdFrontendConfig->auditlogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "audit";
+        log_format = config_get_auditlog_log_format();
         break;
 
     case SLAPD_AUDITFAIL_LOG:
@@ -6963,6 +7011,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         /* Audit fail log still uses the audit log buffering setting */
         log_buffering = slapdFrontendConfig->auditlogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "audit fail";
+        log_format = config_get_auditlog_log_format();
         break;
 
     case SLAPD_ERROR_LOG:
@@ -6975,6 +7024,7 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
         log_state = loginfo.log_error_state;
         log_buffering = slapdFrontendConfig->errorlogbuffering ? PR_TRUE : PR_FALSE;
         log_name = "error";
+        log_format = config_get_errorlog_log_format();
         break;
 
     default:
@@ -6999,34 +7049,11 @@ log_flush_buffer(LogBufferInfo *lbi, int log_type, int sync_now, int locked)
     }
 
     if (log_state & LOGGING_NEED_TITLE) {
-        int32_t accesslog_format = config_get_accesslog_log_format();
-        int32_t auditlog_format = config_get_auditlog_log_format();
-        int32_t securitylog_format = LOG_FORMAT_JSON;
-
-        switch (log_type) {
-        case SLAPD_ACCESS_LOG:
-            if (accesslog_format != LOG_FORMAT_DEFAULT) {
-                log_write_json_title(fd, accesslog_format);
-            } else {
-                log_write_title(fd);
-            }
-            break;
-        case SLAPD_AUDIT_LOG:
-        case SLAPD_AUDITFAIL_LOG:
-            if (auditlog_format != LOG_FORMAT_DEFAULT) {
-                log_write_json_title(fd, auditlog_format);
-            } else {
-                log_write_title(fd);
-            }
-            break;
-        case SLAPD_SECURITY_LOG:
-            log_write_json_title(fd, securitylog_format);
-            break;
-        default:
-            /* Error log - standard title */
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            log_write_json_title(fd, log_format);
+        } else {
             log_write_title(fd);
         }
-
         log_state_remove_need_title(log_type);
     }
 

@@ -861,6 +861,14 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.errorlogbuffering,
      CONFIG_ON_OFF, NULL, &init_errorlogbuffering, NULL},
+    {CONFIG_ERRORLOG_LOG_FORMAT_ATTRIBUTE, config_set_errorlog_log_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.errorlog_log_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_LOG_FORMAT, NULL},
+    {CONFIG_ERRORLOG_TIME_FORMAT_ATTRIBUTE, config_set_errorlog_time_format,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.errorlog_time_format,
+     CONFIG_STRING, NULL, SLAPD_INIT_ERROR_LOG_TIME_FORMAT, NULL},
     {CONFIG_CSNLOGGING_ATTRIBUTE, config_set_csnlogging,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.csnlogging,
@@ -1928,6 +1936,8 @@ FrontendConfig_init(void)
     cfg->errorlog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
     cfg->errorlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->errorloglevel = SLAPD_DEFAULT_FE_ERRORLOG_LEVEL;
+    cfg->errorlog_log_format = slapi_ch_strdup(SLAPD_INIT_LOG_FORMAT);
+    cfg->errorlog_time_format = slapi_ch_strdup(SLAPD_INIT_ERROR_LOG_TIME_FORMAT);
     init_errorlog_compress_enabled = cfg->errorlog_compress = LDAP_OFF;
     init_errorlogbuffering = cfg->errorlogbuffering = LDAP_OFF;
 
@@ -5664,7 +5674,6 @@ config_set_pw_warning(const char *attrname, char *value, char *errorbuf, int app
     return retVal;
 }
 
-
 int
 config_set_errorlog_level(const char *attrname, char *value, char *errorbuf, int apply)
 {
@@ -6918,6 +6927,101 @@ config_get_errorlog()
     CFG_UNLOCK_READ(slapdFrontendConfig);
 
     return retVal;
+}
+
+int32_t
+config_set_errorlog_log_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strcasecmp(value, "default") && strcasecmp(value, "json") && strcasecmp(value, "json-pretty")) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is invalid, the acceptable values "
+                              "are \"default\", \"json\", and \"json-pretty\"",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->errorlog_log_format);
+        slapdFrontendConfig->errorlog_log_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return LDAP_SUCCESS;
+}
+
+int
+config_get_errorlog_log_format()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *value;
+    int retVal;
+
+    /* map string value to int to avoid excessive freeing and duping */
+    CFG_LOCK_READ(slapdFrontendConfig);
+    value = slapdFrontendConfig->errorlog_log_format;
+    if (strcasecmp(value, "default") == 0) {
+        retVal = LOG_FORMAT_DEFAULT;
+    } else if (strcasecmp(value, "json") == 0) {
+        retVal = LOG_FORMAT_JSON;
+    } else {
+        retVal = LOG_FORMAT_JSON_PRETTY;
+    }
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_errorlog_time_format(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    time_t curtime;
+    char local_time[75] = "";
+    struct tm tms;
+    int32_t retVal = LDAP_SUCCESS;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+
+    /* validate the value */
+    curtime = slapi_current_utc_time();
+    (void)localtime_r(&curtime, &tms);
+    if (strftime(local_time, 75, value, &tms) == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "%s: \"%s\" is not a valid string format for strftime",
+                              attrname, value);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&slapdFrontendConfig->errorlog_time_format);
+        slapdFrontendConfig->errorlog_time_format = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+
+    return retVal;
+}
+
+char *
+config_get_errorlog_time_format(void)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *ret;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    ret = config_copy_strval(slapdFrontendConfig->errorlog_time_format);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return ret;
 }
 
 int32_t
