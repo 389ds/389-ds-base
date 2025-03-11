@@ -38,6 +38,8 @@ const settings_attrs = [
     'nsslapd-errorlog',
     'nsslapd-errorlog-level',
     'nsslapd-errorlog-logging-enabled',
+    'nsslapd-errorlog-log-format',
+    'nsslapd-errorlog-time-format',
 ];
 
 const _ = cockpit.gettext;
@@ -349,7 +351,7 @@ export class ServerErrorLog extends React.Component {
                 loading: true,
                 loaded: false,
             });
-        };
+        }
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -403,6 +405,8 @@ export class ServerErrorLog extends React.Component {
                             'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
                             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
                             'nsslapd-errorlog-compress': compressed,
+                            'nsslapd-errorlog-log-format': attrs['nsslapd-errorlog-log-format'][0],
+                            'nsslapd-errorlog-time-format': attrs['nsslapd-errorlog-time-format'][0],
                             rows,
                             // Record original values
                             _rows:  JSON.parse(JSON.stringify(rows)),
@@ -421,6 +425,8 @@ export class ServerErrorLog extends React.Component {
                             '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
                             '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
                             '_nsslapd-errorlog-compress': compressed,
+                            '_nsslapd-errorlog-log-format': attrs['nsslapd-errorlog-log-format'][0],
+                            '_nsslapd-errorlog-time-format': attrs['nsslapd-errorlog-time-format'][0],
                         })
                     );
                 })
@@ -483,6 +489,8 @@ export class ServerErrorLog extends React.Component {
             'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
             'nsslapd-errorlog-compress': compressed,
+            'nsslapd-errorlog-log-format': attrs['nsslapd-errorlog-log-format'][0],
+            'nsslapd-errorlog-time-format': attrs['nsslapd-errorlog-time-format'][0],
             rows,
             // Record original values
             _rows: JSON.parse(JSON.stringify(rows)),
@@ -501,6 +509,8 @@ export class ServerErrorLog extends React.Component {
             '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
             '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
             '_nsslapd-errorlog-compress': compressed,
+            '_nsslapd-errorlog-log-format': attrs['nsslapd-errorlog-log-format'][0],
+            '_nsslapd-errorlog-time-format': attrs['nsslapd-errorlog-time-format'][0],
         }, this.props.enableTree);
     }
 
@@ -560,6 +570,12 @@ export class ServerErrorLog extends React.Component {
         }
         rotationTime = hour + ":" + min;
 
+        const time_format_title = (
+            <>
+                {_("Time Format")} <font size="1">({_("JSON only")})</font>
+            </>
+        );
+
         let body = (
             <div className="ds-margin-top-lg ds-left-margin">
                 <Tabs className="ds-margin-top-xlg" activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
@@ -590,6 +606,40 @@ export class ServerErrorLog extends React.Component {
                                         this.handleChange(e, "settings");
                                     }}
                                 />
+                            </FormGroup>
+                            <FormGroup
+                                label={time_format_title}
+                                fieldId="nsslapd-errorlog-time-format"
+                                title="Time format using strftime formatting (nsslapd-errorlog-time-format). This only applies to the JSON log format"
+                            >
+                                <TextInput
+                                    value={this.state['nsslapd-errorlog-time-format']}
+                                    type="text"
+                                    id="nsslapd-errorlog-time-format"
+                                    aria-describedby="horizontal-form-name-helper"
+                                    name="nsslapd-errorlog-time-format"
+                                    onChange={(e, str) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                />
+                            </FormGroup>
+                            <FormGroup
+                                label={_("Log Format")}
+                                fieldId="nsslapd-errorlog-log-format"
+                                title={_("Choose the log format (nsslapd-errorlog-log-format).")}
+                            >
+                                <FormSelect
+                                    id="nsslapd-errorlog-log-format"
+                                    value={this.state['nsslapd-errorlog-log-format']}
+                                    onChange={(e, str) => {
+                                        this.handleChange(e, "settings");
+                                    }}
+                                    aria-label="FormSelect Input"
+                                >
+                                    <FormSelectOption key="0" value="default" label="Default" />
+                                    <FormSelectOption key="1" value="json" label="JSON" />
+                                    <FormSelectOption key="2" value="json-pretty" label="JSON (pretty)" />
+                                </FormSelect>
                             </FormGroup>
                         </Form>
 

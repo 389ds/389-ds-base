@@ -330,6 +330,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_INIT_LOG_EXPTIMEUNIT           "month"
 #define SLAPD_INIT_LOG_TIME_FORMAT           "%FT%TZ"
 #define SLAPD_INIT_ACCESS_LOG_TIME_FORMAT    "%FT%T"
+#define SLAPD_INIT_ERROR_LOG_TIME_FORMAT    "%FT%T"
 #define SLAPD_INIT_LOG_FORMAT                "default"
 #define LOG_FORMAT_DEFAULT 1
 #define LOG_FORMAT_JSON 0
@@ -2218,6 +2219,8 @@ typedef struct _slapdEntryPoints
 #define CONFIG_AUDITLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-auditlog-time-format"
 #define CONFIG_ACCESSLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-accesslog-log-format"
 #define CONFIG_ACCESSLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-accesslog-time-format"
+#define CONFIG_ERRORLOG_LOG_FORMAT_ATTRIBUTE "nsslapd-errorlog-log-format"
+#define CONFIG_ERRORLOG_TIME_FORMAT_ATTRIBUTE "nsslapd-errorlog-time-format"
 #define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
@@ -2575,6 +2578,8 @@ typedef struct _slapdFrontendConfig
 
     /* ERROR LOG */
     slapi_onoff_t errorlog_logging_enabled;
+    char *errorlog_log_format;
+    char *errorlog_time_format;
     char *errorlog_mode;
     int errorlog_maxnumlogs;
     int errorlog_maxlogsize;
