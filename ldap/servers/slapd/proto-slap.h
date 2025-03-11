@@ -405,6 +405,8 @@ int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char 
 int32_t config_set_auditlog_display_attrs(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_accesslog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_errorlog_log_format(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_errorlog_time_format(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
@@ -529,6 +531,8 @@ int config_get_auditlog_log_format(void);
 char *config_get_auditlog_time_format(void);
 int config_get_accesslog_log_format(void);
 char *config_get_accesslog_time_format(void);
+int config_get_errorlog_log_format(void);
+char *config_get_errorlog_time_format(void);
 char *config_get_referral_mode(void);
 int config_get_num_listeners(void);
 int config_check_referral_mode(void);

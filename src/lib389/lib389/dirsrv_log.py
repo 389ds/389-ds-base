@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -281,7 +281,8 @@ class DirsrvAccessJSONLog(DirsrvLog):
                 if len(searches) > 0:
                     report = copy.deepcopy(lint_report)
                     report['items'].append(self._get_log_path())
-                    report['detail'] = report['detail'].replace('NUMBER', str(count))
+                    report['detail'] = report['detail'].replace('NUMBER',
+                                                                str(count))
                     for srch in searches:
                         report['detail'] += srch
                     report['check'] = 'logs:notes'
@@ -315,12 +316,32 @@ class DirsrvAccessJSONLog(DirsrvLog):
             self.log.info(action)
         return action
 
-    def parse_lines(self, lines):
-        """Parse multiple log lines
-        @param lines - a list of log lines
-        @return - A dictionary of the log parts for each line
+    def parse_log(self):
         """
-        return map(self.parse_line, lines)
+        Take the entire logs and parse it into a list of objects, this can
+        handle "json_pretty" format
+        """
+
+        json_objects = []
+        jobj = ""
+
+        lines = self.readlines()
+        for line in lines:
+            line = line.rstrip()
+            if line == '{':
+                jobj = "{"
+            elif line == '}':
+                jobj += "}"
+                json_objects.append(json.loads(jobj))
+            else:
+                if line[0] == '{' and line[-1] == '}':
+                    # Complete json log line
+                    json_objects.append(json.loads(line))
+                else:
+                    # Json pretty - append the line
+                    jobj += line.strip()
+
+        return json_objects
 
 
 class DirsrvAccessLog(DirsrvLog):
@@ -373,9 +394,9 @@ class DirsrvAccessLog(DirsrvLog):
                 for line in lines:
                     if ' RESULT err=' in line:
                         # Looks like a valid notes=A/F
-                        conn = line.split(' conn=', 1)[1].split(' ',1)[0]
-                        op = line.split(' op=', 1)[1].split(' ',1)[0]
-                        etime = line.split(' etime=', 1)[1].split(' ',1)[0]
+                        conn = line.split(' conn=', 1)[1].split(' ', 1)[0]
+                        op = line.split(' op=', 1)[1].split(' ', 1)[0]
+                        etime = line.split(' etime=', 1)[1].split(' ', 1)[0]
                         stats = self._log_get_search_stats(conn, op)
                         if stats is not None:
                             timestamp = stats['timestamp']
@@ -399,7 +420,8 @@ class DirsrvAccessLog(DirsrvLog):
                 if len(searches) > 0:
                     report = copy.deepcopy(lint_report)
                     report['items'].append(self._get_log_path())
-                    report['detail'] = report['detail'].replace('NUMBER', str(count))
+                    report['detail'] = report['detail'].replace('NUMBER',
+                                                                str(count))
                     for srch in searches:
                         report['detail'] += srch
                     report['check'] = 'logs:notes'
@@ -484,8 +506,91 @@ class DirsrvErrorLog(DirsrvLog):
         return map(self.parse_line, lines)
 
 
+class DirsrvErrorJSONLog(DirsrvLog):
+    """Directory Server Error JSON log class"""
+    def __init__(self, dirsrv):
+        """Init the Error log class
+        @param dirsrv - A DirSrv object
+        """
+        super(DirsrvErrorJSONLog, self).__init__(dirsrv)
+        self.jsonFormat = True
+        self.lpath = ""
+
+    def _get_log_path(self):
+        """Return the current log file location"""
+        return self.dirsrv.ds_paths.error_log
+
+    def readlines(self):
+        """Returns an array of all the lines in the log.
+
+        @return - an array of all the lines in the log.
+        """
+        lines = []
+        self.lpath = self._get_log_path()
+        if self.lpath is not None:
+            # Open the log
+            with open(self.lpath, 'r', errors='ignore') as lf:
+                lines = lf.readlines()
+        return lines
+
+    def parse_line(self, line):
+        """Parse a error log line
+        @line - a text string from a error log
+        @return - A dictionary of the log parts
+        """
+        line = line.strip()
+
+        try:
+            action = json.loads(line)
+            if 'header' in action:
+                # This is the log title, return it as is
+                return action
+
+            action['datetime'] = self.parse_timestamp(action['local_time'],
+                                                      json_format=True)
+            return action
+
+        except json.decoder.JSONDecodeError:
+            # Maybe it's json pretty, regardless we can not parse this single
+            # line
+            pass
+
+        return None
+
+    def parse_log(self):
+        """
+        Take the entire logs and parse it into a list of objects, this can
+        handle "json_pretty" format
+        """
+
+        json_objects = []
+        jobj = ""
+
+        lines = self.readlines()
+        for line in lines:
+            line = line.rstrip()
+            if line == '{':
+                jobj = "{"
+            elif line == '}':
+                jobj += "}"
+                json_objects.append(json.loads(jobj))
+            else:
+                if line[0] == '{' and line[-1] == '}':
+                    # Complete json log line
+                    json_objects.append(json.loads(line))
+                else:
+                    # Json pretty - append the line
+                    jobj += line.strip()
+
+        return json_objects
+
+
 class DirsrvSecurityLog(DirsrvLog):
-    """Directory Server Security log class"""
+    """
+    Directory Server Security log class
+
+    Currently this is only written in "json", not "json-pretty"
+    """
     def __init__(self, dirsrv):
         """Init the Security log class
         @param dirsrv - A DirSrv object
@@ -554,6 +659,7 @@ class DirsrvAuditJSONLog(DirsrvLog):
         """
         super(DirsrvAuditJSONLog, self).__init__(dirsrv)
         self.jsonFormat = True
+        self.lpath = ""
 
     def _get_log_path(self):
         """Return the current log file location"""
@@ -579,16 +685,43 @@ class DirsrvAuditJSONLog(DirsrvLog):
         @return - A dictionary of the log parts
         """
         line = line.strip()
-        action = json.loads(line)
-        if 'header' in action:
-            # This is the log title, return it as is
+        try:
+            action = json.loads(line)
+            if 'header' in action:
+                # This is the log title, return it as is
+                return action
+            action['datetime'] = action['gm_time']
             return action
-        action['datetime'] = action['gm_time']
-        return action
+        except json.decoder.JSONDecodeError:
+            # Maybe it's json pretty, regardless we can not parse this single
+            # line
+            pass
 
-    def parse_lines(self, lines):
-        """Parse multiple lines from a audit log
-        @param lines - a lits of strings/lines from a audit log
-        @return - A dictionary of the log parts for each line
+        return None
+
+    def parse_log(self):
         """
-        return map(self.parse_line, lines)
+        Take the entire logs and parse it into a list of objects, this can
+        handle "json_pretty" format
+        """
+
+        json_objects = []
+        jobj = ""
+
+        lines = self.readlines()
+        for line in lines:
+            line = line.rstrip()
+            if line == '{':
+                jobj = "{"
+            elif line == '}':
+                jobj += "}"
+                json_objects.append(json.loads(jobj))
+            else:
+                if line[0] == '{' and line[-1] == '}':
+                    # Complete json log line
+                    json_objects.append(json.loads(line))
+                else:
+                    # Json pretty - append the line
+                    jobj += line.strip()
+
+        return json_objects
