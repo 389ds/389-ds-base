@@ -326,32 +326,30 @@ export class ServerErrorLog extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload();
+                    this.handleRefreshConfig(1);
                     this.props.addNotification(
                         "success",
                         _("Successfully updated Error Log settings")
                     );
-                    this.setState({
-                        loading: false
-                    });
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.reload();
+                    this.handleRefreshConfig(1);
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error saving Error Log settings - $0"), errMsg.desc)
                     );
-                    this.setState({
-                        loading: false
-                    });
                 });
     }
 
-    handleRefreshConfig() {
-        this.setState({
-            loading: true,
-            loaded: false,
-        });
+    handleRefreshConfig(loading) {
+        if (!loading) {
+            this.setState({
+                loading: true,
+                loaded: false,
+            });
+        };
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
