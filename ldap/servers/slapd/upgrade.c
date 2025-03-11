@@ -309,6 +309,7 @@ upgrade_remove_subtree_rename(void)
         LDAPMod *mods[2];
         mod_delete.mod_op = LDAP_MOD_DELETE;
         mod_delete.mod_type = attr;
+        mod_delete.mod_values = NULL;
         mods[0] = &mod_delete;
         mods[1] = 0;
 
