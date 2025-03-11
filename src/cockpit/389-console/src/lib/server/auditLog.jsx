@@ -308,33 +308,30 @@ export class ServerAuditLog extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.props.reload();
+                    this.refreshConfig(1);
                     this.props.addNotification(
                         "success",
                         _("Successfully updated Audit Log settings")
                     );
-                    this.setState({
-                        loading: false
-                    });
-
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
                     this.props.reload();
+                    this.refreshConfig(1);
                     this.props.addNotification(
                         "error",
                         cockpit.format(_("Error saving Audit Log settings - $0"), errMsg.desc)
                     );
-                    this.setState({
-                        loading: false,
-                    });
                 });
     }
 
-    refreshConfig() {
-        this.setState({
-            loading: true,
-            loaded: false,
-        });
+    refreshConfig(loading) {
+        if (!loading) {
+            this.setState({
+                loading: true,
+                loaded: false,
+            });
+        }
 
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
