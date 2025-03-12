@@ -712,14 +712,27 @@ static int
 _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
 {
     int rc = 0;
+    LDAPMod *mod[2];
 
-    slapi_pblock_init(mod_pb);
+    /* Split multiple modifications into individual modify operations */
+    for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
+        mod[0] = mods[i];
+        mod[1] = NULL;
 
-    /* Perform modifications with error overrides for specific conditions */
-    if (allow_repl) {
-        rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mods, referint_plugin_identity, OP_FLAG_REPLICATED);
-    } else {
-        rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mods, referint_plugin_identity, 0);
+        slapi_pblock_init(mod_pb);
+
+        /* Do a single mod with error overrides for DEL/ADD */
+        if (allow_repl) {
+            rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mod,
+                                                        referint_plugin_identity, OP_FLAG_REPLICATED);
+        } else {
+            rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mod,
+                                                        referint_plugin_identity, 0);
+        }
+
+        if (rc != LDAP_SUCCESS) {
+            return rc;
+        }
     }
 
     return rc;
