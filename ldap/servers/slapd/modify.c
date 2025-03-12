@@ -111,7 +111,7 @@ do_modify(Slapi_PBlock *pb)
     char *old_pw = NULL; /* remember the old password */
     char *rawdn = NULL;
     int minssf_exclude_rootdse = 0;
-    int intop_reset_some_mods = 0;
+    int ignored_some_mods = 0;
     int has_password_mod = 0; /* number of password mods */
     int pw_change = 0;        /* 0 = no password change */
     int err;
@@ -267,7 +267,7 @@ do_modify(Slapi_PBlock *pb)
              * For now we just ignore attributes that client is not allowed
              * to modify so not to break existing clients
              */
-            ++intop_reset_some_mods;
+            ++ignored_some_mods;
             ber_bvecfree(mod->mod_bvalues);
             slapi_ch_free((void **)&(mod->mod_type));
             slapi_ch_free((void **)&mod);
@@ -283,7 +283,7 @@ do_modify(Slapi_PBlock *pb)
         slapi_mods_add_ldapmod(&smods, mod);
     }
 
-    if (intop_reset_some_mods && (0 == smods.num_elements)) {
+    if (ignored_some_mods && (0 == smods.num_elements)) {
         if (pb_conn->c_isreplication_session) {
             uint64_t connid;
             int32_t opid;
@@ -305,7 +305,7 @@ do_modify(Slapi_PBlock *pb)
         if there were no elements read (empty modify) len will be 0
     */
     if (tag != LBER_END_OF_SEQORSET) {
-        if ((len == 0) && (0 == smods.num_elements) && !intop_reset_some_mods) {
+        if ((len == 0) && (0 == smods.num_elements) && !ignored_some_mods) {
             /* ok - empty modify - allow empty modifies */
         } else if (len != -1) {
             op_shared_log_error_access(pb, "MOD", rawdn, "decoding error");
@@ -489,44 +489,52 @@ slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod 
     slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
 }
 
-/* Perform a series of single mod operations, breaking down multiple mods into individual ops if required.
- * For each mod op, certain error conditions are overriden and treated as successful:
- *   - LDAP_MOD_ADD -> LDAP_TYPE_OR_VALUE_EXISTS
- *   - LDAP_MOD_DELETE -> LDAP_NO_SUCH_ATTRIBUTE
+/* Performs a single LDAP modify operation with error overrides.
+ *
+ * If specific errors occur, such as attempting to add an existing attribute or
+ * delete a non-existent one, the function overrides the error and returns success:
+ *   - LDAP_MOD_ADD -> LDAP_TYPE_OR_VALUE_EXISTS (ignored)
+ *   - LDAP_MOD_DELETE -> LDAP_NO_SUCH_ATTRIBUTE (ignored)
+ *
  * Any other errors encountered during the operation will be returned as-is.
  */
 int 
-slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mods, Slapi_ComponentId *plugin_id, int op_flags)
+slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mod, Slapi_ComponentId *plugin_id, int op_flags)
 {
-    int rc = -1;
-    LDAPMod *single_mod[2]; 
-    int intop_reset = 0;
+    int rc = 0;
+    int result = 0;
+    int result_reset = 0;
     int mod_op = 0;
 
-    for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
-        single_mod[0] = mods[i];
-        single_mod[1] = NULL;
-        
-        slapi_modify_internal_set_pb_ext(pb, sdn, single_mod, NULL, NULL, plugin_id, op_flags);
-        slapi_modify_internal_pb(pb);
-        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (!pb || !sdn || !mod || !mod[0]) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_single_modify_internal_override",
+                    "Invalid argument: %s%s%s%s is NULL\n",
+                    !pb ? "pb " : "",
+                    !sdn ? "sdn " : "",
+                    !mod ? "mod " : "",
+                    !mod[0] ? "mod[0] " : "");
 
-        if (rc != LDAP_SUCCESS) {
-            mod_op = single_mod[0]->mod_op & LDAP_MOD_OP;
-            /* Check if rc can be overridden */
-            if ((mod_op == LDAP_MOD_ADD && rc == LDAP_TYPE_OR_VALUE_EXISTS) ||
-                (mod_op == LDAP_MOD_DELETE && rc == LDAP_NO_SUCH_ATTRIBUTE)) {
-                    slapi_log_err(SLAPI_LOG_INFO, "slapi_single_modify_internal_override",
-                        "Ignoring return code from - plugin:%s dn:%s mod_op:%d intop result:%d\n",
-                        plugin_id ? plugin_id->sci_component_name : "Null",
-                        sdn ? sdn->udn : "Null", 
-                        mod_op, rc);
-                    slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &intop_reset);
-                    rc = LDAP_SUCCESS;
-                } else {
-                    return rc;
-                }
-        }
+        return LDAP_PARAM_ERROR;
+    }
+
+    slapi_modify_internal_set_pb_ext(pb, sdn, mod, NULL, NULL, plugin_id, op_flags);
+    slapi_modify_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+
+    if (result != LDAP_SUCCESS) {
+        mod_op = mod[0]->mod_op & LDAP_MOD_OP;
+        if ((mod_op == LDAP_MOD_ADD && result == LDAP_TYPE_OR_VALUE_EXISTS) ||
+            (mod_op == LDAP_MOD_DELETE && result == LDAP_NO_SUCH_ATTRIBUTE)) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_single_modify_internal_override",
+                            "Overriding return code - plugin:%s dn:%s mod_op:%d result:%d\n",
+                            plugin_id ? plugin_id->sci_component_name : "unknown",
+                            sdn ? sdn->udn : "unknown", mod_op, result);
+
+                slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &result_reset);
+                rc = LDAP_SUCCESS;
+            } else {
+                rc = result;
+            }
     }
 
     return rc;
@@ -660,7 +668,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
     int32_t log_format = config_get_accesslog_log_format();
     slapd_log_pblock logpb = {0};
 
-    slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);//jc segv from here
+    slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET, &dn);
     slapi_pblock_get(pb, SLAPI_MODIFY_TARGET_SDN, &sdn);
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &tmpmods);
@@ -1587,7 +1595,7 @@ optimize_mods(Slapi_Mods *smods)
                 mod_count++;
             }
             if (i > 0) {
-                /* Ok, we did optimize the "mod" values, so set the current mod to be intop_reset */
+                /* Ok, we did optimize the "mod" values, so set the current mod to be ignored */
                 mod->mod_op = LDAP_MOD_IGNORE;
             } else {
                 /* No mod values, probably a full delete of the attribute... reset counters and move on */

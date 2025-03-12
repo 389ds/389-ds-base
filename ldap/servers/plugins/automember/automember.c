@@ -1755,9 +1755,9 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
         }
 
         mod_pb = slapi_pblock_new();
-
-        /* Perform modifications with error overrides for specific conditions */
-        result = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_dn_byval(group_dn), mods, automember_get_plugin_id(), 0);
+        /* Do a single mod with error overrides for DEL/ADD */
+        result = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_dn_byval(group_dn), mods,
+                                                        automember_get_plugin_id(), 0);
 
         if(add){
             if (result != LDAP_SUCCESS) {
@@ -1788,7 +1788,6 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
 
 out:
     slapi_pblock_destroy(mod_pb);
-    slapi_sdn_free(&group_sdn);
 
     return rc;
 }
