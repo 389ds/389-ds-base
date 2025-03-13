@@ -186,6 +186,8 @@ ERROR_ATTR_MAP = {
     'nsslapd-errorlog-maxlogsize': 'Max log size',
     'nsslapd-errorlog-logbuffering': 'Buffering enabled',
     'nsslapd-errorlog-logminfreediskspace': 'Minimum free disk space',
+    'nsslapd-errorlog-time-format': 'Time format for JSON logging (strftime)',
+    'nsslapd-errorlog-log-format': 'Logging format',
 }
 
 SECURITY_ATTR_MAP = {
@@ -677,7 +679,7 @@ def create_parser(subparsers):
             + "the server to delete rotated log files.",
         )
 
-        if log_type in ['access', 'audit']:
+        if log_type in ['access', 'audit', 'error']:
             # JSON logging
             set_log_format_parser = set_parsers.add_parser(
                 "log-format",
