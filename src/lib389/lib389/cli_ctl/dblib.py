@@ -15,12 +15,13 @@ import os
 import glob
 import pwd
 import re
+import logging
 import shutil
 import subprocess
 from enum import Enum
 from errno import ENOSPC
 from lib389.cli_base import CustomHelpFormatter
-from lib389._constants import DEFAULT_LMDB_SIZE, BDB_IMPL_STATUS, DN_CONFIG
+from lib389._constants import DEFAULT_LMDB_SIZE, BDB_IMPL_STATUS, DN_CONFIG, DBSCAN
 from lib389.dseldif import DSEldif
 from lib389.utils import parse_size, format_size, check_plugin_strings, find_plugin_path
 from pathlib import Path
@@ -47,6 +48,93 @@ class FakeArgs(dict):
     def __init__(self, *args, **kwargs):
         super(FakeArgs, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
+
+class CalledProcessUnexpectedReturnCode(subprocess.CalledProcessError):
+    def __init__(self, result, expected_rc):
+        super().__init__(cmd=result.args, returncode=result.returncode, output=result.stdout, stderr=result.stderr)
+        self.expected_rc = expected_rc
+        self.result = result
+
+    def __str__(self):
+        return f'Command {self.result.args} returned {self.result.returncode} instead of {self.expected_rc}'
+
+
+class DbscanHelper:
+    """
+    Helper class to get the existing database(s) dbis
+    Usage: DbscanHelper(inst).get_dbi('attrname' [, backend='backendname'])
+           throws KeyError if there is no associated dbi
+    """
+
+    def __init__(self, inst, log=None):
+        self.inst = inst
+        self.log = log if log else logging.getLogger(__name__)
+
+    def _init2(self):
+        if getattr(self, 'dblib', None) is not None:
+            return
+        assert(self.inst)
+        self.dblib = self.inst.get_db_lib()
+        self.dbhome = self.inst.ds_paths.db_home_dir
+        self.dbis = self._list_instances()
+        self.ldif_dir = self.inst.ds_paths.ldif_dir
+
+        # set self.options with dbscan supported options
+        self.options = []
+        usage = self.dbscan(['-h'], expected_rc=None).stdout
+        pattern = r'^\s+(?:(-[^-,]+), +)?(--[^ ]+).*$'
+        for match in re.finditer(pattern, usage, flags=re.MULTILINE):
+            for idx in range(1,3):
+                if match.group(idx) is not None:
+                    self.options.append(match.group(idx))
+
+    def resync(self):
+        assert(self.inst)
+        self.dblib = None
+        self._init2()
+
+    def _list_instances(self):
+        # compute db instance pathnames
+        instances = self.dbscan(['-D', self.dblib, '-L', self.dbhome]).stdout
+        dbis = []
+        if self.dblib == 'bdb':
+            pattern = r'^ (.*) $'
+            prefix = f'{self.dbhome}/'
+        else:
+            pattern = r'^ (.*) flags:'
+            prefix = f''
+        for match in re.finditer(pattern, instances, flags=re.MULTILINE):
+            dbis.append(prefix+match.group(1))
+        return dbis
+
+    def get_dbi(self, attr, backend='userroot'):
+        self._init2()
+        for dbi in self.dbis:
+            if f'{backend}/{attr}.'.lower() in dbi.lower():
+                return dbi
+        raise KeyError(f'Unknown dbi {backend}/{attr}')
+
+    def dbscan(self, args, expected_rc=0):
+        if self.inst is None:
+            prefix = os.environ.get('PREFIX', "")
+            prog = f'{prefix}/bin/dbscan'
+        else:
+            prog = os.path.join(self.inst.ds_paths.bin_dir, DBSCAN)
+        args.insert(0, prog)
+        output = subprocess.run(args, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.log.debug(f'{args} result is {output.returncode} output is {output.stdout}')
+        if expected_rc is not None and expected_rc != output.returncode:
+            raise CalledProcessUnexpectedReturnCode(output, expected_rc)
+        return output
+
+    def __repr__(self):
+        if self.inst is None:
+            return 'DbscanHelper(None)'
+        self._init2()
+        attrs = ['inst', 'dblib', 'dbhome', 'ldif_dir', 'options', 'dbis' ]
+        res = ", ".join(map(lambda x: f'{x}={getattr(self, x, None)}', attrs))
+        return f'DbscanHelper({res})'
 
 
 def get_bdb_impl_status():
@@ -170,7 +258,7 @@ def get_backends(log, dse, tmpdir):
     # now that we finish reading the dse.ldif we may update it if needed.
     for dn, dir in update_dse:
         dse.replace(dn, 'nsslapd-directory', dir)
-    log.debug(f'lib389.cli_ctl.dblib.get_backends returns: {str(res)}')
+    self.log.debug(f'lib389.cli_ctl.dblib.get_backends returns: {str(res)}')
     return (res, dbis)
 
 

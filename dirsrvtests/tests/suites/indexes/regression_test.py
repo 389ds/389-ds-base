@@ -16,6 +16,7 @@ import re
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
 from lib389.backend import Backend, Backends, DatabaseConfig
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
+from lib389.cli_ctl.dblib import DbscanHelper
 from lib389.dbgen import dbgen_users
 from lib389.idm.domain import Domain
 from lib389.idm.group import Groups, Group
@@ -163,8 +164,28 @@ def set_description_index(request, topo, add_a_group_with_users):
     return (indexes, attr)
 
 
-#unstable or unstatus tests, skipped for now
-@pytest.mark.flaky(max_runs=2, min_passes=1)
+def chech_dbi(dbsh, attr_name, expected = True, lowercase=False):
+    dbsh.resync()
+    # mdb dbi names are always lowercase while bdb names are case sensitive
+    if dbsh.dblib == 'mdb':
+        lowercase=True
+    try:
+        dbi = dbsh.get_dbi(attr_name)
+    except KeyError:
+        dbi = None
+    log.info(f'Found dbi {dbi} for attribute {attr_name}. (expected={expected})')
+    if expected:
+        assert dbi is not None
+        if lowercase:
+            assert attr_name.lower() in dbi
+            assert attr_name not in dbi
+        else:
+            assert attr_name.lower() not in dbi
+            assert attr_name in dbi
+    else:
+        assert dbi is None
+
+
 @pytest.mark.skipif(ds_is_older("1.4.4.4"), reason="Not implemented")
 def test_reindex_task_creates_abandoned_index_file(topo):
     """
@@ -238,9 +259,10 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    dbsh = DbscanHelper(inst)
+    chech_dbi(dbsh, attr_name,lowercase=True)
     index.delete()
-    assert not os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
+    chech_dbi(dbsh, attr_name, expected=False)
 
     index = indexes.create(properties={
         'cn': attr_name,
@@ -250,8 +272,7 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert not os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
-    assert os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name}.db")
+    chech_dbi(dbsh, attr_name)
 
     entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f"{attr_name}={attr_value}")
     assert len(entries) > 0
@@ -261,8 +282,7 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    assert not os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name.lower()}.db")
-    assert os.path.exists(f"{inst.ds_paths.db_dir}/{DEFAULT_BENAME}/{attr_name}.db")
+    chech_dbi(dbsh, attr_name)
 
 
 def test_unindexed_internal_search_crashes_server(topo, add_a_group_with_users, set_small_idlistscanlimit):
