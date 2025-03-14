@@ -619,13 +619,13 @@ class logAnalyser:
                 if parse_start and parse_stop:
                     if parse_start.microsecond or parse_stop.microsecond:
                         if not parse_start <= norm_timestamp <= parse_stop:
-                            self.logger.error(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
-                            return False
+                            self.logger.debug(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
+                            return
                     else:
                         norm_timestamp = norm_timestamp.replace(microsecond=0)
                         if not parse_start <= norm_timestamp <= parse_stop:
-                            self.logger.error(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
-                            return False
+                            self.logger.debug(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
+                            return
 
                 # Get the first and last timestamps
                 if self.server['first_time'] is None:
@@ -1713,10 +1713,8 @@ class logAnalyser:
         file_size = 0
         curr_position = 0
         lines_read = 0
-        block_count = 0
-        block_count_limit = 0
-        # Percentage of file size to trigger progress updates
-        update_percent = 5
+        line_count = 0
+        line_count_limit = 25000
 
         self.logger.info(f"Processing file: {filepath}")
 
@@ -1745,8 +1743,6 @@ class logAnalyser:
                 filehandle.seek(0)
                 print(f"[{log_num:03d}] {filehandle.name:<30}\tsize (bytes): {file_size:>12}")
 
-                # Progress interval
-                block_count_limit = int(file_size * update_percent/100)
                 for line in filehandle:
                     try:
                         line_content = line.decode('utf-8').strip()
@@ -1757,15 +1753,15 @@ class logAnalyser:
                                 self.logger.info("Processing stopped, outside parse time range.")
                                 break
 
-                            block_count += len(line)
+                            line_count += 1
                             lines_read += 1
 
                         # Is it time to give an update
-                        if block_count >= block_count_limit:
+                        if line_count >= line_count_limit:
                             curr_position = filehandle.tell()
                             percent = curr_position/file_size * 100.0
                             print(f"{lines_read:10d} Lines Processed     {curr_position:12d} of {file_size:12d} bytes ({percent:.3f}%)")
-                            block_count = 0
+                            line_count = 0
 
                     except UnicodeDecodeError as de:
                         self.logger.error(f"non-decodable line at position {filehandle.tell()}: {de}")
@@ -1798,7 +1794,7 @@ class logAnalyser:
             return None
 
         try:
-            filetype = magic.detect_from_filename(filepath).mime_type
+            filetype = magic.detect_from_filename(filepath)
 
             # List of supported compression types
             compressed_mime_types = [
@@ -1806,9 +1802,9 @@ class logAnalyser:
                 'application/x-gzip',           # gz, tgz
             ]
 
-            if filetype in compressed_mime_types:
-                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype})")
-                return True, filetype
+            if filetype.mime_type in compressed_mime_types:
+                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype.mime_type})")
+                return True, filetype.mime_type
             else:
                 self.logger.info(f"File is not compressed: {filepath}")
                 return False
@@ -1905,13 +1901,15 @@ class logAnalyser:
             str: The formatted timestamp string.
         """
         if not timestamp:
-            raise ValueError("The datetime object must be timezone-aware and nont None.")
-        else:
-            timestamp = timestamp[:26] + timestamp[29:]
-            dt = datetime.strptime(timestamp, "%d/%b/%Y:%H:%M:%S.%f %z")
-            formatted_timestamp = dt.strftime("%d/%b/%Y:%H:%M:%S")
+            return ""
 
-        return formatted_timestamp
+        try:
+            timestamp = timestamp[:26] + timestamp[29:]  # Adjust timestamp format
+            dt = datetime.strptime(timestamp, "%d/%b/%Y:%H:%M:%S.%f %z")
+            return dt.strftime("%d/%b/%Y:%H:%M:%S")
+        except ValueError as e:
+            print(f"Timestamp format error: {e}")
+            return ""
 
     def get_elapsed_time(self, start: datetime, finish: datetime, time_format=None):
         """
@@ -2154,7 +2152,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print(f"Access Log Analyzer v{logAnalyzerVersion}")
+        print(f"Access Log Analyzer {logAnalyzerVersion}")
         sys.exit(0)
 
     if not args.logs:
@@ -2175,7 +2173,7 @@ def main():
         if args.startTime and args.endTime:
             db.set_parse_times(args.startTime, args.endTime)
 
-        print(f"Access Log Analyzer v{logAnalyzerVersion}")
+        print(f"Access Log Analyzer {logAnalyzerVersion}")
         print(f"Command: {' '.join(sys.argv)}")
 
         # Sanitise list of log files
@@ -2183,13 +2181,12 @@ def main():
             file for file in args.logs
             if not re.search(r'access\.rotationinfo', file) and os.path.isfile(file)
         ]
-
         if not existing_logs:
             db.logger.error("No log files provided.")
             sys.exit(1)
 
         # Sort by creation time
-        existing_logs.sort(key=lambda x: os.path.getctime(x), reverse=True)
+        existing_logs.sort(key=lambda x: os.path.getctime(x))
         # We shoud never reach here, if we do put "access" and the end of the log file list
         if 'access' in existing_logs:
             existing_logs.append(existing_logs.pop(existing_logs.index('access')))
@@ -2202,7 +2199,6 @@ def main():
             if os.path.isfile(accesslog):
                 db.process_file(num, accesslog)
             else:
-                # print(f"Invalid file: {accesslog}")
                 db.logger.error(f"Invalid file:{accesslog}")
 
     except Exception as e:
@@ -2239,14 +2235,12 @@ def main():
     num_DM_binds = db.bind.get('rootdn_bind_ctr', 0)
     num_base_search = db.search.get('base_search_ctr', 0)
     try:
-        log_start_time = db.convert_timestamp_to_string(db.server['first_time'])
-        log_end_time = db.convert_timestamp_to_string(db.server['last_time'])
+        log_start_time = db.convert_timestamp_to_string(db.server.get('first_time', 0))
+        log_end_time = db.convert_timestamp_to_string(db.server.get('last_time', 0))
     except ValueError as e:
-        db.logger.error(f"Converting timestamp to datetime object failed")
-        log_start_time = 'Error'
-        log_end_time = 'Error'
+        db.logger.error(f"Converting timestamp to datetime object failed - {e}" )
 
-    print(f"\nTotal Log Lines Analysed:{db.server['lines_parsed']}\n")
+    print(f"\n\nTotal Log Lines Analysed:{db.server['lines_parsed']}\n")
     print("\n----------- Access Log Output ------------\n")
     print(f"Start of Logs:                  {log_start_time}")
     print(f"End of Logs:                    {log_end_time}")
