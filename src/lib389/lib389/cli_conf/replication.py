@@ -543,14 +543,22 @@ def generate_lag_report(inst, basedn, log, args):
 
     # Determine output formats
     formats = []
-    if args.csv:
-        formats.append('csv')
-    if args.html:
+    if args.output_format:
+        for fmt in args.output_format:
+            fmt = fmt.lower()
+            if fmt == 'json':
+                formats.append('json')
+            elif fmt == 'html':
+                formats.append('html')
+            elif fmt == 'png':
+                formats.append('png')
+            elif fmt == 'csv':
+                formats.append('csv')
+            else:
+                log.warning(f"Ignoring unknown format: {fmt}")
+    
+    if not formats:  # Fallback to html if no valid formats specified
         formats.append('html')
-    if args.png:
-        formats.append('png')
-    if not formats:  # Default to PNG if no format specified
-        formats.append('png')
 
     # Parse time range if specified
     time_range = {}
@@ -562,9 +570,14 @@ def generate_lag_report(inst, basedn, log, args):
     except ValueError as e:
         raise ValueError(f"Invalid time format. Use YYYY-MM-DD HH:MM:SS: {e}")
 
+    # Track if we're in json-only mode (for command output format)
+    json_output_only = args.json
+
     try:
         # Initialize ReplicationLogAnalyzer with enhanced options
-        log.info("Initializing replication log analysis...")
+        if not json_output_only:
+            log.info("Initializing replication log analysis...")
+        
         repl_analyzer = ReplicationLogAnalyzer(
             log_dirs=args.log_dirs,
             suffixes=args.suffixes,
@@ -579,24 +592,34 @@ def generate_lag_report(inst, basedn, log, args):
         )
 
         # Parse logs
-        log.info("Analyzing replication logs...")
+        if not json_output_only:
+            log.info("Analyzing replication logs...")
+        
         repl_analyzer.parse_logs()
 
         # Generate reports
-        log.info("Generating analysis reports...")
+        if not json_output_only:
+            log.info("Generating analysis reports...")
+            log.info(f"Creating reports in formats: {formats}")  # Debug message
+        
         generated_files = repl_analyzer.generate_report(
             output_dir=args.output_dir,
             formats=formats,
             report_name="replication_analysis"
         )
 
-        # Report output locations
-        if args.json:
-            log.info(json.dumps({"type": "list", "items": generated_files}, indent=4))
+        # Report output locations - always as JSON if json flag is set
+        if json_output_only:
+            # Only output pure JSON, no additional messages
+            print(json.dumps({"type": "list", "items": generated_files}, indent=4))
         else:
-            log.info("Generated report files:")
-            for fmt, path in generated_files.items():
-                log.info(f"  {fmt}: {path}")
+            # Regular output mode with log messages
+            if args.json:
+                log.info(json.dumps({"type": "list", "items": generated_files}, indent=4))
+            else:
+                log.info("Generated report files:")
+                for fmt, path in generated_files.items():
+                    log.info(f"  {fmt}: {path}")
 
     except Exception as e:
         raise ValueError(f"Failed to generate replication lag report: {e}")
@@ -1564,13 +1587,11 @@ def create_parser(subparsers):
     # Output options group
     output_group = repl_lag_report_parser.add_argument_group('Output options')
     output_group.add_argument('--output-dir', required=True,
-        help='Directory for report output files')
-    output_group.add_argument('--html', action='store_true',
-        help='Generate HTML report')
-    output_group.add_argument('--csv', action='store_true',
-        help='Generate CSV report')
-    output_group.add_argument('--png', action='store_true',
-        help='Generate PNG report (default if no format specified)')
+        help='Directory to write analysis reports to')
+    output_group.add_argument('--output-format', nargs='+', default=['html'],
+                         help='One or more output formats: html, json, png, csv. Default: html')
+    output_group.add_argument('--json', action='store_true',
+                          help='Output the result as JSON (for UI integration/programmatic use)')
 
     # Filtering options group
     filter_group = repl_lag_report_parser.add_argument_group('Filtering options')
