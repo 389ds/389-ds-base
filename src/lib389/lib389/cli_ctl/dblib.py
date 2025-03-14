@@ -76,7 +76,7 @@ class DbscanHelper:
             return
         assert(self.inst)
         self.dblib = self.inst.get_db_lib()
-        self.dbhome = self.inst.ds_paths.db_home_dir
+        self.dbhome = self.inst.ds_paths.db_dir
         self.dbis = self._list_instances()
         self.ldif_dir = self.inst.ds_paths.ldif_dir
 
@@ -258,7 +258,7 @@ def get_backends(log, dse, tmpdir):
     # now that we finish reading the dse.ldif we may update it if needed.
     for dn, dir in update_dse:
         dse.replace(dn, 'nsslapd-directory', dir)
-    self.log.debug(f'lib389.cli_ctl.dblib.get_backends returns: {str(res)}')
+    log.debug(f'lib389.cli_ctl.dblib.get_backends returns: {str(res)}')
     return (res, dbis)
 
 

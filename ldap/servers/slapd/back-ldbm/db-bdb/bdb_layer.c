@@ -74,6 +74,7 @@ typedef struct
     dbi_dbslist_t *list;
     size_t maxdbs;               /* Number of files */
     size_t nbdbs;                /* Number of files */
+    const char *dbhome;
 } dbi_dbslist_ctx_t;
 
 static int bdb_perf_threadmain(void *param);
@@ -7112,7 +7113,7 @@ dbslist_store_a_db(const char * dbname, void *cbctx)
 {
     dbi_dbslist_ctx_t *ctx = cbctx;
     if (ctx->nbdbs < ctx->maxdbs) {
-        PL_strncpyz (ctx->list[ctx->nbdbs++].filename, dbname, MAXPATHLEN);
+        PR_snprintf (ctx->list[ctx->nbdbs++].filename, PATH_MAX, "%s/%s", ctx->dbhome, dbname);
     }
 }
 
@@ -7127,6 +7128,7 @@ bdb_list_dbs (const char * dbhome)
     cbctx.nbdbs++;              /* Reserve space for empty filename that marks end of list */
     cbctx.list = (dbi_dbslist_t *) slapi_ch_calloc (cbctx.nbdbs, sizeof (dbi_dbslist_t));
     cbctx.nbdbs = 0;
+    cbctx.dbhome = dbhome;
     bdb_walk_dbfiles (dbhome, NULL, dbslist_store_a_db, &cbctx);
     return cbctx.list;
 }
