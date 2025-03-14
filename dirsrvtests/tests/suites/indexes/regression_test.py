@@ -164,7 +164,7 @@ def set_description_index(request, topo, add_a_group_with_users):
     return (indexes, attr)
 
 
-def chech_dbi(dbsh, attr_name, expected = True, lowercase=False):
+def check_dbi(dbsh, attr_name, expected = True, lowercase=False):
     dbsh.resync()
     # mdb dbi names are always lowercase while bdb names are case sensitive
     if dbsh.dblib == 'mdb':
@@ -260,9 +260,9 @@ def test_reindex_task_creates_abandoned_index_file(topo):
     backend.reindex()
     time.sleep(3)
     dbsh = DbscanHelper(inst)
-    chech_dbi(dbsh, attr_name,lowercase=True)
+    check_dbi(dbsh, attr_name,lowercase=True)
     index.delete()
-    chech_dbi(dbsh, attr_name, expected=False)
+    check_dbi(dbsh, attr_name, expected=False)
 
     index = indexes.create(properties={
         'cn': attr_name,
@@ -272,7 +272,7 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    chech_dbi(dbsh, attr_name)
+    check_dbi(dbsh, attr_name)
 
     entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, f"{attr_name}={attr_value}")
     assert len(entries) > 0
@@ -282,7 +282,7 @@ def test_reindex_task_creates_abandoned_index_file(topo):
 
     backend.reindex()
     time.sleep(3)
-    chech_dbi(dbsh, attr_name)
+    check_dbi(dbsh, attr_name)
 
 
 def test_unindexed_internal_search_crashes_server(topo, add_a_group_with_users, set_small_idlistscanlimit):
