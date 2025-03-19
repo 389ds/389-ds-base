@@ -16,6 +16,13 @@
 #include <config.h>
 #endif
 
+/*
+ * Make sure to define statvfs struct before defining f_type macro
+ * otherwise there may be a conflict
+ */
+#include <sys/statvfs.h>
+
+
 /* slap.h - stand alone ldap server include file */
 
 #ifndef _SLDAPD_H_

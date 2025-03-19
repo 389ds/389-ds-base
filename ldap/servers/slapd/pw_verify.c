@@ -26,6 +26,8 @@
 #include "slap.h"
 #include "fe.h"
 
+int fernet_verify_token(const char *dn, const char *token, const char *raw_key, uint64_t ttl);
+
 int
 pw_verify_root_dn(const char *dn, const Slapi_Value *cred)
 {
