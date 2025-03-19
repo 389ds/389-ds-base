@@ -1276,6 +1276,9 @@ class Replica(DSLdapObject):
                                 report['check'] = f'replication:agmts_status'
                                 yield report
                         elif status['state'] == 'amber':
+                            if "can't acquire busy replica" in status['reason']:
+                                # Ignore replica busy condition
+                                continue
                             # Warning
                             report = copy.deepcopy(DSREPLLE0003)
                             report['detail'] = report['detail'].replace('SUFFIX', suffix)
