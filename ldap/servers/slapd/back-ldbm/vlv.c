@@ -1910,7 +1910,9 @@ vlv_print_access_log(Slapi_PBlock *pb,
             ldbm_log_access_message(pb, msg);
             slapi_ch_free_string(&msg);
         }
-        sort_log_access(pb, sort_control, NULL, PR_FALSE);
+        if (sort_control) {
+            sort_log_access(pb, sort_control, NULL, PR_FALSE);
+        }
     }
 }
 

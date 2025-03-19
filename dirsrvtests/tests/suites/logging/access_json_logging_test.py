@@ -261,9 +261,8 @@ def test_access_json_format(topo_m2, setup_test):
         users_set.append(last_user)
     inst.config.set("nsslapd-statlog-level", "1")
     inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "cn=user_*")
-    event = get_log_event(inst, "STAT")
-    if 'stat_attr' in event:
-        assert event['stat_attr'] == 'ancestorid'
+    event = get_log_event(inst, "STAT", CONN, "1")
+    assert event['stat_attr'] == 'ancestorid'
     assert event['stat_key'] == 'eq'
     assert event['stat_key_value'] == '1'
     assert event['stat_count'] == 39

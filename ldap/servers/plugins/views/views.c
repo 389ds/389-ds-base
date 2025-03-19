@@ -1139,6 +1139,7 @@ views_dn_views_cb(Slapi_Entry *e, void *callback_data)
             if (attrType && !strcasecmp(attrType, VIEW_FILTER_ATTR)) {
                 if (!slapi_attr_get_bervals_copy(dnAttr, &dnVals)) {
                     /* add filter */
+                    slapi_ch_free_string(&pView->viewfilter);
                     pView->viewfilter = slapi_ch_strdup(dnVals[0]->bv_val);
                 }
 

@@ -195,7 +195,6 @@ parse_sessiontracking_ctrl(struct berval *session_tracking_spec, char **session_
 #define SESSION_ID_STR_SZ 15
 #define NB_DOTS            3
     char buf_sid_orig[SESSION_ID_STR_SZ + 2] = {0};
-    int32_t sid_orig_sz; /* size of the original sid that we retain */
     const char *buf_sid_escaped;
     int32_t sid_escaped_sz; /* size of the escaped sid that we retain */
     char buf[BUFSIZ];
@@ -222,12 +221,10 @@ parse_sessiontracking_ctrl(struct berval *session_tracking_spec, char **session_
 
     /* Make sure the interesting part of the provided SID is escaped */
     if (sessionTrackingIdentifier.bv_len > SESSION_ID_STR_SZ) {
-        sid_orig_sz = SESSION_ID_STR_SZ + 1;
+        memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, SESSION_ID_STR_SZ + 1);
     } else {
-        sid_orig_sz = sessionTrackingIdentifier.bv_len;
         memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, sessionTrackingIdentifier.bv_len);
     }
-    memcpy(buf_sid_orig, sessionTrackingIdentifier.bv_val, sid_orig_sz);
     buf_sid_escaped = escape_string(buf_sid_orig, buf);
 
     /* Allocate the buffer that contains the heading portion
@@ -250,9 +247,12 @@ parse_sessiontracking_ctrl(struct berval *session_tracking_spec, char **session_
     sid[sid_escaped_sz] = '\0';
 
     *session_tracking_id = sid;
-    return rc;
 
 free_and_return:
+    if (ber != NULL) {
+        ber_free(ber, 1);
+        ber = NULL;
+    }
     slapi_ch_free_string(&sessionTrackingIdentifier.bv_val);
 
     return rc;
