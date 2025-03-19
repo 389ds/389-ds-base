@@ -1944,3 +1944,57 @@ get_oid_name(const char *oid)
     }
     return "Unknown";
 }
+
+/*
+ * Init local thread hash tables
+ */
+uint64_t
+init_td_attr_syntax_ht(PLHashTable **name2asi_ht, PLHashTable **oid2asi_ht, struct asyntaxinfo **free_list)
+{
+    uint64_t attr_syntax_version = attr_syntax_copy_ht(name2asi_ht, oid2asi_ht, free_list);
+    slapi_td_set_attr_syntax_oid_table(*oid2asi_ht);
+    slapi_td_set_attr_syntax_name_table(*name2asi_ht);
+
+    return attr_syntax_version;
+}
+
+/*
+ * Check if attribute syntaxes have changed, and if so update thread storage copy
+ */
+uint64_t
+update_td_attr_syntax_ht(uint64_t attr_syntax_version, PLHashTable **name2asi_ht,
+                         PLHashTable **oid2asi_ht, struct asyntaxinfo **free_list)
+{
+    if (attr_syntax_get_version() != attr_syntax_version) {
+        /* Free those hash tables */
+        while (*free_list) {
+            struct asyntaxinfo *next = (*free_list)->asi_next;
+            attr_syntax_free(*free_list);
+            *free_list = next;
+        }
+        PL_HashTableDestroy(*name2asi_ht);
+        PL_HashTableDestroy(*oid2asi_ht);
+
+        /* Now refresh the hash tables */
+        attr_syntax_version = attr_syntax_copy_ht(name2asi_ht, oid2asi_ht, free_list);
+        slapi_td_set_attr_syntax_name_table(*name2asi_ht);
+        slapi_td_set_attr_syntax_oid_table(*oid2asi_ht);
+    }
+    return attr_syntax_version;
+}
+
+/*
+ * Cleanup local thread hash tables
+ */
+void
+cleanup_td_attr_syntax_ht(PLHashTable *name2asi_ht, PLHashTable *oid2asi_ht, struct asyntaxinfo *free_list)
+{
+    /* Free attribute syntax hash tables */
+    while (free_list) {
+        struct asyntaxinfo *next = free_list->asi_next;
+        attr_syntax_free(free_list);
+        free_list = next;
+    }
+    PL_HashTableDestroy(name2asi_ht);
+    PL_HashTableDestroy(oid2asi_ht);
+}

@@ -89,7 +89,7 @@ void attr_syntax_read_lock(void);
 void attr_syntax_write_lock(void);
 void attr_syntax_unlock_read(void);
 void attr_syntax_unlock_write(void);
-int attr_syntax_exists(const char *attr_name);
+int attr_syntax_exists(const char *attr_name, PRUint32 schema_flags);
 int32_t attr_syntax_exist_by_name_nolock(char *name);
 void attr_syntax_delete(struct asyntaxinfo *asip, PRUint32 schema_flags);
 #define SLAPI_SYNTAXLENGTH_NONE (-1) /* for syntaxlength parameter */
@@ -108,6 +108,11 @@ struct asyntaxinfo *attr_syntax_get_by_name_locking_optional(const char *name, P
 struct asyntaxinfo *attr_syntax_get_global_at(void);
 struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2);
 void attr_syntax_swap_ht(void);
+uint64_t attr_syntax_copy_ht(PLHashTable **new_name2asi, PLHashTable **new_oid2asi, struct asyntaxinfo **free_list);
+int attr_syntax_free_ht(PLHashTable *ht);
+uint64_t attr_syntax_get_version(void);
+void attr_syntax_bump_version(void);
+
 /*
  * Call attr_syntax_return(void) when you are done using a value returned
  * by attr_syntax_get_by_oid(void) or attr_syntax_get_by_name(void).
@@ -929,7 +934,10 @@ void replace_char(char *name, char c, char c2);
 char *split_string_at_delim(char *str, char delim);
 char *tokenize_string(char **str, const char *delim);
 void slapd_cert_not_found_error_help(char *cert_name);
-
+uint64_t init_td_attr_syntax_ht(PLHashTable **name2asi_ht, PLHashTable **oid2asi_ht, struct asyntaxinfo **free_list);
+uint64_t update_td_attr_syntax_ht(uint64_t attr_syntax_version, PLHashTable **name2asi_ht,
+                                  PLHashTable **oid2asi_ht, struct asyntaxinfo **free_list);
+void cleanup_td_attr_syntax_ht(PLHashTable *name2asi_ht, PLHashTable *oid2asi_ht, struct asyntaxinfo *free_list);
 
 /*
  * modify.c
