@@ -28,6 +28,8 @@ CUSTOM_MEM = '9100100100'
 IDLETIMEOUT = 5
 DN_TEST_USER = f'uid={TEST_USER_PROPERTIES["uid"]},ou=People,{DEFAULT_SUFFIX}'
 
+RO_ATTR = 'nsslapd-readonly'
+
 
 @pytest.fixture(scope="module")
 def idletimeout_topo(topo, request):
@@ -188,3 +190,41 @@ def test_idletimeout(idletimeout_topo, dn, expected_result):
     except ldap.SERVER_DOWN:
         result = True
     assert expected_result == result
+
+
+def test_instance_readonly_mode(topo):
+    """Check that readonly mode is supported
+
+    :id: 34d2e28e-04d7-11f0-b0cf-482ae39447e5
+    :setup: Standalone Instance
+    :steps:
+        1. Set readonly mode
+        2. Restart the instance
+        3. Check that readonly mode is set
+        4. Try to modify another config attribute
+        5. Unset readonly mode
+        6. Restart the instance
+        7. Check that readonly mode is unset
+        8. Try to modify another config attribute
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Should get ldap.UNWILLING_TO_PERFORM exception
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    inst = topo.standalone
+    inst.config.replace(RO_ATTR, 'on')
+    inst.restart
+    assert inst.config.get_attr_val_utf8(RO_ATTR) == "on"
+    attr = 'nsslapd-errorlog-maxlogsize'
+    val = inst.config.get_attr_val_utf8(attr)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        inst.config.replace(attr, val)
+    inst.config.replace(RO_ATTR, 'off')
+    inst.restart
+    assert inst.config.get_attr_val_utf8(RO_ATTR) == "off"
