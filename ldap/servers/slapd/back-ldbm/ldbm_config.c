@@ -1254,7 +1254,9 @@ ldbm_config_search_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
             if (attrs) {
                 for (size_t i = 0; attrs[i]; i++) {
                     if (ldbm_config_moved_attr(attrs[i])) {
-                        slapi_pblock_set(pb, SLAPI_RESULT_TEXT, "at least one required attribute has been moved to the DB scecific configuration entry");
+                        /* operation_done() free's result text, so we must pass a copy */
+                        char *msg = slapi_ch_strdup("at least one required attribute has been moved to the DB scecific configuration entry");
+                        slapi_pblock_set(pb, SLAPI_RESULT_TEXT, msg);
                         break;
                     }
                 }
