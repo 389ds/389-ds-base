@@ -6075,6 +6075,7 @@ slapi_pblock_set_result_matched(Slapi_PBlock *pblock, void *value)
 static int32_t
 slapi_pblock_set_result_text(Slapi_PBlock *pblock, void *value)
 {
+    /* value will get freed in operation_done(), so it should be allocated */
     if (pblock->pb_op != NULL)
         pblock->pb_op->o_results.result_text = (char *)value;
     return 0;

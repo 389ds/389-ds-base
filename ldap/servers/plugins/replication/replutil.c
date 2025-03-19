@@ -338,10 +338,12 @@ parse_changes_string(char *str)
     line = ldif_getline(&next);
     while (line) {
         slapi_mod_init(&mod, 0);
+        bool mod_consumed = false;
         while (line) {
             if (strcasecmp(line, "-") == 0) {
                 if (slapi_mod_isvalid(&mod)) {
                     slapi_mods_add_smod(mods, &mod);
+                    mod_consumed = true;
                 } else {
                     /* need to cleanup */
                     slapi_mod_done(&mod);
@@ -381,6 +383,9 @@ parse_changes_string(char *str)
                 slapi_ch_free_string(&value.bv_val);
             }
             line = ldif_getline(&next);
+        }
+        if (!mod_consumed) {
+            slapi_mod_done(&mod);
         }
     }
 
