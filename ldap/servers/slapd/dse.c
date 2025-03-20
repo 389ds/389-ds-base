@@ -1047,9 +1047,9 @@ recomp(const char *regexp)
 }
 
 /*
- * Check if "nsslapd-readlony: on" is in cn-config in dse.ldif file
+ * Check if "nsslapd-readonly: on" is in cn-config in dse.ldif file
  * ( If the flag is set in memory but on in the file, the file should
- *   be written (to let dsconf able to modify the nsslapd-readlony flag)
+ *   be written (to let dsconf able to modify the nsslapd-readonly flag)
  */
 static bool
 is_readonly_set_in_dse(const char *dsename)
@@ -1064,7 +1064,7 @@ is_readonly_set_in_dse(const char *dsename)
     char *error = NULL;
     const char *regexp = "";
 
-    if (dsename) {
+    if (!dsename) {
         goto done;
     }
     if (re_config == NULL || re_isro == NULL || re_eoe == NULL) {
@@ -1110,7 +1110,7 @@ done:
 /*
  * Check if dse.ldif can be written
  * Beware that even in read-only mode dse.ldif file
- * should still be written to change the nsslapd-readlony value
+ * should still be written to change the nsslapd-readonly value
  */
 static bool
 check_if_readonly(struct dse *pdse)
@@ -1129,14 +1129,14 @@ check_if_readonly(struct dse *pdse)
         return ro;
     }
     /* First attempt to write the dse.ldif since readonly mode is enabled.
-     * Lets check if "nsslapd-readlony: on" is in cn=config entry
+     * Lets check if "nsslapd-readonly: on" is in cn=config entry
      *  and allow to write the dse.ldif if it is the case
      */
     if (is_readonly_set_in_dse(pdse->dse_filename)) {
         /* read-only mode and dse is up to date ==> Do not modify it. */
         ro = true;
     }
-    /* Read only mode but nsslapd-readlony value is not up to date. */
+    /* Read only mode but nsslapd-readonly value is not up to date. */
     return ro;
 }
 
