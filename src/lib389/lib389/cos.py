@@ -32,6 +32,7 @@ class CosTemplate(DSLdapObject):
         # You have been warned ...
         self._create_objectclasses = [
             'top',
+            'ldapsubentry',
             'cosTemplate',
             'extensibleObject',
         ]
@@ -53,6 +54,7 @@ class CosTemplates(DSLdapObjects):
     def __init__(self, instance, basedn, rdn=None):
         super(CosTemplates, self).__init__(instance)
         self._objectclasses = [
+            'ldapsubentry',
             'cosTemplate'
         ]
         self._filterattrs = ['cn']

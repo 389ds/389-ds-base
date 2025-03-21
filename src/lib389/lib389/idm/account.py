@@ -204,12 +204,33 @@ class Account(DSLdapObject):
         self.replace('nsAccountLock', 'true')
 
     def unlock(self):
-        """Unset nsAccountLock"""
+        """Unset nsAccountLock if it's set and reset lastLoginTime if account is locked due to inactivity"""
 
         current_status = self.status()
+        
         if current_status["state"] == AccountState.ACTIVATED:
             raise ValueError("Account is already active")
-        self.remove('nsAccountLock', None)
+            
+        if current_status["state"] == AccountState.DIRECTLY_LOCKED:
+            # Account is directly locked with nsAccountLock attribute
+            self.remove('nsAccountLock', None)
+        elif current_status["state"] == AccountState.INACTIVITY_LIMIT_EXCEEDED:
+            # Account is locked due to inactivity - reset lastLoginTime to current time
+            # The lastLoginTime attribute stores its value in GMT/UTC time (Zulu time zone)
+            current_time = time.strftime('%Y%m%d%H%M%SZ', time.gmtime())
+            self.replace('lastLoginTime', current_time)
+        elif current_status["state"] == AccountState.INDIRECTLY_LOCKED:
+            # Account is locked through a role
+            role_dn = current_status.get("role_dn")
+            if role_dn:
+                raise ValueError(f"Account is locked through role {role_dn}. "
+                                 f"Please modify the role to unlock this account.")
+            else:
+                raise ValueError("Account is locked through an unknown role. "
+                                 "Please check the roles configuration to unlock this account.")
+        else:
+            # Should not happen, but just in case
+            raise ValueError(f"Unknown lock state: {current_status['state'].value}")
 
     # If the account can be bound to, this will attempt to do so. We don't check
     # for exceptions, just pass them back!
