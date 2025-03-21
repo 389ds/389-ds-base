@@ -540,7 +540,11 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
         return CL5_BAD_DATA;
     }
 
+    /* Set changelog state to import */
+    pthread_mutex_lock(&(cldb->stLock));
+
     if (cldb->dbState != CL5_STATE_OPEN) {
+        pthread_mutex_unlock(&(cldb->stLock));
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ImportLDIF - Changelog is not initialized\n");
         return CL5_BAD_STATE;
@@ -555,9 +559,6 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
         rc = CL5_SYSTEM_ERROR;
         goto done;
     }
-
-    /* Set changelog state to import */
-    pthread_mutex_lock(&(cldb->stLock));
 
     if (cldb->dbState == CL5_STATE_IMPORT) {
         pthread_mutex_unlock(&(cldb->stLock));

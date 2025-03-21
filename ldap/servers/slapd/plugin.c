@@ -708,11 +708,6 @@ slapi_send_ldap_result_from_pb(Slapi_PBlock *pb)
     if (NULL != fn) {
         (*fn)(pb, err, matched, text, 0, NULL);
     }
-
-    slapi_pblock_set(pb, SLAPI_RESULT_TEXT, NULL);
-    slapi_pblock_set(pb, SLAPI_RESULT_MATCHED, NULL);
-    slapi_ch_free((void **)&matched);
-    slapi_ch_free((void **)&text);
 }
 
 void
