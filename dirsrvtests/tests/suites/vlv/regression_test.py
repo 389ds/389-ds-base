@@ -21,6 +21,7 @@ from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnits
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
+from contextlib import suppress
 
 pytestmark = pytest.mark.tier1
 
@@ -68,8 +69,8 @@ def check_vlv_search(conn):
         assert dn.lower() == expected_dn.lower()
 
 
-def add_users(inst, users_num):
-    users = UserAccounts(inst, DEFAULT_SUFFIX)
+def add_users(inst, users_num, suffix=DEFAULT_SUFFIX):
+    users = UserAccounts(inst, suffix)
     log.info(f'Adding {users_num} users')
     for i in range(0, users_num):
         uid = 1000 + i
@@ -81,8 +82,8 @@ def add_users(inst, users_num):
             'gidNumber': str(uid),
             'homeDirectory': f'/home/testuser{uid}'
         }
-        users.create(properties=user_properties)
-
+        with suppress(ldap.ALREADY_EXISTS):
+            users.create(properties=user_properties)
 
 
 def create_vlv_search_and_index(inst, basedn=DEFAULT_SUFFIX, bename='userRoot',
@@ -173,7 +174,7 @@ class BackendHandler:
                     'loginShell': '/bin/false',
                     'userpassword': DEMO_PW })
             # Add regular user
-            add_users(self.inst, 10)
+            add_users(self.inst, 10, suffix=suffix)
             # Removing ou2
             ou2.delete()
             # And export
