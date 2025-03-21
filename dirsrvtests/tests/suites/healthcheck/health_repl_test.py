@@ -77,16 +77,23 @@ class LoadInstance(AbstractContextManager):
 
 
 class BreakReplication(AbstractContextManager):
-    def __init__(self, inst):
-        self.replica = Replicas(inst).list()[0]
-        self.oldval = None
+    def __init__(self, topo, instances):
+        self.topo = topo
+        self.replicas = [ Replicas(inst).list()[0] for inst in instances ]
+        self.oldvals = []
 
     def __exit__(self, *args):
-        self.replica.replace('nsds5ReplicaBindDNGroup', self.oldval)
+        for replica,oldval in self.oldvals:
+            replica.replace('nsds5ReplicaBindDNGroup', oldval)
 
     def __enter__(self):
-        self.oldval = self.replica.get_attr_val_utf8('nsds5ReplicaBindDNGroup')
-        self.replica.replace('nsds5ReplicaBindDNGroup', 'cn=repl')
+        # Ensure replication sessions are stopped to avoid race conditions
+        self.topo.pause_all_replicas()
+        for replica in self.replicas:
+            oldval = replica.get_attr_val_utf8('nsds5ReplicaBindDNGroup')
+            replica.replace('nsds5ReplicaBindDNGroup', 'cn=repl')
+            self.oldvals.append((replica, oldval))
+        self.topo.resume_all_replicas()
         return self
 
 
@@ -376,7 +383,7 @@ def test_healthcheck_replication_out_of_sync_broken(topology_m3):
     S3 = topology_m3.ms['supplier3']
 
     log.info('Break supplier2 and supplier3')
-    with BreakReplication(S2), BreakReplication(S3):
+    with BreakReplication(topology_m3, (S2, S3)):
         time.sleep(1)
         log.info('Perform update on supplier1')
         test_users_m1 = UserAccounts(S1, DEFAULT_SUFFIX)
