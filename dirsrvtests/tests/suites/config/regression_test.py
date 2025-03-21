@@ -199,32 +199,52 @@ def test_instance_readonly_mode(topo):
     :setup: Standalone Instance
     :steps:
         1. Set readonly mode
-        2. Restart the instance
-        3. Check that readonly mode is set
-        4. Try to modify another config attribute
-        5. Unset readonly mode
-        6. Restart the instance
-        7. Check that readonly mode is unset
+        2. Stop the instance
+        3. Get dse.ldif modification time
+        4. Start the instance
+        5. Get dse.ldif modification time
+        6. Check that modification time has not changed
+        7. Check that readonly mode is set
         8. Try to modify another config attribute
+        9. Unset readonly mode
+        10. Restart the instance
+        11. Check that modification time has not changed
+        12. Check that modification time has changed
+        13. Check that readonly mode is unset
+        14. Try to modify another config attribute
     :expectedresults:
         1. Success
         2. Success
         3. Success
-        4. Should get ldap.UNWILLING_TO_PERFORM exception
+        4. Success
         5. Success
         6. Success
         7. Success
-        8. Success
+        8. Should get ldap.UNWILLING_TO_PERFORM exception
+        9. Success
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
     """
 
     inst = topo.standalone
+    dse_path = f'{topo.standalone.get_config_dir()}/dse.ldif'
     inst.config.replace(RO_ATTR, 'on')
-    inst.restart
+    inst.stop()
+    dse_mtime = os.stat(dse_path).st_mtime
+    inst.start()
+    new_dse_mtime = os.stat(dse_path).st_mtime
+    assert dse_mtime == new_dse_mtime
     assert inst.config.get_attr_val_utf8(RO_ATTR) == "on"
     attr = 'nsslapd-errorlog-maxlogsize'
     val = inst.config.get_attr_val_utf8(attr)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         inst.config.replace(attr, val)
     inst.config.replace(RO_ATTR, 'off')
-    inst.restart
+    inst.restart()
+    new_dse_mtime = os.stat(dse_path).st_mtime
+    assert dse_mtime != new_dse_mtime
     assert inst.config.get_attr_val_utf8(RO_ATTR) == "off"
+    inst.config.replace(attr, val)
