@@ -51,13 +51,13 @@ import {
     ExclamationCircleIcon,
     InfoIcon
 } from "@patternfly/react-icons";
-import { 
-    Chart, 
-    ChartAxis, 
-    ChartGroup, 
-    ChartLine, 
-    ChartScatter, 
-    ChartThemeColor, 
+import {
+    Chart,
+    ChartAxis,
+    ChartGroup,
+    ChartLine,
+    ChartScatter,
+    ChartThemeColor,
     ChartVoronoiContainer,
     ChartTooltip
 } from "@patternfly/react-charts";
@@ -1181,7 +1181,7 @@ class ScatterLineChart extends React.Component {
                 </div>
             );
         }
-        
+
         // Don't render the chart until we have a valid width
         if (!width || width <= 0) {
             return (
@@ -1226,10 +1226,10 @@ class ScatterLineChart extends React.Component {
             if (allYValues.length > 0) {
                 const dataMin = Math.min(...allYValues);
                 const dataMax = Math.max(...allYValues);
-                
+
                 // Set min to 0 or slightly below the minimum value (never negative)
                 calculatedMinY = minY !== undefined ? minY : Math.max(0, dataMin * 0.9);
-                
+
                 // Set max to slightly above the maximum value
                 calculatedMaxY = maxY !== undefined ? maxY : dataMax * 1.1;
             } else {
@@ -1263,16 +1263,16 @@ class ScatterLineChart extends React.Component {
                         ariaDesc={title || "Replication data chart"}
                         ariaTitle={title || "Replication data chart"}
                         containerComponent={
-                            <ChartVoronoiContainer 
+                            <ChartVoronoiContainer
                                 labels={({ datum }) => formatTooltip(datum)}
                                 constrainToVisibleArea
                                 labelComponent={
-                                    <ChartTooltip 
-                                        style={{ 
+                                    <ChartTooltip
+                                        style={{
                                             fontSize: "12px",
                                             padding: 10,
                                             whiteSpace: "pre-line" // Important for newlines
-                                        }} 
+                                        }}
                                     />
                                 }
                             />
@@ -1303,7 +1303,7 @@ class ScatterLineChart extends React.Component {
                             }
                         }}
                     >
-                        <ChartAxis 
+                        <ChartAxis
                             label={xAxisLabel || ""}
                             tickFormat={(t) => {
                                 // Format time as HH:MM:SS
@@ -1311,31 +1311,31 @@ class ScatterLineChart extends React.Component {
                                 return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                             }}
                             style={{
-                                axisLabel: { 
+                                axisLabel: {
                                     fontSize: 14,
                                     padding: 40,
                                     fill: "var(--pf-v5-global--Color--100)"
                                 },
-                                tickLabels: { 
-                                    fontSize: 12, 
+                                tickLabels: {
+                                    fontSize: 12,
                                     padding: 5,
                                     fill: "var(--pf-v5-global--Color--100)"
                                 }
                             }}
                         />
-                        <ChartAxis 
-                            dependentAxis 
-                            showGrid 
+                        <ChartAxis
+                            dependentAxis
+                            showGrid
                             label={yAxisLabel || "Value"}
                             tickFormat={(t) => `${t.toFixed(2)}s`}
                             style={{
-                                axisLabel: { 
+                                axisLabel: {
                                     fontSize: 14,
                                     padding: 55,
                                     fill: "var(--pf-v5-global--Color--100)"
                                 },
-                                tickLabels: { 
-                                    fontSize: 12, 
+                                tickLabels: {
+                                    fontSize: 12,
                                     padding: 5,
                                     fill: "var(--pf-v5-global--Color--100)"
                                 },
@@ -1459,7 +1459,7 @@ class LagReportModal extends React.Component {
 
     loadData() {
         this.setState({ loading: true });
-        
+
         // Load PatternFly chart JSON data first if available (priority for rendering charts)
         if (this.props.reportUrls && this.props.reportUrls.json) {
             cockpit.file(this.props.reportUrls.json)
@@ -1481,7 +1481,7 @@ class LagReportModal extends React.Component {
         } else {
             this.setState({ loading: false });
         }
-        
+
         // Load PNG data if available - as a secondary display option
         if (this.props.reportUrls && this.props.reportUrls.png) {
             this.loadPngAsDataUrl(this.props.reportUrls.png);
@@ -1503,7 +1503,7 @@ class LagReportModal extends React.Component {
                     console.error("Error loading CSV:", err);
                 });
         }
-        
+
         // Load summary JSON if available
         if (this.props.reportUrls && this.props.reportUrls.summary) {
             cockpit.file(this.props.reportUrls.summary)
@@ -1511,7 +1511,7 @@ class LagReportModal extends React.Component {
                 .then(content => {
                     try {
                         const data = JSON.parse(content);
-                        this.setState({ 
+                        this.setState({
                             summary: data.analysis_summary,
                             suffixStats: data.suffix_statistics || {},
                             activeTabKey: 0
@@ -1538,7 +1538,7 @@ class LagReportModal extends React.Component {
             })
             .catch(err => {
                 console.error("Error encoding PNG file to base64:", err);
-                
+
                 // Fallback to reading the file and using FileReader
                 console.log("Trying fallback method...");
                 cockpit.file(pngPath).read()
@@ -1574,9 +1574,9 @@ class LagReportModal extends React.Component {
 
     downloadFile(url, filename) {
         if (!url) return;
-        
+
         console.log("Downloading file:", url, "as", filename);
-        
+
         // Special handling for PNG files
         if (filename.endsWith('.png')) {
             if (this.state.pngDataUrl) {
@@ -1593,7 +1593,7 @@ class LagReportModal extends React.Component {
                     console.error("Error downloading PNG from data URL:", error);
                 }
             }
-            
+
             // If we don't have a data URL or it failed, use base64 encoding
             cockpit.spawn(["base64", url], { err: "message" })
                 .then(base64Output => {
@@ -1611,7 +1611,7 @@ class LagReportModal extends React.Component {
                 });
             return;
         }
-        
+
         // Text-based files (JSON, CSV, HTML)
         let readBinary = false;
         if (filename.endsWith('.csv')) {
@@ -1619,7 +1619,7 @@ class LagReportModal extends React.Component {
         } else if (filename.endsWith('.json') || filename.endsWith('.html')) {
             readBinary = false;
         }
-        
+
         // Use cockpit.file() to read the file contents
         cockpit.file(url, { binary: readBinary }).read()
             .then(content => {
@@ -1628,7 +1628,7 @@ class LagReportModal extends React.Component {
                     this.fallbackDownload(url, filename);
                     return;
                 }
-                
+
                 // Determine the correct MIME type
                 let mimeType = 'application/octet-stream';
                 if (filename.endsWith('.json')) {
@@ -1638,17 +1638,17 @@ class LagReportModal extends React.Component {
                 } else if (filename.endsWith('.html')) {
                     mimeType = 'text/html';
                 }
-                
+
                 // Create a blob and download it
                 const blob = new Blob([content], { type: mimeType });
                 const blobUrl = URL.createObjectURL(blob);
-                
+
                 const a = document.createElement('a');
                 a.href = blobUrl;
                 a.download = filename;
                 document.body.appendChild(a);
                 a.click();
-                
+
                 setTimeout(() => {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(blobUrl);
@@ -1659,11 +1659,11 @@ class LagReportModal extends React.Component {
                 this.fallbackDownload(url, filename);
             });
     }
-    
+
     // Fallback download method as a last resort
     fallbackDownload(url, filename) {
         console.log("Using fallback download method for:", url);
-        
+
         // Try using cockpit.spawn to read the file with cat
         cockpit.spawn(["cat", url], { err: "message" })
             .then(content => {
@@ -1671,7 +1671,7 @@ class LagReportModal extends React.Component {
                     console.error("No content read from file with cat:", url);
                     return;
                 }
-                
+
                 // Determine MIME type
                 let mimeType = 'application/octet-stream';
                 if (filename.endsWith('.json')) {
@@ -1681,17 +1681,17 @@ class LagReportModal extends React.Component {
                 } else if (filename.endsWith('.html')) {
                     mimeType = 'text/html';
                 }
-                
+
                 // Create blob and download
                 const blob = new Blob([content], { type: mimeType });
                 const blobUrl = URL.createObjectURL(blob);
-                
+
                 const a = document.createElement('a');
                 a.href = blobUrl;
                 a.download = filename;
                 document.body.appendChild(a);
                 a.click();
-                
+
                 setTimeout(() => {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(blobUrl);
@@ -1699,19 +1699,19 @@ class LagReportModal extends React.Component {
             })
             .catch(error => {
                 console.error("Error reading file with cat:", error);
-                
+
                 // Final fallback: try direct link
                 try {
                     const a = document.createElement('a');
                     a.href = url + '?t=' + new Date().getTime();
                     a.download = filename;
-                    a.target = '_blank'; 
+                    a.target = '_blank';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                 } catch (directError) {
                     console.error("All download methods failed:", directError);
-                    
+
                     // If we have a saveHandler from props, use it as a final fallback
                     if (this.props.saveHandler) {
                         this.props.saveHandler(url);
@@ -1728,7 +1728,7 @@ class LagReportModal extends React.Component {
     renderSummaryTab() {
         const { summary, suffixStats, loading } = this.state;
         const { reportUrls } = this.props;
-        
+
         if (loading) {
             return (
                 <div className="ds-center">
@@ -1737,7 +1737,7 @@ class LagReportModal extends React.Component {
                 </div>
             );
         }
-        
+
         if (!summary) {
             return (
                 <EmptyState>
@@ -1749,7 +1749,7 @@ class LagReportModal extends React.Component {
                 </EmptyState>
             );
         }
-        
+
         return (
             <div className="ds-margin-top-lg">
                 <Card>
@@ -1785,7 +1785,7 @@ class LagReportModal extends React.Component {
                                     </CardBody>
                                 </Card>
                             </GridItem>
-                            
+
                             <GridItem span={6}>
                                 <Card isFlat>
                                     <CardTitle>{_("Replication Lag Statistics")}</CardTitle>
@@ -1813,7 +1813,7 @@ class LagReportModal extends React.Component {
                                     </CardBody>
                                 </Card>
                             </GridItem>
-                            
+
                             {summary.updates_by_suffix && Object.keys(summary.updates_by_suffix).length > 0 && (
                                 <GridItem span={12}>
                                     <Card isFlat>
@@ -1830,7 +1830,7 @@ class LagReportModal extends React.Component {
                                     </Card>
                                 </GridItem>
                             )}
-                            
+
                             {summary.time_range && (
                                 <GridItem span={12}>
                                     <Card isFlat>
@@ -1875,7 +1875,7 @@ class LagReportModal extends React.Component {
     renderChartsTab() {
         const { reportUrls } = this.props;
         const { loading, jsonData } = this.state;
-        
+
         if (loading) {
             return (
                 <div className="ds-center">
@@ -1884,7 +1884,7 @@ class LagReportModal extends React.Component {
                 </div>
             );
         }
-        
+
         if (!reportUrls || !reportUrls.json) {
             return (
                 <EmptyState>
@@ -1896,16 +1896,16 @@ class LagReportModal extends React.Component {
                 </EmptyState>
             );
         }
-        
+
         // Safely extract replication lag chart data
-        const hasReplicationLags = jsonData && jsonData.replicationLags && 
-                                  jsonData.replicationLags.series && 
+        const hasReplicationLags = jsonData && jsonData.replicationLags &&
+                                  jsonData.replicationLags.series &&
                                   jsonData.replicationLags.series.length > 0;
-        
-        const hasHopLags = jsonData && jsonData.hopLags && 
-                          jsonData.hopLags.series && 
+
+        const hasHopLags = jsonData && jsonData.hopLags &&
+                          jsonData.hopLags.series &&
                           jsonData.hopLags.series.length > 0;
-        
+
         if (!jsonData || (!hasReplicationLags && !hasHopLags)) {
             return (
                 <EmptyState>
@@ -1924,7 +1924,7 @@ class LagReportModal extends React.Component {
                 </EmptyState>
             );
         }
-        
+
         return (
             <div className="ds-margin-top">
                 <Grid hasGutter>
@@ -1937,7 +1937,7 @@ class LagReportModal extends React.Component {
                                         <Title headingLevel="h3">
                                             {jsonData.replicationLags.title || _("Global Replication Lag Over Time")}
                                         </Title>
-                                        <ScatterLineChart 
+                                        <ScatterLineChart
                                             chartData={jsonData.replicationLags}
                                             title={jsonData.replicationLags.title || _("Global Replication Lag Over Time")}
                                             xAxisLabel={(jsonData.replicationLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
@@ -1950,7 +1950,7 @@ class LagReportModal extends React.Component {
                                         <Title headingLevel="h3">
                                             {jsonData.hopLags.title || _("Per-Hop Replication Lags")}
                                         </Title>
-                                        <ScatterLineChart 
+                                        <ScatterLineChart
                                             chartData={jsonData.hopLags}
                                             title={jsonData.hopLags.title || _("Per-Hop Replication Lags")}
                                             xAxisLabel={(jsonData.hopLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
@@ -1974,11 +1974,11 @@ class LagReportModal extends React.Component {
             </div>
         );
     }
-    
+
     renderPngTab() {
         const { reportUrls } = this.props;
         const { loading, pngDataUrl, pngError } = this.state;
-        
+
         if (loading) {
             return (
                 <div className="ds-center">
@@ -1987,7 +1987,7 @@ class LagReportModal extends React.Component {
                 </div>
             );
         }
-        
+
         if (!reportUrls || !reportUrls.png) {
             return (
                 <EmptyState>
@@ -1999,7 +1999,7 @@ class LagReportModal extends React.Component {
                 </EmptyState>
             );
         }
-        
+
         if (pngError) {
             return (
                 <EmptyState>
@@ -2018,7 +2018,7 @@ class LagReportModal extends React.Component {
                 </EmptyState>
             );
         }
-        
+
         return (
             <div className="ds-margin-top">
                 <Grid hasGutter>
@@ -2028,10 +2028,10 @@ class LagReportModal extends React.Component {
                             <CardBody>
                                 {pngDataUrl ? (
                                     <div className="ds-margin-bottom ds-text-center">
-                                        <img 
-                                            src={pngDataUrl} 
-                                            alt={_("Replication Analysis Chart")} 
-                                            style={{ maxWidth: '100%', height: 'auto' }} 
+                                        <img
+                                            src={pngDataUrl}
+                                            alt={_("Replication Analysis Chart")}
+                                            style={{ maxWidth: '100%', height: 'auto' }}
                                         />
                                     </div>
                                 ) : (
@@ -2056,11 +2056,11 @@ class LagReportModal extends React.Component {
             </div>
         );
     }
-    
+
     renderCsvTab() {
         const { reportUrls } = this.props;
         const { loading, csvPreview } = this.state;
-        
+
         if (loading) {
             return (
                 <div className="ds-center">
@@ -2069,7 +2069,7 @@ class LagReportModal extends React.Component {
                 </div>
             );
         }
-        
+
         if (!reportUrls || !reportUrls.csv) {
             return (
                 <EmptyState>
@@ -2081,7 +2081,7 @@ class LagReportModal extends React.Component {
                 </EmptyState>
             );
         }
-        
+
         return (
             <div className="ds-margin-top">
                 <Grid hasGutter>
@@ -2121,11 +2121,11 @@ class LagReportModal extends React.Component {
             </div>
         );
     }
-    
+
     renderReportFilesTab() {
         const { reportUrls } = this.props;
         const { loading } = this.state;
-        
+
         if (loading) {
             return (
                 <div className="ds-center">
@@ -2134,7 +2134,7 @@ class LagReportModal extends React.Component {
                 </div>
             );
         }
-        
+
         if (!reportUrls || Object.keys(reportUrls).length === 0) {
             return (
                 <EmptyState>
@@ -2146,7 +2146,7 @@ class LagReportModal extends React.Component {
                 </EmptyState>
             );
         }
-        
+
         return (
             <div className="ds-margin-top">
                 <Grid hasGutter>
@@ -2236,15 +2236,15 @@ class LagReportModal extends React.Component {
             </div>
         );
     }
-    
+
     render() {
         const { showModal, closeHandler } = this.props;
         const { activeTabKey } = this.state;
-        
+
         if (!showModal) {
             return null;
         }
-        
+
         // Styles for the modal content
         const modalContentStyle = {
             display: 'flex',
@@ -2252,7 +2252,7 @@ class LagReportModal extends React.Component {
             height: '100%',
             overflow: 'hidden' // Prevent outer scrollbar
         };
-        
+
         // Styles for the tabs container
         const tabsContainerStyle = {
             flex: '0 0 auto',
@@ -2261,7 +2261,7 @@ class LagReportModal extends React.Component {
             zIndex: 100,
             backgroundColor: 'var(--pf-c-modal-box--BackgroundColor, #fff)'
         };
-        
+
         // Styles for the tabs content area
         const tabContentStyle = {
             flex: '1 1 auto',
@@ -2269,7 +2269,7 @@ class LagReportModal extends React.Component {
             paddingTop: '20px',
             maxHeight: 'calc(75vh - 125px)' // Limit height to prevent overlap
         };
-        
+
         return (
             <Modal
                 variant={ModalVariant.large}
@@ -2339,7 +2339,7 @@ class LagReportModal extends React.Component {
 class ChooseLagReportModal extends React.Component {
     constructor(props) {
         super(props);
-        
+
         this.state = {
             loading: true,
             reports: [],
@@ -2349,35 +2349,35 @@ class ChooseLagReportModal extends React.Component {
             showLagReportModal: false,
             reportUrls: null
         };
-        
+
         this.loadReports = this.loadReports.bind(this);
         this.handleSelectReport = this.handleSelectReport.bind(this);
         this.closeLagReportModal = this.closeLagReportModal.bind(this);
     }
-    
+
     componentDidMount() {
         this.loadReports();
     }
-    
+
     componentDidUpdate(prevProps) {
         if (prevProps.reportDirectory !== this.props.reportDirectory) {
-            this.setState({ 
+            this.setState({
                 reportDirectory: this.props.reportDirectory,
                 loading: true
             }, this.loadReports);
         }
     }
-    
+
     loadReports() {
         const { reportDirectory } = this.state;
-        
+
         // Reset the state
-        this.setState({ 
+        this.setState({
             loading: true,
             error: null,
             reports: []
         });
-        
+
         // First get all directories in the specified path
         cockpit.spawn(["find", reportDirectory, "-maxdepth", "1", "-type", "d"])
             .then(output => {
@@ -2385,7 +2385,7 @@ class ChooseLagReportModal extends React.Component {
                     this.setState({ loading: false });
                     return;
                 }
-                
+
                 const directories = output.trim().split('\n');
                 const promises = directories.map(dir => {
                     // Check which report files exist in this directory
@@ -2397,15 +2397,15 @@ class ChooseLagReportModal extends React.Component {
                             const hasCsv = files.includes('replication_analysis.csv');
                             const hasPng = files.includes('replication_analysis.png');
                             const hasSummary = files.includes('replication_analysis_summary.json');
-                            
+
                             // Skip directories that don't have any report files
                             if (!hasJson && !hasHtml && !hasCsv && !hasPng && !hasSummary) {
                                 return null;
                             }
-                            
+
                             const reportName = dir.split('/').pop();
                             let creationTime = "";
-                            
+
                             // Try to get the directory creation time using stat
                             return cockpit.spawn(["stat", "-c", "%y", dir])
                                 .then(statOutput => {
@@ -2417,7 +2417,7 @@ class ChooseLagReportModal extends React.Component {
                                         console.error("Error parsing date from stat:", e);
                                         creationTime = _("Unknown");
                                     }
-                                    
+
                                     return {
                                         path: dir,
                                         name: reportName,
@@ -2431,7 +2431,7 @@ class ChooseLagReportModal extends React.Component {
                                 })
                                 .catch(statError => {
                                     console.error("Error getting directory stats:", statError);
-                                    
+
                                     // If we can't get the creation time from stat, try to extract it from filename
                                     // or fall back to using the file listing
                                     if (reportName.startsWith('repl_report_')) {
@@ -2456,7 +2456,7 @@ class ChooseLagReportModal extends React.Component {
                                             creationTime = _("Unknown");
                                         }
                                     }
-                                    
+
                                     return {
                                         path: dir,
                                         name: reportName,
@@ -2474,12 +2474,12 @@ class ChooseLagReportModal extends React.Component {
                             return null;
                         });
                 });
-                
+
                 Promise.all(promises)
                     .then(results => {
                         // Filter out null results and directories without report files
                         const validReports = results.filter(report => report !== null);
-                        
+
                         // Sort by creation time, newest first
                         validReports.sort((a, b) => {
                             try {
@@ -2488,7 +2488,7 @@ class ChooseLagReportModal extends React.Component {
                                 return 0;
                             }
                         });
-                        
+
                         this.setState({
                             reports: validReports,
                             loading: false
@@ -2510,7 +2510,7 @@ class ChooseLagReportModal extends React.Component {
                 });
             });
     }
-    
+
     handleSelectReport(report) {
         // Construct the report URLs
         const reportUrls = {
@@ -2520,14 +2520,14 @@ class ChooseLagReportModal extends React.Component {
             csv: report.hasCsv ? `${report.path}/replication_analysis.csv` : null,
             png: report.hasPng ? `${report.path}/replication_analysis.png` : null
         };
-        
+
         this.setState({
             selectedReport: report,
             showLagReportModal: true,
             reportUrls
         });
     }
-    
+
     closeLagReportModal() {
         this.setState({
             showLagReportModal: false,
@@ -2535,11 +2535,11 @@ class ChooseLagReportModal extends React.Component {
             reportUrls: null
         });
     }
-    
+
     render() {
         const { showing, onClose } = this.props;
         const { loading, reports, error, showLagReportModal, reportUrls } = this.state;
-        
+
         return (
             <>
                 <Modal
@@ -2565,7 +2565,7 @@ class ChooseLagReportModal extends React.Component {
                                         {error}
                                     </Alert>
                                 )}
-                                
+
                                 {loading ? (
                                     <div className="ds-center">
                                         <Spinner size="lg" />
@@ -2581,7 +2581,7 @@ class ChooseLagReportModal extends React.Component {
                         </Card>
                     </div>
                 </Modal>
-                
+
                 {showLagReportModal && (
                     <LagReportModal
                         showing={showLagReportModal}

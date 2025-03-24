@@ -9,5 +9,6 @@
         "label": "389 Directory Server",
         "path": "index.html"
      }
-  }
+  },
+  "content-security-policy": "default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: *;"
 }

@@ -2597,7 +2597,7 @@ class ReplDSRCAliasTable extends React.Component {
 class ExistingLagReportsTable extends React.Component {
     constructor(props) {
         super(props);
-        
+
         this.state = {
             page: 1,
             perPage: 10,
@@ -2653,13 +2653,13 @@ class ExistingLagReportsTable extends React.Component {
             reportUrls,
             selectedReport: report
         });
-        
+
         // If there's an onSelectReport prop function, call it too
         if (this.props.onSelectReport) {
             this.props.onSelectReport(report);
         }
     }
-    
+
     closeLagReportModal() {
         this.setState({
             showLagReportModal: false,
@@ -2771,7 +2771,6 @@ class ExistingLagReportsTable extends React.Component {
                                                 <Button
                                                     variant="primary"
                                                     onClick={() => this.handleViewReport(report)}
-                                                    isSmall
                                                 >
                                                     {_("View Report")}
                                                 </Button>
@@ -2802,7 +2801,7 @@ class ExistingLagReportsTable extends React.Component {
                         </EmptyState>
                     )}
                 </div>
-                
+
                 {showLagReportModal && (
                     <LagReportModal
                         showModal={showLagReportModal}
