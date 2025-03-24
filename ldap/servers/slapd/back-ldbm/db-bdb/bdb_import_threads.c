@@ -2409,117 +2409,114 @@ bdb_import_foreman(void *param)
             goto error;
         }
 
-        if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
-                                     SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-            /*
-             * Only check for a parent and add to the entry2dn index
+        /*
+         * Only check for a parent and add to the entry2dn index
+         */
+        if (job->flags & FLAG_ABORT) {
+            goto error;
+        }
+
+        if (parent_status == IMPORT_ADD_OP_ATTRS_NO_PARENT) {
+            /* If this entry is a suffix entry, this is not a problem */
+            /* However, if it is not, this is an error---it means that
+             * someone tried to import an entry before importing its parent
+             * we reject the entry but carry on since we've not stored
+             * anything related to this entry.
              */
-            if (job->flags & FLAG_ABORT) {
-                goto error;
-            }
-
-            if (parent_status == IMPORT_ADD_OP_ATTRS_NO_PARENT) {
-/* If this entry is a suffix entry, this is not a problem */
-/* However, if it is not, this is an error---it means that
-                 * someone tried to import an entry before importing its parent
-                 * we reject the entry but carry on since we've not stored
-                 * anything related to this entry.
-                 */
 #define RUVRDN SLAPI_ATTR_UNIQUEID "=" RUV_STORAGE_ENTRY_UNIQUEID
-                if (!slapi_be_issuffix(inst->inst_be, backentry_get_sdn(fi->entry)) &&
-                    strcasecmp(slapi_entry_get_nrdn_const(fi->entry->ep_entry), RUVRDN) /* NOT nsuniqueid=ffffffff-... */) {
-                    import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_foreman",
-                                      "Skipping entry \"%s\" which has no parent, ending at line %d "
-                                      "of file \"%s\"",
-                                      slapi_entry_get_dn(fi->entry->ep_entry), fi->line, fi->filename);
-                    /* skip this one */
-                    fi->bad = FIFOITEM_BAD;
-                    job->skipped++;
-                    goto cont; /* below */
-                }
+            if (!slapi_be_issuffix(inst->inst_be, backentry_get_sdn(fi->entry)) &&
+                strcasecmp(slapi_entry_get_nrdn_const(fi->entry->ep_entry), RUVRDN) /* NOT nsuniqueid=ffffffff-... */) {
+                import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_foreman",
+                                  "Skipping entry \"%s\" which has no parent, ending at line %d "
+                                  "of file \"%s\"",
+                                  slapi_entry_get_dn(fi->entry->ep_entry), fi->line, fi->filename);
+                /* skip this one */
+                fi->bad = FIFOITEM_BAD;
+                job->skipped++;
+                goto cont; /* below */
             }
-            if (job->flags & FLAG_ABORT) {
-                goto error;
-            }
+        }
+        if (job->flags & FLAG_ABORT) {
+            goto error;
+        }
 
-            /* insert into the entryrdn index */
+        /* insert into the entryrdn index */
+        ret = bdb_foreman_do_entryrdn(job, fi);
+
+        if ((job->flags & FLAG_UPGRADEDNFORMAT) && (LDBM_ERROR_FOUND_DUPDN == ret)) {
+            /*
+             * Duplicated DN is detected.
+             *
+             * Rename <DN> to nsuniqueid=<uuid>+<DN>
+             * E.g., uid=tuser,dc=example,dc=com ==>
+             * nsuniqueid=<uuid>+uid=tuser,dc=example,dc=com
+             *
+             * Note: FLAG_UPGRADEDNFORMAT only.
+             */
+            Slapi_Attr *orig_entrydn = NULL;
+            Slapi_Attr *new_entrydn = NULL;
+            Slapi_Attr *nsuniqueid = NULL;
+            const char *uuidstr = NULL;
+            char *new_dn = NULL;
+            char *orig_dn =
+                slapi_ch_strdup(slapi_entry_get_dn(fi->entry->ep_entry));
+            nsuniqueid = attrlist_find(fi->entry->ep_entry->e_attrs,
+                                       "nsuniqueid");
+            if (nsuniqueid) {
+                Slapi_Value *uival = NULL;
+                slapi_attr_first_value(nsuniqueid, &uival);
+                uuidstr = slapi_value_get_string(uival);
+            } else {
+                import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_foreman",
+                                  "Failed to get nsUniqueId of the duplicated entry %s; "
+                                  "Entry ID: %d",
+                                  orig_dn, fi->entry->ep_id);
+                slapi_ch_free_string(&orig_dn);
+                goto cont;
+            }
+            new_entrydn = slapi_attr_new();
+            new_dn = slapi_create_dn_string("nsuniqueid=%s+%s",
+                                            uuidstr, orig_dn);
+            /* releasing original dn */
+            slapi_sdn_done(&fi->entry->ep_entry->e_sdn);
+            /* setting new dn; pass in */
+            slapi_sdn_init_dn_passin(&fi->entry->ep_entry->e_sdn, new_dn);
+
+            /* Replacing entrydn attribute value */
+            orig_entrydn = attrlist_remove(&fi->entry->ep_entry->e_attrs,
+                                           "entrydn");
+            /* released in forman_do_entrydn */
+            attrlist_add(&fi->entry->ep_entry->e_aux_attrs, orig_entrydn);
+
+            /* Setting new entrydn attribute value */
+            slapi_attr_init(new_entrydn, "entrydn");
+            valueset_add_string(new_entrydn, &new_entrydn->a_present_values,
+                                /* new_dn: duped in valueset_add_string */
+                                (const char *)new_dn,
+                                CSN_TYPE_UNKNOWN, NULL);
+            attrlist_add(&fi->entry->ep_entry->e_attrs, new_entrydn);
+
+            /* Try foreman_do_entryrdn, again. */
             ret = bdb_foreman_do_entryrdn(job, fi);
 
-            if ((job->flags & FLAG_UPGRADEDNFORMAT) && (LDBM_ERROR_FOUND_DUPDN == ret)) {
-                /*
-                 * Duplicated DN is detected.
-                 *
-                 * Rename <DN> to nsuniqueid=<uuid>+<DN>
-                 * E.g., uid=tuser,dc=example,dc=com ==>
-                 * nsuniqueid=<uuid>+uid=tuser,dc=example,dc=com
-                 *
-                 * Note: FLAG_UPGRADEDNFORMAT only.
-                 */
-                Slapi_Attr *orig_entrydn = NULL;
-                Slapi_Attr *new_entrydn = NULL;
-                Slapi_Attr *nsuniqueid = NULL;
-                const char *uuidstr = NULL;
-                char *new_dn = NULL;
-                char *orig_dn =
-                    slapi_ch_strdup(slapi_entry_get_dn(fi->entry->ep_entry));
-                nsuniqueid = attrlist_find(fi->entry->ep_entry->e_attrs,
-                                           "nsuniqueid");
-                if (nsuniqueid) {
-                    Slapi_Value *uival = NULL;
-                    slapi_attr_first_value(nsuniqueid, &uival);
-                    uuidstr = slapi_value_get_string(uival);
+            if (ret) {
+                import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_foreman",
+                                  "Failed to rename duplicated DN %s to %s; Entry ID: %d",
+                                  orig_dn, new_dn, fi->entry->ep_id);
+                slapi_ch_free_string(&orig_dn);
+                if (-1 == ret) {
+                    goto cont; /* skip entry */
                 } else {
-                    import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_foreman",
-                                      "Failed to get nsUniqueId of the duplicated entry %s; "
-                                      "Entry ID: %d",
-                                      orig_dn, fi->entry->ep_id);
-                    slapi_ch_free_string(&orig_dn);
-                    goto cont;
+                    goto error;
                 }
-                new_entrydn = slapi_attr_new();
-                new_dn = slapi_create_dn_string("nsuniqueid=%s+%s",
-                                                uuidstr, orig_dn);
-                /* releasing original dn */
-                slapi_sdn_done(&fi->entry->ep_entry->e_sdn);
-                /* setting new dn; pass in */
-                slapi_sdn_init_dn_passin(&fi->entry->ep_entry->e_sdn, new_dn);
-
-                /* Replacing entrydn attribute value */
-                orig_entrydn = attrlist_remove(&fi->entry->ep_entry->e_attrs,
-                                               "entrydn");
-                /* released in forman_do_entrydn */
-                attrlist_add(&fi->entry->ep_entry->e_aux_attrs, orig_entrydn);
-
-                /* Setting new entrydn attribute value */
-                slapi_attr_init(new_entrydn, "entrydn");
-                valueset_add_string(new_entrydn, &new_entrydn->a_present_values,
-                                    /* new_dn: duped in valueset_add_string */
-                                    (const char *)new_dn,
-                                    CSN_TYPE_UNKNOWN, NULL);
-                attrlist_add(&fi->entry->ep_entry->e_attrs, new_entrydn);
-
-                /* Try foreman_do_entryrdn, again. */
-                ret = bdb_foreman_do_entryrdn(job, fi);
-
-                if (ret) {
-                    import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_foreman",
-                                      "Failed to rename duplicated DN %s to %s; Entry ID: %d",
-                                      orig_dn, new_dn, fi->entry->ep_id);
-                    slapi_ch_free_string(&orig_dn);
-                    if (-1 == ret) {
-                        goto cont; /* skip entry */
-                    } else {
-                        goto error;
-                    }
-                } else {
-                    import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_foreman",
-                                      "Duplicated entry %s is renamed to %s; Entry ID: %d",
-                                      orig_dn, new_dn, fi->entry->ep_id);
-                    slapi_ch_free_string(&orig_dn);
-                }
-            } else if (0 != ret) {
-                goto error;
+            } else {
+                import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_foreman",
+                                  "Duplicated entry %s is renamed to %s; Entry ID: %d",
+                                  orig_dn, new_dn, fi->entry->ep_id);
+                slapi_ch_free_string(&orig_dn);
             }
+        } else if (0 != ret) {
+            goto error;
         }
 
         if (job->flags & FLAG_ABORT) {
