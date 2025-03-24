@@ -952,6 +952,114 @@ dse_check_for_readonly_error(Slapi_PBlock *pb, struct dse *pdse)
     return rc; /* no error */
 }
 
+/* Trivial wrapper around slapi_re_comp to handle errors */
+static Slapi_Regex *
+recomp(const char *regexp)
+{
+    char *error = "";
+    Slapi_Regex *re = slapi_re_comp(regexp, &error);
+    if (re == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "is_readonly_set_in_dse",
+                      "Failed to compile '%s' regular expression. Error is %s\n",
+                      regexp, error);
+    }
+    slapi_ch_free_string(&error);
+    return re;
+}
+
+/*
+ * Check if "nsslapd-readonly: on" is in cn-config in dse.ldif file
+ * ( If the flag is set in memory but on in the file, the file should
+ *   be written (to let dsconf able to modify the nsslapd-readonly flag)
+ */
+static bool
+is_readonly_set_in_dse(const char *dsename)
+{
+    Slapi_Regex *re_config = recomp("^dn:\\s+cn=config\\s*$");
+    Slapi_Regex *re_isro = recomp("^" CONFIG_READONLY_ATTRIBUTE ":\\s+on\\s*$");
+    Slapi_Regex *re_eoe = recomp("^$");
+    bool isconfigentry = false;
+    bool isro = false;
+    FILE *fdse = NULL;
+    char line[128];
+    char *error = NULL;
+    const char *regexp = "";
+
+    if (!dsename) {
+        goto done;
+    }
+    if (re_config == NULL || re_isro == NULL || re_eoe == NULL) {
+        goto done;
+    }
+    fdse = fopen(dsename, "r");
+    if (fdse == NULL) {
+        /* No dse file, we need to write it */
+        goto done;
+    }
+    while (fgets(line, (sizeof line), fdse)) {
+        /* Convert the read line to lowercase */
+        for (char *pt=line; *pt; pt++) {
+            if (isalpha(*pt)) {
+                *pt = tolower(*pt);
+            }
+        }
+        if (slapi_re_exec_nt(re_config, line)) {
+            isconfigentry = true;
+        }
+        if (slapi_re_exec_nt(re_eoe, line)) {
+            if (isconfigentry) {
+                /* End of config entry ==> readonly flag is not set */
+                break;
+            }
+        }
+        if (isconfigentry && slapi_re_exec_nt(re_isro, line)) {
+            /* Found readonly flag */
+            isro = true;
+            break;
+        }
+    }
+done:
+    if (fdse) {
+        (void) fclose(fdse);
+    }
+    slapi_re_free(re_config);
+    slapi_re_free(re_isro);
+    slapi_re_free(re_eoe);
+    return isro;
+}
+
+/*
+ * Check if dse.ldif can be written
+ * Beware that even in read-only mode dse.ldif file
+ * should still be written to change the nsslapd-readonly value
+ */
+static bool
+check_if_readonly(struct dse *pdse)
+{
+    static bool ro = false;
+
+    if (pdse->dse_filename == NULL) {
+        return false;
+    }
+    if (!slapi_config_get_readonly()) {
+        ro = false;
+        return ro;
+    }
+    if (ro) {
+        /* read-only mode and dse is up to date ==> Do not modify it. */
+        return ro;
+    }
+    /* First attempt to write the dse.ldif since readonly mode is enabled.
+     * Lets check if "nsslapd-readonly: on" is in cn=config entry
+     *  and allow to write the dse.ldif if it is the case
+     */
+    if (is_readonly_set_in_dse(pdse->dse_filename)) {
+        /* read-only mode and dse is up to date ==> Do not modify it. */
+        ro = true;
+    }
+    /* Read only mode but nsslapd-readonly value is not up to date. */
+    return ro;
+}
 
 /*
  * Write the AVL tree of entries back to the LDIF file.
@@ -962,7 +1070,7 @@ dse_write_file_nolock(struct dse *pdse)
     FPWrapper fpw;
     int rc = 0;
 
-    if (dont_ever_write_dse_files) {
+    if (dont_ever_write_dse_files || check_if_readonly(pdse)) {
         return rc;
     }
 
