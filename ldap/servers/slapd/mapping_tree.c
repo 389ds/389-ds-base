@@ -2058,6 +2058,82 @@ slapi_dn_write_needs_referral(Slapi_DN *target_sdn, Slapi_Entry **referral)
 done:
     return ret;
 }
+
+/*
+ * This function dermines if an operation should be rejected
+ * when readonly mode is enabled.
+ * All operations are rejected except:
+ *    - if they target a private backend that is not the DSE backend
+ *    - if they are read operations (SEARCH, COMPARE, BIND, UNBIND)
+ *    - if they are tombstone fixup operation (i.e: tombstone purging)
+ *    - if they are internal operation that targets the DSE backend.
+ *      (change will then be done in memory but not written in dse.ldif)
+ *    - single modify modify operation on cn=config changing nsslapd-readonly
+ *      (to allow  "dsconf instance config replace nsslapd-readonly=xxx",
+         change will then be done both in memory and in dse.ldif)
+ */
+static bool
+is_rejected_op(Slapi_Operation *op, Slapi_Backend *be)
+{
+    const char *betype = slapi_be_gettype(be);
+    unsigned long be_op_type = operation_get_type(op);
+    int isdse = (betype && strcmp(betype, "DSE") == 0);
+
+    /* Private backend operations are not rejected */
+
+    /* Read operations are not rejected */
+    if ((be_op_type == SLAPI_OPERATION_SEARCH) ||
+        (be_op_type == SLAPI_OPERATION_COMPARE) ||
+        (be_op_type == SLAPI_OPERATION_BIND) ||
+        (be_op_type == SLAPI_OPERATION_UNBIND)) {
+        return false;
+    }
+
+    /* Tombstone fixup are not rejected. */
+    if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_FIXUP)) {
+        return false;
+    }
+
+    if (!isdse) {
+        /* write operation on readonly backends are rejected */
+        if (be->be_readonly) {
+            return true;
+        }
+
+        /* private backends (DSE excepted) are not backed on files
+         * so write operations are accepted.
+         * but other operations (not on DSE) are rejected.
+         */
+        if (slapi_be_private(be)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    /* Allowed operations in dse backend are:
+     *  - the internal operations and
+     *  - modify of nsslapd-readonly flag in cn=config
+     */
+
+    if (operation_is_flag_set(op, OP_FLAG_INTERNAL)) {
+        return false;
+    }
+    if (be_op_type == SLAPI_OPERATION_MODIFY) {
+        Slapi_DN *sdn = operation_get_target_spec(op);
+        Slapi_DN config = {0};
+        LDAPMod **mods = op->o_params.p.p_modify.modify_mods;
+        slapi_sdn_init_ndn_byref(&config, SLAPD_CONFIG_DN);
+        if (mods && mods[0] && !mods[1] &&
+            slapi_sdn_compare(sdn, &config) == 0 &&
+            strcasecmp(mods[0]->mod_type, CONFIG_READONLY_ATTRIBUTE) == 0) {
+                /* Single modifier impacting nsslapd-readonly */
+                return false;
+        }
+    }
+    return true;
+}
+
 /*
  * Description:
  * The reason we have a mapping tree.  This function selects a backend or
@@ -2095,7 +2171,6 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
     int ret;
     int scope = LDAP_SCOPE_BASE;
     int op_type;
-    int fixup = 0;
 
     if (slapi_atomic_load_32(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
@@ -2112,7 +2187,6 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
 
     /* Get the target for this op */
     target_sdn = operation_get_target_spec(op);
-    fixup = operation_is_flag_set(op, OP_FLAG_TOMBSTONE_FIXUP);
 
     PR_ASSERT(mapping_tree_inited == 1);
 
@@ -2161,22 +2235,14 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
      * or if the whole server is readonly AND backend is public (!private)
      */
     if ((ret == LDAP_SUCCESS) && *be && !be_isdeleted(*be) &&
-        (((*be)->be_readonly && !fixup) ||
-         ((slapi_config_get_readonly() && !fixup) &&
-          !slapi_be_private(*be)))) {
-        unsigned long be_op_type = operation_get_type(op);
-
-        if ((be_op_type != SLAPI_OPERATION_SEARCH) &&
-            (be_op_type != SLAPI_OPERATION_COMPARE) &&
-            (be_op_type != SLAPI_OPERATION_BIND) &&
-            (be_op_type != SLAPI_OPERATION_UNBIND)) {
+        ((*be)->be_readonly || slapi_config_get_readonly()) &&
+        is_rejected_op(op, *be)) {
             if (errorbuf) {
                 PL_strncpyz(errorbuf, slapi_config_get_readonly() ? "Server is read-only" : "database is read-only", ebuflen);
             }
             ret = LDAP_UNWILLING_TO_PERFORM;
             slapi_be_Unlock(*be);
             *be = NULL;
-        }
     }
 
     return ret;
