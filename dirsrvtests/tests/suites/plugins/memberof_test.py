@@ -2169,9 +2169,14 @@ def test_complex_group_scenario_6(topology_st):
 
     # add Grp[1-4] (uniqueMember) to grp5
     # it creates a membership loop !!!
+    topology_st.standalone.config.replace('nsslapd-errorlog-level', '65536')
     mods = [(ldap.MOD_ADD, 'uniqueMember', memofegrp020_5)]
     for grp in [memofegrp020_1, memofegrp020_2, memofegrp020_3, memofegrp020_4]:
         topology_st.standalone.modify_s(ensure_str(grp), mods)
+    topology_st.standalone.config.replace('nsslapd-errorlog-level', '0')
+
+    results = topology_st.standalone.ds_error_log.match('.*detecting a loop in group.*')
+    assert results
 
     time.sleep(5)
     # assert user[1-4] are member of grp20_[1-4]
