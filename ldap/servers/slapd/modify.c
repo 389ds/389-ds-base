@@ -547,6 +547,7 @@ modify_internal_pb(Slapi_PBlock *pb)
             if (pw_change == -1) {
                 /* The internal result code will already have been set by op_shared_allow_pw_change() */
                 ldap_mods_free(normalized_mods, 1);
+                slapi_ch_free_string(&old_pw);
                 return 0;
             }
         }
@@ -570,6 +571,7 @@ modify_internal_pb(Slapi_PBlock *pb)
     /* perform modify operation */
     slapi_td_internal_op_start();
     op_shared_modify(pb, pw_change, old_pw);
+    slapi_ch_free_string(&old_pw);
     slapi_td_internal_op_finish();
 
     /* free the normalized_mods don't forget to add this*/
@@ -1145,6 +1147,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     char *proxystr = NULL;
     char *errtext = NULL;
     int32_t needpw = 0;
+    bool free_bogus_entry = false;
 
     slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
     if (repl_op) {
@@ -1204,6 +1207,7 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             e = slapi_entry_alloc();
             slapi_entry_init(e, NULL, NULL);
             slapi_sdn_set_dn_byref(slapi_entry_get_sdn(e), dn);
+            free_bogus_entry = true;
         }
 
         /* Set the backend in the pblock.  The slapi_access_allowed function
@@ -1349,6 +1353,9 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     valuearray_free(&values);
 
 done:
+    if (free_bogus_entry) {
+        slapi_entry_free(e);
+    }
     slapi_sdn_done(&sdn);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);

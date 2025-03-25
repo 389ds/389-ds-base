@@ -931,6 +931,7 @@ perform_needed_fixup()
         }
         be = slapi_get_next_backend(cookie);
     }
+    slapi_ch_free_string(&cookie);
     slapi_ch_free_string(&td.bind_dn);
     slapi_ch_free_string(&td.filter_str);
     memberof_free_config(&config);
