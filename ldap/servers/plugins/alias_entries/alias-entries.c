@@ -121,6 +121,7 @@ alias_entry_srch(Slapi_PBlock *pb)
             slapi_log_error(SLAPI_LOG_PLUGIN, PLUGINNAME,
                             "alias_entry_srch - %s\n", errorbuf);
 
+            slapi_sdn_free(&dn1);
             slapi_send_ldap_result(pb, rc, NULL, errorbuf, 0, NULL);
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
             return SLAPI_PLUGIN_FAILURE;
@@ -128,7 +129,8 @@ alias_entry_srch(Slapi_PBlock *pb)
     } while (dn2 != NULL && i++ < MAXALIASCHAIN);
 
     if (dn1 == search_target) {
-        /* Source dn is not an alias */
+        /* Source dn is not an alias */\
+        slapi_sdn_free(&dn2);
         return 0;
     }
 
@@ -138,6 +140,7 @@ alias_entry_srch(Slapi_PBlock *pb)
         slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, dn1);
     } else {
         /* Here we hit an alias chain longer than MAXALIASCHAIN */
+        slapi_sdn_free(&dn1);
         slapi_sdn_free(&dn2);
     }
 
