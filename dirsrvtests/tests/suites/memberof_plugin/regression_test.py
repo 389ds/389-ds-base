@@ -466,6 +466,21 @@ def _find_memberof_ext(server, user_dn=None, group_dn=None, find_result=True):
     else:
         assert (not found)
 
+def _check_membership(server, entry, expected_members, expected_memberof):
+    assert server
+    assert entry
+
+    memberof = entry.get_attr_vals('memberof')
+    member = entry.get_attr_vals('member')
+    assert len(member) == len(expected_members)
+    assert len(memberof) == len(expected_memberof)
+    for e in expected_members:
+        server.log.info("Checking %s has member %s" % (entry.dn, e.dn))
+        assert e.dn.encode() in member
+    for e in expected_memberof:
+        server.log.info("Checking %s is member of %s" % (entry.dn, e.dn))
+        assert e.dn.encode() in memberof
+
 
 @pytest.mark.ds49161
 def test_memberof_group(topology_st):
@@ -534,6 +549,100 @@ def test_memberof_group(topology_st):
     _find_memberof_ext(inst, dn1, g2n, True)
     _find_memberof_ext(inst, dn2, g2n, True)
 
+def test_multipaths(topology_st, request):
+    """Test memberof succeeds to update memberof when
+    there are multiple paths from a leaf to an intermediate node
+
+    :id: 35aa704a-b895-4153-9dcb-1e8a13612ebf
+
+    :setup: Single instance
+
+    :steps:
+         1. Create a graph G1->U1, G2->G21->U1
+         2. Add G2 as member of G1: G1->U1, G1->G2->G21->U1
+         3. Check members and memberof in entries G1,G2,G21,User1
+
+    :expectedresults:
+         1. Graph should be created
+         2. succeed
+         3. Membership is okay
+    """
+
+    inst = topology_st.standalone
+    memberof = MemberOfPlugin(inst)
+    memberof.enable()
+    memberof.replace('memberOfEntryScope', SUFFIX)
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() == "on"):
+        delay = 3
+    else:
+        delay = 0
+    inst.restart()
+
+    #
+    # Create the hierarchy
+    #
+    #
+    #  Grp1 ---------------> User1
+    #                           ^
+    #                          /
+    #  Grp2 ----> Grp21 ------/
+    #
+    users = UserAccounts(inst, SUFFIX, rdn=None)
+    user1 = users.create(properties={'uid': "user1",
+                             'cn': "user1",
+                             'sn': 'SN',
+                             'description': 'leaf',
+                             'uidNumber': '1000',
+                             'gidNumber': '2000',
+                             'homeDirectory': '/home/user1'
+                             })
+    group = Groups(inst, SUFFIX, rdn=None)
+    g1 = group.create(properties={'cn': 'group1',
+                             'member': user1.dn,
+                             'description': 'group1'})
+    g21 = group.create(properties={'cn': 'group21',
+                             'member': user1.dn,
+                             'description': 'group21'})
+    g2 = group.create(properties={'cn': 'group2',
+                             'member': [g21.dn],
+                             'description': 'group2'})
+
+    # Enable debug logs if necessary
+    #inst.config.replace('nsslapd-errorlog-level', '65536')
+    #inst.config.set('nsslapd-accesslog-level','260')
+    #inst.config.set('nsslapd-plugin-logging', 'on')
+    #inst.config.set('nsslapd-auditlog-logging-enabled','on')
+    #inst.config.set('nsslapd-auditfaillog-logging-enabled','on')
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #    \                       ^
+    #     \                     /
+    #      --> Grp2 --> Grp21 --
+    #
+    g1.add_member(g2.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[g2, user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g1])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2, g1])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    def fin():
+        try:
+            user1.delete()
+            g1.delete()
+            g2.delete()
+            g21.delete()
+        except:
+            pass
+    request.addfinalizer(fin)
 
 def _config_memberof_entrycache_on_modrdn_failure(server):
 
