@@ -1602,7 +1602,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
         ht_grp = ancestors_cache_lookup(config, (const void *)ndn);
         if (ht_grp) {
 #if MEMBEROF_CACHE_DEBUG
-            slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s already cached (%x)\n", ndn, ht_grp);
+            slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s already cached (%lx)\n", ndn, (ulong) ht_grp);
 #endif
             add_ancestors_cbdata(ht_grp, callback_data);
             *cached = 1;
@@ -1610,7 +1610,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
         }
     }
 #if MEMBEROF_CACHE_DEBUG
-    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s not cached\n", ndn);
+    slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s not cached\n", slapi_sdn_get_ndn(sdn));
 #endif
 
     /* Escape the dn, and build the search filter. */
@@ -3243,7 +3243,8 @@ cache_ancestors(MemberOfConfig *config, Slapi_Value **member_ndn_val, memberof_g
         return;
     }
 #if MEMBEROF_CACHE_DEBUG
-    if (double_check = ancestors_cache_lookup(config, (const void*) key)) {
+    double_check = ancestors_cache_lookup(config, (const void*) key);
+    if (double_check) {
         dump_cache_entry(double_check, "read back");
     }
 #endif
@@ -3273,13 +3274,13 @@ merge_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *v1, memb
             sval_dn = slapi_value_new_string(slapi_value_get_string(sval));
             if (sval_dn) {
                 /* Use the normalized dn from v1 to search it
-                                 * in v2
-                                 */
+                 * in v2
+                 */
                 val_sdn = slapi_sdn_new_dn_byval(slapi_value_get_string(sval_dn));
                 sval_ndn = slapi_value_new_string(slapi_sdn_get_ndn(val_sdn));
                 if (!slapi_valueset_find(
                         ((memberof_get_groups_data *)v2)->config->group_slapiattrs[0], v2_group_norm_vals, sval_ndn)) {
-/* This ancestor was not already present in v2 => Add it
+                                        /* This ancestor was not already present in v2 => Add it
                                          * Using slapi_valueset_add_value it consumes val
                                          * so do not free sval
                                          */
@@ -3328,7 +3329,7 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn, memberof_get
 
     merge_ancestors(&member_ndn_val, &member_data, data);
     if (!cached && member_data.use_cache)
-        cache_ancestors(config, &member_ndn_val, &member_data);
+        cache_ancestors(config, &member_ndn_val, data);
 
     slapi_value_free(&member_ndn_val);
     slapi_valueset_free(groupvals);
@@ -3389,25 +3390,6 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
         goto bail;
     }
 
-    /* Have we been here before?  Note that we don't loop through all of the group_slapiattrs
-     * in config.  We only need this attribute for it's syntax so the comparison can be
-     * performed.  Since all of the grouping attributes are validated to use the Dinstinguished
-     * Name syntax, we can safely just use the first group_slapiattr. */
-    if (slapi_valueset_find(
-            ((memberof_get_groups_data *)callback_data)->config->group_slapiattrs[0], already_seen_ndn_vals, group_ndn_val)) {
-        /* we either hit a recursive grouping, or an entry is
-         * a member of a group through multiple paths.  Either
-         * way, we can just skip processing this entry since we've
-         * already gone through this part of the grouping hierarchy. */
-        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "memberof_get_groups_callback - Possible group recursion"
-                      " detected in %s\n",
-                      group_ndn);
-        slapi_value_free(&group_ndn_val);
-        ((memberof_get_groups_data *)callback_data)->use_cache = PR_FALSE;
-        goto bail;
-    }
-
     /* if the group does not belong to an excluded subtree, adds it to the valueset */
     if (memberof_entry_in_scope(config, group_sdn)) {
         /* Push group_dn_val into the valueset.  This memory is now owned
@@ -3417,9 +3399,21 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
         group_dn_val = slapi_value_new_string(group_dn);
         slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
 
-        /* push this ndn to detect group recursion */
-        already_seen_ndn_val = slapi_value_new_string(group_ndn);
-        slapi_valueset_add_value_ext(already_seen_ndn_vals, already_seen_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+        if (slapi_valueset_find(
+            ((memberof_get_groups_data *)callback_data)->config->group_slapiattrs[0], already_seen_ndn_vals, group_ndn_val)) {
+            /* The group group_ndn_val has already been processed
+             * skip the final recursion to prevent infinite loop
+             */
+            slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                          "memberof_get_groups_callback - detecting a loop in group %s (stop building memberof)\n",
+                           group_ndn);
+            ((memberof_get_groups_data *)callback_data)->use_cache = PR_FALSE;
+            goto bail;
+        } else {
+            /* keep this ndn to detect a possible group recursion */
+            already_seen_ndn_val = slapi_value_new_string(group_ndn);
+            slapi_valueset_add_value_ext(already_seen_ndn_vals, already_seen_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+        }
     }
     if (!config->skip_nested || config->fixup_task) {
         /* now recurse to find ancestors groups of e */
