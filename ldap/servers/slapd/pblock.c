@@ -4005,6 +4005,7 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
             pblock->pb_op->o_results.result_matched = (char *)value;
         break;
     case SLAPI_RESULT_TEXT:
+        /* value will get freed in operation_done(), so it should be allocated */
         if (pblock->pb_op != NULL)
             pblock->pb_op->o_results.result_text = (char *)value;
         break;

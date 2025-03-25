@@ -3234,7 +3234,7 @@ log__open_accesslogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_ACCESS_LOCK_WRITE();
@@ -3398,7 +3398,7 @@ log__open_securitylogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_SECURITY_LOCK_WRITE();
@@ -6305,7 +6305,7 @@ log__open_auditlogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_AUDIT_LOCK_WRITE();
@@ -6464,7 +6464,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     char tbuf[TBUFSIZE];
     struct logfileinfo *logp;
     char buffer[BUFSIZ];
-    int rc;
+    int rc = 0;
 
     if (!locked)
         LOG_AUDITFAIL_LOCK_WRITE();

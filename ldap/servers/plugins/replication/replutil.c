@@ -342,6 +342,7 @@ parse_changes_string(char *str)
             if (strcasecmp(line, "-") == 0) {
                 if (slapi_mod_isvalid(&mod)) {
                     slapi_mods_add_smod(mods, &mod);
+                    slapi_mod_init(&mod, 0);
                 } else {
                     /* need to cleanup */
                     slapi_mod_done(&mod);
@@ -382,6 +383,7 @@ parse_changes_string(char *str)
             }
             line = ldif_getline(&next);
         }
+        slapi_mod_done(&mod);
     }
 
     return mods;

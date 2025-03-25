@@ -210,7 +210,10 @@ char *dbmdb_build_dbname(backend *be, const char *filename)
         res = slapi_ch_smprintf("%s/%s%s", inst->inst_name, filename, suffix);
     }
     pt = (char*)slapi_utf8StrToLower((unsigned char*)res);
-    slapi_ch_free_string(&res);
+    if (pt != res) {
+        slapi_ch_free_string(&res);
+    }
+
     return pt;
 }
 

@@ -91,7 +91,7 @@ static int  sm_memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 static void sm_report_error_msg(Slapi_MemberOfConfig *config, char* msg);
 static int  sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn,
                                 Slapi_ValueSet *groupvals, Slapi_ValueSet *nsuniqueidvals);
-static PRBool sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool all_backends, 
+static PRBool sm_compare_memberof_config(const char *memberof_attr, char **groupattrs, PRBool all_backends,
                                          PRBool skip_nested, Slapi_DN **include_scope, Slapi_DN **exclude_scope, PRBool enabled_only);
 static void sm_add_ancestors_cbdata(sm_memberof_cached_value *ancestors, void *callback_data);
 static int  sm_memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn, Slapi_MemberOfConfig *config, char **types,
@@ -746,7 +746,6 @@ sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_Va
                           "sm_entry_get_groups - Failed to retrieve target entry %s: %d\n",
                           slapi_sdn_get_ndn(group_sdn), rc);
             slapi_sdn_free(&group_sdn);
-            slapi_ch_array_free(groups_dn);
             rc = -1;
             goto common;
         }
@@ -766,7 +765,6 @@ sm_entry_get_groups(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_Va
         /* add its dn to the valuset */
         sval = slapi_value_new_string(slapi_sdn_get_ndn(group_sdn));
         slapi_valueset_add_value_ext(groupvals, sval, SLAPI_VALUE_FLAG_PASSIN);
-
 
         slapi_sdn_free(&group_sdn);
         slapi_search_get_entry_done(&group_pb);

@@ -530,13 +530,8 @@ write_audit_file_json(Slapi_PBlock *pb, Slapi_Entry *entry, int logtype,
         case SLAPI_OPERATION_DELETE:
             tmp = change;
             del_obj = json_object_new_object();
-            if (tmp && tmp[0]) {
-                json_object_object_add(del_obj, "dn", json_object_new_string(target_dn));
-                json_object_object_add(log_json, "delete", del_obj);
-            } else {
-                json_object_object_add(del_obj, "dn", json_object_new_string(target_dn));
-                json_object_object_add(log_json, "delete", del_obj);
-            }
+            json_object_object_add(del_obj, "dn", json_object_new_string(target_dn));
+            json_object_object_add(log_json, "delete", del_obj);
             break;
 
         case SLAPI_OPERATION_MODDN:

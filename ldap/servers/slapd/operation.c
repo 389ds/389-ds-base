@@ -223,6 +223,7 @@ operation_done(Slapi_Operation **op, Connection *conn)
             (*op)->o_results.result_controls = NULL;
         }
         slapi_ch_free_string(&(*op)->o_results.result_matched);
+        slapi_ch_free_string(&(*op)->o_results.result_text);
         int options = 0;
         /* save the old options */
         if ((*op)->o_ber) {
