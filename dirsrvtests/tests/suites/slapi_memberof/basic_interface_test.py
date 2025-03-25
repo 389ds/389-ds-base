@@ -4220,18 +4220,18 @@ def test_slapi_memberof_reuse_only_1(topo, request, install_test_plugin):
 
 def test_slapi_memberof_reuse_only_2(topo, request, install_test_plugin):
     """
-    Test that management hierarchy (manager) is computed with slapi_memberof
+    Test that membership is computed with slapi_memberof
     It requires slapi_memberof to ONLY reuse the computed values
     from memberof plugins. As memberof plugin is enabled, it returns
     memberof.
     with following parameters
     - member attribute: memberof
-    - membership attribute: 'manager'
+    - membership attribute: 'member'
     - span over all backends: 'off'
     - skip nesting membership: 'off'
-    - computation mode: MEMBEROF_REUSE_IF_POSSIBLE  <--
+    - computation mode: MEMBEROF_REUSE_ONLY  <--
     - Scope: None
-    - ExcludeScope: ou=foo1,dc=example,dc=com  <--
+    - ExcludeScope: dc=example,dc=com  <--
     - Maximum return entries: None
 
     :id: fb4f8c86-aa39-4252-90e0-36cfd7b3dd80
@@ -4274,59 +4274,141 @@ def test_slapi_memberof_reuse_only_2(topo, request, install_test_plugin):
     --- e_1_parent_1_1_3_0
     ---- e_1_parent_1_1_1_3_0
     """
+    # Configure memberof plugin to add 'memberof' attribute
+    # to the members ('member') of groups that are in the suffix
     memberof = MemberOfPlugin(topo.standalone)
     memberof.enable()
     memberof.replace('memberOfAttr', 'memberof')
-    memberof.replace('memberOfGroupAttr', 'manager')
+    memberof.replace('memberOfGroupAttr', 'member')
     memberof.replace('memberOfAllBackends', 'off')
     memberof.replace('memberOfSkipNested', 'off')
     memberof.replace('memberOfEntryScope', DEFAULT_SUFFIX)
     topo.standalone.restart()
 
-    user = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    #topo.standalone.config.replace('nsslapd-errorlog-level', '65536')
+    #topo.standalone.config.set('nsslapd-accesslog-level','260')
+    #topo.standalone.config.set('nsslapd-auditlog-logging-enabled','on')
+    #topo.standalone.config.set('nsslapd-auditfaillog-logging-enabled','on')
+    #topo.standalone.config.set('nsslapd-plugin-logging', 'on')
 
     # First subtree
-    e_1_parent_0 = add_entry(topo.standalone, uid="e_1_parent_0")
+    e_1_parent_0       = add_entry(topo.standalone, uid="e_1_parent_0")
+    e_1_parent_1_0     = add_entry(topo.standalone, uid="e_1_parent_1_0")
+    e_1_parent_1_1_0   = add_entry(topo.standalone, uid="e_1_parent_1_1_0")
+    e_1_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_1_parent_1_1_1_0")
+    e_2_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_2_parent_1_1_1_0")
+    e_3_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_3_parent_1_1_1_0")
+    e_4_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_4_parent_1_1_1_0")
+    e_5_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_5_parent_1_1_1_0")
+    e_2_parent_1_1_0   = add_entry(topo.standalone, uid="e_2_parent_1_1_0")
+    e_2_parent_1_0     = add_entry(topo.standalone, uid="e_2_parent_1_0")
+    e_1_parent_2_1_0   = add_entry(topo.standalone, uid="e_1_parent_2_1_0")
+    e_2_parent_2_1_0   = add_entry(topo.standalone, uid="e_2_parent_2_1_0")
+    e_1_parent_2_2_1_0 = add_entry(topo.standalone, uid="e_1_parent_2_2_1_0")
+    e_3_parent_2_1_0   = add_entry(topo.standalone, uid="e_3_parent_2_1_0")
+    e_4_parent_2_1_0   = add_entry(topo.standalone, uid="e_4_parent_2_1_0")
 
-    e_1_parent_1_0 = add_entry(topo.standalone, uid="e_1_parent_1_0", manager=[ensure_bytes(e_1_parent_0)])
+    e_2_parent_0       = add_entry(topo.standalone, uid="e_2_parent_0")
+    e_1_parent_2_0     = add_entry(topo.standalone, uid="e_1_parent_2_0")
+    e_2_parent_2_0     = add_entry(topo.standalone, uid="e_2_parent_2_0")
+    e_3_parent_2_0     = add_entry(topo.standalone, uid="e_3_parent_2_0")
+    e_4_parent_2_0     = add_entry(topo.standalone, uid="e_4_parent_2_0")
 
-    e_1_parent_1_1_0 = add_entry(topo.standalone, uid="e_1_parent_1_1_0", manager=[ensure_bytes(e_1_parent_1_0)])
+    e_3_parent_0       = add_entry(topo.standalone, uid="e_3_parent_0")
+    e_1_parent_3_0     = add_entry(topo.standalone, uid="e_1_parent_3_0")
+    e_1_parent_1_3_0   = add_entry(topo.standalone, uid="e_1_parent_1_3_0")
+    e_1_parent_1_1_3_0 = add_entry(topo.standalone, uid="e_1_parent_1_1_3_0")
+    e_1_parent_1_1_1_3_0 = add_entry(topo.standalone, uid="e_1_parent_1_1_1_3_0")
 
-    e_1_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_1_parent_1_1_1_0", manager=[ensure_bytes(e_1_parent_1_1_0)])
-    e_2_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_2_parent_1_1_1_0", manager=[ensure_bytes(e_1_parent_1_1_0)])
-    e_3_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_3_parent_1_1_1_0", manager=[ensure_bytes(e_1_parent_1_1_0)])
-    e_4_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_4_parent_1_1_1_0", manager=[ensure_bytes(e_1_parent_1_1_0)])
-    e_5_parent_1_1_1_0 = add_entry(topo.standalone, uid="e_5_parent_1_1_1_0", manager=[ensure_bytes(e_1_parent_1_1_0)])
+    # e_1_parent_0
+    # - e_1_parent_1_0
+    # - e_2_parent_1_0
+    members = [ensure_bytes(e_1_parent_1_0),
+               ensure_bytes(e_2_parent_1_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_1_parent_0, mod)
 
-    e_2_parent_1_1_0 = add_entry(topo.standalone, uid="e_2_parent_1_1_0", manager=[ensure_bytes(e_1_parent_1_0)])
+    # - e_1_parent_1_0
+    # -- e_1_parent_1_1_0
+    # -- e_2_parent_1_1_0
+    members = [ensure_bytes(e_1_parent_1_1_0),
+               ensure_bytes(e_2_parent_1_1_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_1_parent_1_0, mod)
 
-    e_2_parent_1_0 = add_entry(topo.standalone, uid="e_2_parent_1_0", manager=[ensure_bytes(e_1_parent_0)])
+    # -- e_1_parent_1_1_0
+    # --- e_1_parent_1_1_1_0
+    # --- e_2_parent_1_1_1_0
+    # --- e_3_parent_1_1_1_0
+    # --- e_4_parent_1_1_1_0
+    # --- e_5_parent_1_1_1_0
+    members = [ensure_bytes(e_1_parent_1_1_1_0),
+               ensure_bytes(e_2_parent_1_1_1_0),
+               ensure_bytes(e_3_parent_1_1_1_0),
+               ensure_bytes(e_4_parent_1_1_1_0),
+               ensure_bytes(e_5_parent_1_1_1_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_1_parent_1_1_0, mod)
 
-    e_1_parent_2_1_0 = add_entry(topo.standalone, uid="e_1_parent_2_1_0", manager=[ensure_bytes(e_2_parent_1_0)])
-    e_2_parent_2_1_0 = add_entry(topo.standalone, uid="e_2_parent_2_1_0", manager=[ensure_bytes(e_2_parent_1_0)])
-    e_1_parent_2_2_1_0 = add_entry(topo.standalone, uid="e_1_parent_2_2_1_0", manager=[ensure_bytes(e_2_parent_2_1_0)])
-    e_3_parent_2_1_0 = add_entry(topo.standalone, uid="e_3_parent_2_1_0", manager=[ensure_bytes(e_2_parent_1_0)])
-    e_4_parent_2_1_0 = add_entry(topo.standalone, uid="e_4_parent_2_1_0", manager=[ensure_bytes(e_2_parent_1_0)])
+    # - e_2_parent_1_0
+    # -- e_1_parent_2_1_0
+    # -- e_2_parent_2_1_0
+    # -- e_3_parent_2_1_0
+    # -- e_4_parent_2_1_0
+    members = [ensure_bytes(e_1_parent_2_1_0),
+               ensure_bytes(e_2_parent_2_1_0),
+               ensure_bytes(e_3_parent_2_1_0),
+               ensure_bytes(e_4_parent_2_1_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_2_parent_1_0, mod)
 
-    # 2nd subtree
-    e_2_parent_0 = add_entry(topo.standalone, uid="e_2_parent_0")
+    # -- e_2_parent_2_1_0
+    # --- e_1_parent_2_2_1_0
+    members = [ensure_bytes(e_1_parent_2_2_1_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_2_parent_2_1_0, mod)
 
-    e_1_parent_2_0 = add_entry(topo.standalone, uid="e_1_parent_2_0", manager=[ensure_bytes(e_2_parent_0)])
-    e_2_parent_2_0 = add_entry(topo.standalone, uid="e_2_parent_2_0", manager=[ensure_bytes(e_2_parent_0)])
-    e_3_parent_2_0 = add_entry(topo.standalone, uid="e_3_parent_2_0", manager=[ensure_bytes(e_2_parent_0)])
-    e_4_parent_2_0 = add_entry(topo.standalone, uid="e_4_parent_2_0", manager=[ensure_bytes(e_2_parent_0)])
+    # e_2_parent_0
+    # - e_1_parent_2_0
+    # - e_2_parent_2_0
+    # - e_3_parent_2_0
+    # - e_4_parent_2_0
+    members = [ensure_bytes(e_1_parent_2_0),
+               ensure_bytes(e_2_parent_2_0),
+               ensure_bytes(e_3_parent_2_0),
+               ensure_bytes(e_4_parent_2_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_2_parent_0, mod)
 
-    # third subtree
-    e_3_parent_0 = add_entry(topo.standalone, uid="e_3_parent_0")
+    # e_3_parent_0
+    # - e_1_parent_3_0
+    members = [ensure_bytes(e_1_parent_3_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_3_parent_0, mod)
 
-    e_1_parent_3_0 = add_entry(topo.standalone, uid="e_1_parent_3_0", manager=[ensure_bytes(e_3_parent_0)])
+    # - e_1_parent_3_0
+    # -- e_1_parent_1_3_0
+    members = [ensure_bytes(e_1_parent_1_3_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_1_parent_3_0, mod)
 
-    e_1_parent_1_3_0 = add_entry(topo.standalone, uid="e_1_parent_1_3_0", manager=[ensure_bytes(e_1_parent_3_0)])
+    # -- e_1_parent_1_3_0
+    # --- e_1_parent_1_1_3_0
+    members = [ensure_bytes(e_1_parent_1_1_3_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_1_parent_1_3_0, mod)
 
-    e_1_parent_1_1_3_0 = add_entry(topo.standalone, uid="e_1_parent_1_1_3_0", manager=[ensure_bytes(e_1_parent_1_3_0)])
+    # --- e_1_parent_1_1_3_0
+    # ---- e_1_parent_1_1_1_3_0
+    members = [ensure_bytes(e_1_parent_1_1_1_3_0)]
+    mod = [(ldap.MOD_REPLACE, 'member', members)]
+    topo.standalone.modify_s(e_1_parent_1_1_3_0, mod)
 
-    e_1_parent_1_1_1_3_0 = add_entry(topo.standalone, uid="e_1_parent_1_1_1_3_0", manager=[ensure_bytes(e_1_parent_1_1_3_0)])
-
+    #
+    # configure the test plugin to request 'memberof' with the
+    # same scope and groupAttr ('member') so that we can
+    # reuse the values computed by memberof plugin
+    #
     dn_config = 'cn=test_slapi_memberof,cn=plugins,cn=config'
     topo.standalone.add_s(Entry((dn_config, {'objectclass': 'top nsSlapdPlugin extensibleObject'.split(),
                              'cn': 'test_slapi_memberof',
@@ -4337,7 +4419,7 @@ def test_slapi_memberof_reuse_only_2(topo, request, install_test_plugin):
                              'nsslapd-plugin-depends-on-type': 'database',
                              'nsslapd-pluginId': 'test_slapi_memberof-plugin',
                              'slapimemberOfMemberDN': 'uid=test_user_11,ou=People,dc=example,dc=com',
-                             'slapimemberOfGroupAttr': 'manager',
+                             'slapimemberOfGroupAttr': 'member',
                              'slapimemberOfAttr': 'memberof',
                              'slapimemberOfFlag': 'MEMBEROF_REUSE_ONLY',
                              'slapimemberOfAllBackends': 'off',
@@ -4350,63 +4432,63 @@ def test_slapi_memberof_reuse_only_2(topo, request, install_test_plugin):
     topo.standalone.restart()
 
     # Check the first subtree
-    expected = [ e_1_parent_1_0, e_1_parent_1_1_0, e_1_parent_1_1_1_0, e_2_parent_1_1_1_0, e_3_parent_1_1_1_0, e_4_parent_1_1_1_0, e_5_parent_1_1_1_0, e_2_parent_1_1_0, e_2_parent_1_0, e_1_parent_2_1_0, e_2_parent_2_1_0, e_1_parent_2_2_1_0, e_3_parent_2_1_0, e_4_parent_2_1_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_0, relation="manager")
+    expected = [EMPTY_RESULT]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_0, relation="member")
     _check_res_vs_expected("first subtree", res, expected)
 
     # Check the second subtree
-    expected = [e_1_parent_2_0, e_2_parent_2_0, e_3_parent_2_0, e_4_parent_2_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_0, relation="manager")
+    expected = [EMPTY_RESULT]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_0, relation="member")
     _check_res_vs_expected("second subtree", res, expected)
 
     # Check the third subtree
-    expected = [e_1_parent_3_0, e_1_parent_1_3_0, e_1_parent_1_1_3_0, e_1_parent_1_1_1_3_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_3_parent_0, relation="manager")
+    expected = [EMPTY_RESULT]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_3_parent_0, relation="member")
     _check_res_vs_expected("third subtree", res, expected)
 
     # check e_1_parent_1_0
-    expected = [e_1_parent_1_1_0, e_1_parent_1_1_1_0, e_2_parent_1_1_1_0, e_3_parent_1_1_1_0, e_4_parent_1_1_1_0, e_5_parent_1_1_1_0, e_2_parent_1_1_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_0, relation="manager")
-    _check_res_vs_expected("organisation reporting to e_1_parent_1_0", res, expected)
+    expected = [e_1_parent_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_0, relation="member")
+    _check_res_vs_expected("Groups which e_1_parent_1_0 is member of", res, expected)
 
     # check e_1_parent_1_1_0
-    expected = [e_1_parent_1_1_1_0, e_2_parent_1_1_1_0, e_3_parent_1_1_1_0, e_4_parent_1_1_1_0, e_5_parent_1_1_1_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_1_0, relation="manager")
+    expected = [e_1_parent_0, e_1_parent_1_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_1_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_1_parent_1_1_0", res, expected)
 
     # check e_2_parent_1_1_0
-    expected = [EMPTY_RESULT]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_1_1_0, relation="manager")
+    expected = [e_1_parent_0, e_1_parent_1_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_1_1_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_2_parent_1_1_0", res, expected)
 
     # check e_2_parent_1_0
-    expected = [e_1_parent_2_1_0, e_2_parent_2_1_0, e_1_parent_2_2_1_0, e_3_parent_2_1_0, e_4_parent_2_1_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_1_0, relation="manager")
+    expected = [e_1_parent_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_1_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_2_parent_1_0", res, expected)
 
     # check e_2_parent_2_1_0
-    expected = [e_1_parent_2_2_1_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_2_1_0, relation="manager")
+    expected = [e_1_parent_0, e_2_parent_1_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_2_parent_2_1_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_2_parent_2_1_0", res, expected)
 
     # Check e_1_parent_3_0
-    expected = [e_1_parent_1_3_0, e_1_parent_1_1_3_0, e_1_parent_1_1_1_3_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_3_0, relation="manager")
+    expected = [e_3_parent_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_3_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_1_parent_3_0", res, expected)
 
     # Check e_1_parent_1_3_0
-    expected = [e_1_parent_1_1_3_0, e_1_parent_1_1_1_3_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_3_0, relation="manager")
+    expected = [e_3_parent_0, e_1_parent_3_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_3_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_1_parent_1_3_0", res, expected)
 
     # Check e_1_parent_1_1_3_0
-    expected = [e_1_parent_1_1_1_3_0]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_1_3_0, relation="manager")
+    expected = [e_3_parent_0, e_1_parent_3_0, e_1_parent_1_3_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_1_3_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_1_parent_1_1_3_0", res, expected)
 
     # Check e_1_parent_1_1_1_3_0
-    expected = [EMPTY_RESULT]
-    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_1_1_3_0, relation="manager")
+    expected = [e_3_parent_0, e_1_parent_3_0, e_1_parent_1_3_0, e_1_parent_1_1_3_0]
+    res = _extop_test_slapi_member(server=topo.standalone, dn=e_1_parent_1_1_1_3_0, relation="member")
     _check_res_vs_expected("organisation reporting to e_1_parent_1_1_1_3_0", res, expected)
 
     def fin():
