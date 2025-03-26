@@ -119,14 +119,26 @@ class Monitor(DSLdapObject):
             sslport = str(self._instance.sslport)
 
         conn_count = 0
+        conn_established_count = 0
+        conn_close_wait_count = 0
+        conn_time_wait_count = 0
         conns = psutil.net_connections()
         for conn in conns:
             if len(conn[4]) > 0:
                 conn_port = str(conn[4][1])
                 if conn_port in (port, sslport):
+                    if conn[5] == 'TIME_WAIT':
+                        conn_time_wait_count += 1
+                    if conn[5] == 'CLOSE_WAIT':
+                        conn_close_wait_count += 1
+                    if conn[5] == 'ESTABLISHED':
+                        conn_established_count += 1
                     conn_count += 1
 
         stats['connection_count'] = [str(conn_count)]
+        stats['connection_established_count'] = [str(conn_established_count)]
+        stats['connection_close_wait_count'] = [str(conn_close_wait_count)]
+        stats['connection_time_wait_count'] = [str(conn_time_wait_count)]
 
         return stats
 
