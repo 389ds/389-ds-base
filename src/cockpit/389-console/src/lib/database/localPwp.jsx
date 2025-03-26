@@ -398,9 +398,6 @@ class CreatePolicy extends React.Component {
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Always return a password expiring control when requested (passwordSendExpiringTime).")}>
-                                    <GridItem className="ds-label" span={4}>
-                                        {_("Send Password Expiring Warning")}
-                                    </GridItem>
                                     <GridItem span={4}>
                                         <Checkbox
                                             id="create_passwordsendexpiringtime"
