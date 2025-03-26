@@ -4,7 +4,13 @@ import PropTypes from "prop-types";
 import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { BackupTable } from "./lib/database/databaseTables.jsx";
 import { BackupModal } from "./lib/database/backups.jsx";
-import { log_cmd, bad_file_name, valid_dn, callCmdStreamPassword } from "./lib/tools.jsx";
+import {
+    log_cmd,
+    bad_file_name,
+    valid_dn,
+    valid_db_name,
+    callCmdStreamPassword
+} from "./lib/tools.jsx";
 import {
     Button,
     Checkbox,
@@ -103,10 +109,6 @@ export class CreateInstanceModal extends React.Component {
             'createDM'
         ];
 
-        const optionalAttrs = [
-            'createDBName'
-        ];
-
         // Handle server ID
         if (this.state.createServerId !== "") {
             if (this.state.createServerId.length > 80) {
@@ -142,11 +144,9 @@ export class CreateInstanceModal extends React.Component {
         }
 
         if (this.state.createDBCheckbox) {
-            for (const attr of optionalAttrs) {
-                if (this.state[attr] === "") {
-                    all_good = false;
-                    errObj[attr] = true;
-                }
+            if (!valid_db_name(this.state.createDBName)) {
+                all_good = false;
+                errObj["createDBName"] = true;
             }
             if (!valid_dn(this.state.createDBSuffix)) {
                 all_good = false;
@@ -636,7 +636,7 @@ export class CreateInstanceModal extends React.Component {
                                         <FormHelperText >
                                             <HelperText>
                                                 <HelperTextItem variant="error">
-                                                    {_("Name is required")}
+                                                    {createDBName === "" ? _("Name is required") : "Invalid database name"}
                                                 </HelperTextItem>
                                             </HelperText>
                                         </FormHelperText>
