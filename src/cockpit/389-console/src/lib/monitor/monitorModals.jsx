@@ -1430,10 +1430,14 @@ class LagReportModal extends React.Component {
 
         this.handleTabClick = this.handleTabClick.bind(this);
         this.loadData = this.loadData.bind(this);
-        this.downloadFile = this.downloadFile.bind(this);
-        this.fallbackDownload = this.fallbackDownload.bind(this);
-        this.openInNewWindow = this.openInNewWindow.bind(this);
         this.loadPngAsDataUrl = this.loadPngAsDataUrl.bind(this);
+        this.downloadFile = this.downloadFile.bind(this);
+        this.openInNewWindow = this.openInNewWindow.bind(this);
+        this.renderSummaryTab = this.renderSummaryTab.bind(this);
+        this.renderChartsTab = this.renderChartsTab.bind(this);
+        this.renderPngTab = this.renderPngTab.bind(this);
+        this.renderCsvTab = this.renderCsvTab.bind(this);
+        this.renderReportFilesTab = this.renderReportFilesTab.bind(this);
     }
 
     componentDidMount() {
@@ -1577,147 +1581,65 @@ class LagReportModal extends React.Component {
 
         console.log("Downloading file:", url, "as", filename);
 
-        // Special handling for PNG files
-        if (filename.endsWith('.png')) {
-            if (this.state.pngDataUrl) {
-                try {
-                    // If we have the data URL, use it directly
-                    const a = document.createElement('a');
-                    a.href = this.state.pngDataUrl;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => document.body.removeChild(a), 100);
-                    return;
-                } catch (error) {
-                    console.error("Error downloading PNG from data URL:", error);
+        // Determine the appropriate content type based on file format
+        let contentType;
+        if (filename.endsWith('.html')) {
+            contentType = "text/html";
+        } else if (filename.endsWith('.png')) {
+            contentType = "image/png";
+        } else if (filename.endsWith('.csv')) {
+            contentType = "text/csv";
+        } else if (filename.endsWith('.json')) {
+            contentType = "application/json";
+        } else {
+            contentType = "application/octet-stream";
+        }
+
+        // Create the query parameter with file details
+        const query = window.btoa(JSON.stringify({
+            host: cockpit.transport.host,
+            payload: "fsread1",
+            binary: "raw",
+            path: url,
+            superuser: "require",
+            max_read_size: 150 * 1024 * 1024,
+            external: {
+                "content-disposition": `attachment; filename="${filename}"`,
+                "content-type": contentType
+            }
+        }));
+
+        // Construct the full URL for the iframe
+        const prefix = (new URL(cockpit.transport.uri("channel/" + cockpit.transport.csrf_token))).pathname;
+        const fullUrl = prefix + '?' + query;
+
+        // Create and use a hidden iframe for downloading
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("src", fullUrl);
+        iframe.setAttribute("hidden", "hidden");
+
+        // Add event listener to handle load events (success or error)
+        iframe.addEventListener("load", () => {
+            const title = iframe.contentDocument?.title;
+            if (title) {
+                // If title exists, an error occurred
+                console.error("Download error:", title);
+                if (this.props.addNotification) {
+                    this.props.addNotification(
+                        "error",
+                        cockpit.format(_("Failed to download report: $0"), title)
+                    );
                 }
             }
-
-            // If we don't have a data URL or it failed, use base64 encoding
-            cockpit.spawn(["base64", url], { err: "message" })
-                .then(base64Output => {
-                    const dataUrl = `data:image/png;base64,${base64Output.trim()}`;
-                    const a = document.createElement('a');
-                    a.href = dataUrl;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => document.body.removeChild(a), 100);
-                })
-                .catch(error => {
-                    console.error("Error reading PNG file with base64:", error);
-                    this.fallbackDownload(url, filename);
-                });
-            return;
-        }
-
-        // Text-based files (JSON, CSV, HTML)
-        let readBinary = false;
-        if (filename.endsWith('.csv')) {
-            readBinary = false;
-        } else if (filename.endsWith('.json') || filename.endsWith('.html')) {
-            readBinary = false;
-        }
-
-        // Use cockpit.file() to read the file contents
-        cockpit.file(url, { binary: readBinary }).read()
-            .then(content => {
-                if (!content) {
-                    console.error("No content read from file:", url);
-                    this.fallbackDownload(url, filename);
-                    return;
+            // Clean up the iframe after download completes or fails
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
                 }
+            }, 1000);
+        });
 
-                // Determine the correct MIME type
-                let mimeType = 'application/octet-stream';
-                if (filename.endsWith('.json')) {
-                    mimeType = 'application/json';
-                } else if (filename.endsWith('.csv')) {
-                    mimeType = 'text/csv';
-                } else if (filename.endsWith('.html')) {
-                    mimeType = 'text/html';
-                }
-
-                // Create a blob and download it
-                const blob = new Blob([content], { type: mimeType });
-                const blobUrl = URL.createObjectURL(blob);
-
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(blobUrl);
-                }, 100);
-            })
-            .catch(error => {
-                console.error("Error reading file with cockpit.file():", error);
-                this.fallbackDownload(url, filename);
-            });
-    }
-
-    // Fallback download method as a last resort
-    fallbackDownload(url, filename) {
-        console.log("Using fallback download method for:", url);
-
-        // Try using cockpit.spawn to read the file with cat
-        cockpit.spawn(["cat", url], { err: "message" })
-            .then(content => {
-                if (!content) {
-                    console.error("No content read from file with cat:", url);
-                    return;
-                }
-
-                // Determine MIME type
-                let mimeType = 'application/octet-stream';
-                if (filename.endsWith('.json')) {
-                    mimeType = 'application/json';
-                } else if (filename.endsWith('.csv')) {
-                    mimeType = 'text/csv';
-                } else if (filename.endsWith('.html')) {
-                    mimeType = 'text/html';
-                }
-
-                // Create blob and download
-                const blob = new Blob([content], { type: mimeType });
-                const blobUrl = URL.createObjectURL(blob);
-
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(blobUrl);
-                }, 100);
-            })
-            .catch(error => {
-                console.error("Error reading file with cat:", error);
-
-                // Final fallback: try direct link
-                try {
-                    const a = document.createElement('a');
-                    a.href = url + '?t=' + new Date().getTime();
-                    a.download = filename;
-                    a.target = '_blank';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                } catch (directError) {
-                    console.error("All download methods failed:", directError);
-
-                    // If we have a saveHandler from props, use it as a final fallback
-                    if (this.props.saveHandler) {
-                        this.props.saveHandler(url);
-                    }
-                }
-            });
+        document.body.appendChild(iframe);
     }
 
     openInNewWindow(url) {
@@ -2093,7 +2015,7 @@ class LagReportModal extends React.Component {
                                     {csvPreview ? (
                                         <TextContent>
                                             <Text component={TextVariants.h3}>{_("First 20 lines of CSV data:")}</Text>
-                                            <pre className="ds-code-block ds-no-margin-bottom">{csvPreview}</pre>
+                                            <pre className="ds-code-block ds-no-margin-bottom">{data}</pre>
                                         </TextContent>
                                     ) : (
                                         <EmptyState>
@@ -2732,7 +2654,6 @@ FullReportContent.defaultProps = {
 LagReportModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
-    saveHandler: PropTypes.func,
     reportUrls: PropTypes.object
 };
 

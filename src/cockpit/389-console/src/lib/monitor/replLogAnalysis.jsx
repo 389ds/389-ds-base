@@ -139,7 +139,6 @@ export class ReplLogAnalysis extends React.Component {
         this.handleFormatOptionChange = this.handleFormatOptionChange.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.generateReport = this.generateReport.bind(this);
-        this.saveReport = this.saveReport.bind(this);
         this.closeLagReportModal = this.closeLagReportModal.bind(this);
         this.validateForm = this.validateForm.bind(this);
 
@@ -687,44 +686,6 @@ export class ReplLogAnalysis extends React.Component {
             showLagReportModal: false,
             reportUrls: {},
         });
-    }
-
-    saveReport(format) {
-        const reportUrl = this.state.reportUrls[format];
-        if (!reportUrl) return;
-
-        cockpit.file(reportUrl).read()
-            .then(content => {
-                let contentType;
-                if (format === "html") {
-                    contentType = "text/html";
-                } else if (format === "png") {
-                    contentType = "image/png";
-                } else if (format === "csv") {
-                    contentType = "text/csv";
-                } else {
-                    contentType = "text/plain";
-                }
-
-                // Create blob and download
-                const blob = new Blob([content], { type: contentType });
-                const url = URL.createObjectURL(blob);
-
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `replication_report.${format}`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-
-                URL.revokeObjectURL(url);
-            })
-            .catch(error => {
-                this.props.addNotification(
-                    "error",
-                    cockpit.format(_("Failed to save report: $0"), error.message)
-                );
-            });
     }
 
     openFileBrowser() {
@@ -2146,7 +2107,6 @@ export class ReplLogAnalysis extends React.Component {
                 <LagReportModal
                     showModal={showLagReportModal}
                     closeHandler={this.closeLagReportModal}
-                    saveHandler={this.saveReport}
                     reportUrls={reportUrls}
                 />
 
