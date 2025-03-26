@@ -37,6 +37,7 @@ import {
 import { SyncAltIcon } from "@patternfly/react-icons";
 
 const _ = cockpit.gettext;
+const refresh_interval = 10000; // 10 seconds
 
 export class ServerMonitor extends React.Component {
     constructor (props) {
@@ -47,12 +48,20 @@ export class ServerMonitor extends React.Component {
         const initResChart = [];
         const initSwapChart = [];
         const initConnChart = [];
-        for (let idx = 1; idx <= 6; idx++) {
-            initCPUChart.push({ name: 'CPU', x: "0:00:00", y: 0 });
-            initResChart.push({ name: 'Resident', x: "0:00:00", y: 0 });
-            initVirtChart.push({ name: 'Virtual', x: "0:00:00", y: 0 });
-            initSwapChart.push({ name: 'Swap', x: "0:00:00", y: 0 });
-            initConnChart.push({ name: 'Connection', x: "0:00:00", y: 0 });
+        const initConnEstablishedChart = [];
+        const initConnTimeWaitChart = [];
+        const initConnCloseWaitChart = [];
+        for (let idx = 0; idx <= 5; idx++) {
+            const value = refresh_interval / 1000;
+            const x_value = "0:00:" + (idx === 0 ? "00" : value * idx).toString();
+            initCPUChart.push({ name: 'CPU', x: x_value, y: 0 });
+            initResChart.push({ name: 'Resident', x: x_value, y: 0 });
+            initVirtChart.push({ name: 'Virtual', x: x_value, y: 0 });
+            initSwapChart.push({ name: 'Swap', x: x_value, y: 0 });
+            initConnChart.push({ name: 'Connections', x: x_value, y: 0 });
+            initConnTimeWaitChart.push({ name: 'Connections time wait', x: x_value, y: 0 });
+            initConnCloseWaitChart.push({ name: 'Connections close wait', x: x_value, y: 0 });
+            initConnEstablishedChart.push({ name: 'Connections established', x: x_value, y: 0 });
         }
 
         this.state = {
@@ -71,11 +80,17 @@ export class ServerMonitor extends React.Component {
             initResChart,
             initSwapChart,
             initConnChart,
+            initConnEstablishedChart,
+            initConnTimeWaitChart,
+            initConnCloseWaitChart,
             cpuChart: [...initCPUChart],
             memVirtChart: [...initVirtChart],
             memResChart: [...initResChart],
             swapChart: [...initSwapChart],
             connChart: [...initConnChart],
+            connEstablishedChart: [...initConnEstablishedChart],
+            connTimeWaitChart: [...initConnTimeWaitChart],
+            connCloseWaitChart: [...initConnCloseWaitChart],
         };
 
         this.handleNavSelect = (event, tabIndex) => {
@@ -110,6 +125,9 @@ export class ServerMonitor extends React.Component {
             memResChart: [...this.state.initResChart],
             swapChart: [...this.state.initSwapChart],
             connChart: [...this.state.initConnChart],
+            connCloseWaitChart: [...this.state.initConnCloseWaitChart],
+            connTimeWaitChart: [...this.state.initConnTimeWaitChart],
+            connEstablishedChart: [...this.state.initConnEstablishedChart],
         });
     }
 
@@ -123,6 +141,9 @@ export class ServerMonitor extends React.Component {
         let res_mem = 0;
         let swap_mem = 0;
         let current_conns = 0;
+        let conn_established = 0;
+        let conn_close_wait = 0;
+        let conn_time_wait = 0;
         let total_threads = 0;
         let conn_highmark = this.state.conn_highmark;
         let cpu_tick_values = this.state.cpu_tick_values;
@@ -147,6 +168,9 @@ export class ServerMonitor extends React.Component {
                     res_mem = attrs['rss'][0];
                     swap_mem = attrs['swap'][0];
                     current_conns = attrs['connection_count'][0];
+                    conn_established = attrs['connection_established_count'][0];
+                    conn_close_wait = attrs['connection_close_wait_count'][0];
+                    conn_time_wait = attrs['connection_time_wait_count'][0];
                     total_threads = attrs['total_threads'][0];
                     mem_total = attrs['total_mem'][0];
 
@@ -196,6 +220,18 @@ export class ServerMonitor extends React.Component {
                     connChart.shift();
                     connChart.push({ name: _("Connections"), x: interval, y: parseInt(current_conns) });
 
+                    const connEstablishedChart = this.state.connEstablishedChart;
+                    connEstablishedChart.shift();
+                    connEstablishedChart.push({ name: _("Connections established"), x: interval, y: parseInt(conn_established) });
+
+                    const connTimeWaitChart = this.state.connTimeWaitChart;
+                    connTimeWaitChart.shift();
+                    connTimeWaitChart.push({ name: _("Connections time wait"), x: interval, y: parseInt(conn_time_wait) });
+
+                    const connCloseWaitChart = this.state.connCloseWaitChart;
+                    connCloseWaitChart.shift();
+                    connCloseWaitChart.push({ name: _("Connections close wait"), x: interval, y: parseInt(conn_close_wait) });
+
                     this.setState({
                         cpu_tick_values,
                         conn_tick_values,
@@ -204,8 +240,14 @@ export class ServerMonitor extends React.Component {
                         memResChart,
                         swapChart,
                         connChart,
+                        connTimeWaitChart,
+                        connCloseWaitChart,
+                        connEstablishedChart,
                         conn_highmark,
                         current_conns,
+                        conn_close_wait,
+                        conn_time_wait,
+                        conn_established,
                         mem_virt_size: virt_mem,
                         mem_res_size: res_mem,
                         mem_swap_size: swap_mem,
@@ -224,7 +266,7 @@ export class ServerMonitor extends React.Component {
 
     startRefresh() {
         this.setState({
-            chart_refresh: setInterval(this.refreshCharts, 10000),
+            chart_refresh: setInterval(this.refreshCharts, refresh_interval),
         });
     }
 
@@ -236,8 +278,14 @@ export class ServerMonitor extends React.Component {
         const {
             cpu,
             connChart,
+            connTimeWaitChart,
+            connCloseWaitChart,
+            connEstablishedChart,
             cpuChart,
             current_conns,
+            conn_established,
+            conn_close_wait,
+            conn_time_wait,
             memResChart,
             memVirtChart,
             swapChart,
@@ -312,15 +360,33 @@ export class ServerMonitor extends React.Component {
                                 <Card className="ds-margin-top-lg">
                                     <CardBody>
                                         <Grid>
-                                            <GridItem span="4" className="ds-center" title={_("Established client connections to the server")}>
-                                                <TextContent>
-                                                    <Text className="ds-margin-top-xlg" component={TextVariants.h3}>
-                                                        {_("Connections")}
+                                            <GridItem span="4" title={_("Established client connections to the server")}>
+                                                <div className="ds-center" >
+                                                    <TextContent>
+                                                        <Text component={TextVariants.h2}>
+                                                            {_("Connections")}
+                                                        </Text>
+                                                    </TextContent>
+                                                    <TextContent>
+                                                        <Text component={TextVariants.h6}>
+                                                            <b>{numToCommas(current_conns)}</b>
+                                                        </Text>
+                                                    </TextContent>
+                                                    <Divider className="ds-margin-top ds-margin-bottom"/>
+                                                </div>
+                                                <TextContent className="ds-margin-top-lg" title="Connections that are in an ESTABLISHED state">
+                                                    <Text component={TextVariants.p}>
+                                                        Established: &nbsp;&nbsp;<b>{numToCommas(conn_established)}</b>
                                                     </Text>
                                                 </TextContent>
-                                                <TextContent>
-                                                    <Text component={TextVariants.h6}>
-                                                        <b>{numToCommas(current_conns)}</b>
+                                                <TextContent className="ds-margin-top-lg" title="Connections that are in a CLOSE_WAIT state">
+                                                    <Text component={TextVariants.p}>
+                                                        Close wait: &nbsp;&nbsp;<b>{numToCommas(conn_close_wait)}</b>
+                                                    </Text>
+                                                </TextContent>
+                                                <TextContent className="ds-margin-top-lg" title="Connections that are in a TIME_WAIT state">
+                                                    <Text component={TextVariants.p}>
+                                                        Time wait: &nbsp;&nbsp;<b>{numToCommas(conn_time_wait)}</b>
                                                     </Text>
                                                 </TextContent>
                                             </GridItem>
@@ -329,13 +395,13 @@ export class ServerMonitor extends React.Component {
                                                     ariaDesc="connection stats"
                                                     ariaTitle={_("Live Connection Statistics")}
                                                     containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}`} constrainToVisibleArea />}
-                                                    height={200}
+                                                    height={220}
                                                     minDomain={{ y: 0 }}
                                                     padding={{
                                                         bottom: 30,
-                                                        left: 55,
+                                                        left: 60,
                                                         top: 10,
-                                                        right: 25,
+                                                        right: 30,
                                                     }}
                                                 >
                                                     <ChartAxis />
@@ -343,6 +409,18 @@ export class ServerMonitor extends React.Component {
                                                     <ChartGroup>
                                                         <ChartArea
                                                             data={connChart}
+                                                        />
+                                                        <ChartArea
+                                                            data={connEstablishedChart}
+                                                            interpolation="monotoneX"
+                                                        />
+                                                        <ChartArea
+                                                            data={connTimeWaitChart}
+                                                            interpolation="monotoneX"
+                                                        />
+                                                        <ChartArea
+                                                            data={connCloseWaitChart}
+                                                            interpolation="monotoneX"
                                                         />
                                                     </ChartGroup>
                                                 </Chart>
@@ -372,7 +450,7 @@ export class ServerMonitor extends React.Component {
                                                     ariaDesc="cpu"
                                                     ariaTitle={_("Server CPU Usage")}
                                                     containerComponent={<ChartVoronoiContainer labels={({ datum }) => `${datum.name}: ${datum.y}%`} constrainToVisibleArea />}
-                                                    height={200}
+                                                    height={220}
                                                     minDomain={{ y: 0 }}
                                                     padding={{
                                                         bottom: 30,
