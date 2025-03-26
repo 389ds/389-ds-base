@@ -225,7 +225,7 @@ class MemberOf extends React.Component {
 
         // Handle scope subtree
         this.handleSubtreeScopeSelect = (event, selection) => {
-            if (selection === "") {
+            if (!selection.trim() || !valid_dn(selection)) {
                 this.setState({isSubtreeScopeOpen: false});
                 return;
             }
@@ -257,7 +257,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateConfig() });
         };
         this.handleSubtreeScopeCreateOption = newValue => {
-            if (newValue && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
+            if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeOptions: [...this.state.memberOfEntryScopeOptions, newValue],
                     isSubtreeScopeOpen: false
@@ -267,7 +267,7 @@ class MemberOf extends React.Component {
 
         // Handle Exclude Scope subtree
         this.handleExcludeScopeSelect = (event, selection) => {
-            if (selection === "") {
+            if (!selection.trim() || !valid_dn(selection)) {
                 this.setState({isExcludeScopeOpen: false});
                 return;
             }
@@ -299,7 +299,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateConfig() });
         };
         this.handleExcludeCreateOption = newValue => {
-            if (newValue && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
+            if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeExcludeOptions: [...this.state.memberOfEntryScopeExcludeOptions, newValue],
                     isExcludeScopeOpen: false
@@ -310,7 +310,7 @@ class MemberOf extends React.Component {
         // Modal scope and exclude Scope
         // Handle scope subtree
         this.handleConfigScopeSelect = (event, selection) => {
-            if (selection === "") {
+            if (selection.trim() === "" || !valid_dn(selection)) {
                 this.setState({isConfigSubtreeScopeOpen: false});
                 return;
             }
@@ -342,7 +342,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateModal() });
         };
         this.handleConfigCreateOption = newValue => {
-            if (newValue && !this.state.configEntryScopeOptions.includes(newValue)) {
+            if (newValue.trim() && valid_dn(newValue) && !this.state.configEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeOptions: [...this.state.configEntryScopeOptions, newValue],
                     isConfigSubtreeScopeOpen: false
@@ -352,7 +352,7 @@ class MemberOf extends React.Component {
 
         // Handle Exclude Scope subtree
         this.handleConfigExcludeScopeSelect = (event, selection) => {
-            if (selection === "") {
+            if (selection.trim() === "" || !valid_dn(selection)) {
                 this.setState({isConfigExcludeScopeOpen: false});
                 return;
             }
@@ -384,7 +384,7 @@ class MemberOf extends React.Component {
             }, () => { this.validateModal() });
         };
         this.handleConfigExcludeCreateOption = newValue => {
-            if (newValue && !this.state.configEntryScopeExcludeOptions.includes(newValue)) {
+            if (newValue.trim() && valid_dn(newValue) &&  !this.state.configEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeExcludeOptions: [...this.state.configEntryScopeExcludeOptions, newValue],
                     isConfigExcludeScopeOpen: false
@@ -1563,7 +1563,7 @@ class MemberOf extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText  >
-                                    {_("A subtree is required, and values must be valid DN's")}
+                                    {"values must be valid DN's"}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={3}>
