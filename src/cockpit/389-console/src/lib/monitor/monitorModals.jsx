@@ -2301,7 +2301,7 @@ class ChooseLagReportModal extends React.Component {
         });
 
         // First get all directories in the specified path
-        cockpit.spawn(["find", reportDirectory, "-maxdepth", "1", "-type", "d"])
+        cockpit.spawn(["find", reportDirectory, "-maxdepth", "1", "-type", "d"], { superuser: true })
             .then(output => {
                 if (!output.trim()) {
                     this.setState({ loading: false });
@@ -2311,7 +2311,7 @@ class ChooseLagReportModal extends React.Component {
                 const directories = output.trim().split('\n');
                 const promises = directories.map(dir => {
                     // Check which report files exist in this directory
-                    return cockpit.spawn(["ls", "-la", dir])
+                    return cockpit.spawn(["ls", "-la", dir], { superuser: true })
                         .then(files => {
                             // Check if this directory contains any report files
                             const hasJson = files.includes('replication_analysis.json');
@@ -2329,7 +2329,7 @@ class ChooseLagReportModal extends React.Component {
                             let creationTime = "";
 
                             // Try to get the directory creation time using stat
-                            return cockpit.spawn(["stat", "-c", "%y", dir])
+                            return cockpit.spawn(["stat", "-c", "%y", dir], { superuser: true })
                                 .then(statOutput => {
                                     // Format the creation time from stat output
                                     try {
