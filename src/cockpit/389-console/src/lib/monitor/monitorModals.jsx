@@ -1602,7 +1602,7 @@ class LagReportModal extends React.Component {
             binary: "raw",
             path: url,
             superuser: "require",
-            max_read_size: 150 * 1024 * 1024,
+            max_read_size: 3 * 1024 * 1024 * 1024,
             external: {
                 "content-disposition": `attachment; filename="${filename}"`,
                 "content-type": contentType
