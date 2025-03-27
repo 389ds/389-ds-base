@@ -582,7 +582,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                 {
                     if (be_list_count == BE_LIST_SIZE) { /* error - too many backends */
                         slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread",
-                                      "Too many backends match search request - cannot proceed");
+                                      "Too many backends match search request - cannot proceed\n");
                     } else {
                         slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
                                       "Putting the backend '%s' to read-only mode\n", be->be_name);
