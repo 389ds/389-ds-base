@@ -470,10 +470,10 @@ passwd_modify_extop(Slapi_PBlock *pb)
      * match this very plugin's OID: EXTOP_PASSWD_OID. */
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid);
     if (oid == NULL) {
-        errMesg = "Could not get OID value from request.\n";
+        errMesg = "Could not get OID value from request.";
         rc = LDAP_OPERATIONS_ERROR;
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                      "%s", errMesg);
+                      "%s\n", errMesg);
         goto free_and_return;
     } else {
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
@@ -481,7 +481,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
     }
 
     if (strcasecmp(oid, EXTOP_PASSWD_OID) != 0) {
-        errMesg = "Request OID does not match Passwd OID.\n";
+        errMesg = "Request OID does not match Passwd OID.";
         rc = LDAP_OPERATIONS_ERROR;
         goto free_and_return;
     } else {
@@ -500,24 +500,24 @@ passwd_modify_extop(Slapi_PBlock *pb)
         goto free_and_return;
     }
     if (slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
-        errMesg = "Could not get SASL SSF from connection\n";
+        errMesg = "Could not get SASL SSF from connection";
         rc = LDAP_OPERATIONS_ERROR;
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                      "%s", errMesg);
+                      "%s\n", errMesg);
         goto free_and_return;
     }
 
     if (slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
-        errMesg = "Could not get local SSF from connection\n";
+        errMesg = "Could not get local SSF from connection";
         rc = LDAP_OPERATIONS_ERROR;
         slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                      "%s", errMesg);
+                      "%s\n", errMesg);
         goto free_and_return;
     }
 
     if (((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
         (sasl_ssf <= 1) && (local_ssf <= 1)) {
-        errMesg = "Operation requires a secure connection.\n";
+        errMesg = "Operation requires a secure connection.";
         rc = LDAP_CONFIDENTIALITY_REQUIRED;
         goto free_and_return;
     }
@@ -536,7 +536,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
     }
 
     if ((ber = ber_init(extop_value)) == NULL) {
-        errMesg = "PasswdModify Request decode failed.\n";
+        errMesg = "PasswdModify Request decode failed.";
         rc = LDAP_PROTOCOL_ERROR;
         goto free_and_return;
     }
@@ -571,7 +571,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
         if (ber_scanf(ber, "a", &rawdn) == LBER_ERROR) {
             slapi_ch_free_string(&rawdn);
             slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
-            errMesg = "ber_scanf failed at userID parse.\n";
+            errMesg = "ber_scanf failed at userID parse.";
             rc = LDAP_PROTOCOL_ERROR;
             goto free_and_return;
         }
@@ -583,7 +583,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
             if (rc) { /* syntax check failed */
                 op_shared_log_error_access(pb, "EXT", rawdn ? rawdn : "",
                                            "strict: invalid target dn");
-                errMesg = "invalid target dn.\n";
+                errMesg = "invalid target dn.";
                 slapi_ch_free_string(&rawdn);
                 rc = LDAP_INVALID_SYNTAX;
                 goto free_and_return;
@@ -597,7 +597,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
         if (ber_scanf(ber, "a", &oldPasswd) == LBER_ERROR) {
             slapi_ch_free_string(&oldPasswd);
             slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
-            errMesg = "ber_scanf failed at oldPasswd parse.\n";
+            errMesg = "ber_scanf failed at oldPasswd parse.";
             rc = LDAP_PROTOCOL_ERROR;
             goto free_and_return;
         }
@@ -609,7 +609,7 @@ passwd_modify_extop(Slapi_PBlock *pb)
         if (ber_scanf(ber, "a", &newPasswd) == LBER_ERROR) {
             slapi_ch_free_string(&newPasswd);
             slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
-            errMesg = "ber_scanf failed at newPasswd parse.\n";
+            errMesg = "ber_scanf failed at newPasswd parse.";
             rc = LDAP_PROTOCOL_ERROR;
             goto free_and_return;
         }
@@ -626,7 +626,7 @@ parse_req_done:
     /* If the connection is bound anonymously, we must refuse to process this operation. */
     if (bindDN == NULL || *bindDN == '\0') {
         /* Refuse the operation because they're bound anonymously */
-        errMesg = "Anonymous Binds are not allowed.\n";
+        errMesg = "Anonymous Binds are not allowed.";
         rc = LDAP_INSUFFICIENT_ACCESS;
         goto free_and_return;
     }
@@ -640,7 +640,7 @@ parse_req_done:
     dn = slapi_sdn_get_ndn(target_sdn);
     if (dn == NULL || *dn == '\0') {
         /* Refuse the operation because they're bound anonymously */
-        errMesg = "Invalid dn.\n";
+        errMesg = "Invalid dn.";
         rc = LDAP_INVALID_DN_SYNTAX;
         goto free_and_return;
     }
@@ -657,7 +657,7 @@ parse_req_done:
          * the bind operation (or used sasl or client cert auth or OS creds) */
         slapi_pblock_get(pb, SLAPI_CONN_AUTHMETHOD, &authmethod);
         if (!authmethod || !strcmp(authmethod, SLAPD_AUTH_NONE)) {
-            errMesg = "User must be authenticated to the directory server.\n";
+            errMesg = "User must be authenticated to the directory server.";
             rc = LDAP_INSUFFICIENT_ACCESS;
             goto free_and_return;
         }
@@ -680,14 +680,14 @@ parse_req_done:
 
         if (rval != LDAP_SUCCESS) {
             if (!errMesg)
-                errMesg = "Error generating new password.\n";
+                errMesg = "Error generating new password.";
             rc = LDAP_OPERATIONS_ERROR;
             goto free_and_return;
         }
 
         /* Make sure a passwd was actually generated */
         if (newPasswd == NULL || *newPasswd == '\0') {
-            errMesg = "Error generating new password.\n";
+            errMesg = "Error generating new password.";
             rc = LDAP_OPERATIONS_ERROR;
             goto free_and_return;
         }
@@ -723,7 +723,7 @@ parse_req_done:
     /* If we can't find the entry, then that's an error */
     if (ret) {
         /* Couldn't find the entry, fail */
-        errMesg = "No such Entry exists.\n";
+        errMesg = "No such Entry exists.";
         rc = LDAP_NO_SUCH_OBJECT;
         goto free_and_return;
     }
@@ -767,7 +767,7 @@ parse_req_done:
         if (need_pwpolicy_ctrl) {
             slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
         }
-        errMesg = "Insufficient access rights\n";
+        errMesg = "Insufficient access rights";
         rc = LDAP_INSUFFICIENT_ACCESS;
         goto free_and_return;
     }
@@ -780,7 +780,7 @@ parse_req_done:
         ret = passwd_check_pwd(targetEntry, oldPasswd);
         if (ret) {
             /* No, then we fail this operation */
-            errMesg = "Invalid oldPasswd value.\n";
+            errMesg = "Invalid oldPasswd value.";
             rc = ret;
             goto free_and_return;
         }
@@ -801,7 +801,7 @@ parse_req_done:
             if (need_pwpolicy_ctrl) {
                 slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDMODNOTALLOWED);
             }
-            errMesg = "User is not allowed to change password\n";
+            errMesg = "User is not allowed to change password";
             rc = LDAP_UNWILLING_TO_PERFORM;
             goto free_and_return;
         }
@@ -823,7 +823,7 @@ parse_req_done:
 
     if (ret != LDAP_SUCCESS) {
         /* Failed to modify the password, e.g. because password policy, etc. */
-        errMesg = "Failed to update password\n";
+        errMesg = "Failed to update password";
         rc = ret;
         goto free_and_return;
     }
@@ -838,7 +838,7 @@ parse_req_done:
 /* Free anything that we allocated above */
 free_and_return:
     slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
-                  "%s", errMesg ? errMesg : "success");
+                  "%s\n", errMesg ? errMesg : "success");
 
     if ((rc == LDAP_REFERRAL) && (referrals)) {
         send_referrals_from_entry(pb, referrals);

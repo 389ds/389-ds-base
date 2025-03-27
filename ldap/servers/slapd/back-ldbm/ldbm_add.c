@@ -637,7 +637,7 @@ ldbm_back_add(Slapi_PBlock *pb)
                 if ((addingentry->ep_id = next_id(be)) >= MAXID) {
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add ",
                                   "Maximum ID reached, cannot add entry to "
-                                  "backend '%s'",
+                                  "backend '%s'\n",
                                   be->be_name);
                     ldap_result_code = LDAP_OPERATIONS_ERROR;
                     goto error_return;

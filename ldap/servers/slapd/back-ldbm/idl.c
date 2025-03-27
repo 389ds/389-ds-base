@@ -1370,7 +1370,7 @@ idl_old_delete_key(
     if ((idl = idl_fetch_one(be, db, key, txn, &rc)) == NULL) {
         idl_unlock_list(a->ai_idl, key);
         if (rc != 0 && rc != DBI_RC_NOTFOUND && rc != DBI_RC_RETRY) {
-            slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key - (%s) 0 BAD %d %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 0 BAD %d %s\n",
                           (char *)key->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
         }
         if (0 == rc || DBI_RC_NOTFOUND == rc)
