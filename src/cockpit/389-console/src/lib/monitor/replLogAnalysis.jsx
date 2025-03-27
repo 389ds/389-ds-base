@@ -1453,7 +1453,7 @@ export class ReplLogAnalysis extends React.Component {
                                                     <FormGroup
                                                         label={_("Replication Status Filter")}
                                                         fieldId="replication-filter"
-                                                        className="ds-margin-top"
+                                                        className="ds-margin-top-lg"
                                                     >
                                                         <Radio
                                                             id="replicationFilterAll"
