@@ -1544,7 +1544,7 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
          */
         uint64_t adjust_cachesize = (mi->system_available_bytes * 0.5);
         if (adjust_cachesize > *cachesize) {
-            slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid adjusted cachesize is greater than request %" PRIu64, adjust_cachesize);
+            slapi_log_err(SLAPI_LOG_CRIT, "util_is_cachesize_sane", "Invalid adjusted cachesize is greater than request %" PRIu64 "\n", adjust_cachesize);
             return UTIL_CACHESIZE_ERROR;
         }
         if (adjust_cachesize < (16 * mi->pagesize_bytes)) {

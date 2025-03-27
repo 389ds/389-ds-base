@@ -6563,7 +6563,7 @@ supplier_get_new_definitions(struct berval **objectclasses, struct berval **attr
                  * it and look for objectclasses
                  */
         slapi_log_err(SLAPI_LOG_ERR, "supplier_get_new_definitions",
-                      "Not able to build an attributes list from the consumer schema");
+                      "Not able to build an attributes list from the consumer schema\n");
     }
     schema_dse_unlock();
     *new_oc = oc2learn_list;
