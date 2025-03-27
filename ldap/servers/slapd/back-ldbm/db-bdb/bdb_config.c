@@ -284,7 +284,7 @@ bdb_config_db_lock_pause_set(void *arg, void *value, char *errorbuf, int phase _
 
     if (val == 0) {
         slapi_log_err(SLAPI_LOG_NOTICE, "bdb_config_db_lock_pause_set",
-                      "%s was set to '0'. The default value will be used (%s)",
+                      "%s was set to '0'. The default value will be used (%s)\n",
                       CONFIG_DB_LOCKS_PAUSE, DEFAULT_DBLOCK_PAUSE_STR);
         val = DEFAULT_DBLOCK_PAUSE;
     }
@@ -315,7 +315,7 @@ bdb_config_db_lock_threshold_set(void *arg, void *value, char *errorbuf, int pha
                               "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
                               CONFIG_DB_LOCKS_THRESHOLD, val);
         slapi_log_err(SLAPI_LOG_ERR, "bdb_config_db_lock_threshold_set",
-                      "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95",
+                      "%s: \"%d\" is invalid, threshold is indicated as a percentage and it must lie in range of 70 and 95\n",
                       CONFIG_DB_LOCKS_THRESHOLD, val);
         retval = LDAP_OPERATIONS_ERROR;
         return retval;

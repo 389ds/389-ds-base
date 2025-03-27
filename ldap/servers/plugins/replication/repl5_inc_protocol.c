@@ -1724,7 +1724,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         } else {
                             agmt_inc_last_update_changecount(prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
                         }
-                        slapi_log_err(finished ? SLAPI_LOG_WARNING : slapi_log_urp,
+                        slapi_log_err(finished ? SLAPI_LOG_WARNING : slapi_log_urp, repl_plugin_name,
                                       "send_updates - %s: Failed to send update operation to receiver (uniqueid %s, CSN %s): %s. %s.\n",
                                       (char *)agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str,

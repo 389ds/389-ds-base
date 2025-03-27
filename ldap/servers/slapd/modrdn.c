@@ -540,13 +540,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
                       "Syntax check of newSuperior failed\n");
         if (!internal_op) {
             slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
-                          "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
+                          "conn=%" PRIu64 " op=%d MODRDN invalid new superior (\"%s\")\n",
                           pb_conn->c_connid,
                           operation->o_opid,
                           newsuperior ? newsuperior : "(null)");
         } else {
             slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
-                          "conn=%s op=%d MODRDN invalid new superior (\"%s\")",
+                          "conn=%s op=%d MODRDN invalid new superior (\"%s\")\n",
                           LOG_INTERNAL_OP_CON_ID,
                           LOG_INTERNAL_OP_OP_ID,
                           newsuperior ? newsuperior : "(null)");
