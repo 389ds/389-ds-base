@@ -1305,7 +1305,7 @@ slapi_add_auth_response_control(Slapi_PBlock *pb, const char *binddn)
 
     if (slapi_pblock_set(pb, SLAPI_ADD_RESCONTROL, &arctrl) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "slapi_add_auth_response_control",
-                      "Unable to add authentication response control");
+                      "Unable to add authentication response control\n");
     }
 
     if (NULL != dnbuf_dynamic) {

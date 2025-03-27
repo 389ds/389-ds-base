@@ -1752,7 +1752,7 @@ bdb_upgradedn_producer(void *param)
                                                   inst->inst_name, dn_id);
                         }
                         slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedn_producer",
-                                      "%s: Error: failed to write a line \"%s\"",
+                                      "%s: Error: failed to write a line \"%s\"\n",
                                       inst->inst_name, dn_id);
                         slapi_ch_free_string(&dn_id);
                         goto error;
@@ -3550,7 +3550,7 @@ bdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, ch
         slapi_ch_free_string(&estr);
         if (!e) {
             slapi_log_err(SLAPI_LOG_WARNING, "bdb_dse_conf_verify_core",
-                          "Skipping bad LDIF entry ending line %d of file \"%s\"",
+                          "Skipping bad LDIF entry ending line %d of file \"%s\"\n",
                           curr_lineno, filename);
             continue;
         }

@@ -243,8 +243,8 @@ slapi_encode_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char *alg)
                 slapi_ch_free((void **)&scheme_list);
             } else {
                 slapi_log_err(SLAPI_LOG_ERR, "slapi_encode_ext",
-                              "Invalid scheme - %s\n"
-                              "no pwdstorage scheme plugin loaded",
+                              "Invalid scheme: %s ==> "
+                              "no pwdstorage scheme plugin loaded\n",
                               alg);
             }
             return NULL;
