@@ -828,7 +828,7 @@ slapi_vattr_filter_test_ext(
 
     if (only_check_access != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "slapi_vattr_filter_test_ext",
-            "⚠️  DANGER ⚠️  - only_check_access mode is BROKEN!!! YOU MUST CHECK ACCESS WITH FILTER MATCHING");
+            "⚠️  DANGER ⚠️  - only_check_access mode is BROKEN!!! YOU MUST CHECK ACCESS WITH FILTER MATCHING\n");
     }
     PR_ASSERT(only_check_access == 0);
 

@@ -1576,7 +1576,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
             slapi_attr_values2keys(&sort_control->sattr, invalue, &typedown_value, LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
             if (compare_fn == NULL) {
                 slapi_log_err(SLAPI_LOG_WARNING, "vlv_trim_candidates_byvalue",
-                              "Attempt to compare an unordered attribute");
+                              "Attempt to compare an unordered attribute\n");
                 compare_fn = slapi_berval_cmp;
             }
         }

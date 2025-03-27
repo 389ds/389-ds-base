@@ -1234,7 +1234,7 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
         default:
             rv = LDAP_OPERATIONS_ERROR;
             slapi_log_err(SLAPI_LOG_ERR, "log_set_numlogsperdir",
-                          "Invalid log type %d", logtype);
+                          "Invalid log type %d\n", logtype);
         }
     }
     return rv;

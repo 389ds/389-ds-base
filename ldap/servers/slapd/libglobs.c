@@ -1746,13 +1746,13 @@ FrontendConfig_init(void)
     /* initialize the read/write configuration lock */
     if ((cfg->cfg_rwlock = slapi_new_rwlock()) == NULL) {
         slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
-                      "Failed to initialize cfg_rwlock. Exiting now.");
+                      "Failed to initialize cfg_rwlock. Exiting now.\n");
         exit(-1);
     }
 #else
     if ((cfg->cfg_lock = PR_NewLock()) == NULL) {
         slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
-                      "Failed to initialize cfg_lock. Exiting now.");
+                      "Failed to initialize cfg_lock. Exiting now.\n");
         exit(-1);
     }
 #endif
