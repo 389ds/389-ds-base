@@ -204,7 +204,7 @@ class logAnalyser:
         # Init regex patterns and corresponding actions
         self.regexes = self._init_regexes()
         # Init logger
-        self.logger = self._setup_logger()
+        self.logger = self._setup_logger(logging.ERROR)
 
     def _get_stats_info(self,
                         report_stats_sec: str,
@@ -247,7 +247,7 @@ class logAnalyser:
         except IOError as io_err:
             raise IOError(f"Failed to open file '{stats_file}' for writing: {io_err}")
 
-    def _setup_logger(self):
+    def _setup_logger(self, log_level):
         """
         Setup logging
         """
@@ -257,7 +257,7 @@ class logAnalyser:
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
 
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(log_level)
         logger.addHandler(handler)
 
         return logger
@@ -585,7 +585,8 @@ class logAnalyser:
 
     def _match_line(self, line: str, bytes_read: int):
         """
-        Do some general maintance on the match and pass it to its match handler function.
+        Process a single line from an access log, match it against predefined patterns,
+        and handle the match by calling its corresponding handler function.
 
         Args:
             line (str): A single line from the access log.
@@ -601,51 +602,57 @@ class logAnalyser:
 
             try:
                 groups = match.groupdict()
+            except AttributeError as e:
+                self.logger.error(f"Error: {e} getting groups from match on line: {line}.")
+                return False
 
-                timestamp = groups.get('timestamp')
-                if not timestamp:
-                    self.logger.error(f"Timestamp missing in line: {line}")
+            timestamp = groups.get('timestamp')
+            if not timestamp:
+                self.logger.error(f"Timestamp missing in line: {line}")
+                return False
+
+            # datetime library doesnt support nanoseconds so we need to "normalise"the timestamp
+            try:
+                norm_timestamp = self._convert_timestamp_to_datetime(timestamp)
+            except (ValueError, IndexError, TypeError) as e:
+                self.logger.error(f"Converting timestamp: {timestamp} to datetime failed with: {e}")
+                return False
+
+            # Add server restart count to groups for connection tracking
+            groups['restart_ctr'] = self.server.get('restart_ctr', 0)
+
+            # Are there time range restrictions
+            parse_start = self.server.get('parse_start_time', None)
+            parse_stop = self.server.get('parse_stop_time', None)
+
+            if parse_start and parse_stop:
+                if parse_start.microsecond == 0 and parse_stop.microsecond == 0:
+                    norm_timestamp = norm_timestamp.replace(microsecond=0)
+
+                if not (parse_start <= norm_timestamp <= parse_stop):
+                    self.logger.debug(f"Timestamp {norm_timestamp} is out of range ({parse_start} - {parse_stop}). Skipping.")
                     return False
 
-                # datetime library doesnt support nano seconds so we need to "normalise"the timestamp
-                norm_timestamp = self._convert_timestamp_to_datetime(timestamp)
+            # Get the first and last timestamps
+            if self.server.get('first_time') is None:
+                self.server['first_time'] = timestamp
+            self.server['last_time'] = timestamp
 
-                # Add server restart count to groups for connection tracking
-                groups['restart_ctr'] = self.server.get('restart_ctr', 0)
+            # Bump lines parsed
+            self.server['lines_parsed'] = self.server.get('lines_parsed', 0) + 1
 
-                # Are there time range restrictions
-                parse_start = self.server.get('parse_start_time')
-                parse_stop = self.server.get('parse_stop_time')
-                if parse_start and parse_stop:
-                    if parse_start.microsecond or parse_stop.microsecond:
-                        if not parse_start <= norm_timestamp <= parse_stop:
-                            self.logger.error(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
-                            return False
-                    else:
-                        norm_timestamp = norm_timestamp.replace(microsecond=0)
-                        if not parse_start <= norm_timestamp <= parse_stop:
-                            self.logger.error(f"Timestamp {norm_timestamp} outside of range ({parse_start} - {parse_stop})")
-                            return False
+            # Call the associated method for this match
+            action(groups)
 
-                # Get the first and last timestamps
-                if self.server['first_time'] is None:
-                    self.server['first_time'] = timestamp
-                self.server['last_time'] = timestamp
+            # Should we gather stats for this match
+            if self.stats_interval and self.stats_file:
+                self._process_and_write_stats(norm_timestamp, bytes_read)
+                self.logger.debug(f"Stats processed for timestamp {norm_timestamp}.")
 
-                # Bump lines parsed
-                self.server['lines_parsed'] = self.server.get('lines_parsed', 0) + 1
+            return True
 
-                # Call the associated method for this match
-                action(groups)
-
-                # Should we gather stats for this match
-                if self.stats_interval and self.stats_file:
-                    self._process_and_write_stats(norm_timestamp, bytes_read)
-                return True
-
-            except IndexError as exc:
-                self.logger.error(f"Error processing log line: {line}. Exception: {exc}")
-                return False
+        self.logger.debug(f"No match found on line: {line}")
+        return False
 
     def _process_result_stats(self, groups: dict):
         """
@@ -1461,8 +1468,9 @@ class logAnalyser:
         # Handle latency and disconnect times
         if self.verbose:
             start_time = self.connection['start_time'].get(conn_id, None)
+            finish_time = groups.get('timestamp')
             if start_time and timestamp:
-                latency = self.get_elapsed_time(start_time, groups.get('timestamp'), "seconds")
+                latency = self.get_elapsed_time(start_time, finish_time, "seconds")
                 bucket = self._group_latencies(latency)
                 LATENCY_GROUPS[bucket] += 1
 
@@ -1712,11 +1720,10 @@ class logAnalyser:
         """
         file_size = 0
         curr_position = 0
+        line_number = 0
         lines_read = 0
-        block_count = 0
-        block_count_limit = 0
-        # Percentage of file size to trigger progress updates
-        update_percent = 5
+        line_count = 0
+        line_count_limit = 25000
 
         self.logger.info(f"Processing file: {filepath}")
 
@@ -1724,7 +1731,6 @@ class logAnalyser:
             # Is log compressed
             comptype = self._is_file_compressed(filepath)
             if (comptype):
-                self.logger.info(f"File compression type detected: {comptype}")
                 # If comptype is True, comptype[1] is MIME type
                 if comptype[1] == 'application/gzip':
                     filehandle = gzip.open(filepath, 'rb')
@@ -1745,27 +1751,26 @@ class logAnalyser:
                 filehandle.seek(0)
                 print(f"[{log_num:03d}] {filehandle.name:<30}\tsize (bytes): {file_size:>12}")
 
-                # Progress interval
-                block_count_limit = int(file_size * update_percent/100)
                 for line in filehandle:
+                    line_number += 1
                     try:
                         line_content = line.decode('utf-8').strip()
                         if line_content.startswith('['):
                             # Entry to parsing logic
                             proceed = self._match_line(line_content, filehandle.tell())
                             if proceed is False:
-                                self.logger.info("Processing stopped, outside parse time range.")
-                                break
+                                self.logger.debug(f"Skipping line: {filehandle.name}:{line_number}.")
+                                continue
 
-                            block_count += len(line)
+                            line_count += 1
                             lines_read += 1
 
                         # Is it time to give an update
-                        if block_count >= block_count_limit:
+                        if line_count >= line_count_limit:
                             curr_position = filehandle.tell()
                             percent = curr_position/file_size * 100.0
                             print(f"{lines_read:10d} Lines Processed     {curr_position:12d} of {file_size:12d} bytes ({percent:.3f}%)")
-                            block_count = 0
+                            line_count = 0
 
                     except UnicodeDecodeError as de:
                         self.logger.error(f"non-decodable line at position {filehandle.tell()}: {de}")
@@ -1798,7 +1803,7 @@ class logAnalyser:
             return None
 
         try:
-            filetype = magic.detect_from_filename(filepath).mime_type
+            filetype = magic.detect_from_filename(filepath)
 
             # List of supported compression types
             compressed_mime_types = [
@@ -1806,9 +1811,9 @@ class logAnalyser:
                 'application/x-gzip',           # gz, tgz
             ]
 
-            if filetype in compressed_mime_types:
-                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype})")
-                return True, filetype
+            if filetype.mime_type in compressed_mime_types:
+                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype.mime_type})")
+                return True, filetype.mime_type
             else:
                 self.logger.info(f"File is not compressed: {filepath}")
                 return False
@@ -1816,6 +1821,7 @@ class logAnalyser:
         except Exception as e:
             self.logger.error(f"Error while determining compression for file {filepath}: {e}")
             return None
+
 
     def _report_dn_key(self, dn_to_check: str, report_dn: str):
         """
@@ -1857,38 +1863,51 @@ class logAnalyser:
 
         Returns:
             datetime: The equivalent datetime object with timezone.
+
+        Raises:
+            ValueError: If the timestamp format is invalid.
+            IndexError: If the timestamp does not have the expected number of components.
+            TypeError: If the timestamp is not a string or has an invalid type.
         """
-        timestamp = timestamp.strip("[]")
-        # Separate datetime and timezone components
-        datetime_part, tz_offset = timestamp.rsplit(" ", 1)
+        if not isinstance(timestamp, str):
+            raise TypeError("Timestamp must be a string.")
 
-        # Timestamp includes nanoseconds
-        if '.' in datetime_part:
-            datetime_part, nanos = datetime_part.rsplit(".", 1)
-            # Truncate
-            nanos = nanos[:6]
-            datetime_with_micros = f"{datetime_part}.{nanos}"
-            timeformat = "%d/%b/%Y:%H:%M:%S.%f"
-        else:
-            datetime_with_micros = datetime_part
-            timeformat = "%d/%b/%Y:%H:%M:%S"
+        try:
+            timestamp = timestamp.strip("[]")
+            # Separate datetime and timezone components
+            datetime_part, tz_offset = timestamp.rsplit(" ", 1)
 
-        # Parse the datetime component
-        dt = datetime.strptime(datetime_with_micros, timeformat)
+            # Timestamp includes nanoseconds
+            if '.' in datetime_part:
+                datetime_part, nanos = datetime_part.rsplit(".", 1)
+                # Truncate
+                nanos = nanos[:6]
+                datetime_with_micros = f"{datetime_part}.{nanos}"
+                timeformat = "%d/%b/%Y:%H:%M:%S.%f"
+            else:
+                datetime_with_micros = datetime_part
+                timeformat = "%d/%b/%Y:%H:%M:%S"
 
-        # Calc the timezone offset
-        if tz_offset[0] == "+":
-            sign = 1
-        else:
-            sign = -1
+            # Parse the datetime component
+            dt = datetime.strptime(datetime_with_micros, timeformat)
 
-        hours_offset = int(tz_offset[1:3])
-        minutes_offset = int(tz_offset[3:5])
-        delta = timedelta(hours=hours_offset, minutes=minutes_offset)
+            # Calc the timezone offset
+            if tz_offset[0] == "+":
+                sign = 1
+            else:
+                sign = -1
 
-        # Apply the timezone offset
-        dt_with_tz = dt.replace(tzinfo=timezone(sign * delta))
-        return dt_with_tz
+            hours_offset = int(tz_offset[1:3])
+            minutes_offset = int(tz_offset[3:5])
+            delta = timedelta(hours=hours_offset, minutes=minutes_offset)
+
+            # Apply the timezone offset
+            dt_with_tz = dt.replace(tzinfo=timezone(sign * delta))
+            return dt_with_tz
+
+        except (ValueError, IndexError, TypeError) as e:
+            self.logger.error(f"Error converting timestamp: {timestamp}. Exception: {e}")
+            raise
 
     def convert_timestamp_to_string(self, timestamp: str):
         """
@@ -1903,37 +1922,56 @@ class logAnalyser:
 
         Returns:
             str: The formatted timestamp string.
+
+        Raises:
+            ValueError: If the timestamp format is invalid or empty.
         """
         if not timestamp:
-            raise ValueError("The datetime object must be timezone-aware and nont None.")
-        else:
-            timestamp = timestamp[:26] + timestamp[29:]
+            raise ValueError("Timestamp is empty or None.")
+
+        try:
+            # Ensure timestamp is long enough before slicing
+            if len(timestamp) >= 29:
+                timestamp = timestamp[:26] + timestamp[29:]
+
             dt = datetime.strptime(timestamp, "%d/%b/%Y:%H:%M:%S.%f %z")
-            formatted_timestamp = dt.strftime("%d/%b/%Y:%H:%M:%S")
+            return dt.strftime("%d/%b/%Y:%H:%M:%S")
 
-        return formatted_timestamp
+        except (ValueError) as e:
+            self.logger.error(f"Converting timestamp: {timestamp} to datetime failed - {e}" )
+            raise
 
-    def get_elapsed_time(self, start: datetime, finish: datetime, time_format=None):
+    def get_elapsed_time(self, start: str, finish: str, time_format=None):
         """
         Calculates the elapsed time between start and finish datetimes.
 
         Args:
-            start (datetime): The start time.
-            finish (datetime): The finish time.
+            start (str): The start time.
+            finish (str): The finish time.
             time_format (str): Output format ("seconds" or "hms").
 
         Returns:
             float:Elapsed time in seconds or tuple:(hours, minutes, seconds).
 
         Raises:
-            ValueError: If non datetime object used.
-            ValueError: If invalid time formatting used.
+            ValueError: If the timestamp format is invalid.
+            IndexError: If the timestamp does not have the expected number of components.
+            TypeError: If the timestamp is not a string or has an invalid type.
         """
+        # Default time_format to "seconds"
+        if time_format is None:
+            time_format = "seconds"
+
+        # If start or finish is missing, return 0 or "0 hours, 0 minutes, 0 seconds"
         if not start or not finish:
             return 0 if time_format == "seconds" else "0 hours, 0 minutes, 0 seconds"
 
-        first_time = self._convert_timestamp_to_datetime(start)
-        last_time = self._convert_timestamp_to_datetime(finish)
+        try:
+            first_time = self._convert_timestamp_to_datetime(start)
+            last_time = self._convert_timestamp_to_datetime(finish)
+        except (ValueError, IndexError, TypeError) as e:
+            self.logger.error(f"Error converting timestamps: {e}. Start: {start}, Finish: {finish}")
+            return 0 if time_format == "seconds" else "0 hours, 0 minutes, 0 seconds"
 
         if first_time is None or last_time is None:
             if time_format == "seconds":
@@ -1941,27 +1979,23 @@ class logAnalyser:
             else:
                 return (0, 0, 0)
 
-        # Validate start and finish inputs
-        if not (isinstance(first_time, datetime) and isinstance(last_time, datetime)):
-            raise TypeError("start and finish must be datetime objects.")
-
         # Get elapsed time, format for output
         elapsed_time = (last_time - first_time)
-        days = elapsed_time.days
         total_seconds = elapsed_time.total_seconds()
 
+        if time_format == "seconds":
+            return total_seconds
+
         # Convert to hours, minutes, and seconds
+        days = elapsed_time.days
         remainder_seconds = total_seconds - (days * 24 * 3600)
         hours, remainder = divmod(remainder_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
 
-        if time_format == "seconds":
-            return total_seconds
+        if days > 0:
+            return f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
         else:
-            if days > 0:
-                return f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
-            else:
-                return f"{int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
+            return f"{int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
 
     def get_overall_perf(self, num_results: int, num_ops: int):
         """
@@ -1996,24 +2030,32 @@ class logAnalyser:
 
         Raises:
             ValueError: If stop_time is earlier than start_time or timestamps are invalid.
+            IndexError: Can be raised by _convert_timestamp_to_datetime.
+            TypeError: If start_time or stop_time is not a string.
         """
+        if not isinstance(start_time, str) or not isinstance(stop_time, str):
+            raise TypeError("Start time and stop time must be strings.")
+
+        if not start_time or not stop_time:
+            raise ValueError("Start time and stop time cannot be empty.")
+
         try:
             # Convert timestamps to datetime objects
             norm_start_time = self._convert_timestamp_to_datetime(start_time)
             norm_stop_time = self._convert_timestamp_to_datetime(stop_time)
 
-            # No timetravel
+            # No timetravel (stop time should not be earlier than start time)
             if norm_stop_time <= norm_start_time:
-                raise ValueError("End time is before or equal to start time. Please check the input timestamps.")
+                raise ValueError(f"End time: {norm_stop_time} is before or equal to start time: {norm_start_time}.")
 
             # Store the parse times
             self.server['parse_start_time'] = norm_start_time
             self.server['parse_stop_time'] = norm_stop_time
+            self.logger.info(f"Parse times set. Start: {norm_start_time}, Finish: {norm_stop_time}")
 
-        except ValueError as e:
-            print(f"Error setting parse times: {e}")
+        except (ValueError, IndexError, TypeError) as e:
+            self.logger.error(f"Error setting parse times: {e}")
             raise
-
 
 def main():
     """
@@ -2154,7 +2196,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print(f"Access Log Analyzer v{logAnalyzerVersion}")
+        print(f"Access Log Analyzer {logAnalyzerVersion}")
         sys.exit(0)
 
     if not args.logs:
@@ -2173,9 +2215,13 @@ def main():
             recommends=args.recommends)
 
         if args.startTime and args.endTime:
-            db.set_parse_times(args.startTime, args.endTime)
+            try:
+                db.set_parse_times(args.startTime, args.endTime)
+            except (ValueError, IndexError, TypeError) as e:
+                db.server['parse_start_time'] = None
+                db.server['parse_stop_time'] = None
 
-        print(f"Access Log Analyzer v{logAnalyzerVersion}")
+        print(f"Access Log Analyzer {logAnalyzerVersion}")
         print(f"Command: {' '.join(sys.argv)}")
 
         # Sanitise list of log files
@@ -2183,13 +2229,12 @@ def main():
             file for file in args.logs
             if not re.search(r'access\.rotationinfo', file) and os.path.isfile(file)
         ]
-
         if not existing_logs:
             db.logger.error("No log files provided.")
             sys.exit(1)
 
         # Sort by creation time
-        existing_logs.sort(key=lambda x: os.path.getctime(x), reverse=True)
+        existing_logs.sort(key=lambda x: os.path.getctime(x))
         # We shoud never reach here, if we do put "access" and the end of the log file list
         if 'access' in existing_logs:
             existing_logs.append(existing_logs.pop(existing_logs.index('access')))
@@ -2202,15 +2247,14 @@ def main():
             if os.path.isfile(accesslog):
                 db.process_file(num, accesslog)
             else:
-                # print(f"Invalid file: {accesslog}")
-                db.logger.error(f"Invalid file:{accesslog}")
+                db.logger.error(f"Invalid file: {accesslog}")
 
     except Exception as e:
         print("An error occurred: %s", e)
         sys.exit(1)
 
     # Prep for display
-    elapsed_time = db.get_elapsed_time(db.server['first_time'], db.server['last_time'])
+    elapsed_time = db.get_elapsed_time(db.server['first_time'], db.server['last_time'], "hms")
     elapsed_secs = db.get_elapsed_time(db.server['first_time'], db.server['last_time'], "seconds")
     num_ops = db.operation.get('all_op_ctr', 0)
     num_results = db.result.get('result_ctr', 0)
@@ -2239,14 +2283,16 @@ def main():
     num_DM_binds = db.bind.get('rootdn_bind_ctr', 0)
     num_base_search = db.search.get('base_search_ctr', 0)
     try:
-        log_start_time = db.convert_timestamp_to_string(db.server['first_time'])
-        log_end_time = db.convert_timestamp_to_string(db.server['last_time'])
-    except ValueError as e:
-        db.logger.error(f"Converting timestamp to datetime object failed")
-        log_start_time = 'Error'
-        log_end_time = 'Error'
+        log_start_time = db.convert_timestamp_to_string(db.server.get('first_time', ""))
+    except ValueError:
+        log_start_time = "Unknown"
 
-    print(f"\nTotal Log Lines Analysed:{db.server['lines_parsed']}\n")
+    try:
+        log_end_time = db.convert_timestamp_to_string(db.server.get('last_time', ""))
+    except ValueError:
+        log_end_time = "Unknown"
+
+    print(f"\n\nTotal Log Lines Analysed:{db.server['lines_parsed']}\n")
     print("\n----------- Access Log Output ------------\n")
     print(f"Start of Logs:                  {log_start_time}")
     print(f"End of Logs:                    {log_end_time}")
