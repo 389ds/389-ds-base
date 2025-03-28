@@ -176,8 +176,29 @@ def unlock(inst, basedn, log, args):
     dn = _get_dn_arg(args.dn, msg="Enter dn to unlock")
     accounts = Accounts(inst, basedn)
     acct = accounts.get(dn=dn)
-    acct.unlock()
-    log.info(f'Entry {dn} is unlocked')
+
+    try:
+        # Get the account status before attempting to unlock
+        status = acct.status()
+        state = status["state"]
+
+        # Attempt to unlock the account
+        acct.unlock()
+
+        # Success message
+        log.info(f'Entry {dn} is unlocked')
+        if state == AccountState.DIRECTLY_LOCKED:
+            log.info(f'The entry was directly locked')
+        elif state == AccountState.INACTIVITY_LIMIT_EXCEEDED:
+            log.info(f'The entry was locked due to inactivity and is now unlocked by resetting lastLoginTime')
+
+    except ValueError as e:
+        # Provide a more detailed error message based on failure reason
+        if "through role" in str(e):
+            log.error(f"Cannot unlock {dn}: {str(e)}")
+            log.info("To unlock this account, you must modify the role that's locking it.")
+        else:
+            log.error(f"Failed to unlock {dn}: {str(e)}")
 
 
 def reset_password(inst, basedn, log, args):
