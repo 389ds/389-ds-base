@@ -608,6 +608,11 @@ def bootstrap_replication(M1, M2):
 def remove_database(inst):
     # remove the database
     inst.stop()
+    if inst.get_db_lib() == 'bdb':
+        for file in glob.glob(f'{inst.ds_paths.db_home_dir}/*'):
+            if os.path.basename(file) in ['__db.001', '__db.002', '__db.003', 'DBVERSION']:
+                os.remove(file)
+
     for file in glob.glob(f'{inst.dbdir}/*'):
         if os.path.islink(file):
             continue
