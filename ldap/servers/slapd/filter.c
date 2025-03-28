@@ -1038,9 +1038,11 @@ slapi_filter_get_subfilt(
 }
 
 /*
- * Before calling this function, you must free all the parts
+ * The function does not know how to free all the parts
  * which will be overwritten (i.e. slapi_free_the_filter_bits),
- * this function dosn't know how to do that
+ * so the caller must take care of that.
+ * But it must do so AFTER calling slapi_filter_replace_ex to
+ * avoid getting invalid filter if slapi_filter_replace_ex fails.
  */
 int
 slapi_filter_replace_ex(Slapi_Filter *f, char *s)
@@ -1099,8 +1101,15 @@ slapi_filter_free_bits(Slapi_Filter *f)
 int
 slapi_filter_replace_strfilter(Slapi_Filter *f, char *strfilter)
 {
-    slapi_filter_free_bits(f);
-    return (slapi_filter_replace_ex(f, strfilter));
+    /* slapi_filter_replace_ex may fail and we cannot
+     * free filter bits before calling it.
+     */
+    Slapi_Filter save_f = *f;
+    int ret = slapi_filter_replace_ex(f, strfilter);
+    if (ret == 0) {
+        slapi_filter_free_bits(&save_f);
+    }
+    return ret;
 }
 
 static void

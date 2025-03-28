@@ -28,6 +28,7 @@ from lib389.dbgen import dbgen_users
 from lib389.tasks import ImportTask
 from lib389.utils import get_default_db_lib
 from lib389.rewriters import *
+from lib389._mapped_object import DSLdapObject
 from lib389.backend import Backends
 
 logging.getLogger(__name__).setLevel(logging.INFO)
@@ -427,7 +428,6 @@ def test_vattr_on_filtered_role_restart(topo, request):
     log.info("Check the default value of attribute nsslapd-ignore-virtual-attrs should be OFF")
     assert topo.standalone.config.present('nsslapd-ignore-virtual-attrs', 'off')
 
-    
     log.info("Check the virtual attribute definition is found (after a required delay)")
     topo.standalone.restart()
     time.sleep(5)
@@ -541,7 +541,7 @@ def test_managed_and_filtered_role_rewrite(topo, request):
     indexes = backend.get_indexes()
     try:
         index = indexes.create(properties={
-            'cn': attrname, 
+            'cn': attrname,
             'nsSystemIndex': 'false',
             'nsIndexType': ['eq', 'pres']
             })
@@ -593,7 +593,6 @@ def test_managed_and_filtered_role_rewrite(topo, request):
         dn = "uid=%s0000%d,%s" % (RDN, i, PARENT)
         topo.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'nsRoleDN', [role.dn.encode()])])
 
-    
     # Now check that search is fast, evaluating only 4 entries
     search_start = time.time()
     entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
@@ -676,7 +675,7 @@ def test_not_such_entry_role_rewrite(topo, request):
     indexes = backend.get_indexes()
     try:
         index = indexes.create(properties={
-            'cn': attrname, 
+            'cn': attrname,
             'nsSystemIndex': 'false',
             'nsIndexType': ['eq', 'pres']
             })
@@ -730,7 +729,7 @@ def test_not_such_entry_role_rewrite(topo, request):
 
     # Enable plugin level to check message
     topo.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
-    
+
     # Now check that search is fast, evaluating only 4 entries
     search_start = time.time()
     entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(|(nsrole=%s)(nsrole=cn=not_such_entry_role,%s))" % (role.dn, DEFAULT_SUFFIX))
@@ -757,6 +756,77 @@ def test_not_such_entry_role_rewrite(topo, request):
         os.remove(import_ldif)
 
     request.addfinalizer(fin)
+
+
+def test_rewriter_with_invalid_filter(topo, request):
+    """Test that server does not crash when having
+       invalid filter in filtered role
+
+    :id: 5013b0b2-0af6-11f0-8684-482ae39447e5
+    :setup: standalone server
+    :steps:
+        1. Setup filtered role with good filter
+        2. Setup nsrole rewriter
+        3. Restart the server
+        4. Search for entries
+        5. Setup filtered role with bad filter
+        6. Search for entries
+    :expectedresults:
+        1. Operation should  succeed
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+    """
+    inst = topo.standalone
+    entries = []
+
+    def fin():
+        inst.start()
+        for entry in entries:
+            entry.delete()
+    request.addfinalizer(fin)
+
+    # Setup filtered role
+    roles = FilteredRoles(inst, f'ou=people,{DEFAULT_SUFFIX}')
+    filter_ko = '(&((objectClass=top)(objectClass=nsPerson))'
+    filter_ok = '(&(objectClass=top)(objectClass=nsPerson))'
+    role_properties = {
+        'cn': 'TestFilteredRole',
+        'nsRoleFilter': filter_ok,
+        'description': 'Test good filter',
+    }
+    role = roles.create(properties=role_properties)
+    entries.append(role)
+
+    # Setup nsrole rewriter
+    rewriters = Rewriters(inst)
+    rewriter_properties = {
+        "cn": "nsrole",
+        "nsslapd-libpath": 'libroles-plugin',
+        "nsslapd-filterrewriter": 'role_nsRole_filter_rewriter',
+    }
+    rewriter = rewriters.ensure_state(properties=rewriter_properties)
+    entries.append(rewriter)
+
+    # Restart thge instance
+    inst.restart()
+
+    # Search for entries
+    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+
+    # Set bad filter
+    role_properties = {
+        'cn': 'TestFilteredRole',
+        'nsRoleFilter': filter_ko,
+        'description': 'Test bad filter',
+    }
+    role.ensure_state(properties=role_properties)
+
+    # Search for entries
+    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
