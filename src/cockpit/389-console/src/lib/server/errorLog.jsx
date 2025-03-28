@@ -38,6 +38,7 @@ const settings_attrs = [
     'nsslapd-errorlog',
     'nsslapd-errorlog-level',
     'nsslapd-errorlog-logging-enabled',
+    'nsslapd-errorlog-logbuffering',
 ];
 
 const _ = cockpit.gettext;
@@ -363,6 +364,7 @@ export class ServerErrorLog extends React.Component {
                     const attrs = config.attrs;
                     let enabled = false;
                     let compressed = false;
+                    let buffering = false;
                     const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
                     const rows = [...this.state.rows];
 
@@ -371,6 +373,9 @@ export class ServerErrorLog extends React.Component {
                     }
                     if (attrs['nsslapd-errorlog-compress'][0] === "on") {
                         compressed = true;
+                    }
+                    if (attrs['nsslapd-errorlog-logbuffering'][0] === "on") {
+                        buffering = true;
                     }
 
                     for (const row in rows) {
@@ -403,6 +408,7 @@ export class ServerErrorLog extends React.Component {
                             'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
                             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
                             'nsslapd-errorlog-compress': compressed,
+                            'nsslapd-errorlog-logbuffering': buffering,
                             rows,
                             // Record original values
                             _rows:  JSON.parse(JSON.stringify(rows)),
@@ -421,6 +427,7 @@ export class ServerErrorLog extends React.Component {
                             '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
                             '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
                             '_nsslapd-errorlog-compress': compressed,
+                            '_nsslapd-errorlog-logbuffering': buffering,
                         })
                     );
                 })
@@ -441,6 +448,7 @@ export class ServerErrorLog extends React.Component {
         const attrs = this.state.attrs;
         let enabled = false;
         let compressed = false;
+        let buffering = false;
         const level_val = parseInt(attrs['nsslapd-errorlog-level'][0]);
         const rows = [...this.state.rows];
 
@@ -453,6 +461,9 @@ export class ServerErrorLog extends React.Component {
         }
         if (attrs['nsslapd-errorlog-compress'][0] === "on") {
             compressed = true;
+        }
+        if (attrs['nsslapd-errorlog-logbuffering'][0] === "on") {
+            buffering = true;
         }
         for (const row in rows) {
             if (rows[row].level & level_val) {
@@ -483,6 +494,7 @@ export class ServerErrorLog extends React.Component {
             'nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
             'nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
             'nsslapd-errorlog-compress': compressed,
+            'nsslapd-errorlog-logbuffering': buffering,
             rows,
             // Record original values
             _rows: JSON.parse(JSON.stringify(rows)),
@@ -501,6 +513,7 @@ export class ServerErrorLog extends React.Component {
             '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
             '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
             '_nsslapd-errorlog-compress': compressed,
+            '_nsslapd-errorlog-logbuffering': buffering,
         }, this.props.enableTree);
     }
 
@@ -592,6 +605,16 @@ export class ServerErrorLog extends React.Component {
                                 />
                             </FormGroup>
                         </Form>
+                        <Checkbox
+                            className="ds-left-margin-md ds-margin-top-lg"
+                            id="nsslapd-errorlog-logbuffering"
+                            isChecked={this.state['nsslapd-errorlog-logbuffering']}
+                            onChange={(e, checked) => {
+                                this.handleChange(e, "settings");
+                            }}
+                            title={"This applies to the error log. Enable error log buffering when using verbose logging levels, otherwise verbose logging levels will impact server performance (nsslapd-errorlog-logbuffering)."}
+                            label={_("Error Log Buffering Enabled")}
+                        />
 
                         <ExpandableSection
                             className="ds-left-margin-md ds-margin-top-lg ds-font-size-md"
