@@ -873,7 +873,8 @@ export function getAllObjectClasses (serverId, allOcCallback) {
         'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
         'schema',
         'objectclasses',
-        'list'
+        'list',
+        '--include-sup'
     ];
     const result = [];
     log_cmd("getAllObjectClasses", "", cmd);
