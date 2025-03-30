@@ -440,7 +440,8 @@ export class Schema extends React.Component {
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "schema",
-            "list"
+            "list",
+            "--include-oc-sup"
         ];
         log_cmd("loadSchemaData", "Get schema objects in one batch", cmd);
         cockpit
@@ -568,7 +569,8 @@ export class Schema extends React.Component {
                 "schema",
                 "objectclasses",
                 "query",
-                name
+                name,
+                "--include-sup"
             ];
 
             log_cmd("openObjectclassModal", "Fetch ObjectClass data from schema", cmd);
