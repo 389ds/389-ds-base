@@ -31,7 +31,8 @@ def list_all(inst, basedn, log, args):
     if args is not None and args.json:
         json = True
 
-    objectclass_elems = schema.get_objectclasses(json=json)
+    objectclass_elems = schema.get_objectclasses(include_sup=args.include_oc_sup,
+                                                 json=json)
     attributetype_elems = schema.get_attributetypes(json=json)
     matchingrule_elems = schema.get_matchingrules(json=json)
 
@@ -67,7 +68,7 @@ def list_objectclasses(inst, basedn, log, args):
     log = log.getChild('list_objectclasses')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(dump_json(schema.get_objectclasses(json=True), indent=4))
+        print(dump_json(schema.get_objectclasses(include_sup=args.include_sup, json=True), indent=4))
     else:
         for oc in schema.get_objectclasses():
             print(oc)
@@ -108,7 +109,7 @@ def query_objectclass(inst, basedn, log, args):
     schema = Schema(inst)
     # Need the query type
     oc = _get_arg(args.name, msg="Enter objectclass to query")
-    result = schema.query_objectclass(oc, json=args.json)
+    result = schema.query_objectclass(oc, include_sup=args.include_sup, json=args.json)
     if args.json:
         print(dump_json(result, indent=4))
     else:
@@ -339,6 +340,9 @@ def create_parser(subparsers):
     schema_subcommands = schema_parser.add_subparsers(help='schema')
     schema_list_parser = schema_subcommands.add_parser('list', help='List all schema objects on this system', formatter_class=CustomHelpFormatter)
     schema_list_parser.set_defaults(func=list_all)
+    schema_list_parser.add_argument('--include-oc-sup', action='store_true',
+                                    default=False,
+                                    help="Include the superior objectclasses' \"may\" and \"must\" attributes")
 
     attributetypes_parser = schema_subcommands.add_parser('attributetypes', help='Work with attribute types on this system', formatter_class=CustomHelpFormatter)
     attributetypes_subcommands = attributetypes_parser.add_subparsers(help='schema')
@@ -365,9 +369,11 @@ def create_parser(subparsers):
     objectclasses_subcommands = objectclasses_parser.add_subparsers(help='schema')
     oc_list_parser = objectclasses_subcommands.add_parser('list', help='List available objectClasses on this system', formatter_class=CustomHelpFormatter)
     oc_list_parser.set_defaults(func=list_objectclasses)
+    oc_list_parser.add_argument('--include-sup', action='store_true', default=False, help="Include the superior objectclasses' \"may\" and \"must\" attributes")
     oc_query_parser = objectclasses_subcommands.add_parser('query', help='Query an objectClass', formatter_class=CustomHelpFormatter)
     oc_query_parser.set_defaults(func=query_objectclass)
     oc_query_parser.add_argument('name', nargs='?', help='ObjectClass to query')
+    oc_query_parser.add_argument('--include-sup', action='store_true', default=False, help="Include the superior objectclasses' \"may\" and \"must\" attributes")
     oc_add_parser = objectclasses_subcommands.add_parser('add', help='Add an objectClass to this system', formatter_class=CustomHelpFormatter)
     oc_add_parser.set_defaults(func=add_objectclass)
     _add_parser_args(oc_add_parser, 'objectclasses')
