@@ -3258,6 +3258,35 @@ merge_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *v1, memb
     Slapi_ValueSet *v2_group_norm_vals = *((memberof_get_groups_data *)v2)->group_norm_vals;
     int merged_cnt = 0;
 
+#if MEMBEROF_CACHE_DEBUG
+    {
+        Slapi_Value *val = 0;
+        int hint = 0;
+        struct berval *bv;
+        hint = slapi_valueset_first_value(v2_groupvals, &val);
+        while (val) {
+            /* this makes a copy of the berval */
+            bv = slapi_value_get_berval(val);
+            if (bv && bv->bv_len) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "merge_ancestors: V2 contains %s\n",
+                              bv->bv_val);
+            }
+            hint = slapi_valueset_next_value(v2_groupvals, hint, &val);
+        }
+        hint = slapi_valueset_first_value(v1_groupvals, &val);
+        while (val) {
+            /* this makes a copy of the berval */
+            bv = slapi_value_get_berval(val);
+            if (bv && bv->bv_len) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "merge_ancestors: add %s (from V1)\n",
+                              bv->bv_val);
+            }
+            hint = slapi_valueset_next_value(v1_groupvals, hint, &val);
+        }
+    }
+#endif
     hint = slapi_valueset_first_value(v1_groupvals, &sval);
     while (sval) {
         if (memberof_compare(config, member_ndn_val, &sval)) {
@@ -3319,7 +3348,7 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn, memberof_get
 
     merge_ancestors(&member_ndn_val, &member_data, data);
     if (!cached && member_data.use_cache)
-        cache_ancestors(config, &member_ndn_val, data);
+        cache_ancestors(config, &member_ndn_val, &member_data);
 
     slapi_value_free(&member_ndn_val);
     slapi_valueset_free(groupvals);
@@ -4285,6 +4314,25 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 
     /* get a list of all of the groups this user belongs to */
     groups = memberof_get_groups(config, sdn);
+#if MEMBEROF_CACHE_DEBUG
+    {
+        Slapi_Value *val = 0;
+        int hint = 0;
+        struct berval *bv;
+        hint = slapi_valueset_first_value(groups, &val);
+        while (val) {
+            /* this makes a copy of the berval */
+            bv = slapi_value_get_berval(val);
+            if (bv && bv->bv_len) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "memberof_fix_memberof_callback: %s belongs to %s\n",
+                              ndn,
+                              bv->bv_val);
+            }
+            hint = slapi_valueset_next_value(groups, hint, &val);
+        }
+    }
+#endif
 
     if (config->group_filter) {
         if (slapi_filter_test_simple(e, config->group_filter)) {
