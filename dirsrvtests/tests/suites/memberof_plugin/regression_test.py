@@ -598,6 +598,8 @@ def test_multipaths(topology_st, request):
                              'homeDirectory': '/home/user1'
                              })
     group = Groups(inst, SUFFIX, rdn=None)
+    g0 = group.create(properties={'cn': 'group0',
+                             'description': 'group0'})
     g1 = group.create(properties={'cn': 'group1',
                              'member': user1.dn,
                              'description': 'group1'})
@@ -634,6 +636,158 @@ def test_multipaths(topology_st, request):
     _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g1])
     _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2, g1])
     _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #inst.config.replace('nsslapd-errorlog-level', '65536')
+    #inst.config.set('nsslapd-accesslog-level','260')
+    #inst.config.set('nsslapd-plugin-logging', 'on')
+    #inst.config.set('nsslapd-auditlog-logging-enabled','on')
+    #inst.config.set('nsslapd-auditfaillog-logging-enabled','on')
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #                            ^
+    #                           /
+    #          Grp2 --> Grp21 --
+    #
+    g1.remove_member(g2.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #      \__________         ^
+    #                 |       /
+    #                 v      /
+    #     Grp2 --> Grp21 ----
+    #
+    g1.add_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[user1, g21], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2, g1])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #  Grp1 ----------------> User1
+    #                            ^
+    #                           /
+    #          Grp2 --> Grp21 --
+    #
+    g1.remove_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #                                 ^
+    #                                /
+    #   Grp0 ---> Grp2 ---> Grp21 ---
+    #
+    g0.add_member(g2.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1, g0])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #       ^                         ^
+    #      /                         /
+    #   Grp0 ---> Grp2 ---> Grp21 ---
+    #
+    g0.add_member(g1.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g1,g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1], expected_memberof=[g0])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1, g0])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #       ^  \_____________        ^
+    #      /                 |       /
+    #     /                  V      /
+    #   Grp0 ---> Grp2 ---> Grp21 ---
+    #
+    g1.add_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g1, g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1, g21], expected_memberof=[g0])
+    _check_membership(inst, g2, expected_members=[g21], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g1, g2])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g2, g1, g0])
+
+    #
+    # Update the hierarchy
+    #
+    #
+    #       Grp1 ----------------> User1
+    #       ^  \_____________        ^
+    #      /                 |       /
+    #     /                  V      /
+    #   Grp0 ---> Grp2      Grp21 ---
+    #
+    g2.remove_member(g21.dn)
+    time.sleep(delay)
+
+    #
+    # Check G0,G1, G2, G21 and User1 members and memberof
+    #
+    _check_membership(inst, g0, expected_members=[g1, g2], expected_memberof=[])
+    _check_membership(inst, g1, expected_members=[user1, g21], expected_memberof=[g0])
+    _check_membership(inst, g2, expected_members=[], expected_memberof=[g0])
+    _check_membership(inst, g21, expected_members=[user1], expected_memberof=[g0, g1])
+    _check_membership(inst, user1, expected_members=[], expected_memberof=[g21, g1, g0])
 
     def fin():
         try:
