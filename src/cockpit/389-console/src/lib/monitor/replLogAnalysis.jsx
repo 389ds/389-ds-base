@@ -79,7 +79,7 @@ export class ReplLogAnalysis extends React.Component {
             // Form inputs
             logDirs: "",
             logDirsList: [],
-            suffixesList: props.suffixDN ? [props.suffixDN] : [],
+            suffixesList: [],
             currentSuffixInput: "",
             anonymizeOption: false,
             replicationFilter: "all", // 'all', 'only-fully', 'only-not'
