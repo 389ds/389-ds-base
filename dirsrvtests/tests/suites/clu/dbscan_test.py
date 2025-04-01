@@ -38,13 +38,13 @@ class CalledProcessUnexpectedReturnCode(subprocess.CalledProcessError):
 
 class DbscanPaths:
     @staticmethod
-    def list_instances(inst, dblib, dbhome):
+    def list_instances(inst, dblib, db_dir):
         # compute db instance pathnames
-        instances = dbscan(['-D', dblib, '-L', dbhome], inst=inst).stdout
+        instances = dbscan(['-D', dblib, '-L', db_dir], inst=inst).stdout
         dbis = []
         if dblib == 'bdb':
             pattern = r'^ (.*) $'
-            prefix = f'{dbhome}/'
+            prefix = f'{db_dir}/'
         else:
             pattern = r'^ (.*) flags:'
             prefix = f''
@@ -66,12 +66,12 @@ class DbscanPaths:
 
     def __init__(self, inst):
         dblib = inst.get_db_lib()
-        dbhome = inst.ds_paths.db_home_dir
+        db_dir = inst.ds_paths.db_dir
         self.inst = inst
         self.dblib = dblib
-        self.dbhome = dbhome
+        self.db_dir = db_dir
         self.options = DbscanPaths.list_options(inst)
-        self.dbis = DbscanPaths.list_instances(inst, dblib, dbhome)
+        self.dbis = DbscanPaths.list_instances(inst, dblib, db_dir)
         self.ldif_dir = inst.ds_paths.ldif_dir
 
     def get_dbi(self, attr, backend='userroot'):
@@ -81,7 +81,7 @@ class DbscanPaths:
         raise KeyError(f'Unknown dbi {backend}/{attr}')
 
     def __repr__(self):
-        attrs = ['inst', 'dblib', 'dbhome', 'ldif_dir', 'options', 'dbis' ]
+        attrs = ['inst', 'dblib', 'db_dir', 'ldif_dir', 'options', 'dbis' ]
         res = ", ".join(map(lambda x: f'{x}={self.__dict__[x]}', attrs))
         return f'DbscanPaths({res})'
 
@@ -169,7 +169,7 @@ def test_dbscan_destructive_actions(paths, request):
     def fin():
         if os.path.exists(export_cn):
             # Restore cn if it was exported successfully but does not exists any more
-            if exportok and cndbi not in DbscanPaths.list_instances(inst, dblib, paths.dbhome):
+            if exportok and cndbi not in DbscanPaths.list_instances(inst, dblib, paths.db_dir):
                     dbscan(['-D', dblib, '-f', cndbi, '-I', export_cn, '--do-it'], inst=inst)
             if not DEBUGGING:
                 os.remove(export_cn)
@@ -191,7 +191,7 @@ def test_dbscan_destructive_actions(paths, request):
     assert expected_msg in result.stdout
 
     # Check that cn instance is still present
-    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.dbhome)
+    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.db_dir)
     assert cndbi in curdbis
 
     # Run dbscan -I import_file ...
@@ -202,7 +202,7 @@ def test_dbscan_destructive_actions(paths, request):
     assert expected_msg in result.stdout
 
     # Check that cn instance is still present
-    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.dbhome)
+    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.db_dir)
     assert cndbi in curdbis
 
     # Run dbscan --remove ... --doit
@@ -213,7 +213,7 @@ def test_dbscan_destructive_actions(paths, request):
     assert expected_msg not in result.stdout
 
     # Check that cn instance is still present
-    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.dbhome)
+    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.db_dir)
     assert cndbi not in curdbis
 
     # Run dbscan -I import_file ... --do-it
@@ -225,7 +225,7 @@ def test_dbscan_destructive_actions(paths, request):
     assert expected_msg not in result.stdout
 
     # Check that cn instance is still present
-    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.dbhome)
+    curdbis = DbscanPaths.list_instances(paths.inst, paths.dblib, paths.db_dir)
     assert cndbi in curdbis
 
     # Export again the database
