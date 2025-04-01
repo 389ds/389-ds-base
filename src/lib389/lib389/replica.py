@@ -822,6 +822,25 @@ class ReplicaLegacy(object):
             raise ValueError('Failed to update replica: ' + str(e))
 
 
+class _rdict(dict):
+    """A dict whose key is a Normalized Replica ID
+    """
+
+    def __init__(self, log):
+        self.d = {}
+        self._log = log
+
+    def __getitem__(self, key):
+        nkey = int(key)
+        self._log.debug(f'MYDBG: __getitem__ {key} {nkey} {self.__getitem__(nkey)}')
+        return self.__getitem__(nkey)
+
+    def __setitem__(self, key, value):
+        nkey = int(key)
+        self._log.debug(f'MYDBG: __setitem__ {key} {nkey} {value}')
+        self.d.__setitem__(nkey, value)
+
+
 class RUV(object):
     """Represents the server in memory RUV object. The RUV contains each
     update vector the server knows of, along with knowledge of CSN state of the
@@ -839,11 +858,11 @@ class RUV(object):
         else:
             self._log = logging.getLogger(__name__)
         self._rids = []
-        self._rid_url = {}
-        self._rid_rawruv = {}
-        self._rid_csn = {}
-        self._rid_maxcsn = {}
-        self._rid_modts = {}
+        self._rid_url = _rdict(self._log)
+        self._rid_rawruv = _rdict(self._log)
+        self._rid_csn = _rdict(self._log)
+        self._rid_maxcsn = _rdict(self._log)
+        self._rid_modts = _rdict(self._log)
         self._data_generation = None
         self._data_generation_csn = None
         # Process the array of data
@@ -935,9 +954,10 @@ class RUV(object):
         :returns: str
         """
         self._log.debug("Allocated rids: %s" % self._rids)
+        rids = [ int(rid) for rid in self._rids ]
         for i in range(1, 65534):
             self._log.debug("Testing ... %s" % i)
-            if str(i) not in self._rids:
+            if i not in rids:
                 return str(i)
         raise Exception("Unable to alloc rid!")
 
