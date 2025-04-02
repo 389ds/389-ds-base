@@ -822,23 +822,24 @@ class ReplicaLegacy(object):
             raise ValueError('Failed to update replica: ' + str(e))
 
 
-class _rdict(dict):
+class NormalizedRidDict(dict):
     """A dict whose key is a Normalized Replica ID
     """
 
-    def __init__(self, log):
-        self.d = {}
-        self._log = log
+    @staticmethod
+    def normalize_rid(rid):
+        return int(rid)
+
+    def __init__(self):
+        super().__init__()
 
     def __getitem__(self, key):
-        nkey = int(key)
-        self._log.debug(f'MYDBG: __getitem__ {key} {nkey} {self.__getitem__(nkey)}')
-        return self.__getitem__(nkey)
+        nkey = NormalizedRidDict.normalize_rid(key)
+        return super().__getitem__(nkey)
 
     def __setitem__(self, key, value):
-        nkey = int(key)
-        self._log.debug(f'MYDBG: __setitem__ {key} {nkey} {value}')
-        self.d.__setitem__(nkey, value)
+        nkey = NormalizedRidDict.normalize_rid(key)
+        super().__setitem__(nkey, value)
 
 
 class RUV(object):
@@ -858,11 +859,11 @@ class RUV(object):
         else:
             self._log = logging.getLogger(__name__)
         self._rids = []
-        self._rid_url = _rdict(self._log)
-        self._rid_rawruv = _rdict(self._log)
-        self._rid_csn = _rdict(self._log)
-        self._rid_maxcsn = _rdict(self._log)
-        self._rid_modts = _rdict(self._log)
+        self._rid_url = NormalizedRidDict()
+        self._rid_rawruv = NormalizedRidDict()
+        self._rid_csn = NormalizedRidDict()
+        self._rid_maxcsn = NormalizedRidDict()
+        self._rid_modts = NormalizedRidDict()
         self._data_generation = None
         self._data_generation_csn = None
         # Process the array of data

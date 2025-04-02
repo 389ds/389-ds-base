@@ -30,7 +30,10 @@ from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.services import ServiceAccounts, ServiceAccount
-from lib389.replica import Replicas, ReplicationManager, ReplicationMonitor, ReplicaRole, BootstrapReplicationManager
+from lib389.replica import (
+    Replicas, ReplicationManager, ReplicationMonitor, ReplicaRole,
+    BootstrapReplicationManager, NormalizedRidDict
+)
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
@@ -1226,6 +1229,46 @@ def test_rid_starting_with_0(topo_m2, request):
 
     # Get replication monitoring results
     check_monitoring_status(S1)
+
+
+def test_normalized_rid_dict():
+    """Check that lib389.replica NormalizedRidDict class behaves as expected
+
+    :id: 0f88a29c-0fcd-11f0-b5df-482ae39447e5
+    :setup: None
+    :steps:
+        1. Initialize a NormalizedRidDict
+        2. Check that normalization do something
+        3. Check that key stored in NormalizedRidDict are normalized
+        4. Check that normalized and non normalized keys have the same value
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    sd = { '1': 'v1', '020': 'v2' }
+    nsd = { NormalizedRidDict.normalize_rid(key): val for key,val in sd.items() }
+    nkeys = list(nsd.keys())
+
+    # Initialize a NormalizedRidDict
+    nrd = NormalizedRidDict()
+    for key,val in sd.items():
+        nrd[key] = val
+
+    # Check that normalization do something
+    assert nkeys != [ sd.keys() ]
+
+    # Check that key stored in NormalizedRidDict are normalized
+    for key in nrd.keys():
+        assert key in nkeys
+
+    # Check that normalized and non normalized keys have the same value
+    for keyl in sd.items():
+        nkey = NormalizedRidDict.normalize_rid(key)
+        assert nrd[key] == val
+        assert nrd[nkey] == val
 
 
 def test_online_reinit_may_hang(topo_with_sigkill):
