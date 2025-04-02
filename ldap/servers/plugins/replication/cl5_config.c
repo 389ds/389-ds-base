@@ -264,6 +264,8 @@ changelog5_config_modify(Slapi_PBlock *pb,
 
     *returncode = LDAP_SUCCESS;
 
+    slapi_log_err(SLAPI_LOG_INFO, "changelog5_config_modify", "we are in here! send help!");
+
     /* changelog must be open before its parameters can be modified */
     if (cl5GetState() != CL5_STATE_OPEN) {
         if (returntext) {
@@ -356,6 +358,7 @@ changelog5_config_modify(Slapi_PBlock *pb,
                         config.maxAge = slapi_ch_strdup(config_attr_value);
                     } else {
                         if (returntext) {
+                            slapi_log_err(SLAPI_LOG_INFO, "changelog5_config_modify", "the value is invalid and we're in MAXAGE!");
                             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                                         "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
                                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value ? config_attr_value : "null",
@@ -370,6 +373,7 @@ changelog5_config_modify(Slapi_PBlock *pb,
                         config.compactInterval = (long)slapi_parse_duration(config_attr_value);
                     } else {
                         if (returntext) {
+                            slapi_log_err(SLAPI_LOG_INFO, "changelog5_config_modify", "the value is invalid and we're in COMPACTDB!");
                             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                                         "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
                                         CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, config_attr_value,
