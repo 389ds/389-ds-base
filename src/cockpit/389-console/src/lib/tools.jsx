@@ -221,7 +221,7 @@ export function is_port_in_use(port) {
             return;
         }
 
-        let cmd = ['bash', '-c', `sudo lsof -i :${port} || echo "free"`];
+        let cmd = ['bash', '-c', `ss -ntplu | grep -w :${port} || echo "free"`];
         log_cmd("is_port_in_use", cmd);
 
         cockpit
