@@ -1258,14 +1258,14 @@ def test_normalized_rid_dict():
         nrd[key] = val
 
     # Check that normalization do something
-    assert nkeys != [ sd.keys() ]
+    assert nkeys != list(sd.keys())
 
     # Check that key stored in NormalizedRidDict are normalized
     for key in nrd.keys():
         assert key in nkeys
 
     # Check that normalized and non normalized keys have the same value
-    for keyl in sd.items():
+    for key,val in sd.items():
         nkey = NormalizedRidDict.normalize_rid(key)
         assert nrd[key] == val
         assert nrd[nkey] == val
