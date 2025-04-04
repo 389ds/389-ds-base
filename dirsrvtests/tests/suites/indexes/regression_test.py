@@ -11,16 +11,56 @@ import os
 import pytest
 import ldap
 from lib389._constants import DEFAULT_BENAME, DEFAULT_SUFFIX
+from lib389.backend import Backend, Backends, DatabaseConfig
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
+from lib389.dbgen import dbgen_users
 from lib389.index import Indexes
 from lib389.backend import Backends
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_st as topo
 from lib389.utils import ds_is_older
 from lib389.idm.nscontainer import nsContainer
+from lib389.properties import TASK_WAIT
+from lib389.tasks import Tasks, Task
 
 pytestmark = pytest.mark.tier1
 
+
+SUFFIX2 = 'dc=example2,dc=com'
+BENAME2 = 'be2'
+
+DEBUGGING = os.getenv("DEBUGGING", default=False)
+
+@pytest.fixture(scope="function")
+def add_backend_and_ldif_50K_users(request, topo):
+    """
+    Add an empty backend and associated 50K users ldif file
+    """
+
+    tasks = Tasks(topo.standalone)
+    import_ldif = f'{topo.standalone.ldifdir}/be2_50K_users.ldif'
+    be2 = Backend(topo.standalone)
+    be2.create(properties={
+            'cn': BENAME2,
+            'nsslapd-suffix': SUFFIX2,
+        },
+    )
+
+    def fin():
+        nonlocal be2
+        if not DEBUGGING:
+            be2.delete()
+
+    request.addfinalizer(fin)
+    parent = f'ou=people,{SUFFIX2}'
+    dbgen_users(topo.standalone, 50000, import_ldif, SUFFIX2, generic=True, parent=parent)
+    assert tasks.importLDIF(
+        suffix=SUFFIX2,
+        input_file=import_ldif,
+        args={TASK_WAIT: True}
+    ) == 0
+
+    return import_ldif
 
 @pytest.fixture(scope="function")
 def add_a_group_with_users(request, topo):
