@@ -605,12 +605,6 @@ export class DatabaseMonitorMDB extends React.Component {
                         count = 1;
                     }
 
-                    // Build up the DB Cache chart data
-                    const dbratio = config.attrs.dbcachehitratio[0];
-                    const chart_data = this.state.dbCacheList;
-                    chart_data.shift();
-                    chart_data.push({ name: _("Cache Hit Ratio"), x: count.toString(), y: parseInt(dbratio) });
-
                     // Build up the NDN Cache chart data
                     const ndnratio = config.attrs.normalizeddncachehitratio[0];
                     const ndn_chart_data = this.state.ndnCacheList;
@@ -628,7 +622,6 @@ export class DatabaseMonitorMDB extends React.Component {
                     this.setState({
                         data: config.attrs,
                         loading: false,
-                        dbCacheList: chart_data,
                         ndnCacheList: ndn_chart_data,
                         ndnCacheUtilList: ndn_util_chart_data,
                         count,
@@ -651,10 +644,8 @@ export class DatabaseMonitorMDB extends React.Component {
     }
 
     render() {
-        let chartColor = ChartThemeColor.green;
         let ndnChartColor = ChartThemeColor.green;
         let ndnUtilColor = ChartThemeColor.green;
-        let dbcachehit = 0;
         let ndncachehit = 0;
         let ndncachemax = 0;
         let ndncachecurr = 0;
@@ -671,7 +662,6 @@ export class DatabaseMonitorMDB extends React.Component {
         );
 
         if (!this.state.loading) {
-            dbcachehit = parseInt(this.state.data.dbcachehitratio[0]);
             ndncachehit = parseInt(this.state.data.normalizeddncachehitratio[0]);
             ndncachemax = parseInt(this.state.data.maxnormalizeddncachesize[0]);
             ndncachecurr = parseInt(this.state.data.currentnormalizeddncachesize[0]);
@@ -681,14 +671,6 @@ export class DatabaseMonitorMDB extends React.Component {
                 utilratio = 1;
             }
 
-            // Database cache
-            if (dbcachehit > 89) {
-                chartColor = ChartThemeColor.green;
-            } else if (dbcachehit > 74) {
-                chartColor = ChartThemeColor.orange;
-            } else {
-                chartColor = ChartThemeColor.purple;
-            }
             // NDN cache ratio
             if (ndncachehit > 89) {
                 ndnChartColor = ChartThemeColor.green;
