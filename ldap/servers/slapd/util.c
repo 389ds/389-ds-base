@@ -338,6 +338,10 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             } else {
                 filter_len = escaped_filter.bv_len;
                 buf = escaped_filter.bv_val;
+                if (buf == NULL) {
+                    slapi_log_err(SLAPI_LOG_TRACE, "filter_stuff_func", "Attempt to copy from NULL pointer\n");
+                    return -1;
+                }
             }
         }
 
@@ -415,12 +419,20 @@ slapi_filter_sprintf(const char *fmt, ...)
 
     va_start(args, fmt);
     rc = PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+    va_end(args);
     if (rc == -1) {
         /* transformation failed, just return non-normalized/escaped string */
         ctx.skip_escape = 1;
-        PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+        ctx.attr_position = 0;
+        ctx.attr_found = 0;
+        ctx.buf_size = 0;
+        va_start(args, fmt);
+        rc = PR_vsxprintf(filter_stuff_func, &ctx, fmt, args);
+        va_end(args);
+        if (rc == -1) {
+            PR_snprintf(ctx.buf, FILTER_BUF+1, "??? (Unprintable filter)");
+        }
     }
-    va_end(args);
 
     if (ctx.attr_size > ATTRSIZE) {
         slapi_ch_free_string(&ctx.attr);
