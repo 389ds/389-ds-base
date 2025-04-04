@@ -372,9 +372,7 @@ void dbmdb_dup_worker_slot(struct importqueue *q, void *from_slot, void *to_slot
     char *from = from_slot;
     char *to = to_slot;
     int offset = offsetof(WorkerQueueData_t, wait_id);
-    pthread_mutex_lock(&q->mutex);
     memcpy(to+offset, from+offset, (sizeof (WorkerQueueData_t))-offset);
-    pthread_mutex_unlock(&q->mutex);
 }
 
 /* Find a free slot once used_slots == max_slots */
@@ -419,13 +417,14 @@ dbmdb_import_workerq_push(ImportQueue_t *q, WorkerQueueData_t *data)
             safe_cond_wait(&q->cv, &q->mutex);
         }
     }
-    pthread_mutex_unlock(&q->mutex);
     if (q->job->flags & FLAG_ABORT) {
         /* in this case worker thread does not free the data so we should do it */
         dbmdb_import_workerq_free_data(data);
+        pthread_mutex_unlock(&q->mutex);
         return -1;
     }
     dbmdb_dup_worker_slot(q, data, slot);
+    pthread_mutex_unlock(&q->mutex);
     return 0;
 }
 
