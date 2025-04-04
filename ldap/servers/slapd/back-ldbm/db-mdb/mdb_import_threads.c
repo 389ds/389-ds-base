@@ -417,13 +417,14 @@ dbmdb_import_workerq_push(ImportQueue_t *q, WorkerQueueData_t *data)
             safe_cond_wait(&q->cv, &q->mutex);
         }
     }
-    pthread_mutex_unlock(&q->mutex);
     if (q->job->flags & FLAG_ABORT) {
         /* in this case worker thread does not free the data so we should do it */
         dbmdb_import_workerq_free_data(data);
+        pthread_mutex_unlock(&q->mutex);
         return -1;
     }
     dbmdb_dup_worker_slot(q, data, slot);
+    pthread_mutex_unlock(&q->mutex);
     return 0;
 }
 
