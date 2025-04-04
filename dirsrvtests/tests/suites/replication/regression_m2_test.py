@@ -12,6 +12,7 @@ import time
 import logging
 import ldif
 import ldap
+import pprint
 import pytest
 import subprocess
 import time
@@ -25,7 +26,10 @@ from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.services import ServiceAccounts, ServiceAccount
-from lib389.replica import Replicas, ReplicationManager, ReplicaRole
+from lib389.replica import (
+    Replicas, ReplicationManager, ReplicationMonitor, ReplicaRole,
+    BootstrapReplicationManager, NormalizedRidDict
+)
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
@@ -984,6 +988,246 @@ def test_change_repl_passwd(topo_m2, request, bind_cn):
     # Mark test as successul before exiting
     a1.testok()
     a2.testok()
+
+
+def test_repl_after_reindex(topo_m2):
+    """Check that replication does not break after reindex.
+
+    :id: 0b48992e-bac6-11ee-9cbe-482ae39447e5
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Check that replication is working
+        2. Perform a few changes on supplier1
+        3. Reindex 'cn' on supplier1
+        4. Check that replication is still working
+    :expectedresults:
+        1. Replication should work
+        2. Step should run sucessfully without errors
+        3. Step should run sucessfully without errors
+        4. Replication should still work
+    """
+
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    tasks = Tasks(m1)
+    # Check that replication is working
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m2, m1)
+    # Perform a few changes on supplier1
+    for idx in range(2):
+        Domain(m1, DEFAULT_SUFFIX).replace('description', f'test_repl_after_reindex {idx}')
+    # Reindex 'cn' on supplier1
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='cn',
+        args={TASK_WAIT: True}
+    )
+    # Check that replication is still working
+    repl.wait_for_replication(m1, m2)
+    repl.wait_for_replication(m2, m1)
+
+
+def test_suffix_entryid(preserve_topo_m2):
+    """Test that entryid attribute is present in suffix entry
+
+    :id: 9201f2c8-3eb8-11ef-80cc-482ae39447e5
+    :setup: Two suppliers replicated instances
+    :steps:
+        1. Generate LDIF file
+        2. Import the ldif file
+        3. Check that identry is still present in suffix entry
+        4. Check that parentid>=1 search returns all entries but one
+    :expectedresults:
+        1. Operation successful
+        2. Operation successful
+        3. Suffix id2entry should be 1
+        4. parentid>=1 search returns all entries but one
+    """
+    s1 = preserve_topo_m2.ms["supplier1"]
+    ldif_file = f'{s1.get_ldif_dir()}/db10.ldif'
+    dbgen_users(s1, 10, ldif_file, DEFAULT_SUFFIX)
+    s1.tasks.importLDIF(benamebase=DEFAULT_BENAME,
+                        input_file=ldif_file,
+                        args={TASK_WAIT: True})
+    dc = Domain(s1, dn=DEFAULT_SUFFIX)
+    assert dc.get_attr_val_utf8('entryid') == '1'
+    all_entries =  s1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)", attrlist=('dn',), escapehatch='i am sure')
+    childrens =  s1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(parentid>=1)", attrlist=('dn',), escapehatch='i am sure')
+    assert len(all_entries) == (len(childrens) + 1)
+
+
+def test_bulk_import(preserve_topo_m2):
+    """Test that bulk import is working properly
+
+    :id: 4e73254a-3ed6-11ef-aa44-482ae39447e5
+    :setup: Two suppliers replicated instances
+    :steps:
+        1. Generate LDIF file
+        2. Import the ldif file
+        3. Add replication_managers group
+        4. Perform bulk import
+        5. Check that replication is still working
+        6. Check that the replicas have the same number of users
+    :expectedresults:
+        1. Operation successful
+        2. Operation successful
+        3. Operation successful
+        4. Operation successful
+        5. Replication should be in sync
+        6. Replicas should have same number of user entries
+    """
+    s1 = preserve_topo_m2.ms["supplier1"]
+    s2 = preserve_topo_m2.ms["supplier2"]
+    ldif_file = f'{s1.get_ldif_dir()}/db2K.ldif'
+    dbgen_users(s1, 2000, ldif_file, DEFAULT_SUFFIX)
+    s1.tasks.importLDIF(benamebase=DEFAULT_BENAME,
+                        input_file=ldif_file,
+                        args={TASK_WAIT: True})
+
+    # Create replication_managers group so that we can use
+    #  repl.test_replication_topology
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl._create_service_group(s1)
+    repl._create_service_account(s1, s2)
+
+    agmt = Agreements(s1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    repl.test_replication_topology(preserve_topo_m2)
+
+    # Cannot use UserAccounts().list() because 'account' objectclass is missing
+    users_s1 =  s1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)", escapehatch='i am sure')
+    log.info(f"{len(users_s1)} user entries found on supplier1")
+    users_s2 =  s2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)", escapehatch='i am sure')
+    log.info(f"{len(users_s2)} user entries found on supplier2")
+    assert len(users_s1) == len(users_s2)
+
+
+def check_monitoring_status(inst):
+    creds = { 'binddn': DN_DM, 'bindpw': PW_DM }
+    repl_monitor = ReplicationMonitor(inst)
+    report_dict = repl_monitor.generate_report(lambda h,p: creds, use_json=True)
+    log.debug(f'(Monitoring status: {pprint.pformat(report_dict)}')
+
+    agmts_status = {}
+    for inst_status in report_dict.values():
+        for replica_status in inst_status:
+            suffix = replica_status['replica_root']
+            rid = replica_status['replica_id']
+            for agmt_status in replica_status['agmts_status']:
+                rag_status = agmt_status['replication-status'][0]
+                if 'Unavailable' in rag_status:
+                    aname = agmt_status['agmt-name'][0]
+                    url = f'{agmt_status["replica"][0]}/{suffix}'
+                    assert False, f"'Unavailable' found in agreement {aname} of replica {url} : {rag_status}"
+
+    assert 'Unavailable' not in str(report_dict)
+
+
+def reinit_replica(S1, S2):
+    # Reinit replication
+    agmt = Agreements(S1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(S1, S2)
+    repl.wait_for_replication(S2, S1)
+
+
+def test_rid_starting_with_0(topo_m2, request):
+    """Check that replication monitoring works if replica
+       id starts with 0
+
+    :id: ed0176e6-0bf7-11f0-9846-482ae39447e5
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Initialize replication to ensure that init status is set
+        2. Check that monitoring status does not contains 'Unavailable'
+        3. Change replica ids to 001 and 002
+        4. Initialize replication to ensure that init status is set
+        5. Check that monitoring status does not contains 'Unavailable'
+        6. Restore the replica ids to 1 and 2
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    S1 = topo_m2.ms["supplier1"]
+    S2 = topo_m2.ms["supplier2"]
+    replicas = [ Replicas(inst).get(DEFAULT_SUFFIX) for inst in topo_m2 ]
+
+    # Reinit replication (to ensure that init status is set)
+    reinit_replica(S1, S2)
+
+    # Get replication monitoring results
+    check_monitoring_status(S1)
+
+    # Change replica id
+    for replica,rid in zip(replicas, ['010', '020']):
+        replica.replace('nsDS5ReplicaId', rid)
+
+    # Restore replica id in finalizer
+    def fin():
+        for replica,rid in zip(replicas, ['1', '2']):
+            replica.replace('nsDS5ReplicaId', rid)
+        reinit_replica(S1, S2)
+
+    request.addfinalizer(fin)
+    # Reinit replication
+    reinit_replica(S1, S2)
+
+    # Get replication monitoring results
+    check_monitoring_status(S1)
+
+
+def test_normalized_rid_dict():
+    """Check that lib389.replica NormalizedRidDict class behaves as expected
+
+    :id: 0f88a29c-0fcd-11f0-b5df-482ae39447e5
+    :setup: None
+    :steps:
+        1. Initialize a NormalizedRidDict
+        2. Check that normalization do something
+        3. Check that key stored in NormalizedRidDict are normalized
+        4. Check that normalized and non normalized keys have the same value
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    sd = { '1': 'v1', '020': 'v2' }
+    nsd = { NormalizedRidDict.normalize_rid(key): val for key,val in sd.items() }
+    nkeys = list(nsd.keys())
+
+    # Initialize a NormalizedRidDict
+    nrd = NormalizedRidDict()
+    for key,val in sd.items():
+        nrd[key] = val
+
+    # Check that normalization do something
+    assert nkeys != list(sd.keys())
+
+    # Check that key stored in NormalizedRidDict are normalized
+    for key in nrd.keys():
+        assert key in nkeys
+
+    # Check that normalized and non normalized keys have the same value
+    for key,val in sd.items():
+        nkey = NormalizedRidDict.normalize_rid(key)
+        assert nrd[key] == val
+        assert nrd[nkey] == val
 
 
 @pytest.mark.ds49915
