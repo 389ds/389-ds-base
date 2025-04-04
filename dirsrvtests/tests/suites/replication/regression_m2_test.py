@@ -12,6 +12,7 @@ import time
 import logging
 import ldif
 import ldap
+import pprint
 import pytest
 import subprocess
 import time
@@ -29,7 +30,10 @@ from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.services import ServiceAccounts, ServiceAccount
-from lib389.replica import Replicas, ReplicationManager, ReplicaRole, BootstrapReplicationManager
+from lib389.replica import (
+    Replicas, ReplicationManager, ReplicationMonitor, ReplicaRole,
+    BootstrapReplicationManager, NormalizedRidDict
+)
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
@@ -1146,6 +1150,129 @@ def test_bulk_import(preserve_topo_m2):
     users_s2 =  s2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(uid=*)", escapehatch='i am sure')
     log.info(f"{len(users_s2)} user entries found on supplier2")
     assert len(users_s1) == len(users_s2)
+
+
+def check_monitoring_status(inst):
+    creds = { 'binddn': DN_DM, 'bindpw': PW_DM }
+    repl_monitor = ReplicationMonitor(inst)
+    report_dict = repl_monitor.generate_report(lambda h,p: creds, use_json=True)
+    log.debug(f'(Monitoring status: {pprint.pformat(report_dict)}')
+
+    agmts_status = {}
+    for inst_status in report_dict.values():
+        for replica_status in inst_status:
+            suffix = replica_status['replica_root']
+            rid = replica_status['replica_id']
+            for agmt_status in replica_status['agmts_status']:
+                rag_status = agmt_status['replication-status'][0]
+                if 'Unavailable' in rag_status:
+                    aname = agmt_status['agmt-name'][0]
+                    url = f'{agmt_status["replica"][0]}/{suffix}'
+                    assert False, f"'Unavailable' found in agreement {aname} of replica {url} : {rag_status}"
+
+    assert 'Unavailable' not in str(report_dict)
+
+
+def reinit_replica(S1, S2):
+    # Reinit replication
+    agmt = Agreements(S1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(S1, S2)
+    repl.wait_for_replication(S2, S1)
+
+
+def test_rid_starting_with_0(topo_m2, request):
+    """Check that replication monitoring works if replica
+       id starts with 0
+
+    :id: ed0176e6-0bf7-11f0-9846-482ae39447e5
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Initialize replication to ensure that init status is set
+        2. Check that monitoring status does not contains 'Unavailable'
+        3. Change replica ids to 001 and 002
+        4. Initialize replication to ensure that init status is set
+        5. Check that monitoring status does not contains 'Unavailable'
+        6. Restore the replica ids to 1 and 2
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+    S1 = topo_m2.ms["supplier1"]
+    S2 = topo_m2.ms["supplier2"]
+    replicas = [ Replicas(inst).get(DEFAULT_SUFFIX) for inst in topo_m2 ]
+
+    # Reinit replication (to ensure that init status is set)
+    reinit_replica(S1, S2)
+
+    # Get replication monitoring results
+    check_monitoring_status(S1)
+
+    # Change replica id
+    for replica,rid in zip(replicas, ['010', '020']):
+        replica.replace('nsDS5ReplicaId', rid)
+
+    # Restore replica id in finalizer
+    def fin():
+        for replica,rid in zip(replicas, ['1', '2']):
+            replica.replace('nsDS5ReplicaId', rid)
+        reinit_replica(S1, S2)
+
+    request.addfinalizer(fin)
+    # Reinit replication
+    reinit_replica(S1, S2)
+
+    # Get replication monitoring results
+    check_monitoring_status(S1)
+
+
+def test_normalized_rid_dict():
+    """Check that lib389.replica NormalizedRidDict class behaves as expected
+
+    :id: 0f88a29c-0fcd-11f0-b5df-482ae39447e5
+    :setup: None
+    :steps:
+        1. Initialize a NormalizedRidDict
+        2. Check that normalization do something
+        3. Check that key stored in NormalizedRidDict are normalized
+        4. Check that normalized and non normalized keys have the same value
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    sd = { '1': 'v1', '020': 'v2' }
+    nsd = { NormalizedRidDict.normalize_rid(key): val for key,val in sd.items() }
+    nkeys = list(nsd.keys())
+
+    # Initialize a NormalizedRidDict
+    nrd = NormalizedRidDict()
+    for key,val in sd.items():
+        nrd[key] = val
+
+    # Check that normalization do something
+    assert nkeys != list(sd.keys())
+
+    # Check that key stored in NormalizedRidDict are normalized
+    for key in nrd.keys():
+        assert key in nkeys
+
+    # Check that normalized and non normalized keys have the same value
+    for key,val in sd.items():
+        nkey = NormalizedRidDict.normalize_rid(key)
+        assert nrd[key] == val
+        assert nrd[nkey] == val
 
 
 @pytest.mark.ds49915
