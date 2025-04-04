@@ -60,6 +60,7 @@ from lib389.utils import (
     normalizeDN,
     escapeDNValue,
     ensure_bytes,
+    ensure_int,
     ensure_str,
     ensure_list_str,
     format_cmd_list,
@@ -3424,7 +3425,7 @@ class DirSrv(SimpleLDAPObject, object):
                 # Error
                 consumer.close()
                 return None
-            rid = ensure_str(replica_entries[0].getValue(REPL_ID))
+            rid = ensure_int(replica_entries[0].getValue(REPL_ID))
         except:
             # Error
             consumer.close()
@@ -3441,7 +3442,7 @@ class DirSrv(SimpleLDAPObject, object):
                 return error_msg
             elements = ensure_list_str(entry[0].getValues('nsds50ruv'))
             for ruv in elements:
-                if ('replica %s ' % rid) in ruv:
+                if ('replica %d ' % rid) in ruv:
                     ruv_parts = ruv.split()
                     if len(ruv_parts) == 5:
                         return ruv_parts[4]

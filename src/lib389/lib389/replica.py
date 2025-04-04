@@ -822,6 +822,26 @@ class ReplicaLegacy(object):
             raise ValueError('Failed to update replica: ' + str(e))
 
 
+class NormalizedRidDict(dict):
+    """A dict whose key is a Normalized Replica ID
+    """
+
+    @staticmethod
+    def normalize_rid(rid):
+        return int(rid)
+
+    def __init__(self):
+        super().__init__()
+
+    def __getitem__(self, key):
+        nkey = NormalizedRidDict.normalize_rid(key)
+        return super().__getitem__(nkey)
+
+    def __setitem__(self, key, value):
+        nkey = NormalizedRidDict.normalize_rid(key)
+        super().__setitem__(nkey, value)
+
+
 class RUV(object):
     """Represents the server in memory RUV object. The RUV contains each
     update vector the server knows of, along with knowledge of CSN state of the
@@ -839,11 +859,11 @@ class RUV(object):
         else:
             self._log = logging.getLogger(__name__)
         self._rids = []
-        self._rid_url = {}
-        self._rid_rawruv = {}
-        self._rid_csn = {}
-        self._rid_maxcsn = {}
-        self._rid_modts = {}
+        self._rid_url = NormalizedRidDict()
+        self._rid_rawruv = NormalizedRidDict()
+        self._rid_csn = NormalizedRidDict()
+        self._rid_maxcsn = NormalizedRidDict()
+        self._rid_modts = NormalizedRidDict()
         self._data_generation = None
         self._data_generation_csn = None
         # Process the array of data
@@ -935,9 +955,10 @@ class RUV(object):
         :returns: str
         """
         self._log.debug("Allocated rids: %s" % self._rids)
+        rids = [ int(rid) for rid in self._rids ]
         for i in range(1, 65534):
             self._log.debug("Testing ... %s" % i)
-            if str(i) not in self._rids:
+            if i not in rids:
                 return str(i)
         raise Exception("Unable to alloc rid!")
 
