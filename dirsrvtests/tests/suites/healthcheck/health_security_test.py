@@ -101,14 +101,10 @@ def test_healthcheck_insecure_pwd_hash_configured(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=RET_CODE)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=RET_CODE)
 
-    if is_fips():
-        log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to SSHA512 in FIPS mode')
-        standalone.config.set('passwordStorageScheme', 'SSHA512')
-        standalone.config.set('nsslapd-rootpwstoragescheme', 'SSHA512')
-    else:
-        log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2-SHA512')
-        standalone.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
-        standalone.config.set('nsslapd-rootpwstoragescheme', 'PBKDF2-SHA512')
+
+    log.info('Set passwordStorageScheme and nsslapd-rootpwstoragescheme to PBKDF2-SHA512')
+    standalone.config.set('passwordStorageScheme', 'PBKDF2-SHA512')
+    standalone.config.set('nsslapd-rootpwstoragescheme', 'PBKDF2-SHA512')
 
     run_healthcheck_and_flush_log(topology_st, standalone, json=False, searched_code=CMD_OUTPUT)
     run_healthcheck_and_flush_log(topology_st, standalone, json=True, searched_code=JSON_OUTPUT)
