@@ -301,7 +301,7 @@ class DSLdapObject(DSLogging, DSLint):
         if value is None:
             # We are just checking if SOMETHING is present ....
             return len(values) > 0
-        
+
         # Otherwise, we are checking a specific value
         if is_a_dn(value):
             normalized_value = normalizeDN(value)

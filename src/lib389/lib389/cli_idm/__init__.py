@@ -111,7 +111,10 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             json_result = {"type": "list", "items": []}
         for o in ol:
-            o_str = o.__unicode__()
+            # Get the RDN value directly from the DN using ldap.dn.str2dn
+            # This ensures we get the actual RDN value even if keep-old-rdn was used
+            rdn_components = ldap.dn.str2dn(o.dn)[0]
+            o_str = rdn_components[0][1]  # Get the value part of the RDN
             if args and args.json:
                 json_result['items'].append(o_str)
             else:
@@ -152,8 +155,10 @@ def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     except ldap.NO_SUCH_OBJECT:
         raise ValueError(f'The base DN "{mc._basedn}" does not exist')
 
-    o_str = o.__unicode__()
-    log.info('Successfully created %s' % o_str)
+    # Extract the RDN value directly from the DN using ldap.dn.str2dn
+    rdn_components = ldap.dn.str2dn(o.dn)[0]
+    rdn_value = rdn_components[0][1]  # Get the value part of the RDN
+    log.info('Successfully created %s' % rdn_value)
 
 
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
@@ -173,8 +178,18 @@ def _generic_rename_inner(log, o, new_rdn, newsuperior=None, deloldrdn=None):
         arguments['newsuperior'] = newsuperior
     if deloldrdn is not None:
         arguments['deloldrdn'] = deloldrdn
+
+    # Store original state for comparison
+    old_dn = o.dn
+
+    # Perform the rename operation
     o.rename(**arguments)
-    log.info('Successfully renamed to %s' % o.dn)
+
+    # Check if anything actually changed
+    if old_dn == o.dn:
+        log.info('No changes made - entry already has this name')
+    else:
+        log.info('Successfully renamed to %s' % o.dn)
 
 
 def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
@@ -183,12 +198,16 @@ def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
     # Here, we should have already selected the type etc. mc should be a
     # type of DSLdapObjects (plural)
     mc = manager_class(inst, basedn)
-    # Get the object singular by selector
     try:
-        o = mc.get(selector)
+        rdn_attr = mc._childobject(inst)._rdn_attribute
+        entry_dn = f"{rdn_attr}={selector},{mc._basedn}"
+        o = mc._childobject(inst, dn=entry_dn)
+
+        if not o.exists():
+            raise ldap.NO_SUCH_OBJECT()
     except ldap.NO_SUCH_OBJECT:
         raise ValueError(f'The entry does not exist')
-    rdn_attr = ldap.dn.str2dn(o.dn)[0][0][0]
+
     arguments = {'new_rdn': f'{rdn_attr}={args.new_name}'}
     if args.keep_old_rdn:
         arguments['deloldrdn'] = False
