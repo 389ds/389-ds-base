@@ -963,6 +963,8 @@ modify_need_fixup(int set)
         mod_pb, memberof_get_config_area(),
         mods, 0, 0,
         memberof_get_plugin_id(), SLAPI_OP_FLAG_FIXUP|SLAPI_OP_FLAG_BYPASS_REFERRALS);
+    slapi_modify_internal_pb(mod_pb);
+    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(mod_pb);
     if (rc) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
