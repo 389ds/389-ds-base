@@ -1,6 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -140,9 +140,12 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
-    o = mc.get(dn=dn)
-    o_str = o.display()
-    log.info(o_str)
+    if args is not None and args.json:
+        o = mc.get(dn=dn, json=True)
+        log.info(o)
+    else:
+        o = mc.get(dn=dn)
+        log.info(o.display())
 
 
 def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):

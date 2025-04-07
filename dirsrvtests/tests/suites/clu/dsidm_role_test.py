@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import pytest
+import json
 import logging
 import os
 
@@ -734,7 +735,7 @@ def test_dsidm_role_lock_unlock_entrystatus(topology_st, create_test_managed_rol
     check_value_in_log(topology_st, check_value=entry_dn_output)
     check_value_in_log_and_reset(topology_st, check_value=entry_unlocked_output)
 
-    log.info('Test dsidm role entry-status to verify activation status of the unlocked role')
+    log.info('Test dsidm role entry-status to verify activation status of the unlocked role - json')
     args.json = True
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=entry_unlocked_content)
@@ -745,7 +746,6 @@ def test_dsidm_role_lock_unlock_entrystatus(topology_st, create_test_managed_rol
     managed_disabled_role.delete()
 
 
-@pytest.mark.xfail(reason="DS6502")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_subtree_status(topology_st, create_test_managed_role):
     """ Test dsidm role subtree-status option
@@ -771,8 +771,22 @@ def test_dsidm_role_subtree_status(topology_st, create_test_managed_role):
     output = 'Entry DN: {}'.format(test_role.dn)
 
     log.info('Test dsidm role subtree-status')
+    topology_st.logcap.flush()
     subtree_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
     check_value_in_log_and_reset(topology_st, check_value=output)
+
+    log.info('Test dsidm role subtree-status - json')
+    args.json = True
+    subtree_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    found = False
+    for entry in json_result['entries']:
+        if entry['dn'] == test_role.dn:
+            found = True
+            break
+    assert found
 
     log.info('Clean up')
     test_role.delete()
