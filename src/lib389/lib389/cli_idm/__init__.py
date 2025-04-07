@@ -111,10 +111,7 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             json_result = {"type": "list", "items": []}
         for o in ol:
-            # Get the RDN value directly from the DN using ldap.dn.str2dn
-            # This ensures we get the actual RDN value even if keep-old-rdn was used
-            rdn_components = ldap.dn.str2dn(o.dn)[0]
-            o_str = rdn_components[0][1]  # Get the value part of the RDN
+            o_str = o.get_rdn_from_dn(o.dn)
             if args and args.json:
                 json_result['items'].append(o_str)
             else:
@@ -155,9 +152,7 @@ def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     except ldap.NO_SUCH_OBJECT:
         raise ValueError(f'The base DN "{mc._basedn}" does not exist')
 
-    # Extract the RDN value directly from the DN using ldap.dn.str2dn
-    rdn_components = ldap.dn.str2dn(o.dn)[0]
-    rdn_value = rdn_components[0][1]  # Get the value part of the RDN
+    rdn_value = o.get_rdn_from_dn(o.dn)
     log.info('Successfully created %s' % rdn_value)
 
 

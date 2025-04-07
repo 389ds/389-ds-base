@@ -145,8 +145,24 @@ class DSLdapObject(DSLogging, DSLint):
         val = self._dn
         if self._rdn_attribute:
             # What if the rdn is multi value and we don't get the primary .... ARGHHH
-            val = self.get_attr_val(self._rdn_attribute)
+            # TODO: https://github.com/389ds/389-ds-base/issues/3329
+            val = self.get_rdn_from_dn()
         return ensure_str(val)
+
+    def get_rdn_from_dn(self, dn=None):
+        """Extract the RDN value from a DN.
+
+        :param dn: DN to extract RDN from, defaults to this object's DN
+        :type dn: str
+        :returns: The RDN value
+        :rtype: str
+        """
+        if dn is None:
+            dn = self._dn
+
+        rdn_components = ldap.dn.str2dn(dn)[0]
+        rdn_value = rdn_components[0][1]
+        return rdn_value
 
     def __str__(self):
         return self.__unicode__()
@@ -264,7 +280,8 @@ class DSLdapObject(DSLogging, DSLint):
         """
 
         # How can we be sure this returns the primary one?
-        return ensure_str(self.get_attr_val(self._rdn_attribute))
+        # TODO: https://github.com/389ds/389-ds-base/issues/3329
+        return ensure_str(self.get_rdn_from_dn())
 
     def get_basedn(self):
         """Get the suffix this entry belongs to
@@ -966,7 +983,7 @@ class DSLdapObject(DSLogging, DSLint):
                 if properties.get(attr, None) is None:
                     # Put RDN to properties
                     if attr == self._rdn_attribute and rdn is not None:
-                        properties[self._rdn_attribute] = ldap.dn.str2dn(rdn)[0][0][1]
+                        properties[self._rdn_attribute] = self.get_rdn_from_dn(rdn)
                     else:
                         raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
 

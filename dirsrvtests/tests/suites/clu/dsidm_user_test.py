@@ -739,7 +739,7 @@ def test_dsidm_user_list_rdn_after_rename(topology_st):
          2. Rename the user with keep-old-rdn=True
          3. Run dsidm user list and check the output contains the new name
          4. Run dsidm user list with json and check it also shows the new name
-         5. Directly verify that the RDN extraction using ldap.dn.str2dn works correctly
+         5. Directly verify that the RDN extraction works correctly
     :expectedresults:
          1. Success
          2. Success
@@ -789,9 +789,7 @@ def test_dsidm_user_list_rdn_after_rename(topology_st):
 
         log.info('Directly verify RDN extraction works correctly')
         renamed_user = users.get(new_name)
-        # Get the RDN value using ldap.dn.str2dn
-        rdn_components = ldap.dn.str2dn(renamed_user.dn)[0]
-        rdn_value = rdn_components[0][1]  # Get the value part of the RDN
+        rdn_value = renamed_user.get_rdn_from_dn(renamed_user.dn)
         assert rdn_value == new_name, f"Expected RDN value '{new_name}' but got '{rdn_value}'"
 
         # Check that both uid values exist in the entry
