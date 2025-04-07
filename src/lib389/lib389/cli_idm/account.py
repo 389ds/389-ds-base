@@ -91,7 +91,7 @@ def entry_status(inst, basedn, log, args):
 
 
 def subtree_status(inst, basedn, log, args):
-    filter = ""
+    filter = "(objectclass=*)"
     scope = ldap.SCOPE_SUBTREE
     epoch_inactive_time = None
     if args.scope == "one":

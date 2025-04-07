@@ -106,17 +106,25 @@ def entry_status(inst, basedn, log, args):
 
 def subtree_status(inst, basedn, log, args):
     basedn = _get_dn_arg(args.basedn, msg="Enter basedn to check")
-    filter = ""
-    scope = ldap.SCOPE_SUBTREE
-
-    role_list = Roles(inst, basedn).filter(filter, scope)
+    role_list = Roles(inst, basedn).list()
     if not role_list:
         raise ValueError(f"No entries were found under {basedn} or the user doesn't have an access")
 
+    if args.json:
+        json_result = {"type": "status", "entries": []}
+
     for entry in role_list:
         status = entry.status()
-        log.info(f'Entry DN: {entry.dn}')
-        log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
+        if args.json:
+            json_result['entries'].append({
+                "dn": entry.dn,
+                "state": status["state"].describe(status["role_dn"])
+            })
+        else:
+            log.info(f'Entry DN: {entry.dn}')
+            log.info(f'Entry State: {status["state"].describe(status["role_dn"])}\n')
+    if args.json:
+        log.info(json.dumps(json_result))
 
 
 def lock(inst, basedn, log, args):
