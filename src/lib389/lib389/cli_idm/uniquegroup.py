@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 from lib389.idm.group import UniqueGroup, UniqueGroups, MUST_ATTRIBUTES
 from lib389.cli_base import populate_attr_arguments, _generic_modify, CustomHelpFormatter
 from lib389.cli_idm import (
@@ -70,10 +71,18 @@ def members(inst, basedn, log, args):
     # Display members?
     member_list = group.list_members()
     if len(member_list) == 0:
-        log.info('No members to display')
+        if args is not None and args.json:
+            json_result = {"type": "list", "members": []}
+            log.info(json.dumps(json_result, indent=4))
+        else:
+            log.info('No members to display')
     else:
-        for m in member_list:
-            log.info('dn: %s' % m)
+        if args is not None and args.json:
+            json_result = {"type": "list", "members": member_list}
+            log.info(json.dumps(json_result, indent=4))
+        else:
+            for m in member_list:
+                log.info('dn: %s' % m)
 
 
 def add_member(inst, basedn, log, args):
