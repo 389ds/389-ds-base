@@ -1,21 +1,24 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import ldap
-import time
-import subprocess
-import pytest
 import logging
 import os
-
+import json
+import pytest
+import ldap
 from lib389 import DEFAULT_SUFFIX
-from lib389.cli_idm.account import list, get_dn, lock, unlock, delete, modify, rename, entry_status, \
-    subtree_status, reset_password, change_password
+from lib389.cli_idm.account import (
+    get_dn,
+    lock,
+    unlock,
+    entry_status,
+    subtree_status,
+)
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
 from lib389.utils import ds_is_older
@@ -33,6 +36,7 @@ def create_test_user(topology_st, request):
     log.info('Create test user')
     users = nsUserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     test_user = users.create_test_user()
+    log.info('Created test user: %s', test_user.dn)
 
     def fin():
         log.info('Delete test user')
@@ -79,7 +83,7 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
                   'Entry Modification Date']
 
     state_lock = 'Entry State: directly locked through nsAccountLock'
-    state_unlock= 'Entry State: activated'
+    state_unlock = 'Entry State: activated'
 
     lock_msg = 'Entry {} is locked'.format(test_user.dn)
     unlock_msg = 'Entry {} is unlocked'.format(test_user.dn)
@@ -96,7 +100,8 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
 
     log.info('Test dsidm account entry-status')
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
-    check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_unlock)
+    check_value_in_log_and_reset(topology_st, content_list=entry_list,
+                                 check_value=state_unlock)
 
     log.info('Test dsidm account lock')
     lock(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -104,11 +109,13 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
 
     log.info('Test dsidm account subtree-status with locked account')
     subtree_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
-    check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_lock)
+    check_value_in_log_and_reset(topology_st, content_list=entry_list,
+                                 check_value=state_lock)
 
     log.info('Test dsidm account entry-status with locked account')
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
-    check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_lock)
+    check_value_in_log_and_reset(topology_st, content_list=entry_list,
+                                 check_value=state_lock)
 
     log.info('Test dsidm account unlock')
     unlock(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -116,11 +123,53 @@ def test_dsidm_account_entry_status_with_lock(topology_st, create_test_user):
 
     log.info('Test dsidm account subtree-status with unlocked account')
     subtree_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
-    check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_unlock)
+    check_value_in_log_and_reset(topology_st, content_list=entry_list,
+                                 check_value=state_unlock)
 
     log.info('Test dsidm account entry-status with unlocked account')
     entry_status(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
-    check_value_in_log_and_reset(topology_st, content_list=entry_list, check_value=state_unlock)
+    check_value_in_log_and_reset(topology_st, content_list=entry_list,
+                                 check_value=state_unlock)
+
+
+def test_dsidm_account_entry_get_by_dn(topology_st, create_test_user):
+    """ Test dsidm account get_dn works with non-json and json
+
+    :id: dd848f67c-9944-48a4-ae5e-98dce4fbc364
+    :setup: Standalone instance
+    :steps:
+        1. Get user by DN (non-json)
+        2. Get user by DN (json)
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topology_st.standalone
+    user_dn = "uid=test_user_1000,ou=people,dc=example,dc=com"
+
+    args = FakeArgs()
+    args.dn = user_dn
+    args.json = False
+    args.basedn = DEFAULT_SUFFIX
+    args.scope = ldap.SCOPE_SUBTREE
+    args.filter = "(uid=*)"
+    args.become_inactive_on = False
+    args.inactive_only = False
+
+    # Test non-json result
+    check_val = "homeDirectory: /home/test_user_1000"
+    get_dn(inst, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    check_value_in_log_and_reset(topology_st, check_value=check_val)
+
+    # Test json
+    args.json = True
+    get_dn(inst, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert json_result['dn'] == user_dn
+
 
 if __name__ == '__main__':
     # Run isolated
