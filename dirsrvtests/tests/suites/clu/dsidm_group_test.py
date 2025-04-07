@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2024 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,6 +8,7 @@
 #
 
 import pytest
+import json
 import logging
 import os
 
@@ -445,6 +446,7 @@ def test_dsidm_group_members_add_remove(topology_st, create_test_group):
 
     args = FakeArgs()
     args.cn = group_name
+    args.json = False
 
     log.info('Test dsidm group members to show no associated members')
     members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -459,6 +461,14 @@ def test_dsidm_group_members_add_remove(topology_st, create_test_group):
     members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, check_value=output_with_member)
 
+    # Test json
+    args.json = True
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert len(json_result['members']) == 1
+    args.json = False
+
     log.info('Test dsidm group remove_member')
     remove_member(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, check_value=output_remove_member)
@@ -466,6 +476,14 @@ def test_dsidm_group_members_add_remove(topology_st, create_test_group):
     log.info('Verify the added member is no longer associated with the group')
     members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, check_value=output_no_member)
+
+    # Test json
+    args.json = True
+    members(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert len(json_result['members']) == 0
+    args.json = False
 
 
 if __name__ == '__main__':
