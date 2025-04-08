@@ -1168,17 +1168,22 @@ class DSLdapObjects(DSLogging, DSLints):
         # functions with very little work on the behalf of the overloader
         return self._childobject(instance=self._instance, dn=dn)
 
-    def list(self, paged_search=None, paged_critical=True):
-        """Get a list of children entries (DSLdapObject, Replica, etc.) using a base DN
-        and objectClasses of our object (DSLdapObjects, Replicas, etc.)
+    def list(self, paged_search=None, paged_critical=True, full_dn=False):
+        """Get a list of children entries (DSLdapObject, Replica, etc.) using
+        a base DN and objectClasses of our object (DSLdapObjects, Replicas,
+        etc.)
 
-        :param paged_search: None for no paged search, or an int of page size to use.
+        :param paged_search: None for no paged search, or an int of page size
+                             to use.
+        :param paged_critical: pages search is critical
+        :param full_dn: Return a list of DN's instead of objects
         :returns: A list of children entries
         """
 
         # Filter based on the objectclasses and the basedn
         insts = None
-        # This will yield and & filter for objectClass with as many terms as needed.
+        # This will yield an & filter for objectClass with as many terms as
+        # needed.
         filterstr = self._get_objectclass_filter()
         self._log.debug('list filter = %s' % filterstr)
 
@@ -1188,7 +1193,9 @@ class DSLdapObjects(DSLogging, DSLints):
             results = []
             pages = 0
             pctrls = []
-            req_pr_ctrl = SimplePagedResultsControl(paged_critical, size=paged_search, cookie='')
+            req_pr_ctrl = SimplePagedResultsControl(paged_critical,
+                                                    size=paged_search,
+                                                    cookie='')
             if self._server_controls is not None:
                 controls = [req_pr_ctrl] + self._server_controls
             else:
@@ -1204,12 +1211,12 @@ class DSLdapObjects(DSLogging, DSLints):
                         escapehatch='i am sure'
                     )
                 self._log.info('Getting page %d' % (pages,))
-                rtype, rdata, rmsgid, rctrls = self._instance.result3(msgid, escapehatch='i am sure')
+                rtype, rdata, rmsgid, rctrls = self._instance.result3(msgid,
+                                                                      escapehatch='i am sure')
                 results.extend(rdata)
                 pages += 1
                 self._log.debug("%s" % rctrls)
-                pctrls = [ c for c in rctrls
-                    if c.controlType == SimplePagedResultsControl.controlType]
+                pctrls = [c for c in rctrls if c.controlType == SimplePagedResultsControl.controlType]
                 if pctrls and pctrls[0].cookie:
                     req_pr_ctrl.cookie = pctrls[0].cookie
                     if self._server_controls is not None:
@@ -1218,26 +1225,32 @@ class DSLdapObjects(DSLogging, DSLints):
                         controls = [req_pr_ctrl]
                 else:
                     break
-                #End while
+                # End while
             # Result3 doesn't map through Entry, so we have to do it manually.
             results = [Entry(r) for r in results]
-            insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+            if full_dn:
+                insts = [r.dn for r in results]
+            else:
+                insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
             # End paged search
         else:
             # If not paged
             try:
                 results = _search_ext_s(self._instance,
-                    base=self._basedn,
-                    scope=self._scope,
-                    filterstr=filterstr,
-                    attrlist=self._list_attrlist,
-                    serverctrls=self._server_controls, clientctrls=self._client_controls,
-                    escapehatch='i am sure'
-                )
-                # def __init__(self, instance, dn=None):
-                insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+                                        base=self._basedn,
+                                        scope=self._scope,
+                                        filterstr=filterstr,
+                                        attrlist=self._list_attrlist,
+                                        serverctrls=self._server_controls,
+                                        clientctrls=self._client_controls,
+                                        escapehatch='i am sure')
+                if full_dn:
+                    insts = [r.dn for r in results]
+                else:
+                    insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
             except ldap.NO_SUCH_OBJECT:
-                # There are no objects to select from, se we return an empty array
+                # There are no objects to select from, se we return an empty
+                # array
                 insts = []
         return insts
 
@@ -1287,7 +1300,9 @@ class DSLdapObjects(DSLogging, DSLints):
         if len(results) == 0:
             raise ldap.NO_SUCH_OBJECT(f"No object exists given the filter criteria: {criteria} {search_filter}")
         if len(results) > 1:
-            raise ldap.UNWILLING_TO_PERFORM(f"Too many objects matched selection criteria: {criteria} {search_filter}")
+            entry_dn = [e.dn for e in results]
+            raise ldap.UNWILLING_TO_PERFORM(f"Too many objects matched selection criteria: {criteria} {search_filter}"
+                                            f" - Please use 'get-by-dn' to specify which entry to get:\n    {'\n    '.join(entry_dn)}")
         if json:
             return self._entry_to_instance(results[0].dn, results[0]).get_all_attrs_json()
         else:
