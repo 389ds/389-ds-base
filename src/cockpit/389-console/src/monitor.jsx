@@ -11,6 +11,7 @@ import AuditLogMonitor from "./lib/monitor/auditlog.jsx";
 import AuditFailLogMonitor from "./lib/monitor/auditfaillog.jsx";
 import ErrorLogMonitor from "./lib/monitor/errorlog.jsx";
 import SecurityLogMonitor from "./lib/monitor/securitylog.jsx";
+import ReplLogAnalysis from "./lib/monitor/replLogAnalysis.jsx";
 import ReplMonitor from "./lib/monitor/replMonitor.jsx";
 import ReplAgmtMonitor from "./lib/monitor/replMonAgmts.jsx";
 import ReplAgmtWinsync from "./lib/monitor/replMonWinsync.jsx";
@@ -230,6 +231,13 @@ export class Monitor extends React.Component {
                                     item: "sync-report",
                                     type: "repl-mon",
                                 },
+                                {
+                                    name: _("Log Analysis"),
+                                    icon: <MonitoringIcon />,
+                                    id: "log-analysis",
+                                    item: "log-analysis",
+                                    type: "repl-mon",
+                                }
                             ],
                         },
                         {
@@ -367,6 +375,15 @@ export class Monitor extends React.Component {
             });
         } else if (treeViewItem.id === "sync-report") {
             this.gatherAllReplicaHosts(treeViewItem, parentItem);
+        } else if (treeViewItem.id === "log-analysis") {
+            this.setState({
+                activeItems: [treeViewItem, parentItem],
+                node_name: treeViewItem.id,
+                node_text: treeViewItem.name,
+                node_type: treeViewItem.type,
+                node_item: treeViewItem.item,
+                disableTree: false
+            });
         } else {
             if (treeViewItem.type === "repl-mon") {
                 this.onHandleLoadMonitorReplication(treeViewItem, parentItem);
@@ -1096,6 +1113,19 @@ export class Monitor extends React.Component {
                                     addNotification={this.props.addNotification}
                                     enableTree={this.enableTree}
                                     handleReload={this.onHandleLoadMonitorReplication}
+                                    key={this.state.node_name}
+                                />
+                            </div>
+                        );
+                    } else if (this.state.node_name === "log-analysis") {
+                        monitor_element = (
+                            <div>
+                                <ReplLogAnalysis
+                                    serverId={this.props.serverId}
+                                    addNotification={this.props.addNotification}
+                                    enableTree={this.enableTree}
+                                    handleReload={this.onHandleLoadMonitorReplication}
+                                    replicatedSuffixes={this.state.replicatedSuffixes}
                                     key={this.state.node_name}
                                 />
                             </div>
