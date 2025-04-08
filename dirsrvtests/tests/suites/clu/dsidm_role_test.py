@@ -19,7 +19,7 @@ from lib389.cli_idm.role import (
     )
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, is_a_dn
 from lib389.idm.role import Roles, ManagedRoles, FilteredRoles, NestedRoles
 from . import check_value_in_log_and_reset, check_value_in_log
 
@@ -266,7 +266,6 @@ def test_dsidm_role_delete(topology_st, create_test_managed_role):
     assert not test_managed_role.exists()
 
 
-@pytest.mark.xfail(reason="DS6488")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_list(topology_st, create_test_managed_role):
     """ Test dsidm role list option
@@ -277,10 +276,12 @@ def test_dsidm_role_list(topology_st, create_test_managed_role):
         1. Run dsidm role list option without json
         2. Check the output content is correct
         3. Run dsidm role list option with json
-        4. Check the output content is correct
-        5. Delete the role
-        6. CHeck the role is not in the list with json
-        7. Check the role is not in the list without json
+        4. Test "full_dn" option with list
+        5. Check the output content is correct
+        6. Delete the role
+        7. Check the role is not in the list with json
+        8. Check the role is not in the list without json
+
     :expectedresults:
         1. Success
         2. Success
@@ -289,11 +290,13 @@ def test_dsidm_role_list(topology_st, create_test_managed_role):
         5. Success
         6. Success
         7. Success
+        8. Success
     """
 
     standalone = topology_st.standalone
     args = FakeArgs()
     args.json = False
+    args.full_dn = False
     json_list = ['type',
                  'list',
                  'items']
@@ -310,13 +313,25 @@ def test_dsidm_role_list(topology_st, create_test_managed_role):
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value=managed_role_name)
 
+    log.info('Test full_dn option with list')
+    args.full_dn = True
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert is_a_dn(json_result['items'][0])
+    args.full_dn = False
+
     log.info('Delete the role')
-    roles = Roles(standalone, DEFAULT_SUFFIX)
+    roles = ManagedRoles(standalone, DEFAULT_SUFFIX)
     test_role = roles.get(managed_role_name)
     test_role.delete()
 
     log.info('Test empty dsidm role list with json')
+    topology_st.logcap.flush()
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert len(json_result['items']) == 0
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value_not=managed_role_name)
 
     log.info('Test empty dsidm role list without json')
