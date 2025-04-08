@@ -233,14 +233,17 @@ like modify, locking and unlocking. To create an account, see "user" subcommand 
 
     subcommands = account_parser.add_subparsers(help='action')
 
-    list_parser = subcommands.add_parser('list', help='list accounts that could login to the directory', formatter_class=CustomHelpFormatter)
+    list_parser = subcommands.add_parser('list',
+                                         help='list accounts that could login to the directory (returns the full DN of the entry)',
+                                         formatter_class=CustomHelpFormatter)
     list_parser.set_defaults(func=list)
 
     get_dn_parser = subcommands.add_parser('get-by-dn', help='get-by-dn <dn>', formatter_class=CustomHelpFormatter)
     get_dn_parser.set_defaults(func=get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The dn to get and display')
 
-    modify_dn_parser = subcommands.add_parser('modify-by-dn', help='modify-by-dn <dn> <add|delete|replace>:<attribute>:<value> ...', formatter_class=CustomHelpFormatter)
+    modify_dn_parser = subcommands.add_parser('modify-by-dn', help='modify-by-dn <dn> <add|delete|replace>:<attribute>:<value> ...',
+                                              formatter_class=CustomHelpFormatter)
     modify_dn_parser.set_defaults(func=modify)
     modify_dn_parser.add_argument('dn', nargs=1, help='The dn to get and display')
     modify_dn_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
@@ -249,7 +252,8 @@ like modify, locking and unlocking. To create an account, see "user" subcommand 
     rename_dn_parser.set_defaults(func=rename)
     rename_dn_parser.add_argument('dn', help='The dn to rename')
     rename_dn_parser.add_argument('new_dn', help='A new role dn')
-    rename_dn_parser.add_argument('--keep-old-rdn', action='store_true', help="Specify whether the old RDN (i.e. 'cn: old_role') should be kept as an attribute of the entry or not")
+    rename_dn_parser.add_argument('--keep-old-rdn', action='store_true',
+                                  help="Specify whether the old RDN (i.e. 'cn: old_role') should be kept as an attribute of the entry or not")
 
     delete_parser = subcommands.add_parser('delete', help='deletes the account', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=delete)
@@ -278,18 +282,23 @@ like modify, locking and unlocking. To create an account, see "user" subcommand 
     status_parser.add_argument('-o', '--become-inactive-on',
                                help="Only display entries that will become inactive before specified date (in a format 2007-04-25T14:30)")
 
-    reset_pw_parser = subcommands.add_parser('reset_password', help='Reset the password of an account. This should be performed by a directory admin.', formatter_class=CustomHelpFormatter)
+    reset_pw_parser = subcommands.add_parser('reset_password', help='Reset the password of an account. This should be performed by a directory admin.',
+                                             formatter_class=CustomHelpFormatter)
     reset_pw_parser.set_defaults(func=reset_password)
     reset_pw_parser.add_argument('dn', nargs='?', help='The dn to reset the password for')
     reset_pw_parser.add_argument('new_password', nargs='?', help='The new password to set')
 
-    change_pw_parser = subcommands.add_parser('change_password', help='Change the password of an account. This can be performed by any user (with correct rights)', formatter_class=CustomHelpFormatter)
+    change_pw_parser = subcommands.add_parser('change_password',
+                                              help='Change the password of an account. This can be performed by any user (with correct rights)',
+                                              formatter_class=CustomHelpFormatter)
     change_pw_parser.set_defaults(func=change_password)
     change_pw_parser.add_argument('dn', nargs='?', help='The dn to change the password for')
     change_pw_parser.add_argument('new_password', nargs='?', help='The new password to set')
     change_pw_parser.add_argument('current_password', nargs='?', help='The accounts current password')
 
-    bulk_update_parser = subcommands.add_parser('bulk_update', help='Perform a common operation to a set of entries', formatter_class=CustomHelpFormatter)
+    bulk_update_parser = subcommands.add_parser('bulk_update',
+                                                help='Perform a common operation to a set of entries',
+                                                formatter_class=CustomHelpFormatter)
     bulk_update_parser.set_defaults(func=bulk_update)
     bulk_update_parser.add_argument('basedn', help="Search base for finding entries, only the children of this DN are processed")
     bulk_update_parser.add_argument('-f', '--filter', help="Search filter for finding entries, default is '(objectclass=*)'")
