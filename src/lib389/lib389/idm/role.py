@@ -54,6 +54,7 @@ class Role(DSLdapObject):
             'LDAPsubentry',
             'nsRoleDefinition',
         ]
+        self._protected = False
 
     def _format_status_message(self, message, role_dn=None):
         return {"state": message, "role_dn": role_dn}
