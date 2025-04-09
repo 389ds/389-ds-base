@@ -88,7 +88,7 @@ def _add_user(request, topo):
     nestedroles = NestedRoles(topo.standalone, OU_ROLE)
     for i in [('role2', [ROLE1, ROLE21]), ('role3', [ROLE2, ROLE31])]:
         nestedroles.create(properties={'cn': i[0],
-                                       'nsRoleDN': i[1]})
+                                       'nsroledn': i[1]})
 
     managedroles = ManagedRoles(topo.standalone, OU_ROLE)
     for i in ['ROLE1', 'ROLE21', 'ROLE31']:
@@ -111,7 +111,7 @@ def _add_user(request, topo):
             'gidNumber': '2000',
             'homeDirectory': '/home/' + i[0],
             'userPassword': PW_DM,
-            'nsRoleDN': i[1],
+            'nsroledn': i[1],
             'Description': i[2]
         })
 
