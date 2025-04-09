@@ -19,8 +19,14 @@ MUST_ATTRIBUTES = [
 ]
 MUST_ATTRIBUTES_NESTED = [
     'cn',
-    'nsRoleDN'
+    'nsroledn'
 ]
+MUST_ATTRIBUTES_FILTERED = [
+    'cn',
+    'nsrolefilter'
+]
+RDN = 'cn'
+
 
 class RoleState(Enum):
     ACTIVATED = "activated"
@@ -120,7 +126,7 @@ class Role(DSLdapObject):
             except ldap.NO_SUCH_OBJECT:
                 # We don't use "ensure_state" because we want to preserve the existing attributes
                 disabled_role = nested_roles.create(properties={"cn": "nsDisabledRole",
-                                                                "nsRoleDN": managed_role.dn})
+                                                                "nsroledn": managed_role.dn})
             disabled_role.add("nsRoleDN", self.dn)
 
             inact_containers = nsContainers(inst, basedn=root_suffix)
@@ -246,6 +252,7 @@ class Roles(DSLdapObjects):
 
         return result
 
+
 class FilteredRole(Role):
     """A single instance of FilteredRole entry to create FilteredRole role
 
@@ -259,9 +266,7 @@ class FilteredRole(Role):
         super(FilteredRole, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition']
-
         self._protected = False
-
 
 
 class FilteredRoles(Roles):
@@ -276,6 +281,7 @@ class FilteredRoles(Roles):
     def __init__(self, instance, basedn):
         super(FilteredRoles, self).__init__(instance, basedn)
         self._objectclasses = ['LDAPsubentry', 'nsComplexRoleDefinition', 'nsFilteredRoleDefinition']
+        self._must_attributes = MUST_ATTRIBUTES_FILTERED
         self._filterattrs = ['cn']
         self._basedn = basedn
         self._childobject = FilteredRole
@@ -294,8 +300,8 @@ class ManagedRole(Role):
         super(ManagedRole, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._create_objectclasses = ['nsSimpleRoleDefinition', 'nsManagedRoleDefinition']
-
         self._protected = False
+
 
 class ManagedRoles(Roles):
     """DSLdapObjects that represents all Managed Roles entries
@@ -330,8 +336,8 @@ class NestedRole(Role):
         self._must_attributes = MUST_ATTRIBUTES_NESTED
         self._rdn_attribute = 'cn'
         self._create_objectclasses = ['nsComplexRoleDefinition', 'nsNestedRoleDefinition']
-
         self._protected = False
+
 
 class NestedRoles(Roles):
     """DSLdapObjects that represents all NestedRoles entries in suffix.

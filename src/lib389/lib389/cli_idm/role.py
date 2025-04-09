@@ -16,7 +16,9 @@ from lib389.idm.role import (
     FilteredRoles,
     NestedRoles,
     MUST_ATTRIBUTES,
-    MUST_ATTRIBUTES_NESTED
+    MUST_ATTRIBUTES_FILTERED,
+    MUST_ATTRIBUTES_NESTED,
+    RDN
     )
 from lib389.cli_base import (
     populate_attr_arguments,
@@ -33,6 +35,7 @@ from lib389.cli_base import (
     CustomHelpFormatter
     )
 from lib389.cli_idm import _generic_rename_dn
+
 
 MANY = Roles
 SINGULAR = Role
@@ -58,7 +61,7 @@ def create_managed(inst, basedn, log, args):
 
 
 def create_filtered(inst, basedn, log, args):
-    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES_FILTERED)
     _generic_create(inst, basedn, log.getChild('_generic_create'), FilteredRoles, kwargs, args)
 
 
@@ -71,7 +74,7 @@ def delete(inst, basedn, log, args, warn=True):
     dn = _get_dn_arg(args.dn, msg="Enter dn to delete")
     if warn:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
-    _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
+    _generic_delete(inst, basedn, log.getChild('_generic_delete'), Role, dn, args)
 
 
 def modify(inst, basedn, log, args, warn=True):
