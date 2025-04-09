@@ -8,7 +8,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import json
-from lib389.idm.group import Group, Groups, MUST_ATTRIBUTES
+from lib389.idm.group import Group, Groups, MAY_ATTRIBUTES, MUST_ATTRIBUTES
 from lib389.cli_base import populate_attr_arguments, _generic_modify, CustomHelpFormatter
 from lib389.cli_idm import (
     _generic_list,
@@ -44,7 +44,7 @@ def get_dn(inst, basedn, log, args):
 
 
 def create(inst, basedn, log, args):
-    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES, MAY_ATTRIBUTES)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
 
 
@@ -123,9 +123,10 @@ def create_parser(subparsers):
     get_dn_parser.set_defaults(func=get_dn)
     get_dn_parser.add_argument('dn', nargs='?', help='The dn to get')
 
-    create_parser = subcommands.add_parser('create', help='create', formatter_class=CustomHelpFormatter)
-    create_parser.set_defaults(func=create)
-    populate_attr_arguments(create_parser, MUST_ATTRIBUTES)
+    create_group_parser = subcommands.add_parser('create', help='create',
+                                                 formatter_class=CustomHelpFormatter)
+    create_group_parser.set_defaults(func=create)
+    populate_attr_arguments(create_group_parser, MUST_ATTRIBUTES + MAY_ATTRIBUTES)
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object', formatter_class=CustomHelpFormatter)
     delete_parser.set_defaults(func=delete)
