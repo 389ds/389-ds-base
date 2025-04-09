@@ -295,17 +295,17 @@ def test_nestedrole(topo, _final):
     # Create nested role entry
     nested_roles = NestedRoles(topo.standalone, DEFAULT_SUFFIX)
     nested_role = nested_roles.create(properties={"cn": 'nested_role',
-                                                  "nsRoleDN": [managed_role1.dn, managed_role2.dn]})
+                                                  "nsroledn": [managed_role1.dn, managed_role2.dn]})
 
     # Create user and assign managed role to it
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     user1 = users.create_test_user(uid=1, gid=1)
-    user1.set('nsRoleDN', managed_role1.dn)
+    user1.set('nsroledn', managed_role1.dn)
     user1.set('userPassword', PW_DM)
 
     # Create another user and assign managed role to it
     user2 = users.create_test_user(uid=2, gid=2)
-    user2.set('nsRoleDN', managed_role2.dn)
+    user2.set('nsroledn', managed_role2.dn)
     user2.set('userPassword', PW_DM)
 
     # Create another user and do not assign any role to it
