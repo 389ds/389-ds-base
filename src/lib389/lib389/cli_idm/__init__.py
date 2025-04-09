@@ -74,7 +74,7 @@ def _get_basedn_arg(inst, args, basedn, log, msg=None):
 
 
 # This is really similar to get_args, but generates from an array
-def _get_attributes(args, attrs):
+def _get_attributes(args, attrs, optional_attrs=None):
     kwargs = {}
     for attr in attrs:
         # Python can't represent a -, so it replaces it to _
@@ -87,6 +87,13 @@ def _get_attributes(args, attrs):
                 kwargs[attr] = getpass("Enter value for %s : " % attr)
             else:
                 kwargs[attr] = input("Enter value for %s : " % attr)
+
+    if optional_attrs is not None:
+        for attr in optional_attrs:
+            attr_normal = attr.replace('-', '_')
+            if hasattr(args, attr_normal) and getattr(args, attr_normal) is not None:
+                kwargs[attr] = getattr(args, attr_normal)
+
     return kwargs
 
 

@@ -15,6 +15,9 @@ from lib389._constants import DSRC_HOME
 MUST_ATTRIBUTES = [
     'cn',
 ]
+MAY_ATTRIBUTES = [
+    'description'
+]
 RDN = 'cn'
 DEFAULT_BASEDN_RDN = 'ou=Groups'
 DEFAULT_BASEDN_RDN_ADMIN_GROUPS = 'ou=People'

@@ -80,6 +80,7 @@ def test_dsidm_group_create(topology_st):
 
     args = FakeArgs()
     args.cn = group_name
+    args.description = "my description"
 
     log.info('Test dsidm group create')
     create(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -89,6 +90,7 @@ def test_dsidm_group_create(topology_st):
     groups = Groups(standalone, DEFAULT_SUFFIX)
     new_group = groups.get(group_name)
     assert new_group.exists()
+    assert new_group.present('description', 'my description')
 
     log.info('Clean up for next test')
     new_group.delete()
