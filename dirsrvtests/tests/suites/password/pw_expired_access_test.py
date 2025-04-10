@@ -52,6 +52,7 @@ def test_expired_user_has_no_privledge(topo):
 
     # Bind as user with expired password.  Need to use raw ldap calls because
     # lib389 will close the connection when an error 49 is encountered.
+    ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(topo.standalone.get_config_dir(), "ca.crt"))
     ldap_object = ldap.initialize(topo.standalone.toLDAPURL())
     with pytest.raises(ldap.INVALID_CREDENTIALS):
         res_type, res_data, res_msgid, res_ctrls = ldap_object.simple_bind_s(
