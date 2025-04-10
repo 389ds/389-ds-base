@@ -1271,6 +1271,47 @@ def test_normalized_rid_dict():
         assert nrd[nkey] == val
 
 
+def test_get_with_normalized_rid_dict():
+    """Check lib389.replica NormalizedRidDict.get() function
+
+    :id: 4422e1be-1619-11f0-a37a-482ae39447e5
+    :setup: None
+    :steps:
+        1. Initialize a NormalizedRidDict
+        2. Check that normalization do something
+        3. Check that get() returns the expected value
+        4. Check get() with wrong key
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Should return the default value if it is provided
+           otherwise it should raise a KeyError exception
+    """
+
+    sd = { '1': 'v1', '020': 'v2' }
+    nsd = { NormalizedRidDict.normalize_rid(key): val for key,val in sd.items() }
+    nkeys = list(nsd.keys())
+
+    # Initialize a NormalizedRidDict
+    nrd = NormalizedRidDict()
+    for key,val in sd.items():
+        nrd[key] = val
+
+    # Check that get() returns the expected value
+    for key,val in sd.items():
+        nkey = NormalizedRidDict.normalize_rid(key)
+        assert nrd.get(key) == val
+        assert nrd.get(nkey) == val
+        assert nrd.get(key, 'foo') == val
+        assert nrd.get(nkey, 'foo') == val
+
+    # Check get() with wrong key
+    assert nrd.get('99', 'foo2') == 'foo2'
+    with pytest.raises(KeyError):
+        nrd.get('bad')
+
+
 def test_online_reinit_may_hang(topo_with_sigkill):
     """Online reinitialization may hang when the first
        entry of the DB is RUV entry instead of the suffix

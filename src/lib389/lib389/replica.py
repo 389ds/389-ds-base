@@ -841,6 +841,14 @@ class NormalizedRidDict(dict):
         nkey = NormalizedRidDict.normalize_rid(key)
         super().__setitem__(nkey, value)
 
+    def get(self, key, *args):
+        if len(args) > 0:
+            try:
+                return self[key]
+            except KeyError:
+                return args[0]
+        return self[key]
+
 
 class RUV(object):
     """Represents the server in memory RUV object. The RUV contains each
@@ -986,6 +994,10 @@ class RUV(object):
             if my_csn < other_csn:
                 return False
         return True
+
+    def __str__(self):
+        return str(self.format_ruv())
+
 
 
 class ChangelogLDIF(object):
