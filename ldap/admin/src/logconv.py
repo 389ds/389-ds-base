@@ -247,7 +247,7 @@ class logAnalyser:
         except IOError as io_err:
             raise IOError(f"Failed to open file '{stats_file}' for writing: {io_err}")
 
-    def _setup_logger(self, log_level):
+    def _setup_logger(self, log_level: int):
         """
         Setup logging
         """
