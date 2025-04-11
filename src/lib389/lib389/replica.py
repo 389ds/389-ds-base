@@ -841,13 +841,11 @@ class NormalizedRidDict(dict):
         nkey = NormalizedRidDict.normalize_rid(key)
         super().__setitem__(nkey, value)
 
-    def get(self, key, *args):
-        if len(args) > 0:
-            try:
-                return self[key]
-            except KeyError:
-                return args[0]
-        return self[key]
+    def get(self, key, vdef=None):
+        try:
+            return self[key]
+        except KeyError:
+            return vdef
 
 
 class RUV(object):
@@ -919,7 +917,7 @@ class RUV(object):
             ValueError("Wrong CSN value was supplied")
 
         timestamp = int(csn[:8], 16)
-        time_str = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        time_str = datetime.datetime.fromtimestamp(timestamp, datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')
         # We are parsing shorter CSN which contains only timestamp
         if len(csn) == 8:
             return time_str

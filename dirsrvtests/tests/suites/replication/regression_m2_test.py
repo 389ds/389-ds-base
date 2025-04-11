@@ -1286,7 +1286,7 @@ def test_get_with_normalized_rid_dict():
         2. Success
         3. Success
         4. Should return the default value if it is provided
-           otherwise it should raise a KeyError exception
+           otherwise it should return None
     """
 
     sd = { '1': 'v1', '020': 'v2' }
@@ -1308,8 +1308,9 @@ def test_get_with_normalized_rid_dict():
 
     # Check get() with wrong key
     assert nrd.get('99', 'foo2') == 'foo2'
-    with pytest.raises(KeyError):
-        nrd.get('bad')
+    assert nrd.get('099', 'foo2') == 'foo2'
+    assert nrd.get('99') is None
+    assert nrd.get('099') is None
 
 
 def test_online_reinit_may_hang(topo_with_sigkill):
