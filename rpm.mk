@@ -14,7 +14,7 @@ BUNDLE_JEMALLOC = 1
 NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 NODE_MODULES_PATH = src/cockpit/389-console/
 CARGO_PATH = src/
-GIT_TAG = ${TAG}
+GIT_TAG = $(if $(TAG),$(TAG),$(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL))
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
@@ -39,7 +39,6 @@ update-cargo-dependencies:
 	cargo update --manifest-path=./src/Cargo.toml
 
 download-cargo-dependencies:
-	cargo update --manifest-path=./src/Cargo.toml
 	cargo vendor --manifest-path=./src/Cargo.toml
 	cargo fetch --manifest-path=./src/Cargo.toml
 	tar -czf vendor.tar.gz vendor
