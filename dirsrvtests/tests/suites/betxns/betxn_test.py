@@ -29,6 +29,16 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 USER_PASSWORD = 'password'
 
+def retry_if_busy(f):
+    for x in range(1000):
+        try:
+            return f()
+        except ldap.BUSY:
+            time.sleep(0.02)
+
+    log.error("Too many retries!")
+    assert False
+
 
 def test_betxt_7bit(topology_st):
     """Test that the 7-bit plugin correctly rejects an invalid update
@@ -240,14 +250,14 @@ def test_betxn_modrdn_memberof_cache_corruption(topology_st):
     if singleTXN:
         # Attempt modrdn that should fail, but the original entry should stay in the cache
         with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
-            group.rename('cn=group_to_people', newsuperior=peoplebase)
+            retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
 
         # Should fail, but not with NO_SUCH_OBJECT as the original entry should still be in the cache
         with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
-            group.rename('cn=group_to_people', newsuperior=peoplebase)
+            retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
     else:
-        group.rename('cn=group_to_people', newsuperior=peoplebase)
-        group.rename('cn=group_to_people', newsuperior=peoplebase)
+        retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
+        retry_if_busy(lambda: group.rename('cn=group_to_people', newsuperior=peoplebase))
 
     # Done
     log.info('test_betxn_modrdn_memberof: PASSED')
