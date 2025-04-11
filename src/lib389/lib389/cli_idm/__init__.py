@@ -107,7 +107,10 @@ def _warn(data, msg=None):
 
 def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
-    ol = mc.list()
+    full_dn = False
+    if hasattr(args, 'full_dn') and getattr(args, 'full_dn') is not None:
+        full_dn = args.full_dn
+    ol = mc.list(full_dn=full_dn)
     if len(ol) == 0:
         if args and args.json:
             log.info(json.dumps({"type": "list", "items": []}, indent=4))
@@ -118,7 +121,10 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             json_result = {"type": "list", "items": []}
         for o in ol:
-            o_str = o.get_rdn_from_dn(o.dn)
+            if full_dn:
+                o_str = o  # Already a string
+            else:
+                o_str = o.get_rdn_from_dn(o.dn)
             if args and args.json:
                 json_result['items'].append(o_str)
             else:
