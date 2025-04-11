@@ -489,6 +489,57 @@ slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod 
     slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
 }
 
+/* Performs a single LDAP modify operation with error overrides.
+ *
+ * If specific errors occur, such as attempting to add an existing attribute or
+ * delete a non-existent one, the function overrides the error and returns success:
+ *   - LDAP_MOD_ADD -> LDAP_TYPE_OR_VALUE_EXISTS (ignored)
+ *   - LDAP_MOD_DELETE -> LDAP_NO_SUCH_ATTRIBUTE (ignored)
+ *
+ * Any other errors encountered during the operation will be returned as-is.
+ */
+int 
+slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mod, Slapi_ComponentId *plugin_id, int op_flags)
+{
+    int rc = 0;
+    int result = 0;
+    int result_reset = 0;
+    int mod_op = 0;
+
+    if (!pb || !sdn || !mod || !mod[0]) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_single_modify_internal_override",
+                    "Invalid argument: %s%s%s%s is NULL\n",
+                    !pb ? "pb " : "",
+                    !sdn ? "sdn " : "",
+                    !mod ? "mod " : "",
+                    !mod[0] ? "mod[0] " : "");
+
+        return LDAP_PARAM_ERROR;
+    }
+
+    slapi_modify_internal_set_pb_ext(pb, sdn, mod, NULL, NULL, plugin_id, op_flags);
+    slapi_modify_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+
+    if (result != LDAP_SUCCESS) {
+        mod_op = mod[0]->mod_op & LDAP_MOD_OP;
+        if ((mod_op == LDAP_MOD_ADD && result == LDAP_TYPE_OR_VALUE_EXISTS) ||
+            (mod_op == LDAP_MOD_DELETE && result == LDAP_NO_SUCH_ATTRIBUTE)) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, "slapi_single_modify_internal_override",
+                            "Overriding return code - plugin:%s dn:%s mod_op:%d result:%d\n",
+                            plugin_id ? plugin_id->sci_component_name : "unknown",
+                            sdn ? sdn->udn : "unknown", mod_op, result);
+
+                slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &result_reset);
+                rc = LDAP_SUCCESS;
+            } else {
+                rc = result;
+            }
+    }
+
+    return rc;
+}
+
 /* Helper functions */
 
 static int
