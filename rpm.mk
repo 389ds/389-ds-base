@@ -11,7 +11,7 @@ TARBALL = $(NAME_VERSION).tar.bz2
 NODE_MODULES_TEST = src/cockpit/389-console/package-lock.json
 NODE_MODULES_PATH = src/cockpit/389-console/
 CARGO_PATH = src/
-GIT_TAG = ${TAG}
+GIT_TAG = $(if $(TAG),$(TAG),$(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL))
 
 BUNDLE_JEMALLOC = 1
 RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_JEMALLOC)),--with bundle_jemalloc,--without bundle_jemalloc)
@@ -55,7 +55,6 @@ update-cargo-dependencies:
 	cargo update --manifest-path=./src/Cargo.toml
 
 download-cargo-dependencies:
-	cargo update --manifest-path=./src/Cargo.toml
 	cargo vendor --manifest-path=./src/Cargo.toml
 	cargo fetch --manifest-path=./src/Cargo.toml
 	tar -czf vendor.tar.gz vendor
