@@ -1020,6 +1020,7 @@ is_chain_on_update_setup(const Slapi_DN *replroot)
         0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &operation_result);
+
     switch (operation_result) {
     case LDAP_SUCCESS: {
         Slapi_Entry **entries = NULL;

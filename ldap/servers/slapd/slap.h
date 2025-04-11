@@ -706,6 +706,9 @@ typedef struct asyntaxinfo
     struct slapdplugin *asi_mr_ord_plugin; /* ORDERING matching rule plugin */
     struct asyntaxinfo *asi_next;
     struct asyntaxinfo *asi_prev;
+    PRBool asi_ht_copy;                    /* marking that this asi is hash
+                                            * table copy and should not be
+                                            * removed */
 } asyntaxinfo;
 
 /*

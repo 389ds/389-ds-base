@@ -854,7 +854,6 @@ replica_config_search(Slapi_PBlock *pb,
     char val[64];
 
     /* add attribute that contains number of entries in the changelog for this replica */
-
     PR_Lock(s_configLock);
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
