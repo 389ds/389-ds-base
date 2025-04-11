@@ -151,7 +151,6 @@ def test_dsidm_role_create_managed(topology_st):
     log.info('Clean up for next test')
     new_managed_role.delete()
 
-@pytest.mark.xfail(reason="DS6492")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_create_filtered(topology_st):
     """ Test dsidm role create-filtered option
@@ -173,6 +172,7 @@ def test_dsidm_role_create_filtered(topology_st):
 
     args = FakeArgs()
     args.cn = filtered_role_name
+    args.nsrolefilter = "(cn=*)"
 
     log.info('Test dsidm role create-filtered')
     create_filtered(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -189,7 +189,6 @@ def test_dsidm_role_create_filtered(topology_st):
     new_filtered_role.delete()
 
 
-@pytest.mark.xfail(reason="DS6493")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_create_nested(topology_st, create_test_managed_role):
     """ Test dsidm role create-nested option
@@ -214,7 +213,7 @@ def test_dsidm_role_create_nested(topology_st, create_test_managed_role):
 
     args = FakeArgs()
     args.cn = nested_role_name
-    args.nsRoleDN = managed_role.dn
+    args.nsroledn = managed_role.dn
 
     log.info('Test dsidm role create-nested')
     create_nested(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
@@ -231,7 +230,6 @@ def test_dsidm_role_create_nested(topology_st, create_test_managed_role):
     new_nested_role.delete()
 
 
-@pytest.mark.xfail(reason="DS6488")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_delete(topology_st, create_test_managed_role):
     """ Test dsidm role delete
@@ -266,7 +264,6 @@ def test_dsidm_role_delete(topology_st, create_test_managed_role):
     assert not test_managed_role.exists()
 
 
-@pytest.mark.xfail(reason="DS6488")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_list(topology_st, create_test_managed_role):
     """ Test dsidm role list option
@@ -405,7 +402,6 @@ def test_dsidm_role_get(topology_st, role_name, fixture, objectclasses, request)
     check_value_in_log_and_reset(topology_st, content_list=json_content)
 
 
-@pytest.mark.xfail(reason="DS6503")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 @pytest.mark.parametrize(
     "role_name, fixture, objectclasses",
