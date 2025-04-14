@@ -74,7 +74,7 @@ def delete(inst, basedn, log, args, warn=True):
     dn = _get_dn_arg(args.dn, msg="Enter dn to delete")
     if warn:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
-    _generic_delete(inst, basedn, log.getChild('_generic_delete'), Role, dn, args)
+    _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
 
 
 def modify(inst, basedn, log, args, warn=True):
