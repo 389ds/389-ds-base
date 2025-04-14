@@ -547,7 +547,6 @@ def test_dsidm_role_modify_by_dn(topology_st, create_test_managed_role):
     assert not test_role.present('description', 'modified managed role')
 
 
-@pytest.mark.xfail(reason="DS6501")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_rename_by_dn(topology_st, create_test_managed_role, add_description):
     """ Test dsidm role rename-by-dn
@@ -580,7 +579,6 @@ def test_dsidm_role_rename_by_dn(topology_st, create_test_managed_role, add_desc
     output = 'Successfully renamed to {}'.format(new_role.dn)
     check_value_in_log_and_reset(topology_st, check_value=output)
 
-
     log.info('Verify the new role does not have a cn attribute with the old rdn')
     assert not new_role.present('cn', managed_role_name)
     assert new_role.present('description', managed_role_name)
@@ -589,7 +587,6 @@ def test_dsidm_role_rename_by_dn(topology_st, create_test_managed_role, add_desc
     assert not test_role.exists()
 
 
-@pytest.mark.xfail(reason="DS6501")
 @pytest.mark.skipif(ds_is_older("1.4.2"), reason="Not implemented")
 def test_dsidm_role_rename_by_dn_keep_old_rdn(topology_st, create_test_managed_role, add_description):
     """ Test dsidm role rename-by-dn with keep-old-rdn option
@@ -612,8 +609,8 @@ def test_dsidm_role_rename_by_dn_keep_old_rdn(topology_st, create_test_managed_r
 
     args = FakeArgs()
     args.dn = test_role.dn
-    args.new_name = 'renamed_role'
-    args.new_dn = 'cn=renamed_role,{}'.format(DEFAULT_SUFFIX)
+    args.new_name = 'renamed_role_keep_rdn'
+    args.new_dn = 'cn=renamed_role_keep_rdn,{}'.format(DEFAULT_SUFFIX)
     args.keep_old_rdn = True
 
     log.info('Test dsidm role rename-by-dn')
