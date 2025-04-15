@@ -26,7 +26,6 @@ from lib389.cli_base import (
     _get_attributes,
     _generic_get,
     _generic_get_dn,
-    _generic_list,
     _generic_delete,
     _generic_modify_dn,
     _generic_create,
@@ -34,7 +33,11 @@ from lib389.cli_base import (
     _warn,
     CustomHelpFormatter
     )
-from lib389.cli_idm import _generic_rename_dn
+
+from lib389.cli_idm import (
+    _generic_list,
+    _generic_rename_dn
+)
 
 
 MANY = Roles
