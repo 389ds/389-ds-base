@@ -322,7 +322,7 @@ memberof_validate_config(Slapi_PBlock *pb,
         } else {
             /* config area does not exist! */
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "The %s configuration attribute points to an entry that  "
+                        "The %s configuration attribute points to an entry that "
                         "can not be found.  (%s)",
                         SLAPI_PLUGIN_SHARED_CONFIG_AREA, config_dn);
             *returncode = LDAP_UNWILLING_TO_PERFORM;

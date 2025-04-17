@@ -69,7 +69,10 @@ def memberof_del_config(inst, basedn, log, args):
     targetdn = args.DN
     config = MemberOfSharedConfig(inst, targetdn)
     config.delete()
-    log.info("Successfully deleted the %s", targetdn)
+    # Now remove the attribute from the memberOf plugin
+    plugin = MemberOfPlugin(inst)
+    plugin.remove_all('nsslapd-pluginConfigArea')
+    log.info("Successfully deleted %s", targetdn)
 
 
 def do_fixup(inst, basedn, log, args):
@@ -146,7 +149,9 @@ def create_parser(subparsers):
     show_config = config_subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show_config.set_defaults(func=memberof_show_config)
     show_config.add_argument('DN', help='The config entry full DN')
-    del_config_ = config_subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
+    del_config_ = config_subcommands.add_parser('delete',
+                                                help='Delete the config entry and remove the reference in the plugin',
+                                                formatter_class=CustomHelpFormatter)
     del_config_.set_defaults(func=memberof_del_config)
     del_config_.add_argument('DN', help='The config entry full DN')
 
@@ -160,11 +165,11 @@ def create_parser(subparsers):
     fixup.add_argument('--wait', action='store_true',
                        help="Wait for the task to finish, this could take a long time")
     fixup.add_argument('--timeout', type=int, default=0,
-                        help="Sets the task timeout. ,Default is 0 (no timeout)")
+                       help="Sets the task timeout. Default is 0 (no timeout)")
 
     fixup_status = subcommands.add_parser('fixup-status', help='Check the status of a fix-up task', formatter_class=CustomHelpFormatter)
     fixup_status.set_defaults(func=do_fixup_status)
     fixup_status.add_argument('--dn', help="The task entry's DN")
     fixup_status.add_argument('--show-log', action='store_true', help="Display the task log")
     fixup_status.add_argument('--watch', action='store_true',
-                       help="Watch the task's status and wait for it to finish")
+                              help="Watch the task's status and wait for it to finish")

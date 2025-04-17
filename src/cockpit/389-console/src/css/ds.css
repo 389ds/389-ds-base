@@ -358,6 +358,10 @@ textarea {
     margin-left: 15px !important;
 }
 
+.ds-right-margin {
+    margin-right: 10px !important;
+}
+
 .ds-radio-indent {
     margin-left: 25px !important;
 }
