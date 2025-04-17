@@ -822,34 +822,40 @@ class MemberOf extends React.Component {
                 configAllBackends ? "on" : "off",
                 "--skipnested",
                 configSkipNested ? "on" : "off",
-                "--autoaddoc",
-                configAutoAddOC || action === "add" ? configAutoAddOC : "delete",
             ];
 
             // Delete attributes if the user set an empty value to the field
-            cmd = [...cmd, "--scope"];
             if (configEntryScope.length !== 0) {
+                cmd = [...cmd, "--scope"];
                 for (const value of configEntryScope) {
                     cmd = [...cmd, value];
                 }
-            } else {
-                cmd = [...cmd, "delete"];
+            } else if (action !== "add") {
+                cmd = [...cmd, "--scope", "delete"];
             }
-            cmd = [...cmd, "--exclude"];
+
+            if (configAutoAddOC !== "") {
+                cmd = [...cmd, "--autoaddoc", configAutoAddOC];
+            } else if (action !== "add") {
+                cmd = [...cmd, "--autoaddoc", "delete"];
+            }
+
             if (configEntryScopeExcludeSubtree.length !== 0) {
+                cmd = [...cmd, "--exclude"];
                 for (const value of configEntryScopeExcludeSubtree) {
                     cmd = [...cmd, value];
                 }
-            } else {
-                cmd = [...cmd, "delete"];
+            } else if (action !== "add") {
+                cmd = [...cmd, "--exclude", "delete"];
             }
-            cmd = [...cmd, "--groupattr"];
+
             if (configGroupAttr.length !== 0) {
+                cmd = [...cmd, "--groupattr"];
                 for (const value of configGroupAttr) {
                     cmd = [...cmd, value];
                 }
-            } else {
-                cmd = [...cmd, "delete"];
+            } else if (action !== "add") {
+                cmd = [...cmd, "--groupattr", "delete"];
             }
 
             this.setState({
@@ -1304,11 +1310,13 @@ class MemberOf extends React.Component {
                                     name="configDN"
                                     onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
-                                    isDisabled={newEntry}
+                                    isDisabled={!newEntry}
                                 />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
+                                {newEntry &&
+                                    <FormHelperText>
+                                        {_("Value must be a valid DN")}
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)")}>
@@ -1621,27 +1629,24 @@ class MemberOf extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Shared Config Entry")}
                             </GridItem>
-                            <GridItem span={6}>
-                                <TextInput
-                                    value={memberOfConfigEntry}
-                                    type="text"
-                                    id="memberOfConfigEntry"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="memberOfConfigEntry"
-                                    onChange={(e, str) => { this.handleFieldChange(e) }}
-                                    validated={error.memberOfConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
-                            </GridItem>
-                            <GridItem className="ds-left-margin" span={3}>
+                            {memberOfConfigEntry !== "" &&
+                                <GridItem className="ds-right-margin" span={6}>
+                                    <TextInput
+                                        value={memberOfConfigEntry}
+                                        type="text"
+                                        id="memberOfConfigEntry"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="memberOfConfigEntry"
+                                        readOnlyVariant={'plain'}
+                                    />
+                                </GridItem>
+                            }
+                            <GridItem span={2}>
                                 <Button
                                     variant="primary"
-                                    isDisabled={memberOfConfigEntry === "" || !valid_dn(memberOfConfigEntry)}
                                     onClick={this.handleOpenModal}
                                 >
-                                    {_("Manage")}
+                                    {memberOfConfigEntry === "" ? _("Create Config") : _("Manage Config")}
                                 </Button>
                             </GridItem>
                         </Grid>

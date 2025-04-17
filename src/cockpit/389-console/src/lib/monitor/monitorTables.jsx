@@ -1777,7 +1777,7 @@ class ReportCredentialsTable extends React.Component {
         } else {
             tableRows = this.props.rows.map(row => {
                 const rowCopy = JSON.parse(JSON.stringify(row)); // Deep copy
-                const pwInteractive = rowCopy.pwInputInterractive;
+                const pwInteractive = rowCopy.pwInputInteractive;
                 let pwField = <i>{_("Interactive Input is set")}</i>;
 
                 if (!pwInteractive) {
