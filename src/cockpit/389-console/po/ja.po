@@ -272,7 +272,7 @@ msgid "Input the password interactively"
 msgstr "パスワードを対話形式で入力します"
 
 #: src/lib/monitor/monitorModals.jsx:499 src/lib/monitor/monitorModals.jsx:654
-msgid "Interractive Input"
+msgid "Interactive Input"
 msgstr "パスワードを対話形成で入力する"
 
 #: src/lib/monitor/monitorModals.jsx:540
@@ -1615,7 +1615,7 @@ msgid "Host, Port, and Bind DN are required."
 msgstr "Host、Port、Bind DNは必須です。"
 
 #: src/lib/monitor/replMonitor.jsx:430
-msgid "Password field can't be empty, if Interractive Input is not selected"
+msgid "Password field can't be empty, if Interactive Input is not selected"
 msgstr ""
 "対話型入力が選択されていない場合、パスワードフィールドを空にする"
 "ことはできません"
