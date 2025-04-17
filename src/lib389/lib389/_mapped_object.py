@@ -1301,8 +1301,9 @@ class DSLdapObjects(DSLogging, DSLints):
             raise ldap.NO_SUCH_OBJECT(f"No object exists given the filter criteria: {criteria} {search_filter}")
         if len(results) > 1:
             entry_dn = [e.dn for e in results]
+            entry_dns_pretty = '\n    '.join(entry_dn)
             raise ldap.UNWILLING_TO_PERFORM(f"Too many objects matched selection criteria: {criteria} {search_filter}"
-                                            f" - Please use 'get-by-dn' to specify which entry to get:\n    {'\n    '.join(entry_dn)}")
+                                            f" - Please use 'get-by-dn' to specify which entry to get:\n    {entry_dns_pretty}")
         if json:
             return self._entry_to_instance(results[0].dn, results[0]).get_all_attrs_json()
         else:
