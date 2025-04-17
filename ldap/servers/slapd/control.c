@@ -167,6 +167,37 @@ slapi_get_supported_controls_copy(char ***ctrloidsp, unsigned long **ctrlopsp)
     return (0);
 }
 
+int
+create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **session_tracking_ctrl)
+{
+    BerElement *ctrlber = NULL;
+    char *undefined_sid = "undefined sid";
+    char *sid;
+    int rc = 0;
+    int tag;
+    LDAPControl *ctrl = NULL;
+
+    if (session_tracking_id) {
+        sid = session_tracking_id;
+    } else {
+        sid = undefined_sid;
+    }
+    ctrlber = ber_alloc();
+    tag = ber_printf( ctrlber, "{nnno}", sid, strlen(sid));
+    if (rc == LBER_ERROR) {
+        tag = -1;
+        goto done;
+    }
+    slapi_build_control(LDAP_CONTROL_X_SESSION_TRACKING, ctrlber, 0, &ctrl);
+    *session_tracking_ctrl = ctrl;
+
+done:
+    if (ctrlber) {
+        ber_free(ctrlber, 1);
+    }
+    return rc;
+}
+
 /* Parse the Session Tracking control
  * see https://datatracker.ietf.org/doc/html/draft-wahl-ldap-session-03
  *    LDAPString ::= OCTET STRING -- UTF-8 encoded

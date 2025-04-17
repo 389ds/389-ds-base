@@ -325,8 +325,8 @@ repl5_inc_result_threadmain(void *param)
 
             conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "repl5_inc_result_threadmain - Result %d, %d, %d, %d, %s\n",
-                          operation_code, connection_error, conres, message_id, ldap_error_string);
+                          "repl5_inc_result_threadmain - sid=\"%s\" - Result %d, %d, %d, %d, %s\n",
+                          agmt_get_session_id(rd->prp->agmt), operation_code, connection_error, conres, message_id, ldap_error_string);
             return_value = repl5_inc_update_from_op_result(rd->prp, conres, connection_error,
                                                            csn_str, uniqueid, replica_id, &should_finish,
                                                            &(rd->num_changes_sent));
@@ -480,8 +480,8 @@ repl5_inc_waitfor_async_results(result_data *rd)
         PR_Lock(rd->lock);
         /* Are we caught up ? */
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "repl5_inc_waitfor_async_results - %d %d\n",
-                      rd->last_message_id_received, rd->last_message_id_sent);
+                      "repl5_inc_waitfor_async_results - sid=\"%s\" - %d %d\n",
+                      agmt_get_session_id((Repl_Agmt *) rd->prp->agmt), rd->last_message_id_received, rd->last_message_id_sent);
         if (rd->last_message_id_received >= rd->last_message_id_sent) {
             /* If so then we're done */
             done = 1;
@@ -896,8 +896,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                     next_fire_time = backoff_step(prp_priv->backoff);
                     /* And go back to sleep */
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "repl5_inc_run - %s: Replication session backing off for %ld seconds\n",
-                                  agmt_get_long_name(prp->agmt), next_fire_time - now);
+                                  "repl5_inc_run - sid=\"%s\" - %s: Replication session backing off for %ld seconds\n",
+                                  agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), next_fire_time - now);
                     protocol_sleep(prp, 0);
                 } else {
                     /* Destroy the backoff timer, since we won't need it anymore */
@@ -1117,8 +1117,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                     /* the while loop is so that we don't just sleep and sleep if an
                    * event comes in that we should handle immediately (like shutdown) */
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "repl5_inc_run - %s: Pausing updates for %ld seconds to allow other senders to update receiver\n",
-                                  agmt_get_long_name(prp->agmt), pausetime);
+                                  "repl5_inc_run - sid=\"%s\" - %s: Pausing updates for %ld seconds to allow other senders to update receiver\n",
+                                  agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), pausetime);
                     while (loops-- && !(PROTOCOL_IS_SHUTDOWN(prp))) {
                         DS_Sleep(PR_SecondsToInterval(1));
                     }
@@ -1184,8 +1184,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             break;
         }
 
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_run - %s: State: %s -> %s\n",
-                      agmt_get_long_name(prp->agmt), state2name(current_state), state2name(next_state));
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_run - sid=\"%s\" - %s: State: %s -> %s\n",
+                      agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), state2name(current_state), state2name(next_state));
 
         current_state = next_state;
     } while (!done);
@@ -1310,8 +1310,8 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
     } else {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Sending %s operation (dn=\"%s\" csn=%s)\n",
-                          agmt_get_long_name(prp->agmt),
+                          "replay_update - sid=\"%s\" - %s: Sending %s operation (dn=\"%s\" csn=%s)\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt),
                           op2string(op->operation_type), REPL_GET_DN(&op->target_address),
                           csn_as_string(op->csn, PR_FALSE, csn_str));
         }
@@ -1397,14 +1397,14 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
     if (CONN_OPERATION_SUCCESS == return_value) {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Receiver successfully sent operation with csn %s\n",
-                          agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
+                          "replay_update - sid=\"%s\" - %s: Receiver successfully sent operation with csn %s\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
         }
     } else {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Receiver could not replay operation with csn %s\n",
-                          agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
+                          "replay_update - sid=\"%s\" - %s: Receiver could not replay operation with csn %s\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
         }
     }
     return return_value;
@@ -1600,8 +1600,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
             break;
         case CL5_NOTFOUND: /* we have no changes to send */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "send_updates - %s: No changes to send\n",
-                          agmt_get_long_name(prp->agmt));
+                          "send_updates - sid=\"%s\" - %s: No changes to send\n",
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt));
             return_value = UPDATE_NO_MORE_UPDATES;
             break;
         case CL5_MEMORY_ERROR: /* memory allocation failed */
@@ -1812,8 +1812,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                 break;
             case CL5_NOTFOUND:
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                              "send_updates - %s: No more updates to send (cl5GetNextOperationToReplay)\n",
-                              agmt_get_long_name(prp->agmt));
+                              "send_updates - sid=\"%s\" - %s: No more updates to send (cl5GetNextOperationToReplay)\n",
+                              agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt));
                 return_value = UPDATE_NO_MORE_UPDATES;
                 finished = 1;
                 break;
@@ -1867,8 +1867,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                     return_value = UPDATE_YIELD;
                     finished = 1;
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "send_updates - Aborting send_updates...(%s)\n",
-                                  agmt_get_long_name(rd->prp->agmt));
+                                  "send_updates - sid=\"%s\" - Aborting send_updates...(%s)\n",
+                                  agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(rd->prp->agmt));
                 }
             }
 
@@ -1912,9 +1912,9 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
         PR_Lock(rd->lock);
         if (rd->flowcontrol_detection) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "send_updates - %s: Incremental update flow control triggered %d times\n"
+                          "send_updates - sid=\"%s\" - %s: Incremental update flow control triggered %d times\n"
                           "You may increase %s and/or decrease %s in the replica agreement configuration\n",
-                          agmt_get_long_name(prp->agmt),
+                          agmt_get_session_id((Repl_Agmt *) prp->agmt), agmt_get_long_name(prp->agmt),
                           rd->flowcontrol_detection,
                           type_nsds5ReplicaFlowControlPause,
                           type_nsds5ReplicaFlowControlWindow);
