@@ -805,11 +805,13 @@ class AccountPolicy extends React.Component {
                                     name="configDN"
                                     onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
-                                    isDisabled={newEntry}
+                                    isDisabled={!newEntry}
                                 />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
+                                {newEntry &&
+                                    <FormHelperText>
+                                        {_("Value must be a valid DN")}
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)")}>
@@ -1051,23 +1053,20 @@ class AccountPolicy extends React.Component {
                             <GridItem span={3} className="ds-label">
                                 {_("Shared Config Entry")}
                             </GridItem>
-                            <GridItem span={7}>
-                                <TextInput
-                                    value={configArea}
-                                    type="text"
-                                    id="configArea"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="configArea"
-                                    onChange={(e, str) => { this.handleFieldChange(e) }}
-                                    validated={error.configArea ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
-                            </GridItem>
+                            {configArea !== "" &&
+                                <GridItem className="ds-right-margin" span={6}>
+                                    <TextInput
+                                        value={configArea}
+                                        type="text"
+                                        id="configArea"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="configArea"
+                                        readOnlyVariant={'plain'}
+                                    />
+                                </GridItem>
+                            }
                             <GridItem span={2}>
                                 <Button
-                                    className="ds-left-margin"
                                     key="manage"
                                     variant="primary"
                                     onClick={this.handleOpenModal}
