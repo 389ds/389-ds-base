@@ -79,6 +79,9 @@ def accountpolicy_del_config(inst, basedn, log, args):
         raise ValueError("Specified DN is not a valid DN")
     config = AccountPolicyConfig(inst, targetdn)
     config.delete()
+    # Now remove the attribute from the plugin
+    plugin = AccountPolicyPlugin(inst)
+    plugin.remove_all('nsslapd-pluginConfigArea')
     log.info("Successfully deleted the %s", targetdn)
 
 
@@ -131,6 +134,8 @@ def create_parser(subparsers):
     show_config_parser.set_defaults(func=accountpolicy_show_config)
     show_config_parser.add_argument('DN', help='The full DN of the config entry')
 
-    del_config_parser = config_subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
+    del_config_parser = config_subcommands.add_parser('delete',
+                                                      help='Delete the config entry and remove the reference in the plugin entry',
+                                                      formatter_class=CustomHelpFormatter)
     del_config_parser.set_defaults(func=accountpolicy_del_config)
     del_config_parser.add_argument('DN', help='The full DN of the config entry')
