@@ -383,7 +383,7 @@ class ReportCredentialsModal extends React.Component {
             hostname,
             port,
             binddn,
-            pwInputInterractive,
+            pwInputInteractive,
             bindpw,
             addConfig,
             editConfig,
@@ -408,7 +408,7 @@ class ReportCredentialsModal extends React.Component {
                         onClick={newEntry ? addConfig : editConfig}
                         isDisabled={
                             hostname === "" || binddn === "" ||
-                            (bindpw === "" && !pwInputInterractive)
+                            (bindpw === "" && !pwInputInteractive)
                         }
                     >
                         {_("Save")}
@@ -486,7 +486,7 @@ class ReportCredentialsModal extends React.Component {
                                         id="credsBindpw"
                                         aria-describedby="cachememsize"
                                         name="credsBindpw"
-                                        isDisabled={pwInputInterractive}
+                                        isDisabled={pwInputInteractive}
                                         onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
@@ -495,12 +495,12 @@ class ReportCredentialsModal extends React.Component {
                             </Grid>
                             <Grid title={_("Input the password interactively")}>
                                 <GridItem className="ds-label" span={3}>
-                                    {_("Interractive Input")}
+                                    {_("Interactive Input")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <Checkbox
-                                        isChecked={pwInputInterractive}
-                                        id="pwInputInterractive"
+                                        isChecked={pwInputInteractive}
+                                        id="pwInputInteractive"
                                         onChange={(e, checked) => {
                                             handleFieldChange(e);
                                         }}
@@ -525,7 +525,7 @@ class ReportConnectionModal extends React.Component {
             hostname,
             port,
             binddn,
-            pwInputInterractive,
+            pwInputInteractive,
             bindpw,
             addConn,
             onMinusConfig,
@@ -546,7 +546,7 @@ class ReportConnectionModal extends React.Component {
                         onClick={addConn}
                         isDisabled={
                             name === "" || hostname === "" || port === "" ||
-                            binddn === "" || (bindpw === "" && !pwInputInterractive)
+                            binddn === "" || (bindpw === "" && !pwInputInteractive)
                         }
                     >
                         {_("Save")}
@@ -641,7 +641,7 @@ class ReportConnectionModal extends React.Component {
                                         id="connCred"
                                         aria-describedby="connCred"
                                         name="connCred"
-                                        isDisabled={pwInputInterractive}
+                                        isDisabled={pwInputInteractive}
                                         onChange={(e, str) => {
                                             handleFieldChange(e);
                                         }}
@@ -650,12 +650,12 @@ class ReportConnectionModal extends React.Component {
                             </Grid>
                             <Grid title={_("Input the password interactively, stores '*' as the password value in .dsrc")}>
                                 <GridItem className="ds-label" span={3}>
-                                    {_("Interractive Input")}
+                                    {_("Interactive Input")}
                                 </GridItem>
                                 <GridItem span={9}>
                                     <Checkbox
-                                        isChecked={pwInputInterractive}
-                                        id="pwInputInterractive"
+                                        isChecked={pwInputInteractive}
+                                        id="pwInputInteractive"
                                         onChange={(e, checked) => {
                                             handleFieldChange(e);
                                         }}
@@ -1145,7 +1145,7 @@ ReportCredentialsModal.propTypes = {
     port: PropTypes.number,
     binddn: PropTypes.string,
     bindpw: PropTypes.string,
-    pwInputInterractive: PropTypes.bool,
+    pwInputInteractive: PropTypes.bool,
     newEntry: PropTypes.bool,
     addConfig: PropTypes.func,
     editConfig: PropTypes.func
@@ -1157,7 +1157,7 @@ ReportCredentialsModal.defaultProps = {
     port: 389,
     binddn: "",
     bindpw: "",
-    pwInputInterractive: false,
+    pwInputInteractive: false,
     newEntry: false,
 };
 
@@ -1170,7 +1170,7 @@ ReportConnectionModal.propTypes = {
     port: PropTypes.number,
     binddn: PropTypes.string,
     bindpw: PropTypes.string,
-    pwInputInterractive: PropTypes.bool,
+    pwInputInteractive: PropTypes.bool,
     addConn: PropTypes.func,
 };
 
@@ -1181,7 +1181,7 @@ ReportConnectionModal.defaultProps = {
     port: 636,
     binddn: "",
     bindpw: "",
-    pwInputInterractive: false,
+    pwInputInteractive: false,
 };
 
 ReportAliasesModal.propTypes = {
