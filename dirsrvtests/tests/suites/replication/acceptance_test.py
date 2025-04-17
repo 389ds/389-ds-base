@@ -616,13 +616,19 @@ def test_password_repl_error(topo_m4, create_entry):
 
     m1 = topo_m4.ms["supplier1"]
     m2 = topo_m4.ms["supplier2"]
+    m3 = topo_m4.ms["supplier3"]
+    m4 = topo_m4.ms["supplier4"]
     TEST_ENTRY_NEW_PASS = 'new_{}'.format(TEST_ENTRY_NAME)
 
     log.info('Clean the error log')
     m2.deleteErrorLogs()
 
     log.info('Set replication loglevel')
+    m1.config.loglevel((ErrorLog.REPLICA,))
     m2.config.loglevel((ErrorLog.REPLICA,))
+    m3.config.loglevel((ErrorLog.REPLICA,))
+    m4.config.loglevel((ErrorLog.REPLICA,))
+
 
     log.info('Modifying entry {} - change userpassword on supplier 2'.format(TEST_ENTRY_DN))
     test_user_m1 = UserAccount(topo_m4.ms["supplier1"], TEST_ENTRY_DN)
