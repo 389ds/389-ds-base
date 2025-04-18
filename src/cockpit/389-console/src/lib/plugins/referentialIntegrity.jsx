@@ -871,9 +871,11 @@ class ReferentialIntegrity extends React.Component {
                                     validated={errorModal.configDN ? ValidatedOptions.error : ValidatedOptions.default}
                                     isDisabled={!newEntry}
                                 />
-                                <FormHelperText  >
-                                    {_("Value must be a valid DN")}
-                                </FormHelperText>
+                                {newEntry &&
+                                    <FormHelperText>
+                                        {_("Value must be a valid DN")}
+                                    </FormHelperText>
+                                }
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies attributes to check for and update (referint-membership-attr)")}>
@@ -981,7 +983,7 @@ class ReferentialIntegrity extends React.Component {
                                     onChange={(e, str) => { this.handleModalChange(e) }}
                                     validated={errorModal.configLogFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
-                                <FormHelperText  >
+                                <FormHelperText>
                                     {_("Invalid log file name")}
                                 </FormHelperText>
                             </GridItem>
@@ -1027,7 +1029,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Membership Attribute")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <Select
                                     variant={SelectVariant.typeaheadMulti}
                                     typeAheadAriaLabel="Type an attribute"
@@ -1057,7 +1059,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Entry Scope")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={entryScope}
                                     type="text"
@@ -1076,7 +1078,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Exclude Entry Scope")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={excludeEntryScope}
                                     type="text"
@@ -1095,7 +1097,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Container Scope")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={containerScope}
                                     type="text"
@@ -1117,7 +1119,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Logfile")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <TextInput
                                     value={logFile}
                                     type="text"
@@ -1128,7 +1130,7 @@ class ReferentialIntegrity extends React.Component {
                                     validated={error.logFile ? ValidatedOptions.error : ValidatedOptions.default}
                                 />
                                 <FormHelperText  >
-                                    {_("Invalid log nameN")}
+                                    {_("Invalid log name")}
                                 </FormHelperText>
                             </GridItem>
                         </Grid>
@@ -1136,7 +1138,7 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Update Delay")}
                             </GridItem>
-                            <GridItem span={7}>
+                            <GridItem span={8}>
                                 <NumberInput
                                     value={updateDelay}
                                     min={-1}
@@ -1157,27 +1159,24 @@ class ReferentialIntegrity extends React.Component {
                             <GridItem className="ds-label" span={3}>
                                 {_("Shared Config Entry")}
                             </GridItem>
-                            <GridItem span={7}>
-                                <TextInput
-                                    value={referintConfigEntry}
-                                    type="text"
-                                    id="referintConfigEntry"
-                                    aria-describedby="horizontal-form-name-helper"
-                                    name="referintConfigEntry"
-                                    onChange={(e, str) => { this.handleFieldChange(e) }}
-                                    validated={error.referintConfigEntry ? ValidatedOptions.error : ValidatedOptions.default}
-                                />
-                                <FormHelperText  >
-                                    {_("The value must be a valid DN")}
-                                </FormHelperText>
-                            </GridItem>
-                            <GridItem span={1}>
+                            {this.state.referintConfigEntry !== "" &&
+                                <GridItem className="ds-right-margin" span={6}>
+                                    <TextInput
+                                        value={referintConfigEntry}
+                                        type="text"
+                                        id="referintConfigEntry"
+                                        aria-describedby="horizontal-form-name-helper"
+                                        name="referintConfigEntry"
+                                        readOnlyVariant={'plain'}
+                                    />
+                                </GridItem>
+                            }
+                            <GridItem span={2}>
                                 <Button
-                                    className="ds-left-margin"
                                     variant="primary"
                                     onClick={this.handleOpenModal}
                                 >
-                                    {_("Manage")}
+                                    {this.state.referintConfigEntry !== "" ? _("Manage Config") : _("Create Config")}
                                 </Button>
                             </GridItem>
                         </Grid>

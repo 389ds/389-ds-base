@@ -64,6 +64,9 @@ def referint_del_config(inst, basedn, log, args):
     targetdn = args.DN
     config = ReferentialIntegrityConfig(inst, targetdn)
     config.delete()
+    # Now remove the attribute from the plugin
+    plugin = ReferentialIntegrityPlugin(inst)
+    plugin.remove_all('nsslapd-pluginConfigArea')
     log.info("Successfully deleted the %s", targetdn)
 
 
@@ -114,6 +117,8 @@ def create_parser(subparsers):
     show_config = config_subcommands.add_parser('show', help='Display the config entry', formatter_class=CustomHelpFormatter)
     show_config.set_defaults(func=referint_show_config)
     show_config.add_argument('DN', help='The config entry full DN')
-    del_config_ = config_subcommands.add_parser('delete', help='Delete the config entry', formatter_class=CustomHelpFormatter)
+    del_config_ = config_subcommands.add_parser('delete',
+                                                help='Delete the config entry and remove the reference in the plugin entry',
+                                                formatter_class=CustomHelpFormatter)
     del_config_.set_defaults(func=referint_del_config)
     del_config_.add_argument('DN', help='The config entry full DN')

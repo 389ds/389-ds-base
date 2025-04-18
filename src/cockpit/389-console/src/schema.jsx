@@ -1153,13 +1153,13 @@ export class Schema extends React.Component {
             subMR = "";
         }
 
-        if (eqMR !== this.state._atEqMr) {
+        if (eqMR !== "") {
             cmd = [...cmd, "--equality", eqMR];
         }
-        if (subMR !== this.state._atSubMr) {
+        if (subMR !== "") {
             cmd = [...cmd, "--substr", subMR];
         }
-        if (orderMR !== this.state._atOrder) {
+        if (orderMR !== "") {
             cmd = [...cmd, "--ordering", orderMR];
         }
         if (atMultivalued) {
@@ -1172,13 +1172,13 @@ export class Schema extends React.Component {
         } else {
             cmd = [...cmd, "--user-mod"];
         }
-        if (atOID !== this.state._atOID) {
+        if (atOID !== "") {
             cmd = [...cmd, "--oid", atOID];
         }
-        if (atUsage !== this.state._atUsage) {
+        if (atUsage !== "") {
             cmd = [...cmd, "--usage", atUsage];
         }
-        if (atDesc !== this.state._atDesc) {
+        if (atDesc !== "") {
             cmd = [...cmd, "--desc", atDesc];
         }
 
