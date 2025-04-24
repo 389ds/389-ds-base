@@ -3801,27 +3801,10 @@ bdb_compact(time_t when, void *arg)
         slapi_log_err(SLAPI_LOG_NOTICE, "bdb_compact", "Compacting DB start: %s\n",
                       inst->inst_name);
 
-        rc = bdb_db_compact_one_db(db, inst);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "bdb_compact",
-                          "Failed to compact id2entry for %s; db error - %d %s\n",
-                          inst->inst_name, rc, db_strerror(rc));
-            break;
-        }
-
         /* Time to compact the DB's */
         bdb_force_checkpoint(li);
         bdb_do_compact(li, PR_FALSE);
         bdb_force_checkpoint(li);
-
-        /* Now reset the timer and compacting flag */
-        rc = bdb_db_compact_one_db(db, inst);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "bdb_compact",
-                          "Failed to compact for %s; db error - %d %s\n",
-                          inst->inst_name, rc, db_strerror(rc));
-            break;
-        }
     }
     compaction_scheduled = PR_FALSE;
 }
@@ -3848,6 +3831,41 @@ bdb_start_checkpoint_thread(struct ldbminfo *li)
 }
 
 /*
+ * Write the compaction interval start time value to the config. We do this as
+ * a delayed event because at server startup the checkpoint thread can run
+ * before all the plugins have been started which causes invalid memory reads.
+ */
+static void
+bdb_write_compact_start_time(time_t when, void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    Slapi_PBlock *mod_pb = slapi_pblock_new();
+    Slapi_Mods smods;
+    char start_time_str[20] = {0};
+    int32_t rval = 0;
+    uint64_t start_time = slapi_current_utc_time();
+
+    PR_snprintf(start_time_str, sizeof(start_time_str), "%ld", start_time);
+    slapi_mods_init(&smods, 0);
+    slapi_mods_add_string(&smods, LDAP_MOD_REPLACE,
+                          CONFIG_DB_COMPACTDB_STARTTIME,
+                          start_time_str);
+
+    slapi_modify_internal_set_pb(mod_pb,
+                                 "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config",
+                                 slapi_mods_get_ldapmods_byref(&smods),
+                                 NULL, NULL, li->li_identity, 0);
+    slapi_modify_internal_pb(mod_pb);
+    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
+    if (rval != LDAP_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_write_compact_start_time",
+                      "failed to modify config_entry, err=%d\n", rval);
+    }
+    slapi_pblock_destroy(mod_pb);
+    slapi_mods_done(&smods);
+}
+
+/*
  * checkpoint thread -- borrow the timing for compacting id2entry, and eventually changelog, as well.
  */
 static int
@@ -3866,8 +3884,10 @@ bdb_checkpoint_threadmain(void *param)
     time_t compactdb_interval_update = 0;
     time_t checkpoint_interval_update = 0;
     time_t compactdb_interval = 0;
+    time_t compactdb_interval_orig = 0;
     time_t checkpoint_interval = 0;
     uint64_t compactdb_time = 0;
+    uint64_t compactdb_start_time = 0;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo *)param;
@@ -3891,10 +3911,30 @@ bdb_checkpoint_threadmain(void *param)
 
     PR_Lock(li->li_config_mutex);
     checkpoint_interval = (time_t)BDB_CONFIG(li)->bdb_checkpoint_interval;
-    compactdb_interval = (time_t)BDB_CONFIG(li)->bdb_compactdb_interval;
+    compactdb_interval_orig = compactdb_interval = (time_t)BDB_CONFIG(li)->bdb_compactdb_interval;
+    compactdb_start_time = (time_t)BDB_CONFIG(li)->bdb_compactdb_starttime;
     penv = (bdb_db_env *)priv->dblayer_env;
     debug_checkpointing = BDB_CONFIG(li)->bdb_debug_checkpointing;
     PR_Unlock(li->li_config_mutex);
+
+    if (compactdb_start_time == 0) {
+        /* Ok, we don't have a start time set, get the time and write it to
+         * the config */
+        compactdb_start_time = slapi_current_utc_time();
+        slapi_eq_once_rel(bdb_write_compact_start_time, (void *)li,
+                          slapi_current_rel_time_t() + 3);
+    } else {
+        /* We only adjust the compact interval, used for the timer, if we are
+         * already had a preexisting time set.  This way regardless if we
+         * restart the server we will still compact at the expected interval */
+        time_t curr_time = slapi_current_utc_time();
+        if (compactdb_interval < (curr_time - compactdb_start_time)) {
+            /* the interval has now been passed, trigger compaction right away */
+            compactdb_interval = 1;
+        } else {
+            compactdb_interval = compactdb_interval - (curr_time - compactdb_start_time);
+        }
+    }
 
     /* assumes bdb_force_checkpoint worked */
     /*
@@ -3911,9 +3951,16 @@ bdb_checkpoint_threadmain(void *param)
         compactdb_interval_update = (time_t)BDB_CONFIG(li)->bdb_compactdb_interval;
         PR_Unlock(li->li_config_mutex);
 
-        if (compactdb_interval_update != compactdb_interval) {
+        if (compactdb_interval_update != compactdb_interval_orig) {
             /* Compact interval was changed, so reset the timer */
-            slapi_timespec_expire_at(compactdb_interval_update, &compactdb_expire);
+            time_t curr_time = slapi_current_utc_time();
+            if (compactdb_interval_update < (curr_time - compactdb_start_time)) {
+                /* the new interval has now been passed, trigger compaction right away */
+                compactdb_interval = 1;
+            } else {
+                compactdb_interval = compactdb_interval_update - (curr_time - compactdb_start_time);
+            }
+            slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
         }
 
         /* Sleep for a while ...
@@ -3939,16 +3986,16 @@ bdb_checkpoint_threadmain(void *param)
 
             /* now checkpoint */
             bdb_checkpoint_debug_message(debug_checkpointing,
-                                     "bdb_checkpoint_threadmain - Starting checkpoint\n");
+                                         "bdb_checkpoint_threadmain - Starting checkpoint\n");
             rval = bdb_txn_checkpoint(li, (bdb_db_env *)priv->dblayer_env,
-                                          PR_TRUE, PR_FALSE);
+                                      PR_TRUE, PR_FALSE);
             bdb_checkpoint_debug_message(debug_checkpointing,
                                      "bdb_checkpoint_threadmain - Checkpoint Done\n");
             if (rval != 0) {
                 /* bad error */
                 slapi_log_err(SLAPI_LOG_CRIT,
                               "bdb_checkpoint_threadmain", "Serious Error---Failed to checkpoint database, "
-                                                       "err=%d (%s)\n",
+                              "err=%d (%s)\n",
                               rval, dblayer_strerror(rval));
                 if (LDBM_OS_ERR_IS_DISKFULL(rval)) {
                     operation_out_of_disk_space();
@@ -3973,7 +4020,7 @@ bdb_checkpoint_threadmain(void *param)
                         PR_snprintf(new_filename, sizeof(new_filename),
                                     "%s.old", *listp);
                         bdb_checkpoint_debug_message(debug_checkpointing,
-                                                 "Renaming %s -> %s\n", *listp, new_filename);
+                                                     "Renaming %s -> %s\n", *listp, new_filename);
                         if (rename(*listp, new_filename) != 0) {
                             slapi_log_err(SLAPI_LOG_ERR, "bdb_checkpoint_threadmain", "Failed to rename log (%s) to (%s)\n",
                                           *listp, new_filename);
@@ -3998,21 +4045,36 @@ bdb_checkpoint_threadmain(void *param)
          * this could have been a bug in fact, where compactdb_interval
          * was 0, if you change while running it would never take effect ....
          */
-        if (compactdb_interval_update != compactdb_interval ||
+        if (compactdb_interval_update != compactdb_interval_orig ||
             (slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED && !compaction_scheduled))
         {
-            /* Get the time in second when the compaction should occur */
+            time_t scheduled_time;
+            struct tm *time_info;
+            char buffer[80];
+
+            /* Get the time in seconds when the compaction should occur */
             PR_Lock(li->li_config_mutex);
             compactdb_time = bdb_get_tod_expiration((char *)BDB_CONFIG(li)->bdb_compactdb_time);
             PR_Unlock(li->li_config_mutex);
+
+            scheduled_time = slapi_current_utc_time() + compactdb_time;
+            time_info = localtime(&scheduled_time);
+            strftime(buffer, 80, "%Y-%m-%d %H:%M:%S", time_info);
+            slapi_log_err(SLAPI_LOG_NOTICE, "bdb_checkpoint_threadmain",
+                          "database compaction scheduled for: %s\n",
+                          buffer);
 
             /* Start compaction event */
             compaction_scheduled = PR_TRUE;
             slapi_eq_once_rel(bdb_compact, (void *)li, slapi_current_rel_time_t() + compactdb_time);
 
-            /* reset interval timer */
-            compactdb_interval = compactdb_interval_update;
-            slapi_timespec_expire_at(compactdb_interval, &compactdb_expire);
+            /* reset compact interval timer */
+            compactdb_interval_orig = compactdb_interval_update;
+            slapi_timespec_expire_at(compactdb_interval_update, &compactdb_expire);
+            /* lastly update the config */
+            compactdb_start_time = slapi_current_utc_time();
+            slapi_eq_once_rel(bdb_write_compact_start_time, (void *)li,
+                              slapi_current_rel_time_t() + 3);
         }
     }
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_checkpoint_threadmain", "Check point before leaving\n");
@@ -7185,6 +7247,10 @@ bdb_public_dblayer_compact(Slapi_Backend *be, PRBool just_changelog)
     bdb_force_checkpoint(li);
     rc = bdb_do_compact(li, just_changelog);
     bdb_force_checkpoint(li);
+
+    /* Update the compact interval after a compaction */
+    bdb_write_compact_start_time(slapi_current_utc_time(), li);
+
     return rc;
 }
 
