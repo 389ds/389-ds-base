@@ -375,3 +375,15 @@ CONTAINER_TLS_SERVER_KEY = '/data/tls/server.key'
 CONTAINER_TLS_SERVER_CERT = '/data/tls/server.crt'
 CONTAINER_TLS_SERVER_CADIR = '/data/tls/ca'
 CONTAINER_TLS_PWDFILE = '/data/config/pwdfile.txt'
+
+# Describe what kind of Berkeley Database library is available
+BDB_IMPL_STATUS = Enum('BDB_IMPL_STATUS', [
+                       'UNKNOWN',   # Unable to discover
+                       'STANDARD',  # os libdb rpm is installed
+                       'BUNDLED',   # lib389 bundled rpm is installed
+                       'READ_ONLY', # Read-only version is available
+                       'NONE' ])    # bdb is not usasable
+
+# DB implementation
+DB_IMPL_BDB = "bdb"
+DB_IMPL_MDB = "mdb"
