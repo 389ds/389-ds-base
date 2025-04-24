@@ -805,6 +805,32 @@ done:
 }
 
 static void *
+bdb_config_db_compactdb_starttime_get(void *arg)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+
+    return (void *)((uintptr_t)(BDB_CONFIG(li)->bdb_compactdb_starttime));
+}
+
+static int32_t
+bdb_config_db_compactdb_starttime_set(void *arg,
+                                      void *value,
+                                      char *errorbuf __attribute__((unused)),
+                                      int phase __attribute__((unused)),
+                                      int apply)
+{
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    int32_t retval = LDAP_SUCCESS;
+    uint64_t val = (uint64_t)((uintptr_t)value);
+
+    if (apply) {
+        BDB_CONFIG(li)->bdb_compactdb_starttime = val;
+    }
+
+    return retval;
+}
+
+static void *
 bdb_config_db_page_size_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
@@ -1600,6 +1626,7 @@ static config_info bdb_config_param[] = {
     {CONFIG_DB_CHECKPOINT_INTERVAL, CONFIG_TYPE_INT, "60", &bdb_config_db_checkpoint_interval_get, &bdb_config_db_checkpoint_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_COMPACTDB_INTERVAL, CONFIG_TYPE_INT, "2592000" /*30days*/, &bdb_config_db_compactdb_interval_get, &bdb_config_db_compactdb_interval_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_COMPACTDB_TIME, CONFIG_TYPE_STRING, "23:59", &bdb_config_db_compactdb_time_get, &bdb_config_db_compactdb_time_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DB_COMPACTDB_STARTTIME, CONFIG_TYPE_UINT64, "0" , &bdb_config_db_compactdb_starttime_get, &bdb_config_db_compactdb_starttime_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH, CONFIG_TYPE_INT, "0", &bdb_get_batch_transactions, &bdb_set_batch_transactions, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MIN_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_min_sleep, &bdb_set_batch_txn_min_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_TRANSACTION_BATCH_MAX_SLEEP, CONFIG_TYPE_INT, "50", &bdb_get_batch_txn_max_sleep, &bdb_set_batch_txn_max_sleep, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
