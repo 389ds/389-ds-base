@@ -383,3 +383,7 @@ BDB_IMPL_STATUS = Enum('BDB_IMPL_STATUS', [
                        'BUNDLED',   # lib389 bundled rpm is installed
                        'READ_ONLY', # Read-only version is available
                        'NONE' ])    # bdb is not usasable
+
+# DB implementation
+DB_IMPL_BDB = "bdb"
+DB_IMPL_MDB = "mdb"
