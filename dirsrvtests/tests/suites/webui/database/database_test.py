@@ -71,7 +71,7 @@ def test_global_database_configuration_availability(topology_st, page, browser_n
     frame = check_frame_assignment(page, browser_name)
     instance = topology_st.standalone
 
-    if instance.get_db_lib() is 'mdb':
+    if instance.get_db_lib() == 'mdb':
         log.info('Check if element on Limits tab is loaded.')
         frame.get_by_role('tab', name='Database', exact=True).click()
 
@@ -90,7 +90,7 @@ def test_global_database_configuration_availability(topology_st, page, browser_n
         log.info('Click on Advanced Settings tab and check if element is loaded')
         frame.get_by_role('tab', name='Advanced Settings', exact=True).click()
         assert frame.locator('#dbhomedir').is_visible()
-    elif instance.get_db_lib() is 'bdb':
+    elif instance.get_db_lib() == 'bdb':
         log.info('Check if element on Limits tab is loaded.')
         frame.get_by_role('tab', name='Database', exact=True).click()
         frame.get_by_text('ID List Scan Limit', exact=True).wait_for()
@@ -291,7 +291,7 @@ def test_suffixes_policy_availability(topology_st, page, browser_name):
 
     log.info('Click on Suffixes and check if element is loaded.')
     frame.get_by_role('tab', name='Database', exact=True).click()
-    frame.locator('#dc\=example\,dc\=com').click()
+    frame.locator(r'#dc\=example\,dc\=com').click()
     frame.locator('#cachememsize').wait_for()
     assert frame.locator('#cachememsize').is_visible()
 
@@ -355,7 +355,7 @@ def test_dictionary_check_checkbox(topology_st, page, browser_name):
     log.info('Disable dictionary check, reload tab and check that Dictionary Check checkbox is unchecked.')
     ppm.set_global_policy({"passworddictcheck": "off"})
     ppm.set_global_policy({"passwordchecksyntax": "on"})
-    frame.get_by_role('img', name="Refresh global password policy settings").click()
+    frame.get_by_role('button', name="Refresh global password policy settings").click()
     assert not frame.get_by_text('Dictionary Check').is_checked()
 
 

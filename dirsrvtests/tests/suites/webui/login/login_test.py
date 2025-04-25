@@ -65,7 +65,7 @@ def test_login_no_instance(topology_st, page, browser_name):
     page.click('#login-button')
     time.sleep(2)
 
-    if RHEL in distro.linux_distribution():
+    if RHEL in distro.name():
         page.wait_for_selector('text=Red Hat Directory Server')
         assert page.is_visible('text=Red Hat Directory Server')
         log.info('Let us go to RHDS side tab page')

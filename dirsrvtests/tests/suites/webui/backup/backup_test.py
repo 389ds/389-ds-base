@@ -22,7 +22,6 @@ pytest.importorskip('playwright')
 SERVER_ID = 'standalone1'
 
 
-@pytest.mark.xfail(reason="Will fail because of bz2189181")
 def test_no_backup_dir(topology_st, page, browser_name):
     """ Test that instance is able to load when backup directory doesn't exist.
 
