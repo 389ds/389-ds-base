@@ -102,7 +102,7 @@ def setup_login(page):
     page.click("#login-button")
     time.sleep(2)
 
-    if RHEL in distro.linux_distribution():
+    if RHEL in distro.name():
         page.wait_for_selector('text=Red Hat Directory Server')
         page.click('text=Red Hat Directory Server')
     else:
@@ -165,17 +165,17 @@ def create_entry(frame, entry_type, entry_data):
     prepare_page_for_entry(frame, entry_type)
 
     if entry_type == 'User':
-        frame.get_by_role("button", name="Options menu").click()
+        frame.get_by_role("button", name="Basic Account").click()
         frame.get_by_role("option", name="Posix Account").click()
         frame.get_by_role("button", name="Next", exact=True).click()
         frame.get_by_role("button", name="Next", exact=True).click()
 
-        for row, value in enumerate(entry_data.values()):
-            if row > 5:
+        for row, value in enumerate(entry_data.values(), start=1):
+            if row > 6:
                 break
-            frame.get_by_role("button", name=f"Place row {row} in edit mode").click()
+            frame.get_by_role("button", name=f"Edit row {row}").click()
             frame.get_by_role("textbox", name="_").fill(value)
-            frame.get_by_role("button", name=f"Save row edits for row {row}").click()
+            frame.get_by_role("button", name=f"Save edits of row {row}").click()
 
     elif entry_type == 'Group':
         frame.get_by_role("button", name="Next").click()
@@ -184,9 +184,9 @@ def create_entry(frame, entry_type, entry_data):
 
     elif entry_type == 'Organizational Unit':
         frame.get_by_role("button", name="Next", exact=True).click()
-        frame.get_by_role("button", name="Place row 0 in edit mode").click()
+        frame.get_by_role("button", name="Edit row 1").click()
         frame.get_by_role("textbox", name="_").fill(entry_data['ou_name'])
-        frame.get_by_role("button", name="Save row edits for row 0").click()
+        frame.get_by_role("button", name="Save edits of row 1").click()
 
     elif entry_type == 'Role':
         frame.locator("#namingVal").fill(entry_data['role_name'])
@@ -199,12 +199,12 @@ def create_entry(frame, entry_type, entry_data):
         frame.get_by_role("button", name="Next", exact=True).click()
         frame.get_by_role("checkbox", name="Select row 1").check()
         frame.get_by_role("button", name="Next", exact=True).click()
-        frame.get_by_role("button", name="Place row 0 in edit mode").click()
+        frame.get_by_role("button", name="Edit row 1").click()
         frame.get_by_role("textbox", name="_").fill(entry_data['uid'])
-        frame.get_by_role("button", name="Save row edits for row 0").click()
-        frame.get_by_role("button", name="Place row 1 in edit mode").click()
+        frame.get_by_role("button", name="Save edits of row 1").click()
+        frame.get_by_role("button", name="Edit row 2").click()
         frame.get_by_role("textbox", name="_").fill(entry_data['entry_name'])
-        frame.get_by_role("button", name="Save row edits for row 1").click()
+        frame.get_by_role("button", name="Save edits of row 2").click()
 
     finish_entry_creation(frame, entry_type, entry_data)
 
