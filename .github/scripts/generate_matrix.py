@@ -21,9 +21,6 @@ else:
     # Use tests from the source
     suites = next(os.walk('dirsrvtests/tests/suites/'))[1]
 
-    # Filter out webui because of broken tests
-    suites.remove('webui')
-
     # Run each replication test module separately to speed things up
     suites.remove('replication')
     repl_tests = glob.glob('dirsrvtests/tests/suites/replication/*_test.py')
