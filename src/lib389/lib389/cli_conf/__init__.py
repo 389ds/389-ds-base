@@ -127,13 +127,8 @@ def generic_object_edit(dsldap_object, log, args, arg_to_attr):
         log.info("Successfully changed the %s", dsldap_object.dn)
     else:
         # Check if we're trying to enable/disable a plugin and it's already in that state
-        enabled_attr = None
-        for arg, attr in arg_to_attr.items():
-            if arg == 'enabled' and attr in unchanged_attrs:
-                enabled_attr = attr
-                break
-
-        if enabled_attr is not None:
+        enabled_attr = arg_to_attr.get('enabled', None)
+        if enabled_attr in unchanged_attrs:
             # Get the current state for a more informative message
             current_state = ensure_list_str(existing_attributes[enabled_attr])[0]
             if current_state.lower() == 'on':
