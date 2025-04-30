@@ -106,6 +106,8 @@ def generic_object_edit(dsldap_object, log, args, arg_to_attr):
     existing_attributes = dsldap_object.get_all_attrs()
 
     modlist = []
+    unchanged_attrs = {}
+
     for attr, value in attrs.items():
         # Delete the attribute only if the user set it to 'delete' value
         if value in ("delete", ["delete"]):
@@ -116,11 +118,25 @@ def generic_object_edit(dsldap_object, log, args, arg_to_attr):
                 value = [value]
             if not (attr in existing_attributes and value == ensure_list_str(existing_attributes[attr])):
                 modlist.append((ldap.MOD_REPLACE, attr, value))
+            else:
+                # Track attributes that didn't change for better error messages
+                unchanged_attrs[attr] = value
+
     if len(modlist) > 0:
         dsldap_object.apply_mods(modlist)
         log.info("Successfully changed the %s", dsldap_object.dn)
     else:
-        raise ValueError("There is nothing to set in the %s plugin entry" % dsldap_object.dn)
+        # Check if we're trying to enable/disable a plugin and it's already in that state
+        enabled_attr = arg_to_attr.get('enabled', None)
+        if enabled_attr in unchanged_attrs:
+            # Get the current state for a more informative message
+            current_state = ensure_list_str(existing_attributes[enabled_attr])[0]
+            if current_state.lower() == 'on':
+                log.info("Plugin '%s' is already enabled" % dsldap_object.rdn)
+            else:
+                log.info("Plugin '%s' is already disabled" % dsldap_object.rdn)
+        else:
+            raise ValueError("There is nothing to change in the %s entry" % dsldap_object.dn)
 
 
 def generic_show(inst, basedn, log, args):
