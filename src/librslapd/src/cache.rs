@@ -1,6 +1,5 @@
 // This exposes C-FFI capable bindings for the concread concurrently readable cache.
 use concread::arcache::{ARCache, ARCacheBuilder, ARCacheReadTxn, ARCacheWriteTxn};
-use std::borrow::Borrow;
 use std::convert::TryInto;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -56,8 +55,7 @@ pub extern "C" fn cache_char_stats(
         debug_assert!(!cache.is_null());
         &(*cache) as &ARCacheChar
     };
-    let stat_rguard = cache_ref.inner.view_stats();
-    let stats = stat_rguard.borrow();
+    let stats = cache_ref.inner.view_stats();
     *reader_hits = stats.reader_hits.try_into().unwrap();
     *reader_includes = stats.reader_includes.try_into().unwrap();
     *write_hits = stats.write_hits.try_into().unwrap();
