@@ -120,6 +120,7 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods, 
 {
     LDAPControl **req_controls_copy = NULL;
     LDAPControl **pb_resp_controls = NULL;
+    passwdPolicy *pwpolicy = NULL;
     int ret = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods", "=>\n");
@@ -132,6 +133,14 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods, 
         }
 
         Slapi_PBlock *pb = slapi_pblock_new();
+        pwpolicy = new_passwdPolicy(pb_orig, slapi_sdn_get_ndn(sdn));
+        if (pw_is_pwp_admin(pb_orig, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+            /* If this is root DN or password admin set is_requestor_root so
+             * set this in the new pblock so password updates are correctly
+             * applied */
+            int is_requestor_root = 1;
+            slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &is_requestor_root);
+        }
         slapi_modify_internal_set_pb_ext(pb, sdn,
                                          slapi_mods_get_ldapmods_byref(mods),
                                          req_controls_copy, NULL,           /* UniqueID */
@@ -563,7 +572,6 @@ passwd_modify_extop(Slapi_PBlock *pb)
     } else {
         tag = ber_peek_tag(ber, &len);
     }
-
 
     /* identify userID field by tags */
     if (tag == LDAP_EXTOP_PASSMOD_TAG_USERID) {
