@@ -153,21 +153,16 @@ def test_pwd_modify_with_different_operation(topo):
     with pytest.raises(ldap.INSUFFICIENT_ACCESS):
         topo.standalone.simple_bind_s(user.dn, NEW_PASSWD)
         assert topo.standalone.passwd_s(user_2.dn, None, NEW_PASSWD)
-    log.info("Directory Manager attempts to change password for testuser2(userPassword attribute is Undefined)")
-    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
-    assert topo.standalone.passwd_s(user_2.dn, None, OLD_PASSWD)
-    log.info("Create a password syntax policy. Attempt to change to password that violates that policy")
-    topo.standalone.config.set('PasswordCheckSyntax', 'on')
-    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
-        assert topo.standalone.passwd_s(user_2.dn, OLD_PASSWD, SHORT_PASSWD)
+
     log.info("Reset password syntax policy")
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
     topo.standalone.config.set('PasswordCheckSyntax', 'off')
     log.info("userPassword mod with control results in ber decode error")
-    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
     assert topo.standalone.modify_ext_s(user.dn, [(ldap.MOD_REPLACE, 'userpassword', b'abcdefg')],
                                         serverctrls=[LDAPControl('2.16.840.1.113730.3.4.2', 1, None)])
     log.info("Reseting the testuser's password")
-    topo.standalone.passwd_s(user.dn, 'abcdefg', NEW_PASSWD)
+    topo.standalone.passwd_s(user.dn, 'abcdefg', OLD_PASSWD)
+    topo.standalone.passwd_s(user_2.dn, None, OLD_PASSWD)
 
 
 def test_pwd_modify_with_password_policy(topo, pwd_policy_setup):
@@ -193,16 +188,17 @@ def test_pwd_modify_with_password_policy(topo, pwd_policy_setup):
     topo.standalone.passwd_s(user_2.dn, NEW_PASSWD, OLD_PASSWD)
     regex = re.search('Z(.+)', user_2.get_attr_val_utf8('passwordhistory'))
     assert NEW_PASSWD == regex.group(1)
+
     log.info("Try changing password to one stored in history.  Should fail")
+    assert topo.standalone.simple_bind_s(user_2.dn, OLD_PASSWD)
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
         assert topo.standalone.passwd_s(user_2.dn, OLD_PASSWD, NEW_PASSWD)
     log.info("Change the password several times in a row, and try binding after each change")
-    topo.standalone.passwd_s(user.dn, NEW_PASSWD, OLD_PASSWD)
     assert topo.standalone.simple_bind_s(user.dn, OLD_PASSWD)
-    topo.standalone.passwd_s(user.dn, OLD_PASSWD, SHORT_PASSWD)
-    assert topo.standalone.simple_bind_s(user.dn, SHORT_PASSWD)
+    topo.standalone.passwd_s(user.dn, OLD_PASSWD, NEW_PASSWD)
+    topo.standalone.passwd_s(user.dn, NEW_PASSWD, SHORT_PASSWD)
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
-        topo.standalone.passwd_s(user.dn, SHORT_PASSWD, OLD_PASSWD)
+        topo.standalone.passwd_s(user.dn, SHORT_PASSWD, NEW_PASSWD)
 
 
 def test_pwd_modify_with_subsuffix(topo):

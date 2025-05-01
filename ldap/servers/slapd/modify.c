@@ -1374,6 +1374,15 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             rc = -1;
             goto done;
         }
+    } else if (pw_is_pwp_admin(pb, pwpolicy, PWP_ADMIN_OR_ROOTDN)) {
+        /* This is an internal operation, but we still need to check if this
+         * is a password admin */
+        if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_history) {
+            /* Updating pw history, get the old password */
+            get_old_pw(pb, &sdn, old_pw);
+        }
+        rc = 1;
+        goto done;
     }
 
     /* check if password is within password minimum age;
