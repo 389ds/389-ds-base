@@ -1315,16 +1315,6 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"dbdir", ArgRequired, 'a'},
         {0, 0, 0}};
 
-    // char *opts_referral = "vd:p:r:SD:";
-    // struct opt_ext long_options_referral[] = {
-    //     {"version", ArgNone, 'v'},
-    //     {"debug", ArgRequired, 'd'},
-    //     {"port", ArgRequired, 'p'},
-    //     {"referralMode", ArgRequired, 'r'},
-    //     {"allowMultipleProcesses", ArgNone, 'S'},
-    //     {"configDir", ArgRequired, 'D'},
-    //     {0, 0, 0}};
-
     char *opts_suffix2instance = "s:D:";
     struct opt_ext long_options_suffix2instance[] = {
         {"suffix", ArgRequired, 's'},
