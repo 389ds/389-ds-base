@@ -1105,11 +1105,14 @@ keys2idl(
         struct component_keys_lookup *key_stat;
         int key_len;
 
-        idl2 = index_read_ext_allids(pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit);
         if (op_stat) {
             /* gather the index lookup statistics */
             key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
-
+            clock_gettime(CLOCK_MONOTONIC, &(key_stat->key_lookup_start));
+        }
+        idl2 = index_read_ext_allids(pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit);
+        if (op_stat) {
+            clock_gettime(CLOCK_MONOTONIC, &(key_stat->key_lookup_end));
             /* indextype e.g. "eq" or "sub" (see index.c) */
             if (indextype) {
                 key_stat->index_type = slapi_ch_strdup(indextype);
