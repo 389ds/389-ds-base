@@ -1,4 +1,4 @@
-/** BEGIN COPYRIGHT BLOCK
+/*
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
@@ -145,6 +145,7 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_CACHE_SIZE       (uint64_t)0
 #define DEFAULT_CACHE_SIZE_STR   "0"
 #define DEFAULT_CACHE_ENTRIES    -1 /* no limit */
+#define DEFAULT_CACHE_PRESERVED_ENTRIES_STR "10"
 #define DEFAULT_DNCACHE_SIZE     (uint64_t)16777216
 #define DEFAULT_DNCACHE_SIZE_STR "16777216"
 #define DEFAULT_DNCACHE_MAXCOUNT -1 /* no limit */
@@ -341,6 +342,7 @@ struct backentry
     void *ep_id_link;               /*     tables used for */
     void *ep_uuid_link;             /*     looking up entries */
     PRMonitor *ep_mutexp;           /* protection for mods; make it reentrant */
+    uint64_t ep_weight;             /* for cache eviction */
 };
 
 /* From ep_type through ep_create_time MUST be identical to backcommon */
@@ -358,26 +360,39 @@ struct backdn
     void *dn_id_link;               /* for hash table */
 };
 
+/* Entry Cache statistics */
+struct cache_stats
+{
+    uint64_t hits;            /* for analysis of hits/misses */
+    uint64_t tries;
+    uint64_t nentries;        /* current # entries in cache */
+    int64_t  maxentries;      /* max entries allowed (-1: no limit) */
+    uint64_t size;            /* current size in bytes */
+    uint64_t maxsize;         /* max size in bytes */
+    uint64_t weight;          /* Total weight of all entries */
+    uint64_t nehw;            /* current # entries having weight in cache */
+                              /* weight/nehw is the average time in
+                               * microseconds needed to load an entry
+                               * in the cache
+                               */
+};
+
 /* for the in-core cache of entries */
 struct cache
 {
-    uint64_t c_maxsize;       /* max size in bytes */
-    uint64_t c_config_maxsize; /* manually configured value */
-    Slapi_Counter *c_cursize; /* size in bytes */
-    int64_t c_maxentries;     /* max entries allowed (-1: no limit) */
-    int64_t c_config_maxentries; /* manually configured value */
-    uint64_t c_curentries;    /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
 #ifdef UUIDCACHE_ON
     Hashtable *c_uuidtable;
 #endif
-    Slapi_Counter *c_hits; /* for analysis of hits/misses */
-    Slapi_Counter *c_tries;
-    struct backcommon *c_lruhead; /* add entries here */
-    struct backcommon *c_lrutail; /* remove entries here */
+    struct backcommon c_lrus[2];  /* Standard and preserved lru looped double linked lists */
     PRMonitor *c_mutex;           /* lock for cache operations */
+    uint64_t c_config_maxsize;    /* manually configured value */
+    int64_t c_config_maxentries;  /* manually configured value */
     PRLock *c_emutexalloc_mutex;
+    struct cache_stats c_stats;
+    struct ldbm_instance *c_inst;
+    size_t c_nbpreserved;
 };
 
 #define CACHE_ADD(cache, p, a) cache_add((cache), (void *)(p), (void **)(a))
@@ -385,6 +400,11 @@ struct cache
 #define CACHE_REMOVE(cache, p) cache_remove((cache), (void *)(p))
 #define CACHE_LOCK(cache)      cache_lock((cache))
 #define CACHE_UNLOCK(cache)    cache_unlock((cache))
+
+/* For backentry_compute_weight implementation */
+typedef struct timespec BackEntryWeightData;
+
+
 
 /* various modules keep private data inside the attrinfo structure */
 typedef struct dblayer_private     dblayer_private;
@@ -788,6 +808,11 @@ typedef struct ldbm_instance
     int require_internalop_index;    /* set to 1 to require an index be used in an internal search */
     struct cache inst_dncache;       /* The dn cache for this instance. */
     uint32_t inst_page_count;        /* page count used for cache autotuning */
+    int cache_preserved_entries;     /* Number of entries to preserve during cache eviction */
+    char *cache_debug_pattern;       /* Entries whose dn matche this pattern are logged as INFO
+                                      * when they get added/removed from entry cache
+                                      */
+    Slapi_Regex *cache_debug_re;     /* Compiled version of cache_debug_pattern */
 } ldbm_instance;
 
 /*

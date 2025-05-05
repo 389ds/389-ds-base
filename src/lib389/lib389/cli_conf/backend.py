@@ -504,6 +504,8 @@ def backend_set(inst, basedn, log, args):
         bev.set('nsslapd-cachesize', args.cache_size)
     if args.cache_memsize:
         bev.set('nsslapd-cachememsize', args.cache_memsize)
+    if args.cache_preserved_entries:
+        bev.set('nsslapd-cache-preserved-entries', args.cache_preserved_entries)
     if args.dncache_memsize:
         bev.set('nsslapd-dncachememsize', args.dncache_memsize)
     if args.require_index:
@@ -886,6 +888,7 @@ def create_parser(subparsers):
     set_backend_parser.add_argument('--disable', action='store_true', help='Disables the backend database')
     set_backend_parser.add_argument('--cache-size', help='Sets the maximum number of entries to keep in the entry cache')
     set_backend_parser.add_argument('--cache-memsize', help='Sets the maximum size in bytes that the entry cache can grow to')
+    set_backend_parser.add_argument('--cache-preserved-entries', help='Sets the maximum number of entries that are not evicted from the cache when trying to make space. This is typically used to keep very large groups in the cache')
     set_backend_parser.add_argument('--dncache-memsize', help='Sets the maximum size in bytes that the DN cache can grow to')
     set_backend_parser.add_argument('--state', help='Changes the backend state to: "backend", "disabled", "referral", or "referral on update"')
     set_backend_parser.add_argument('be_name', help='The backend name or suffix')
