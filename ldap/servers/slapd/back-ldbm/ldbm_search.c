@@ -35,7 +35,7 @@ static IDList *onelevel_candidates(Slapi_PBlock *pb, backend *be, const char *ba
 static back_search_result_set *new_search_result_set(IDList *idl, int vlv, int lookthroughlimit);
 static void delete_search_result_set(Slapi_PBlock *pb, back_search_result_set **sr);
 static int can_skip_filter_test(Slapi_PBlock *pb, struct slapi_filter *f, int scope, IDList *idl);
-static void stat_add_srch_lookup(Op_stat *op_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt);
+static void stat_add_srch_lookup(Op_stat *op_stat,  struct component_keys_lookup *key_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt);
 
 /* This is for performance testing, allows us to disable ACL checking altogether */
 #if defined(DISABLE_ACL_CHECK)
@@ -1199,16 +1199,11 @@ create_subtree_filter(Slapi_Filter *filter, int managedsait)
 }
 
 static void
-stat_add_srch_lookup(Op_stat *op_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt)
+stat_add_srch_lookup(Op_stat *op_stat, struct component_keys_lookup *key_stat, char * attribute_type, const char* index_type, char *key_value, int lookup_cnt)
 {
-    struct component_keys_lookup *key_stat;
-
-    if ((op_stat == NULL) || (op_stat->search_stat == NULL)) {
+    if ((op_stat == NULL) || (op_stat->search_stat == NULL) || (key_stat == NULL)) {
         return;
     }
-
-    /* gather the index lookup statistics */
-    key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
 
     /* indextype is "eq" */
     if (index_type) {
@@ -1299,23 +1294,39 @@ subtree_candidates(
 
         slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
         if (entryrdn_get_noancestorid()) {
+            struct component_keys_lookup *key_stat;
+
+            if (op_stat) {
+                /* gather the index lookup statistics */
+                key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_start);
+            }
             /* subtree-rename: on && no ancestorid */
             *err = entryrdn_get_subordinates(be,
                                              slapi_entry_get_sdn_const(e->ep_entry),
                                              e->ep_id, &descendants, &txn, 0);
             if (op_stat) {
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_end);
                 /* record entryrdn lookups */
-                stat_add_srch_lookup(op_stat, LDBM_ENTRYRDN_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
+                stat_add_srch_lookup(op_stat, key_stat, LDBM_ENTRYRDN_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
             }
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(&tmp);
             idl_free(&descendants);
         } else if (!has_tombstone_filter && !is_bulk_import) {
+            struct component_keys_lookup *key_stat;
+
+            if (op_stat) {
+                /* gather the index lookup statistics */
+                key_stat = (struct component_keys_lookup *) slapi_ch_calloc(1, sizeof (struct component_keys_lookup));
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_start);
+            }
             *err = ldbm_ancestorid_read_ext(be, &txn, e->ep_id, &descendants, allidslimit);
             if (op_stat) {
+                clock_gettime(CLOCK_MONOTONIC, &key_stat->key_lookup_end);
                 /* records ancestorid lookups */
-                stat_add_srch_lookup(op_stat, LDBM_ANCESTORID_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
+                stat_add_srch_lookup(op_stat, key_stat, LDBM_ANCESTORID_STR, indextype_EQUALITY, key_value, descendants ? descendants->b_nids : 0);
             }
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);

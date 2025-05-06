@@ -8331,6 +8331,15 @@ void DS_Sleep(PRIntervalTime ticks);
  * \param struct timespec c the difference.
  */
 void slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *diff);
+
+/**
+ * add 'new' timespect into 'cumul'
+ * clock_monotonic to find time taken to perform operations.
+ *
+ * \param struct timespec cumul to compute total duration.
+ * \param struct timespec new is a additional duration
+ */
+void slapi_timespec_add(struct timespec *cumul, struct timespec *new);
 /**
  * Given an operation, determine the time elapsed since the op
  * began.
