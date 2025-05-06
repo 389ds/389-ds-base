@@ -701,8 +701,8 @@ main(int argc, char **argv)
         */
     if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
         slapi_log_err(SLAPI_LOG_EMERG, "main",
-                        "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
-                        slapdFrontendConfig->configdir);
+                      "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
+                      slapdFrontendConfig->configdir);
         exit(1);
     }
 
@@ -724,8 +724,8 @@ main(int argc, char **argv)
     /* This will setup the mapping tree too */
     if (0 == setup_internal_backends(slapdFrontendConfig->configdir)) {
         slapi_log_err(SLAPI_LOG_EMERG, "main",
-                        "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
-                        slapdFrontendConfig->configdir);
+                      "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
+                      slapdFrontendConfig->configdir);
         exit(1);
     }
 
@@ -978,8 +978,8 @@ main(int argc, char **argv)
 
     /* log the max fd limit as it is typically set in env/systemd */
     slapi_log_err(SLAPI_LOG_INFO, "main",
-            "Setting the maximum file descriptor limit to: %" PRId64 "\n",
-            config_get_maxdescriptors());
+                  "Setting the maximum file descriptor limit to: %" PRId64 "\n",
+                  config_get_maxdescriptors());
 
     fedse_create_startOK(DSE_FILENAME, DSE_STARTOKFILE,
                             slapdFrontendConfig->configdir);
@@ -999,8 +999,8 @@ main(int argc, char **argv)
     slapi_sdn_free(&sdn);
     if (rc != UID_SUCCESS) {
         slapi_log_err(SLAPI_LOG_EMERG, "main",
-                        "Fatal Error---Failed to initialize uniqueid generator; error = %d. "
-                        "Exiting now.\n",
+                      "Fatal Error---Failed to initialize uniqueid generator; error = %d. "
+                      "Exiting now.\n",
                         rc);
         return_value = 1;
         goto cleanup;
@@ -1074,8 +1074,8 @@ main(int argc, char **argv)
     } else if (config_get_security()) {
     } else {
         slapi_log_err(SLAPI_LOG_EMERG, "main",
-                        "Fatal Error---No ports specified. "
-                        "Exiting now.\n");
+                      "Fatal Error---No ports specified. "
+                      "Exiting now.\n");
 
         return_value = 1;
         goto cleanup;
