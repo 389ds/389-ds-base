@@ -325,6 +325,19 @@ slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *dif
 }
 
 void
+slapi_timespec_add(struct timespec *cumul, struct timespec *new)
+{
+    /* Now add the two */
+    time_t sec = cumul->tv_sec + new->tv_sec;
+    long nsec = cumul->tv_nsec + new->tv_nsec;
+
+    sec += nsec / 1000000000;
+    nsec = nsec % 1000000000;
+    cumul->tv_sec = sec;
+    cumul->tv_nsec = nsec;
+}
+
+void
 slapi_timespec_expire_at(time_t timeout, struct timespec *expire)
 {
     if (timeout <= 0) {
