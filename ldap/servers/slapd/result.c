@@ -2113,6 +2113,8 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                 logpb.op_id = op_id;
 
                 for (key_info = op_stat->search_stat->keys_lookup; key_info; key_info = key_info->next) {
+                    slapi_timespec_diff(&key_info->key_lookup_end, &key_info->key_lookup_start, &duration);
+                    snprintf(stat_etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)duration.tv_sec, (int64_t)duration.tv_nsec);
                     if (internal_op) {
                         if (log_format != LOG_FORMAT_DEFAULT) {
                             /* JSON logging */
@@ -2125,11 +2127,11 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                             slapd_log_access_stat(&logpb);
                         } else {
                             slapi_log_stat(LDAP_STAT_READ_INDEX,
-                                           connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d\n":
-                                                         STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d\n",
+                                           connid == 0 ? STAT_LOG_CONN_OP_FMT_INT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d (duration %s)\n":
+                                                         STAT_LOG_CONN_OP_FMT_EXT_INT "STAT read index: attribute=%s key(%s)=%s --> count %d (duration %s)\n",
                                            connid, op_id, op_internal_id, op_nested_count,
                                            key_info->attribute_type, key_info->index_type, key_info->key,
-                                           key_info->id_lookup_cnt);
+                                           key_info->id_lookup_cnt, stat_etime);
                         }
                     } else {
                         if (log_format != LOG_FORMAT_DEFAULT) {
@@ -2143,10 +2145,10 @@ log_op_stat(Slapi_PBlock *pb, uint64_t connid, int32_t op_id, int32_t op_interna
                             slapd_log_access_stat(&logpb);
                         } else {
                             slapi_log_stat(LDAP_STAT_READ_INDEX,
-                                           "conn=%" PRIu64 " op=%d STAT read index: attribute=%s key(%s)=%s --> count %d\n",
+                                           "conn=%" PRIu64 " op=%d STAT read index: attribute=%s key(%s)=%s --> count %d (duration %s)\n",
                                            connid, op_id,
                                            key_info->attribute_type, key_info->index_type, key_info->key,
-                                           key_info->id_lookup_cnt);
+                                           key_info->id_lookup_cnt, stat_etime);
                         }
                     }
                 }
