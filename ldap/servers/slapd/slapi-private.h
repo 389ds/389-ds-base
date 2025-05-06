@@ -457,6 +457,8 @@ struct component_keys_lookup
     char *attribute_type;
     char *key;
     int id_lookup_cnt;
+    struct timespec key_lookup_start;
+    struct timespec key_lookup_end;
     struct component_keys_lookup *next;
 };
 typedef struct op_search_stat
