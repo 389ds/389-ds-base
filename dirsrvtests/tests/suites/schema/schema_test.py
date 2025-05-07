@@ -391,7 +391,6 @@ def test_gecos_directoryString_wins_M1(topo_m2, request):
     attributetypes = schema.query_attributetype('gecos')
     assert attributetypes[0].syntax == "1.3.6.1.4.1.1466.115.121.1.26"
 
-
     # update M1 schema to increase its nsschemaCSN
     new_at = "( dummy-oid NAME 'dummy' DESC 'dummy attribute' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'RFC 2307' )"
     m1.schema.add_schema('attributetypes', ensure_bytes(new_at))

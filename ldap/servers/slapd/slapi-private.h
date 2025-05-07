@@ -27,6 +27,7 @@ extern "C" {
 #include "nspr.h"
 #include "portable.h"
 #include "slapi-plugin.h"
+#include <plhash.h>
 /*
  * XXXmcs: we can stop including slapi-plugin-compat4.h once we stop using
  * deprecated functions internally.
@@ -1182,6 +1183,7 @@ void schema_expand_objectclasses_nolock(Slapi_Entry *e);
 #define DSE_SCHEMA_LOCKED            0x0020  /* already locked with reload_schemafile_lock; no further lock needed */
 #define DSE_SCHEMA_USER_DEFINED_ONLY 0x0100  /* refresh user defined schema */
 #define DSE_SCHEMA_USE_PRIV_SCHEMA   0x0200  /* Use a provided private schema */
+#define DSE_SCHEMA_USE_GLOBAL        0x0400  /* Use a provided private schema */
 
 /* */
 #define OC_CONSUMER "consumer"
@@ -1248,6 +1250,10 @@ struct slapi_td_log_op_state_t * slapi_td_get_log_op_state(void);
 void slapi_td_internal_op_start(void);
 void slapi_td_internal_op_finish(void);
 void slapi_td_reset_internal_logging(uint64_t conn_id, int32_t op_id, time_t start_time);
+int32_t slapi_td_set_attr_syntax_name_table(PLHashTable *ht);
+void slapi_td_get_attr_syntax_name_table(PLHashTable **ht);
+int32_t slapi_td_set_attr_syntax_oid_table(PLHashTable *ht);
+void slapi_td_get_attr_syntax_oid_table(PLHashTable **ht);
 
 /*  Thread Local Storage Index Types - thread_data.c */
 

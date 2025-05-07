@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2023 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -602,6 +602,15 @@ main(int argc, char **argv)
         mcfg.myname = slapi_ch_strdup(mcfg.myname + 1);
     }
 
+    /*
+     * init the thread data indexes. Nothing should be creating their
+     * own thread data, and should be using this function instead
+     * as we may swap to context based storage in the future rather
+     * than direct thread-local accesses (especially important with
+     * consideration of rust etc)
+     */
+    slapi_td_init();
+
     process_command_line(argc, argv, &mcfg);
 
 #ifdef WITH_SYSTEMD
@@ -1094,15 +1103,6 @@ main(int argc, char **argv)
         eq_start_rel(); /* must be done after plugins started */
 
         vattr_check(); /* Check if it exists virtual attribute definitions */
-
-#ifdef HPUX10
-        /* HPUX linker voodoo */
-        if (collation_init == NULL) {
-            return_value = 1;
-            goto cleanup;
-        }
-
-#endif /* HPUX */
 
         normalize_oc();
 
