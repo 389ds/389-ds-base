@@ -40,11 +40,12 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_ARCHIVE2DB       5
 #define SLAPD_EXEMODE_DBTEST           6
 #define SLAPD_EXEMODE_DB2INDEX         7
-#define SLAPD_EXEMODE_SUFFIX2INSTANCE  8
-#define SLAPD_EXEMODE_PRINTVERSION     9
-#define SLAPD_EXEMODE_UPGRADEDB       10
-#define SLAPD_EXEMODE_DBVERIFY        11
-#define SLAPD_EXEMODE_UPGRADEDNFORMAT 12
+#define SLAPD_EXEMODE_REFERRAL         8    /* deprecated */
+#define SLAPD_EXEMODE_SUFFIX2INSTANCE  9
+#define SLAPD_EXEMODE_PRINTVERSION    10
+#define SLAPD_EXEMODE_UPGRADEDB       11
+#define SLAPD_EXEMODE_DBVERIFY        12
+#define SLAPD_EXEMODE_UPGRADEDNFORMAT 13
 
 #define DEFBACKEND_TYPE "default"
 #define DEFBACKEND_NAME "DirectoryServerDefaultBackend"
