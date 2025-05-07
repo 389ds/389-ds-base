@@ -875,7 +875,11 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                  * sent a result */
                 rc = SLAPI_FAIL_GENERAL;
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
-                if (err == LDAP_NO_SUCH_OBJECT) {
+                if (err == LDAP_REFERRAL) {
+                    /* manage a referral search result code. */
+                    flag_referral++;
+                }
+                else if (err == LDAP_NO_SUCH_OBJECT) {
                     /* may be the object exist somewhere else
                      * wait the end of the loop to send back this error
                      */
@@ -892,7 +896,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
                 /* PAGED RESULTS */
                 /* Explicit ctrlp test avoid gcc -fanalyzer warning */
-                if (op_is_pagedresults(operation)) {
+                if (op_is_pagedresults(operation) && !flag_referral) {
                     /* Disable gcc -fanalyzer false positive about pagedresults_mutex == NULL */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wanalyzer-null-argument"
