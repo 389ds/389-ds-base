@@ -40,7 +40,7 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_ARCHIVE2DB       5
 #define SLAPD_EXEMODE_DBTEST           6
 #define SLAPD_EXEMODE_DB2INDEX         7
-#define SLAPD_EXEMODE_REFERRAL         8
+#define SLAPD_EXEMODE_REFERRAL         8    /* deprecated */
 #define SLAPD_EXEMODE_SUFFIX2INSTANCE  9
 #define SLAPD_EXEMODE_PRINTVERSION    10
 #define SLAPD_EXEMODE_UPGRADEDB       11
