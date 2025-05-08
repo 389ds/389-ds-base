@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -16,6 +16,9 @@ from lib389.tasks import DBCompactTask
 from lib389.backend import DatabaseConfig
 from lib389.topologies import topology_m1 as topo
 from lib389.utils import ldap, ds_is_older
+from lib389.idm.user import UserAccounts
+from lib389._constants import DEFAULT_SUFFIX
+
 
 pytestmark = pytest.mark.tier2
 log = logging.getLogger(__name__)
@@ -82,6 +85,22 @@ def test_compaction_interval_and_time(topo):
 
     inst = topo.ms["supplier1"]
 
+    # Add and delete some entries so compaction has something to do
+    log.info("Adding and deleting 100 users ...")
+    users = UserAccounts(inst, DEFAULT_SUFFIX, rdn=None)
+    for num in range(100):
+        USER_NAME = f'test_{num}'
+        user = users.create(properties={
+            'uid': USER_NAME,
+            'sn': USER_NAME,
+            'cn': USER_NAME,
+            'uidNumber': f'{num}',
+            'gidNumber': f'{num}',
+            'description': f'Description for {USER_NAME}',
+            'homeDirectory': f'/home/{USER_NAME}'
+        })
+        user.delete()
+
     # Calculate the compaction time (1 minute from now)
     now = datetime.datetime.now()
     current_hour = now.hour
@@ -104,16 +123,30 @@ def test_compaction_interval_and_time(topo):
 
     compact_time = hour + ":" + minute
 
+    # Get number of seconds to wait before compaction should happen
+    wait_seconds = 120 - now.second
+
     # Set compaction TOD
+    log.debug("compact time: %s", compact_time)
+    log.debug("now: %s", str(now))
     config = DatabaseConfig(inst)
-    config.set([('nsslapd-db-compactdb-interval', '2'), ('nsslapd-db-compactdb-time', compact_time)])
+    config.set([('nsslapd-db-compactdb-interval', '45'),
+                ('nsslapd-db-compactdb-time', compact_time)])
     inst.deleteErrorLogs(restart=True)
 
     # Check compaction occurred as expected
-    time.sleep(45)
+    time.sleep(25)
     assert not inst.searchErrorsLog("Compacting databases")
 
-    time.sleep(90)
+    # Make sure we can handle a restart correctly
+    inst.stop()
+    log.debug("sleeping for: %d", wait_seconds - 45)
+    time.sleep(wait_seconds - 45)
+    inst.start()
+    time.sleep(17)
+
+    now = datetime.datetime.now()
+    log.debug("checking now: %s", str(now))
     assert inst.searchErrorsLog("Compacting databases")
     inst.deleteErrorLogs(restart=False)
 
