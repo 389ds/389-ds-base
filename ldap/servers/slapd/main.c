@@ -311,8 +311,7 @@ name2exemode(char *progname, char *s, int exit_if_unknown)
     } else if (strcmp(s, "db2index") == 0) {
         exemode = SLAPD_EXEMODE_DB2INDEX;
     } else if (strcmp(s, "refer") == 0) {
-        fprintf(stderr, "WARNING: Starting ns-slapd in referral mode is no longer supported.\n");
-        exit(1);
+        exemode = SLAPD_EXEMODE_REFERRAL;
     } else if (strcmp(s, "suffix2instance") == 0) {
         exemode = SLAPD_EXEMODE_SUFFIX2INSTANCE;
     } else if (strcmp(s, "upgradedb") == 0) {
@@ -324,7 +323,7 @@ name2exemode(char *progname, char *s, int exit_if_unknown)
     } else if (exit_if_unknown) {
         fprintf(stderr, "usage: %s -D configdir "
                         "[ldif2db | db2ldif | archive2db "
-                        "| db2archive | db2index | suffix2instance "
+                        "| db2archive | db2index | refer | suffix2instance "
                         "| upgradedb | upgradednformat | dbverify] "
                         "[options]\n",
                 progname);
@@ -372,6 +371,9 @@ usage(char *name, char *extraname, int slapd_exemode)
         usagestr = "usage: %s %s%s-D configdir -n backend-instance-name "
                    "[-d debuglevel] {-t attributetype}* {-T VLV Search Name}*\n";
         /* JCM should say 'Address Book' or something instead of VLV */
+        break;
+    case SLAPD_EXEMODE_REFERRAL:
+        usagestr = "usage: %s %s%s-D configdir -r referral-url [-p port]\n";
         break;
     case SLAPD_EXEMODE_SUFFIX2INSTANCE:
         usagestr = "usage: %s %s%s -D configdir {-s suffix}*\n";
@@ -525,8 +527,6 @@ main(int argc, char **argv)
 {
     int return_value = 0;
     struct main_config mcfg = {0};
-    int rc;
-    Slapi_DN *sdn;
 #ifdef LINUX
 #if defined(PR_SET_THP_DISABLE)
     char *thp_disable = getenv("THP_DISABLE");
@@ -651,86 +651,107 @@ main(int argc, char **argv)
     /* Init the global counters */
     alloc_global_snmp_vars();
 
-    /* The 2 calls below have been moved to this place to make sure that
-        * they are called before setup_internal_backends to avoid bug 524439 */
-    /*
-        * The 2 calls below where being sometimes called AFTER
-        * ldapi_register_extended_op (such fact was being stated and
-        * reproducible for some optimized installations at startup (bug
-        * 524439)... Such bad call was happening in the context of
-        * setup_internal_backends -> dse_read_file -> load_plugin_entry ->
-        * plugin_setup -> replication_multisupplier_plugin_init ->
-        * slapi_register_plugin -> plugin_setup ->
-        * multisupplier_start_extop_init -> * slapi_pblock_set ->
-        * ldapi_register_extended_op... Unfortunately, the server
-        * design is such that it is assumed that ldapi_init_extended_ops is
-        * always called first.
-        * THE FIX: Move the two calls below before a call to
-        * setup_internal_backends (down in this same function)
-        */
-    ldapi_init_extended_ops();
+    if (mcfg.slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
+        slapdFrontendConfig = getFrontendConfig();
+        /* make up the config stuff */
+        referral_set_defaults();
+        /*
+         * Process the config files.
+         */
+        if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
+                          slapdFrontendConfig->configdir);
+            exit(1);
+        }
+
+        mcfg.n_port = config_get_port();
+        mcfg.s_port = config_get_secureport();
+        register_objects();
+
+    } else {
+        slapdFrontendConfig = getFrontendConfig();
+        /* The 2 calls below have been moved to this place to make sure that
+         * they are called before setup_internal_backends to avoid bug 524439 */
+        /*
+         * The 2 calls below where being sometimes called AFTER
+         * ldapi_register_extended_op (such fact was being stated and
+         * reproducible for some optimized installations at startup (bug
+         * 524439)... Such bad call was happening in the context of
+         * setup_internal_backends -> dse_read_file -> load_plugin_entry ->
+         * plugin_setup -> replication_multisupplier_plugin_init ->
+         * slapi_register_plugin -> plugin_setup ->
+         * multisupplier_start_extop_init -> * slapi_pblock_set ->
+         * ldapi_register_extended_op... Unfortunately, the server
+         * design is such that it is assumed that ldapi_init_extended_ops is
+         * always called first.
+         * THE FIX: Move the two calls below before a call to
+         * setup_internal_backends (down in this same function)
+         */
+        ldapi_init_extended_ops();
 
 
-    /*
-        * Initialize the default backend.  This should be done before we
-        * process the config. files
-        */
-    defbackend_init();
+        /*
+         * Initialize the default backend.  This should be done before we
+         * process the config. files
+         */
+        defbackend_init();
 
-    /*
-        * Register the extensible objects with the factory.
-        */
-    register_objects();
-    /*
-        * Register the controls that we support.
-        */
-    init_controls();
+        /*
+         * Register the extensible objects with the factory.
+         */
+        register_objects();
+        /*
+         * Register the controls that we support.
+         */
+        init_controls();
 
-    /*
-        * Register the server features that we support.
-        */
-    init_features();
+        /*
+         * Register the server features that we support.
+         */
+        init_features();
 
-    /*
-        * Initialize the global plugin list lock
-        */
-    global_plugin_init();
+        /*
+         * Initialize the global plugin list lock
+         */
+        global_plugin_init();
 
-    /*
-        * Process the config files.
-        */
-    if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
-        slapi_log_err(SLAPI_LOG_EMERG, "main",
-                      "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
-                      slapdFrontendConfig->configdir);
-        exit(1);
+        /*
+         * Process the config files.
+         */
+        if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
+                          slapdFrontendConfig->configdir);
+            exit(1);
+        }
+
+        /* We need to init sasl after we load the bootstrap config since
+         * the config may be setting the sasl plugin path.
+         */
+        init_saslmechanisms();
+
+        /* -sduloutre: must be done before any internal search */
+        /* do it before splitting off to other modes too -robey */
+        /* -richm: must be done before reading config files */
+        return_value = compute_init();
+        if (return_value != 0) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main", "Initialization Failed 0 %d\n", return_value);
+            exit(1);
+        }
+        entry_computed_attr_init();
+
+        /* This will setup the mapping tree too */
+        if (0 == setup_internal_backends(slapdFrontendConfig->configdir)) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
+                          slapdFrontendConfig->configdir);
+            exit(1);
+        }
+
+        mcfg.n_port = config_get_port();
+        mcfg.s_port = config_get_secureport();
     }
-
-    /* We need to init sasl after we load the bootstrap config since
-        * the config may be setting the sasl plugin path.
-        */
-    init_saslmechanisms();
-
-    /* -sduloutre: must be done before any internal search */
-    /* do it before splitting off to other modes too -robey */
-    /* -richm: must be done before reading config files */
-    return_value = compute_init();
-    if (return_value != 0) {
-        slapi_log_err(SLAPI_LOG_EMERG, "main", "Initialization Failed 0 %d\n", return_value);
-        exit(1);
-    }
-    entry_computed_attr_init();
-
-    /* This will setup the mapping tree too */
-    if (0 == setup_internal_backends(slapdFrontendConfig->configdir)) {
-        slapi_log_err(SLAPI_LOG_EMERG, "main",
-                      "The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
-                      slapdFrontendConfig->configdir);
-        exit(1);
-    }
-
-    mcfg.n_port = config_get_port();
-    mcfg.s_port = config_get_secureport();
 
     raise_process_limits(); /* should be done ASAP once config file read */
 
@@ -752,7 +773,8 @@ main(int argc, char **argv)
      * we need to be root in order to open them.
      */
 
-    if ((mcfg.slapd_exemode == SLAPD_EXEMODE_SLAPD)) {
+    if ((mcfg.slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+        (mcfg.slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
         char *listenhost = config_get_listenhost();
         char *securelistenhost = config_get_securelistenhost();
         ports_info.n_port = (unsigned short)mcfg.n_port;
@@ -842,6 +864,16 @@ main(int argc, char **argv)
     case SLAPD_EXEMODE_DB2ARCHIVE:
         return_value = slapd_exemode_db2archive(&mcfg);
         goto cleanup;
+        break;
+
+    case SLAPD_EXEMODE_REFERRAL:
+        /* check that all the necessary info was given, then go on */
+        if (!config_check_referral_mode()) {
+            slapi_log_err(SLAPI_LOG_ALERT, "main",
+                          "ERROR: No referral URL supplied\n");
+            usage(mcfg.myname, mcfg.extraname, mcfg.slapd_exemode);
+            exit(1);
+        }
         break;
 
     case SLAPD_EXEMODE_SUFFIX2INSTANCE:
@@ -947,7 +979,8 @@ main(int argc, char **argv)
      * a mode that is going to conflict with other
      * slapd processes that are currently running
      */
-    if ((add_new_slapd_process(mcfg.slapd_exemode, mcfg.db2ldif_dump_replica,
+    if ((mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
+        (add_new_slapd_process(mcfg.slapd_exemode, mcfg.db2ldif_dump_replica,
                                mcfg.skip_db_protect_check) == -1)) {
         slapi_log_err(SLAPI_LOG_CRIT, "main",
                       "Shutting down due to possible conflicts with other slapd processes\n");
@@ -972,118 +1005,124 @@ main(int argc, char **argv)
 
     /* log the max fd limit as it is typically set in env/systemd */
     slapi_log_err(SLAPI_LOG_INFO, "main",
-                  "Setting the maximum file descriptor limit to: %" PRId64 "\n",
-                  config_get_maxdescriptors());
+            "Setting the maximum file descriptor limit to: %" PRId64 "\n",
+            config_get_maxdescriptors());
 
-    fedse_create_startOK(DSE_FILENAME, DSE_STARTOKFILE,
-                            slapdFrontendConfig->configdir);
+    if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
+        int rc;
+        Slapi_DN *sdn;
 
-    eq_init(); /* DEPRECATED */
-    eq_init_rel(); /* must be done before plugins started */
+        fedse_create_startOK(DSE_FILENAME, DSE_STARTOKFILE,
+                             slapdFrontendConfig->configdir);
 
-    ps_init_psearch_system(); /* must come before plugin_startall() */
-    pageresult_lock_init();
+        eq_init(); /* DEPRECATED */
+        eq_init_rel(); /* must be done before plugins started */
+
+        ps_init_psearch_system(); /* must come before plugin_startall() */
+        pageresult_lock_init();
 
 
-    /* initialize UniqueID generator - must be done once backends are started
-        and event queue is initialized but before plugins are started */
-    /* Note: This DN is no need to be normalized. */
-    sdn = slapi_sdn_new_ndn_byval("cn=uniqueid generator,cn=config");
-    rc = uniqueIDGenInit(NULL, sdn, mcfg.slapd_exemode == SLAPD_EXEMODE_SLAPD);
-    slapi_sdn_free(&sdn);
-    if (rc != UID_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_EMERG, "main",
-                      "Fatal Error---Failed to initialize uniqueid generator; error = %d. "
-                      "Exiting now.\n",
-                        rc);
-        return_value = 1;
-        goto cleanup;
-    }
+        /* initialize UniqueID generator - must be done once backends are started
+           and event queue is initialized but before plugins are started */
+        /* Note: This DN is no need to be normalized. */
+        sdn = slapi_sdn_new_ndn_byval("cn=uniqueid generator,cn=config");
+        rc = uniqueIDGenInit(NULL, sdn, mcfg.slapd_exemode == SLAPD_EXEMODE_SLAPD);
+        slapi_sdn_free(&sdn);
+        if (rc != UID_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "Fatal Error---Failed to initialize uniqueid generator; error = %d. "
+                          "Exiting now.\n",
+                          rc);
+            return_value = 1;
+            goto cleanup;
+        }
 
-    /* --ugaston: register the start-tls plugin */
-    if (slapd_security_library_is_initialized() != 0) {
-        start_tls_register_plugin();
-        slapi_log_err(SLAPI_LOG_PLUGIN, "main", "Start TLS plugin registered.\n");
-    }
-    passwd_modify_register_plugin();
-    slapi_log_err(SLAPI_LOG_PLUGIN, "main", "Password Modify plugin registered.\n");
+        /* --ugaston: register the start-tls plugin */
+        if (slapd_security_library_is_initialized() != 0) {
+            start_tls_register_plugin();
+            slapi_log_err(SLAPI_LOG_PLUGIN, "main", "Start TLS plugin registered.\n");
+        }
+        passwd_modify_register_plugin();
+        slapi_log_err(SLAPI_LOG_PLUGIN, "main", "Password Modify plugin registered.\n");
 
-    /* Cleanup old tasks that may still be in the DSE from a previous
-        session.  Call before plugin_startall since cleanup needs to be
-        done before plugin_startall where user defined task plugins could
-        be started.
-        */
-    task_cleanup();
+        /* Cleanup old tasks that may still be in the DSE from a previous
+           session.  Call before plugin_startall since cleanup needs to be
+           done before plugin_startall where user defined task plugins could
+           be started.
+         */
+        task_cleanup();
 
-    /*
-        * This step checks for any updates and changes on upgrade
-        * specifically, it manages assumptions about what plugins should exist, and their
-        * configurations, and potentially even the state of configurations on the server
-        * and their removal and deprecation.
-        *
-        * Has to be after uuid + dse to change config, but before password and plugins
-        * so we can adjust these configurations.
-        */
-    if (upgrade_server() != UPGRADE_SUCCESS) {
-        return_value = 1;
-        goto cleanup;
-    }
+        /*
+         * This step checks for any updates and changes on upgrade
+         * specifically, it manages assumptions about what plugins should exist, and their
+         * configurations, and potentially even the state of configurations on the server
+         * and their removal and deprecation.
+         *
+         * Has to be after uuid + dse to change config, but before password and plugins
+         * so we can adjust these configurations.
+         */
+        if (upgrade_server() != UPGRADE_SUCCESS) {
+            return_value = 1;
+            goto cleanup;
+        }
 
-    /*
-        * Initialize password storage in entry extension.
-        * Need to be initialized before plugin_startall in case stucked
-        * changes are replicated as soon as the replication plugin is started.
-        */
-    pw_exp_init();
-    op_stat_init();
+        /*
+         * Initialize password storage in entry extension.
+         * Need to be initialized before plugin_startall in case stucked
+         * changes are replicated as soon as the replication plugin is started.
+         */
+        pw_exp_init();
+        op_stat_init();
 
-    plugin_print_lists();
-    plugin_startall(argc, argv, NULL /* specific plugin list */);
-    compute_plugins_started();
-    slapi_memberof_load_memberof_plugin_config();
-    (void) rewriters_init();
-    if (housekeeping_start((time_t)0, NULL) == NULL) {
-        return_value = 1;
-        goto cleanup;
-    }
+        plugin_print_lists();
+        plugin_startall(argc, argv, NULL /* specific plugin list */);
+        compute_plugins_started();
+        (void) rewriters_init();
+        if (housekeeping_start((time_t)0, NULL) == NULL) {
+            return_value = 1;
+            goto cleanup;
+        }
 
-    eq_start(); /* must be done after plugins started - DEPRECATED */
-    eq_start_rel(); /* must be done after plugins started */
+        eq_start(); /* must be done after plugins started - DEPRECATED */
+        eq_start_rel(); /* must be done after plugins started */
 
-    vattr_check(); /* Check if it exists virtual attribute definitions */
+        vattr_check(); /* Check if it exists virtual attribute definitions */
 
 #ifdef HPUX10
-    /* HPUX linker voodoo */
-    if (collation_init == NULL) {
-        return_value = 1;
-        goto cleanup;
-    }
+        /* HPUX linker voodoo */
+        if (collation_init == NULL) {
+            return_value = 1;
+            goto cleanup;
+        }
 
 #endif /* HPUX */
 
-    normalize_oc();
+        normalize_oc();
 
-    if (mcfg.n_port) {
-    } else if (mcfg.i_port) {
-    } else if (config_get_security()) {
-    } else {
-        slapi_log_err(SLAPI_LOG_EMERG, "main",
-                      "Fatal Error---No ports specified. "
-                      "Exiting now.\n");
+        if (mcfg.n_port) {
+        } else if (mcfg.i_port) {
+        } else if (config_get_security()) {
+        } else {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "Fatal Error---No ports specified. "
+                          "Exiting now.\n");
 
-        return_value = 1;
-        goto cleanup;
+            return_value = 1;
+            goto cleanup;
+        }
     }
-    // }
 
-    /* setup cn=tasks tree */
-    task_init();
+    if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
+        /* else do this after seteuid() */
+        /* setup cn=tasks tree */
+        task_init();
 
-    /* pw_init() needs to be here since it uses aci function calls.  */
-    pw_init();
-    /* Initialize the sasl mapping code */
-    if (sasl_map_init()) {
-        slapi_log_err(SLAPI_LOG_CRIT, "main", "Failed to initialize sasl mapping code\n");
+        /* pw_init() needs to be here since it uses aci function calls.  */
+        pw_init();
+        /* Initialize the sasl mapping code */
+        if (sasl_map_init()) {
+            slapi_log_err(SLAPI_LOG_CRIT, "main", "Failed to initialize sasl mapping code\n");
+        }
     }
 
     /*
@@ -1309,6 +1348,16 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"dbdir", ArgRequired, 'a'},
         {0, 0, 0}};
 
+    char *opts_referral = "vd:p:r:SD:";
+    struct opt_ext long_options_referral[] = {
+        {"version", ArgNone, 'v'},
+        {"debug", ArgRequired, 'd'},
+        {"port", ArgRequired, 'p'},
+        {"referralMode", ArgRequired, 'r'},
+        {"allowMultipleProcesses", ArgNone, 'S'},
+        {"configDir", ArgRequired, 'D'},
+        {0, 0, 0}};
+
     char *opts_suffix2instance = "s:D:";
     struct opt_ext long_options_suffix2instance[] = {
         {"suffix", ArgRequired, 's'},
@@ -1376,6 +1425,12 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
     case SLAPD_EXEMODE_DB2INDEX:
         opts = opts_db2index;
         long_opts = long_options_db2index;
+        break;
+    case SLAPD_EXEMODE_REFERRAL:
+        /* Default to not detaching, but if REFERRAL, turn it on. */
+        should_detach = 1;
+        opts = opts_referral;
+        long_opts = long_options_referral;
         break;
     case SLAPD_EXEMODE_SUFFIX2INSTANCE:
         opts = opts_suffix2instance;
@@ -1503,7 +1558,15 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
             }
         } break;
         case 'r': /* db2ldif for replication */
-            if (mcfg->slapd_exemode == SLAPD_EXEMODE_UPGRADEDB) {
+            if (mcfg->slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
+                if (config_set_referral_mode("referral (-r)", optarg_ext,
+                                             errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                    fprintf(stderr, "%s: aborting now\n", errorbuf);
+                    usage(mcfg->myname, mcfg->extraname, mcfg->slapd_exemode);
+                    exit(1);
+                }
+                break;
+            } else if (mcfg->slapd_exemode == SLAPD_EXEMODE_UPGRADEDB) {
                 mcfg->upgradedb_flags |= SLAPI_UPGRADEDB_DN2RDN;
                 break;
             } else if (mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF) {
@@ -2917,7 +2980,8 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt, int s_por
     /* As of DS 6.1, always do a full initialization so that other
      * modules can assume NSS is available
      */
-    if (slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD), 1) /* have config? */) {
+    if (slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD),
+                       (slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */)) {
         if (force_to_disable_security("NSS", &init_ssl, ports_info)) {
             return 1;
         }
@@ -2933,7 +2997,8 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt, int s_por
         }
     }
 
-    if ((slapd_exemode == SLAPD_EXEMODE_SLAPD)) {
+    if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
+        (slapd_exemode == SLAPD_EXEMODE_REFERRAL)) {
         if (init_ssl) {
             PRFileDesc **sock;
             for (sock = ports_info->s_socket; sock && *sock; sock++) {
