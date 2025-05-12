@@ -18,7 +18,7 @@ import socket
 import subprocess
 import getpass
 import configparser
-from lib389 import _ds_shutil_copytree, DirSrv
+from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
@@ -900,7 +900,13 @@ class SetupDs(object):
         #  This is a little fragile, make it better.
         # It won't matter when we move schema to usr anyway ...
 
-        _ds_shutil_copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv/schema'), slapd['schema_dir'])
+        shutil.copytree(
+            os.path.join(slapd["sysconf_dir"], "dirsrv/schema"),
+            slapd["schema_dir"],
+            copy_function=shutil.copy,
+            # Schema directory might be bind mounted, ingore it
+            dirs_exist_ok=True,
+        )
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
         os.chmod(slapd['schema_dir'], 0o770)
 

@@ -214,61 +214,6 @@ def pid_from_file(pidfile):
         pass
     return pid
 
-def _ds_shutil_copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2,
-             ignore_dangling_symlinks=False):
-    """Recursively copy a directory tree.
-    This is taken from /usr/lib64/python3.5/shutil.py, but removes the
-    copystat function at the end. Why? Because in a container without
-    privileges, we don't have access to set xattr. But copystat attempts to
-    set the xattr when we are root, which causes the copy to fail. Remove it!
-    """
-    names = os.listdir(src)
-    if ignore is not None:
-        ignored_names = ignore(src, names)
-    else:
-        ignored_names = set()
-
-    os.makedirs(dst)
-    errors = []
-    for name in names:
-        if name in ignored_names:
-            continue
-        srcname = os.path.join(src, name)
-        dstname = os.path.join(dst, name)
-        try:
-            if os.path.islink(srcname):
-                linkto = os.readlink(srcname)
-                if symlinks:
-                    # We can't just leave it to `copy_function` because legacy
-                    # code with a custom `copy_function` may rely on copytree
-                    # doing the right thing.
-                    os.symlink(linkto, dstname)
-                    shutil.copystat(
-                        srcname, dstname, follow_symlinks=not symlinks
-                    )
-                else:
-                    # ignore dangling symlink if the flag is on
-                    if not os.path.exists(linkto) and ignore_dangling_symlinks:
-                        continue
-                    # otherwise let the copy occurs. copy2 will raise an error
-                    if os.path.isdir(srcname):
-                        _ds_shutil_copytree(srcname, dstname, symlinks, ignore,
-                                 copy_function)
-                    else:
-                        copy_function(srcname, dstname)
-            elif os.path.isdir(srcname):
-                _ds_shutil_copytree(srcname, dstname, symlinks, ignore, copy_function)
-            else:
-                # Will raise a SpecialFileError for unsupported file types
-                copy_function(srcname, dstname)
-        # catch the Error from the recursive copytree so that we can
-        # continue with other files
-        except Error as err:
-            errors.extend(err.args[0])
-        except OSError as why:
-            errors.append((srcname, dstname, str(why)))
-    return dst
-
 
 class DirSrv(SimpleLDAPObject, object):
 
