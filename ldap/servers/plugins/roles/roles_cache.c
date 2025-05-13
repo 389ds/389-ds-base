@@ -1098,7 +1098,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
     /* We determine the role type by reading the objectclass */
     if (roles_cache_is_role_entry(role_entry) == 0) {
         /* Bad type */
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
         return SLAPI_ROLE_DEFINITION_ERROR;
     }
 
@@ -1108,7 +1108,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         this_role->type = type;
     } else {
         /* Bad type */
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
         return SLAPI_ROLE_DEFINITION_ERROR;
     }
 
@@ -1166,7 +1166,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         filter_attr_value = (char *)slapi_entry_attr_get_charptr(role_entry, ROLE_FILTER_ATTR_NAME);
         if (filter_attr_value == NULL) {
             /* Means probably no attribute or no value there */
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
             return SLAPI_ROLE_ERROR_NO_FILTER_SPECIFIED;
         }
 
@@ -1205,7 +1205,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                               (char *)slapi_sdn_get_ndn(this_role->dn),
                               ROLE_FILTER_ATTR_NAME, filter_attr_value,
                               ROLE_FILTER_ATTR_NAME);
-                slapi_ch_free((void **)&this_role);
+                roles_cache_role_object_free((caddr_t)this_role);
                 slapi_ch_free_string(&filter_attr_value);
                 return SLAPI_ROLE_ERROR_FILTER_BAD;
             }
@@ -1217,7 +1217,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         filter = slapi_str2filter(filter_attr_value);
         if (filter == NULL) {
             /* An error has occured */
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
             slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
@@ -1228,7 +1228,8 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                           (char *)slapi_sdn_get_ndn(this_role->dn),
                           filter_attr_value,
                           ROLE_FILTER_ATTR_NAME);
-            slapi_ch_free((void **)&this_role);
+            roles_cache_role_object_free((caddr_t)this_role);
+            slapi_filter_free(filter, 1);
             slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
@@ -1285,7 +1286,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
     if (rc == 0) {
         *result = this_role;
     } else {
-        slapi_ch_free((void **)&this_role);
+        roles_cache_role_object_free((caddr_t)this_role);
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
