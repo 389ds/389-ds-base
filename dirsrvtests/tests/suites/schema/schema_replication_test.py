@@ -135,7 +135,7 @@ def trigger_update(topology_m1c1):
     except AttributeError:
         trigger_update.value = 1
     replace = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(str(trigger_update.value)))]
-    topology_m1c1.ms["supplier1"].modify_s(ENTRY_DN, replace)
+    topology_m1c1.ms["supplier1"].modify_s(ENTRY_DN, replace, escapehatch='i am sure')
 
     # wait 10 seconds that the update is replicated
     loop = 0
@@ -189,7 +189,7 @@ def schema_replication_init(topology_m1c1):
     topology_m1c1.ms["supplier1"].add_s(Entry((ENTRY_DN, {
         'objectclass': "top person".split(),
         'sn': 'test_entry',
-        'cn': 'test_entry'})))
+        'cn': 'test_entry'})), escapehatch='i am sure')
 
 
 def test_schema_replication_one(topology_m1c1, schema_replication_init):
