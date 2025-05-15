@@ -1,9 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-<<<<<<< HEAD
-# Copyright (C) 2021 Red Hat, Inc.
-=======
 # Copyright (C) 2025 Red Hat, Inc.
->>>>>>> a623c3f90 (Issue 6655 - fix replication release replica decoding error)
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
