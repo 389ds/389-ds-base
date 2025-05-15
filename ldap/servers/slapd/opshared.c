@@ -619,6 +619,14 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             int32_t tlimit;
             slapi_pblock_get(pb, SLAPI_SEARCH_TIMELIMIT, &tlimit);
             pagedresults_set_timelimit(pb_conn, operation, (time_t)tlimit, pr_idx);
+            /* When using this mutex in conjunction with the main paged
+             * result lock, you must do so in this order:
+             *
+             * --> pagedresults_lock()
+             *    --> pagedresults_mutex
+             *    <-- pagedresults_mutex
+             * <-- pagedresults_unlock()
+             */
             pagedresults_mutex = pageresult_lock_get_addr(pb_conn);
         }
 
@@ -744,11 +752,11 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             pr_search_result = pagedresults_get_search_result(pb_conn, operation, 1 /*locked*/, pr_idx);
             if (pr_search_result) {
                 if (pagedresults_is_abandoned_or_notavailable(pb_conn, 1 /*locked*/, pr_idx)) {
+                    pthread_mutex_unlock(pagedresults_mutex);
                     pagedresults_unlock(pb_conn, pr_idx);
                     /* Previous operation was abandoned and the simplepaged object is not in use. */
                     send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
                     rc = LDAP_SUCCESS;
-                    pthread_mutex_unlock(pagedresults_mutex);
                     goto free_and_return;
                 } else {
                     slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, pr_search_result);
