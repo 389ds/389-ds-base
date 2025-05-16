@@ -573,7 +573,7 @@ dist_noinst_DATA = \
 	$(srcdir)/VERSION.sh \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/dirsrvtests \
-	$(srcdir)/src/lib389/setup.py.in \
+	$(srcdir)/src/lib389/pyproject.toml \
 	$(srcdir)/src/lib389
 
 
@@ -2111,11 +2111,14 @@ git-archive:
 # Python test tests
 # How will we update this to python 3?
 
-lib389: $(srcdir)/src/lib389/setup.py
-	cd $(srcdir)/src/lib389; $(PYTHON) setup.py build ; $(PYTHON) setup.py build_manpages
+lib389:
+	cd $(srcdir)/src/lib389 && \
+	python3 validate_version.py && \
+	python3 -m build
 
 lib389-install: lib389
-	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
+	cd $(srcdir)/src/lib389 && \
+	pip3 install . --no-deps --force-reinstall
 
 if ENABLE_COCKPIT
 
