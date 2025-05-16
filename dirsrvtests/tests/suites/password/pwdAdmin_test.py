@@ -6,7 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
 import pytest
+import time
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
@@ -14,8 +16,7 @@ from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.domain import Domain
-
-from lib389._constants import SUFFIX, DN_DM, PASSWORD, DEFAULT_SUFFIX
+from lib389._constants import SUFFIX, DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1
 
@@ -434,6 +435,42 @@ def test_pwd_admin_config_test_skip_updates(topology_st, password_policy):
         if password_not_in_history in passwd:
             found = True
     assert not found
+
+
+def test_pwd_admin_extended_op(topology_st, password_policy):
+    """Test RootDN can bypass passwsord policy via extended op password modify
+
+    :id: 687fec1d-1081-4012-a2c4-41b427b9e764
+
+    :setup: Standalone instance
+    :steps:
+        1. Add test entry
+        2. Run passwd_s (extended op) twice as root DN
+
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topology_st.standalone
+    inst.enable_tls()
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create(properties={
+            'uid': 'extop',
+            'cn': 'extop',
+            'sn': 'extop',
+            'uidNumber': '1000',
+            'gidNumber': '2000',
+            'homeDirectory': '/home/extop',
+            'userPassword': "password"
+        })
+    user.replace('userpassword', 'password2')
+
+    inst.passwd_s(user.dn, 'password2', 'password')
+    inst.passwd_s(user.dn, 'password', 'password2')
+
+    user.delete()
 
 
 if __name__ == '__main__':
