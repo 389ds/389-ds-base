@@ -48,7 +48,6 @@ pageresult_lock_get_addr(Connection *conn)
 static void
 _pr_cleanup_one_slot(PagedResults *prp)
 {
-    PRLock *prmutex = NULL;
     if (!prp) {
         return;
     }
@@ -56,13 +55,17 @@ _pr_cleanup_one_slot(PagedResults *prp)
         /* sr is left; release it. */
         prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
     }
-    /* clean up the slot */
-    if (prp->pr_mutex) {
-        /* pr_mutex is reused; back it up and reset it. */
-        prmutex = prp->pr_mutex;
-    }
-    memset(prp, '\0', sizeof(PagedResults));
-    prp->pr_mutex = prmutex;
+
+    /* clean up the slot except the mutex */
+    prp->pr_current_be = NULL;
+    prp->pr_search_result_set = NULL;
+    prp->pr_search_result_count = 0;
+    prp->pr_search_result_set_size_estimate = 0;
+    prp->pr_sort_result_code = 0;
+    prp->pr_timelimit_hr.tv_sec = 0;
+    prp->pr_timelimit_hr.tv_nsec = 0;
+    prp->pr_flags = 0;
+    prp->pr_msgid = 0;
 }
 
 /*
@@ -1007,7 +1010,8 @@ op_set_pagedresults(Operation *op)
 
 /*
  * pagedresults_lock/unlock -- introduced to protect search results for the
- * asynchronous searches.
+ * asynchronous searches. Do not call these functions while the PR conn lock
+ * is held (e.g. pageresult_lock_get_addr(conn))
  */
 void
 pagedresults_lock(Connection *conn, int index)
@@ -1045,6 +1049,8 @@ int
 pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int index)
 {
     PagedResults *prp;
+    int32_t result;
+
     if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
         return 1; /* not abandoned, but do not want to proceed paged results op. */
     }
@@ -1052,10 +1058,11 @@ pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int inde
         pthread_mutex_lock(pageresult_lock_get_addr(conn));
     }
     prp = conn->c_pagedresults.prl_list + index;
+    result = prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED;
     if (!locked) {
         pthread_mutex_unlock(pageresult_lock_get_addr(conn));
     }
-    return prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED;
+    return result;
 }
 
 int
