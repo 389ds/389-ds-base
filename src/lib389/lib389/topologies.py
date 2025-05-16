@@ -104,8 +104,13 @@ def _create_instances(topo_dict, suffix):
             args_instance[SER_PORT] = instance_data[SER_PORT]
             args_instance[SER_SECURE_PORT] = instance_data[SER_SECURE_PORT]
             args_instance[SER_SERVERID_PROP] = instance_data[SER_SERVERID_PROP]
-            if nbinsts > 3 and get_default_db_lib() == "mdb":
-                args_instance[SER_MDB_MAX_SIZE] = '10g'
+            # We may want to tune the db size if lmdb is used
+            if get_default_db_lib() == "mdb":
+                if nbinsts > 3:
+                    args_instance[SER_MDB_MAX_SIZE] = '10g'
+                db_size = os.getenv('DS389_MDB_MAX_SIZE')
+                if db_size is not None:
+                    args_instance[SER_MDB_MAX_SIZE] = db_size
             # It's required to be able to make a suffix-less install for
             # some cli tests. It's invalid to require replication with
             # no suffix however ....
