@@ -177,9 +177,10 @@ factory_constructor(void *object __attribute__((unused)), void *parent __attribu
 }
 
 void
-factory_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
+factory_destructor(void *extension, void *object, void *parent __attribute__((unused)))
 {
     ImportJob *job = (ImportJob *)extension;
+    Connection *conn = (Connection *)object;
     PRThread *thread;
 
     if (extension == NULL)
@@ -191,7 +192,9 @@ factory_destructor(void *extension, void *object __attribute__((unused)), void *
      */
     thread = job->main_thread;
     slapi_log_err(SLAPI_LOG_ERR, "factory_destructor",
-                  "ERROR bulk import abandoned\n");
+                  "ERROR bulk import abandoned: conn=%ld was closed\n",
+                  conn->c_connid);
+
     import_abort_all(job, 1);
     /* wait for bdb_import_main to finish... */
     PR_JoinThread(thread);
