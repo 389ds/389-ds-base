@@ -13,13 +13,14 @@ import ldap
 import ldif
 import random
 from contextlib import suppress
-from lib389.backend import Backends
+from lib389.backend import Backends, DatabaseConfig
 from lib389.cli_base import FakeArgs
 from lib389.cli_ctl.dbgen import dbgen_create_groups
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.tasks import ImportTask
 from lib389.topologies import topology_st
+from lib389.utils import get_default_db_lib
 
 
 pytestmark = pytest.mark.tier1
@@ -131,10 +132,10 @@ def prepare_be(topology_st, request):
 
     # Set entry cache large enough to hold all the large groups
     # and with a limited number of entries to trigger eviction
+    if get_default_db_lib() == 'bdb':
+        DatabaseConfig(inst).set([('nsslapd-cache-autosize',  '0')])
     be1.replace('nsslapd-cachememsize',  '8000000' )
     be1.replace('nsslapd-cachesize',  '100' )
-    # Set debugging trace specific for this test
-    be1.replace('nsslapd-cache-debug-pattern',  f'cn=.*,ou=groups,{suffix}' )
 
     # import the ldif
     inst.stop()
@@ -143,6 +144,8 @@ def prepare_be(topology_st, request):
         log.fatal('Failed to import {ldif_file}')
         assert False
     inst.start()
+    # Set debugging trace specific for this test
+    be1.replace('nsslapd-cache-debug-pattern',  f'cn=.*,ou=groups,{suffix}' )
 
     return (bename, suffix, be1, people_base, groups_base)
 
