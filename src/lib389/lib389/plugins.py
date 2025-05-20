@@ -1581,7 +1581,7 @@ class PAMPassThroughAuthConfigs(DSLdapObjects):
         super(PAMPassThroughAuthConfigs, self).__init__(instance)
         self._objectclasses = ['top', 'extensibleObject', 'pamConfig']
         self._filterattrs = ['cn']
-        self._scope = ldap.SCOPE_ONELEVEL
+        self._scope = ldap.SCOPE_SUBTREE
         self._childobject = PAMPassThroughAuthConfig
         self._basedn = basedn
 
