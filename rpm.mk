@@ -99,6 +99,7 @@ local-archive: build-cockpit
 
 tarballs: local-archive
 	-mkdir -p dist/sources
+	cd src/lib389 && python3 validate_version.py
 	cd dist; tar cfj sources/$(TARBALL) $(NAME_VERSION)
 ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; rm -rf dist
