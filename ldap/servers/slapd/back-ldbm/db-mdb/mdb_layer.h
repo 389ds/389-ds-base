@@ -504,6 +504,7 @@ int dbmdb_cmp_vals(MDB_val *v1, MDB_val *v2);
 dbmdb_stats_t *dbdmd_gather_stats(dbmdb_ctx_t *conf, backend *be);
 void dbmdb_free_stats(dbmdb_stats_t **stats);
 int dbmdb_reset_vlv_file(backend *be, const char *filename);
+bool dbmdb_is_env_open(void);
 
 /* mdb_txn.c */
 void shutdown_mdbtxn(void);
