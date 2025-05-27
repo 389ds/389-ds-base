@@ -594,6 +594,170 @@ def test_reindex_extended_matching_rule(topo, add_backend_and_ldif_50K_users):
     ) == 0
 
 
+def test_update_eq_index_after_deleting_and_readding_attribute_in_one_step(topo):
+    """ Test that 'eq' index is properly updated
+    when deleting and re-adding an attribute in one step
+
+    :id: d306b511-01bd-4400-96fa-9838a310f086
+    :setup: Standalone instance
+    :steps:
+        1. Create a user with a 3 valued attribute (mail)
+        2. Modify the user in one step: delete two mail attribute values and re-add one of the values back
+        3. Search for an entry using deleted value as filter
+        4. Search for an entry using the re-added value as filter
+        5. Delete all mail attribute values
+        6. Search for an entry using the re-added value as filter
+        7. Search for an entry using 'mail=*' as a filter
+        8. Re-add two values for mail attribute in order to test with different amount of original values
+        9. Rerun modification in step 2
+        10. Search for an entry using deleted value as filter
+        11. Search for an entry using the re-added value as filter
+    :expectedresults:
+        1. Success
+        2. Success
+        3. No entry found
+        4. Original user found
+        5. Success
+        6. No entry found
+        7. No entry found
+        8. Success
+        9. Success
+        10. No entry found
+        11. Original user found
+    """
+    
+    rdn = 'user0099'
+    name = 'Test User'
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        'uid': rdn,
+        'sn': rdn,
+        'cn': rdn,
+        'uidNumber': '10099',
+        'gidNumber': '10099',
+        'givenname': name,
+        'gecos': name,
+        'description': name,
+        'homeDirectory': '/home/{}'.format(rdn),
+        'mail': ['{}@dev.null'.format(rdn),
+                 'alias@dev.null',
+                 '{}@redhat.com'.format(rdn)]
+        })
+
+    #
+    # Remove mail values and re-add one of them in the same step
+    #
+    try:
+        user.apply_mods([(ldap.MOD_DELETE, 'mail', b'user0099@dev.null'),
+                         (ldap.MOD_DELETE, 'mail', b'alias@dev.null'),
+                         (ldap.MOD_ADD, 'mail', b'user0099@dev.null')])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to modify user: {}'.format(e))
+        assert False
+
+    #
+    # Search using deleted attribute value - no entries should be returned
+    #
+    try:
+        entry = user.search(filter='mail=alias@dev.null')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Search using existing attribute value - the entry should be returned
+    #
+    try:
+        entry = user.search(filter='mail=user0099@dev.null')
+        if not entry:
+            log.fatal('Entry not found, but it should have been')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Delete the last values
+    #
+    try:
+        user.remove_all('mail')
+    except ldap.LDAPError as e:
+        log.fatal('Failed to modify user: {}'.format(e))
+        assert False
+
+    #
+    # Search using deleted attribute value - no entries should be returned
+    #
+    try:
+        entry = user.search(filter='mail=user0099@redhat.com')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Make sure presence index is correctly updated - no entries should be
+    # returned
+    #
+    try:
+        entry = user.search(filter='mail=*')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Now add the attributes back, and lets run a set of tests with
+    # a different number of attributes
+    #
+    try:
+        user.add('mail', [b'user0099@dev.null', b'alias@dev.null'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to modify user: {}'.format(e))
+        assert False
+
+    #
+    # Remove and re-add some attributes
+    #
+    try:
+        user.apply_mods([(ldap.MOD_DELETE, 'mail', b'alias@dev.null'),
+                         (ldap.MOD_DELETE, 'mail', b'user0099@dev.null'),
+                         (ldap.MOD_ADD, 'mail', b'user0099@dev.null')])
+    except ldap.LDAPError as e:
+        log.fatal('Failedto modify user: {}'.format(e))
+        assert False
+
+    #
+    # Search using deleted attribute value - no entries should be returned
+    #
+    try:
+        entry = user.search(filter='mail=alias@dev.null')
+        if entry:
+            log.fatal('Entry incorrectly returned')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
+    #
+    # Search using existing attribute value - the entry should be returned
+    #
+    try:
+        entry = user.search(filter='mail=user0099@dev.null')
+        if not entry:
+            log.fatal('Entry not found, but it should have been')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for user: {}'.format(e))
+        assert False
+
 
 if __name__ == "__main__":
     # Run isolated
