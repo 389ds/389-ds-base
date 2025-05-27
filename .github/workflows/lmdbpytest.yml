@@ -94,7 +94,7 @@ jobs:
         do
           echo "Waiting for container to be ready..."
         done
-        sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
+        sudo docker exec $CID sh -c "dnf install -y dist/rpms/*rpm"
         export PASSWD=$(openssl rand -base64 32)
         sudo docker exec $CID sh -c "echo \"${PASSWD}\" | passwd --stdin root"
         sudo docker exec $CID sh -c "systemctl start dbus.service"
