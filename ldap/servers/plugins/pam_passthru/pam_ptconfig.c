@@ -20,6 +20,7 @@
 #include "pam_passthru.h"
 
 #define PAM_PT_CONFIG_FILTER "(objectclass=*)"
+#define PAM_PT_CONFIG_DEFAULT "cn=default,cn=PAM Pass Through Auth,cn=plugins,cn=config"
 
 /*
  * The configuration attributes are contained in the plugin entry e.g.
@@ -36,6 +37,24 @@ static Slapi_DN *_ConfigArea = NULL;
  * function prototypes
  */
 static int pam_passthru_apply_config(Slapi_Entry *e);
+
+/* Check if cfg DN matches default config DN.*/
+int
+is_default_config(Pam_PassthruConfig *cfg)
+{
+    if (!cfg || !cfg->dn) {
+        return -1;
+    }
+
+    Slapi_DN *cfg_sdn = slapi_sdn_new_dn_byref(cfg->dn);
+    Slapi_DN *def_sdn = slapi_sdn_new_dn_byref(PAM_PT_CONFIG_DEFAULT);
+    int rc = slapi_sdn_compare(cfg_sdn, def_sdn);
+
+    slapi_sdn_free(&cfg_sdn);
+    slapi_sdn_free(&def_sdn);
+
+    return rc;
+}
 
 /*
  * Read and load configuration.  Validation will also
@@ -62,7 +81,7 @@ pam_passthru_load_config(int skip_validate)
 
     /* Find all entries in the active config area. */
     slapi_search_internal_set_pb(search_pb, slapi_sdn_get_ndn(pam_passthru_get_config_area()),
-                                 LDAP_SCOPE_SUBTREE, "objectclass=*",
+                                 LDAP_SCOPE_ONELEVEL, "objectclass=*",
                                  NULL, 0, NULL, NULL,
                                  pam_passthruauth_get_plugin_identity(), 0);
     slapi_search_internal_pb(search_pb);
@@ -743,45 +762,56 @@ pam_passthru_get_config(Slapi_DN *bind_sdn)
 {
     PRCList *list = NULL;
     Pam_PassthruConfig *cfg = NULL;
+    Pam_PassthruConfig *fallback_cfg = NULL;
 
     /* Loop through config list to see if there is a match. */
     if (!PR_CLIST_IS_EMPTY(pam_passthru_global_config)) {
         list = PR_LIST_HEAD(pam_passthru_global_config);
         while (list != pam_passthru_global_config) {
             cfg = (Pam_PassthruConfig *)list;
-            if (pam_passthru_check_suffix(cfg, bind_sdn) == LDAP_SUCCESS) {
+            list = PR_NEXT_LINK(list);
+
+            /* Keep the default cfg as fallback. */
+            if ((is_default_config(cfg))) {
+                fallback_cfg = cfg;
+                continue;
+            }
+
+            int rc = pam_passthru_check_suffix(cfg, bind_sdn);
+            if (rc == LDAP_UNWILLING_TO_PERFORM) {
+                /* Suffix not allowed, bail out. */
+                return NULL;
+            } else if (rc == LDAP_SUCCESS) {
                 if (cfg->slapi_filter) {
-                    /* A filter is configured, so see if the bind entry is a match. */
                     Slapi_PBlock *entry_pb = NULL;
                     Slapi_Entry *test_e = NULL;
 
-                    /* Fetch the bind entry */
                     slapi_search_get_entry(&entry_pb, bind_sdn, NULL, &test_e,
                                            pam_passthruauth_get_plugin_identity());
 
-                    /* If the entry doesn't exist, just fall through to the main server code */
                     if (test_e) {
-                        /* Evaluate the filter. */
                         if (LDAP_SUCCESS == slapi_filter_test_simple(test_e, cfg->slapi_filter)) {
-                            /* This is a match. */
                             slapi_search_get_entry_done(&entry_pb);
-                            goto done;
+                            return cfg; /* Allowed suffix with filter */
                         }
                         slapi_search_get_entry_done(&entry_pb);
                     }
                 } else {
-                    /* There is no filter to check, so this is a match. */
-                    goto done;
+                    return cfg; /* Allowed suffix no filter */
                 }
             }
-
-            cfg = NULL;
-            list = PR_NEXT_LINK(list);
         }
     }
 
-done:
-    return (cfg);
+    /* No other config matched, use fallback. */
+    if (fallback_cfg) {
+        int rc = pam_passthru_check_suffix(fallback_cfg, bind_sdn);
+        if (rc == LDAP_SUCCESS) {
+            return fallback_cfg;
+        }
+    }
+
+    return NULL;
 }
 
 /*
