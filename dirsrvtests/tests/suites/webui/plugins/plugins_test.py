@@ -230,8 +230,8 @@ def test_memberof_plugin_visibility(topology_st, page, browser_name):
     frame.get_by_role('tab', name='Plugins', exact=True).click()
     frame.get_by_text('Plugin is disabledMemberOf').wait_for()
     frame.get_by_text('Plugin is disabledMemberOf').click()
-    frame.locator('#memberOfConfigEntry').wait_for()
-    assert frame.locator('#memberOfConfigEntry').is_visible()
+    frame.get_by_role('button', name='Create Config').wait_for()
+    assert frame.get_by_role('button', name='Create Config').is_visible()
 
 
 def test_ldap_pass_through_auth_plugin_visibility(topology_st, page, browser_name):
