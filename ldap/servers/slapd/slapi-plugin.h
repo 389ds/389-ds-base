@@ -5795,7 +5795,7 @@ char *slapi_ch_malloc(unsigned long size) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_memalign(uint32_t size, uint32_t alignment) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_realloc(char *block, unsigned long size) __ATTRIBUTE__((returns_nonnull));
 char *slapi_ch_calloc(unsigned long nelem, unsigned long size) __ATTRIBUTE__((returns_nonnull));
-char *slapi_ch_strdup(const char *s) __ATTRIBUTE__((returns_nonnull));
+char *slapi_ch_strdup(const char *s);
 void slapi_ch_free(void **ptr);
 void slapi_ch_free_string(char **s);
 struct berval *slapi_ch_bvdup(const struct berval *);
