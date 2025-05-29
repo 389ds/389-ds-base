@@ -97,6 +97,9 @@ typedef struct {
 static dbmdb_dbi_t *dbi_slots;    /* The alloced slots */
 static int dbi_nbslots;           /* Number of available slots in dbi_slots */
 
+static int32_t g_mdb_env_is_open = false;
+static void dbmdb_set_is_env_open(bool is_open);
+
 /*
  * twalk_r is not available before glibc-2.30 so lets replace it by twalk
  * and a global variable (it is possible because there is a single call
@@ -729,6 +732,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
         rc =  mdb_env_open(env, ctx->home, flags, mode);
     }
     if (rc ==0) {
+        dbmdb_set_is_env_open(true);
         rc = mdb_env_info(env, &envinfo);
     }
     if (rc ==0) { /* Update the INFO file with the real size provided by the db */
@@ -761,6 +765,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
     }
     if (rc != 0 && env) {
         ctx->env = NULL;
+        dbmdb_set_is_env_open(false);
         mdb_env_close(env);
     }
     return rc;
@@ -777,6 +782,7 @@ void dbmdb_ctx_close(dbmdb_ctx_t *ctx)
          */
     }
     if (ctx->env) {
+        dbmdb_set_is_env_open(false);
         mdb_env_close(ctx->env);
         ctx->env = NULL;
     }
@@ -1750,7 +1756,7 @@ dbmdb_privdb_put(mdb_privdb_t *db, int dbi_idx, MDB_val *key, MDB_val *data)
 }
 
 
-/* Create a private database environment */
+/* Create a private database environment (used to build entryrdn during import) */
 mdb_privdb_t *
 dbmdb_privdb_create(dbmdb_ctx_t *ctx, size_t dbsize, ...)
 {
@@ -1832,4 +1838,16 @@ bail:
         dbmdb_privdb_destroy(&db);
     }
     return db;
+}
+
+bool
+dbmdb_is_env_open()
+{
+    return (bool) slapi_atomic_load_32(&g_mdb_env_is_open, __ATOMIC_ACQUIRE);
+}
+
+static void
+dbmdb_set_is_env_open(bool is_open)
+{
+    slapi_atomic_store_32(&g_mdb_env_is_open, (int32_t)is_open, __ATOMIC_RELEASE);
 }
