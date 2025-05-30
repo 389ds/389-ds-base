@@ -712,19 +712,28 @@ static int
 _do_modify(Slapi_PBlock *mod_pb, Slapi_DN *entrySDN, LDAPMod **mods)
 {
     int rc = 0;
+    LDAPMod *mod[2];
 
-    slapi_pblock_init(mod_pb);
+    /* Split multiple modifications into individual modify operations */
+    for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
+        mod[0] = mods[i];
+        mod[1] = NULL;
 
-    if (allow_repl) {
-        /* Must set as a replicated operation */
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, OP_FLAG_REPLICATED);
-    } else {
-        slapi_modify_internal_set_pb_ext(mod_pb, entrySDN, mods, NULL, NULL,
-                                         referint_plugin_identity, 0);
+        slapi_pblock_init(mod_pb);
+
+        /* Do a single mod with error overrides for DEL/ADD */
+        if (allow_repl) {
+            rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mod,
+                                                        referint_plugin_identity, OP_FLAG_REPLICATED);
+        } else {
+            rc = slapi_single_modify_internal_override(mod_pb, entrySDN, mod,
+                                                        referint_plugin_identity, 0);
+        }
+
+        if (rc != LDAP_SUCCESS) {
+            return rc;
+        }
     }
-    slapi_modify_internal_pb(mod_pb);
-    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
     return rc;
 }
@@ -924,7 +933,6 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
 {
     Slapi_Mods *smods = NULL;
     char *newDN = NULL;
-    struct berval bv = {0};
     char **dnParts = NULL;
     char *sval = NULL;
     char *newvalue = NULL;
@@ -1027,30 +1035,21 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
             }
             /* else: normalize_rc < 0) Ignore the DN normalization error for now. */
 
-            bv.bv_val = newDN;
-            bv.bv_len = strlen(newDN);
             p = PL_strstr(sval, slapi_sdn_get_ndn(origDN));
             if (p == sval) {
                 /* (case 1) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
-                /* Add only if the attr value does not exist */
-                if (VALUE_PRESENT != attr_value_find_wsi(attr, &bv, &v)) {
-                    slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newDN);
-                }
+                slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newDN);
             } else if (p) {
                 /* (case 2) */
                 slapi_mods_add_string(smods, LDAP_MOD_DELETE, attrName, sval);
                 *p = '\0';
                 newvalue = slapi_ch_smprintf("%s%s", sval, newDN);
-                /* Add only if the attr value does not exist */
-                if (VALUE_PRESENT != attr_value_find_wsi(attr, &bv, &v)) {
-                    slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newvalue);
-                }
+                slapi_mods_add_string(smods, LDAP_MOD_ADD, attrName, newvalue);
                 slapi_ch_free_string(&newvalue);
             }
             /* else: value does not include the modified DN.  Ignore it. */
             slapi_ch_free_string(&sval);
-            bv = (struct berval){0};
         }
         rc = _do_modify(mod_pb, entrySDN, slapi_mods_get_ldapmods_byref(smods));
         if (rc) {
