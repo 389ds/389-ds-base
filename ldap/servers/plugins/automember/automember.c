@@ -1755,13 +1755,12 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
         }
 
         mod_pb = slapi_pblock_new();
-        slapi_modify_internal_set_pb(mod_pb, group_dn,
-                                     mods, 0, 0, automember_get_plugin_id(), 0);
-        slapi_modify_internal_pb(mod_pb);
-        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+        /* Do a single mod with error overrides for DEL/ADD */
+        result = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_dn_byval(group_dn), mods,
+                                                        automember_get_plugin_id(), 0);
 
         if(add){
-            if ((result != LDAP_SUCCESS) && (result != LDAP_TYPE_OR_VALUE_EXISTS)) {
+            if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                               "automember_update_member_value - Unable to add \"%s\" as "
                               "a \"%s\" value to group \"%s\" (%s).\n",
@@ -1771,7 +1770,7 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
             }
         } else {
             /* delete value */
-            if ((result != LDAP_SUCCESS) && (result != LDAP_NO_SUCH_ATTRIBUTE)) {
+            if (result != LDAP_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                               "automember_update_member_value - Unable to delete \"%s\" as "
                               "a \"%s\" value from group \"%s\" (%s).\n",

@@ -963,7 +963,6 @@ modify_need_fixup(int set)
         mod_pb, memberof_get_config_area(),
         mods, 0, 0,
         memberof_get_plugin_id(), SLAPI_OP_FLAG_FIXUP|SLAPI_OP_FLAG_BYPASS_REFERRALS);
-
     slapi_modify_internal_pb(mod_pb);
     slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(mod_pb);
@@ -1491,18 +1490,9 @@ memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
     mod.mod_op = LDAP_MOD_DELETE;
     mod.mod_type = ((memberof_del_dn_data *)callback_data)->type;
     mod.mod_values = val;
-
-    slapi_modify_internal_set_pb_ext(
-        mod_pb, slapi_entry_get_sdn(e),
-        mods, 0, 0,
-        memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
-
-    slapi_modify_internal_pb(mod_pb);
-
-    slapi_pblock_get(mod_pb,
-                     SLAPI_PLUGIN_INTOP_RESULT,
-                     &rc);
-
+    /* Internal mod with error overrides for DEL/ADD */
+    rc = slapi_single_modify_internal_override(mod_pb, slapi_entry_get_sdn(e), mods,
+                                                memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
     slapi_pblock_destroy(mod_pb);
 
     if (rc == LDAP_NO_SUCH_ATTRIBUTE && val[0] == NULL) {
@@ -1975,6 +1965,7 @@ memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
 
     return rc;
 }
+
 LDAPMod **
 my_copy_mods(LDAPMod **orig_mods)
 {
@@ -2783,33 +2774,6 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
                 replace_mod.mod_values = replace_val;
             }
             rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
-            if (rc == LDAP_NO_SUCH_ATTRIBUTE || rc == LDAP_TYPE_OR_VALUE_EXISTS) {
-                if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
-                    /*
-                     * For some reason the new modrdn value is present, so retry
-                     * the delete by itself and ignore the add op by tweaking
-                     * the mod array.
-                     */
-                    mods[1] = NULL;
-                    rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
-                } else {
-                    /*
-                     * The memberof value to be replaced does not exist so just
-                     * add the new value.  Shuffle the mod array to apply only
-                     * the add operation.
-                     */
-                    mods[0] = mods[1];
-                    mods[1] = NULL;
-                    rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
-                    if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
-                        /*
-                         * The entry already has the expected memberOf value, no
-                         * problem just return success.
-                         */
-                        rc = LDAP_SUCCESS;
-                    }
-                }
-            }
         }
     }
 
@@ -4470,43 +4434,57 @@ memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc)
     Slapi_PBlock *mod_pb = NULL;
     int added_oc = 0;
     int rc = 0;
+    LDAPMod *single_mod[2];
 
-    while (1) {
-        mod_pb = slapi_pblock_new();
-        slapi_modify_internal_set_pb(
-            mod_pb, dn, mods, 0, 0,
-            memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
-        slapi_modify_internal_pb(mod_pb);
+    if (!dn || !mods) {
+        slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
+                    "Invalid argument: %s%s is NULL\n",
+                    !dn ? "dn " : "",
+                    !mods ? "mods " : "");
+        return LDAP_PARAM_ERROR;
+    }
 
-        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-        if (rc == LDAP_OBJECT_CLASS_VIOLATION) {
-            if (!add_oc || added_oc) {
-                /*
-                 * We aren't auto adding an objectclass, or we already
-                 * added the objectclass, and we are still failing.
-                 */
+
+    mod_pb = slapi_pblock_new();
+    /* Split multiple mods into individual mod operations */
+    for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
+        single_mod[0] = mods[i];
+        single_mod[1] = NULL;
+
+        while (1) {
+            slapi_pblock_init(mod_pb);
+
+            /* Internal mod with error overrides for DEL/ADD */
+            rc = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_normdn_byref(dn), single_mod,
+                                                        memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
+            if (rc == LDAP_OBJECT_CLASS_VIOLATION) {
+                if (!add_oc || added_oc) {
+                    /*
+                    * We aren't auto adding an objectclass, or we already
+                    * added the objectclass, and we are still failing.
+                    */
+                    break;
+                }
+                rc = memberof_add_objectclass(add_oc, dn);
+                slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
+                        "Entry %s - schema violation caught - repair operation %s\n",
+                        dn ? dn : "unknown",
+                        rc ? "failed" : "succeeded");
+                if (rc) {
+                    /* Failed to add objectclass */
+                    rc = LDAP_OBJECT_CLASS_VIOLATION;
+                    break;
+                }
+                added_oc = 1;
+            } else if (rc) {
+                /* Some other fatal error */
+                slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+                            "memberof_add_memberof_attr - Internal modify failed. rc=%d\n", rc);
+                break;
+            } else {
+                /* success */
                 break;
             }
-            rc = memberof_add_objectclass(add_oc, dn);
-            slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
-                    "Entry %s - schema violation caught - repair operation %s\n",
-                    dn ? dn : "unknown",
-                    rc ? "failed" : "succeeded");
-            if (rc) {
-                /* Failed to add objectclass */
-                rc = LDAP_OBJECT_CLASS_VIOLATION;
-                break;
-            }
-            added_oc = 1;
-            slapi_pblock_destroy(mod_pb);
-        } else if (rc) {
-            /* Some other fatal error */
-            slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-                          "memberof_add_memberof_attr - Internal modify failed. rc=%d\n", rc);
-            break;
-        } else {
-            /* success */
-            break;
         }
     }
     slapi_pblock_destroy(mod_pb);
