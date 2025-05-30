@@ -433,6 +433,8 @@ int agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBoo
 int agmt_set_port_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int agmt_set_host_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 const char *agmt_get_long_name(const Repl_Agmt *ra);
+void agmt_set_session_id(Repl_Agmt *ra);
+char *agmt_get_session_id(Repl_Agmt *ra);
 int agmt_initialize_replica(const Repl_Agmt *agmt);
 void agmt_replica_init_done(const Repl_Agmt *agmt);
 void agmt_notify_change(Repl_Agmt *ra, Slapi_PBlock *pb);
@@ -634,6 +636,7 @@ void conn_set_agmt_changed(Repl_Connection *conn);
 ConnResult conn_read_result(Repl_Connection *conn, int *message_id);
 ConnResult conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retdatap, LDAPControl ***returned_controls, int send_msgid, int *resp_msgid, int noblock);
 LDAP *conn_get_ldap(Repl_Connection *conn);
+const Repl_Agmt *conn_get_agmt(Repl_Connection *conn);
 void conn_lock(Repl_Connection *conn);
 void conn_unlock(Repl_Connection *conn);
 void conn_delete_internal_ext(Repl_Connection *conn);

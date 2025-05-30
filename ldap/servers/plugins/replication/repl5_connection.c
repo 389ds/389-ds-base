@@ -732,14 +732,26 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn, LDAPMod **a
 {
     int rc = -1;
     ConnResult return_value = CONN_OPERATION_FAILED;
-    LDAPControl *server_controls[3];
+    LDAPControl *session_tracking_control = NULL;
+    LDAPControl *server_controls[4];
     /* LDAPControl **loc_returned_controls; */
     const char *op_string = NULL;
     int msgid = 0;
+    int control_idx = 0;
 
-    server_controls[0] = &manageDSAITControl;
-    server_controls[1] = update_control;
-    server_controls[2] = NULL;
+    server_controls[control_idx] = &manageDSAITControl;
+    control_idx++;
+    if (update_control) {
+        server_controls[control_idx] = update_control;
+        control_idx++;
+    }
+    if (create_sessiontracking_ctrl((const char *) agmt_get_session_id((Repl_Agmt *) conn->agmt), &session_tracking_control) == 0) {
+        server_controls[control_idx] = session_tracking_control;
+        control_idx++;
+        server_controls[control_idx] = NULL;
+    } else {
+        server_controls[control_idx] = NULL;
+    }
 
     /*
      * Lock the conn to prevent the result reader thread
@@ -758,6 +770,9 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn, LDAPMod **a
                           "perform_operation - %s - Connection is not available (%d)\n",
                           agmt_get_long_name(conn->agmt),
                           return_value);
+            if (session_tracking_control) {
+                ldap_control_free(session_tracking_control);
+            }
             return return_value;
         }
         conn->last_operation = optype;
@@ -826,6 +841,9 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn, LDAPMod **a
     PR_Unlock(conn->lock); /* release the lock */
     if (message_id) {
         *message_id = msgid;
+    }
+    if (session_tracking_control) {
+        ldap_control_free(session_tracking_control);
     }
     return return_value;
 }
@@ -1204,6 +1222,7 @@ conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
                           (secure == SLAPI_LDAP_INIT_FLAG_startTLS) ? "startTLS " : "");
             goto done;
         }
+        agmt_set_session_id((Repl_Agmt *) conn->agmt);
 
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "conn_connect - %s - binddn = %s,  passwd = %s\n",
@@ -1837,6 +1856,15 @@ conn_get_ldap(Repl_Connection *conn)
     }
 }
 
+const Repl_Agmt *
+conn_get_agmt(Repl_Connection *conn)
+{
+    if (conn) {
+        return conn->agmt;
+    } else {
+        return NULL;
+    }
+}
 void
 conn_set_agmt_changed(Repl_Connection *conn)
 {

@@ -5599,6 +5599,7 @@ int slapi_get_supported_controls_copy(char ***ctrloidsp,
                                       unsigned long **ctrlopsp);
 int slapi_build_control(char *oid, BerElement *ber, char iscritical, LDAPControl **ctrlp);
 int slapi_build_control_from_berval(char *oid, struct berval *bvp, char iscritical, LDAPControl **ctrlp);
+int create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **session_tracking_ctrl);
 
 /* Given an array of controls e.g. LDAPControl **ctrls, add the given
    control to the end of the array, growing the array with realloc
