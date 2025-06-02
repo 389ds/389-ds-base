@@ -58,6 +58,9 @@
 #include "slapi-plugin.h"
 #include "slap.h"
 #include "../../slapd/back-ldbm/dbimpl.h"          /* for dblayer_is_lmdb */
+#include <pk11func.h>
+#include <pk11pqg.h>
+#include <plbase64.h>
 
 #define DEFAULT_TIMEOUT 120                  /* (seconds) default outbound LDAP connection */
 #define DEFAULT_FLOWCONTROL_WINDOW      1000 /* #entries sent without acknowledgment (bdb) */
@@ -95,6 +98,10 @@ typedef struct repl5agmt
     const Slapi_DN *dn;                    /* DN of replication agreement entry */
     const Slapi_RDN *rdn;                  /* RDN of replication agreement entry */
     char *long_name;                       /* Long name (rdn + host, port) of entry, for logging */
+    int session_id_cnt;                    /* use to differentiate sessions */
+    char *session_id_prefix;               /* use for debugging purpose on server/client sides */
+#define SESSION_ID_STR_SZ 15
+    char session_id[SESSION_ID_STR_SZ + 49];
     Repl_Protocol *protocol;               /* Protocol object - manages protocol */
     struct changecounter **changecounters; /* changes sent/skipped since server start up */
     int64_t num_changecounters;
@@ -180,7 +187,87 @@ nsds5ReplicaBusyWaitTime - time to wait after getting a REPLICA BUSY from the co
 nsds5ReplicaSessionPauseTime - time to pause after sending updates to allow another supplier to send
 */
 
+/* It sets various fields related to client side (repl_agmt)
+ * of the session tracking
+ * - session_id_cnt (counting the the outbound connection)
+ * - session_tracking_supported (a flag stating if the server side support SID)
+ * - session_id_prefix (fixed part of the session identifier for this repl_agmt)
+ */
+static void
+agmt_init_session_id(Repl_Agmt *ra)
+{
+    char hash_out[HASH_LENGTH_MAX] = {0};
+    char *enc = NULL;
+    char *root = NULL; /* e.g. dc=example,dc=com */
+    char *host = NULL; /* e.g. localhost.domain */
+    char port[10];   /* e.g. 389 */
+    char sport[10];  /* e.g. 636 */
+    char *hash_in;
+    int32_t max_str_sid = SESSION_ID_STR_SZ - 4;
 
+    if (ra == NULL) {
+        goto fail;
+    }
+    ra->session_id_cnt = 1;
+    root = slapi_ch_strdup(slapi_sdn_get_dn(ra->replarea));
+    if (root == NULL) {
+        root = slapi_ch_strdup("unknown suffix");
+    }
+    host = get_localhost_DNS();
+    if (host == NULL) {
+        host = slapi_ch_strdup("unknown host");
+    }
+    snprintf(port,  sizeof(port), "%d", config_get_port());
+    snprintf(sport, sizeof(sport),"%d", config_get_secureport());
+    hash_in = slapi_ch_calloc(1, strlen(root) + strlen(host) + strlen(port) + strlen(sport) + 1);
+    if (hash_in == NULL) {
+        goto fail;
+    }
+    sprintf(hash_in, "%s%s%s%s", root, host, port, sport);
+    PK11_HashBuf(SEC_OID_SHA1, (unsigned char *)hash_out, (unsigned char *)hash_in, strlen(hash_in));
+
+    if ((enc = slapi_ch_calloc(LDIF_BASE64_LEN(SHA1_LENGTH) + 1, sizeof(char))) == NULL) {
+        goto fail;
+    }
+    (void)PL_Base64Encode(hash_out, SHA1_LENGTH, enc);
+    goto done;
+
+fail:
+    enc = slapi_ch_strdup("dummyID");
+
+done:
+    if (hash_in) {
+        slapi_ch_free_string(&hash_in);
+    }
+    if (root) {
+        slapi_ch_free_string(&root);
+    }
+    if (host) {
+        slapi_ch_free_string(&host);
+    }
+    if (strlen(enc) > max_str_sid) {
+        enc[max_str_sid] = '\0';
+    }
+    ra->session_id_prefix = enc;
+    sprintf(ra->session_id, "%s ---", ra->session_id_prefix);
+}
+
+void
+agmt_set_session_id(Repl_Agmt *ra)
+{
+    if (ra->session_id_cnt == 999) {
+        ra->session_id_cnt = 1;
+    } else {
+        ra->session_id_cnt++;
+    }
+    sprintf(ra->session_id, "%s %3d", ra->session_id_prefix, ra->session_id_cnt);
+}
+
+char *
+agmt_get_session_id(Repl_Agmt *ra)
+{
+    return(ra->session_id);
+}
 /*
  * Validate an agreement, making sure that it's valid.
  * Return 1 if the agreement is valid, 0 otherwise.
@@ -500,6 +587,8 @@ agmt_new_from_entry(Slapi_Entry *e)
         }
         ra->long_name = slapi_ch_smprintf("agmt=\"%s\" (%s:%" PRId64 ")", agmtname, hostname, ra->port);
     }
+    /* init the RA session id structs */
+    agmt_init_session_id(ra);
 
     /* DBDB: review this code */
     if (slapi_entry_attr_hasvalue(e, "objectclass", "nsDSWindowsReplicationAgreement")) {
@@ -742,6 +831,7 @@ agmt_delete(void **rap)
     }
     schedule_destroy(ra->schedule);
     slapi_ch_free_string(&ra->long_name);
+    slapi_ch_free_string(&ra->session_id_prefix);
 
     slapi_counter_destroy(&ra->protocol_timeout);
 

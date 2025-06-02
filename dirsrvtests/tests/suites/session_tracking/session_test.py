@@ -13,6 +13,7 @@ from lib389 import Entry
 from ldap import SCOPE_SUBTREE, ALREADY_EXISTS
 from ldap.controls import SimplePagedResultsControl
 from ldap.controls.sessiontrack import SessionTrackingControl, SESSION_TRACKING_CONTROL_OID
+from lib389.topologies import topology_m2 as topo_m2
 from  ldap.extop import ExtendedRequest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM, PLUGIN_MEMBER_OF
@@ -1568,6 +1569,66 @@ def test_escaped_session_tracking_extop(topology_st, request):
 
     def fin():
         pass
+
+    request.addfinalizer(fin)
+
+def test_sid_replication(topo_m2, request):
+    """Check that session ID are logged on
+       supplier side (errorLog) and consumer side (accessLog)
+
+    :id: e716b04c-152b-4964-ae7a-b18fb4655cb9
+    :setup: 2 Supplier Instances
+    :steps:
+        1. Initialize replication
+        2. Enable replication debug logging
+        3. Create and update a test user
+        4. Stop instances
+        5. Check that 'sid=' exist both on supplier/consumer sides
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
+
+    m1.config.loglevel((ErrorLog.REPLICA,))
+    m2.config.loglevel((ErrorLog.REPLICA,))
+
+    TEST_ENTRY_NAME = 'sid_test'
+    TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
+    test_user = UserAccount(m1, TEST_ENTRY_DN)
+    test_user.create(properties={
+        'uid': TEST_ENTRY_NAME,
+        'cn': TEST_ENTRY_NAME,
+        'sn': TEST_ENTRY_NAME,
+        'userPassword': TEST_ENTRY_NAME,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/sid_test',
+    })
+
+    # create a large value set so that it is sorted
+    for i in range(1,20):
+        test_user.add('description', 'value {}'.format(str(i)))
+
+    time.sleep(2)
+    m1.stop()
+    m2.stop()
+    log_lines = m1.ds_access_log.match('.* sid=".*')
+    assert len(log_lines) > 0
+    log_lines = m2.ds_error_log.match('.* - sid=".*')
+    assert len(log_lines) > 0
+    m1.start()
+    m2.start()
+
+    def fin():
+        log.info('Deleting entry {}'.format(TEST_ENTRY_DN))
+        test_user.delete()
+        m1.config.loglevel((ErrorLog.DEFAULT,), service='error')
+        m2.config.loglevel((ErrorLog.DEFAULT,), service='error')
 
     request.addfinalizer(fin)
 
