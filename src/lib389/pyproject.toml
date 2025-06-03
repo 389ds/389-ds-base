@@ -1,0 +1,96 @@
+[build-system]
+# argparse-manpage needs all the runtime requires repeated here
+requires = [
+    "setuptools",
+    "argparse-manpage[setuptools]",
+    "pyasn1",
+    "pyasn1-modules",
+    "python-dateutil",
+    "argcomplete",
+    "python-ldap",
+    "distro",
+    "cryptography",
+    "psutil",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lib389"
+version = "3.1.2"  # Should match the main 389-ds-base version
+description = "A library for accessing, testing, and configuring the 389 Directory Server"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "Red Hat, Inc., and William Brown", email = "389-devel@lists.fedoraproject.org"}
+]
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Systems Administration :: Authentication/Directory :: LDAP",
+]
+dependencies = [
+    "pyasn1",
+    "pyasn1-modules",
+    "python-dateutil",
+    "argcomplete",
+    "python-ldap",
+    "distro",
+    "cryptography",
+    "psutil",
+]
+keywords = ["389", "directory", "server", "test", "configure"]
+
+[project.urls]
+Homepage = "https://www.port389.org/docs/389ds/FAQ/upstream-test-framework.html"
+Documentation = "https://www.port389.org/docs/389ds/documentation.html"
+Repository = "https://github.com/389ds/389-ds-base"
+Issues = "https://github.com/389ds/389-ds-base/issues"
+
+[tool.setuptools.cmdclass]
+build_py       = "build_hooks.build_py"
+install        = "build_hooks.install"
+build_manpages = "build_hooks.build_manpages"
+
+[tool.build_manpages]
+manpages = [
+  "man/dsconf.8:object=parser:pyfile=cli/dsconf:manual_section=8",
+  "man/dsctl.8:object=parser:pyfile=cli/dsctl:manual_section=8",
+  "man/dsidm.8:object=parser:pyfile=cli/dsidm:manual_section=8",
+  "man/dscreate.8:object=parser:pyfile=cli/dscreate:manual_section=8",
+  "man/openldap_to_ds.8:object=parser:pyfile=cli/openldap_to_ds:manual_section=8",
+]
+
+[tool.setuptools.data-files]
+"share/man/man8" = [
+  "man/dsctl.8",
+  "man/dsconf.8",
+  "man/dscreate.8",
+  "man/dsidm.8",
+  "man/openldap_to_ds.8",
+]
+"libexec/dirsrv" = ["cli/dscontainer"]
+"bin" = [
+  "cli/dsconf",
+  "cli/dsctl",
+  "cli/dsidm",
+  "cli/dscreate",
+  "cli/openldap_to_ds",
+]
+
+[tool.setuptools.packages.find]
+include = ["lib389", "lib389.*"]
+
+[dependency-groups]
+test = ["pytest"]
