@@ -81,11 +81,11 @@ def test_server_statistics_visibility(topology_st, page, browser_name):
 
     log.info('Click on Disk Space tab and check if element is loaded.')
     frame.get_by_role('tab', name='Disk Space').click()
-    assert frame.get_by_role('button', name='Refresh').is_visible()
+    assert frame.get_by_text('Refresh').is_visible()
 
     log.info('Click on SNMP Counters tab and check if element is loaded.')
     frame.get_by_role('tab', name='SNMP Counters').click()
-    assert frame.get_by_text('Bytes Sent', exact=True).is_visible()
+    assert frame.get_by_text('Data Sent', exact=True).is_visible()
 
 
 def test_replication_visibility(topology_st, page, browser_name):
@@ -132,7 +132,6 @@ def test_replication_visibility(topology_st, page, browser_name):
     assert frame.locator('#replication-suffix-dc\\=example\\,dc\\=com').is_visible()
 
 
-@pytest.mark.xfail(reason="DS6557")
 def test_database_visibility(topology_st, page, browser_name):
     """ Test Database monitoring visibility
 
@@ -150,16 +149,26 @@ def test_database_visibility(topology_st, page, browser_name):
     setup_login(page)
     time.sleep(1)
     frame = check_frame_assignment(page, browser_name)
+    instance = topology_st.standalone
 
     log.info('Click on Monitoring tab, then click on database button and check if element is loaded.')
     frame.get_by_role('tab', name='Monitoring', exact=True).click()
+    frame.get_by_label("Monitoring", exact=True).get_by_text("Database").click()
+
+    log.info('Click on Database tab and check if element is loaded.')
+    if instance.get_db_lib() == 'bdb':
+        frame.get_by_role('tab', name='Normalized DN Cache').click()
+
+    frame.get_by_text('NDN Cache Hit Ratio').wait_for()
+    assert frame.get_by_text('NDN Cache Hit Ratio').is_visible()
+
     frame.locator('#dc\\=example\\,dc\\=com').click()
     frame.get_by_text('Entry Cache Hit Ratio').wait_for()
     assert frame.get_by_text('Entry Cache Hit Ratio').is_visible()
 
-    log.info('Click on DN Cache tab and check if element is loaded.')
-    frame.get_by_role('tab', name='DN Cache').click()
-    assert frame.get_by_text('DN Cache Hit Ratio').is_visible()
+    if instance.get_db_lib() == 'bdb':
+        frame.get_by_role('tab', name='DN Cache').click()
+        assert frame.get_by_text('DN Cache Hit Ratio').is_visible()
 
 
 def test_logging_visibility(topology_st, page, browser_name):
@@ -197,28 +206,28 @@ def test_logging_visibility(topology_st, page, browser_name):
     log.info('Click on Monitoring tab, then click on Access Log button and check if element is loaded.')
     frame.get_by_role('tab', name='Monitoring', exact=True).click()
     frame.locator('#access-log-monitor').click()
-    frame.locator('#accesslog-area').wait_for()
-    assert frame.locator('#accesslog-area').is_visible()
+    frame.locator('#monitor-log-access-page').wait_for()
+    assert frame.locator('#monitor-log-access-page').is_visible()
 
     log.info('Click on Audit Log button and check if element is loaded.')
     frame.locator('#audit-log-monitor').click()
-    frame.locator('#auditlog-area').wait_for()
-    assert frame.locator('#auditlog-area').is_visible()
+    frame.locator('#monitor-log-audit-page').wait_for()
+    assert frame.locator('#monitor-log-audit-page').is_visible()
 
     log.info('Click on Audit Failure Log button and check if element is loaded.')
     frame.locator('#auditfail-log-monitor').click()
-    frame.locator('#auditfaillog-area').wait_for()
-    assert frame.locator('#auditfaillog-area').is_visible()
+    frame.locator('#monitor-log-auditfail-page').wait_for()
+    assert frame.locator('#monitor-log-auditfail-page').is_visible()
 
     log.info('Click on Errors Log button and check if element is loaded.')
     frame.locator('#error-log-monitor').click()
-    frame.locator('#errorslog-area').wait_for()
-    assert frame.locator('#errorslog-area').is_visible()
+    frame.locator('#monitor-log-errors-page').wait_for()
+    assert frame.locator('#monitor-log-errors-page').is_visible()
 
     log.info('Click on Security Log button and check if element is loaded.')
     frame.locator('#security-log-monitor').click()
-    frame.locator('#securitylog-area').wait_for()
-    assert frame.locator('#securitylog-area').is_visible()
+    frame.locator('#monitor-log-security-page').wait_for()
+    assert frame.locator('#monitor-log-security-page').is_visible()
 
 
 def test_create_credential_and_alias(topology_st, page, browser_name):
