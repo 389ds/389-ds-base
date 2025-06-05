@@ -537,7 +537,7 @@ agmt_new_from_entry(Slapi_Entry *e)
     if (val) {
         strcpy(ra->last_init_status, val);
     }
-    ra->changecounters = (struct changecounter **)slapi_ch_calloc(MAX_NUM_OF_SUPPLIERS + 1,
+    ra->changecounters = (struct changecounter **)slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
                                                                   sizeof(struct changecounter *));
     ra->num_changecounters = 0;
     ra->max_changecounters = MAX_NUM_OF_MASTERS;
@@ -2615,7 +2615,7 @@ agmt_update_init_status(Repl_Agmt *ra)
         mods[nb_mods] = NULL;
 
         slapi_modify_internal_set_pb_ext(pb, ra->dn, mods, NULL, NULL,
-                                         repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
+                                         repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
         slapi_modify_internal_pb(pb);
 
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
