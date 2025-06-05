@@ -360,7 +360,7 @@ add_index_dbi(caddr_t attr, caddr_t otx)
     if (ai->ai_indexmask & INDEX_ANY) {
         octx->rc = add_dbi(octx, octx->be, ai->ai_type, flags);
         octx->ai = NULL;
-        return octx->rc ? STOP_AVL_APPLY : 0;
+        return octx->rc && octx->rc != MDB_NOTFOUND ? STOP_AVL_APPLY : 0;
     } else {
         octx->ai = NULL;
         return 0;
@@ -501,7 +501,6 @@ error:
     if (cur) {
         MDB_CURSOR_CLOSE(cur);
     }
-
     rc = END_TXN(&txn, rc);
     if (rc && !errinfo.cmd) {
          slapi_log_error(SLAPI_LOG_ERR, "dbmdb_open_all_files", "Failed to commit txn while adding new db instance. Error %d :%s.\n", rc, mdb_strerror(rc));
@@ -691,6 +690,7 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
     dbmdb_info_t infofileinfo = {0};
     dbmdb_info_t curinfo = ctx->info;
     MDB_envinfo envinfo = {0};
+    char size_buffer[10] = {0};
     int rc = 0;
 
     init_mdbtxn(ctx);
@@ -744,7 +744,10 @@ int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode)
         }
     }
 
-    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with maxsize=%lu.\n", ctx->startcfg.max_size);
+    slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env",
+                  "MDB environment created with maxsize=%lu (%s).\n",
+                  ctx->startcfg.max_size,
+                  convert_bytes_to_str((double)(ctx->startcfg.max_size), size_buffer, 0));
     slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with max readers=%d.\n", ctx->startcfg.max_readers);
     slapi_log_err(SLAPI_LOG_INFO, "dbmdb_make_env", "MDB environment created with max database instances=%d.\n", ctx->startcfg.max_dbs);
 
