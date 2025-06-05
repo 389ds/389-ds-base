@@ -90,7 +90,11 @@ def test_betxt_7bit(topology_st):
     log.info('test_betxt_7bit: PASSED')
 
 
-def test_betxn_attr_uniqueness(topology_st):
+
+@pytest.mark.parametrize('unique_attribute, uid_values, sn_values',
+                         [('uid', ['testuser2', 'testuser1'], 'user2'),
+                          ('sn', 'testuser2', ['user1', 'user2'])])
+def test_betxn_attr_uniqueness(topology_st, unique_attribute, uid_values, sn_values):
     """Test that we can not add two entries that have the same attr value that is
     defined by the plugin
 
@@ -100,7 +104,7 @@ def test_betxn_attr_uniqueness(topology_st):
 
     :steps: 1. Enable PLUGIN_ATTR_UNIQUENESS plugin as "ON"
             2. Add a test user
-            3. Add another test user having duplicate uid as previous one
+            3. Add another test user having duplicate uid/sn as previous one
             4. Cleanup - disable PLUGIN_ATTR_UNIQUENESS plugin as "OFF"
             5. Cleanup - remove test user entry
 
@@ -114,7 +118,7 @@ def test_betxn_attr_uniqueness(topology_st):
 
     attruniq = AttributeUniquenessPlugin(topology_st.standalone, dn="cn=attruniq,cn=plugins,cn=config")
     attruniq.create(properties={'cn': 'attruniq'})
-    attruniq.add_unique_attribute('uid')
+    attruniq.add_unique_attribute(unique_attribute)
     attruniq.add_unique_subtree(DEFAULT_SUFFIX)
     attruniq.enable_all_subtrees()
     attruniq.enable()
@@ -132,14 +136,17 @@ def test_betxn_attr_uniqueness(topology_st):
 
     with pytest.raises(ldap.LDAPError):
         users.create(properties={
-            'uid': ['testuser2', 'testuser1'],
+            'uid': uid_values,
             'cn': 'testuser2',
-            'sn': 'user2',
+            'sn': sn_values,
             'uidNumber': '1002',
             'gidNumber': '2002',
             'homeDirectory': '/home/testuser2'
         })
 
+    # Clean up for the next test
+    attruniq.disable()
+    attruniq.delete()
     user1.delete()
 
     log.info('test_betxn_attr_uniqueness: PASSED')
