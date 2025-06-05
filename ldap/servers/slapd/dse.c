@@ -1061,8 +1061,6 @@ is_readonly_set_in_dse(const char *dsename)
     bool isro = false;
     FILE *fdse = NULL;
     char line[128];
-    char *error = NULL;
-    const char *regexp = "";
 
     if (!dsename) {
         goto done;

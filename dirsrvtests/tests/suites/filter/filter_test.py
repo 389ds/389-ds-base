@@ -379,9 +379,8 @@ def test_match_large_valueset(topology_st):
 
     # Set the entry cache to 200Mb as the 1K groups of 2K users require at
     # least 170Mb
-    if get_default_db_lib() == "bdb":
-        config_ldbm = DSLdapObject(inst, DN_CONFIG_LDBM)
-        config_ldbm.set('nsslapd-cache-autosize', '0')
+    config_ldbm = DSLdapObject(inst, DN_CONFIG_LDBM)
+    config_ldbm.set('nsslapd-cache-autosize', '0')
     be_groups.replace('nsslapd-cachememsize', groups_entrycache)
 
     # Step 2. Generate a test ldif (10k users entries)
