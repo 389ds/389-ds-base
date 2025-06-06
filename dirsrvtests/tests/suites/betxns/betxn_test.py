@@ -15,7 +15,8 @@ from lib389.topologies import topology_st
 from lib389.plugins import (SevenBitCheckPlugin, AttributeUniquenessPlugin,
                             MemberOfPlugin, ManagedEntriesPlugin,
                             ReferentialIntegrityPlugin, MEPTemplates,
-                            MEPConfigs)
+                            MEPConfigs, LinkedAttributesPlugin,
+                            LinkedAttributesConfigs)
 from lib389.plugins import MemberOfPlugin
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
@@ -559,6 +560,50 @@ def test_revert_cache_noloop(topology_st, request):
         memberof.replace('memberOfAutoAddOC', 'nsmemberof')
 
     request.addfinalizer(fin)
+
+
+def test_linked_attributes_plugin(topology_st):
+    ''' Test that Linked Attributes Plugin does not allow to add a link entry
+        that does not exist
+
+    :id:  8ec17a8f-d331-4aff-ab80-1afbdf8d4404
+    :setup: Standalone instance
+    :steps:
+        1. Enable Linked Attributes plugin
+        2. Create a config entry for linked attributes plugin
+        3. Create a user with extensibleObject objectClass
+        4. Add a link entry to the user, but the linked entry does not exist
+        5. Cleanup the entry, disable the plugin
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Raises UNWILLING_TO_PERFORM error
+        5. Success
+    '''
+
+    # Enable Linked Attributes plugin
+    linkedattr = LinkedAttributesPlugin(topology_st.standalone)
+    linkedattr.enable()
+
+    # Add the linked attrs config entry
+    la_configs = LinkedAttributesConfigs(topology_st.standalone)
+    la_configs.create(properties={'cn': 'Manager Link',
+                                  'linkType': 'seeAlso',
+                                  'managedType': 'seeAlso'})
+
+    # Add an entry that has a link to an entry that does not exist
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    manager = users.create_test_user(uid=999)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        manager.add('seeAlso', 'uid=user,dc=example,dc=com')
+
+    # Cleanup
+    manager.delete()
+    linkedattr.disable()
+    linkedattr.delete()
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
