@@ -37,14 +37,14 @@ void attr_create_empty(backend *be, char *type, struct attrinfo **ai);
  * cache.c
  */
 void cache_disable(void);
-int cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type);
+int cache_init(struct cache *cache, struct ldbm_instance *inst, uint64_t maxsize, int64_t maxentries, int type);
 void cache_clear(struct cache *cache, int type);
 void cache_destroy_please(struct cache *cache, int type);
 void cache_set_max_size(struct cache *cache, uint64_t bytes, int type);
 void cache_set_max_entries(struct cache *cache, int64_t entries);
 uint64_t cache_get_max_size(struct cache *cache);
 int64_t cache_get_max_entries(struct cache *cache);
-void cache_get_stats(struct cache *cache, uint64_t *hits, uint64_t *tries, uint64_t *entries, int64_t *maxentries, uint64_t *size, uint64_t *maxsize);
+void cache_get_stats(struct cache *cache, struct cache_stats *stats);
 void cache_debug_hash(struct cache *cache, char **out);
 int cache_remove(struct cache *cache, void *e);
 void cache_return(struct cache *cache, void **bep);
@@ -372,6 +372,8 @@ const Slapi_DN *backentry_get_sdn(const struct backentry *e);
 
 struct backdn *backdn_init(Slapi_DN *sdn, ID id, int to_remove_from_hash);
 void backdn_free(struct backdn **bdn);
+void backentry_init_weight(BackEntryWeightData *starttime);
+void backentry_compute_weight(struct backentry *e, const BackEntryWeightData *starttime);
 
 /*
  * parents.c

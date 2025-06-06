@@ -68,14 +68,14 @@ bdb_import_fifo_init(ImportJob *job)
     ldbm_instance *inst = job->inst;
 
     /* Work out how big the entry fifo can be */
-    if (inst->inst_cache.c_maxentries > 0)
-        job->fifo.size = inst->inst_cache.c_maxentries;
+    if (inst->inst_cache.c_stats.maxentries > 0)
+        job->fifo.size = inst->inst_cache.c_stats.maxentries;
     else
-        job->fifo.size = inst->inst_cache.c_maxsize / 1024; /* guess */
+        job->fifo.size = inst->inst_cache.c_stats.maxsize / 1024; /* guess */
 
     /* byte limit that should be respected to avoid memory starvation */
     /* Rather than cachesize * .8, we set it to cachesize for clarity */
-    job->fifo.bsize = inst->inst_cache.c_maxsize;
+    job->fifo.bsize = inst->inst_cache.c_stats.maxsize;
 
     job->fifo.c_bsize = 0;
 
@@ -2475,14 +2475,14 @@ error:
         cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
 
         /* initialize the entry cache */
-        if (!cache_init(&(inst->inst_cache), inst->inst_cache.c_maxsize,
+        if (!cache_init(&(inst->inst_cache), inst, inst->inst_cache.c_stats.maxsize,
                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                           "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
-        if (!cache_init(&(inst->inst_dncache), inst->inst_dncache.c_maxsize,
+        if (!cache_init(&(inst->inst_dncache), inst, inst->inst_dncache.c_stats.maxsize,
                         DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_public_bdb_import_main",
                           "dn cache_init failed.  Server should be restarted.\n");
