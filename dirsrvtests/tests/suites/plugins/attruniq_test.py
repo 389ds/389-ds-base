@@ -10,6 +10,7 @@ import pytest
 import ldap
 import logging
 from lib389.plugins import AttributeUniquenessPlugin
+from lib389.idm.nscontainer import nsContainers
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389._constants import DEFAULT_SUFFIX
@@ -21,6 +22,19 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 MAIL_ATTR_VALUE = 'non-uniq@value.net'
 MAIL_ATTR_VALUE_ALT = 'alt-mail@value.net'
+
+EXCLUDED_CONTAINER_CN = "excluded_container"
+EXCLUDED_CONTAINER_DN = "cn={},{}".format(EXCLUDED_CONTAINER_CN, DEFAULT_SUFFIX)
+
+EXCLUDED_BIS_CONTAINER_CN = "excluded_bis_container"
+EXCLUDED_BIS_CONTAINER_DN = "cn={},{}".format(EXCLUDED_BIS_CONTAINER_CN, DEFAULT_SUFFIX)
+
+ENFORCED_CONTAINER_CN = "enforced_container"
+
+USER_1_CN = "test_1"
+USER_2_CN = "test_2"
+USER_3_CN = "test_3"
+USER_4_CN = "test_4"
 
 
 def test_modrdn_attr_uniqueness(topology_st):
