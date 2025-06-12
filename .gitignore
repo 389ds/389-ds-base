@@ -239,5 +239,4 @@ vendor.tar.gz
 /rs/
 /rust-nsslapd-private.h
 /rust-slapi-private.h
-/src/lib389/setup.py
 /src/target
