@@ -175,6 +175,9 @@ class AttributeUniquenessPlugin(Plugin):
 
         self.set('uniqueness-across-all-subtrees', 'off')
 
+    def add_exclude_subtree(self, basedn):
+        self.add('uniqueness-exclude-subtrees', basedn)
+
 
 class AttributeUniquenessPlugins(DSLdapObjects):
     """A DSLdapObjects entity which represents Attribute Uniqueness plugin instances
