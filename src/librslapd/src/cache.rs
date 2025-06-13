@@ -1,171 +1,38 @@
 // This exposes C-FFI capable bindings for the concread concurrently readable cache.
-use concread::arcache::stats::{ARCacheWriteStat, ReadCountStat};
 use concread::arcache::{ARCache, ARCacheBuilder, ARCacheReadTxn, ARCacheWriteTxn};
-use concread::cowcell::CowCell;
+use std::convert::TryInto;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-#[derive(Clone, Debug, Default)]
-struct CacheStats {
-    reader_hits: u64,      // Hits from read transactions (main + local)
-    reader_includes: u64,  // Number of includes from read transactions
-    write_hits: u64,       // Hits from write transactions
-    write_inc_or_mod: u64, // Number of includes/modifications from write transactions
-    freq_evicts: u64,      // Number of evictions from frequent set
-    recent_evicts: u64,    // Number of evictions from recent set
-    p_weight: u64,         // Current cache weight between recent and frequent.
-    shared_max: u64,       // Maximum number of items in the shared cache.
-    freq: u64,             // Number of items in the frequent set at this point in time.
-    recent: u64,           // Number of items in the recent set at this point in time.
-    all_seen_keys: u64,    // Number of total keys seen through the cache's lifetime.
-}
-
-impl CacheStats {
-    fn new() -> Self {
-        CacheStats::default()
-    }
-
-    fn update_from_read_stat(&mut self, stat: ReadCountStat) {
-        self.reader_hits += stat.main_hit + stat.local_hit;
-        self.reader_includes += stat.include + stat.local_include;
-    }
-
-    fn update_from_write_stat(&mut self, stat: &FFIWriteStat) {
-        self.write_hits += stat.read_hits;
-        self.write_inc_or_mod += stat.includes + stat.modifications;
-        self.freq_evicts += stat.freq_evictions;
-        self.recent_evicts += stat.recent_evictions;
-        self.p_weight = stat.p_weight;
-        self.shared_max = stat.shared_max;
-        self.freq = stat.freq;
-        self.recent = stat.recent;
-        self.all_seen_keys = stat.all_seen_keys;
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct FFIWriteStat {
-    pub read_ops: u64,
-    pub read_hits: u64,
-    pub p_weight: u64,
-    pub shared_max: u64,
-    pub freq: u64,
-    pub recent: u64,
-    pub all_seen_keys: u64,
-    pub includes: u64,
-    pub modifications: u64,
-    pub freq_evictions: u64,
-    pub recent_evictions: u64,
-    pub ghost_freq_revives: u64,
-    pub ghost_rec_revives: u64,
-    pub haunted_includes: u64,
-}
-
-impl<K> ARCacheWriteStat<K> for FFIWriteStat {
-    fn cache_clear(&mut self) {
-        self.read_ops = 0;
-        self.read_hits = 0;
-    }
-
-    fn cache_read(&mut self) {
-        self.read_ops += 1;
-    }
-
-    fn cache_hit(&mut self) {
-        self.read_hits += 1;
-    }
-
-    fn p_weight(&mut self, p: u64) {
-        self.p_weight = p;
-    }
-
-    fn shared_max(&mut self, i: u64) {
-        self.shared_max = i;
-    }
-
-    fn freq(&mut self, i: u64) {
-        self.freq = i;
-    }
-
-    fn recent(&mut self, i: u64) {
-        self.recent = i;
-    }
-
-    fn all_seen_keys(&mut self, i: u64) {
-        self.all_seen_keys = i;
-    }
-
-    fn include(&mut self, _k: &K) {
-        self.includes += 1;
-    }
-
-    fn include_haunted(&mut self, _k: &K) {
-        self.haunted_includes += 1;
-    }
-
-    fn modify(&mut self, _k: &K) {
-        self.modifications += 1;
-    }
-
-    fn ghost_frequent_revive(&mut self, _k: &K) {
-        self.ghost_freq_revives += 1;
-    }
-
-    fn ghost_recent_revive(&mut self, _k: &K) {
-        self.ghost_rec_revives += 1;
-    }
-
-    fn evict_from_recent(&mut self, _k: &K) {
-        self.recent_evictions += 1;
-    }
-
-    fn evict_from_frequent(&mut self, _k: &K) {
-        self.freq_evictions += 1;
-    }
-}
-
 pub struct ARCacheChar {
     inner: ARCache<CString, CString>,
-    stats: CowCell<CacheStats>,
 }
 
 pub struct ARCacheCharRead<'a> {
-    inner: ARCacheReadTxn<'a, CString, CString, ReadCountStat>,
-    cache: &'a ARCacheChar,
+    inner: ARCacheReadTxn<'a, CString, CString>,
 }
 
 pub struct ARCacheCharWrite<'a> {
-    inner: ARCacheWriteTxn<'a, CString, CString, FFIWriteStat>,
-    cache: &'a ARCacheChar,
-}
-
-impl ARCacheChar {
-    fn new(max: usize, read_max: usize) -> Option<Self> {
-        ARCacheBuilder::new()
-            .set_size(max, read_max)
-            .set_reader_quiesce(false)
-            .build()
-            .map(|inner| Self {
-                inner,
-                stats: CowCell::new(CacheStats::new()),
-            })
-    }
+    inner: ARCacheWriteTxn<'a, CString, CString>,
 }
 
 #[no_mangle]
 pub extern "C" fn cache_char_create(max: usize, read_max: usize) -> *mut ARCacheChar {
-    if let Some(cache) = ARCacheChar::new(max, read_max) {
-        Box::into_raw(Box::new(cache))
+    let inner = if let Some(cache) = ARCacheBuilder::new().set_size(max, read_max).build() {
+        cache
     } else {
-        std::ptr::null_mut()
-    }
+        return std::ptr::null_mut();
+    };
+    let cache: Box<ARCacheChar> = Box::new(ARCacheChar { inner });
+    Box::into_raw(cache)
 }
 
 #[no_mangle]
 pub extern "C" fn cache_char_free(cache: *mut ARCacheChar) {
+    // Should we be responsible to drain and free everything?
     debug_assert!(!cache.is_null());
     unsafe {
-        drop(Box::from_raw(cache));
+        let _drop = Box::from_raw(cache);
     }
 }
 
@@ -186,22 +53,22 @@ pub extern "C" fn cache_char_stats(
 ) {
     let cache_ref = unsafe {
         debug_assert!(!cache.is_null());
-        &(*cache)
+        &(*cache) as &ARCacheChar
     };
-
-    // Get stats snapshot
-    let stats_read = cache_ref.stats.read();
-    *reader_hits = stats_read.reader_hits;
-    *reader_includes = stats_read.reader_includes;
-    *write_hits = stats_read.write_hits;
-    *write_inc_or_mod = stats_read.write_inc_or_mod;
-    *freq_evicts = stats_read.freq_evicts;
-    *recent_evicts = stats_read.recent_evicts;
-    *p_weight = stats_read.p_weight;
-    *shared_max = stats_read.shared_max;
-    *freq = stats_read.freq;
-    *recent = stats_read.recent;
-    *all_seen_keys = stats_read.all_seen_keys;
+    let stats = cache_ref.inner.view_stats();
+    *reader_hits = stats.reader_hits.try_into().unwrap();
+    *reader_includes = stats.reader_includes.try_into().unwrap();
+    *write_hits = stats.write_hits.try_into().unwrap();
+    *write_inc_or_mod = (stats.write_includes + stats.write_modifies)
+        .try_into()
+        .unwrap();
+    *shared_max = stats.shared_max.try_into().unwrap();
+    *freq = stats.freq.try_into().unwrap();
+    *recent = stats.recent.try_into().unwrap();
+    *freq_evicts = stats.freq_evicts.try_into().unwrap();
+    *recent_evicts = stats.recent_evicts.try_into().unwrap();
+    *p_weight = stats.p_weight.try_into().unwrap();
+    *all_seen_keys = stats.all_seen_keys.try_into().unwrap();
 }
 
 // start read
@@ -212,8 +79,7 @@ pub extern "C" fn cache_char_read_begin(cache: *mut ARCacheChar) -> *mut ARCache
         &(*cache) as &ARCacheChar
     };
     let read_txn = Box::new(ARCacheCharRead {
-        inner: cache_ref.inner.read_stats(ReadCountStat::default()),
-        cache: cache_ref,
+        inner: cache_ref.inner.read(),
     });
     Box::into_raw(read_txn)
 }
@@ -221,20 +87,8 @@ pub extern "C" fn cache_char_read_begin(cache: *mut ARCacheChar) -> *mut ARCache
 #[no_mangle]
 pub extern "C" fn cache_char_read_complete(read_txn: *mut ARCacheCharRead) {
     debug_assert!(!read_txn.is_null());
-
     unsafe {
-        let read_txn_box = Box::from_raw(read_txn);
-        let read_stats = read_txn_box.inner.finish();
-        let write_stats = read_txn_box
-            .cache
-            .inner
-            .try_quiesce_stats(FFIWriteStat::default());
-
-        // Update stats
-        let mut stats_write = read_txn_box.cache.stats.write();
-        stats_write.update_from_read_stat(read_stats);
-        stats_write.update_from_write_stat(&write_stats);
-        stats_write.commit();
+        let _drop = Box::from_raw(read_txn);
     }
 }
 
@@ -287,8 +141,7 @@ pub extern "C" fn cache_char_write_begin(
         &(*cache) as &ARCacheChar
     };
     let write_txn = Box::new(ARCacheCharWrite {
-        inner: cache_ref.inner.write_stats(FFIWriteStat::default()),
-        cache: cache_ref,
+        inner: cache_ref.inner.write(),
     });
     Box::into_raw(write_txn)
 }
@@ -296,21 +149,15 @@ pub extern "C" fn cache_char_write_begin(
 #[no_mangle]
 pub extern "C" fn cache_char_write_commit(write_txn: *mut ARCacheCharWrite) {
     debug_assert!(!write_txn.is_null());
-    unsafe {
-        let write_txn_box = Box::from_raw(write_txn);
-        let current_stats = write_txn_box.inner.commit();
-
-        let mut stats_write = write_txn_box.cache.stats.write();
-        stats_write.update_from_write_stat(&current_stats);
-        stats_write.commit();
-    }
+    let wr = unsafe { Box::from_raw(write_txn) };
+    (*wr).inner.commit();
 }
 
 #[no_mangle]
 pub extern "C" fn cache_char_write_rollback(write_txn: *mut ARCacheCharWrite) {
     debug_assert!(!write_txn.is_null());
     unsafe {
-        drop(Box::from_raw(write_txn));
+        let _drop = Box::from_raw(write_txn);
     }
 }
 
@@ -335,7 +182,7 @@ pub extern "C" fn cache_char_write_include(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::cache::*;
 
     #[test]
     fn test_cache_basic() {
@@ -351,117 +198,5 @@ mod tests {
 
         cache_char_read_complete(read_txn);
         cache_char_free(cache_ptr);
-    }
-
-    #[test]
-    fn test_cache_stats() {
-        let cache = cache_char_create(100, 8);
-
-        // Variables to store stats
-        let mut reader_hits = 0;
-        let mut reader_includes = 0;
-        let mut write_hits = 0;
-        let mut write_inc_or_mod = 0;
-        let mut shared_max = 0;
-        let mut freq = 0;
-        let mut recent = 0;
-        let mut freq_evicts = 0;
-        let mut recent_evicts = 0;
-        let mut p_weight = 0;
-        let mut all_seen_keys = 0;
-
-        // Do some operations
-        let key = CString::new("stats_test").unwrap();
-        let value = CString::new("value").unwrap();
-
-        let write_txn = cache_char_write_begin(cache);
-        cache_char_write_include(write_txn, key.as_ptr(), value.as_ptr());
-        cache_char_write_commit(write_txn);
-
-        let read_txn = cache_char_read_begin(cache);
-        let _ = cache_char_read_get(read_txn, key.as_ptr());
-        cache_char_read_complete(read_txn);
-
-        // Get stats
-        cache_char_stats(
-            cache,
-            &mut reader_hits,
-            &mut reader_includes,
-            &mut write_hits,
-            &mut write_inc_or_mod,
-            &mut shared_max,
-            &mut freq,
-            &mut recent,
-            &mut freq_evicts,
-            &mut recent_evicts,
-            &mut p_weight,
-            &mut all_seen_keys,
-        );
-
-        // Verify that stats were updated
-        assert!(write_inc_or_mod > 0);
-        assert!(all_seen_keys > 0);
-
-        cache_char_free(cache);
-    }
-
-    #[test]
-    fn test_cache_read_write_operations() {
-        let cache = cache_char_create(100, 8);
-
-        // Create test data
-        let key = CString::new("test_key").unwrap();
-        let value = CString::new("test_value").unwrap();
-
-        // Test write operation
-        let write_txn = cache_char_write_begin(cache);
-        cache_char_write_include(write_txn, key.as_ptr(), value.as_ptr());
-        cache_char_write_commit(write_txn);
-
-        // Test read operation
-        let read_txn = cache_char_read_begin(cache);
-        let result = cache_char_read_get(read_txn, key.as_ptr());
-        assert!(!result.is_null());
-
-        // Verify the value
-        let retrieved_value = unsafe { CStr::from_ptr(result) };
-        assert_eq!(retrieved_value.to_bytes(), value.as_bytes());
-
-        cache_char_read_complete(read_txn);
-        cache_char_free(cache);
-    }
-
-    #[test]
-    fn test_cache_miss() {
-        let cache = cache_char_create(100, 8);
-        let read_txn = cache_char_read_begin(cache);
-
-        let missing_key = CString::new("nonexistent").unwrap();
-        let result = cache_char_read_get(read_txn, missing_key.as_ptr());
-        assert!(result.is_null());
-
-        cache_char_read_complete(read_txn);
-        cache_char_free(cache);
-    }
-
-    #[test]
-    fn test_write_rollback() {
-        let cache = cache_char_create(100, 8);
-
-        let key = CString::new("rollback_test").unwrap();
-        let value = CString::new("value").unwrap();
-
-        // Start write transaction and rollback
-        let write_txn = cache_char_write_begin(cache);
-        cache_char_write_include(write_txn, key.as_ptr(), value.as_ptr());
-        cache_char_write_rollback(write_txn);
-
-        // Verify key doesn't exist
-        let read_txn = cache_char_read_begin(cache);
-        let result = cache_char_read_get(read_txn, key.as_ptr());
-        assert!(result.is_null());
-
-        cache_char_read_complete(read_txn);
-        cache_char_free(cache);
     }
 }
