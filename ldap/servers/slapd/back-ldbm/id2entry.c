@@ -267,6 +267,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     Slapi_Entry *ee;
     char temp_id[sizeof(ID)];
     uint32_t esize;
+    BackEntryWeightData t1 = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,
                   "=> id2entry(%lu)\n", (u_long)id);
@@ -286,6 +287,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     }
 
 
+    backentry_init_weight(&t1);
     id_internal_to_stored(id, temp_id);
 
     dblayer_value_set_buffer(be, &key, temp_id,  sizeof(temp_id));
@@ -438,6 +440,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
             slapi_ch_free_string(&entrydn);
         }
 
+        backentry_compute_weight(e, &t1);
         retval = CACHE_ADD(&inst->inst_cache, e, &imposter);
         if (1 == retval) {
             /* This means that someone else put the entry in the cache
