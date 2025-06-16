@@ -19,6 +19,7 @@
 
 #include "slap.h"
 
+#define INVALID_BUFSIZ 512
 
 struct slapdplugin *
 plugin_syntax_find(const char *nameoroid)
@@ -397,17 +398,44 @@ slapi_entry_syntax_check(
                 while (val != NULL) {
                     bval = slapi_value_get_berval(val);
                     if ((a->a_plugin->plg_syntax_validate((struct berval *)bval)) != 0) {
+                        char invalid_val[INVALID_BUFSIZ] = {0};
+                        char buffer[BUFSIZ];
+                        if (bval->bv_len > 0) {
+                            if (bval->bv_len >= INVALID_BUFSIZ) {
+                                if (bval->bv_val[bval->bv_len] != '\0') {
+                                    PR_snprintf(invalid_val, INVALID_BUFSIZ - 3,
+                                                "%s...", bval->bv_val);
+                                } else {
+                                    /* strip last char/newline */
+                                    memcpy(&invalid_val, bval->bv_val,
+                                           INVALID_BUFSIZ-1);
+                                    /* Add truncation chars ... */
+                                    memcpy(&invalid_val[INVALID_BUFSIZ-4],
+                                           "...", 3);
+                                }
+                            } else {
+                                PR_snprintf(invalid_val, sizeof(invalid_val),
+                                            "%s", bval->bv_val);
+                            }
+                        }
+
                         if (syntaxlogging) {
                             slapi_log_err(SLAPI_LOG_ERR, "slapi_entry_syntax_check",
-                                          "\"%s\": (%s) value #%d invalid per syntax\n",
-                                          slapi_entry_get_dn(e), a->a_type, hint);
+                                          "\"%s\": (%s) value #%d (%s) invalid per syntax\n",
+                                          slapi_entry_get_dn(e),
+                                          a->a_type,
+                                          hint,
+                                          escape_string(invalid_val, buffer));
                         }
 
                         if (syntaxcheck || override) {
                             if (pb) {
                                 /* Append new text to any existing text. */
                                 errp += PR_snprintf(errp, err_remaining,
-                                                    "%s: value #%d invalid per syntax\n", a->a_type, hint);
+                                                    "%s: value #%d (%s) invalid per syntax\n",
+                                                    a->a_type,
+                                                    hint,
+                                                    escape_string(invalid_val, buffer));
                                 err_remaining -= errp - &errtext[0];
                             }
                             ret = 1;
@@ -500,16 +528,44 @@ slapi_mods_syntax_check(
                 /* Loop through the values and validate each one */
                 for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
                     if (syntax_plugin->plg_syntax_validate(mod->mod_bvalues[j]) != 0) {
+                        char invalid_val[INVALID_BUFSIZ] = {0};
+                        char buffer[BUFSIZ];
+                        if (mod->mod_bvalues[j]->bv_len > 0) {
+                            if (mod->mod_bvalues[j]->bv_len >= INVALID_BUFSIZ) {
+                                if (mod->mod_bvalues[j]->bv_val[mod->mod_bvalues[j]->bv_len] != '\0') {
+                                    PR_snprintf(invalid_val, INVALID_BUFSIZ - 3,
+                                                "%s...", mod->mod_bvalues[j]->bv_val);
+                                } else {
+                                    /* strip last char/newline */
+                                    memcpy(&invalid_val,
+                                           mod->mod_bvalues[j]->bv_val,
+                                           INVALID_BUFSIZ-1);
+                                    /* Add truncation chars ... */
+                                    memcpy(&invalid_val[INVALID_BUFSIZ-4],
+                                           "...", 3);
+                                }
+                            } else {
+                                PR_snprintf(invalid_val, sizeof(invalid_val), "%s",
+                                            mod->mod_bvalues[j]->bv_val);
+                            }
+                        }
                         if (syntaxlogging) {
-                            slapi_log_err(SLAPI_LOG_ERR, "slapi_mods_syntax_check", "\"%s\": (%s) value #%d invalid per syntax\n",
-                                          dn ? dn : "NULL", mod->mod_type, j);
+                            slapi_log_err(SLAPI_LOG_ERR, "slapi_mods_syntax_check",
+                                          "\"%s\": (%s) value #%d (%s) invalid per syntax\n",
+                                          dn ? dn : "NULL",
+                                          mod->mod_type,
+                                          j,
+                                          escape_string(invalid_val, buffer));
                         }
 
                         if (syntaxcheck || override) {
                             if (pb) {
                                 /* Append new text to any existing text. */
                                 errp += PR_snprintf(errp, err_remaining,
-                                                    "%s: value #%d invalid per syntax\n", mod->mod_type, j);
+                                                    "%s: value #%d (%s) invalid per syntax\n",
+                                                    mod->mod_type,
+                                                    j,
+                                                    escape_string(invalid_val, buffer));
                                 err_remaining -= errp - &errtext[0];
                             }
                             ret = 1;

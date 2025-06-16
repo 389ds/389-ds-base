@@ -101,9 +101,19 @@ def test_invalid_uidnumber(topo, validate_syntax_off):
     validate_task.wait()
     exitcode = validate_task.get_exit_code()
     assert exitcode == 0
-    error_lines = inst.ds_error_log.match('.*uidNumber: value #0 invalid per syntax.*')
+    error_lines = inst.ds_error_log.match(r'.*uidNumber: value #0 \(invalid_value\) invalid per syntax.*')
     assert (len(error_lines) == 1)
     log.info('Found an invalid entry with wrong uidNumber - Success')
+
+    # Test long invalid value is truncated "..."
+    users.create_test_user(uid="Z" * 512)
+    validate_task = schema.validate_syntax(DEFAULT_SUFFIX)
+    validate_task.wait()
+    exitcode = validate_task.get_exit_code()
+    assert exitcode == 0
+    error_lines = inst.ds_error_log.match(r'.*uidNumber: value #0 \(Z.*\.\.\.\) invalid per syntax.*')
+    assert (len(error_lines) == 1)
+    log.info('Found an invalid entry with wrong uidNumber (truncated) - Success')
 
 
 def test_invalid_dn_syntax_crash(topo):
