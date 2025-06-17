@@ -344,7 +344,7 @@ def test_healthcheck_replica_busy(topology_m3):
 
     RET_CODE = 'DSREPLLE0003'
     # Is DSREPLLE0003 ignored if replica is busy ?
-    ignored = not ds_is_older("2.7")
+    ignored = not ds_is_older("2.2")
 
     S1 = topology_m3.ms['supplier1']
     S2 = topology_m3.ms['supplier2']
