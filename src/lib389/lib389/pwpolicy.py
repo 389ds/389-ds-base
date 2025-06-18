@@ -168,7 +168,7 @@ class PwPolicyManager(object):
 
             # The CoS specification entry at the subtree level
             cos_pointer_defs = CosPointerDefinitions(self._instance, dn)
-            cos_pointer_defs.create(properties={'cosAttribute': 'pwdpolicysubentry default operational',
+            cos_pointer_defs.create(properties={'cosAttribute': 'pwdpolicysubentry default operational-default',
                                                 'cosTemplateDn': cos_template.dn,
                                                 'cn': 'nsPwPolicy_CoS'})
         except ldap.LDAPError as e:
