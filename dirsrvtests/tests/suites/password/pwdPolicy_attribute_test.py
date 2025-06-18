@@ -59,17 +59,39 @@ def add_test_user(topology_st, request):
     return user
 
 
-@pytest.fixture(scope="module")
-def password_policy(topology_st, add_test_user):
+@pytest.fixture(scope="function")
+def password_policy(topology_st, request, add_test_user):
     """Set up password policy for subtree and user"""
 
     pwp = PwPolicyManager(topology_st.standalone)
     policy_props = {}
-    log.info('Create password policy for subtree {}'.format(OU_PEOPLE))
-    pwp.create_subtree_policy(OU_PEOPLE, policy_props)
+    log.info(f"Create password policy for subtree {OU_PEOPLE}")
+    try:
+        pwp.create_subtree_policy(OU_PEOPLE, policy_props)
+    except ldap.ALREADY_EXISTS:
+        log.info(f"Subtree password policy for {OU_PEOPLE} already exist, skipping")
 
-    log.info('Create password policy for user {}'.format(TEST_USER_DN))
-    pwp.create_user_policy(TEST_USER_DN, policy_props)
+    log.info(f"Create password policy for user {TEST_USER_DN}")
+    try:
+        pwp.create_user_policy(TEST_USER_DN, policy_props)
+    except ldap.ALREADY_EXISTS:
+        log.info(f"User password policy for {TEST_USER_DN} already exist, skipping")
+
+    def fin():
+        log.info(f"Delete password policy for subtree {OU_PEOPLE}")
+        try:
+            pwp.delete_local_policy(OU_PEOPLE)
+        except ValueError:
+            log.info(f"Subtree password policy for {OU_PEOPLE} doesn't exist, skipping")
+
+        log.info(f"Delete password policy for user {TEST_USER_DN}")
+        try:
+            pwp.delete_local_policy(TEST_USER_DN)
+        except ValueError:
+            log.info(f"User password policy for {TEST_USER_DN} doesn't exist, skipping")
+
+    request.addfinalizer(fin)
+
 
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
 def test_pwdReset_by_user_DM(topology_st, add_test_user):
@@ -301,8 +323,43 @@ def test_pwd_min_age(topology_st, add_test_user, password_policy):
         log.info('Bind as DM')
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         user.reset_password(TEST_USER_PWD)
-        pwp.delete_local_policy(TEST_USER_DN)
-        pwp.delete_local_policy(OU_PEOPLE)
+
+
+def test_pwdpolicysubentry(topology_st, password_policy):
+    """Verify that 'pwdpolicysubentry' attr works as expected
+    User should have a priority over a subtree.
+
+    :id: 4ab0c62a-623b-40b4-af67-99580c77b36c
+    :setup: Standalone instance, a test user,
+            password policy entries for a user and a subtree
+    :steps:
+        1. Create a subtree policy
+        2. Create a user policy
+        3. Search for 'pwdpolicysubentry' in the user entry
+        4. Delete the user policy
+        5. Search for 'pwdpolicysubentry' in the user entry
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Should point to the user policy entry
+        4. Success
+        5. Should point to the subtree policy entry
+
+    """
+
+    users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
+    user = users.get(TEST_USER_NAME)
+
+    pwp_subentry = user.get_attr_vals_utf8('pwdpolicysubentry')[0]
+    assert 'nsPwPolicyEntry_subtree' not in pwp_subentry
+    assert 'nsPwPolicyEntry_user' in pwp_subentry
+
+    pwp = PwPolicyManager(topology_st.standalone)
+    pwp.delete_local_policy(TEST_USER_DN)
+    pwp_subentry = user.get_attr_vals_utf8('pwdpolicysubentry')[0]
+    assert 'nsPwPolicyEntry_subtree' in pwp_subentry
+    assert 'nsPwPolicyEntry_user' not in pwp_subentry
+
 
 if __name__ == '__main__':
     # Run isolated
