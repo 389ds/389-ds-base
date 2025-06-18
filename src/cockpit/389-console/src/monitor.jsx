@@ -200,6 +200,84 @@ export class Monitor extends React.Component {
     }
 
     loadSuffixTree(fullReset) {
+        const basicData = [
+            {
+                name: _("Server Statistics"),
+                icon: <ClusterIcon />,
+                id: "server-monitor",
+                type: "server",
+            },
+            {
+                name: _("Replication"),
+                icon: <TopologyIcon />,
+                id: "replication-monitor",
+                type: "replication",
+                defaultExpanded: true,
+                children: [
+                    {
+                        name: _("Synchronization Report"),
+                        icon: <MonitoringIcon />,
+                        id: "sync-report",
+                        item: "sync-report",
+                        type: "repl-mon",
+                    },
+                    {
+                        name: _("Log Analysis"),
+                        icon: <MonitoringIcon />,
+                        id: "log-analysis",
+                        item: "log-analysis",
+                        type: "repl-mon",
+                    }
+                ],
+            },
+            {
+                name: _("Database"),
+                icon: <DatabaseIcon />,
+                id: "database-monitor",
+                type: "database",
+                children: [], // Will be populated with treeData on success
+                defaultExpanded: true,
+            },
+            {
+                name: _("Logging"),
+                icon: <CatalogIcon />,
+                id: "log-monitor",
+                defaultExpanded: true,
+                children: [
+                    {
+                        name: _("Access Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "access-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Audit Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "audit-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Audit Failure Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "auditfail-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Errors Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "error-log-monitor",
+                        type: "log",
+                    },
+                    {
+                        name: _("Security Log"),
+                        icon: <BookIcon size="sm" />,
+                        id: "security-log-monitor",
+                        type: "log",
+                    },
+                ]
+            },
+        ];
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
@@ -210,83 +288,7 @@ export class Monitor extends React.Component {
                 .done(content => {
                     const treeData = JSON.parse(content);
                     this.processTree(treeData);
-                    const basicData = [
-                        {
-                            name: _("Server Statistics"),
-                            icon: <ClusterIcon />,
-                            id: "server-monitor",
-                            type: "server",
-                        },
-                        {
-                            name: _("Replication"),
-                            icon: <TopologyIcon />,
-                            id: "replication-monitor",
-                            type: "replication",
-                            defaultExpanded: true,
-                            children: [
-                                {
-                                    name: _("Synchronization Report"),
-                                    icon: <MonitoringIcon />,
-                                    id: "sync-report",
-                                    item: "sync-report",
-                                    type: "repl-mon",
-                                },
-                                {
-                                    name: _("Log Analysis"),
-                                    icon: <MonitoringIcon />,
-                                    id: "log-analysis",
-                                    item: "log-analysis",
-                                    type: "repl-mon",
-                                }
-                            ],
-                        },
-                        {
-                            name: _("Database"),
-                            icon: <DatabaseIcon />,
-                            id: "database-monitor",
-                            type: "database",
-                            children: [],
-                            defaultExpanded: true,
-                        },
-                        {
-                            name: _("Logging"),
-                            icon: <CatalogIcon />,
-                            id: "log-monitor",
-                            defaultExpanded: true,
-                            children: [
-                                {
-                                    name: _("Access Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "access-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Audit Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "audit-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Audit Failure Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "auditfail-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Errors Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "error-log-monitor",
-                                    type: "log",
-                                },
-                                {
-                                    name: _("Security Log"),
-                                    icon: <BookIcon size="sm" />,
-                                    id: "security-log-monitor",
-                                    type: "log",
-                                },
-                            ]
-                        },
-                    ];
+
                     let current_node = this.state.node_name;
                     let type = this.state.node_type;
                     if (fullReset) {
@@ -294,6 +296,22 @@ export class Monitor extends React.Component {
                         type = "server";
                     }
                     basicData[2].children = treeData; // database node
+                    this.processReplSuffixes(basicData[1].children);
+
+                    this.setState(() => ({
+                        nodes: basicData,
+                        node_name: current_node,
+                        node_type: type,
+                    }), this.update_tree_nodes);
+                })
+                .fail(err => {
+                    // Handle backend get-tree failure gracefully
+                    let current_node = this.state.node_name;
+                    let type = this.state.node_type;
+                    if (fullReset) {
+                        current_node = "server-monitor";
+                        type = "server";
+                    }
                     this.processReplSuffixes(basicData[1].children);
 
                     this.setState(() => ({
