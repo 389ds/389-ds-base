@@ -694,24 +694,32 @@ class Backend(DSLdapObject):
             parent_suffix = properties.pop('parent', False)
 
         # Okay, now try to make the backend.
-        super(Backend, self).create(dn, properties, basedn)
+        backend_obj = super(Backend, self).create(dn, properties, basedn)
 
         # We check if the mapping tree exists in create, so do this *after*
         if create_mapping_tree is True:
-            properties = {
+            mapping_tree_properties = {
                 'cn': self._nprops_stash['nsslapd-suffix'],
                 'nsslapd-state': 'backend',
                 'nsslapd-backend': self._nprops_stash['cn'],
             }
             if parent_suffix:
                 # This is a subsuffix, set the parent suffix
-                properties['nsslapd-parent-suffix'] = parent_suffix
-            self._mts.create(properties=properties)
+                mapping_tree_properties['nsslapd-parent-suffix'] = parent_suffix
+
+            try:
+                self._mts.create(properties=mapping_tree_properties)
+            except Exception as e:
+                try:
+                    backend_obj.delete()
+                except Exception as cleanup_error:
+                    self._instance.log.error(f"Failed to cleanup backend after mapping tree creation failure: {cleanup_error}")
+                raise e
 
         # We can't create the sample entries unless a mapping tree was installed.
         if sample_entries is not False and create_mapping_tree is True:
             self.create_sample_entries(sample_entries)
-        return self
+        return backend_obj
 
     def delete(self):
         """Deletes the backend, it's mapping tree and all related indices.
