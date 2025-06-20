@@ -1713,6 +1713,23 @@ def is_valid_hostname(hostname):
     allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
+def is_valid_ip(ip):
+    """ Validate an IP address or wildcard pattern """
+    if '*' in ip:
+        pattern = r'^(\d{1,3}|\*)(\.(\d{1,3}|\*)){0,3}$'
+        if not re.match(pattern, ip):
+            return False
+        # Make sure each octet is between 0-255
+        octets = ip.split('.')
+        for octet in octets:
+            if octet != '*' and not (0 <= int(octet) <= 255):
+                return False
+        return True
+    try:
+        socket.inet_aton(ip)
+        return True
+    except socket.error:
+        return False
 
 def parse_size(size):
     """
