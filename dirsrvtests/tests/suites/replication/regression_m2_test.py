@@ -34,6 +34,7 @@ from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
 from lib389.topologies import topology_m2 as topo_m2, TopologyMain, create_topology, _remove_ssca_db
+from lib389.tasks import Tasks
 
 
 pytestmark = pytest.mark.tier1
