@@ -139,19 +139,7 @@ BuildRequires:    doxygen
 # For tests!
 BuildRequires:    libcmocka-devel
 # For lib389 and related components.
-BuildRequires:    python%{python3_pkgversion}
 BuildRequires:    python%{python3_pkgversion}-devel
-BuildRequires:    python%{python3_pkgversion}-setuptools
-BuildRequires:    python%{python3_pkgversion}-ldap
-BuildRequires:    python%{python3_pkgversion}-pyasn1
-BuildRequires:    python%{python3_pkgversion}-pyasn1-modules
-BuildRequires:    python%{python3_pkgversion}-dateutil
-BuildRequires:    python%{python3_pkgversion}-argcomplete
-BuildRequires:    python%{python3_pkgversion}-argparse-manpage
-BuildRequires:    python%{python3_pkgversion}-policycoreutils
-BuildRequires:    python%{python3_pkgversion}-libselinux
-BuildRequires:    python%{python3_pkgversion}-cryptography
-BuildRequires:    python%{python3_pkgversion}-psutil
 
 # For cockpit
 %if %{with cockpit}
@@ -316,20 +304,8 @@ Requires: openssl
 # This is for /usr/bin/c_rehash tool, only needed for openssl < 1.1.0
 Requires: openssl-perl
 Requires: iproute
-Requires: python%{python3_pkgversion}
-Requires: python%{python3_pkgversion}-distro
-Requires: python%{python3_pkgversion}-pytest
-Requires: python%{python3_pkgversion}-ldap
-Requires: python%{python3_pkgversion}-pyasn1
-Requires: python%{python3_pkgversion}-pyasn1-modules
-Requires: python%{python3_pkgversion}-dateutil
-Requires: python%{python3_pkgversion}-argcomplete
 Requires: python%{python3_pkgversion}-libselinux
-Requires: python%{python3_pkgversion}-setuptools
-Requires: python%{python3_pkgversion}-cryptography
-Requires: python%{python3_pkgversion}-psutil
 Recommends: bash-completion
-%{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
 
 %description -n python%{python3_pkgversion}-lib389
 This module contains tools and libraries for accessing, testing,
@@ -363,6 +339,12 @@ Requires:         python%{python3_pkgversion}-lib389 = %{version}-%{release}
 %description -n cockpit-389-ds
 A cockpit UI Plugin for configuring and administering the 389 Directory Server
 %endif
+
+%generate_buildrequires
+cd src/lib389
+# Tests do not run in %%check (lib389's tests need to be fixed)
+# but test dependencies are needed to check import lib389.topologies
+%pyproject_buildrequires -g test
 
 %prep
 %setup -q -n %{name}-%{version}
@@ -470,19 +452,10 @@ autoreconf -fiv
 %endif
 
 # lib389
-%if 0%{?fedora} >= 42 || 0%{?rhel} >= 11
-  sed -i "/prefix/s@sbin@bin@g" src/lib389/setup.py.in
-%endif
-make src/lib389/setup.py
 pushd ./src/lib389
-%py3_build
+%{python3} validate_version.py --update
+%pyproject_wheel
 popd
-# argparse-manpage dynamic man pages have hardcoded man v1 in header,
-# need to change it to v8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dsconf.8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dsctl.8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dsidm.8
-sed -i  "1s/\"1\"/\"8\"/" %{_builddir}/%{name}-%{version}/src/lib389/man/dscreate.8
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS
@@ -512,7 +485,8 @@ cp -r %{_builddir}/%{name}-%{version}/man/man3 $RPM_BUILD_ROOT/%{_mandir}/man3
 
 # lib389
 pushd src/lib389
-%py3_install
+%pyproject_install
+%pyproject_save_files -l lib389
 popd
 
 # Register CLI tools for bash completion
@@ -566,6 +540,9 @@ export TSAN_OPTIONS=print_stacktrace=1:second_deadlock_stack=1:history_size=7
 %if %{without asan} && %{without msan}
 if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; fi
 %endif
+
+# Check import for lib389 modules
+%pyproject_check_import -e '*.test*'
 
 %post
 if [ -n "$DEBUGPOSTTRANS" ] ; then
@@ -762,18 +739,24 @@ fi
 %{_libdir}/%{pkgname}/plugins/libback-bdb.so
 %endif
 
-%files -n python%{python3_pkgversion}-lib389
-%doc LICENSE LICENSE.GPLv3+
-%{python3_sitelib}/lib389*
-%{_sbindir}/dsconf
-%{_mandir}/man8/dsconf.8.gz
-%{_sbindir}/dscreate
-%{_mandir}/man8/dscreate.8.gz
-%{_sbindir}/dsctl
-%{_mandir}/man8/dsctl.8.gz
-%{_sbindir}/dsidm
-%{_mandir}/man8/dsidm.8.gz
+%files -n python%{python3_pkgversion}-lib389 -f %{pyproject_files}
+%doc src/lib389/README.md
+%license LICENSE LICENSE.GPLv3+
+# Binaries
+%{_bindir}/dsconf
+%{_bindir}/dscreate
+%{_bindir}/dsctl
+%{_bindir}/dsidm
+%{_bindir}/openldap_to_ds
 %{_libexecdir}/%{pkgname}/dscontainer
+# Man pages
+%{_mandir}/man8/dsconf.8.gz
+%{_mandir}/man8/dscreate.8.gz
+%{_mandir}/man8/dsctl.8.gz
+%{_mandir}/man8/dsidm.8.gz
+%{_mandir}/man8/openldap_to_ds.8.gz
+%exclude %{_mandir}/man1
+# Bash completions for scripts provided by python3-lib389
 %{bash_completions_dir}/dsctl
 %{bash_completions_dir}/dsconf
 %{bash_completions_dir}/dscreate
