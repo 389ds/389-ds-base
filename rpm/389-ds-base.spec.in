@@ -342,7 +342,7 @@ A cockpit UI Plugin for configuring and administering the 389 Directory Server
 
 %generate_buildrequires
 cd src/lib389
-# Tests do not run in %check (lib389's tests need to be fixed)
+# Tests do not run in %%check (lib389's tests need to be fixed)
 # but test dependencies are needed to check import lib389.topologies
 %pyproject_buildrequires -g test
 
