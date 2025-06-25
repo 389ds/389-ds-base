@@ -991,6 +991,7 @@ def test_change_repl_passwd(topo_m2, request, bind_cn):
        Testing when agmt bind group are used.
 
     :id: a305913a-cc76-11ec-b324-482ae39447e5
+    :parametrized: yes
     :setup: 2 Supplier Instances
     :steps:
         1. Insure agmt from supplier1 to supplier2 is properly set to use bind group

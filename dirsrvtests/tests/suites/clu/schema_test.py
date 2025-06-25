@@ -100,6 +100,7 @@ def test_origins(create_attribute):
     """Test the various possibilities of x-origin
 
     :id: 3229f6f8-67c1-4558-9be5-71434283086a
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add an attribute with different x-origin values/types
@@ -116,6 +117,7 @@ def test_mrs(create_attribute):
     """Test an attribute can be added with a matching rule
 
     :id: e4eb06e0-7f80-41fe-8868-08c2bafc7590
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add an attribute with a matching rule
@@ -132,6 +134,7 @@ def test_edit_attributetype(create_attribute):
     """Test editing an attribute type in the schema
 
     :id: 07c98f6a-89f8-44e5-9cc1-353d1f7bccf4
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add a new attribute type
@@ -209,6 +212,7 @@ def test_edit_attributetype_remove_superior(create_attribute):
     """Test editing an attribute type to remove a parameter from it
 
     :id: bd6ae89f-9617-4620-adc2-465884ca568b
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add a new attribute type with a superior
@@ -244,6 +248,7 @@ def test_edit_attribute_keep_custom_values(create_attribute):
     """Test editing a custom schema attribute keeps all custom values
 
     :id: 5b1e2e8b-28c2-4f77-9c03-07eff20f763d
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Create a custom attribute
