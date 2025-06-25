@@ -173,7 +173,7 @@ def test_bind_default_config(topology_st, migrated_child_config, pam_service_lda
 def test_bind_excluded_suffix(topology_st, pam_service_ldapserver, ldap_user):
     """Test PAM Passthrough Auth with excluded suffix (fallback to default config).
 
-    :id: 6e2b16c9-04c8-4dd2-ad55-e8e9c92038dd
+    :id: ddbba223-7dcd-4604-9cfc-392ab053943e
     :setup: Standalone instance
     :steps:
         1. Enable TLS (default child config requires pamSecure=True)
