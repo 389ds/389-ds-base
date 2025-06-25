@@ -31,6 +31,7 @@ import logging
 import shutil
 import ldap
 import socket
+import ipaddress
 import time
 import stat
 from datetime import (datetime, timedelta)
@@ -1636,6 +1637,45 @@ def is_valid_hostname(hostname):
     allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
+def is_valid_ip(ip):
+    """ Validate an IPv4 or IPv6 address, including asterisks for wildcards. """
+    if '*' in ip and '.' in ip:
+        ipv4_pattern = r'^(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)\.(\d{1,3}|\*)$'
+        if re.match(ipv4_pattern, ip):
+            octets = ip.split('.')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 10)
+                        if not (0 <= val <= 255):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    if '*' in ip and ':' in ip:
+        ipv6_pattern = r'^([0-9a-fA-F]{1,4}|\*)(:([0-9a-fA-F]{1,4}|\*)){0,7}$'
+        if re.match(ipv6_pattern, ip):
+            octets = ip.split(':')
+            for octet in octets:
+                if octet != '*':
+                    try:
+                        val = int(octet, 16)
+                        if not (0 <= val <= 0xFFFF):
+                            return False
+                    except ValueError:
+                        return False
+            return True
+        else:
+            return False
+
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
 
 def get_default_db_lib():
     return os.getenv('NSSLAPD_DB_LIB', default=DEFAULT_DB_LIB)
