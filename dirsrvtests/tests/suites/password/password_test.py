@@ -156,6 +156,7 @@ def test_pwd_scheme_no_upgrade_on_bind(topology_st, crypt_scheme, request, no_up
     the current hash is in nsslapd-scheme-list-no-upgrade-hash
 
     :id: b4d2c525-a239-4ca6-a168-5126da7abedd
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
         1. Create a user with userpassword stored as CRYPT

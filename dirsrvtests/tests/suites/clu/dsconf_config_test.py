@@ -58,6 +58,7 @@ def test_single_value_add(topology_st, attr_name, values_dict):
     """Test adding a single value to an attribute
 
     :id: ffc912a6-c188-413d-9c35-7f4b3774d946
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add a single value to the specified attribute
@@ -89,6 +90,7 @@ def test_single_value_replace(topology_st, attr_name, values_dict):
     """Test replacing a single value in configuration attributes
 
     :id: 112e3e5e-8db8-4974-9ea4-ed789c2d02f2
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add initial value to the specified attribute
@@ -127,6 +129,7 @@ def test_multi_value_batch_add(topology_st, attr_name, values_dict):
     """Test adding multiple values in a single batch command
 
     :id: 4c34c7f8-16cc-4ab6-938a-967537be5470
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add multiple values to the attribute in a single command
@@ -157,6 +160,7 @@ def test_multi_value_batch_replace(topology_st, attr_name, values_dict):
     """Test replacing with multiple values in a single batch command
 
     :id: 05cf28b8-000e-4856-a10b-7e1df012737d
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add initial single value
@@ -194,6 +198,7 @@ def test_multi_value_specific_delete(topology_st, attr_name, values_dict):
     """Test deleting specific values from multi-valued attribute
 
     :id: bb325c9a-eae8-438a-b577-bd63540b91cb
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add multiple values to the attribute
@@ -232,6 +237,7 @@ def test_multi_value_batch_delete(topology_st, attr_name, values_dict):
     """Test deleting multiple values in a single batch command
 
     :id: 4b105824-b060-4f83-97d7-001a01dba1a5
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add multiple values to the attribute
@@ -269,6 +275,7 @@ def test_single_value_persists_after_restart(topology_st, attr_name, values_dict
     """Test single value persists after server restart
 
     :id: be1a7e3d-a9ca-48a1-a3bc-062990d4f3e9
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add single value to the attribute
@@ -310,6 +317,7 @@ def test_multi_value_batch_persists_after_restart(topology_st, attr_name, values
     """Test multiple values added in batch persist after server restart
 
     :id: fd0435e2-90b1-465a-8968-d3a375c8fb22
+    :parametrized: yes
     :setup: Standalone DS instance
     :steps:
         1. Add multiple values in a single batch command

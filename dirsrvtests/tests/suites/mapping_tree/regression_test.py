@@ -111,6 +111,7 @@ def test_sub_suffixes(topo, orphan_param):
     """ check the entries found on suffix/sub-suffix
 
     :id: 5b4421c2-d851-11ec-a760-482ae39447e5
+    :parametrized: yes
     :feature: mapping-tree
     :setup: Standalone instance with 3 additional backends:
             dc=parent, dc=child1,dc=parent, dc=childr21,dc=parent

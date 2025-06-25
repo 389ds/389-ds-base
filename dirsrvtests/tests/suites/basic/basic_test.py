@@ -961,7 +961,7 @@ def test_basic_search_lookthroughlimit(topology_st, limit, resp, import_example_
     Tests normal search with lookthroughlimit set high and low.
 
     :id: b5119970-6c9f-41b7-9649-de9233226fec
-
+    :parametrized: yes
     :setup: Standalone instance, add example.ldif to the database, search filter (uid=*).
 
     :steps:

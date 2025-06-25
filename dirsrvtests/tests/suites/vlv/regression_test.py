@@ -775,6 +775,7 @@ def test_vlv_reindex(topology_st, prefix, basedn):
     """Test VLV reindexing.
 
     :id: d5dc0d8e-cbe6-11ee-95b1-482ae39447e5
+    :parametrized: yes
     :setup: Standalone instance.
     :steps:
         1. Cleanup leftover from previous tests
@@ -830,6 +831,7 @@ def test_vlv_offline_import(topology_st, prefix, basedn):
     """Test VLV after off line import.
 
     :id: 8732d7a8-e851-11ee-9d63-482ae39447e5
+    :parametrized: yes
     :setup: Standalone instance.
     :steps:
         1. Cleanup leftover from previous tests
