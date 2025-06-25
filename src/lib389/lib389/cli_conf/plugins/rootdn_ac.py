@@ -8,7 +8,7 @@
 
 import socket
 from lib389.plugins import RootDNAccessControlPlugin
-from lib389.utils import is_valid_hostname
+from lib389.utils import is_valid_hostname, is_valid_ip
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit
 from lib389.cli_base import CustomHelpFormatter
 
@@ -62,19 +62,13 @@ def validate_args(args):
 
     if args.allow_ip is not None:
         for ip in args.allow_ip:
-            if ip != "delete":
-                try:
-                    socket.inet_aton(ip)
-                except socket.error:
-                    raise ValueError(f"Invalid IP address ({ip}) for '--allow-ip'")
+            if ip != "delete" and not is_valid_ip(ip):
+                raise ValueError(f"Invalid IP address ({ip}) for '--allow-ip'")
 
     if args.deny_ip is not None and args.deny_ip != "delete":
         for ip in args.deny_ip:
-            if ip != "delete":
-                try:
-                    socket.inet_aton(ip)
-                except socket.error:
-                    raise ValueError(f"Invalid IP address ({ip}) for '--deny-ip'")
+            if ip != "delete" and not is_valid_ip(ip):
+                raise ValueError(f"Invalid IP address ({ip}) for '--deny-ip'")
 
     if args.allow_host is not None:
         for hostname in args.allow_host:
