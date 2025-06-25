@@ -772,7 +772,7 @@ pam_passthru_get_config(Slapi_DN *bind_sdn)
             list = PR_NEXT_LINK(list);
 
             /* Keep the default cfg as fallback. */
-            if ((is_default_config(cfg))) {
+            if ((is_default_config(cfg) == 0)) {
                 fallback_cfg = cfg;
                 continue;
             }
