@@ -326,7 +326,6 @@ void ldbm_nasty(const char *func, const char *str, int c, int err);
 void ldbm_log_access_message(Slapi_PBlock *pblock, char *string);
 int return_on_disk_full(struct ldbminfo *li);
 int ldbm_attribute_always_indexed(const char *attrtype);
-void ldbm_destroy_instance_name(struct ldbminfo *li);
 char *compute_entry_tombstone_dn(const char *entrydn, const char *uniqueid);
 char *compute_entry_tombstone_rdn(const char *entryrdn, const char *uniqueid);
 int instance_set_busy(ldbm_instance *inst);
@@ -345,6 +344,7 @@ int get_value_from_string(const char *string, char *type, char **value);
 int get_values_from_string(const char *string, char *type, char ***valuearray);
 void normalize_dir(char *dir);
 void ldbm_set_error(Slapi_PBlock *pb, int retval, int *ldap_result_code, char **ldap_result_message);
+char *convert_bytes_to_str(double bytes, char *buffer, int level);
 
 /*
  * nextid.c

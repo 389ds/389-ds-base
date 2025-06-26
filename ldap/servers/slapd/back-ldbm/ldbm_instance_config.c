@@ -76,7 +76,7 @@ ldbm_instance_config_cachesize_set(void *arg,
 
     if (apply) {
         if (CONFIG_PHASE_RUNNING == phase) {
-            if (val > 0 && inst->inst_li->li_cache_autosize) {
+            if (val > 0 && inst->inst_li->li_cache_autosize > 0) {
                 /* We are auto-tuning the cache, so this change would be overwritten - return an error */
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                                       "Error: \"nsslapd-cachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
@@ -127,7 +127,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
 
     if (apply) {
         if (CONFIG_PHASE_RUNNING == phase) {
-            if (val > 0 && inst->inst_li->li_cache_autosize) {
+            if (val > 0 && inst->inst_li->li_cache_autosize > 0) {
                 /* We are auto-tuning the cache, so this change would be overwritten - return an error */
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                                       "Error: \"nsslapd-cachememsize\" can not be updated while \"nsslapd-cache-autosize\" is set "
@@ -171,6 +171,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
             /* This value will trigger an autotune next start up, but it should increase only */
             val = MINCACHESIZE;
         }
+
         cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
     }
 
