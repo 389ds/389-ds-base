@@ -80,7 +80,7 @@ def ldap_user(topology_st, system_user):
         except Exception as e:
             log.warning("Failed to delete ldap user %s: %s", SYSTEM_USER, e)
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def pam_service_ldapserver(migrated_child_config):
     """ Setup config for pamService:ldapserver """
 
@@ -117,7 +117,7 @@ def pam_service_ldapserver(migrated_child_config):
         elif not pam_file_exists:
             os.remove(pam_file)
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def migrated_child_config(topology_st):
     """Check child config entry 'cn=default...' exists, if not skip the test."""
 
@@ -180,13 +180,17 @@ def test_bind_excluded_suffix(topology_st, pam_service_ldapserver, ldap_user):
         2. Enable the plugin and restart the instance
         3. Create a config to exclude users suffix
         4. Bind as ldap user
-        5. Check error logs for plugin message
+        5. Add user password
+        6. Bind as ldap user
+        7. Check error logs for plugin message
     :expectedresults:
         1. Success
         2. Success
         3. Success
-        4. Success
-        5. No plugin warning in logs
+        4. Bind should fail with invalid creds (no ldap passwd and not pta)
+        5. Success
+        6. Success
+        7. No plugin warning in logs
     """
     inst = topology_st.standalone
     inst.enable_tls()
@@ -214,9 +218,15 @@ def test_bind_excluded_suffix(topology_st, pam_service_ldapserver, ldap_user):
         'pamService': 'system-auth'
     })
 
-    log.info("Bind as user, excluded suffix")
-    try:
+    log.info("Bind as user, excluded suffix, no passwd")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
         ldap_user.bind(SYSTEM_PSWD)
+
+    LDAP_PWSD = "iamexcluded"
+    ldap_user.set('userpassword', LDAP_PWSD)
+    try:
+        log.info("Bind as user, excluded suffix, with passwd")
+        ldap_user.bind(LDAP_PWSD)
     except:
         pytest.fail("PTA - excluded suffix bind failed")
 
