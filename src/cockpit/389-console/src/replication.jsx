@@ -176,6 +176,16 @@ export class Replication extends React.Component {
             loaded: false
         });
 
+        const basicData = [
+            {
+                name: _("Suffixes"),
+                icon: <TopologyIcon />,
+                id: "repl-suffixes",
+                children: [],
+                defaultExpanded: true
+            }
+        ];
+
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
@@ -198,15 +208,7 @@ export class Replication extends React.Component {
                             }
                         }
                     }
-                    const basicData = [
-                        {
-                            name: _("Suffixes"),
-                            icon: <TopologyIcon />,
-                            id: "repl-suffixes",
-                            children: [],
-                            defaultExpanded: true
-                        }
-                    ];
+
                     let current_node = this.state.node_name;
                     let current_type = this.state.node_type;
                     let replicated = this.state.node_replicated;
@@ -257,6 +259,19 @@ export class Replication extends React.Component {
                     }
 
                     basicData[0].children = treeData;
+                    this.setState({
+                        nodes: basicData,
+                        node_name: current_node,
+                        node_type: current_type,
+                        node_replicated: replicated,
+                    }, () => { this.update_tree_nodes() });
+                })
+                .fail(err => {
+                    // Handle backend get-tree failure gracefully
+                    let current_node = this.state.node_name;
+                    let current_type = this.state.node_type;
+                    let replicated = this.state.node_replicated;
+
                     this.setState({
                         nodes: basicData,
                         node_name: current_node,
@@ -904,18 +919,18 @@ export class Replication extends React.Component {
                                                             disableTree: false
                                                         });
                                                     });
-                                        })
-                                        .fail(err => {
-                                            const errMsg = JSON.parse(err);
-                                            this.props.addNotification(
-                                                "error",
-                                                cockpit.format(_("Error loading replication agreements configuration - $0"), errMsg.desc)
-                                            );
-                                            this.setState({
-                                                suffixLoading: false,
-                                                disableTree: false
+                                            })
+                                            .fail(err => {
+                                                const errMsg = JSON.parse(err);
+                                                this.props.addNotification(
+                                                    "error",
+                                                    cockpit.format(_("Error loading replication agreements configuration - $0"), errMsg.desc)
+                                                );
+                                                this.setState({
+                                                    suffixLoading: false,
+                                                    disableTree: false
+                                                });
                                             });
-                                        });
                             })
                             .fail(err => {
                                 // changelog failure
