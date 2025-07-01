@@ -14,10 +14,7 @@ from lib389._constants import DIRSRV_STATE_ONLINE, DSRC_CONTAINER
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
-if MAJOR >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+import configparser
 
 # Read the paths from default.inf
 

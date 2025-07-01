@@ -39,12 +39,6 @@ from lib389.utils import (
 )
 
 __all__ = ['DirSrvTools']
-try:
-    from subprocess import Popen, PIPE, STDOUT
-    HASPOPEN = True
-except ImportError:
-    import popen2
-    HASPOPEN = False
 
 _ds_paths = Paths()
 
@@ -98,16 +92,11 @@ class DirSrvTools(object):
         env['NETSITE_ROOT'] = sroot
         env['CONTENT_LENGTH'] = str(length)
         progdir = os.path.dirname(prog)
-        if HASPOPEN:
-            pipe = Popen(prog, cwd=progdir, env=env,
-                         stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-            child_stdin = pipe.stdin
-            child_stdout = pipe.stdout
-        else:
-            saveenv = os.environ
-            os.environ = env
-            child_stdout, child_stdin = popen2.popen2(prog)
-            os.environ = saveenv
+        pipe = subprocess.Popen(prog, cwd=progdir, env=env,
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        child_stdin = pipe.stdin
+        child_stdout = pipe.stdout
         child_stdin.write(content)
         child_stdin.close()
         for line in child_stdout:
@@ -118,10 +107,9 @@ class DirSrvTools(object):
                 exitCode = ary[1].strip()
                 break
         child_stdout.close()
-        if HASPOPEN:
-            osCode = pipe.wait()
-            print("%s returned NMC code %s and OS code %s" %
-                  (prog, exitCode, osCode))
+        osCode = pipe.wait()
+        print("%s returned NMC code %s and OS code %s" %
+              (prog, exitCode, osCode))
         return exitCode
 
     @staticmethod
@@ -457,14 +445,10 @@ class DirSrvTools(object):
             cmd.extend(['-l', '/dev/null'])
         cmd.extend(['-s', '-f', '-'])
         log.debug("running: %s " % cmd)
-        if HASPOPEN:
-            pipe = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-            child_stdin = pipe.stdin
-            child_stdout = pipe.stdout
-        else:
-            pipe = popen2.Popen4(cmd)
-            child_stdin = pipe.tochild
-            child_stdout = pipe.fromchild
+        pipe = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        child_stdin = pipe.stdin
+        child_stdout = pipe.stdout
         child_stdin.write(ensure_bytes(content))
         child_stdin.close()
         if verbose:
