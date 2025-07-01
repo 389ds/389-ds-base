@@ -2083,6 +2083,7 @@ struct snmp_vars_t
 #define ENTRY_POINT_SLAPD_SSL_CLIENT_INIT 108
 #define ENTRY_POINT_SLAPD_SSL_INIT 109
 #define ENTRY_POINT_SLAPD_SSL_INIT2 110
+#define ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED 111
 
 typedef void (*ps_wakeup_all_fn_ptr)(void);
 typedef void (*ps_service_fn_ptr)(Slapi_Entry *, Slapi_Entry *, int, int);
@@ -2091,6 +2092,7 @@ typedef void (*get_disconnect_server_fn_ptr)(Connection *conn, PRUint64 opconnid
 typedef int (*modify_config_dse_fn_ptr)(Slapi_PBlock *pb);
 typedef int (*slapd_ssl_init_fn_ptr)(void);
 typedef int (*slapd_ssl_init_fn_ptr2)(PRFileDesc **s, int StartTLS);
+typedef void (*slapd_ssl_set_cert_refresh_asked_ptr)(bool val);
 
 /*
  * A structure of entry points in the NT exe which need
@@ -2103,6 +2105,7 @@ typedef struct _slapdEntryPoints
     caddr_t sep_disconnect_server;
     caddr_t sep_slapd_ssl_init;
     caddr_t sep_slapd_ssl_init2;
+    caddr_t sep_slapd_ssl_refresh_certs;
 } slapdEntryPoints;
 
 #define DLL_IMPORT_DATA
@@ -2408,6 +2411,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_RETURN_DEFAULT_OPATTR "nsslapd-return-default-opattr"
 #define CONFIG_REFERRAL_CHECK_PERIOD "nsslapd-referral-check-period"
 #define CONFIG_RETURN_ENTRY_DN "nsslapd-return-original-entrydn"
+#define CONFIG_REFRESH_CERTS "nsslapd-refresh-certificates"
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 

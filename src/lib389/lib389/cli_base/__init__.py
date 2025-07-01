@@ -468,8 +468,9 @@ class LogCapture(logging.Handler):
 
 
 class FakeArgs(object):
-    def __init__(self):
-        pass
+    def __init__(self, **kwargs):
+        for k,v in kwargs.items():
+            setarg(self, k, v)
 
     def __len__(self):
         return len(self.__dict__.keys())
