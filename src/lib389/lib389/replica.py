@@ -917,7 +917,7 @@ class RUV(object):
             ValueError("Wrong CSN value was supplied")
 
         timestamp = int(csn[:8], 16)
-        time_str = datetime.datetime.fromtimestamp(timestamp, datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')
+        time_str = datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         # We are parsing shorter CSN which contains only timestamp
         if len(csn) == 8:
             return time_str
