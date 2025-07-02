@@ -9164,16 +9164,29 @@ config_set_return_orig_dn(const char *attrname, char *value, char *errorbuf, int
 int32_t
 config_get_refresh_certs()
 {
-    return LDAP_OFF;
+    int32_t retVal = 0;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->ssl_refresh_certs;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 int32_t
 config_set_refresh_certs(const char *attrname, char *value, char *errorbuf, int apply)
 {
+    int32_t retVal = 0;
+
     if (apply) {
         caddr_t cb = NULL;
+        slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+        retVal = config_set_onoff(attrname, value,
+                                  &(slapdFrontendConfig->ssl_refresh_certs),
+                                  errorbuf, apply);
         get_entry_point(ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED, &cb);
-        if (cb) {
+        if (cb && retVal == LDAP_SUCCESS && slapdFrontendConfig->ssl_refresh_certs == LDAP_ON) {
             ((slapd_ssl_set_cert_refresh_asked_ptr)cb)(true);
         }
     }

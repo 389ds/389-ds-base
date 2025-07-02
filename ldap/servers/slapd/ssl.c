@@ -37,6 +37,8 @@
 #define MAXPATHLEN 1024
 #endif
 
+#include "sslimpl.h"
+
 
 /******************************************************************************
  * Default SSL Version Rule
@@ -1766,6 +1768,10 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                     }
 
                     certKEA = NSS_FindCertKEAType(cert);
+                    slapd_SSL_info("ConfigSecureServer: Setting up the server certificate for familly %s", *family);
+                    slapd_SSL_info("ConfigSecureServer:    Name is: %s", cert_name);
+                    slapd_SSL_info("ConfigSecureServer:    Subject is: %s", cert->subjectName);
+                    slapd_SSL_info("ConfigSecureServer:    Issuer is: %s", cert->issuerName);
                     rv = SSL_ConfigSecureServer(*fd, cert, key, certKEA);
                     if (SECSuccess != rv) {
                         errorCode = PR_GetError();
@@ -3051,31 +3057,110 @@ slapi_set_cacertfile(char *certfile)
     CACertPemFile = certfile;
 }
 
+/*
+ * Function handling on line certificat refresh
+ */
+static void
+reset_nss_slot(void)
+{
+    /*
+     * Remove the internal module to ensure that PK11_FindCertFromNickname
+     * returns the new certificate
+     */
+    SECMODModule *module = SECMOD_GetInternalModule();
+    int rv = SECMOD_DeleteInternalModule(module->commonName);
+    slapd_SSL_info("Reset nss intern al slot. rv=%d\n", rv);
+}
+
+static void
+pop_ssl_layer(PRFileDesc *fd)
+{
+    /*
+     * Remove ssl layer from listening fd stack to stop using the old
+     * certificate
+     */
+    PRFileDesc *oldsock = PR_PopIOLayer(fd, PR_TOP_IO_LAYER);
+    PRDescIdentity id = PR_GetLayersIdentity(oldsock);
+    const char *name = PR_GetNameForIdentity(id);
+    slapi_log_err(SLAPI_LOG_DEBUG, "pop_ssl_layer", "Poping %s layer\n", name);
+    oldsock->dtor(oldsock); /* Call nspr layer destructor */
+}
+
+void
+dbg_fd_stack(PRFileDesc *stack, const char *msg)
+{
+    PRFileDesc *fd = stack;
+    CERTCertList *list = PK11_ListCerts(PK11CertListAll, NULL);
+    CERTCertListNode *node;
+    int i = 0;
+    for (node = CERT_LIST_HEAD(list); !CERT_LIST_END(node, list);
+        node = CERT_LIST_NEXT(node)) {
+        CERTCertificate *cert = node->cert;
+        slapd_SSL_info("dbg_fd_stack:    Subject is: %s", cert->subjectName);
+        slapd_SSL_info("dbg_fd_stack:    Issuer is: %s", cert->issuerName);
+    }
+    while (fd) {
+        PRDescIdentity id = PR_GetLayersIdentity(fd);
+        const char *name = PR_GetNameForIdentity(id);
+        slapi_log_err(SLAPI_LOG_INFO, "dbg_fd_stack", "stack %p layer [%d] %p id=%d name=%s - %s\n", stack, i++, fd, id, name, msg);
+        if (name && strcmp(name,"SSL")==0) {
+            sslSocket *ss = (sslSocket *)fd->secret;
+            if (ss) {
+                slapi_log_err(SLAPI_LOG_INFO, "dbg_fd_stack", "ss %p url=%s handle=%p\n", ss, ss->url, ss->dbHandle);
+            }
+        }
+        fd = fd->lower;
+    }
+}
+
 void
 refresh_certs(daemon_ports_t *ports)
 {
+    /*
+     * replace the server certificate(s)
+     */
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     PRFileDesc **sock = NULL;
 
     slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
                   "Refresh in propgress.\n");
+
+    /* Perform some cleanup */
+    _nss_initialized = 0;
     _security_library_initialized = 0;
+    reset_nss_slot();
+    for (sock = ports->s_socket; sock && *sock; sock++) {
+        dbg_fd_stack(*sock, "Before refresh");
+        pop_ssl_layer(*sock);
+    }
+    /* SSL_ClearSessionCache(); */
+
+    /* In error case, there are no good choices:
+     *   Going on using the old certificates may be a security risk.
+     *   Stopping the instance and risking a Deny of Service is also bad
+     *   but arguably safer, so it is the chosen solution
+     */
+    if (slapd_nss_init(1, 1) /* have config? */) {
+        slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
+            "Failed to reinitialize nss. Stopping the server.");
+    }
+
     slapd_ssl_init();
     if (_security_library_initialized == 0) {
-            slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
-                "Failed to reinitialize the security module. Stopping the server.");
-        }
+        slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
+            "Failed to reinitialize the security module. Stopping the server.");
+    }
 
     for (sock = ports->s_socket; sock && *sock; sock++) {
         if (slapd_ssl_init2(sock, 0)) {
-            /* In error case, there are no good choices:
-             *   Going on using the old certificates may be a security risk.
-             *   Stopping the instance and risking a Deny of Service is also bad
-             *   but arguably safer, so it is the chosen solution
-             */
             slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
                 "Failed to update the new certificates. Stopping the server.");
         }
+        dbg_fd_stack(*sock, "After refresh");
     }
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->ssl_refresh_certs = LDAP_OFF;
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
     slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
                   "Refresh completed propgress.\n");
 }

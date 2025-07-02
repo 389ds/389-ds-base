@@ -14,16 +14,17 @@ import ldapurl
 import logging
 import secrets
 import socket
-import time
 import subprocess
 import textwrap
+import time
+from contextlib import contextmanager
 from lib389.cli_base import FakeArgs
 from lib389.cli_ctl.tls import import_key_cert_pair
 from lib389.dseldif import DSEldif
 from lib389.utils import ds_is_older, ensure_str
 from lib389._constants import DN_DM, PW_DM
 from lib389.topologies import topology_st as topo
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 
 pytestmark = pytest.mark.tier1
 
@@ -35,6 +36,41 @@ else:
 log = logging.getLogger(__name__)
 
 tls_enabled = False
+
+
+@contextmanager
+def redirect_stdio(msg):
+    # Used to log stdin/stdout in pytest logs
+    with NamedTemporaryFile('w+t') as f:
+        oldstdout = os.dup(1)
+        oldstderr = os.dup(2)
+        os.dup2(f.fileno(), 1)
+        os.dup2(f.fileno(), 2)
+        try:
+            yield f
+        finally:
+            os.dup2(oldstdout, 1)
+            os.dup2(oldstderr, 2)
+            os.close(oldstdout)
+            os.close(oldstderr)
+            f.seek(0)
+            log.info(f'STDIO TRACE: start of {msg} traces')
+            for line in f:
+                log.info(f'STDIO TRACE: {line.rstrip()}')
+            log.info(f'STDIO TRACE: end of {msg} traces')
+
+
+@contextmanager
+def traced_ldap_connection(url, msg):
+    # Open ldap connection with traces
+    with redirect_stdio(msg) as f:
+        ldap.set_option(ldap.OPT_DEBUG_LEVEL, -1)
+        ldap.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+        l = ldap.initialize(url, trace_level=0, trace_file=f, trace_stack_limit=1)
+        try:
+            yield l
+        finally:
+            l.unbind()
 
 
 ################################
@@ -195,7 +231,8 @@ class ECDSA_Certificate:
         self.run(("openssl", "x509", "-text", "-in", self.pem))
         self.run(("openssl", "pkcs12", "-export", "-inkey", self.key, "-in", self.pem, "-name", f"ecdsaw-{self.prefix}", "-out", self.p12, "-passin", f"file:{self.pw1}", "-passout", f"file:{self.pw2}"))
 
-
+    def __repr__(self):
+        return self.prefix
 
 
 #############################
@@ -219,6 +256,24 @@ def install_certs(ca, cert, inst):
     import_key_cert_pair(inst, log, args)
 
 
+#########################################################
+###### Work around to debug libldap/liblber CERT ########
+#########################################################
+
+def open_ldap(url, logfile):
+    if logfile is not None:
+        lutil_debug_file(logfile)
+        ldap.set_option(ldap.OPT_DEBUG_LEVEL, -1)
+        loglv = 3
+    else:
+        lutil_debug_file(logfile)
+        ldap.set_option(ldap.OPT_DEBUG_LEVEL, 0)
+        loglv = 0
+        logfile = sys.stderr
+    ldap.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+    return ldap.initialize(url, trace_level=loglv, trace_file=logfile)
+
+
 #########################
 ###### TEST CERT ########
 #########################
@@ -226,46 +281,51 @@ def install_certs(ca, cert, inst):
 def open_ldaps_conn(inst, ca):
     url = inst.toLDAPURL()
     log.info(f'Attempt to connect to {url} using {ca.pem}')
-    ld = ldap.initialize(url, trace_level=0, trace_file=sys.stderr)
-    ld.protocol_version=ldap.VERSION3
-    ld.set_option(ldap.OPT_DEBUG_LEVEL, 255 )
-    ld.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+    ld = ldap.initialize(url)
     #ld.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_NEVER)
     ld.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_DEMAND)
     ld.set_option(ldap.OPT_X_TLS_CACERTFILE, f'{ca.pem}')
-    ld.set_option(ldap.OPT_X_TLS_NEWCTX,0)
-    ld.simple_bind_s(DN_DM, PW_DM)
+    ld.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
     return ld
 
 
-def open_ldapi_conn(inst):
+def open_ldapi_conn(inst, logfile=None):
     dse = DSEldif(inst)
     ldapi_socket = dse.get('cn=config', 'nsslapd-ldapifilepath', single=True)
     url = "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
-    ld = ldap.initialize(url, trace_level=0, trace_file=sys.stderr)
-    ld.protocol_version=ldap.VERSION3
-    ld.set_option(ldap.OPT_DEBUG_LEVEL, 255 )
-    ld.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+    ld = ldap.initialize(url)
     # Perform autobind
     sasl_auth = ldap.sasl.external()
     ld.sasl_interactive_bind_s("", sasl_auth)
     return ld
 
 
-def tls_search(inst, ca):
-    ld = open_ldaps_conn(inst, ca)
-    results = ld.search_s('', ldap.SCOPE_BASE)
-    log.info(f'search returned {len(results)} entries')
-    ld.unbind()
-    return results
+def tls_search(capsys, inst, ca):
+    with traced_ldap_connection(inst.toLDAPURL(), f'ldaps bind using CA {ca}') as ld:
+        #ld.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_NEVER)
+        ld.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_DEMAND)
+        ld.set_option(ldap.OPT_X_TLS_CACERTFILE, f'{ca.pem}')
+        ld.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+        ld.simple_bind_s(DN_DM, PW_DM)
+
 
 #
 #  Ideally There should be a dsctl/dsconf subcommand
 #
-def refresh_certs(inst):
+def refresh_certs(inst, timeout=60):
     ld = open_ldapi_conn(inst)
     ld.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-refresh-certificates', b'on')])
-    ld.unbind()
+    # Now lets wait until the config value is off again
+    for i in range(timeout):
+        result = ld.search_s('cn=config', ldap.SCOPE_BASE, attrlist=['nsslapd-refresh-certificates',])
+        log.info(f'cn=config result: {result}')
+        attrs = result[0][1]
+        vals = attrs['nsslapd-refresh-certificates']
+        if vals[0].decode("utf-8").lower() == "off":
+            ld.unbind()
+            return
+        time.sleep(1)
+    raise TimeoutError(f"Certificate not changed after {timeout} secopnds")
 
 
 def test_ecdsa(topo):
@@ -301,8 +361,8 @@ def test_ecdsa(topo):
         tls_search(inst, ca)
 
 
-def test_refresh_ecdsa(topo):
-    """Specify a test case purpose or name here
+def test_refresh_ecdsa(topo, capsys):
+    """Test dynamic refresh of certificate
 
     :id: 96039bce-5370-11f0-9de5-c85309d5c3e3
     :setup: Standalone Instance
@@ -313,13 +373,13 @@ def test_refresh_ecdsa(topo):
         4. Restart the server
         5. Open ldaps connection with server CA certificate and search root entry
         6. Open a second ldaps connection with server CA certificate and keep it open
-        7. Install the second set of certificates
-        8. Set the certificate refresh attribute to true (using ldapi)
-        9. Wait a bit until certificates get replaced
-        10. Perform a search on the open connection
+        7. Open a third ldaps connection with server CA2 certificate and keep it open
+        8. Install the second set of certificates
+        9. Set the certificate refresh attribute to true (using ldapi)
+        10. Wait a bit until certificates get replaced
         11. Open ldaps connection with new server CA certificate and search root entry
-        12. Open ldaps connection with old server CA certificate and search root entry
-        13. Close the open connection
+        12. Perform a search on the second open connection
+        13. Perform a search on the third open connection
     :expectedresults:
         1. No error
         2. No error
@@ -332,7 +392,7 @@ def test_refresh_ecdsa(topo):
         9. No error
         10. No error
         11. No error
-        12. LDAP_SERVER_DOWN because certificate could not be verified
+        12. ldap.SERVER_DOWN because the old CA does not match the server one
         13. No error
     """
 
@@ -342,7 +402,6 @@ def test_refresh_ecdsa(topo):
         inst.enable_tls()
         tls_enabled = True
     with TemporaryDirectory() as dir:
-        dir="/home/progier/sb/i1108/389-ds-base/dirsrvtests/tests/suites/tls/tmp"
         ca = ECDSA_Certificate("CA", dir)
         ca.generate_CA()
         cert = ECDSA_Certificate("Cert", dir)
@@ -352,23 +411,35 @@ def test_refresh_ecdsa(topo):
         cert2 = ECDSA_Certificate("Cert2", dir)
         cert2.generate_cert(ca2)
 
-        install_certs(ca2, cert2, inst)
-        inst.restart(post_open=False)
-        tls_search(inst, ca2)
-
         install_certs(ca, cert, inst)
         inst.restart(post_open=False)
-        tls_search(inst, ca)
+        tls_search(capsys, inst, ca)
         ld = open_ldaps_conn(inst, ca)
+        ld2 = open_ldaps_conn(inst, ca2)
 
         install_certs(ca2, cert2, inst)
         refresh_certs(inst)
-        time.sleep(1)
-        results = ld.search_s('', ldap.SCOPE_BASE)
-        assert len(results) == 1
-        tls_search(inst, ca2)
-        ld.unbind()
 
+        # if we restart the next tls_search is OK and ld.search_s fails as expected
+        # if we dont the tls_search fails ==> something is down
+        tls_search(capsys, inst, ca2)
+        # When trying to use an already open connection with the old CA.
+        # the server renegotiate the SSL after server certificate change
+        # So the ldap operation fails
+        with pytest.raises(ldap.SERVER_DOWN):
+            with redirect_stdio("Search using already open connection with CA 'CA'"):
+                # Although connection is open, the certificate change triggers a renegotiation
+                # That must be done with the new certificate
+                results = ld.search_s('', ldap.SCOPE_BASE)
+                assert len(results) == 1
+                ld.unbind()
+
+        with redirect_stdio("Search using already open connection with CA 'CA2'"):
+            # Although connection is open, the certificate change triggers a renegotiation
+            # That must be done with the new certificate
+            results = ld2.search_s('', ldap.SCOPE_BASE)
+            assert len(results) == 1
+            ld2.unbind()
 
 if __name__ == '__main__':
     # Run isolated

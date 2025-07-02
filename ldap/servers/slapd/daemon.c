@@ -83,6 +83,7 @@ int slapd_ct_thread_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup *
 short slapd_housekeeping_timer = 10;
 #endif /* notdef GGOODREPL */
 
+
 #define FDS_SIGNAL_PIPE 0
 #define FDS_PROCESS_MAX 64000
 
@@ -121,6 +122,7 @@ static PRFileDesc *tls_listener = NULL; /* Stashed tls listener for get_ssl_list
 
 static int cert_refresh_nbthreads = -1;
 static int32_t cert_refresh_asked = 0;
+static int32_t refresh_cert_count = 1;
 static pthread_mutex_t cert_refresh_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cert_refresh_cv = PTHREAD_COND_INITIALIZER;
 
@@ -1003,13 +1005,13 @@ accept_thread(void *vports)
     PRFileDesc **n_tcps = NULL;
     PRFileDesc **s_tcps = NULL;
     PRFileDesc **i_unix = NULL;
+    int32_t last_refresh_cert_count = 0;
+    int32_t cur_refresh_cert_count = 0;
     n_tcps = ports->n_socket;
     s_tcps = ports->s_socket;
 #if defined(ENABLE_LDAPI)
     i_unix = ports->i_socket;
 #endif /* ENABLE_LDAPI */
-
-    num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, &fds);
 
     while (!g_get_shutdown()) {
         /* Do we need to accept new connections, account for ct->size including list heads. */
@@ -1032,6 +1034,16 @@ accept_thread(void *vports)
         }
 
         wait4certs_refresh(ports);
+        cur_refresh_cert_count = slapi_atomic_load_32(&refresh_cert_count, __ATOMIC_RELAXED);
+        if (cur_refresh_cert_count != last_refresh_cert_count) {
+            last_refresh_cert_count = cur_refresh_cert_count;
+            /*
+             * refresh_cert() has been called so the PR_FileDesc may
+             * have changed ==> Lets recompute the poll list
+             */
+            slapi_ch_free((void **)&fds);
+            num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, &fds);
+        }
         select_return = POLL_FN(fds, num_poll, pr_timeout);
         switch (select_return) {
         case 0: /* Timeout */
@@ -3189,6 +3201,7 @@ wait4certs_refresh(daemon_ports_t *ports)
             /* This is the accept thread and all listening threads are blocked.
              * ==> time to updatye the certificates */
             refresh_certs(ports);
+            slapi_atomic_incr_32(&refresh_cert_count, __ATOMIC_RELAXED),
             set_cert_refresh_asked(false);
             pthread_cond_broadcast(&cert_refresh_cv);
        }

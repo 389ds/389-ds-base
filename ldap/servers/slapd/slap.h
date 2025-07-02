@@ -2780,6 +2780,7 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t return_orig_dn;
     slapi_onoff_t pw_admin_skip_info;
     char *auditlog_display_attrs;
+    slapi_onoff_t ssl_refresh_certs;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
