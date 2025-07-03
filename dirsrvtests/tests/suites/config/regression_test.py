@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,9 +10,10 @@ import os
 import logging
 import pytest
 import time
+from lib389._mapped_object import DSLdapObject
 from lib389.utils import *
 from lib389.dseldif import DSEldif
-from lib389.config import BDB_LDBMConfig, LDBMConfig, Config
+from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig, LDBMConfig, Config
 from lib389.backend import Backends
 from lib389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
@@ -85,7 +86,12 @@ def test_set_cachememsize_to_custom_value(topo):
         4. nsslapd-cachememsize is successfully set
     """
 
-    config_ldbm = LDBMConfig(topo.standalone)
+    if get_default_db_lib() == "bdb":
+        config_ldbm = BDB_LDBMConfig(topo.standalone)
+        config_ldbm.set('nsslapd-dbcachesize', '0')
+    else:
+        config_ldbm = LMDB_LDBMConfig(topo.standalone)
+
     backends = Backends(topo.standalone)
     userroot_ldbm = backends.get("userroot")
 
