@@ -70,7 +70,7 @@ typedef enum {
 
 /* static functions */
 static void entrycache_clear_int(struct cache *cache);
-static void entrycache_set_max_size(struct cache *cache, uint64_t bytes);
+static void entrycache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned);
 static int entrycache_remove_int(struct cache *cache, struct backentry *e);
 static void entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked);
 static int entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry *newe);
@@ -82,7 +82,7 @@ static void entry_lru_verify(struct cache *cache, struct backentry *e, int in);
 
 static int dn_same_id(const void *bdn, const void *k);
 static void dncache_clear_int(struct cache *cache);
-static void dncache_set_max_size(struct cache *cache, uint64_t bytes);
+static void dncache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned);
 static int dncache_remove_int(struct cache *cache, struct backdn *dn);
 static void dncache_return(struct cache *cache, struct backdn **bdn);
 static int dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn);
@@ -821,17 +821,17 @@ cache_destroy_please(struct cache *cache, int type)
 }
 
 void
-cache_set_max_size(struct cache *cache, uint64_t bytes, int type)
+cache_set_max_size(struct cache *cache, uint64_t bytes, int type, bool autotuned)
 {
     if (CACHE_TYPE_ENTRY == type) {
-        entrycache_set_max_size(cache, bytes);
+        entrycache_set_max_size(cache, bytes, autotuned);
     } else if (CACHE_TYPE_DN == type) {
-        dncache_set_max_size(cache, bytes);
+        dncache_set_max_size(cache, bytes, autotuned);
     }
 }
 
 static void
-entrycache_set_max_size(struct cache *cache, uint64_t bytes)
+entrycache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
 {
     struct backentry *eflush = NULL;
     struct backentry *eflushtemp = NULL;
@@ -847,6 +847,10 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes)
     }
     cache_lock(cache);
     cache->c_maxsize = bytes;
+    if (!autotuned) {
+        /* Manually tuned value */
+        cache->c_config_maxsize = bytes;
+    }
     LOG("entry cache size set to %" PRIu64 "\n", bytes);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {
@@ -876,7 +880,7 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes)
 }
 
 void
-cache_set_max_entries(struct cache *cache, int64_t entries)
+cache_set_max_entries(struct cache *cache, int64_t entries, bool autotuned)
 {
     struct backentry *eflush = NULL;
     struct backentry *eflushtemp = NULL;
@@ -887,6 +891,10 @@ cache_set_max_entries(struct cache *cache, int64_t entries)
      */
     cache_lock(cache);
     cache->c_maxentries = entries;
+    if (!autotuned) {
+        /* Manually tuned value */
+        cache->c_config_maxentries = entries;
+    }
     if (entries >= 0) {
         LOG("entry cache entry-limit set to %lu\n", entries);
     } else {
@@ -910,7 +918,12 @@ cache_get_max_size(struct cache *cache)
     uint64_t n = 0;
 
     cache_lock(cache);
-    n = cache->c_maxsize;
+    if (g_get_shutdown()) {
+        /* We are shutting down, return the manually set value */
+        n = cache->c_config_maxsize;
+    } else {
+        n = cache->c_maxsize;
+    }
     cache_unlock(cache);
     return n;
 }
@@ -921,7 +934,12 @@ cache_get_max_entries(struct cache *cache)
     int64_t n;
 
     cache_lock(cache);
-    n = cache->c_maxentries;
+    if (g_get_shutdown()) {
+        /* We are shutting down, return the manually set value */
+        n = cache->c_config_maxentries;
+    } else {
+        n = cache->c_maxentries;
+    }
     cache_unlock(cache);
     return n;
 }
@@ -1809,7 +1827,7 @@ dn_same_id(const void *bdn, const void *k)
 }
 
 static void
-dncache_set_max_size(struct cache *cache, uint64_t bytes)
+dncache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
 {
     struct backdn *dnflush = NULL;
     struct backdn *dnflushtemp = NULL;
@@ -1822,6 +1840,10 @@ dncache_set_max_size(struct cache *cache, uint64_t bytes)
     }
     cache_lock(cache);
     cache->c_maxsize = bytes;
+    if (!autotuned) {
+        /* Manually tuned value */
+        cache->c_config_maxsize = bytes;
+    }
     LOG("entry cache size set to %" PRIu64 "\n", bytes);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {

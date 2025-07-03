@@ -73,21 +73,21 @@ ldbm_instance_config_cachesize_set(void *arg,
     long val = (long)value;
 
     /* Do whatever we can to make sure the data is ok. */
+    if (CONFIG_PHASE_RUNNING == phase) {
+        if (val > 0 && inst->inst_li->li_cache_autosize) {
+            /* We are auto-tuning the cache, so this change would be overwritten - return an error */
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "Error: \"nsslapd-cachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
+                                  "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachesize_set",
+                          "\"nsslapd-cachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
+                          "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
 
     if (apply) {
-        if (CONFIG_PHASE_RUNNING == phase) {
-            if (val > 0 && inst->inst_li->li_cache_autosize) {
-                /* We are auto-tuning the cache, so this change would be overwritten - return an error */
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                                      "Error: \"nsslapd-cachesize\" can not be updated while \"nsslapd-cache-autosize\" is set "
-                                      "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".");
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_config_cachesize_set",
-                              "\"nsslapd-cachesize\" can not be set while \"nsslapd-cache-autosize\" is set "
-                              "in \"cn=config,cn=ldbm database,cn=plugins,cn=config\".\n");
-                return LDAP_UNWILLING_TO_PERFORM;
-            }
-        }
-        cache_set_max_entries(&(inst->inst_cache), val);
+        cache_set_max_entries(&(inst->inst_cache), val, false /* not autotuned */);
     }
 
     return retval;
@@ -138,6 +138,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
+
         if (val > inst->inst_cache.c_maxsize) {
             delta = val - inst->inst_cache.c_maxsize;
             delta_original = delta;
@@ -171,7 +172,7 @@ ldbm_instance_config_cachememsize_set(void *arg,
             /* This value will trigger an autotune next start up, but it should increase only */
             val = MINCACHESIZE;
         }
-        cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
+        cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY, false /* not autotuned */);
     }
 
     return retval;
@@ -225,7 +226,7 @@ ldbm_instance_config_dncachememsize_set(void *arg,
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
-        cache_set_max_size(&(inst->inst_dncache), val, CACHE_TYPE_DN);
+        cache_set_max_size(&(inst->inst_dncache), val, CACHE_TYPE_DN, false /* not autotuned */);
     }
 
     return retval;
@@ -554,8 +555,6 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
     read_instance_index_entries(inst);
     /* Read the attribute encryption entries */
     read_instance_attrcrypt_entries(inst);
-
-
 
     return 0;
 }

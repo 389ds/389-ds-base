@@ -1763,7 +1763,7 @@ bdb_instance_start(backend *be, int mode)
      */
     if (inst->inst_nextid > MAXID && !(mode & DBLAYER_EXPORT_MODE)) {
         slapi_log_err(SLAPI_LOG_CRIT, "bdb_instance_start", "Backend '%s' "
-                                                                "has no IDs left. DATABASE MUST BE REBUILT.\n",
+                      "has no IDs left. DATABASE MUST BE REBUILT.\n",
                       be->be_name);
         return 1;
     }
@@ -1776,6 +1776,119 @@ errout:
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
     return return_value;
+}
+
+static int
+bdb_get_page_count(dbi_db_t *db, uint32_t *count)
+{
+    DB_BTREE_STAT *stats = NULL;
+    dbi_txn_t *txn = NULL;
+    int rc;
+
+    rc = ((DB*)db)->stat(db, (DB_TXN*)txn, (void *)&stats, 0);
+    if (rc != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_get_page_count",
+                      "Failed to get bd statistics: db error - %d %s\n",
+                      rc, db_strerror(rc));
+        rc = DBI_RC_OTHER;
+    }
+    *count = rc ? 0 : stats->bt_pagecnt;
+    slapi_ch_free((void **)&stats);
+    return rc;
+}
+
+/*
+ * Get the page count for this backend instance
+ * If any error occurs just return 0
+ */
+uint32_t
+bdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst)
+{
+    if (!inst->inst_id2entry) {
+        /* The backend env was not started - must be server startup
+         * If any error occurs the backend might not be initilaized
+         * so just set 0 for the page count */
+        int return_value = -1;
+        bdb_db_env *mypEnv = NULL;
+        int open_flags = DB_CREATE;
+        dbi_db_t *id2entry_db = NULL;
+        dblayer_private *priv = li->li_dblayer_private;
+        char *id2entry_file = NULL;
+        char *data_directories[2] = {0};
+        char inst_dir[MAXPATHLEN];
+        char *inst_dirp = NULL;
+        bdb_config *conf = (bdb_config *)li->li_dblayer_config;
+        size_t cachesize = DEFAULT_DBCACHE_SIZE;
+
+        return_value = bdb_make_env(&mypEnv, li);
+        mypEnv->bdb_DB_ENV->set_cachesize(mypEnv->bdb_DB_ENV,
+                                          cachesize / GIGABYTE,
+                                          cachesize % GIGABYTE,
+                                          conf->bdb_ncache);
+
+        mypEnv->bdb_openflags = DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE;
+        data_directories[0] = inst->inst_parent_dir_name;
+        bdb_set_data_dir(mypEnv, data_directories);
+
+        inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
+        if (inst_dirp && *inst_dirp) {
+            if (bdb_grok_directory(inst_dirp, DBLAYER_DIRECTORY_READWRITE_ACCESS)) {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+
+        if ((mypEnv->bdb_DB_ENV->open)(mypEnv->bdb_DB_ENV,
+                                       inst_dirp,
+                                       mypEnv->bdb_openflags,
+                                       priv->dblayer_file_mode))
+        {
+            bdb_free_env((void **)&mypEnv);
+            if (inst_dirp != inst_dir) {
+                slapi_ch_free_string(&inst_dirp);
+            }
+            return 0;
+        }
+
+        if (dbbdb_create_db_for_open(inst->inst_be,
+                                     "bdb_instance_start",
+                                     open_flags,
+                                     (DB**)&id2entry_db,
+                                     mypEnv->bdb_DB_ENV))
+
+        {
+            mypEnv->bdb_DB_ENV->close(mypEnv->bdb_DB_ENV, 0);
+            bdb_free_env((void **)&mypEnv);
+            return 0;
+        }
+        id2entry_file = slapi_ch_smprintf("%s/%s", inst->inst_dir_name,
+                                          ID2ENTRY LDBM_FILENAME_SUFFIX);
+        DB_OPEN(mypEnv->bdb_openflags,
+                (DB *)id2entry_db, NULL /* txnid */, id2entry_file, NULL, DB_BTREE,
+                open_flags, priv->dblayer_file_mode, return_value);
+        slapi_ch_free_string(&id2entry_file);
+
+        if (return_value == 0) {
+            /*
+             * Ok, now we can grab the actual page count
+             */
+            bdb_get_page_count(id2entry_db, &inst->inst_page_count);
+        }
+
+        /* Done, close this pEnv */
+        ((DB *)id2entry_db)->close((DB *)id2entry_db, 0);
+        mypEnv->bdb_DB_ENV->close(mypEnv->bdb_DB_ENV, 0);
+        bdb_free_env((void **)&mypEnv);
+
+        if (inst_dirp != inst_dir) {
+            slapi_ch_free_string(&inst_dirp);
+        }
+    } else {
+        /* Backend env already started, just grab the page count */
+        bdb_get_page_count(inst->inst_id2entry, &inst->inst_page_count);
+    }
+    return inst->inst_page_count;
 }
 
 /*
