@@ -910,7 +910,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                         /* Free the results if not "no_such_object" */
                         void *sr = NULL;
                         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-                        be->be_search_results_release(&sr);
+                        if (be->be_search_results_release != NULL) {
+                            be->be_search_results_release(&sr);
+                        }
                     }
                     pagedresults_set_search_result(pb_conn, operation, NULL, 1, pr_idx);
                     rc = pagedresults_set_current_be(pb_conn, NULL, pr_idx, 1);
