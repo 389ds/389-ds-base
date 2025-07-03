@@ -1192,6 +1192,7 @@ class DatabaseConfig(DSLdapObject):
                     'nsslapd-mdb-max-size',
                     'nsslapd-mdb-max-readers',
                     'nsslapd-mdb-max-dbs',
+                    'nsslapd-cache-autosize',
                 ]
         }
         self._create_objectclasses = ['top', 'extensibleObject']

@@ -2568,10 +2568,17 @@ error:
             slapi_task_finish(job->task, ret);
         }
     } else {
+        dblayer_private *priv = NULL;
+        struct ldbminfo *li = inst->inst_li;
+
         if (job->task) {
             slapi_task_dec_refcount(job->task);
         }
         bdb_import_all_done(job, ret);
+
+        /* Import is done, we need to autotune caches */
+        priv = (dblayer_private *)li->li_dblayer_private;
+        priv->dblayer_auto_tune_fn(li);
     }
 
     /* set task warning if there are no errors */

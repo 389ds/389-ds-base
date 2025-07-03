@@ -245,13 +245,13 @@ export class Database extends React.Component {
                     const attrs = config.attrs;
                     let dbhome = "";
                     let dbimplement = "";
+                    let db_cache_auto = false;
 
                     if ('nsslapd-backend-implement' in attrs) {
                         dbimplement = attrs['nsslapd-backend-implement'][0];
                         this.setState({ backendImplement: dbimplement });
                     }
                     if (dbimplement === BE_IMPL_BDB) {
-                        let db_cache_auto = false;
                         let import_cache_auto = false;
                         let dblocksMonitoring = false;
 
@@ -299,8 +299,15 @@ export class Database extends React.Component {
                                 configUpdated: 1
                             }), () => { this.loadNDN() });
                     } else if (dbimplement === BE_IMPL_MDB) {
+                        let db_cache_auto = false;
                         if ('nsslapd-directory' in attrs) {
                             dbhome = attrs['nsslapd-directory'][0];
+                        }
+                        console.log("MARK loaded attrs: ",attrs);
+
+
+                        if (attrs['nsslapd-cache-autosize'][0] !== "-1") {
+                            db_cache_auto = true;
                         }
 
                         this.setState(() => (
@@ -318,6 +325,7 @@ export class Database extends React.Component {
                                         mdbmaxreaders: attrs['nsslapd-mdb-max-readers'][0],
                                         mdbmaxdbs: attrs['nsslapd-mdb-max-dbs'][0],
                                         dbhomedir: dbhome,
+                                        autosize: attrs['nsslapd-cache-autosize'][0],
                                     },
                                 configUpdated: 1
                             }), () => { this.loadNDN() });
@@ -729,6 +737,7 @@ export class Database extends React.Component {
             createSuffixEntry: false,
             createSampleEntries: false,
             noSuffixInit: true,
+            createInitOption: "noInit",
             errObj: {},
         });
     }

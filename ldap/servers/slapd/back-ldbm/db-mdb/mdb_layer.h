@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -311,6 +311,7 @@ int dbmdb_ctx_t_load_dse_info(struct ldbminfo *li);
 int dbmdb_ctx_t_internal_set(struct ldbminfo *li, char *attrname, char *value);
 void dbmdb_public_config_get(struct ldbminfo *li, char *attrname, char *value);
 int dbmdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value);
+uint32_t dbmdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst);
 
 /* dbimpl callbacks */
 dblayer_get_db_filename_fn_t dbmdb_public_get_db_filename;
