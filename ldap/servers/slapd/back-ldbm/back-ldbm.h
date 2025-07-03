@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -362,8 +362,10 @@ struct backdn
 struct cache
 {
     uint64_t c_maxsize;       /* max size in bytes */
+    uint64_t c_config_maxsize; /* manually configured value */
     Slapi_Counter *c_cursize; /* size in bytes */
     int64_t c_maxentries;     /* max entries allowed (-1: no limit) */
+    int64_t c_config_maxentries; /* manually configured value */
     uint64_t c_curentries;    /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
@@ -785,6 +787,7 @@ typedef struct ldbm_instance
     int require_index;               /* set to 1 to require an index be used in search */
     int require_internalop_index;    /* set to 1 to require an index be used in an internal search */
     struct cache inst_dncache;       /* The dn cache for this instance. */
+    uint32_t inst_page_count;        /* page count used for cache autotuning */
 } ldbm_instance;
 
 /*

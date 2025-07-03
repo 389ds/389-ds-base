@@ -276,7 +276,7 @@ export class GlobalDatabaseConfig extends React.Component {
             if (this.state._db_cache_auto !== this.state.db_cache_auto) {
                 // We just enabled auto cache,
                 if (this.state.autosize === "0") {
-                    cmd.push("--cache-autosize=10");
+                    cmd.push("--cache-autosize=25");
                 } else {
                     cmd.push("--cache-autosize=" + this.state.autosize);
                 }
@@ -395,6 +395,7 @@ export class GlobalDatabaseConfig extends React.Component {
 
     render() {
         let db_cache_form;
+        let mdb_cache_form;
         let import_cache_form;
         let db_auto_checked = false;
         let import_auto_checked = false;
@@ -1099,8 +1100,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             availDbSizeBytes: 0,
             error: {},
             activeTabKey:  this.props.data.activeTab,
-            db_cache_auto: this.props.data.db_cache_auto,
-            import_cache_auto: this.props.data.import_cache_auto,
+            autosize: this.props.data.autosize,
             looklimit: this.props.data.looklimit,
             idscanlimit: this.props.data.idscanlimit,
             pagelooklimit: this.props.data.pagelooklimit,
@@ -1112,6 +1112,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             mdbmaxdbs: this.props.data.mdbmaxdbs,
             ndncachemaxsize: this.props.data.ndncachemaxsize,
             // These variables store the original value (used for saving config)
+            _autosize: this.props.data.autosize,
             _looklimit: this.props.data.looklimit,
             _idscanlimit: this.props.data.idscanlimit,
             _pagelooklimit: this.props.data.pagelooklimit,
@@ -1247,7 +1248,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         const check_attrs = [
             "looklimit", "idscanlimit", "pagelooklimit",
             "pagescanlimit", "rangelooklimit", "ndncachemaxsize",
-            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs",
+            "mdbmaxsize", "mdbmaxreaders", "mdbmaxdbs", "autosize"
         ];
 
         // Check if a setting was changed, if so enable the save button
@@ -1374,6 +1375,10 @@ export class GlobalDatabaseConfigMDB extends React.Component {
             cmd.push("--mdb-max-dbs=" + this.state.mdbmaxdbs);
             requireRestart = true;
         }
+        if (this.state._autosize !== this.state.autosize) {
+            cmd.push("--cache-autosize=" + this.state.autosize);
+            requireRestart = true;
+        }
         if (cmd.length > 6) {
             this.setState({
                 saving: true
@@ -1426,6 +1431,8 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
     render() {
         let spinner = "";
+        let db_cache_form;
+        let db_auto_checked = false;
         if (this.state.loading) {
             spinner = (
                 <div className="ds-loading-spinner ds-margin-top-xlg ds-center">
@@ -1444,6 +1451,42 @@ export class GlobalDatabaseConfigMDB extends React.Component {
         if (this.props.refreshing) {
             saveBtnName = _("Saving config ...");
             extraPrimaryProps.spinnerAriaValueText = _("Saving");
+        }
+
+        if (this.state.db_cache_auto) {
+            db_cache_form = (
+                <div className="ds-margin-left">
+                    <Grid
+                        title={_("Enable entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize). If 0 is set, the default value is used instead.")}
+                        className="ds-margin-top"
+                    >
+                        <GridItem className="ds-label" span={3}>
+                            {_("Memory Percentage")}
+                        </GridItem>
+                        <GridItem span={9}>
+                            <NumberInput
+                                value={this.state.autosize}
+                                min={0}
+                                max={100}
+                                onMinus={() => { this.onMinusConfig("autosize") }}
+                                onChange={(e) => { this.onConfigChange(e, "autosize", 0, 100) }}
+                                onPlus={() => { this.onPlusConfig("autosize") }}
+                                inputName="input"
+                                inputAriaLabel="number input"
+                                minusBtnAriaLabel="minus"
+                                plusBtnAriaLabel="plus"
+                                widthChars={4}
+                                unit="%"
+                                validated={'autosize' in this.state.error &&
+                                    this.state.error['autosize']
+                                     ? ValidatedOptions.error
+                                     : ValidatedOptions.default}
+                            />
+                        </GridItem>
+                    </Grid>
+                </div>
+            );
+            db_auto_checked = true;
         }
 
         return (
@@ -1499,7 +1542,25 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                     </Grid>
                                 </div>
                             </Tab>
-                            <Tab eventKey={1} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
+                            <Tab eventKey={1} title={<TabTitleText>{_("Auto Cache Tuning")}</TabTitleText>}>
+                                <div className="ds-left-indent-md">
+                                    <Grid className="ds-margin-top-xlg">
+                                        <GridItem span={12}>
+                                            <Checkbox
+                                                label={_("Automatic Cache Tuning")}
+                                                onChange={(e, str) => this.handleChange(e, str)}
+                                                isChecked={db_auto_checked}
+                                                aria-label="uncontrolled checkbox example"
+                                                id="cachesize"
+                                            />
+                                        </GridItem>
+                                        <GridItem span={12}>
+                                            {db_cache_form}
+                                        </GridItem>
+                                    </Grid>
+                                </div>
+                            </Tab>
+                            <Tab eventKey={2} title={<TabTitleText>{_("Limits")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
                                         title={_("The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit).")}
@@ -1639,7 +1700,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={4} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
+                            <Tab eventKey={3} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
                                         title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
@@ -1671,7 +1732,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                                 </div>
                             </Tab>
 
-                            <Tab eventKey={5} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
+                            <Tab eventKey={4} title={<TabTitleText>{_("Advanced Settings")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
                                         title={_("Location for database memory mapped files, this element is read only.")}

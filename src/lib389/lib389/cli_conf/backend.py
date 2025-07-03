@@ -1065,9 +1065,9 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--locks-monitoring-pause', help='Sets the DB lock monitoring value in milliseconds for the amount of time '
                                                                        'that the monitoring thread spends waiting between checks.')
     set_db_config_parser.add_argument('--import-cache-autosize', help='Enables or disables to automatically set the size of the import '
-                                                                       'cache to be used during the import process of LDIF files')
+                                                                      'cache to be used during the import process of LDIF files')
     set_db_config_parser.add_argument('--cache-autosize', help='Sets the percentage of free memory that is used in total for the database '
-                                                               'and entry cache. "0" disables this feature.')
+                                                               'and entry cache.')
     set_db_config_parser.add_argument('--cache-autosize-split', help='Sets the percentage of RAM that is used for the database cache. The '
                                                                      'remaining percentage is used for the entry cache')
     set_db_config_parser.add_argument('--import-cachesize', help='Sets the size in bytes of the database cache used in the import process.')
