@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2023 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2646,6 +2646,54 @@ dbmdb_get_entries_count(dbi_db_t *db, dbi_txn_t *txn, int *count)
         *count = stats.ms_entries;
     END_TXN(&txn, 1);
     return dbmdb_map_error(__FUNCTION__, rc);
+}
+
+static int
+dbmdb_get_page_count(dbi_db_t *db, uint32_t *count)
+{
+    dbmdb_dbi_t *dbmdb_db = (dbmdb_dbi_t*)db;
+    dbi_txn_t *txn = NULL;
+    MDB_stat stats = {0};
+    int rc = 0;
+
+    rc = START_TXN(&txn, txn, TXNFL_RDONLY);
+    rc = mdb_stat(TXN(txn), dbmdb_db->dbi, &stats);
+    if (rc == 0) {
+        *count = stats.ms_branch_pages + stats.ms_leaf_pages + stats.ms_overflow_pages;
+    }
+
+    END_TXN(&txn, 1);
+    return dbmdb_map_error(__FUNCTION__, rc);
+}
+
+/*
+ * Get the page count for this backend instance
+ * If any error occurs just return 0
+ */
+uint32_t
+dbmdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst)
+{
+    if (!inst->inst_id2entry) {
+        dbmdb_ctx_t *ctx = MDB_CONFIG(li);
+        int rc = 0;
+
+        if (!ctx->env) {
+            return 0;
+        }
+
+        rc = dbmdb_instance_start(inst->inst_be, DBLAYER_NORMAL_MODE);
+        if (rc == 0 && inst->inst_id2entry) {
+            dbmdb_get_page_count(inst->inst_id2entry, &inst->inst_page_count);
+        } else {
+            slapi_log_err(SLAPI_LOG_ALERT, "dbmdb_get_inst_page_count",
+                          "error returning count: %d (%p)\n", rc, inst->inst_id2entry);
+        }
+        dblayer_instance_close(inst->inst_be);
+    } else {
+        dbmdb_get_page_count(inst->inst_id2entry, &inst->inst_page_count);
+    }
+
+    return inst->inst_page_count;
 }
 
 /* Get the number of duplicates for current key */

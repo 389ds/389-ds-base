@@ -168,6 +168,7 @@ typedef struct {
 
 typedef struct {
     int bt_ndata;
+    u_int32_t bt_pagecnt;
 } DB_BTREE_STAT;
 
 typedef struct {
