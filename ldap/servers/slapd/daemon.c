@@ -446,7 +446,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
     int using_accesslog = 0;
     int using_auditlog = 0;
     int using_auditfaillog = 0;
-    int using_external_libs_debug = 0;
+    static int using_external_libs_debug = 0;
     int logs_disabled = 0;
     int grace_period = 0;
     int first_pass = 1;
