@@ -16,6 +16,10 @@ import pprint
 import pytest
 import subprocess
 import time
+import random
+import string
+from shutil import rmtree
+from lib389.dbgen import dbgen_users
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccount, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
@@ -259,6 +263,46 @@ def topo_with_sigkill(request):
     request.addfinalizer(fin)
 
     return topology
+
+
+@pytest.fixture(scope="function")
+def preserve_topo_m2(topo_m2, request):
+    """Backup the topology and restore it at the end."""
+
+    saves = []
+
+    def fin():
+        for inst,backup_dir in saves:
+            inst.tasks.bak2db(backup_dir=backup_dir, args={TASK_WAIT: True})
+            rmtree(backup_dir)
+
+    if not DEBUGGING:
+        request.addfinalizer(fin)
+
+    bindcn = "replication manager"
+    binddn = f"cn={bindcn},cn=config"
+    bindpw = ''.join(random.choices(string.ascii_letters + string.digits, k=15))
+    for inst in topo_m2:
+        backup_dir = f'{inst.ds_paths.backup_dir}/topo_bak'
+        try:
+            rmtree(backup_dir)
+        except FileNotFoundError:
+            pass
+        inst.tasks.db2bak(backup_dir=backup_dir, args={TASK_WAIT: True})
+        # Ensure that we are not using group bind dn
+        # because the test may delete credentials
+        replmgr = BootstrapReplicationManager(inst, dn=binddn)
+        if replmgr.exists():
+            replmgr.replace('userPassword', bindpw)
+        else:
+            replmgr.create(properties={'cn':bindcn, 'userPassword':bindpw})
+        replica = Replicas(inst).get(DEFAULT_SUFFIX)
+        replica.replace(REPL_BINDDN, binddn);
+        replica.remove_all(REPL_BIND_GROUP);
+        for agmt in replica.get_agreements().list():
+            agmt.replace_many((AGMT_CRED, bindpw), (REPL_BINDDN, binddn))
+        saves.append((inst, backup_dir))
+    return topo_m2
 
 
 @pytest.fixture()
