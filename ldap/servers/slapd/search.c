@@ -235,6 +235,7 @@ do_search(Slapi_PBlock *pb)
         log_search_access(pb, base, scope, fstr, "decoding error");
         send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
                          NULL);
+        err = 1; /* Make sure we free everything */
         goto free_and_return;
     }
 
@@ -420,8 +421,17 @@ free_and_return:
     if (!psearch || rc != 0 || err != 0) {
         slapi_ch_free_string(&fstr);
         slapi_filter_free(filter, 1);
-        slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
-        charray_free(attrs);    /* passing NULL is fine */
+
+        /* Get attrs from pblock if it was set there, otherwise use local attrs */
+        char **pblock_attrs = NULL;
+        slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &pblock_attrs);
+        if (pblock_attrs != NULL) {
+            charray_free(pblock_attrs); /* Free attrs from pblock */
+            slapi_pblock_set(pb, SLAPI_SEARCH_ATTRS, NULL);
+        } else if (attrs != NULL) {
+            /* Free attrs that were allocated but never put in pblock */
+            charray_free(attrs);
+        }
         charray_free(gerattrs); /* passing NULL is fine */
         /*
          * Fix for defect 526719 / 553356 : Persistent search op failed.
