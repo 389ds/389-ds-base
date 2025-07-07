@@ -49,6 +49,11 @@ dbmdb_cleanup(struct ldbminfo *li)
     }
     slapi_ch_free((void **)&(li->li_dblayer_config));
 
+    if (dbmdb_componentid != NULL) {
+        release_componentid(dbmdb_componentid);
+        dbmdb_componentid = NULL;
+    }
+
     return 0;
 }
 
