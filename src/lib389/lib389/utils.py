@@ -11,19 +11,6 @@
 
     TODO put them in a module!
 """
-try:
-    from subprocess import Popen as my_popen, PIPE
-except ImportError:
-    from popen2 import popen2
-
-    def my_popen(cmd_l, stdout=None):
-        class MockPopenResult(object):
-            def wait(self):
-                pass
-        p = MockPopenResult()
-        p.stdout, p.stdin = popen2(cmd_l)
-        return p
-
 import json
 import re
 import os
@@ -859,7 +846,7 @@ def isLocalHost(host_name):
 
     # next, see if this IP addr is one of our
     # local addresses
-    p = my_popen(['/sbin/ip', 'addr'], stdout=PIPE)
+    p = subprocess.Popen(['/sbin/ip', 'addr'], stdout=subprocess.PIPE)
     child_stdout = p.stdout.read()
     found = ('inet %s' % ip_addr).encode() in child_stdout
     p.wait()
