@@ -19,7 +19,7 @@
 #include <prclist.h>
 #include <glob.h>
 
-Slapi_ComponentId *dbmdb_componentid;
+Slapi_ComponentId *dbmdb_componentid = NULL;
 
 #define BULKOP_MAX_RECORDS  100 /* Max records handled by a single bulk operations */
 
