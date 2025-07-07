@@ -146,7 +146,9 @@ dbmdb_compute_limits(struct ldbminfo *li)
 int mdb_init(struct ldbminfo *li, config_info *config_array)
 {
     dbmdb_ctx_t *conf = (dbmdb_ctx_t *)slapi_ch_calloc(1, sizeof(dbmdb_ctx_t));
-    dbmdb_componentid = generate_componentid(NULL, "db-mdb");
+    if (dbmdb_componentid == NULL) {
+        dbmdb_componentid = generate_componentid(NULL, "db-mdb");
+    }
 
     li->li_dblayer_config = conf;
     strncpy(conf->home, li->li_directory, MAXPATHLEN-1);
