@@ -486,6 +486,11 @@ cp -r %{_builddir}/%{name}-%{version}/man/man3 $RPM_BUILD_ROOT/%{_mandir}/man3
 # lib389
 pushd src/lib389
 %pyproject_install
+%if 0%{?fedora} <= 41 || (0%{?rhel} && 0%{?rhel} <= 10)
+for clitool in dsconf dscreate dsctl dsidm openldap_to_ds; do
+    mv %{buildroot}%{_bindir}/$clitool %{buildroot}%{_sbindir}/
+done
+%endif
 %pyproject_save_files -l lib389
 popd
 
@@ -743,11 +748,11 @@ fi
 %doc src/lib389/README.md
 %license LICENSE LICENSE.GPLv3+
 # Binaries
-%{_bindir}/dsconf
-%{_bindir}/dscreate
-%{_bindir}/dsctl
-%{_bindir}/dsidm
-%{_bindir}/openldap_to_ds
+%{_sbindir}/dsconf
+%{_sbindir}/dscreate
+%{_sbindir}/dsctl
+%{_sbindir}/dsidm
+%{_sbindir}/openldap_to_ds
 %{_libexecdir}/%{pkgname}/dscontainer
 # Man pages
 %{_mandir}/man8/dsconf.8.gz
