@@ -344,6 +344,14 @@ str2simple(char *str, int unescape_filter)
                 return NULL; /* error */
             } else {
                 f->f_choice = LDAP_FILTER_EXTENDED;
+                if (f->f_mr_oid) {
+                    /* apply the MR indexers */
+                    rc = plugin_mr_filter_create(&f->f_mr);
+                    if (rc) {
+                        slapi_filter_free(f, 1);
+                        return NULL; /* error */
+                    }
+                }
             }
         } else if (str_find_star(value) == NULL) {
             f->f_choice = LDAP_FILTER_EQUALITY;
