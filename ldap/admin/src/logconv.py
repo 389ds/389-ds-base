@@ -8,7 +8,6 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-
 import os
 import gzip
 import re
@@ -17,11 +16,13 @@ import logging
 import sys
 import csv
 from collections import defaultdict, Counter
-from datetime import datetime, timedelta, timezone
+import datetime
 from dataclasses import dataclass, field
 import heapq
 from typing import Optional, Dict, List, Set, Tuple, DefaultDict
 import magic
+import json
+import inspect
 
 # Globals
 LATENCY_GROUPS = {
@@ -170,7 +171,7 @@ class VLVData:
         }
     ))
 
-    rst_con_op_map: Dict = field(default_factory=lambda: defaultdict(dict))
+    vlv_map: Dict = field(default_factory=lambda: defaultdict(dict))
 
 @dataclass
 class ServerData:
@@ -193,10 +194,10 @@ class OperationData:
         int,
         {
             'add': 0,
-            'mod': 0,
-            'del': 0,
+            'modify': 0,
+            'delete': 0,
             'modrdn': 0,
-            'cmp': 0,
+            'compare': 0,
             'abandon': 0,
             'sort': 0,
             'internal': 0,
@@ -206,7 +207,7 @@ class OperationData:
         }
     ))
 
-    rst_con_op_map: DefaultDict[str, DefaultDict[str, int]] = field(
+    op_map: DefaultDict[str, DefaultDict[str, int]] = field(
         default_factory=lambda: defaultdict(lambda: defaultdict(int))
     )
 
@@ -237,10 +238,13 @@ class ConnectionData:
     resource_unavail: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
     connection_reset: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
     disconnect_code: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
-
-    restart_conn_disconnect_map: DefaultDict[Tuple[int, str], int] = field(default_factory=lambda: defaultdict(int))
-    restart_conn_ip_map: Dict[Tuple[int, str], str] = field(default_factory=dict)
-
+    disconect_map: DefaultDict[Tuple[int, str], int] = field(default_factory=lambda: defaultdict(int))
+    
+    ip_map: Dict[Tuple[int, str], str] = field(default_factory=dict)
+    
+    error_code: DefaultDict[str, DefaultDict[str, int]] = field(
+        default_factory=lambda: defaultdict(lambda: defaultdict(int))
+    )
     src_ip_map: DefaultDict[str, DefaultDict[str, object]] = field(
         default_factory=lambda: defaultdict(lambda: defaultdict(object))
     )
@@ -259,12 +263,12 @@ class BindData:
         }
     ))
 
-    restart_conn_dn_map: Dict[Tuple[int, str], str] = field(default_factory=dict)
+    bind_dn_map: Dict[Tuple[int, str], str] = field(default_factory=dict)
 
     version: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
     dns: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
     sasl_mech: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
-    conn_op_sasl_mech_map: DefaultDict[str, str] = field(default_factory=lambda: defaultdict(str))
+    sasl_mech_map: DefaultDict[str, str] = field(default_factory=lambda: defaultdict(str))
     root_dn: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
 
     report_dn: DefaultDict[str, Dict[str, Set[str]]] = field(
@@ -292,7 +296,10 @@ class ResultData:
         }
     ))
 
-    notes: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+    notesA: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+    notesU: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+    notesF: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+    notesP: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
 
     timestamp_ctr: int = 0
     entry_count: int = 0
@@ -320,18 +327,23 @@ class SearchData:
         {
             'search': 0,
             'base_search': 0,
-            'persistent': 0
+            'persistent': 0,
+            'vlv_requests': 0,
+            'vlv_responses': 0,
+            'sort_requests': 0,
+            'sort_responses': 0,
+            'paged_results': 0
         }
     ))
     attrs: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
     bases: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
 
-    base_rst_con_op_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
-    scope_rst_con_op_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
+    base_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
+    scope_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
 
     filter_dict: Dict[str, int] = field(default_factory=dict)
     filter_list: List[str] = field(default_factory=list)
-    filter_rst_con_op_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
+    filter_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
 
 @dataclass
 class AuthData:
@@ -364,53 +376,36 @@ class logAnalyser:
                  recommends: Optional[bool] = False,
                  size_limit: Optional[int] = None,
                  root_dn: Optional[str] = None,
-                 exclude_ip: Optional[str] = None,
+                 exclude_ip: Optional[List[str]] = None,
                  stats_file_sec: Optional[str] = None,
                  stats_file_min: Optional[str] = None,
                  report_dn: Optional[str] = None):
-
+        """
+        Args:
+            verbose (bool): Enable verbose logging.
+            recommends (bool): Enable performance recommendations.
+            size_limit (int): Limit on search result size.
+            root_dn (str): Directory manager DN.
+            exclude_ip (List[str]): IP addresses to exclude from analysis.
+            stats_file_sec (str): Stats output file (seconds granularity).
+            stats_file_min (str): Stats output file (minutes granularity).
+            report_dn (str): DN to report bind usage for.
+        """
         self.verbose = verbose
         self.recommends = recommends
         self.size_limit = size_limit
         self.root_dn = root_dn
-        self.exclude_ip = exclude_ip
+        self.exclude_ip = exclude_ip or []
         self.file_size = 0
-        # Stats reporting
         self.prev_stats = None
-        (self.stats_interval, self.stats_file) = self._get_stats_info(stats_file_sec, stats_file_min)
-        self.csv_writer = self._init_csv_writer(self.stats_file) if self.stats_file else None
-        # Bind reporting
+        (self.stats_interval, self.stats_file) = self._get_stats_interval(stats_file_sec, stats_file_min)
+        self.csv_writer = self._setup_csv_writer(self.stats_file) if self.stats_file else None
         self.report_dn = report_dn
-        # Init internal data structures
-        self._init_data_structures()
-        # Init regex patterns and corresponding actions
-        self.regexes = self._init_regexes()
-        # Init logger
-        self.logger = self._setup_logger(logging.ERROR)
+        self._setup_data_structures()
+        self.regexes = self._setup_legacy_regexes()
+        self.json_handlers = self._setup_json_handlers()
 
-    def _get_stats_info(self,
-                        report_stats_sec: str,
-                        report_stats_min: str):
-        """
-        Get the configured interval for statistics.
-
-        Args:
-            report_stats_sec (str): Statistic reporting interval in seconds.
-            report_stats_min (str): Statistic reporting interval in minutes.
-
-        Returns:
-            A tuple where the first element indicates the multiplier for the interval
-            (1 for seconds, 60 for minutes), and the second element is the file to
-            write statistics to. Returns (None, None) if no interval is provided.
-        """
-        if report_stats_sec:
-            return 1, report_stats_sec
-        elif report_stats_min:
-            return 60, report_stats_min
-        else:
-            return None, None
-
-    def _init_csv_writer(self, stats_file: str):
+    def _setup_csv_writer(self, stats_file: str):
         """
         Initialize a CSV writer for statistics reporting.
 
@@ -418,16 +413,15 @@ class logAnalyser:
             stats_file (str): The path to the CSV file where statistics will be written.
 
         Returns:
-            csv.writer: A CSV writer object for writing to the specified file.
-
-        Raises:
-            IOError: If the file cannot be opened for writing.
+            csv.writer | None: A CSV writer object, or None if setup fails.
         """
         try:
             file = open(stats_file, mode='w', newline='')
+            self._stats_file_handle = file  # Save reference for later closing if needed
             return csv.writer(file)
-        except IOError as io_err:
-            raise IOError(f"Failed to open file '{stats_file}' for writing: {io_err}")
+        except (OSError, IOError) as e:
+            self.logger.error(f"Could not open stats file '{stats_file}' for writing: {e}")
+            return None
 
     def _setup_logger(self, log_level: int):
         """
@@ -444,7 +438,7 @@ class logAnalyser:
 
         return logger
 
-    def _init_data_structures(self):
+    def _setup_data_structures(self):
         """
         Set up data structures for parsing and storing log data.
         """
@@ -463,14 +457,22 @@ class logAnalyser:
         self.search = SearchData()
         self.auth = AuthData()
 
-    def _init_regexes(self):
+    def _setup_legacy_regexes(self):
         """
-        Initialise a dictionary of regex patterns and their match processing methods.
+        Compile and return a dictionary of legacy regex patterns used to parse access log entries.
+
+        Each dictionary entry maps a descriptive key to a tuple:
+        - A compiled regular expression that matches a specific format of log entry.
+        - A corresponding handler method that processes matches for that regex.
+
+        These regex patterns are primarily used for parsing legacy (non-JSON) log formats.
+
+        The handler functions transform matched log lines into structured data or trigger
+        internal state updates.
 
         Returns:
-            dict: A mapping of regex pattern key to (compiled regex, match handler function) value.
+            dict: A mapping of pattern names to (compiled regex, match handler function) tuples.
         """
-
         # Reusable patterns
         TIMESTAMP_PATTERN = r'''
             \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
@@ -498,7 +500,7 @@ class logAnalyser:
                 (?:\s+details=(?P<details>"[^"]*"|))?               # Optional: details="string"
                 (?:\s+pr_idx=(?P<pr_idx>\d+))?                      # Optional: pr_idx=int
                 (?:\s+pr_cookie=(?P<pr_cookie>-?\d+))?              # Optional: pr_cookie=int, -int
-            ''', re.VERBOSE), self._process_result_stats),
+            ''', re.VERBOSE), self._process_result_legacy),
             'SEARCH_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int | conn=Internal(int)
@@ -511,7 +513,7 @@ class logAnalyser:
                 (?:\s+attrs=(?P<search_attrs>ALL|\"[^"]*\"))?       # Optional: attrs=ALL | attrs="strings"
                 (\s+options=(?P<options>\S+))?                      # Optional: options=persistent
                 (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
-            ''', re.VERBOSE), self._process_search_stats),
+            ''', re.VERBOSE), self._process_search_legacy),
             'BIND_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -522,13 +524,13 @@ class logAnalyser:
                 (?:\sversion=(?P<bind_version>\d+))?                # Optional: version=int
                 (?:\smech=(?P<sasl_mech>[\w-]+))?                   # Optional: mech=string
                 (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: authzid=string
-            ''', re.VERBOSE), self._process_bind_stats),
+            ''', re.VERBOSE), self._process_bind_legacy),
             'UNBIND_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
                 (?:\sop=(?P<op_id>\d+))?                            # Optional: op=int
                 \sUNBIND                                            # UNBIND
-            ''', re.VERBOSE), self._process_unbind_stats),
+            ''', re.VERBOSE), self._process_unbind_legacy),
             'CONNECT_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -538,17 +540,17 @@ class logAnalyser:
                 connection\sfrom\s                                  # connection from
                 (?P<src_ip>\S+)\sto\s                               # IP to
                 (?P<dst_ip>\S+)                                     # IP
-            ''', re.VERBOSE), self._process_connect_stats),
+            ''', re.VERBOSE), self._process_connect_legacy),
             'DISCONNECT_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
                 \s+op=(?P<op_id>-?\d+)                              # op=int
                 \s+fd=(?P<fd>\d+)                                   # fd=int
                 \s*(?P<status>closed|Disconnect)                    # closed|Disconnect
-                \s(?: [^ ]+)*
-                \s(?:\s*(?P<error_code>-?\d+))?                     # Optional:
-                \s*(?:.*-\s*(?P<disconnect_code>[A-Z]\d))?          # Optional: [A-Z]int
-            ''', re.VERBOSE), self._process_disconnect_stats),
+                \s*-\s*                                             # dash separator after status
+                \s(?:.*?-\s*)*?                                     # skip any intermediate bits
+                \s*(?P<close_reason>[^-]+?\s*-\s*[A-Z]\d)\s*$
+            ''', re.VERBOSE), self._process_disconnect_legacy),
             'EXTEND_OP_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -556,13 +558,13 @@ class logAnalyser:
                 \sEXT                                               # EXT
                 \soid="(?P<oid>[^"]+)"                              # oid="string"
                 \sname="(?P<name>[^"]+)"                            # namme="string"
-            ''', re.VERBOSE), self._process_extend_op_stats),
+            ''', re.VERBOSE), self._process_extend_op_legacy),
             'AUTOBIND_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
                 \s+AUTOBIND                                         # AUTOBIND
                 \sdn="(?P<bind_dn>.*?)"                             # Optional: dn="strings"
-            ''', re.VERBOSE), self._process_autobind_stats),
+            ''', re.VERBOSE), self._process_autobind_legacy),
             'AUTH_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -570,7 +572,7 @@ class logAnalyser:
                 (?P<auth_version>\d(?:\.\d)?)?                      # Capture the version (X.Y)
                 \s+                                                 # Match one or more spaces
                 (?P<auth_message>.+)                                # Capture an associated message
-            ''', re.VERBOSE), self._process_auth_stats),
+            ''', re.VERBOSE), self._process_auth_entry),
             'VLV_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -583,7 +585,7 @@ class logAnalyser:
                 (?P<first_index>\d+):                               # Currently not used
                 (?P<last_index>\d+)\s                               # Currently not used
                 \((?P<list_count>\d+)\)                             # Currently not used
-            ''', re.VERBOSE), self._process_vlv_stats),
+            ''', re.VERBOSE), self._process_vlv_legacy),
             'ABANDON_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -591,7 +593,7 @@ class logAnalyser:
                 \sABANDON                                           # ABANDON
                 \stargetop=(?P<targetop>[\w\s]+)                    # targetop=string
                 \smsgid=(?P<msgid>\d+)                              # msgid=int
-            ''', re.VERBOSE), self._process_abandon_stats),
+            ''', re.VERBOSE), self._process_abandon_legacy),
             'SORT_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -599,7 +601,7 @@ class logAnalyser:
                 \sSORT                                              # SORT
                 \s+(?P<attribute>\w+)                               # Currently not used
                 (?:\s+\((?P<status>\d+)\))?                         # Currently not used
-            ''', re.VERBOSE), self._process_sort_stats),
+            ''', re.VERBOSE), self._process_sort_legacy),
             'CRUD_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_INTERNAL_PATTERN}                          # conn=int | conn=Internal(int)
@@ -608,15 +610,1704 @@ class logAnalyser:
                 \s(?P<op_type>ADD|CMP|MOD|DEL|MODRDN)               # ADD|CMP|MOD|DEL|MODRDN
                 \sdn="(?P<dn>[^"]*)"                                # dn="", dn="strings"
                 (?:\sauthzid="(?P<authzid_dn>[^"]*)")?              # Optional: dn="", dn="strings"
-            ''', re.VERBOSE), self._process_crud_stats),
+            ''', re.VERBOSE), self._process_crud_legacy),
             'ENTRY_REFERRAL_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
                 {OP_ID_PATTERN}                                     # op=int
                 \s(?P<op_type>ENTRY|REFERRAL)                       # ENTRY|REFERRAL
                 (?:\sdn="(?P<dn>[^"]*)")?                           # Optional: dn="", dn="string"
-            ''', re.VERBOSE), self._process_entry_referral_stats)
+            ''', re.VERBOSE), self._process_entry_referral_entry)
         }
+    
+    def _setup_json_handlers(self):
+        """
+        Set up a mapping between JSON log operation types and their corresponding handler methods.
+
+        Returns:
+            dict: A dictionary mapping operation types (str) to handler methods.
+        """
+        return {
+            "SEARCH": self._process_search_entry,
+            "RESULT": self._process_result_entry,
+            "CONNECTION": self._process_connect_entry,
+            "DISCONNECT": self._process_disconnect_entry,
+            "BIND": self._process_bind_entry,
+            "BIND": self._process_bind_entry,
+            "UNBIND": self._process_unbind_entry,
+            "AUTOBIND": self._process_autobind_entry,
+            "EXTENDED_OP": self._process_extend_op_entry,
+            "VLV": self._process_vlv_entry,
+            "SORT": self._process_sort_entry,
+            "ABANDON": self._process_abandon_entry,
+            "ADD": self._process_crud_entry,
+            "MODIFY": self._process_crud_entry,
+            "DELETE": self._process_crud_entry,
+            "COMPARE": self._process_crud_entry,
+            "MODRDN": self._process_crud_entry,
+            "ENTRY": self._process_entry_referral_entry,
+            "REFERRAL": self._process_entry_referral_entry
+        }
+
+    def process_file(self, log_num: str, filepath: str):
+        """
+        Process a file line by line, supporting both compressed and uncompressed formats.
+
+        Args:
+            log_num (str): Log file number (Used for multiple log files).
+            filepath (str): Path to the file.
+
+        Returns:
+            None
+        """
+        file_size = 0
+        curr_position = 0
+        line_number = 0
+        lines_read = 0
+        line_count = 0
+        line_count_limit = 25000
+
+        self.logger.debug(f"Processing file: {filepath}")
+
+        try:
+            # Is log compressed
+            comptype = self._is_file_compressed(filepath)
+            if comptype:
+                # If comptype is True, comptype[1] is MIME type
+                if comptype[1] == 'application/gzip':
+                    filehandle = gzip.open(filepath, 'rb')
+                else:
+                    self.logger.warning(f"Unsupported compression type: {comptype}. Attempting to process as uncompressed.")
+                    filehandle = open(filepath, 'rb')
+            else:
+                filehandle = open(filepath, 'rb')
+
+            with filehandle:
+                # Seek to the end
+                filehandle.seek(0, os.SEEK_END)
+                file_size = filehandle.tell()
+                self.file_size = file_size
+                self.logger.debug(f"{filehandle.name} size (bytes): {file_size}")
+
+                # Back to the start
+                filehandle.seek(0)
+                print(f"[{log_num:03d}] {filehandle.name:<30}\tsize (bytes): {file_size:>12}")
+
+                for line in filehandle:
+                    line_number += 1
+                    try:
+                        line_content = line.decode('utf-8').strip()
+                        # Entry to parsing logic
+                        proceed = self._match_line(line_content, filehandle.tell())
+                        if not proceed:
+                            self.logger.debug(f"Skipping line: {filehandle.name}:{line_number}.")
+                            continue
+
+                        line_count += 1
+                        lines_read += 1
+
+                        # Is it time to give an update
+                        if line_count >= line_count_limit:
+                            curr_position = filehandle.tell()
+                            percent = curr_position/file_size * 100.0
+                            print(f"{lines_read:10d} Lines Processed     {curr_position:12d} of {file_size:12d} bytes ({percent:.3f}%)")
+                            line_count = 0
+
+                    except UnicodeDecodeError as de:
+                        self.logger.error(f"non-decodable line at position {filehandle.tell()} - {de}")
+
+        except FileNotFoundError:
+            self.logger.error(f"File not found: {filepath}")
+        except IOError as ie:
+            self.logger.error(f"IO error processing file {filepath} - {ie}")
+
+    def _is_file_compressed(self, filepath: str):
+        """
+        Determines whether a file is compressed using a supported compression method (gzip).
+
+        Args:
+            filepath (str): The path to the file.
+
+        Returns:
+            Optional[Tuple[bool, Optional[str]]]:
+                - (True, <mime_type>) if the file is compressed using a supported method.
+                - (False, None) if the file is not compressed.
+                - None if the file does not exist or an error occurs.
+        """
+        if not os.path.exists(filepath):
+            self.logger.error(f"File not found: {filepath}")
+            return None
+
+        try:
+            filetype = magic.detect_from_filename(filepath)
+
+            # List of supported compression types
+            compressed_mime_types = [
+                'application/gzip',             # gz, tar.gz, tgz
+                'application/x-gzip',           # gz, tgz
+            ]
+
+            if filetype.mime_type in compressed_mime_types:
+                self.logger.debug(f"File is compressed: {filepath} (MIME: {filetype.mime_type})")
+                return True, filetype.mime_type
+            else:
+                self.logger.debug(f"File is not compressed: {filepath}")
+                return False
+
+        except Exception as e:
+            self.logger.error(f"Error while determining compression for file {filepath} - {e}")
+            return None
+
+    def _is_timestamp_in_range(self, timestamp: datetime):
+        """
+        Check if a datetime timestamp is within the configured parse time range.
+
+        Args:
+            timestamp (datetime): The datetime object to check.
+
+        Returns:
+            bool: True if timestamp is within range, False otherwise.
+        """
+        parse_start = self.server.parse_start_time
+        parse_stop = self.server.parse_stop_time
+
+        if parse_start and parse_stop:
+            if parse_start.microsecond == 0 and parse_stop.microsecond == 0:
+                timestamp = timestamp.replace(microsecond=0)
+            return parse_start <= timestamp <= parse_stop
+
+        # If no range is set, allow all timestamps
+        return True
+
+    def _finalise_match(self, timestamp: datetime, bytes_read: int):
+        """
+        Common logic to run after a line has been successfully matched and handled.
+
+        Args:
+            timestamp_dt (datetime): Normalized timestamp of the log line.
+            bytes_read (int): Number of bytes read so far.
+        """
+        if self.server.first_time is None:
+            self.server.first_time = timestamp
+        self.server.last_time = timestamp
+
+        self.server.counters['lines_parsed'] += 1
+
+        if self.stats_interval and self.stats_file:
+            self._process_and_write_stats(timestamp, bytes_read)
+            self.logger.debug(f"Stats processed for timestamp: {timestamp}.")
+            
+    def _match_line(self, line: str, bytes_read: int):
+        """
+        Process a single access log line (JSON or legacy format).
+
+        Returns:
+            bool: True if a match was found and processed, False otherwise.
+        """
+        if line.lstrip().startswith('{'):
+            self.logger.debug(f"JSON format detected - line: {line}")
+            try:
+                log_entry = json.loads(line)
+            except json.JSONDecodeError:
+                self.logger.error(f"Malformed JSON line: {line}")
+                return False
+
+            timestamp_raw = log_entry.get("local_time")
+            if timestamp_raw:
+                try:
+                    timestamp_dt = self.convert_timestamp_to_datetime(timestamp_raw)
+                    log_entry["timestamp_dt"] = timestamp_dt
+                except (ValueError, TypeError) as e:
+                    self.logger.error(f"Failed to convert timestamp to datetime: {timestamp_raw} - {e}")
+                    return False
+
+            if not self._is_timestamp_in_range(timestamp_dt):
+                self.logger.debug(f"Timestamp {timestamp_dt} is out of range. Skipping line.")
+                return False
+
+            operation = log_entry.get("operation")
+            handler = self.json_handlers.get(operation)
+            if not handler:
+                self.logger.debug(f"No handler found for JSON operation: {operation}")
+                return False
+
+            handler(log_entry)
+
+            self._finalise_match(timestamp_dt, bytes_read)
+
+            return True
+
+        elif line.lstrip().startswith('['):
+            self.logger.debug(f"LEGACY format detected - line:{line}")
+            for name, (pattern, action) in self.regexes.items():
+                match = pattern.match(line)
+                if not match:
+                    continue
+
+                self.logger.debug(f"Matched legacy pattern: {name}")
+
+                try:
+                    groups = match.groupdict()
+                except AttributeError as e:
+                    self.logger.error(f"Failed to get group from match line: {line} - {e}.")
+                    return False
+
+                timestamp_raw = groups.get('timestamp')
+                if timestamp_raw:
+                    try:
+                        timestamp_dt = self.convert_timestamp_to_datetime(timestamp_raw)
+                        groups["timestamp_dt"] = timestamp_dt
+                    except (ValueError, TypeError) as e:
+                        self.logger.error(f"Failed to convert timestamp to datetime: {timestamp_raw} - {e}")
+                        return False
+
+                if not self._is_timestamp_in_range(timestamp_dt):
+                    self.logger.debug(f"Timestamp {timestamp_dt} is out of range. Skipping line.")
+                    return False
+
+                action(groups)
+
+                self._finalise_match(timestamp_dt, bytes_read)
+                return True
+
+        self.logger.debug(f"No match found on line: {line}")
+
+        return False
+  
+    def convert_to_int(self, value: str, default=None):
+        """
+        Convert the given value string to an integer.
+
+        Args:
+            value: The input value string to convert.
+            default: The value to return if conversion fails (default is None).
+
+        Returns:
+            int: The integer conversion of value or default.
+        """
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def convert_op_format(self, op_type: str, default=None):
+        """
+        Converts a legacy operation type to a JSON-style operation string.
+
+        Args:
+            op_type (str): The legacy operation type (ADD, DEL, CMP, MOD, MODRDN)
+            default (str): The default value to return if no match is found.
+
+        Returns:
+            str: Operation string (add, modify, delete) or the default.
+        """
+        operation_map = {
+            'add': 'add',
+            'mod': 'modify',
+            'del': 'delete',
+            'cmp': 'compare',
+            'modrdn': 'modrdn'
+        }
+
+        if not isinstance(op_type, str):
+            return default
+        return operation_map.get(op_type.lower(), default)
+
+    def map_legacy_control_name(self, legacy_name: str):
+        """
+        Maps a legacy control to its corresponding LDAP control name.
+
+        Args:
+            legacy_name (str): The legacy name of the control
+
+        Returns:
+            str: The corresponding LDAP control name if known; otherwise, the original value.
+        """
+        control_name_map = {
+            "persistent": "LDAP_CONTROL_PERSISTENTSEARCH",
+            "vlv_requests": "LDAP_CONTROL_VLVREQUEST",
+            "sort_requests": "LDAP_CONTROL_SORTREQUEST",
+            "sort_responses": "LDAP_CONTROL_SORTRESPONSE",
+            "vlv_responses": "LDAP_CONTROL_VLVRESPONSE",
+            "paged_results": "LDAP_CONTROL_PAGEDRESULTS",
+        }
+
+        if isinstance(legacy_name, str):
+            return control_name_map.get(legacy_name.lower(), legacy_name)
+
+        return legacy_name
+
+    def get_control_counter_key(self, control_name: str, default=None):
+        """
+        Maps an LDAP control name to its corresponding counter key.
+
+        Args:
+            control_name (str): The LDAP control name (LDAP_CONTROL_PERSISTENTSEARCH, etc).
+            default (str): Value to return if the control name is not found.
+
+        Returns:
+            str: The counter key (persistent, etc) or default.
+        """
+        control_map = {
+            "LDAP_CONTROL_PERSISTENTSEARCH": "persistent",
+            "LDAP_CONTROL_VLVREQUEST": "vlv_requests",
+            "LDAP_CONTROL_SORTREQUEST": "sort_requests",
+            "LDAP_CONTROL_SORTRESPONSE": "sort_responses",
+            "LDAP_CONTROL_VLVRESPONSE": "vlv_responses",
+            "LDAP_CONTROL_PAGEDRESULTS": "paged_results",
+        }
+
+        return control_map.get(control_name, default)
+
+    def extract_close_code(self, log_entry: dict, default=None):
+        """
+        Extracts a close reason code from a log entry.
+
+        Args:
+            log_entry (dict): Log entry containing 'close_reason'.
+            default (str): Value to return if no code is found.
+
+        Returns:
+            str: Extracted close reason code or default.
+        """
+        reason = log_entry.get("close_reason")
+        if not reason:
+            return default
+
+        # If it's just the code return it.
+        if re.fullmatch(r'[A-Z]\d+', reason.strip()):
+            return reason.strip()
+
+        # If it's a sentence ending in code.
+        match = re.search(r'([A-Z]\d+)$', reason.strip())
+        if match:
+            return match.group(1)
+
+        return default
+
+    def build_op_scope_key(self, conn_scope_key, op_id):
+        """
+        Build a flat operation scoped key from a connection scoped key and operation ID.
+
+        Args:
+            conn_scope_key (str | tuple): Either a legacy tuple (restart, conn_id),
+                                        or a new-format string like "1231231-2".
+            op_id (int | str): The operation ID associated with this log entry.
+
+        Returns:
+            tuple: A flattened tuple of the form (restart, conn_id, op_id) that
+                uniquely identifies an operation.
+
+        Raises:
+            ValueError: If the input format is invalid or op_id is None.
+        """
+        if op_id is None:
+            raise ValueError("op_id cannot be None")
+
+        # Convert op_id to int if needed
+        op_id = int(op_id)
+
+        # Legacy format
+        if isinstance(conn_scope_key, tuple) and len(conn_scope_key) == 2:
+            restart, conn_id = conn_scope_key
+            return (restart, conn_id, op_id)
+
+        # New format: string like "1231231-2"
+        if isinstance(conn_scope_key, str) and '-' in conn_scope_key:
+            parts = conn_scope_key.split('-')
+            if len(parts) == 2 and all(part.isdigit() for part in parts):
+                restart, conn_id = map(int, parts)
+                return (restart, conn_id, op_id)
+
+        raise ValueError(f"Invalid conn_scope_key format: {conn_scope_key}")
+
+    def _process_result_legacy(self, log_entry: dict):
+        """
+        Process a legacy RESULT log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Normalises legacy notes format into a list of note dicts.
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        notes = log_entry.get('notes', None)
+        normalised_notes = []
+        if isinstance(notes, str):
+            note_code = log_entry.get('notes', "")
+            note_desc = log_entry.get('details', "")
+            if note_code or note_desc:
+                normalised_notes.append({
+                    "note": note_code,
+                    "description": note_desc
+                })
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "etime": log_entry.get('etime', None),
+            "wtime": log_entry.get('wtime', None),
+            "optime": log_entry.get('optime', None),
+            "nentries": self.convert_to_int(log_entry.get('nentries', None)),
+            "tag": self.convert_to_int(log_entry.get('tag', None)),
+            "err": self.convert_to_int(log_entry.get('err', None)),
+            "internal_op": log_entry.get('internal', None),
+            "notes": normalised_notes 
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_result_entry(log_entry_norm)
+
+    def _process_result_entry(self, log_entry: dict):
+        """
+        Process a RESULT line from access logs.
+
+        Args:
+            log_entry (dict): A dictionary representing a parsed log entry.
+
+        Notes:
+            - Includes error handling and logging for unexpected parsing issues.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        timestamp_dt = log_entry.get("timestamp_dt", None)
+        op_id = log_entry.get("op_id", None)
+        tag = log_entry.get("tag", None)
+        bind_dn = log_entry.get("bind_dn", "")
+
+        err = log_entry.get("err", None)
+        nentries = log_entry.get("nentries", None)
+        wtime = log_entry.get("wtime", "")
+        optime = log_entry.get("optime", "")
+        etime = log_entry.get("etime", "")
+
+        internal_op = log_entry.get("internal_op", None)
+        notes = log_entry.get("notes", [])
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+        try:
+            op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
+        except (ValueError, TypeError) as e:
+            self.logger.error(f"Invalid key format for conn_scope_key={conn_scope_key}, op_id={op_id} - {e}")
+            op_scope_key = None
+
+        if isinstance(timestamp_dt, datetime.datetime):
+            timestamp_str = timestamp_dt.isoformat()
+        else:
+            timestamp_str = "Invalid timestamp"
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+        
+        # Global counters
+        self.result.counters['result'] +=  1
+        self.result.counters['timestamp'] += 1
+
+        # Operation time fields
+        if etime and isinstance(etime, str):
+            try:
+                etime_f = float(etime)
+                heapq.heappush(self.result.etime_duration, etime_f)
+                if len(self.result.etime_duration) > self.size_limit:
+                    heapq.heappop(self.result.etime_duration)
+                self.result.total_etime += etime_f
+            except ValueError:
+                self.logger.debug(f"Invalid etime format: {etime}")
+
+        if wtime and isinstance(wtime, str):
+            try:
+                wtime_f = float(wtime)
+                heapq.heappush(self.result.wtime_duration, wtime_f)
+                if len(self.result.wtime_duration) > self.size_limit:
+                    heapq.heappop(self.result.wtime_duration)
+                self.result.total_wtime += wtime_f
+            except ValueError:
+                self.logger.debug(f"Invalid wtime format: {wtime}")
+
+        if optime and isinstance(optime, str):
+            try:
+                optime_f = float(optime)
+                heapq.heappush(self.result.optime_duration, optime_f)
+                if len(self.result.optime_duration) > self.size_limit:
+                    heapq.heappop(self.result.optime_duration)
+                self.result.total_optime += optime_f
+            except ValueError:
+                self.logger.debug(f"Invalid optime format: {optime}")
+
+        # Stat reporting to csv file
+        try:
+            self.result.etime_stat = round(self.result.etime_stat + float(etime), 8)
+        except (ValueError, TypeError):
+            self.logger.debug(f"Invalid etime for: {etime}")
+
+        # Track error if present
+        if err is not None:
+            self.result.error_freq[err] += 1
+
+        # Internal operation
+        if internal_op:
+            self.operation.counters['internal'] +=1
+        
+        if isinstance(notes, list):
+            for note in notes:
+                note_code = note.get("note")
+                if not note_code:
+                    continue 
+
+                self.result.counters[f'notes{note_code}'] += 1
+
+                # Exclude VLV
+                if op_scope_key not in self.vlv.vlv_map:
+                    result_notes = getattr(self.result, f'notes{note_code}', None)
+                    entry = result_notes.setdefault(op_scope_key, {})
+
+                    # Resolve base, scope, filter (new format or fallback to maps)
+                    base = note.get("base_dn") or self.search.base_map.get(op_scope_key, "Unknown")
+                    scope = note.get("scope") or self.search.scope_map.get(op_scope_key, "Unknown")
+                    search_filter = note.get("filter") or self.search.filter_map.get(op_scope_key, "Unknown")
+                    ip = log_entry.get("client_ip") or self.connection.ip_map.get(conn_scope_key, "Unknown")
+                    bind_dn = self.bind.bind_dn_map.get(conn_scope_key, "Unknown")
+
+                    entry.update({
+                        "time": timestamp_str,
+                        "etime": etime,
+                        "nentries": nentries,
+                        "ip": ip,
+                        "bind_dn": bind_dn,
+                        "base": base,
+                        "scope": scope,
+                        "filter": search_filter
+                    })
+
+                    # Remove legacy map state
+                    self.search.base_map.pop(op_scope_key, None)
+                    self.search.scope_map.pop(op_scope_key, None)
+                    self.search.filter_map.pop(op_scope_key, None)
+                else:
+                    self.vlv.vlv_map[op_scope_key] = note_code
+
+        # Process bind result
+        if tag == 97:
+            # Invalid credentials|Entry does not exist
+            if err == 49:
+                bad_pwd_dn = self.bind.bind_dn_map.get(conn_scope_key, "Unknown DN")
+                bad_pwd_ip = self.connection.ip_map.get(conn_scope_key, None)
+                self.result.bad_pwd_map[(bad_pwd_dn, bad_pwd_ip)] = (
+                    self.result.bad_pwd_map.get((bad_pwd_dn, bad_pwd_ip), 0) + 1
+                )
+                # Trim items to size_limit
+                if len(self.result.bad_pwd_map) > self.size_limit:
+                    within_size_limit = dict(
+                        sorted(
+                            self.result.bad_pwd_map.items(),
+                            key=lambda item: item[1],
+                            reverse=True
+                        )[:self.size_limit])
+                    self.result.bad_pwd_map = within_size_limit
+
+            # This result is involved in the SASL bind process, decrement bind count, etc
+            elif err == 14:
+                self.bind.counters['bind'] -= 1
+                self.operation.counters['total'] -= 1
+                self.bind.counters['sasl'] -= 1
+                self.bind.version['3'] -= 1
+
+                # Drop the sasl mech count also
+                mech = self.bind.sasl_mech_map[op_scope_key]
+                if mech:
+                    self.bind.sasl_mech[mech] -= 1
+
+            # Successful SASL bind
+            else:
+                result_dn = bind_dn
+                if result_dn:
+                    if result_dn != "":
+                        # If this is a result of a sasl bind, grab the dn
+                        if op_scope_key in self.bind.sasl_mech_map:
+                            if result_dn is not None:
+                                self.bind.bind_dn_map[conn_scope_key] = result_dn.lower()
+                                self.bind.dns[result_dn] = (
+                                    self.bind.dns.get(result_dn, 0) + 1
+                                )
+            
+        # Handle other tag values
+        elif isinstance(tag, int) and tag in [100, 101, 111, 115]:
+            if nentries >= 0 and nentries not in self.result.nentries_set:
+                heapq.heappush(self.result.nentries_num, nentries)
+                self.result.nentries_set.add(nentries)
+
+                if len(self.result.nentries_num) > self.size_limit:
+                    removed = heapq.heappop(self.result.nentries_num)
+                    self.result.nentries_set.remove(removed)
+
+    def _process_bind_legacy(self, log_entry: dict):
+        """
+        Processes a legacy BIND log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "bind_dn": log_entry.get('bind_dn'),
+            "method": log_entry.get('bind_method'),
+            "version": self.convert_to_int(log_entry.get('bind_version', None))
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_bind_entry(log_entry_norm)
+
+    def _process_bind_entry(self, log_entry: dict):
+        """
+        Process a BIND line from access logs.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed bind log entry.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        conn_id = log_entry.get("conn_id", None)
+        op_id = log_entry.get("op_id",None)
+        bind_dn = log_entry.get("bind_dn", "")
+        version = log_entry.get("version", None)
+        method = log_entry.get("method", "")
+        mech = log_entry.get("mech", "")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Normalise the bind_dn
+        bind_dn = bind_dn.strip() if bind_dn else ""
+        if not bind_dn:
+            normalised_bind_dn = "Anonymous"
+        else:
+            normalised_bind_dn = bind_dn.lower()
+
+        # Update counters
+        self.bind.counters['bind'] += 1
+        self.operation.counters['total'] += 1
+        self.bind.version[str(version)] += 1
+
+        # If we need to report on this DN, capture some info for tracking
+        bind_dn_key = self._report_dn_key(normalised_bind_dn, self.report_dn)
+        if bind_dn_key:
+            self.bind.report_dn[bind_dn_key]['bind'] += 1
+            self.bind.report_dn[bind_dn_key]['conn'].add(conn_id)
+
+            # Loop over IPs captured at connection time to find the associated IP
+            for (ip, ip_info) in self.connection.src_ip_map.items():
+                if conn_scope_key in ip_info['keys']:
+                    self.bind.report_dn[bind_dn_key]['ips'].add(ip)
+
+        # Handle SASL or simple bind
+        if method == 'sasl':
+            self.bind.counters['sasl'] += 1
+            if mech:
+                sasl_mech_key = (conn_id, op_id)
+                self.bind.sasl_mech[mech] += 1
+                self.bind.sasl_mech_map[sasl_mech_key] = mech
+
+            if normalised_bind_dn == self.root_dn.casefold():
+                self.bind.counters['rootdn'] += 1
+
+            # Dont count anonymous SASL binds
+            if normalised_bind_dn != "Anonymous":
+                self.bind.dns[normalised_bind_dn] += 1
+
+        else:
+            # Track DN statistics
+            if normalised_bind_dn == "Anonymous":
+                self.bind.counters['anon'] += 1
+                self.bind.dns[normalised_bind_dn] += 1
+            else:
+                if normalised_bind_dn == self.root_dn.casefold():
+                    self.bind.counters['rootdn'] += 1
+
+                self.bind.dns[normalised_bind_dn] += 1
+
+        self.bind.bind_dn_map[conn_scope_key] = normalised_bind_dn
+
+    def _process_search_legacy(self, log_entry: dict):
+        """
+         Processes a legacy SRCH log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Normalises legacy request control format.
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "base_dn": log_entry.get('search_base', ""),
+            "scope": self.convert_to_int(log_entry.get('search_scope', None)),
+            "filter": log_entry.get('search_filter', ""),
+            "attrs": log_entry.get('search_attrs', []),
+            "request_controls": [
+                {
+                    "oid_name": self.map_legacy_control_name(log_entry.get('options', None))
+                }
+            ]
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_search_entry(log_entry_norm)
+
+    def _process_search_entry(self, log_entry: dict):
+        """
+        Processes a search log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed search log entry.
+        Notes:
+            - Includes error handling and logging for unexpected parsing issues.
+        """
+        self.logger.debug(f"_process_search_entry - Start - {log_entry}")
+
+        conn_id = log_entry.get("conn_id", None)
+        op_id = log_entry.get("op_id",None)
+        base_dn = log_entry.get("base_dn", "")
+        scope = log_entry.get("scope", None)
+        search_filter = log_entry.get("filter", "")
+        attrs = log_entry.get("attrs", [])
+        controls = log_entry.get("request_controls", [])
+        authzid = log_entry.get("authzid", "")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+        try:
+            op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
+        except (ValueError, TypeError) as e:
+            self.logger.error(f"Invalid key format for conn_scope_key={conn_scope_key}, op_id={op_id} - {e}")
+            op_scope_key = None
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Bump search and global op count
+        self.search.counters['search'] +=  1
+        self.operation.counters['total'] += 1
+
+        # Search attributes
+        if attrs is not None:
+            if isinstance(attrs, list):
+                for attr in attrs:
+                    attr = attr.strip('"')
+                    self.search.attrs[attr] += 1
+
+            elif isinstance(attrs, str):
+                if attrs == 'ALL':
+                    self.search.attrs['All Attributes'] += 1
+                else:
+                    for attr in attrs.split():
+                        attr = attr.strip('"')
+                        self.search.attrs[attr] += 1
+
+        # Bind DN report
+        for dn in self.bind.report_dn:
+            conns = self.bind.report_dn[dn]['conn']
+            if conn_id in conns:
+                bind_dn_key = self._report_dn_key(dn, self.report_dn)
+                if bind_dn_key:
+                    self.bind.report_dn[bind_dn_key]['srch'] = self.bind.report_dn[bind_dn_key].get('srch', 0) + 1
+
+        # Search base
+        if base_dn is not None:
+            if base_dn:
+                base = base_dn
+            else:
+                base = "Root DSE"
+            search_base = base.lower()
+            if search_base:
+                if self.verbose:
+                    self.search.bases[search_base] += 1
+                    self.search.base_map[op_scope_key] = search_base
+
+        # Search scope
+        if scope is not None:
+            if self.verbose:
+                self.search.scope_map[op_scope_key] = SCOPE_LABEL[scope]
+
+        # Search filter
+        if search_filter and isinstance(search_filter, str):
+            if self.verbose:
+                # Unique tracking
+                self.search.filter_map[op_scope_key] = search_filter
+
+                # Count total occurrences of this filter
+                self.search.filter_dict[search_filter] = self.search.filter_dict.get(search_filter, 0) + 1
+
+                 # Update the top-N filter list (heap)
+                found = False
+                for idx, (count, existing_filter) in enumerate(self.search.filter_list):
+                    if existing_filter == search_filter:
+                        found = True
+                        self.search.filter_list[idx] = (self.search.filter_dict[search_filter], search_filter)
+                        heapq.heapify(self.search.filter_list)
+                        break
+
+                if not found:
+                    if len(self.search.filter_list) < self.size_limit:
+                        heapq.heappush(self.search.filter_list, (self.search.filter_dict[search_filter], search_filter))
+                    else:
+                        heapq.heappushpop(self.search.filter_list, (self.search.filter_dict[search_filter], search_filter))
+
+
+        # Check for an entire base search
+        if "objectclass=*" in search_filter.lower() or "objectclass=top" in search_filter.lower():
+            if scope == 2:
+                self.search.counters['base_search'] += 1
+
+        # Search controls
+        if controls and isinstance(controls, list):
+            for ctrl in controls:
+                oid = ctrl.get("oid")
+                oid_name = ctrl.get("oid_name")
+                # Increment the requried control counter
+                if oid_name:
+                    ctrl_key = self.get_control_counter_key(oid_name)
+                    if ctrl_key:
+                        self.search.counters[ctrl_key] += 1
+
+        # Authorisation identity
+        if authzid and isinstance(authzid, str):
+            self.search['authzid'] += 1
+
+    def _process_connect_legacy(self, log_entry: dict):
+        """
+         Processes a legacy connection log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "fd": self.convert_to_int(log_entry.get('fd', None)),
+            "slot": self.convert_to_int(log_entry.get('slot', "")),
+            "tls": log_entry.get('ssl', None),
+            "client_ip": log_entry.get('src_ip', ""),
+            "server_ip": log_entry.get('dst_ip', ""),
+        }
+
+        # Compute and inject connection scoped key
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+        restart = self.server.counters['restart']
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_connect_entry(log_entry_norm)
+
+
+
+
+    def _process_connect_entry(self, log_entry: dict):
+        """
+        Processes a connect log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed connect log entry.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        timestamp_dt = log_entry.get("timestamp_dt", None)
+        conn_id = log_entry.get("conn_id", None)
+        fd = log_entry.get("fd", None)
+        tls = log_entry.get("tls",None)
+        client_ip = log_entry.get("client_ip", "")
+
+        # If conn=1, server has started a new lifecycle
+        # For legacy logs, the 'key' is a tuple (restart, conn_id), not a string as in JSON logs.
+        # So we need to recreate the conn_scope_key with updated restart count in the legacy case.
+        conn_scope_key = log_entry.get("key", "")
+        if conn_id == 1:
+            self.server.counters['restart'] += 1
+            if not isinstance(conn_scope_key, str):
+                conn_scope_key = (self.server.counters['restart'], conn_id)
+
+        # Should we add this IP to excluded
+        if self.exclude_ip and client_ip in self.exclude_ip:
+            self.connection.exclude_ip[conn_scope_key] = client_ip
+            return None
+
+        if self.verbose:
+            # Update open connection count
+            self.connection.open_conns[client_ip] += 1
+
+            # Track the connection start time
+            self.connection.start_time[conn_id] = timestamp_dt
+
+        # Update general connection counters
+        self.connection.counters['conn'] += 1
+        self.connection.counters['sim_conn'] += 1
+
+        # Update the maximum number of simultaneous connections seen
+        self.connection.counters['max_sim_conn'] = max(
+            self.connection.counters['max_sim_conn'],
+            self.connection.counters['sim_conn']
+        )
+
+        # Update protocol counters
+        if tls:
+            self.connection.counters['ldaps'] += 1
+        elif client_ip == 'local':
+            self.connection.counters['ldapi'] += 1
+        else:
+            self.connection.counters['ldap'] += 1
+
+        # Track file descriptor counters
+        self.connection.counters['fd_max'] = max(self.connection.counters['fd_taken'], int(fd))
+        self.connection.counters['fd_taken'] += 1
+
+        # Track source IP
+        self.connection.ip_map[conn_scope_key] = client_ip
+
+        self.connection.src_ip_map[client_ip]['count'] = self.connection.src_ip_map[client_ip].get('count', 0) + 1
+
+        if 'keys' not in self.connection.src_ip_map[client_ip]:
+            self.connection.src_ip_map[client_ip]['keys'] = set()
+
+        self.connection.src_ip_map[client_ip]['keys'].add(conn_scope_key)
+
+    def _process_unbind_legacy(self, log_entry: dict):
+        """
+         Processes a legacy UNBIND log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        # Normalise legacy formats
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_unbind_entry(log_entry_norm)
+
+    def _process_unbind_entry(self, log_entry: dict):
+        """
+        Processes a connect log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed unbind log entry.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Bump unbind count
+        self.bind.counters['unbind'] += 1
+
+    def _process_auth_entry(self, log_entry: dict):
+        """
+        Processes an SSL log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        auth_protocol = log_entry.get('auth_protocol', "")
+        auth_version = log_entry.get('auth_version', "")
+        auth_message = log_entry.get('auth_message', "")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        if auth_protocol:
+            if conn_scope_key not in self.auth.auth_info:
+                self.auth.auth_info[conn_scope_key] = {
+                    'proto': auth_protocol,
+                    'version': auth_version,
+                    'count': 0,
+                    'message': []
+                    }
+
+            if auth_message:
+                # Increment counters and add auth message
+                self.auth.auth_info[conn_scope_key]['message'].append(auth_message)
+
+            # Bump auth related counters
+            self.auth.counters['cipher_ctr'] += 1
+            self.auth.auth_info[conn_scope_key]['count'] += 1
+
+        if auth_message:
+            if auth_message == 'client bound as':
+                self.auth.counters['ssl_client_bind_ctr'] += 1
+            elif auth_message == 'failed to map client certificate to LDAP DN':
+                self.auth.counters['ssl_client_bind_failed_ctr'] += 1
+                self.auth.counters['ssl_client_bind_failed_ctr'] += 1
+
+    def _process_vlv_legacy(self, log_entry: dict):
+        """
+        Processes a legacy VLV log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Normalises legacy vlv_request format.
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "vlv_request": {
+                "request_before_count": self.convert_to_int(log_entry.get('result_code', None)),
+                "request_after_count": self.convert_to_int(log_entry.get('target_pos', None)),
+                "request_index": self.convert_to_int(log_entry.get('context_id', None)),
+                "request_content_count": self.convert_to_int(log_entry.get('target_pos', None)),
+                "request_value_len": self.convert_to_int(log_entry.get('list_size', None)),
+            },
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_vlv_entry(log_entry_norm)
+
+    def _process_vlv_entry(self, log_entry: dict):
+        """
+        Processes a vlv log entry in JSON format.
+
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+
+        Notes:
+            - Includes error handling and logging for unexpected parsing issues.
+        """
+        self.logger.debug(f"_process_vlv_entry - Start - {log_entry}")
+
+        op_id = log_entry.get("op_id")
+
+        # Extract VLV request and response
+        vlv_req = log_entry.get("vlv_request", {})
+        vlv_res = log_entry.get("vlv_response", {})
+
+        # Request Fields
+        sort = vlv_req.get("request_sort", "")
+
+       # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+        try:
+            op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
+        except (ValueError, TypeError) as e:
+            self.logger.error(f"Invalid key format for conn_scope_key={conn_scope_key}, op_id={op_id} - {e}")
+            op_scope_key = None
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Bump vlv and global op stats
+        self.vlv.counters['vlv'] += 1
+        self.operation.counters['total'] = self.operation.counters['total'] + 1
+        self.vlv.vlv_map[op_scope_key] = op_scope_key
+
+        if sort:
+            self.operation.counters['sort'] += 1
+
+        self.logger.debug(f"_process_vlv_entry - End")
+
+    def _process_abandon_legacy(self, log_entry: dict):
+        """
+        Processes a legacy ABANDON log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "target_op": self.convert_to_int(log_entry.get('targetop', None)),
+            "msgid": self.convert_to_int(log_entry.get('msgid', None)),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_abandon_entry(log_entry_norm)
+
+    def _process_abandon_entry(self, log_entry: dict):
+        """
+        Processes an abandon operation log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+        """
+        self.logger.debug(f"_process_abandon_entry - Start - {log_entry}")
+
+        conn_id = log_entry.get("conn_id", None)
+        op_id = log_entry.get("op_id", None)
+        target_op = log_entry.get('target_op', "")
+        msgid = log_entry.get("msgid", None)
+        
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Bump some stats
+        self.result.counters['result'] += 1
+        self.operation.counters['total'] += 1
+        self.operation.counters['abandon']  += 1
+
+        # There could be multiple abandon ops per connection so store them in a list, keyed on conn_scope_key
+        self.operation.op_map.setdefault('abandoned', {}).setdefault((conn_scope_key, conn_id), []) \
+            .append((op_id, target_op, msgid))
+
+    def _process_sort_legacy(self, log_entry: dict):
+        """
+        Processes a legacy SORT log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "attribute": self.convert_to_int(log_entry.get('attribute', "")),
+            "status": self.convert_to_int(log_entry.get('status', None)),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_sort_entry(log_entry_norm)
+
+    def _process_sort_entry(self, log_entry: dict):
+        """
+        Processes an abandon operation log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        self.operation.counters['sort'] += 1
+
+    def _process_extend_op_legacy(self, log_entry: dict):
+        """
+        Processes a legacy EXT log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "oid": log_entry.get('oid', ""),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_extend_op_entry(log_entry_norm)
+
+    def _process_extend_op_entry(self, log_entry: dict):
+        """
+        Processes an extended operation log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+        """
+        self.logger.debug(f"_process_extend_op_entry - Start - {log_entry}")
+
+        conn_id = log_entry.get("conn_id", None)
+        op_id = log_entry.get("op_id",None)
+        oid = log_entry.get("oid", "")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Increment global operation counters
+        self.operation.counters['total'] += 1
+        self.operation.counters['extnd'] += 1
+
+        # Track extended operation data if an OID is present
+        if oid is not None:
+            oid_key = (self.server.counters['restart'], conn_id, op_id)
+            self.operation.extended[oid] += 1
+            self.operation.op_map['extnd'][oid_key] = (
+                self.operation.op_map['extnd'].get(oid_key, 0) + 1
+            )
+
+        # If the conn_id is associated with this DN, update op counter
+        for dn in self.bind.report_dn:
+            conns = self.bind.report_dn[dn]['conn']
+            if conn_id in conns:
+                bind_dn_key = self._report_dn_key(dn, self.report_dn)
+                if bind_dn_key:
+                    self.bind.report_dn[bind_dn_key]['ext'] += 1
+
+        self.logger.debug(f"_process_extend_op_entry - End")
+
+    def _process_autobind_legacy(self, log_entry: dict):
+        """
+        Processes a legacy AUTOBIND log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "bind_dn": log_entry.get('bind_id', ""),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_autobind_entry(log_entry_norm)
+
+    def _process_autobind_entry(self, log_entry: dict):
+        """
+        Processes an extended operation log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+        """
+        self.logger.debug(f"_process_extend_op_entry - Start - {log_entry}")
+
+        bind_dn = log_entry.get("bind_dn", "")
+        
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Bump relevant counters
+        self.bind.counters['bind'] += 1
+        self.bind.counters['autobind'] += 1
+        self.operation.counters['total'] += 1
+
+        # Track DN statistics
+        if bind_dn == "":
+            self.bind.counters['anon'] += 1
+        else:
+            # Process non-anonymous binds, does the bind_dn if exist in bind_dn_map
+            existing_bind_dn = self.bind.bind_dn_map.get(conn_scope_key, bind_dn)
+            if existing_bind_dn:
+                if existing_bind_dn.casefold() == self.root_dn.casefold():
+                    self.bind.counters['rootdn'] += 1
+                existing_bind_dn = existing_bind_dn.lower()
+                self.bind.dns[existing_bind_dn] += 1
+
+    def _process_disconnect_legacy(self, log_entry: dict):
+        """
+        Processes a legacy Disconnect log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "fd": self.convert_to_int(log_entry.get('fd', None)),
+            "close_error": log_entry.get('error_code', ""),
+            "close_reason": log_entry.get('close_reason', ""),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_disconnect_entry(log_entry_norm)
+
+    def _process_disconnect_entry(self, log_entry: dict):
+        """
+        Processes a disconnect log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+        """
+        self.logger.debug(f"_process_disconnect_entry - Start - {log_entry}")
+
+        timestamp_dt = log_entry.get("timestamp_dt", None)
+        operation = log_entry.get("operation", "")
+        key = log_entry.get("key", "")
+        conn_id = log_entry.get("conn_id", None)
+        op_id = log_entry.get("op_id",None)
+        fd = log_entry.get("fd", None)
+        close_reason = log_entry.get("close_reason","")
+        close_error = log_entry.get("close_error","")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        if self.verbose:
+            # Handle verbose logging for open connections and IP addresses
+            src_ip = self.connection.ip_map.get(conn_scope_key)
+            if src_ip and src_ip in self.connection.open_conns:
+                open_conns = self.connection.open_conns
+                if open_conns[src_ip] > 1:
+                    open_conns[src_ip] -= 1
+                else:
+                    del open_conns[src_ip]
+
+        # Handle latency and disconnect times
+        if self.verbose:
+            start_time = self.connection.start_time[conn_id]
+            finish_time = timestamp_dt
+            if start_time and finish_time:
+                latency = self.get_elapsed_time(start_time, finish_time, "seconds")
+                bucket = self._group_latencies(latency)
+                LATENCY_GROUPS[bucket] += 1
+
+                # Reset start time for the connection
+                self.connection.start_time[conn_id] = None
+
+        # Update connection stats
+        self.connection.counters['sim_conn'] -= 1
+        self.connection.counters['fd_returned'] += 1
+
+        # Manage disconnect code
+        if close_reason:
+            if " - " in close_reason:
+                disconnect_reason, disconnect_code = close_reason.rsplit(" - ", 1)
+            else:
+                disconnect_reason = close_reason.strip()
+                disconnect_code = "Unknown"
+            if disconnect_code:
+                self.connection.disconnect_code[disconnect_code] += 1
+                self.connection.disconect_map[conn_scope_key] = disconnect_code
+
+        # Manage error codes if provided
+        if close_error:
+            # Try legacy disconnect error code fitst
+            error_type = None
+            error_type = DISCONNECT_ERRORS.get(close_error.strip())
+            # Fallback to using close error directly
+            if error_type is None:
+                error_type = close_error
+            self.connection.error_code[error_type][disconnect_code] += 1
+
+    def _process_crud_legacy(self, log_entry):
+        """
+        Processes a legacy ADD, MOD, DEL, CMP log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Maps legacy op format to JSON format.
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "operation": self.convert_op_format(log_entry.get('op_type', None)),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_crud_entry(log_entry_norm)
+
+    def _process_crud_entry(self, log_entry: dict):
+        """
+        Processes an ADD, MODIFY, or DELETE log entry in JSON format.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+        
+        Notes:
+            - Includes error handling and logging for unexpected parsing issues.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        operation = log_entry.get("operation", "")
+        conn_id = log_entry.get("conn_id", None)
+        op_id = log_entry.get("op_id", None)
+        authzid = log_entry.get("authzid", "")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+        try:
+            op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
+        except (ValueError, TypeError) as e:
+            self.logger.error(f"Invalid key format for conn_scope_key={conn_scope_key}, op_id={op_id} - {e}")
+            op_scope_key = None
+
+        operation = operation.lower()
+        self.operation.counters['total'] += 1
+
+        # Use operation type as key for stats
+        if operation:
+            # Increment op type counter
+            self.operation.counters[operation] += 1
+
+            # Increment the op type map counter
+            self.operation.op_map[operation][conn_scope_key] += 1
+
+        # If the conn_id is associated with this DN, update op counter
+        for dn in self.bind.report_dn:
+            conns = self.bind.report_dn[dn]['conn']
+            if conn_id in conns:
+                bind_dn_key = self._report_dn_key(dn, self.report_dn)
+                if bind_dn_key:
+                    self.bind.report_dn[bind_dn_key][op_scope_key] += 1
+
+        # Authorisation identity
+        if authzid:
+            self.operation.counters['authzid'] += 1
+
+            self.logger.debug(f"_process_result_entry - End")
+
+    def _process_entry_referral_legacy(self, log_entry):
+        """
+        Processes a legacy REFERRAL or ENTRY entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Maps legacy op format to JSON format.
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        log_entry_norm = {
+            "timestamp_dt": log_entry.get('timestamp_dt', None),
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
+            "target_dn": log_entry.get('dn', ""),
+            "operation": self.convert_op_format(log_entry.get('op_type', None)),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        self._process_entry_referral_entry(log_entry_norm)
+
+    def _process_entry_referral_entry(self, log_entry: dict):
+        """
+        Process a log entry related to LDAP referral or entry operations.
+
+        Args:
+            log_entry (dict): A dictionary containing the parsed log entry.
+        """
+        self.logger.error(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        op_type = log_entry.get('operation', "")
+
+        # Tracking key
+        conn_scope_key = log_entry.get("key", "")
+
+        # Should we ignore this operation
+        if conn_scope_key in self.connection.exclude_ip:
+            return None
+
+        # Process operation type
+        if op_type is not None:
+            if op_type == 'ENTRY':
+                self.result.counters['entry'] += 1
+            elif op_type == 'REFERRAL':
+                self.result.counters['referral'] += 1
 
     def display_bind_report(self):
         """
@@ -643,936 +2334,6 @@ class logAnalyser:
 
         print("Done.")
 
-    def _match_line(self, line: str, bytes_read: int):
-        """
-        Process a single line from an access log, match it against predefined patterns,
-        and handle the match by calling its corresponding handler function.
-
-        Args:
-            line (str): A single line from the access log.
-            bytes_read (int): Total bytes read so far.
-
-        Returns:
-            bool: True if a match was found and processed, False otherwise.
-        """
-        for pattern, action in self.regexes.values():
-            match = pattern.match(line)
-            if not match:
-                continue
-
-            try:
-                groups = match.groupdict()
-            except AttributeError as e:
-                self.logger.error(f"Error: {e} getting groups from match on line: {line}.")
-                return False
-
-            timestamp = groups.get('timestamp')
-            if not timestamp:
-                self.logger.error(f"Timestamp missing in line: {line}")
-                return False
-
-            # datetime library doesnt support nanoseconds so we need to "normalise"the timestamp
-            try:
-                norm_timestamp = self._convert_timestamp_to_datetime(timestamp)
-            except (ValueError, IndexError, TypeError) as e:
-                self.logger.error(f"Converting timestamp: {timestamp} to datetime failed with: {e}")
-                return False
-
-            # Are there time range restrictions
-            parse_start = self.server.parse_start_time
-            parse_stop = self.server.parse_stop_time
-
-            if parse_start and parse_stop:
-                if parse_start.microsecond == 0 and parse_stop.microsecond == 0:
-                    norm_timestamp = norm_timestamp.replace(microsecond=0)
-
-                if not (parse_start <= norm_timestamp <= parse_stop):
-                    self.logger.debug(f"Timestamp {norm_timestamp} is out of range ({parse_start} - {parse_stop}). Skipping.")
-                    return False
-
-            # Get the first and last timestamps
-            if self.server.first_time is None:
-                self.server.first_time = timestamp
-            self.server.last_time = timestamp
-
-            # Bump lines parsed
-            self.server.counters['lines_parsed'] += 1
-
-            # Call the associated method for this match
-            action(groups)
-
-            # Should we gather stats for this match
-            if self.stats_interval and self.stats_file:
-                self._process_and_write_stats(norm_timestamp, bytes_read)
-                self.logger.debug(f"Stats processed for timestamp {norm_timestamp}.")
-
-            return True
-
-        self.logger.debug(f"No match found on line: {line}")
-        return False
-
-    def _process_result_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'timestamp': The timestamp of the connection event.
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'etime': Result elapsed time.
-                - 'wtime': Result wait time.
-                - 'optime': Result operation time.
-                - 'nentries': Result number of entries returned.
-                - 'tag': Bind response tag.
-                - 'err': Result error code.
-                - 'internal': Server internal operation.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        self.logger.debug(f"_process_result_stats - Start - {groups}")
-
-        try:
-            timestamp = groups.get('timestamp')
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            etime = float(groups.get('etime'))
-            wtime = float(groups.get('wtime'))
-            optime = float(groups.get('optime'))
-            nentries = int(groups.get('nentries'))
-            tag = groups.get('tag')
-            err = groups.get('err')
-            internal = groups.get('internal')
-            notes = groups.get('notes')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Mapping keys for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_op_key = (restart_ctr, conn_id, op_id)
-        restart_conn_key = (restart_ctr, conn_id)
-        conn_op_key = (conn_id, op_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        self.result.counters['result'] += 1
-        self.result.counters['timestamp'] += 1
-
-        # Longest etime, push current etime onto the heap
-        heapq.heappush(self.result.etime_duration, etime)
-
-        # If the heap exceeds size_limit, pop the smallest element from root
-        if len(self.result.etime_duration) > self.size_limit:
-            heapq.heappop(self.result.etime_duration)
-
-        # Longest wtime, push current wtime onto the heap
-        heapq.heappush(self.result.wtime_duration, wtime)
-
-        # If the heap exceeds size_limit, pop the smallest element from root
-        if len(self.result.wtime_duration) > self.size_limit:
-            heapq.heappop(self.result.wtime_duration)
-
-        # Longest optime, push current optime onto the heap
-        heapq.heappush(self.result.optime_duration, optime)
-
-        # If the heap exceeds size_limit, pop the smallest element from root
-        if len(self.result.optime_duration) > self.size_limit:
-            heapq.heappop(self.result.optime_duration)
-
-        # Total result times
-        self.result.total_etime = self.result.total_etime + etime
-        self.result.total_wtime = self.result.total_wtime + wtime
-        self.result.total_optime = self.result.total_optime + optime
-
-        # Statistic reporting
-        self.result.etime_stat = round(self.result.etime_stat + float(etime), 8)
-
-        if err is not None:
-            self.result.error_freq[err] += 1
-
-        # Check for internal operations based on either conn_id or internal flag
-        if 'Internal' in conn_id or internal:
-            self.operation.counters['internal'] +=1
-
-        # Process result notes if present
-        NOTE_TYPES = {'A', 'U', 'F', 'M', 'P'}
-        if notes in NOTE_TYPES:
-            note_dict = self.result.notes[notes]
-            self.result.counters[f'notes{notes}'] += 1
-
-            # Exclude VLV
-            if restart_conn_op_key not in self.vlv.rst_con_op_map:
-                # Construct the notes dict
-                note_dict = self.result.notes[notes]
-                note_entry = note_dict.setdefault(restart_conn_op_key, {})
-                note_entry.update({
-                    'time': timestamp,
-                    'etime': etime,
-                    'nentries': nentries,
-                    'ip': self.connection.restart_conn_ip_map.get(restart_conn_key, 'Unknown IP'),
-                    'bind_dn': self.bind.restart_conn_dn_map.get(restart_conn_key, 'Unknown DN')
-                })
-
-                if restart_conn_op_key in self.search.base_rst_con_op_map:
-                    note_dict[restart_conn_op_key]['base'] = self.search.base_rst_con_op_map[restart_conn_op_key]
-                    del self.search.base_rst_con_op_map[restart_conn_op_key]
-
-                if restart_conn_op_key in self.search.scope_rst_con_op_map:
-                    note_dict[restart_conn_op_key]['scope'] = self.search.scope_rst_con_op_map[restart_conn_op_key]
-                    del self.search.scope_rst_con_op_map[restart_conn_op_key]
-
-                if restart_conn_op_key in self.search.filter_rst_con_op_map:
-                    note_dict[restart_conn_op_key]['filter'] = self.search.filter_rst_con_op_map[restart_conn_op_key]
-                    del self.search.filter_rst_con_op_map[restart_conn_op_key]
-            else:
-                self.vlv.rst_con_op_map[restart_conn_op_key] = notes
-
-        # Trim the search data we dont need (not associated with a notes=X)
-        if restart_conn_op_key in self.search.base_rst_con_op_map:
-            del self.search.base_rst_con_op_map[restart_conn_op_key]
-
-        if restart_conn_op_key in self.search.scope_rst_con_op_map:
-            del self.search.scope_rst_con_op_map[restart_conn_op_key]
-
-        if restart_conn_op_key in self.search.filter_rst_con_op_map:
-            del self.search.filter_rst_con_op_map[restart_conn_op_key]
-
-        # Process bind response based on the tag and error code.
-        if tag == '97':
-            # Invalid credentials|Entry does not exist
-            if err == '49':
-                # if self.verbose:
-                bad_pwd_dn = self.bind.restart_conn_dn_map[restart_conn_key]
-                bad_pwd_ip = self.connection.restart_conn_ip_map.get(restart_conn_key, None)
-                self.result.bad_pwd_map[(bad_pwd_dn, bad_pwd_ip)] = (
-                    self.result.bad_pwd_map.get((bad_pwd_dn, bad_pwd_ip), 0) + 1
-                )
-                # Trim items to size_limit
-                if len(self.result.bad_pwd_map) > self.size_limit:
-                    within_size_limit = dict(
-                        sorted(
-                            self.result.bad_pwd_map.items(),
-                            key=lambda item: item[1],
-                            reverse=True
-                        )[:self.size_limit])
-                    self.result.bad_pwd_map = within_size_limit
-
-            # Ths result is involved in the SASL bind process, decrement bind count, etc
-            elif err == '14':
-                self.bind.counters['bind'] -= 1
-                self.operation.counters['total'] -= 1
-                self.bind.counters['sasl'] -= 1
-                self.bind.version['3'] = self.bind.version.get('3', 0) - 1
-
-                # Drop the sasl mech count also
-                mech = self.bind.conn_op_sasl_mech_map[conn_op_key]
-                if mech:
-                    self.bind.sasl_mech[mech] -= 1
-            # Is this is a result to a sasl bind
-            else:
-                result_dn = groups['dn']
-                if result_dn:
-                    if result_dn != "":
-                        # If this is a result of a sasl bind, grab the dn
-                        if conn_op_key in self.bind.conn_op_sasl_mech_map:
-                            if result_dn is not None:
-                                self.bind.restart_conn_dn_map[restart_conn_key] = result_dn.lower()
-                                self.bind.dns[result_dn] = (
-                                    self.bind.dns.get(result_dn, 0) + 1
-                                )
-        # Handle other tag values
-        elif tag in ['100', '101', '111', '115']:
-
-            # Largest nentry, push current nentry onto the heap, no duplicates
-            if int(nentries) not in self.result.nentries_set:
-                heapq.heappush(self.result.nentries_num, int(nentries))
-                self.result.nentries_set.add(int(nentries))
-
-            # If the heap exceeds size_limit, pop the smallest element from root
-            if len(self.result.nentries_num) > self.size_limit:
-                removed = heapq.heappop(self.result.nentries_num)
-                self.result.nentries_set.remove(removed)
-
-        self.logger.debug(f"_process_result_stats - End")
-
-    def _process_search_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-                - 'search_base': Search base.
-                - 'search_scope': Search scope.
-                - 'search_attrs':  Search attributes.
-                - 'search_filter':  Search filter.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        self.logger.debug(f"_process_search_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            search_base = groups['search_base']
-            search_scope = groups['search_scope']
-            search_attrs = groups['search_attrs']
-            search_filter = groups['search_filter']
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking keys for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_op_key = (restart_ctr, conn_id, op_id)
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Bump search and global op count
-        self.search.counters['search'] +=  1
-        self.operation.counters['total'] += 1
-
-        # Search attributes
-        if search_attrs is not None:
-            if search_attrs == 'ALL':
-                self.search.attrs['All Attributes'] += 1
-            else:
-                for attr in search_attrs.split():
-                    attr = attr.strip('"')
-                    self.search.attrs[attr] += 1
-
-        # If the associated conn id for the bind DN matches update op counter
-        for dn in self.bind.report_dn:
-            conns = self.bind.report_dn[dn]['conn']
-            if conn_id in conns:
-                bind_dn_key = self._report_dn_key(dn, self.report_dn)
-                if bind_dn_key:
-                    self.bind.report_dn[bind_dn_key]['srch'] = self.bind.report_dn[bind_dn_key].get('srch', 0) + 1
-
-        # Search base
-        if search_base is not None:
-            if search_base:
-                base = search_base
-            # Empty string ("")
-            else:
-                base = "Root DSE"
-            search_base = base.lower()
-            if search_base:
-                if self.verbose:
-                    self.search.bases[search_base] += 1#self.search.bases.get(search_base, 0) + 1
-                    self.search.base_rst_con_op_map[restart_conn_op_key] = search_base
-
-        # Search scope
-        if search_scope is not None:
-            if self.verbose:
-                self.search.scope_rst_con_op_map[restart_conn_op_key] = SCOPE_LABEL[int(search_scope)]
-
-        # Search filter
-        if search_filter is not None:
-            if self.verbose:
-                self.search.filter_rst_con_op_map[restart_conn_op_key] = search_filter
-                self.search.filter_dict[search_filter] = self.search.filter_dict.get(search_filter, 0) + 1
-
-                found = False
-                for idx, (count, filter) in enumerate(self.search.filter_list):
-                    if filter == search_filter:
-                        found = True
-                        self.search.filter_list[idx] = (self.search.filter_dict[search_filter] + 1, search_filter)
-                        heapq.heapify(self.search.filter_list)
-                        break
-
-                if not found:
-                    if len(self.search.filter_list) < self.size_limit:
-                        heapq.heappush(self.search.filter_list, (1, search_filter))
-                    else:
-                        heapq.heappushpop(self.search.filter_list, (self.search.filter_dict[search_filter], search_filter))
-
-        # Check for an entire base search
-        if "objectclass=*" in search_filter.lower() or "objectclass=top" in search_filter.lower():
-            if search_scope == '2':
-                self.search.counters['base_search'] += 1
-
-        # Persistent search
-        if groups['options'] is not None:
-            options = groups['options']
-            if options == 'persistent':
-                self.search.counters['persistent'] += 1
-
-        # Authorization identity
-        if groups['authzid_dn'] is not None:
-            self.search['authzid'] = self.search.get('authzid', 0) + 1
-
-        self.logger.debug(f"_process_search_stats - End")
-
-    def _process_bind_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'bind_dn': Bind DN.
-                - 'bind_method': Bind method (sasl, simple).
-                - 'bind_version': Bind version.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        self.logger.debug(f"_process_bind_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            bind_dn = groups.get('bind_dn')
-            bind_method = groups.get('bind_method')
-            bind_version = groups.get('bind_version')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking keys for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-        conn_op_key = (conn_id, op_id)
-
-        if bind_dn.strip() == '':
-            bind_dn = 'Anonymous'
-        bind_dn_normalised = bind_dn.lower() if bind_dn != 'Anonymous' else 'anonymous'
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Update counters
-        self.bind.counters['bind'] += 1
-        self.operation.counters['total'] = self.operation.counters['total'] + 1
-        self.bind.version[bind_version] += 1
-
-
-        # If we need to report on this DN, capture some info for tracking
-        bind_dn_key = self._report_dn_key(bind_dn, self.report_dn)
-        if bind_dn_key:
-            self.bind.report_dn[bind_dn_key]['bind'] = self.bind.report_dn[bind_dn_key].get('bind', 0) + 1
-            self.bind.report_dn[bind_dn_key]['conn'].add(conn_id)
-
-            # Loop over IPs captured at connection time to find the associated IP
-            for (ip, ip_info) in self.connection.src_ip_map.items():
-                if restart_conn_key in ip_info['keys']:
-                    self.bind.report_dn[bind_dn_key]['ips'].add(ip)
-
-        # Handle SASL or simple bind
-        if bind_method == 'sasl':
-            self.bind.counters['sasl'] += 1
-            sasl_mech = groups['sasl_mech']
-            if sasl_mech:
-                self.bind.sasl_mech[sasl_mech] += 1
-                self.bind.conn_op_sasl_mech_map[conn_op_key] = sasl_mech
-
-            if bind_dn_normalised == self.root_dn.casefold():
-                self.bind.counters['rootdn'] += 1
-
-            if bind_dn != "Anonymous":
-                self.bind.dns[bind_dn] += 1
-
-        else:
-            if bind_dn == "Anonymous":
-                self.bind.counters['anon'] += 1
-                self.bind.dns['Anonymous'] += 1
-            else:
-                if bind_dn.casefold() == self.root_dn.casefold():
-                    self.bind.counters['rootdn'] += 1
-                self.bind.dns[bind_dn] += 1
-
-        self.bind.restart_conn_dn_map[restart_conn_key] = bind_dn_normalised
-
-        self.logger.debug(f"_process_bind_stats - End")
-
-    def _process_unbind_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_unbind_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Bump unbind count
-        self.bind.counters['unbind'] += 1
-
-        self.logger.debug(f"_process_unbind_stats - End")
-
-    def _process_connect_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'src_ip': Source IP address.
-                - 'fd': File descriptor.
-                - 'ssl': LDAPS.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_connect_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            src_ip = groups.get('src_ip')
-            fd = groups['fd']
-            ssl = groups['ssl']
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # If conn=1, server has started a new lifecycle
-        if conn_id == '1':
-            self.server.counters['restart'] += 1
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we exclude this IP
-        if self.exclude_ip and src_ip in self.exclude_ip:
-            self.connection.exclude_ip[restart_conn_key] = src_ip
-            return None
-
-        if self.verbose:
-            # Update open connection count
-            self.connection.open_conns[src_ip] += 1
-
-            # Track the connection start normalised datetime object for latency report
-            self.connection.start_time[conn_id] = groups.get('timestamp')
-
-        # Update general connection counters
-        self.connection.counters['conn'] += 1
-        self.connection.counters['sim_conn'] += 1
-
-        # Update the maximum number of simultaneous connections seen
-        self.connection.counters['max_sim_conn'] = max(
-            self.connection.counters['max_sim_conn'],
-            self.connection.counters['sim_conn']
-        )
-
-        # Update protocol counters
-        if ssl:
-            self.connection.counters['ldaps'] += 1
-        elif src_ip == 'local':
-            self.connection.counters['ldapi'] += 1
-        else:
-            self.connection.counters['ldap'] += 1
-
-        # Track file descriptor counters
-        self.connection.counters['fd_max'] = max(self.connection.counters['fd_taken'], int(fd))
-        self.connection.counters['fd_taken'] += 1
-
-        # Track source IP
-        self.connection.restart_conn_ip_map[restart_conn_key] = src_ip
-
-        # Update the count of connections seen from this IP
-        if src_ip not in self.connection.src_ip_map:
-            self.connection.src_ip_map[src_ip] = {}
-
-        self.connection.src_ip_map[src_ip]['count'] = self.connection.src_ip_map[src_ip].get('count', 0) + 1
-
-        if 'keys' not in self.connection.src_ip_map[src_ip]:
-            self.connection.src_ip_map[src_ip]['keys'] = set()
-
-        self.connection.src_ip_map[src_ip]['keys'].add(restart_conn_key)
-
-        self.logger.debug(f"_process_connect_stats - End")
-
-    def _process_auth_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'auth_protocol': Auth protocol (SSL, TLS).
-                - 'auth_version': Auth version.
-                - 'auth_message': Optional auth message.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_auth_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            auth_protocol = groups.get('auth_protocol')
-            auth_version = groups.get('auth_version')
-            auth_message = groups.get('auth_message')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        if auth_protocol:
-            if restart_conn_key not in self.auth.auth_info:
-                self.auth.auth_info[restart_conn_key] = {
-                    'proto': auth_protocol,
-                    'version': auth_version,
-                    'count': 0,
-                    'message': []
-                    }
-
-            if auth_message:
-                # Increment counters and add auth message
-                self.auth.auth_info[restart_conn_key]['message'].append(auth_message)
-
-            # Bump auth related counters
-            self.auth.counters['cipher_ctr'] += 1
-            self.auth.auth_info[restart_conn_key]['count'] += 1
-
-        if auth_message:
-            if auth_message == 'client bound as':
-                self.auth.counters['ssl_client_bind_ctr'] += 1
-            elif auth_message == 'failed to map client certificate to LDAP DN':
-                self.auth.counters['ssl_client_bind_failed_ctr'] += 1
-
-        self.logger.debug(f"_process_auth_stats - End")
-
-    def _process_vlv_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_vlv_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_op_key = (restart_ctr, conn_id, op_id)
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Bump vlv and global op stats
-        self.vlv.counters['vlv'] += 1
-        self.operation.counters['total'] = self.operation.counters['total'] + 1
-
-        # Key and value are the same, makes set operations easier later on
-        self.vlv.rst_con_op_map[restart_conn_op_key] = restart_conn_op_key
-
-        self.logger.debug(f"_process_vlv_stats - End")
-
-    def _process_abandon_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'targetop': The target operation.
-                - 'msgid': Message ID.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_abandon_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            targetop = groups.get('targetop')
-            msgid = groups.get('msgid')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Bump some stats
-        self.result.counters['result'] += 1
-        self.operation.counters['total'] = self.operation.counters['total'] + 1
-        self.operation.counters['abandon']  += 1
-
-        # Track abandoned operation for later processing
-        self.operation.rst_con_op_map['abandon'] = (conn_id, op_id, targetop, msgid)
-
-        self.logger.debug(f"_process_abandon_stats - End")
-
-    def _process_sort_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_sort_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        self.operation.counters['sort'] += 1
-
-        self.logger.debug(f"_process_sort_stats - End")
-
-    def _process_extend_op_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
-                - 'oid': Extended operation identifier.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_extend_op_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
-            oid = groups.get('oid')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_op_key = (restart_ctr, conn_id, op_id)
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Increment global operation counters
-        self.operation.counters['total'] = self.operation.counters['total'] + 1
-        self.operation.counters['extnd'] += 1
-
-        # Track extended operation data if an OID is present
-        if oid is not None:
-            self.operation.extended[oid] += 1
-            self.operation.rst_con_op_map['extnd'][restart_conn_op_key] = (
-                self.operation.rst_con_op_map['extnd'].get(restart_conn_op_key, 0) + 1
-            )
-
-        # If the conn_id is associated with this DN, update op counter
-        for dn in self.bind.report_dn:
-            conns = self.bind.report_dn[dn]['conn']
-            if conn_id in conns:
-                bind_dn_key = self._report_dn_key(dn, self.report_dn)
-                if bind_dn_key:
-                    self.bind.report_dn[bind_dn_key]['ext'] = self.bind.report_dn[bind_dn_key].get('ext', 0) + 1
-
-        self.logger.debug(f"_process_extend_op_stats - End")
-
-    def _process_autobind_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'bind_dn': Bind DN ("cn=Directory Manager")
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_autobind_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            bind_dn = groups.get('bind_dn')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Bump relevant counters
-        self.bind.counters['bind'] += 1
-        self.bind.counters['autobind'] += 1
-        self.operation.counters['total'] += 1
-
-        # Handle an anonymous autobind (empty bind_dn)
-        if bind_dn == "":
-            self.bind.counters['anon'] += 1
-        else:
-            # Process non-anonymous binds, does the bind_dn if exist in restart_conn_dn_map
-            bind_dn = self.bind.restart_conn_dn_map.get(restart_conn_key, bind_dn)
-            if bind_dn:
-                if bind_dn.casefold() == self.root_dn.casefold():
-                    self.bind.counters['rootdn'] += 1
-                bind_dn = bind_dn.lower()
-                self.bind.dns[bind_dn] = self.bind.dns.get(bind_dn, 0) + 1
-
-        self.logger.debug(f"_process_autobind_stats - End")
-
-    def _process_disconnect_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'timestamp': The timestamp of the disconnect event.
-                - 'error_code': Error code associated with the disconnect, if any.
-                - 'disconnect_code': Disconnect code, if any.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-
-        self.logger.debug(f"_process_disconnect_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            timestamp = groups.get('timestamp')
-            error_code = groups.get('error_code')
-            disconnect_code = groups.get('disconnect_code')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        if self.verbose:
-            # Handle verbose logging for open connections and IP addresses
-            src_ip = self.connection.restart_conn_ip_map.get(restart_conn_key)
-            if src_ip and src_ip in self.connection.open_conns:
-                open_conns = self.connection.open_conns
-                if open_conns[src_ip] > 1:
-                    open_conns[src_ip] -= 1
-                else:
-                    del open_conns[src_ip]
-
-        # Handle latency and disconnect times
-        if self.verbose:
-            start_time = self.connection.start_time[conn_id]
-            finish_time = groups.get('timestamp')
-            if start_time and timestamp:
-                latency = self.get_elapsed_time(start_time, finish_time, "seconds")
-                bucket = self._group_latencies(latency)
-                LATENCY_GROUPS[bucket] += 1
-
-                # Reset start time for the connection
-                self.connection.start_time[conn_id] = None
-
-        # Update connection stats
-        self.connection.counters['sim_conn'] -= 1
-        self.connection.counters['fd_returned'] += 1
-
-        # Track error and disconnect codes if provided
-        if error_code is not None:
-            error_type = DISCONNECT_ERRORS.get(error_code, 'unknown')
-            if disconnect_code is not None:
-                # Increment the count for the specific error and disconnect code
-                # error_map = self.connection.setdefault(error_type, {})
-                # error_map[disconnect_code] = error_map.get(disconnect_code, 0) + 1
-                self.connection[error_type][disconnect_code] += 1
-
-        # Handle disconnect code and update stats
-        if disconnect_code is not None:
-            self.connection.disconnect_code[disconnect_code] = (
-                self.connection.disconnect_code.get(disconnect_code, 0) + 1
-            )
-            self.connection.restart_conn_disconnect_map[restart_conn_key] = disconnect_code
-
-        self.logger.debug(f"_process_disconnect_stats - End")
-
     def _group_latencies(self, latency_seconds: int):
         """
         Group latency values into predefined categories.
@@ -1598,104 +2359,7 @@ class logAnalyser:
         else:
             return "> 15"
 
-    def _process_crud_stats(self, groups):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        self.logger.debug(f"_process_crud_stats - Start - {groups}")
-        try:
-            conn_id = groups.get('conn_id')
-            op_type = groups.get('op_type')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        self.operation.counters['total'] = self.operation.counters['total'] + 1
-
-        # Use operation type as key for stats
-        if op_type is not None:
-            op_key = op_type.lower()
-            if op_key not in self.operation.counters:
-                self.operation.counters[op_key] = 0
-            if op_key not in self.operation.rst_con_op_map:
-                self.operation.rst_con_op_map[op_key] = {}
-
-            # Increment op type counter
-            self.operation.counters[op_key] += 1
-
-            # Increment the op type map counter
-            current_count = self.operation.rst_con_op_map[op_key].get(restart_conn_key, 0)
-            self.operation.rst_con_op_map[op_key][restart_conn_key] = current_count + 1
-
-        # If the conn_id is associated with this DN, update op counter
-        for dn in self.bind.report_dn:
-            conns = self.bind.report_dn[dn]['conn']
-            if conn_id in conns:
-                bind_dn_key = self._report_dn_key(dn, self.report_dn)
-                if bind_dn_key:
-                    self.bind.report_dn[bind_dn_key][op_key] = self.bind.report_dn[bind_dn_key].get(op_key, 0) + 1
-
-        # Authorization identity
-        if groups['authzid_dn'] is not None:
-            self.operation.counters['authzid'] += 1
-
-        self.logger.debug(f"_process_crud_stats - End")
-
-    def _process_entry_referral_stats(self, groups: dict):
-        """
-        Process and update statistics based on the parsed result group.
-
-        Args:
-            groups (dict): A dictionary containing operation information. Expected keys:
-                - 'conn_id': Connection identifier.
-                - 'op_id': Operation identifier.
-
-        Raises:
-            KeyError: If required keys are missing in the `groups` dictionary.
-        """
-        self.logger.debug(f"_process_entry_referral_stats - Start - {groups}")
-
-        try:
-            conn_id = groups.get('conn_id')
-            op_type = groups.get('op_type')
-        except KeyError as e:
-            self.logger.error(f"Missing key in groups: {e}")
-            return
-
-        # Create a tracking key for this entry
-        restart_ctr = self.server.counters['restart']
-        restart_conn_key = (restart_ctr, conn_id)
-
-        # Should we ignore this operation
-        if restart_conn_key in self.connection.exclude_ip:
-            return None
-
-        # Process operation type
-        if op_type is not None:
-            if op_type == 'ENTRY':
-                self.result.counters['entry'] += 1
-            elif op_type == 'REFERRAL':
-                self.result.counters['referral'] += 1
-
-        self.logger.debug(f"_process_entry_referral_stats - End")
-
-    def _process_and_write_stats(self, norm_timestamp: str, bytes_read: int):
+    def _process_and_write_stats(self, timestamp: datetime, bytes_read: int):
         """
         Processes statistics and writes them to the CSV file at defined intervals.
 
@@ -1706,21 +2370,21 @@ class logAnalyser:
         Returns:
             None
         """
-        self.logger.debug(f"_process_and_write_stats - Start")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} timestamp:{timestamp} bytes_read:{bytes_read}")
 
         if self.csv_writer is None:
             self.logger.error("CSV writer not enabled.")
             return
 
-        # Define the stat mapping
+        # Define the stat mapping for CSV output
         stats = {
             'result': self.result.counters,
             'search': self.search.counters,
             'add': self.operation.counters,
-            'mod': self.operation.counters,
+            'modify': self.operation.counters,
             'modrdn': self.operation.counters,
-            'cmp': self.operation.counters,
-            'del': self.operation.counters,
+            'compare': self.operation.counters,
+            'delete': self.operation.counters,
             'abandon': self.operation.counters,
             'conn': self.connection.counters,
             'ldaps': self.connection.counters,
@@ -1734,11 +2398,11 @@ class logAnalyser:
         }
 
         # Build the current stat block
-        curr_stat_block = [norm_timestamp]
-        curr_stat_block.extend([refdict[key] for key, refdict in stats.items()])
+        curr_stat_block = [timestamp]
+        for key, refdict in stats.items():
+            curr_stat_block.append(refdict.get(key, 0)) 
 
         curr_time = curr_stat_block[0]
-
         # Check for previous stats for differences
         if self.prev_stats is not None:
             prev_stat_block = self.prev_stats
@@ -1746,8 +2410,6 @@ class logAnalyser:
 
             # Prepare the output block
             out_stat_block = [prev_stat_block[0], int(prev_time.timestamp())]
-            # out_stat_block = [prev_stat_block[0], prev_time]
-
             # Get the time difference, check is it > the specified interval
             time_diff = (curr_time - prev_time).total_seconds()
             if time_diff >= self.stats_interval:
@@ -1759,8 +2421,6 @@ class logAnalyser:
                 out_stat_block.extend(diff_stats)
 
                 # Write the stat block to csv and reset elapsed time for the next interval
-
-                # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
                 self.csv_writer.writerow(out_stat_block)
                 self.result.etime_stat = 0.0
 
@@ -1768,7 +2428,7 @@ class logAnalyser:
                 self.prev_stats = curr_stat_block
 
         else:
-            # This is the first run, add the csv header for each column
+            # First run, add the csv header for each column
             stats_header = [
                 'Time', 'time_t', 'Results', 'Search', 'Add', 'Mod', 'Modrdn', 'Compare',
                 'Delete', 'Abandon', 'Connections', 'SSL Conns', 'Bind', 'Anon Bind', 'Unbind',
@@ -1789,127 +2449,28 @@ class logAnalyser:
             out_stat_block.extend(diff_stats)
 
             # Write the stat block to csv and reset elapsed time for the next interval
-            # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
             self.csv_writer.writerow(out_stat_block)
             self.result.etime_stat = 0.0
 
-        self.logger.debug(f"_process_and_write_stats - End")
-
-    def process_file(self, log_num: str, filepath: str):
+    def _get_stats_interval(self, report_stats_sec: str, report_stats_min: str):
         """
-        Process a file line by line, supporting both compressed and uncompressed formats.
+        Get the configured interval for statistics.
 
         Args:
-            log_num (str): Log file number (Used for multiple log files).
-            filepath (str): Path to the file.
+            report_stats_sec (str): Statistic reporting interval in seconds.
+            report_stats_min (str): Statistic reporting interval in minutes.
 
         Returns:
-            None
+            A tuple where the first element indicates the multiplier for the interval
+            (1 for seconds, 60 for minutes), and the second element is the file to
+            write statistics to. Returns (None, None) if no interval is provided.
         """
-        file_size = 0
-        curr_position = 0
-        line_number = 0
-        lines_read = 0
-        line_count = 0
-        line_count_limit = 25000
-
-        self.logger.info(f"Processing file: {filepath}")
-
-        try:
-            # Is log compressed
-            comptype = self._is_file_compressed(filepath)
-            if (comptype):
-                # If comptype is True, comptype[1] is MIME type
-                if comptype[1] == 'application/gzip':
-                    filehandle = gzip.open(filepath, 'rb')
-                else:
-                    self.logger.warning(f"Unsupported compression type: {comptype}. Attempting to process as uncompressed.")
-                    filehandle = open(filepath, 'rb')
-            else:
-                filehandle = open(filepath, 'rb')
-
-            with filehandle:
-                # Seek to the end
-                filehandle.seek(0, os.SEEK_END)
-                file_size = filehandle.tell()
-                self.file_size = file_size
-                self.logger.info(f"{filehandle.name} size (bytes): {file_size}")
-
-                # Back to the start
-                filehandle.seek(0)
-                print(f"[{log_num:03d}] {filehandle.name:<30}\tsize (bytes): {file_size:>12}")
-
-                for line in filehandle:
-                    line_number += 1
-                    try:
-                        line_content = line.decode('utf-8').strip()
-                        if line_content.startswith('['):
-                            # Entry to parsing logic
-                            proceed = self._match_line(line_content, filehandle.tell())
-                            if proceed is False:
-                                self.logger.debug(f"Skipping line: {filehandle.name}:{line_number}.")
-                                continue
-
-                            line_count += 1
-                            lines_read += 1
-
-                        # Is it time to give an update
-                        if line_count >= line_count_limit:
-                            curr_position = filehandle.tell()
-                            percent = curr_position/file_size * 100.0
-                            print(f"{lines_read:10d} Lines Processed     {curr_position:12d} of {file_size:12d} bytes ({percent:.3f}%)")
-                            line_count = 0
-
-                    except UnicodeDecodeError as de:
-                        self.logger.error(f"non-decodable line at position {filehandle.tell()}: {de}")
-
-        except FileNotFoundError:
-            self.logger.error(f"File not found: {filepath}")
-        except IOError as ie:
-            self.logger.error(f"IO error processing file {filepath}: {ie}")
-
-    def _is_file_compressed(self, filepath: str):
-        """
-        Determines if a file is compressed based on its MIME type.
-
-        Args:
-            filepath (str): The path to the file.
-
-        Returns:
-            TrueCompressionStatus | str:
-                - CompressionStatus.COMPRESSED and the MIME type if compressed.
-                - CompressionStatus.NOT_COMPRESSED if not compressed.
-                - CompressionStatus.FILE_NOT_FOUND if the file does not exist.
-        Returns:
-            A tuple where the first element indicates if the file is compressed with a supported
-            method, the second element is the supported compression method.
-            False, when a non supported compression method is detected.
-            None, If the file does not exist or on exception.
-        """
-        if not os.path.exists(filepath):
-            self.logger.error(f"File not found: {filepath}")
-            return None
-
-        try:
-            filetype = magic.detect_from_filename(filepath)
-
-            # List of supported compression types
-            compressed_mime_types = [
-                'application/gzip',             # gz, tar.gz, tgz
-                'application/x-gzip',           # gz, tgz
-            ]
-
-            if filetype.mime_type in compressed_mime_types:
-                self.logger.info(f"File is compressed: {filepath} (MIME: {filetype.mime_type})")
-                return True, filetype.mime_type
-            else:
-                self.logger.info(f"File is not compressed: {filepath}")
-                return False
-
-        except Exception as e:
-            self.logger.error(f"Error while determining compression for file {filepath}: {e}")
-            return None
-
+        if report_stats_sec:
+            return 1, report_stats_sec
+        elif report_stats_min:
+            return 60, report_stats_min
+        else:
+            return None, None
 
     def _report_dn_key(self, dn_to_check: str, report_dn: str):
         """
@@ -1939,151 +2500,119 @@ class logAnalyser:
 
         return None
 
-    def _convert_timestamp_to_datetime(self, timestamp: str):
+    def _parse_log_timestamp(self, timestamp: str):
         """
-        Converts a timestamp in the formats:
-        '[28/Mar/2002:13:14:22 -0800]' or
-        '[07/Jun/2023:09:55:50.638781270 +0000]'
-        to a Python datetime object. Nanoseconds are truncated to microseconds.
+        Parses a timestamp string into a datetime object with timezone support.
+
+        Handles multiple formats, truncates nanoseconds to microseconds
+        (as datetime only supports up to microsecond precision), and
+        returns a timezone-aware datetime object.
+
+        Supported formats include:
+        - '[28/Mar/2002:13:14:22 -0800]'
+        - '[07/Jun/2023:09:55:50.638781123 +0000]'
+        - '2025-07-09T14:00:57.318795049 +0000'
 
         Args:
-            timestamp (str): The timestamp string to convert.
+            timestamp (str): The timestamp string to parse.
 
         Returns:
-            datetime: The equivalent datetime object with timezone.
+            datetime: A timezone aware datetime object.
 
         Raises:
-            ValueError: If the timestamp format is invalid.
-            IndexError: If the timestamp does not have the expected number of components.
-            TypeError: If the timestamp is not a string or has an invalid type.
+            ValueError: If the timestamp format is not recognized or parsing fails.
         """
         if not isinstance(timestamp, str):
             raise TypeError("Timestamp must be a string.")
-
         try:
             timestamp = timestamp.strip("[]")
-            # Separate datetime and timezone components
-            datetime_part, tz_offset = timestamp.rsplit(" ", 1)
 
-            # Timestamp includes nanoseconds
-            if '.' in datetime_part:
-                datetime_part, nanos = datetime_part.rsplit(".", 1)
-                # Truncate
-                nanos = nanos[:6]
-                datetime_with_micros = f"{datetime_part}.{nanos}"
-                timeformat = "%d/%b/%Y:%H:%M:%S.%f"
+            # JSON ISO 8601 format: 2025-07-09T14:02:48.319979321 +0000
+            if re.match(r"\d{4}-\d{2}-\d{2}T", timestamp):
+                datetime_part, tz_offset = timestamp.rsplit(" ", 1)
+                if '.' in datetime_part:
+                    base, frac = datetime_part.split('.')
+                    frac = frac[:6].ljust(6, '0')  # nanoseconds to microseconds
+                    datetime_part = f"{base}.{frac}"
+                    fmt = "%Y-%m-%dT%H:%M:%S.%f"
+                else:
+                    fmt = "%Y-%m-%dT%H:%M:%S"
             else:
-                datetime_with_micros = datetime_part
-                timeformat = "%d/%b/%Y:%H:%M:%S"
+                # Legacy format: [09/Jul/2025:13:58:20.780553563 +0000]
+                datetime_part, tz_offset = timestamp.rsplit(" ", 1)
+                if '.' in datetime_part:
+                    base, frac = datetime_part.rsplit('.', 1)
+                    frac = frac[:6].ljust(6, '0')   # nanoseconds to microseconds
+                    datetime_part = f"{base}.{frac}"
+                    fmt = "%d/%b/%Y:%H:%M:%S.%f"
+                else:
+                    fmt = "%d/%b/%Y:%H:%M:%S"
 
-            # Parse the datetime component
-            dt = datetime.strptime(datetime_with_micros, timeformat)
-
-            # Calc the timezone offset
+            dt = datetime.datetime.strptime(datetime_part, fmt)
             if tz_offset[0] == "+":
-                sign = 1
+                tz_offset_sign = 1
             else:
-                sign = -1
+                tz_offset_sign = -1
+            hrs_offset = int(tz_offset[1:3])
+            min_offset = int(tz_offset[3:5])
+            tz_diff = datetime.timedelta(hours=hrs_offset, minutes=min_offset)
+            return dt.replace(tzinfo=datetime.timezone(tz_offset_sign * tz_diff))
 
-            hours_offset = int(tz_offset[1:3])
-            minutes_offset = int(tz_offset[3:5])
-            delta = timedelta(hours=hours_offset, minutes=minutes_offset)
-
-            # Apply the timezone offset
-            dt_with_tz = dt.replace(tzinfo=timezone(sign * delta))
-            return dt_with_tz
-
-        except (ValueError, IndexError, TypeError) as e:
-            self.logger.error(f"Error converting timestamp: {timestamp}. Exception: {e}")
+        except Exception as e:
+            self.logger.error(f"Failed to parse timestamp: {timestamp} - {e}")
             raise
 
-    def convert_timestamp_to_string(self, timestamp: str):
+    def convert_timestamp_to_datetime(self, timestamp: str):
         """
-        Truncate an access log timestamp and convert to datetime
-        the timestamp '[07/Jun/2023:09:55:50.638781123 +0000]' to '[07/Jun/2023:09:55:50.638781 +0000]'
-        '[28/Mar/2002:13:14:22 -0800]' or
-        '[07/Jun/2023:09:55:50.638781 +0000]' or
-        '[07/Jun/2023:09:55:50.638781123 +0000]'
+        Converts a supported timestamp string to a datetime object with timezone info.
+
+        Internally wraps _parse_log_timestamp() for reuse.
 
         Args:
-            timestamp (str): Access log timestamp.
+            timestamp (str): Timestamp in supported formats.
 
         Returns:
-            str: The formatted timestamp string.
+            datetime: Timezone-aware datetime object.
 
         Raises:
-            ValueError: If the timestamp format is invalid or empty.
+            Exception: For invalid input or failed parsing.
         """
-        if not timestamp:
-            raise ValueError("Timestamp is empty or None.")
+        return self._parse_log_timestamp(timestamp)
 
-        try:
-            # Ensure timestamp is long enough before slicing
-            if len(timestamp) >= 29:
-                timestamp = timestamp[:26] + timestamp[29:]
-
-            dt = datetime.strptime(timestamp, "%d/%b/%Y:%H:%M:%S.%f %z")
-            return dt.strftime("%d/%b/%Y:%H:%M:%S")
-
-        except (ValueError) as e:
-            self.logger.error(f"Converting timestamp: {timestamp} to datetime failed - {e}" )
-            raise
-
-    def get_elapsed_time(self, start: str, finish: str, time_format=None):
+    def get_elapsed_time(self, start: datetime, finish: datetime, time_format: str = "seconds"):
         """
-        Calculates the elapsed time between start and finish datetimes.
+        Calculates the elapsed time between start and finish datetime objects.
 
         Args:
-            start (str): The start time.
-            finish (str): The finish time.
+            start (datetime): The start time.
+            finish (datetime): The finish time.
             time_format (str): Output format ("seconds" or "hms").
 
         Returns:
-            float:Elapsed time in seconds or tuple:(hours, minutes, seconds).
-
-        Raises:
-            ValueError: If the timestamp format is invalid.
-            IndexError: If the timestamp does not have the expected number of components.
-            TypeError: If the timestamp is not a string or has an invalid type.
+            float or str: Elapsed time in seconds or human-readable string.
         """
-        # Default time_format to "seconds"
-        if time_format is None:
-            time_format = "seconds"
-
-        # If start or finish is missing, return 0 or "0 hours, 0 minutes, 0 seconds"
         if not start or not finish:
             return 0 if time_format == "seconds" else "0 hours, 0 minutes, 0 seconds"
 
         try:
-            first_time = self._convert_timestamp_to_datetime(start)
-            last_time = self._convert_timestamp_to_datetime(finish)
-        except (ValueError, IndexError, TypeError) as e:
-            self.logger.error(f"Error converting timestamps: {e}. Start: {start}, Finish: {finish}")
-            return 0 if time_format == "seconds" else "0 hours, 0 minutes, 0 seconds"
+            elapsed = finish - start
+            total_seconds = int(elapsed.total_seconds())
 
-        if first_time is None or last_time is None:
             if time_format == "seconds":
-                return (0)
+                return total_seconds
+
+            days, remainder = divmod(total_seconds, 86400)
+            hours, remainder = divmod(remainder, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            if days > 0:
+                return f"{days} days, {hours} hours, {minutes} minutes, {seconds} seconds"
             else:
-                return (0, 0, 0)
+                return f"{hours} hours, {minutes} minutes, {seconds} seconds"
 
-        # Get elapsed time, format for output
-        elapsed_time = (last_time - first_time)
-        total_seconds = elapsed_time.total_seconds()
-
-        if time_format == "seconds":
-            return total_seconds
-
-        # Convert to hours, minutes, and seconds
-        days = elapsed_time.days
-        remainder_seconds = total_seconds - (days * 24 * 3600)
-        hours, remainder = divmod(remainder_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        if days > 0:
-            return f"{int(days)} days, {int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
-        else:
-            return f"{int(hours)} hours, {int(minutes)} minutes, {int(seconds)} seconds"
+        except Exception as e:
+            self.logger.error(f"Error calculating elapsed time. - {e}")
+            return 0 if time_format == "seconds" else "0 hours, 0 minutes, 0 seconds"
 
     def get_overall_perf(self, num_results: int, num_ops: int):
         """
@@ -2118,7 +2647,7 @@ class logAnalyser:
 
         Raises:
             ValueError: If stop_time is earlier than start_time or timestamps are invalid.
-            IndexError: Can be raised by _convert_timestamp_to_datetime.
+            IndexError: Can be raised by convert_timestamp_to_datetime.
             TypeError: If start_time or stop_time is not a string.
         """
         if not isinstance(start_time, str) or not isinstance(stop_time, str):
@@ -2129,20 +2658,20 @@ class logAnalyser:
 
         try:
             # Convert timestamps to datetime objects
-            norm_start_time = self._convert_timestamp_to_datetime(start_time)
-            norm_stop_time = self._convert_timestamp_to_datetime(stop_time)
+            norm_start_time = self.convert_timestamp_to_datetime(start_time)
+            norm_stop_time = self.convert_timestamp_to_datetime(stop_time)
 
             # No timetravel (stop time should not be earlier than start time)
             if norm_stop_time <= norm_start_time:
                 raise ValueError(f"End time: {norm_stop_time} is before or equal to start time: {norm_start_time}.")
 
             # Store the parse times
-            self.server['parse_start_time'] = norm_start_time
-            self.server['parse_stop_time'] = norm_stop_time
-            self.logger.info(f"Parse times set. Start: {norm_start_time}, Finish: {norm_stop_time}")
+            self.server.parse_start_time = norm_start_time
+            self.server.parse_stop_time = norm_stop_time
+            self.logger.debug(f"Parse times set. Start: {norm_start_time}, Finish: {norm_stop_time}")
 
         except (ValueError, IndexError, TypeError) as e:
-            self.logger.error(f"Error setting parse times: {e}")
+            self.logger.error(f"Error setting parse times. - {e}")
             raise
 
 def main():
@@ -2175,10 +2704,11 @@ def main():
         logconv.py -B ANONYMOUS /var/log/dirsrv/slapd-host/access*
 
     Exclude specific IP address(s) from log analysis:
-        logconv.py -X 192.168.1.1 --exclude_ip 11.22.33.44 /var/log/dirsrv/slapd-host/access*
+        logconv.py -X 127.0.0.1 -X 1.2.3.4 /var/log/dirsrv/slapd-host/access*
 
-    Analyze logs within a specific time range:
-        logconv.py -S "[04/Jun/2024:10:31:20.014629085 +0200]" --endTime "[04/Jun/2024:11:30:05 +0200]" /var/log/dirsrv/slapd-host/access*
+    Analyze logs within a specific range:
+        logconv.py -S "2025-07-09T14:00:56.682303279 +0000"  -E "2025-07-09T14:02:50.693400135 +0000" /var/log/dirsrv/slapd-host/access*
+        logconv.py -S "[09/Jul/2025:13:58:20.945149534 +0000]"  -E "[09/Jul/2025:13:58:23.226704200 +0000]" /var/log/dirsrv/slapd-host/access*
 
     Limit results to 10 entries per category:
         logconv.py --sizeLimit 10 /var/log/dirsrv/slapd-host/access*
@@ -2236,7 +2766,6 @@ def main():
     )
     connection_group.add_argument(
         '-X', '--exclude_ip',
-        type=list,
         metavar="EXCLUDE_IP",
         action='append',
         help='Exclude specific IP address(s) from log analysis'
@@ -2248,7 +2777,7 @@ def main():
         type=str,
         metavar="START_TIME",
         action='store',
-        help='Start analyzing logfile from a specific time.'
+        help='Start analysing logfile from a specific time.'
                 '\nE.g. "[04/Jun/2024:10:31:20.014629085 +0200]"\nE.g. "[04/Jun/2024:10:31:20 +0200]"'
     )
     time_group.add_argument(
@@ -2256,7 +2785,7 @@ def main():
         type=str,
         metavar="END_TIME",
         action='store',
-        help='Stop analyzing logfile at this time.'
+        help='Stop analysing logfile at this time.'
                 '\nE.g. "[04/Jun/2024:11:30:05.435779416 +0200]"\nE.g. "[04/Jun/2024:11:30:05 +0200]"'
     )
 
@@ -2281,6 +2810,15 @@ def main():
         help='Display log analysis recommendations'
     )
 
+    debug_group = parser.add_argument_group("DEBUG mode")
+    debug_group.add_argument(
+        '-l', '--loglevel',
+        type=str,
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        default='INFO',
+        help='Set logging level (default: INFO)'
+    )
+
     args = parser.parse_args()
 
     if args.version:
@@ -2301,6 +2839,10 @@ def main():
             stats_file_min=args.reportFileMins,
             report_dn=args.bind,
             recommends=args.recommends)
+
+        # Set log level
+        log_level = getattr(logging, args.loglevel.upper(), logging.INFO)
+        db.logger = db._setup_logger(log_level)
 
         if args.startTime and args.endTime:
             try:
@@ -2352,11 +2894,11 @@ def main():
     num_ldaps = db.connection.counters['ldaps']
     num_startls = db.operation.extended.get(STLS_OID, 0)
     num_search = db.search.counters['search']
-    num_mod = db.operation.counters['mod']
+    num_mod = db.operation.counters['modify']
     num_add = db.operation.counters['add']
-    num_del = db.operation.counters['del']
+    num_del = db.operation.counters['delete']
     num_modrdn = db.operation.counters['modrdn']
-    num_cmp = db.operation.counters['cmp']
+    num_cmp = db.operation.counters['compare']
     num_bind = db.bind.counters['bind']
     num_unbind = db.bind.counters['unbind']
     num_proxyd_auths = db.operation.counters['authzid'] + db.search.counters['authzid']
@@ -2371,12 +2913,12 @@ def main():
     num_DM_binds = db.bind.counters['rootdn']
     num_base_search = db.search.counters['base_search']
     try:
-        log_start_time = db.convert_timestamp_to_string(db.server.first_time)
+        log_start_time = db.server.first_time
     except ValueError:
         log_start_time = "Unknown"
 
     try:
-        log_end_time = db.convert_timestamp_to_string(db.server.last_time)
+        log_end_time = db.server.last_time
     except ValueError:
         log_end_time = "Unknown"
 
@@ -2441,17 +2983,18 @@ def main():
     print(f"Abandoned Requests:             {db.operation.counters['abandon']}")
     print(f"Smart Referrals Received:       {db.result.counters['referral']}")
     print(f"\nVLV Operations:                 {db.vlv.counters['vlv']}")
-    print(f"VLV Unindexed Searches:         {len([key for key, value in db.vlv.rst_con_op_map.items() if value == 'A'])}")
-    print(f"VLV Unindexed Components:       {len([key for key, value in db.vlv.rst_con_op_map.items() if value == 'U'])}")
+    print(f"VLV Unindexed Searches:         {len([key for key, value in db.vlv.vlv_map.items() if value == 'A'])}")
+    print(f"VLV Unindexed Components:       {len([key for key, value in db.vlv.vlv_map.items() if value == 'U'])}")
     print(f"SORT Operations:                {db.operation.counters['sort']}")
     print(f"\nEntire Search Base Queries:     {num_base_search}")
     print(f"Paged Searches:                 {db.result.counters['notesP']}")
-    num_unindexed_search = len(db.result.notes['A'])
+    num_unindexed_search = len(db.result.notesA)
     print(f"Unindexed Searches:             {num_unindexed_search}")
     if db.verbose and num_unindexed_search > 0:
-        for num, key in enumerate(db.result.notes['A'], start=1):
-            src, conn, op = key
-            data = db.result.notes['A'][key]
+        for num, key in enumerate(db.result.notesA, start=1):
+            data = db.result.notesA[key]
+            if isinstance(key, tuple):
+                _, conn, op = key
 
             print(f"\n  Unindexed Search #{num} (notes=A)")
             print(f"    - Date/Time:           {data.get('time', '-')}")
@@ -2465,12 +3008,13 @@ def main():
             print(f"    - Search Filter:       {data.get('filter', '-')}")
             print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
 
-    num_unindexed_component = len(db.result.notes['U'])
+    num_unindexed_component = len(db.result.notesU)
     print(f"Unindexed Components:           {num_unindexed_component}")
     if db.verbose and num_unindexed_component > 0:
-        for num, key in enumerate(db.result.notes['U'], start=1):
-            src, conn, op = key
-            data = db.result.notes['U'][key]
+        for num, key in enumerate(db.result.notesU, start=1):
+            data = db.result.notesU[key]
+            if isinstance(key, tuple):
+                _, conn, op = key
 
             print(f"\n  Unindexed Component #{num} (notes=U)")
             print(f"    - Date/Time:           {data.get('time', '-')}")
@@ -2484,12 +3028,13 @@ def main():
             print(f"    - Search Filter:       {data.get('filter', '-')}")
             print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
 
-    num_invalid_filter = len(db.result.notes['F'])
+    num_invalid_filter = len(db.result.notesF)
     print(f"Invalid Attribute Filters:      {num_invalid_filter}")
     if db.verbose and num_invalid_filter > 0:
-        for num, key in enumerate(db.result.notes['F'], start=1):
-            src, conn, op = key
-            data = db.result.notes['F'][key]
+        for num, key in enumerate(db.result.notesF, start=1):
+            data = db.result.notesF[key]
+            if isinstance(key, tuple):
+                _, conn, op = key
 
             print(f"\n  Invalid Attribute Filter #{num} (notes=F)")
             print(f"    - Date/Time:           {data.get('time', '-')}")
@@ -2564,7 +3109,7 @@ def main():
         print(f"\n----- Errors -----\n")
         error_freq = db.result.error_freq
         for err in sorted(error_freq.keys(), key=lambda k: error_freq[k], reverse=True):
-            print(f"err={err:<2} {error_freq[err]:>10}  {LDAP_ERR_CODES[err]:<30}")
+            print(f"err={err:<2} {error_freq[err]:>10}  {LDAP_ERR_CODES[str(err)]:<30}")
 
         # Failed Logins
         bad_pwd_map = db.result.bad_pwd_map
@@ -2588,28 +3133,42 @@ def main():
         if len(disconnect_codes) > 0:
             print(f"\n----- Total Connection Codes ----\n")
             for code in disconnect_codes:
-                print(f"{code:<2} {disconnect_codes[code]:>10}  {DISCONNECT_MSG.get(code, 'unknown'):<30}")
+                print(f"{code:<8} {disconnect_codes[code]:>10}  {DISCONNECT_MSG.get(code, 'Unknown'):<30}")
 
         # Unique IPs
-        restart_conn_ip_map = db.connection.restart_conn_ip_map
+        ip_map = db.connection.ip_map
         src_ip_map = db.connection.src_ip_map
         ips_len = len(src_ip_map)
         if ips_len > 0:
             print(f"\n----- Top {db.size_limit} Clients -----\n")
             print(f"Number of Clients:  {ips_len}")
             for num, (outer_ip, ip_info) in enumerate(src_ip_map.items(), start=1):
-                temp = {}
                 print(f"\n[{num}] Client: {outer_ip}")
                 print(f"    {ip_info['count']} - Connection{'s' if ip_info['count'] > 1 else ''}")
-                for id, inner_ip in restart_conn_ip_map.items():
-                    (src, conn) = id
-                    if outer_ip == inner_ip:
-                        code = db.connection.restart_conn_disconnect_map[(src, conn)]
+                temp = {}
+                for key, inner_ip in ip_map.items():
+                    # JSON style key: e.g. "1752069692-2"
+                    if isinstance(key, str) and '-' in key:
+                        try:
+                            key_tuple = key
+                        except ValueError:
+                            continue
+
+                    # Legacy style key: (restart_count, conn_id)
+                    elif isinstance(key, tuple):
+                        key_tuple = key
+                    else:
+                        continue
+
+                    if inner_ip == outer_ip:
+                        code = db.connection.disconect_map.get(key_tuple)
                         if code:
                             temp[code] = temp.get(code, 0) + 1
+
                 for code, count in temp.items():
                     print(f"    {count} - {code} ({DISCONNECT_MSG.get(code, 'unknown')})")
-                if num > db.size_limit - 1:
+
+                if num >= db.size_limit:
                     break
 
         # Unique Bind DN's
@@ -2639,10 +3198,10 @@ def main():
         num_filters = len(filters)
         if num_filters > 0:
             print(f"\n----- Top {db.size_limit} Search Filters -----\n")
-            for num, (count, filter) in enumerate(filters):
+            for num, (count, existing_filter) in enumerate(filters):
                 if num >= db.size_limit:
                     break
-                print(f"{count:<10} {filter}")
+                print(f"{count:<10} {existing_filter}")
 
         # Longest elapsed times
         etimes = sorted(db.result.etime_duration, reverse=True)
@@ -2706,14 +3265,15 @@ def main():
                 print(f"{attrs[attr]:<11} {attr:<10}")
             print()
 
-        abandoned = db.operation.rst_con_op_map['abandon']
-        num_abandoned = len(abandoned)
-        if num_abandoned > 0:
+        abandoned_map = db.operation.op_map.get('abandoned', {})
+        if abandoned_map:
             print(f"\n----- Abandon Request Stats -----\n")
-            for num, abandon in enumerate(abandoned, start=1):
-                (restart, conn, op) = abandon
-                conn, op, target_op, msgid = db.operation.rst_con_op_map['abandoned'][(restart, conn, op)]
-                print(f"{num:<6} conn={conn} op={op} msgid={msgid} target_op:{target_op} client={db.connection.restart_conn_ip_map.get((restart, conn), 'Unknown')}")
+            num = 1
+            for (restart, conn), abandon_list in abandoned_map.items():
+                for op, target_op, msgid in abandon_list:
+                    client = db.connection.ip_map.get((restart, conn), 'Unknown')
+                    print(f"{num:<6} conn={conn} op={op} msgid={msgid} target_op:{target_op} client={client}")
+                    num += 1
             print()
 
     if db.recommends or db.verbose:
@@ -2786,6 +3346,6 @@ def main():
 
     print("Done.")
 
-
 if __name__ == "__main__":
     main()
+    
