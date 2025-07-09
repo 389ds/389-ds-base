@@ -1178,6 +1178,10 @@ preop_modify(Slapi_PBlock *pb)
     for (; mods && *mods; mods++) {
         mod = *mods;
         for (i = 0; attrNames && attrNames[i]; i++) {
+            char *attr_match = strchr(attrNames[i], ':');
+            if (attr_match != NULL) {
+                attr_match[0] = '\0';
+            }
             if ((slapi_attr_type_cmp(mod->mod_type, attrNames[i], 1) == 0) && /* mod contains target attr */
                 (mod->mod_op & LDAP_MOD_BVALUES) &&                           /* mod is bval encoded (not string val) */
                 (mod->mod_bvalues && mod->mod_bvalues[0]) &&                  /* mod actually contains some values */
@@ -1185,6 +1189,9 @@ preop_modify(Slapi_PBlock *pb)
                  SLAPI_IS_MOD_REPLACE(mod->mod_op)))                          /* mod is replace */
             {
                 addMod(&checkmods, &checkmodsCapacity, &modcount, mod);
+            }
+            if (attr_match != NULL) {
+                attr_match[0] = ':';
             }
         }
     }
