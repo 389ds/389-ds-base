@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2021 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -325,3 +325,64 @@ def test_exclude_subtrees(topology_st):
         cont3.delete()
         attruniq.disable()
         attruniq.delete()
+
+
+def test_matchingrule_attr(topology_st):
+    """ Test list extension MR attribute. Check for "cn" using CES (versus it
+    being defined as CIS)
+
+    :id: 5cde4342-6fa3-4225-b23d-0af918981075
+    :setup: Standalone instance
+    :steps:
+        1. Setup and enable attribute uniqueness plugin to use CN attribute
+           with a matching rule of CaseExactMatch.
+        2. Add user with CN value is lowercase
+        3. Add second user with same lowercase CN which should be rejected
+        4. Add second user with same CN value but with mixed case
+        5. Modify second user replacing CN value to lc which should be rejected
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+
+    inst = topology_st.standalone
+
+    attruniq = AttributeUniquenessPlugin(inst,
+                                         dn="cn=attribute uniqueness,cn=plugins,cn=config")
+    attruniq.add_unique_attribute('cn:CaseExactMatch:')
+    attruniq.enable_all_subtrees()
+    attruniq.enable()
+    inst.restart()
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    users.create(properties={'cn': "common_name",
+                             'uid': "uid_name",
+                             'sn': "uid_name",
+                             'uidNumber': '1',
+                             'gidNumber': '11',
+                             'homeDirectory': '/home/uid_name'})
+
+    log.info('Add entry with the exact CN value which should be rejected')
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        users.create(properties={'cn': "common_name",
+                                 'uid': "uid_name2",
+                                 'sn': "uid_name2",
+                                 'uidNumber': '11',
+                                 'gidNumber': '111',
+                                 'homeDirectory': '/home/uid_name2'})
+
+    log.info('Add entry with the mixed case CN value which should be allowed')
+    user = users.create(properties={'cn': "Common_Name",
+                                    'uid': "uid_name2",
+                                    'sn': "uid_name2",
+                                    'uidNumber': '11',
+                                    'gidNumber': '111',
+                                    'homeDirectory': '/home/uid_name2'})
+
+    log.info('Mod entry with exact case CN value which should be rejected')
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        user.replace('cn', 'common_name')

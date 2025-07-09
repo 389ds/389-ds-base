@@ -625,7 +625,7 @@ attempt_mr_filter_create(mr_filter_t *f, struct slapdplugin *mrp, Slapi_PBlock *
     int rc;
     int32_t  (*mrf_create)(Slapi_PBlock *) = NULL;
     f->mrf_match = NULL;
-    pblock_init(pb);
+    slapi_pblock_init(pb);
     if (!(rc = slapi_pblock_set(pb, SLAPI_PLUGIN, mrp)) &&
         !(rc = slapi_pblock_get(pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, &mrf_create)) &&
         mrf_create != NULL &&
