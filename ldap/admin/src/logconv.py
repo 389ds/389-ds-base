@@ -1706,6 +1706,7 @@ class logAnalyser:
         Returns:
             None
         """
+        self.logger.debug(f"_process_and_write_stats - Start")
 
         if self.csv_writer is None:
             self.logger.error("CSV writer not enabled.")
@@ -1713,23 +1714,23 @@ class logAnalyser:
 
         # Define the stat mapping
         stats = {
-            'result_ctr': self.result,
-            'search': self.search,
-            'add_op_ctr': self.operation,
-            'mod_op_ctr': self.operation,
-            'modrdn_op_ctr': self.operation,
-            'cmp_op_ctr': self.operation,
-            'del_op_ctr': self.operation,
-            'abandon_op_ctr': self.operation,
-            'conn_ctr': self.connection,
-            'ldaps_ctr': self.connection,
-            'bind_ctr': self.bind,
-            'anon_bind_ctr': self.bind,
-            'unbind_ctr': self.bind,
-            'notesA_ctr': self.result,
-            'notesU_ctr': self.result,
-            'notesF_ctr': self.result,
-            'etime_stat': self.result
+            'result': self.result.counters,
+            'search': self.search.counters,
+            'add': self.operation.counters,
+            'mod': self.operation.counters,
+            'modrdn': self.operation.counters,
+            'cmp': self.operation.counters,
+            'del': self.operation.counters,
+            'abandon': self.operation.counters,
+            'conn': self.connection.counters,
+            'ldaps': self.connection.counters,
+            'bind': self.bind.counters,
+            'anon': self.bind.counters,
+            'unbind': self.bind.counters,
+            'notesA': self.result.counters,
+            'notesU': self.result.counters,
+            'notesF': self.result.counters,
+            'etime_stat': self.result.counters
         }
 
         # Build the current stat block
@@ -1761,7 +1762,6 @@ class logAnalyser:
 
                 # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
                 self.csv_writer.writerow(out_stat_block)
-
                 self.result.etime_stat = 0.0
 
                 # Update previous stats for the next interval
@@ -1792,6 +1792,8 @@ class logAnalyser:
             # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
             self.csv_writer.writerow(out_stat_block)
             self.result.etime_stat = 0.0
+
+        self.logger.debug(f"_process_and_write_stats - End")
 
     def process_file(self, log_num: str, filepath: str):
         """
