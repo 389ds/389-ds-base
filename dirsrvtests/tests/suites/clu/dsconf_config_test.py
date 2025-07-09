@@ -10,6 +10,8 @@
 import subprocess
 import logging
 import pytest
+import os
+import sys
 from lib389._constants import DN_DM
 from lib389.topologies import topology_st
 
@@ -53,6 +55,29 @@ def get_dsconf_base_cmd(topology):
             '-D', DN_DM, '-w', 'password']
 
 
+# Set PYTHONPATH without /usr/local to avoid mixing old CLI tools and new lib389
+def use_systemlib389():
+    savepath = None
+    if "PYTHONPATH" in os.environ:
+        savepath = os.environ["PYTHONPATH"]
+        srcpath = os.environ["PYTHONPATH"].split(":")
+    else:
+        srcpath = sys.path
+    newpath = []
+    for path in srcpath:
+        if not path.startswith("/usr/local"):
+            newpath.append(path)
+    os.environ["PYTHONPATH"] = ":".join(newpath)
+    return savepath
+
+
+def use_systemlib389_end(savepath):
+    if savepath:
+        os.environ["PYTHONPATH"] = savepath
+    else:
+        del os.environ["PYTHONPATH"]
+
+
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
 def test_single_value_add(topology_st, attr_name, values_dict):
     """Test adding a single value to an attribute
@@ -67,6 +92,7 @@ def test_single_value_add(topology_st, attr_name, values_dict):
         1. Command should execute successfully
         2. Added value should be present in the configuration
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -83,6 +109,7 @@ def test_single_value_add(topology_st, attr_name, values_dict):
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
 
 
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
@@ -101,6 +128,7 @@ def test_single_value_replace(topology_st, attr_name, values_dict):
         2. Replace command should execute successfully
         3. New value should be present and old value should be absent
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -122,6 +150,7 @@ def test_single_value_replace(topology_st, attr_name, values_dict):
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
 
 
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
@@ -138,6 +167,7 @@ def test_multi_value_batch_add(topology_st, attr_name, values_dict):
         1. Batch add command should execute successfully
         2. All added values should be present in the configuration
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -153,6 +183,7 @@ def test_multi_value_batch_add(topology_st, attr_name, values_dict):
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
 
 
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
@@ -171,6 +202,7 @@ def test_multi_value_batch_replace(topology_st, attr_name, values_dict):
         2. Batch replace command should execute successfully
         3. All new values should be present and initial value should be absent
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -191,6 +223,7 @@ def test_multi_value_batch_replace(topology_st, attr_name, values_dict):
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
 
 
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
@@ -209,6 +242,7 @@ def test_multi_value_specific_delete(topology_st, attr_name, values_dict):
         2. Specific delete command should execute successfully
         3. Deleted value should be absent while others remain present
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -230,6 +264,7 @@ def test_multi_value_specific_delete(topology_st, attr_name, values_dict):
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
 
 
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
@@ -248,6 +283,7 @@ def test_multi_value_batch_delete(topology_st, attr_name, values_dict):
         2. Batch delete command should execute successfully
         3. Deleted values should be absent while others remain present
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -268,6 +304,7 @@ def test_multi_value_batch_delete(topology_st, attr_name, values_dict):
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
 
 
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
@@ -288,6 +325,7 @@ def test_single_value_persists_after_restart(topology_st, attr_name, values_dict
         3. Server should restart successfully
         4. Value should still be present after restart
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -310,6 +348,7 @@ def test_single_value_persists_after_restart(topology_st, attr_name, values_dict
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
 
 
 @pytest.mark.parametrize("attr_name,values_dict", TEST_ATTRS)
@@ -330,6 +369,7 @@ def test_multi_value_batch_persists_after_restart(topology_st, attr_name, values
         3. Server should restart successfully
         4. All values should still be present after restart
     """
+    savepath = use_systemlib389()
     dsconf_cmd = get_dsconf_base_cmd(topology_st)
 
     try:
@@ -353,3 +393,4 @@ def test_multi_value_batch_persists_after_restart(topology_st, attr_name, values
 
     finally:
         execute_dsconf_command(dsconf_cmd, ['config', 'delete', attr_name])
+    use_systemlib389_end(savepath)
