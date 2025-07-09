@@ -1031,7 +1031,14 @@ preop_add(Slapi_PBlock *pb)
     }
 
     for (i = 0; attrNames && attrNames[i]; i++) {
+        char *attr_match = strchr(attrNames[i], ':');
+        if (attr_match != NULL) {
+            attr_match[0] = '\0';
+        }
         err = slapi_entry_attr_find(e, attrNames[i], &attr);
+        if (attr_match != NULL) {
+            attr_match[0] = ':';
+        }
         if (!err) {
             /*
                  * Passed all the requirements - this is an operation we
