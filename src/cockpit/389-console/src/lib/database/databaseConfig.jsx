@@ -2,12 +2,16 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
+    Alert,
     Button,
     Checkbox,
+    Form,
     Grid,
     GridItem,
+    Hr,
     NumberInput,
     Spinner,
+    Switch,
     Tab,
     Tabs,
     TabTitleText,
@@ -853,11 +857,28 @@ export class GlobalDatabaseConfig extends React.Component {
                             <Tab eventKey={3} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
+                                        title={_("Warning: Normalized DN Cache is disabled")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        {this.props.data.ndn_cache_enabled === false && (
+                                            <GridItem span={8}>
+                                                <Alert
+                                                    variant="warning"
+                                                    isInline
+                                                    title={_("Normalized DN Cache is disabled")}
+                                                    className="ds-margin-bottom"
+                                                >
+                                                    {_("The Normalized DN Cache is currently disabled. To enable it, go to Server Settings → Tuning & Limits and enable 'Normalized DN Cache', then restart the server for the changes to take effect.")}
+                                                </Alert>
+                                            </GridItem>
+                                        )}
+                                    </Grid>
+                                    <Grid
                                         title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
-                                            {_("Normalized DN Cache Max Size")}
+                                            {_("Normalized DN Cache Max Size") }
                                         </GridItem>
                                         <GridItem span={8}>
                                             <NumberInput
@@ -873,9 +894,9 @@ export class GlobalDatabaseConfig extends React.Component {
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={10}
                                                 validated={'ndncachemaxsize' in this.state.error &&
-                                                    this.state.error['ndncachemaxsize']
-                                                     ? ValidatedOptions.error
-                                                     : ValidatedOptions.default}
+                                                           this.state.error['ndncachemaxsize']
+                                                            ? ValidatedOptions.error
+                                                            : ValidatedOptions.default}
                                             />
                                         </GridItem>
                                     </Grid>
@@ -1470,7 +1491,7 @@ export class GlobalDatabaseConfigMDB extends React.Component {
                             <Tab eventKey={0} title={<TabTitleText>{_("Database Size")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
                                     <Grid
-                                        title={_("Database maximum size in megabytes. The practical maximum size of an LMDB database is limited by the system’s addressable memory (nsslapd-mdb-max-size).")}
+                                        title={_("Database maximum size in megabytes. The practical maximum size of an LMDB database is limited by the system's addressable memory (nsslapd-mdb-max-size).")}
                                         className="ds-margin-top-xlg"
                                     >
                                         <GridItem className="ds-label" span={4}>
@@ -1641,6 +1662,23 @@ export class GlobalDatabaseConfigMDB extends React.Component {
 
                             <Tab eventKey={4} title={<TabTitleText>{_("NDN Cache")}</TabTitleText>}>
                                 <div className="ds-left-indent-md">
+                                    <Grid
+                                        title={_("Warning: Normalized DN Cache is disabled")}
+                                        className="ds-margin-top-xlg"
+                                    >
+                                        {this.props.data.ndn_cache_enabled === false && (
+                                            <GridItem span={8}>
+                                                <Alert
+                                                    variant="warning"
+                                                    isInline
+                                                    title={_("Normalized DN Cache is disabled")}
+                                                    className="ds-margin-bottom"
+                                                >
+                                                    {_("The Normalized DN Cache is currently disabled. To enable it, go to Server Settings → Tuning & Limits and enable 'Normalized DN Cache', then restart the server for the changes to take effect.")}
+                                                </Alert>
+                                            </GridItem>
+                                        )}
+                                    </Grid>
                                     <Grid
                                         title={_("Set the maximum size in bytes for the Normalized DN Cache (nsslapd-ndn-cache-max-size).")}
                                         className="ds-margin-top-xlg"
