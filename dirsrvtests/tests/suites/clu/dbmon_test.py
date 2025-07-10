@@ -11,6 +11,7 @@ import subprocess
 import pytest
 import json
 import glob
+import re
 
 from lib389.tasks import *
 from lib389.utils import *
@@ -270,6 +271,95 @@ def test_dbmon_mp_pagesize(topology_st):
     log.info(f'dbmon_free_percentage: {dbmon_free_percentage}')
     log.info(f'real_free_percentage: {real_free_percentage}')
     assert real_free_percentage == dbmon_free_percentage
+
+
+def test_ndn_cache_disabled(topology_st):
+    """Test dbmon output when ndn-cache-enabled is turned off
+
+    :id: 760e217c-70e8-4767-b504-dda7ba2e1f64
+    :setup: Standalone instance
+    :steps:
+         1. Run dbmon with nsslapd-ndn-cache-enabled=on (default)
+         2. Verify NDN cache stats are present in the output
+         3. Set nsslapd-ndn-cache-enabled=off and restart
+         4. Run dbmon again and verify NDN cache stats are not present
+         5. Set nsslapd-ndn-cache-enabled=on and restart
+         6. Run dbmon again and verify NDN cache stats are back
+    :expectedresults:
+         1. Success
+         2. Should display NDN cache data
+         3. Success
+         4. Should not display NDN cache data
+         5. Success
+         6. Should display NDN cache data
+    """
+    inst = topology_st.standalone
+    args = FakeArgs()
+    args.backends = None
+    args.indexes = False
+    args.json = True
+    lc = LogCapture()
+
+    log.info("Testing with NDN cache enabled (default)")
+    db_monitor(inst, DEFAULT_SUFFIX, lc.log, args)
+    db_mon_as_str = "".join((str(rec) for rec in lc.outputs))
+    db_mon_as_str = re.sub("^[^{]*{", "{", db_mon_as_str)[:-2]
+    db_mon = json.loads(db_mon_as_str)
+
+    assert 'ndncache' in db_mon
+    assert 'hit_ratio' in db_mon['ndncache']
+    lc.flush()
+
+    log.info("Setting nsslapd-ndn-cache-enabled to OFF")
+    inst.config.set('nsslapd-ndn-cache-enabled', 'off')
+    inst.restart()
+
+    log.info("Testing with NDN cache disabled")
+    db_monitor(inst, DEFAULT_SUFFIX, lc.log, args)
+    db_mon_as_str = "".join((str(rec) for rec in lc.outputs))
+    db_mon_as_str = re.sub("^[^{]*{", "{", db_mon_as_str)[:-2]
+    db_mon = json.loads(db_mon_as_str)
+
+    assert 'ndncache' not in db_mon
+    lc.flush()
+
+    log.info("Setting nsslapd-ndn-cache-enabled to ON")
+    inst.config.set('nsslapd-ndn-cache-enabled', 'on')
+    inst.restart()
+
+    log.info("Testing with NDN cache re-enabled")
+    db_monitor(inst, DEFAULT_SUFFIX, lc.log, args)
+    db_mon_as_str = "".join((str(rec) for rec in lc.outputs))
+    db_mon_as_str = re.sub("^[^{]*{", "{", db_mon_as_str)[:-2]
+    db_mon = json.loads(db_mon_as_str)
+
+    assert 'ndncache' in db_mon
+    assert 'hit_ratio' in db_mon['ndncache']
+    lc.flush()
+
+    args.json = False
+
+    log.info("Testing with NDN cache enabled - non-JSON output")
+    db_monitor(inst, DEFAULT_SUFFIX, lc.log, args)
+    output = "".join((str(rec) for rec in lc.outputs))
+
+    assert "Normalized DN Cache:" in output
+    assert "Cache Hit Ratio:" in output
+    lc.flush()
+
+    log.info("Setting nsslapd-ndn-cache-enabled to OFF")
+    inst.config.set('nsslapd-ndn-cache-enabled', 'off')
+    inst.restart()
+
+    log.info("Testing with NDN cache disabled - non-JSON output")
+    db_monitor(inst, DEFAULT_SUFFIX, lc.log, args)
+    output = "".join((str(rec) for rec in lc.outputs))
+
+    assert "Normalized DN Cache:" not in output
+    lc.flush()
+
+    inst.config.set('nsslapd-ndn-cache-enabled', 'on')
+    inst.restart()
 
 
 if __name__ == '__main__':
