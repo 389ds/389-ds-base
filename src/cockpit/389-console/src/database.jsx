@@ -194,7 +194,7 @@ export class Database extends React.Component {
         });
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "config", "get", "nsslapd-ndn-cache-max-size"
+            "config", "get", "nsslapd-ndn-cache-max-size", "nsslapd-ndn-cache-enabled"
         ];
         log_cmd("loadNDN", "Load NDN cache size", cmd);
         cockpit
@@ -202,10 +202,12 @@ export class Database extends React.Component {
                 .done(content => {
                     const config = JSON.parse(content);
                     const attrs = config.attrs;
+                    const ndn_cache_enabled = attrs['nsslapd-ndn-cache-enabled'][0] === "on";
                     this.setState(prevState => ({
                         globalDBConfig: {
                             ...prevState.globalDBConfig,
                             ndncachemaxsize: attrs['nsslapd-ndn-cache-max-size'][0],
+                            ndn_cache_enabled: ndn_cache_enabled,
                         },
                         configUpdated: 0,
                         loaded: true,
