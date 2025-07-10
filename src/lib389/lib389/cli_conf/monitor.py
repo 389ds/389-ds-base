@@ -129,6 +129,14 @@ def db_monitor(inst, basedn, log, args):
     # Gather the global DB stats
     report_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ldbm_mon = ldbm_monitor.get_status()
+    ndn_cache_enabled = inst.config.get_attr_val_utf8('nsslapd-ndn-cache-enabled') == 'on'
+
+    # Build global cache stats
+    result = {
+        'date': report_time,
+        'backends': {},
+    }
+
     if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
         dbcachesize = int(ldbm_mon['nsslapd-db-cache-size-bytes'][0])
         # Warning: there are two different page sizes associated with bdb:
@@ -153,32 +161,6 @@ def db_monitor(inst, basedn, log, args):
         dbcachefree = max(int(dbcachesize - (pagesize * dbpages)), 0)
         dbcachefreeratio = dbcachefree/dbcachesize
 
-    ndnratio = ldbm_mon['normalizeddncachehitratio'][0]
-    ndncursize = int(ldbm_mon['currentnormalizeddncachesize'][0])
-    ndnmaxsize = int(ldbm_mon['maxnormalizeddncachesize'][0])
-    ndncount = ldbm_mon['currentnormalizeddncachecount'][0]
-    ndnevictions = ldbm_mon['normalizeddncacheevictions'][0]
-    if ndncursize > ndnmaxsize:
-        ndnfree = 0
-        ndnfreeratio = 0
-    else:
-        ndnfree = ndnmaxsize - ndncursize
-        ndnfreeratio = "{:.1f}".format(ndnfree / ndnmaxsize * 100)
-
-    # Build global cache stats
-    result = {
-        'date': report_time,
-        'ndncache': {
-            'hit_ratio': ndnratio,
-            'free': convert_bytes(str(ndnfree)),
-            'free_percentage': ndnfreeratio,
-            'count': ndncount,
-            'evictions': ndnevictions
-        },
-        'backends': {},
-    }
-
-    if ldbm_monitor.inst_db_impl == DB_IMPL_BDB:
         result['dbcache'] = {
                 'hit_ratio': dbhitratio,
                 'free': convert_bytes(str(dbcachefree)),
@@ -187,6 +169,32 @@ def db_monitor(inst, basedn, log, args):
                 'pagein': dbcachepagein,
                 'pageout': dbcachepageout
         }
+
+    # Add NDN cache stats only if enabled
+    if ndn_cache_enabled:
+        try:
+            ndnratio = ldbm_mon['normalizeddncachehitratio'][0]
+            ndncursize = int(ldbm_mon['currentnormalizeddncachesize'][0])
+            ndnmaxsize = int(ldbm_mon['maxnormalizeddncachesize'][0])
+            ndncount = ldbm_mon['currentnormalizeddncachecount'][0]
+            ndnevictions = ldbm_mon['normalizeddncacheevictions'][0]
+            if ndncursize > ndnmaxsize:
+                ndnfree = 0
+                ndnfreeratio = 0
+            else:
+                ndnfree = ndnmaxsize - ndncursize
+                ndnfreeratio = "{:.1f}".format(ndnfree / ndnmaxsize * 100)
+
+            result['ndncache'] = {
+                'hit_ratio': ndnratio,
+                'free': convert_bytes(str(ndnfree)),
+                'free_percentage': ndnfreeratio,
+                'count': ndncount,
+                'evictions': ndnevictions
+            }
+        # In case, the user enabled NDN cache but still have not restarted the instance
+        except IndexError:
+            ndn_cache_enabled = False
 
     # Build the backend results
     for be in backend_objs:
@@ -277,13 +285,16 @@ def db_monitor(inst, basedn, log, args):
             log.info(" - Pages In:            {}".format(result['dbcache']['pagein']))
             log.info(" - Pages Out:           {}".format(result['dbcache']['pageout']))
             log.info("")
-        log.info("Normalized DN Cache:")
-        log.info(" - Cache Hit Ratio:     {}%".format(result['ndncache']['hit_ratio']))
-        log.info(" - Free Space:          {}".format(result['ndncache']['free']))
-        log.info(" - Free Percentage:     {}%".format(result['ndncache']['free_percentage']))
-        log.info(" - DN Count:            {}".format(result['ndncache']['count']))
-        log.info(" - Evictions:           {}".format(result['ndncache']['evictions']))
-        log.info("")
+
+        if ndn_cache_enabled:
+            log.info("Normalized DN Cache:")
+            log.info(" - Cache Hit Ratio:     {}%".format(result['ndncache']['hit_ratio']))
+            log.info(" - Free Space:          {}".format(result['ndncache']['free']))
+            log.info(" - Free Percentage:     {}%".format(result['ndncache']['free_percentage']))
+            log.info(" - DN Count:            {}".format(result['ndncache']['count']))
+            log.info(" - Evictions:           {}".format(result['ndncache']['evictions']))
+            log.info("")
+
         log.info("Backends:")
         for be_name, attr_dict in result['backends'].items():
             log.info(f"  - {attr_dict['suffix']} ({be_name}):")
