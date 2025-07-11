@@ -2653,6 +2653,7 @@ agmt_update_init_status(Repl_Agmt *ra)
     } else {
         PR_Unlock(ra->lock);
     }
+    slapi_ch_free((void **)&mods);
     slapi_mod_done(&smod_start_time);
     slapi_mod_done(&smod_end_time);
     slapi_mod_done(&smod_status);
