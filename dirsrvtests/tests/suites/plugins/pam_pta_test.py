@@ -16,7 +16,8 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.plugins import PAMPassThroughAuthPlugin, PAMPassThroughAuthConfigs
 from lib389.idm.user import UserAccounts, DEFAULT_BASEDN_RDN
 
-pytestmark = pytest.mark.tier1
+pytestmark = pytest.mark.tier2
+pam_pta_ack = pytest.mark.skipif(not os.environ.get('PAM_PTA_ACK', False), reason="PAM PTA tests may damage system configuration.")
 
 DEBUGGING = os.getenv('DEBUGGING', False)
 
@@ -131,6 +132,7 @@ def migrated_child_config(topology_st):
 
     yield
 
+@pam_pta_ack
 def test_bind_default_config(topology_st, migrated_child_config, pam_service_ldapserver, ldap_user):
     """Test PAM Passthrough Auth with default config.
 
@@ -170,6 +172,7 @@ def test_bind_default_config(topology_st, migrated_child_config, pam_service_lda
 
     pta.disable()
 
+@pam_pta_ack
 def test_bind_excluded_suffix(topology_st, pam_service_ldapserver, ldap_user):
     """Test PAM Passthrough Auth with excluded suffix (fallback to default config).
 
@@ -235,6 +238,7 @@ def test_bind_excluded_suffix(topology_st, pam_service_ldapserver, ldap_user):
 
     pta.disable()
 
+@pam_pta_ack
 def test_bind_included_suffix(topology_st, ldap_user):
     """Test PAM Passthrough Auth with included suffix.
 
