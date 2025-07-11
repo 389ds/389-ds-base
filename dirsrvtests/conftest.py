@@ -138,7 +138,7 @@ def pytest_runtest_makereport(item, call):
                         log_name = os.path.basename(f)
                         instance_name = os.path.basename(os.path.dirname(f)).split("slapd-",1)[1]
                         extra.append(pytest_html.extras.text(text, name=f"{instance_name}-{log_name}"))
-            report.extra = extra
+            report.extras = extra
 
     # Make a screenshot if WebUI test fails
     if call.when == "call" and "WEBUI" in os.environ:
