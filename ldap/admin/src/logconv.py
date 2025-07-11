@@ -16,11 +16,11 @@ import argparse
 import logging
 import sys
 import csv
+from collections import defaultdict, Counter
 from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass, field
 import heapq
-from collections import Counter
-from collections import defaultdict
-from typing import Optional
+from typing import Optional, Dict, List, Set, Tuple, DefaultDict
 import magic
 
 # Globals
@@ -159,9 +159,191 @@ SCOPE_LABEL = {
 
 STLS_OID = '1.3.6.1.4.1.1466.20037'
 
-# Version
-logAnalyzerVersion = "8.3"
+logAnalyzerVersion = "8.4"
 
+@dataclass
+class VLVData:
+    counters: Dict[str, int] = field(default_factory=lambda: defaultdict(
+        int,
+        {
+            'vlv': 0
+        }
+    ))
+
+    rst_con_op_map: Dict = field(default_factory=lambda: defaultdict(dict))
+
+@dataclass
+class ServerData:
+    counters: Dict[str, int] = field(default_factory=lambda: defaultdict(
+        int,
+        {
+            'restart': 0,
+            'lines_parsed': 0
+        }
+    ))
+
+    first_time: Optional[str] = None
+    last_time: Optional[str] = None
+    parse_start_time: Optional[str] = None
+    parse_stop_time: Optional[str] = None
+
+@dataclass
+class OperationData:
+    counters: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(
+        int,
+        {
+            'add': 0,
+            'mod': 0,
+            'del': 0,
+            'modrdn': 0,
+            'cmp': 0,
+            'abandon': 0,
+            'sort': 0,
+            'internal': 0,
+            'extnd': 0,
+            'authzid': 0,
+            'total': 0
+        }
+    ))
+
+    rst_con_op_map: DefaultDict[str, DefaultDict[str, int]] = field(
+        default_factory=lambda: defaultdict(lambda: defaultdict(int))
+    )
+
+    extended: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+
+@dataclass
+class ConnectionData:
+    counters: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(
+        int,
+        {
+            'conn': 0,
+            'fd_taken': 0,
+            'fd_returned': 0,
+            'fd_max': 0,
+            'sim_conn': 0,
+            'max_sim_conn': 0,
+            'ldap': 0,
+            'ldapi': 0,
+            'ldaps': 0
+        }
+    ))
+
+    start_time: DefaultDict[str, str] = field(default_factory=lambda: defaultdict(str))
+    open_conns: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    exclude_ip: DefaultDict[Tuple[str, str], str] = field(default_factory=lambda: defaultdict(str))
+
+    broken_pipe: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    resource_unavail: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    connection_reset: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    disconnect_code: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+
+    restart_conn_disconnect_map: DefaultDict[Tuple[int, str], int] = field(default_factory=lambda: defaultdict(int))
+    restart_conn_ip_map: Dict[Tuple[int, str], str] = field(default_factory=dict)
+
+    src_ip_map: DefaultDict[str, DefaultDict[str, object]] = field(
+        default_factory=lambda: defaultdict(lambda: defaultdict(object))
+    )
+
+@dataclass
+class BindData:
+    counters: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(
+        int,
+        {
+            'bind': 0,
+            'unbind': 0,
+            'sasl': 0,
+            'anon': 0,
+            'autobind': 0,
+            'rootdn': 0
+        }
+    ))
+
+    restart_conn_dn_map: Dict[Tuple[int, str], str] = field(default_factory=dict)
+
+    version: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    dns: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    sasl_mech: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    conn_op_sasl_mech_map: DefaultDict[str, str] = field(default_factory=lambda: defaultdict(str))
+    root_dn: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+
+    report_dn: DefaultDict[str, Dict[str, Set[str]]] = field(
+        default_factory=lambda: defaultdict(
+            lambda: {
+                'conn': set(),
+                'ips': set()
+            }
+        )
+    )
+
+@dataclass
+class ResultData:
+    counters: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(
+        int, {
+            'result': 0,
+            'notesA': 0,
+            'notesF': 0,
+            'notesM': 0,
+            'notesP': 0,
+            'notesU': 0,
+            'timestamp': 0,
+            'entry': 0,
+            'referral': 0
+        }
+    ))
+
+    notes: DefaultDict[str, Dict] = field(default_factory=lambda: defaultdict(dict))
+
+    timestamp_ctr: int = 0
+    entry_count: int = 0
+    referral_count: int = 0
+
+    total_etime: float = 0.0
+    total_wtime: float = 0.0
+    total_optime: float = 0.0
+    etime_stat: float = 0.0
+
+    etime_duration: List[float] = field(default_factory=list)
+    wtime_duration: List[float] = field(default_factory=list)
+    optime_duration: List[float] = field(default_factory=list)
+
+    nentries_num: List[int] = field(default_factory=list)
+    nentries_set: Set[int] = field(default_factory=set)
+
+    error_freq: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    bad_pwd_map: Dict[str, int] = field(default_factory=dict)
+
+@dataclass
+class SearchData:
+    counters: Dict[str, int] = field(default_factory=lambda: defaultdict(
+        int,
+        {
+            'search': 0,
+            'base_search': 0,
+            'persistent': 0
+        }
+    ))
+    attrs: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+    bases: DefaultDict[str, int] = field(default_factory=lambda: defaultdict(int))
+
+    base_rst_con_op_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
+    scope_rst_con_op_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
+
+    filter_dict: Dict[str, int] = field(default_factory=dict)
+    filter_list: List[str] = field(default_factory=list)
+    filter_rst_con_op_map: Dict[Tuple[int, str, str], str] = field(default_factory=dict)
+
+@dataclass
+class AuthData:
+    counters: Dict[str, int] = field(default_factory=lambda: defaultdict(
+        int,
+        {
+            'ssl_client_bind_ctr': 0,
+            'ssl_client_bind_failed_ctr': 0,
+            'cipher_ctr': 0
+        }
+    ))
+    auth_info: DefaultDict[str, str] = field(default_factory=lambda: defaultdict(str))
 
 class logAnalyser:
     """
@@ -272,136 +454,14 @@ class logAnalyser:
         self.notesP = {}
         self.notesU = {}
 
-        self.vlv = {
-            'vlv_ctr': 0,
-            'vlv_map_rco': {}
-        }
-
-        self.server = {
-            'restart_ctr': 0,
-            'first_time': None,
-            'last_time': None,
-            'parse_start_time': None,
-            'parse_stop_time': None,
-            'lines_parsed': 0
-        }
-
-        self.operation = {
-            'all_op_ctr': 0,
-            'add_op_ctr': 0,
-            'mod_op_ctr': 0,
-            'del_op_ctr': 0,
-            'modrdn_op_ctr': 0,
-            'cmp_op_ctr': 0,
-            'abandon_op_ctr': 0,
-            'sort_op_ctr': 0,
-            'extnd_op_ctr': 0,
-            'add_map_rco': {},
-            'mod_map_rco': {},
-            'del_map_rco': {},
-            'cmp_map_rco': {},
-            'modrdn_map_rco': {},
-            'extop_dict': {},
-            'extop_map_rco': {},
-            'abandoned_map_rco': {}
-        }
-
-        self.connection = {
-            'conn_ctr': 0,
-            'fd_taken_ctr': 0,
-            'fd_returned_ctr': 0,
-            'fd_max_ctr': 0,
-            'sim_conn_ctr': 0,
-            'max_sim_conn_ctr': 0,
-            'ldap_ctr': 0,
-            'ldapi_ctr': 0,
-            'ldaps_ctr': 0,
-            'start_time': {},
-            'open_conns': {},
-            'exclude_ip_map': {},
-            'broken_pipe': {},
-            'resource_unavail': {},
-            'connection_reset': {},
-            'disconnect_code': {},
-            'disconnect_code_map': {},
-            'ip_map': {},
-            'restart_conn_ip_map': {}
-        }
-
-        self.bind = {
-            'bind_ctr': 0,
-            'unbind_ctr': 0,
-            'sasl_bind_ctr': 0,
-            'anon_bind_ctr': 0,
-            'autobind_ctr': 0,
-            'rootdn_bind_ctr': 0,
-            'version': {},
-            'dn_freq': {},
-            'dn_map_rc': {},
-            'sasl_mech_freq': {},
-            'sasl_map_co': {},
-            'root_dn': {},
-            'report_dn': defaultdict(lambda: defaultdict(int, conn=set(), ips=set()))
-        }
-
-        self.result = {
-            'result_ctr': 0,
-            'notesA_ctr': 0,    # dynamically referenced
-            'notesF_ctr': 0,    # dynamically referenced
-            'notesM_ctr': 0,    # dynamically referenced
-            'notesP_ctr': 0,    # dynamically referenced
-            'notesU_ctr': 0,    # dynamically referenced
-            'timestamp_ctr': 0,
-            'entry_count': 0,
-            'referral_count': 0,
-            'total_etime': 0.0,
-            'total_wtime': 0.0,
-            'total_optime': 0.0,
-            'notesA_map': {},
-            'notesF_map': {},
-            'notesM_map': {},
-            'notesP_map': {},
-            'notesU_map': {},
-            'etime_stat': 0.0,
-            'etime_counts': defaultdict(int),
-            'etime_freq': [],
-            'etime_duration': [],
-            'wtime_counts': defaultdict(int),
-            'wtime_freq': [],
-            'wtime_duration': [],
-            'optime_counts': defaultdict(int),
-            'optime_freq': [],
-            'optime_duration': [],
-            'nentries_dict': defaultdict(int),
-            'nentries_num': [],
-            'nentries_set': set(),
-            'nentries_returned': [],
-            'error_freq': defaultdict(str),
-            'bad_pwd_map': {}
-        }
-
-        self.search = {
-            'search_ctr': 0,
-            'search_map_rco': {},
-            'attr_dict': defaultdict(int),
-            'base_search_ctr': 0,
-            'base_map': {},
-            'base_map_rco': {},
-            'scope_map_rco': {},
-            'filter_dict': {},
-            'filter_list': [],
-            'filter_seen': set(),
-            'filter_counter': Counter(),
-            'filter_map_rco': {},
-            'persistent_ctr': 0
-        }
-
-        self.auth = {
-            'ssl_client_bind_ctr': 0,
-            'ssl_client_bind_failed_ctr': 0,
-            'cipher_ctr': 0,
-            'auth_info': {}
-        }
+        self.vlv = VLVData()
+        self.server = ServerData()
+        self.operation = OperationData()
+        self.connection = ConnectionData()
+        self.bind = BindData()
+        self.result = ResultData()
+        self.search = SearchData()
+        self.auth = AuthData()
 
     def _init_regexes(self):
         """
@@ -564,22 +624,22 @@ class logAnalyser:
         """
         print("\nBind Report")
         print("====================================================================\n")
-        for k, v in self.bind['report_dn'].items():
+        for k, v in self.bind.report_dn.items():
             print(f"\nBind DN: {k}")
             print("--------------------------------------------------------------------\n")
             print("   Client Addresses:\n")
-            ips = self.bind['report_dn'][k].get('ips', set())
+            ips = self.bind.report_dn[k].get('ips', set())
             for i, ip in enumerate(ips, start=1):
                 print(f"        {i}:      {ip}")
             print("\n   Operations Performed:\n")
-            print(f"        Binds:      {self.bind['report_dn'][k].get('bind', 0)}")
-            print(f"        Searches:   {self.bind['report_dn'][k].get('srch', 0)}")
-            print(f"        Modifies:   {self.bind['report_dn'][k].get('mod', 0)}")
-            print(f"        Adds:       {self.bind['report_dn'][k].get('add', 0)}")
-            print(f"        Deletes:    {self.bind['report_dn'][k].get('del', 0)}")
-            print(f"        Compares:   {self.bind['report_dn'][k].get('cmp', 0)}")
-            print(f"        ModRDNs:    {self.bind['report_dn'][k].get('modrdn', 0)}")
-            print(f"        Ext Ops:    {self.bind['report_dn'][k].get('ext', 0)}")
+            print(f"        Binds:      {self.bind.report_dn[k].get('bind', 0)}")
+            print(f"        Searches:   {self.bind.report_dn[k].get('srch', 0)}")
+            print(f"        Modifies:   {self.bind.report_dn[k].get('mod', 0)}")
+            print(f"        Adds:       {self.bind.report_dn[k].get('add', 0)}")
+            print(f"        Deletes:    {self.bind.report_dn[k].get('del', 0)}")
+            print(f"        Compares:   {self.bind.report_dn[k].get('cmp', 0)}")
+            print(f"        ModRDNs:    {self.bind.report_dn[k].get('modrdn', 0)}")
+            print(f"        Ext Ops:    {self.bind.report_dn[k].get('ext', 0)}")
 
         print("Done.")
 
@@ -618,12 +678,9 @@ class logAnalyser:
                 self.logger.error(f"Converting timestamp: {timestamp} to datetime failed with: {e}")
                 return False
 
-            # Add server restart count to groups for connection tracking
-            groups['restart_ctr'] = self.server.get('restart_ctr', 0)
-
             # Are there time range restrictions
-            parse_start = self.server.get('parse_start_time', None)
-            parse_stop = self.server.get('parse_stop_time', None)
+            parse_start = self.server.parse_start_time
+            parse_stop = self.server.parse_stop_time
 
             if parse_start and parse_stop:
                 if parse_start.microsecond == 0 and parse_stop.microsecond == 0:
@@ -634,12 +691,12 @@ class logAnalyser:
                     return False
 
             # Get the first and last timestamps
-            if self.server.get('first_time') is None:
-                self.server['first_time'] = timestamp
-            self.server['last_time'] = timestamp
+            if self.server.first_time is None:
+                self.server.first_time = timestamp
+            self.server.last_time = timestamp
 
             # Bump lines parsed
-            self.server['lines_parsed'] = self.server.get('lines_parsed', 0) + 1
+            self.server.counters['lines_parsed'] += 1
 
             # Call the associated method for this match
             action(groups)
@@ -659,15 +716,10 @@ class logAnalyser:
         Process and update statistics based on the parsed result group.
 
         Args:
-            groups (dict): Parsed groups from the log line.
-
-
-        Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'timestamp': The timestamp of the connection event.
                 - 'conn_id': Connection identifier.
                 - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
                 - 'etime': Result elapsed time.
                 - 'wtime': Result wait time.
                 - 'optime': Result operation time.
@@ -679,182 +731,173 @@ class logAnalyser:
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+        self.logger.debug(f"_process_result_stats - Start - {groups}")
+
         try:
             timestamp = groups.get('timestamp')
             conn_id = groups.get('conn_id')
             op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
             etime = float(groups.get('etime'))
             wtime = float(groups.get('wtime'))
             optime = float(groups.get('optime'))
+            nentries = int(groups.get('nentries'))
             tag = groups.get('tag')
             err = groups.get('err')
-            nentries = int(groups.get('nentries'))
             internal = groups.get('internal')
+            notes = groups.get('notes')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
         # Mapping keys for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_op_key = (restart_ctr, conn_id, op_id)
         restart_conn_key = (restart_ctr, conn_id)
         conn_op_key = (conn_id, op_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
-        # Bump global result count
-        self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
-
-        # Bump global result count
-        self.result['timestamp_ctr'] = self.result.get('timestamp_ctr', 0) + 1
+        self.result.counters['result'] += 1
+        self.result.counters['timestamp'] += 1
 
         # Longest etime, push current etime onto the heap
-        heapq.heappush(self.result['etime_duration'], float(etime))
+        heapq.heappush(self.result.etime_duration, etime)
 
         # If the heap exceeds size_limit, pop the smallest element from root
-        if len(self.result['etime_duration']) > self.size_limit:
-            heapq.heappop(self.result['etime_duration'])
+        if len(self.result.etime_duration) > self.size_limit:
+            heapq.heappop(self.result.etime_duration)
 
         # Longest wtime, push current wtime onto the heap
-        heapq.heappush(self.result['wtime_duration'], float(wtime))
+        heapq.heappush(self.result.wtime_duration, wtime)
 
         # If the heap exceeds size_limit, pop the smallest element from root
-        if len(self.result['wtime_duration']) > self.size_limit:
-            heapq.heappop(self.result['wtime_duration'])
+        if len(self.result.wtime_duration) > self.size_limit:
+            heapq.heappop(self.result.wtime_duration)
 
         # Longest optime, push current optime onto the heap
-        heapq.heappush(self.result['optime_duration'], float(optime))
+        heapq.heappush(self.result.optime_duration, optime)
 
         # If the heap exceeds size_limit, pop the smallest element from root
-        if len(self.result['optime_duration']) > self.size_limit:
-            heapq.heappop(self.result['optime_duration'])
+        if len(self.result.optime_duration) > self.size_limit:
+            heapq.heappop(self.result.optime_duration)
 
         # Total result times
-        self.result['total_etime'] = self.result.get('total_etime', 0) + float(etime)
-        self.result['total_wtime'] = self.result.get('total_wtime', 0) + float(wtime)
-        self.result['total_optime'] = self.result.get('total_optime', 0) + float(optime)
+        self.result.total_etime = self.result.total_etime + etime
+        self.result.total_wtime = self.result.total_wtime + wtime
+        self.result.total_optime = self.result.total_optime + optime
 
         # Statistic reporting
-        self.result['etime_stat'] = round(self.result['etime_stat'] + float(etime), 8)
+        self.result.etime_stat = round(self.result.etime_stat + float(etime), 8)
 
-        if err:
-            # Capture error code
-            self.result['error_freq'][err] = self.result['error_freq'].get(err, 0) + 1
+        if err is not None:
+            self.result.error_freq[err] += 1
 
         # Check for internal operations based on either conn_id or internal flag
         if 'Internal' in conn_id or internal:
-            self.server['internal_op_ctr'] = self.server.get('internal_op_ctr', 0) + 1
+            self.operation.counters['internal'] +=1
 
         # Process result notes if present
-        notes = groups['notes']
-        if notes is not None:
-            # match.group('notes') can be A|U|F
-            self.result[f'notes{notes}_ctr'] = self.result.get(f'notes{notes}_ctr', 0) + 1
-            # Track result times using server restart count, conn id and op_id as key
-            self.result[f'notes{notes}_map'][restart_conn_op_key] = restart_conn_op_key
-
-            # Construct the notes dict
-            note_dict = getattr(self, f'notes{notes}')
+        NOTE_TYPES = {'A', 'U', 'F', 'M', 'P'}
+        if notes in NOTE_TYPES:
+            note_dict = self.result.notes[notes]
+            self.result.counters[f'notes{notes}'] += 1
 
             # Exclude VLV
-            if restart_conn_op_key not in self.vlv['vlv_map_rco']:
-                if restart_conn_op_key in note_dict:
-                    note_dict[restart_conn_op_key]['time'] = timestamp
-                else:
-                    # First time round
-                    note_dict[restart_conn_op_key] = {'time': timestamp}
+            if restart_conn_op_key not in self.vlv.rst_con_op_map:
+                # Construct the notes dict
+                note_dict = self.result.notes[notes]
+                note_entry = note_dict.setdefault(restart_conn_op_key, {})
+                note_entry.update({
+                    'time': timestamp,
+                    'etime': etime,
+                    'nentries': nentries,
+                    'ip': self.connection.restart_conn_ip_map.get(restart_conn_key, 'Unknown IP'),
+                    'bind_dn': self.bind.restart_conn_dn_map.get(restart_conn_key, 'Unknown DN')
+                })
 
-                note_dict[restart_conn_op_key]['etime'] = etime
-                note_dict[restart_conn_op_key]['nentries'] = nentries
-                note_dict[restart_conn_op_key]['ip'] = (
-                    self.connection['restart_conn_ip_map'].get(restart_conn_key, '')
-                )
+                if restart_conn_op_key in self.search.base_rst_con_op_map:
+                    note_dict[restart_conn_op_key]['base'] = self.search.base_rst_con_op_map[restart_conn_op_key]
+                    del self.search.base_rst_con_op_map[restart_conn_op_key]
 
-                if restart_conn_op_key in self.search['base_map_rco']:
-                    note_dict[restart_conn_op_key]['base'] = self.search['base_map_rco'][restart_conn_op_key]
-                    del self.search['base_map_rco'][restart_conn_op_key]
+                if restart_conn_op_key in self.search.scope_rst_con_op_map:
+                    note_dict[restart_conn_op_key]['scope'] = self.search.scope_rst_con_op_map[restart_conn_op_key]
+                    del self.search.scope_rst_con_op_map[restart_conn_op_key]
 
-                if restart_conn_op_key in self.search['scope_map_rco']:
-                    note_dict[restart_conn_op_key]['scope'] = self.search['scope_map_rco'][restart_conn_op_key]
-                    del self.search['scope_map_rco'][restart_conn_op_key]
-
-                if restart_conn_op_key in self.search['filter_map_rco']:
-                    note_dict[restart_conn_op_key]['filter'] = self.search['filter_map_rco'][restart_conn_op_key]
-                    del self.search['filter_map_rco'][restart_conn_op_key]
-
-                note_dict[restart_conn_op_key]['bind_dn'] = self.bind['dn_map_rc'].get(restart_conn_key, '')
-
-            elif restart_conn_op_key in self.vlv['vlv_map_rco']:
-                # This "note" result is VLV, assign the note type for later filtering
-                self.vlv['vlv_map_rco'][restart_conn_op_key] = notes
+                if restart_conn_op_key in self.search.filter_rst_con_op_map:
+                    note_dict[restart_conn_op_key]['filter'] = self.search.filter_rst_con_op_map[restart_conn_op_key]
+                    del self.search.filter_rst_con_op_map[restart_conn_op_key]
+            else:
+                self.vlv.rst_con_op_map[restart_conn_op_key] = notes
 
         # Trim the search data we dont need (not associated with a notes=X)
-        if restart_conn_op_key in self.search['base_map_rco']:
-            del self.search['base_map_rco'][restart_conn_op_key]
+        if restart_conn_op_key in self.search.base_rst_con_op_map:
+            del self.search.base_rst_con_op_map[restart_conn_op_key]
 
-        if restart_conn_op_key in self.search['scope_map_rco']:
-            del self.search['scope_map_rco'][restart_conn_op_key]
+        if restart_conn_op_key in self.search.scope_rst_con_op_map:
+            del self.search.scope_rst_con_op_map[restart_conn_op_key]
 
-        if restart_conn_op_key in self.search['filter_map_rco']:
-            del self.search['filter_map_rco'][restart_conn_op_key]
+        if restart_conn_op_key in self.search.filter_rst_con_op_map:
+            del self.search.filter_rst_con_op_map[restart_conn_op_key]
 
         # Process bind response based on the tag and error code.
         if tag == '97':
             # Invalid credentials|Entry does not exist
             if err == '49':
                 # if self.verbose:
-                bad_pwd_dn = self.bind['dn_map_rc'].get(restart_conn_key, None)
-                bad_pwd_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key, None)
-                self.result['bad_pwd_map'][(bad_pwd_dn, bad_pwd_ip)] = (
-                    self.result['bad_pwd_map'].get((bad_pwd_dn, bad_pwd_ip), 0) + 1
+                bad_pwd_dn = self.bind.restart_conn_dn_map[restart_conn_key]
+                bad_pwd_ip = self.connection.restart_conn_ip_map.get(restart_conn_key, None)
+                self.result.bad_pwd_map[(bad_pwd_dn, bad_pwd_ip)] = (
+                    self.result.bad_pwd_map.get((bad_pwd_dn, bad_pwd_ip), 0) + 1
                 )
                 # Trim items to size_limit
-                if len(self.result['bad_pwd_map']) > self.size_limit:
+                if len(self.result.bad_pwd_map) > self.size_limit:
                     within_size_limit = dict(
                         sorted(
-                            self.result['bad_pwd_map'].items(),
+                            self.result.bad_pwd_map.items(),
                             key=lambda item: item[1],
                             reverse=True
                         )[:self.size_limit])
-                    self.result['bad_pwd_map'] = within_size_limit
+                    self.result.bad_pwd_map = within_size_limit
 
             # Ths result is involved in the SASL bind process, decrement bind count, etc
             elif err == '14':
-                self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) - 1
-                self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) - 1
-                self.bind['sasl_bind_ctr'] = self.bind.get('sasl_bind_ctr', 0) - 1
-                self.bind['version']['3'] = self.bind['version'].get('3', 0) - 1
+                self.bind.counters['bind'] -= 1
+                self.operation.counters['total'] -= 1
+                self.bind.counters['sasl'] -= 1
+                self.bind.version['3'] = self.bind.version.get('3', 0) - 1
 
                 # Drop the sasl mech count also
-                mech = self.bind['sasl_map_co'].get(conn_op_key, 0)
+                mech = self.bind.conn_op_sasl_mech_map[conn_op_key]
                 if mech:
-                    self.bind['sasl_mech_freq'][mech] = self.bind['sasl_mech_freq'].get(mech, 0) - 1
+                    self.bind.sasl_mech[mech] -= 1
             # Is this is a result to a sasl bind
             else:
                 result_dn = groups['dn']
                 if result_dn:
                     if result_dn != "":
                         # If this is a result of a sasl bind, grab the dn
-                        if conn_op_key in self.bind['sasl_map_co']:
+                        if conn_op_key in self.bind.conn_op_sasl_mech_map:
                             if result_dn is not None:
-                                self.bind['dn_map_rc'][restart_conn_key] = result_dn.lower()
-                                self.bind['dn_freq'][result_dn] = (
-                                    self.bind['dn_freq'].get(result_dn, 0) + 1
+                                self.bind.restart_conn_dn_map[restart_conn_key] = result_dn.lower()
+                                self.bind.dns[result_dn] = (
+                                    self.bind.dns.get(result_dn, 0) + 1
                                 )
         # Handle other tag values
         elif tag in ['100', '101', '111', '115']:
 
             # Largest nentry, push current nentry onto the heap, no duplicates
-            if int(nentries) not in self.result['nentries_set']:
-                heapq.heappush(self.result['nentries_num'], int(nentries))
-                self.result['nentries_set'].add(int(nentries))
+            if int(nentries) not in self.result.nentries_set:
+                heapq.heappush(self.result.nentries_num, int(nentries))
+                self.result.nentries_set.add(int(nentries))
 
             # If the heap exceeds size_limit, pop the smallest element from root
-            if len(self.result['nentries_num']) > self.size_limit:
-                removed = heapq.heappop(self.result['nentries_num'])
-                self.result['nentries_set'].remove(removed)
+            if len(self.result.nentries_num) > self.size_limit:
+                removed = heapq.heappop(self.result.nentries_num)
+                self.result.nentries_set.remove(removed)
+
+        self.logger.debug(f"_process_result_stats - End")
 
     def _process_search_stats(self, groups: dict):
         """
@@ -873,10 +916,11 @@ class logAnalyser:
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+        self.logger.debug(f"_process_search_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
             op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
             search_base = groups['search_base']
             search_scope = groups['search_scope']
             search_attrs = groups['search_attrs']
@@ -886,33 +930,34 @@ class logAnalyser:
             return
 
         # Create a tracking keys for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_op_key = (restart_ctr, conn_id, op_id)
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         # Bump search and global op count
-        self.search['search_ctr'] = self.search.get('search_ctr', 0) + 1
-        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        self.search.counters['search'] +=  1
+        self.operation.counters['total'] += 1
 
         # Search attributes
         if search_attrs is not None:
             if search_attrs == 'ALL':
-                self.search['attr_dict']['All Attributes'] += 1
+                self.search.attrs['All Attributes'] += 1
             else:
                 for attr in search_attrs.split():
                     attr = attr.strip('"')
-                    self.search['attr_dict'][attr] += 1
+                    self.search.attrs[attr] += 1
 
         # If the associated conn id for the bind DN matches update op counter
-        for dn in self.bind['report_dn']:
-            conns = self.bind['report_dn'][dn]['conn']
+        for dn in self.bind.report_dn:
+            conns = self.bind.report_dn[dn]['conn']
             if conn_id in conns:
                 bind_dn_key = self._report_dn_key(dn, self.report_dn)
                 if bind_dn_key:
-                    self.bind['report_dn'][bind_dn_key]['srch'] = self.bind['report_dn'][bind_dn_key].get('srch', 0) + 1
+                    self.bind.report_dn[bind_dn_key]['srch'] = self.bind.report_dn[bind_dn_key].get('srch', 0) + 1
 
         # Search base
         if search_base is not None:
@@ -924,48 +969,50 @@ class logAnalyser:
             search_base = base.lower()
             if search_base:
                 if self.verbose:
-                    self.search['base_map'][search_base] = self.search['base_map'].get(search_base, 0) + 1
-                    self.search['base_map_rco'][restart_conn_op_key] = search_base
+                    self.search.bases[search_base] += 1#self.search.bases.get(search_base, 0) + 1
+                    self.search.base_rst_con_op_map[restart_conn_op_key] = search_base
 
         # Search scope
         if search_scope is not None:
             if self.verbose:
-                self.search['scope_map_rco'][restart_conn_op_key] = SCOPE_LABEL[int(search_scope)]
+                self.search.scope_rst_con_op_map[restart_conn_op_key] = SCOPE_LABEL[int(search_scope)]
 
         # Search filter
         if search_filter is not None:
             if self.verbose:
-                self.search['filter_map_rco'][restart_conn_op_key] = search_filter
-                self.search['filter_dict'][search_filter] = self.search['filter_dict'].get(search_filter, 0) + 1
+                self.search.filter_rst_con_op_map[restart_conn_op_key] = search_filter
+                self.search.filter_dict[search_filter] = self.search.filter_dict.get(search_filter, 0) + 1
 
                 found = False
-                for idx, (count, filter) in enumerate(self.search['filter_list']):
+                for idx, (count, filter) in enumerate(self.search.filter_list):
                     if filter == search_filter:
                         found = True
-                        self.search['filter_list'][idx] = (self.search['filter_dict'][search_filter] + 1, search_filter)
-                        heapq.heapify(self.search['filter_list'])
+                        self.search.filter_list[idx] = (self.search.filter_dict[search_filter] + 1, search_filter)
+                        heapq.heapify(self.search.filter_list)
                         break
 
                 if not found:
-                    if len(self.search['filter_list']) < self.size_limit:
-                        heapq.heappush(self.search['filter_list'], (1, search_filter))
+                    if len(self.search.filter_list) < self.size_limit:
+                        heapq.heappush(self.search.filter_list, (1, search_filter))
                     else:
-                        heapq.heappushpop(self.search['filter_list'], (self.search['filter_dict'][search_filter], search_filter))
+                        heapq.heappushpop(self.search.filter_list, (self.search.filter_dict[search_filter], search_filter))
 
         # Check for an entire base search
         if "objectclass=*" in search_filter.lower() or "objectclass=top" in search_filter.lower():
             if search_scope == '2':
-                self.search['base_search_ctr'] = self.search.get('base_search_ctr', 0) + 1
+                self.search.counters['base_search'] += 1
 
         # Persistent search
         if groups['options'] is not None:
             options = groups['options']
             if options == 'persistent':
-                self.search['persistent_ctr'] = self.search.get('persistent_ctr', 0) + 1
+                self.search.counters['persistent'] += 1
 
         # Authorization identity
         if groups['authzid_dn'] is not None:
             self.search['authzid'] = self.search.get('authzid', 0) + 1
+
+        self.logger.debug(f"_process_search_stats - End")
 
     def _process_bind_stats(self, groups: dict):
         """
@@ -975,7 +1022,6 @@ class logAnalyser:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
                 - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
                 - 'bind_dn': Bind DN.
                 - 'bind_method': Bind method (sasl, simple).
                 - 'bind_version': Bind version.
@@ -983,80 +1029,74 @@ class logAnalyser:
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+        self.logger.debug(f"_process_bind_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
             op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
             bind_dn = groups.get('bind_dn')
-            bind_method = groups['bind_method']
-            bind_version = groups['bind_version']
+            bind_method = groups.get('bind_method')
+            bind_version = groups.get('bind_version')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
-        # If this is the first connection (indicating a server restart), increment restart counter
-        if conn_id == '1':
-            self.server['restart_ctr'] = self.server.get('restart_ctr', 0) + 1
-
         # Create a tracking keys for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
         conn_op_key = (conn_id, op_id)
 
+        if bind_dn.strip() == '':
+            bind_dn = 'Anonymous'
+        bind_dn_normalised = bind_dn.lower() if bind_dn != 'Anonymous' else 'anonymous'
+
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
-        # Bump bind and global op count
-        self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
-        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        # Update counters
+        self.bind.counters['bind'] += 1
+        self.operation.counters['total'] = self.operation.counters['total'] + 1
+        self.bind.version[bind_version] += 1
 
-        # Update bind version count
-        self.bind['version'][bind_version] = self.bind['version'].get(bind_version, 0) + 1
-        if bind_dn == "":
-            bind_dn = 'Anonymous'
 
         # If we need to report on this DN, capture some info for tracking
         bind_dn_key = self._report_dn_key(bind_dn, self.report_dn)
         if bind_dn_key:
-            # Update bind count
-            self.bind['report_dn'][bind_dn_key]['bind'] = self.bind['report_dn'][bind_dn_key].get('bind', 0) + 1
-            # Connection ID
-            self.bind['report_dn'][bind_dn_key]['conn'].add(conn_id)
+            self.bind.report_dn[bind_dn_key]['bind'] = self.bind.report_dn[bind_dn_key].get('bind', 0) + 1
+            self.bind.report_dn[bind_dn_key]['conn'].add(conn_id)
+
             # Loop over IPs captured at connection time to find the associated IP
-            for (ip, ip_info) in self.connection['ip_map'].items():
+            for (ip, ip_info) in self.connection.src_ip_map.items():
                 if restart_conn_key in ip_info['keys']:
-                    self.bind['report_dn'][bind_dn_key]['ips'].add(ip)
+                    self.bind.report_dn[bind_dn_key]['ips'].add(ip)
 
-        # sasl or simple bind
+        # Handle SASL or simple bind
         if bind_method == 'sasl':
-            self.bind['sasl_bind_ctr'] = self.bind.get('sasl_bind_ctr', 0) + 1
+            self.bind.counters['sasl'] += 1
             sasl_mech = groups['sasl_mech']
-            if sasl_mech is not None:
-                # Bump sasl mechanism count
-                self.bind['sasl_mech_freq'][sasl_mech] = self.bind['sasl_mech_freq'].get(sasl_mech, 0) + 1
+            if sasl_mech:
+                self.bind.sasl_mech[sasl_mech] += 1
+                self.bind.conn_op_sasl_mech_map[conn_op_key] = sasl_mech
 
-                # Keep track of bind key to handle sasl result later
-                self.bind['sasl_map_co'][conn_op_key] = sasl_mech
+            if bind_dn_normalised == self.root_dn.casefold():
+                self.bind.counters['rootdn'] += 1
 
             if bind_dn != "Anonymous":
-                if bind_dn.casefold() == self.root_dn.casefold():
-                    self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
+                self.bind.dns[bind_dn] += 1
 
-                # if self.verbose:
-                self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
-                self.bind['dn_map_rc'][restart_conn_key] = bind_dn.lower()
         else:
             if bind_dn == "Anonymous":
-                self.bind['anon_bind_ctr'] = self.bind.get('anon_bind_ctr', 0) + 1
-                self.bind['dn_freq']['Anonymous'] = self.bind['dn_freq'].get('Anonymous', 0) + 1
-                self.bind['dn_map_rc'][restart_conn_key] = "anonymous"
+                self.bind.counters['anon'] += 1
+                self.bind.dns['Anonymous'] += 1
             else:
                 if bind_dn.casefold() == self.root_dn.casefold():
-                    self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
+                    self.bind.counters['rootdn'] += 1
+                self.bind.dns[bind_dn] += 1
 
-                # if self.verbose:
-                self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
-                self.bind['dn_map_rc'][restart_conn_key] = bind_dn.lower()
+        self.bind.restart_conn_dn_map[restart_conn_key] = bind_dn_normalised
+
+        self.logger.debug(f"_process_bind_stats - End")
 
     def _process_unbind_stats(self, groups: dict):
         """
@@ -1065,27 +1105,31 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_unbind_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         # Bump unbind count
-        self.bind['unbind_ctr'] = self.bind.get('unbind_ctr', 0) + 1
+        self.bind.counters['unbind'] += 1
+
+        self.logger.debug(f"_process_unbind_stats - End")
 
     def _process_connect_stats(self, groups: dict):
         """
@@ -1094,15 +1138,18 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
+                - 'src_ip': Source IP address.
+                - 'fd': File descriptor.
+                - 'ssl': LDAPS.
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_connect_stats - Start - {groups}")
+
         try:
-            timestamp = groups.get('timestamp')
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
             src_ip = groups.get('src_ip')
             fd = groups['fd']
             ssl = groups['ssl']
@@ -1110,61 +1157,63 @@ class logAnalyser:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
+        # If conn=1, server has started a new lifecycle
+        if conn_id == '1':
+            self.server.counters['restart'] += 1
+
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we exclude this IP
         if self.exclude_ip and src_ip in self.exclude_ip:
-            self.connection['exclude_ip_map'][restart_conn_key] = src_ip
+            self.connection.exclude_ip[restart_conn_key] = src_ip
             return None
 
         if self.verbose:
             # Update open connection count
-            self.connection['open_conns'][src_ip] = self.connection['open_conns'].get(src_ip, 0) + 1
+            self.connection.open_conns[src_ip] += 1
 
             # Track the connection start normalised datetime object for latency report
-            self.connection['start_time'][conn_id] = groups.get('timestamp')
+            self.connection.start_time[conn_id] = groups.get('timestamp')
 
         # Update general connection counters
-        for key in ['conn_ctr', 'sim_conn_ctr']:
-            self.connection[key] = self.connection.get(key, 0) + 1
+        self.connection.counters['conn'] += 1
+        self.connection.counters['sim_conn'] += 1
 
         # Update the maximum number of simultaneous connections seen
-        self.connection['max_sim_conn_ctr'] = max(
-            self.connection.get('max_sim_conn_ctr', 0),
-            self.connection['sim_conn_ctr']
+        self.connection.counters['max_sim_conn'] = max(
+            self.connection.counters['max_sim_conn'],
+            self.connection.counters['sim_conn']
         )
 
         # Update protocol counters
-        src_ip_tmp = 'local' if src_ip == 'local' else 'ldap'
         if ssl:
-            stat_count_key = 'ldaps_ctr'
+            self.connection.counters['ldaps'] += 1
+        elif src_ip == 'local':
+            self.connection.counters['ldapi'] += 1
         else:
-            stat_count_key = 'ldapi_ctr' if src_ip_tmp == 'local' else 'ldap_ctr'
-        self.connection[stat_count_key] = self.connection.get(stat_count_key, 0) + 1
+            self.connection.counters['ldap'] += 1
 
         # Track file descriptor counters
-        self.connection['fd_max_ctr'] = (
-            max(self.connection.get('fd_max_ctr', 0), int(fd))
-        )
-        self.connection['fd_taken_ctr'] = (
-            self.connection.get('fd_taken_ctr', 0) + 1
-        )
+        self.connection.counters['fd_max'] = max(self.connection.counters['fd_taken'], int(fd))
+        self.connection.counters['fd_taken'] += 1
 
         # Track source IP
-        self.connection['restart_conn_ip_map'][restart_conn_key] = src_ip
+        self.connection.restart_conn_ip_map[restart_conn_key] = src_ip
 
         # Update the count of connections seen from this IP
-        if src_ip not in self.connection['ip_map']:
-            self.connection['ip_map'][src_ip] = {}
+        if src_ip not in self.connection.src_ip_map:
+            self.connection.src_ip_map[src_ip] = {}
 
-        self.connection['ip_map'][src_ip]['count'] = self.connection['ip_map'][src_ip].get('count', 0) + 1
+        self.connection.src_ip_map[src_ip]['count'] = self.connection.src_ip_map[src_ip].get('count', 0) + 1
 
-        if 'keys' not in self.connection['ip_map'][src_ip]:
-            self.connection['ip_map'][src_ip]['keys'] = set()
+        if 'keys' not in self.connection.src_ip_map[src_ip]:
+            self.connection.src_ip_map[src_ip]['keys'] = set()
 
-        self.connection['ip_map'][src_ip]['keys'].add(restart_conn_key)
-        # self.connection['ip_map']['ip_key'] = restart_conn_key
+        self.connection.src_ip_map[src_ip]['keys'].add(restart_conn_key)
+
+        self.logger.debug(f"_process_connect_stats - End")
 
     def _process_auth_stats(self, groups: dict):
         """
@@ -1173,7 +1222,6 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
                 - 'auth_protocol': Auth protocol (SSL, TLS).
                 - 'auth_version': Auth version.
                 - 'auth_message': Optional auth message.
@@ -1181,9 +1229,11 @@ class logAnalyser:
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_auth_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
             auth_protocol = groups.get('auth_protocol')
             auth_version = groups.get('auth_version')
             auth_message = groups.get('auth_message')
@@ -1192,15 +1242,16 @@ class logAnalyser:
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         if auth_protocol:
-            if restart_conn_key not in self.auth['auth_info']:
-                self.auth['auth_info'][restart_conn_key] = {
+            if restart_conn_key not in self.auth.auth_info:
+                self.auth.auth_info[restart_conn_key] = {
                     'proto': auth_protocol,
                     'version': auth_version,
                     'count': 0,
@@ -1209,19 +1260,19 @@ class logAnalyser:
 
             if auth_message:
                 # Increment counters and add auth message
-                self.auth['auth_info'][restart_conn_key]['message'].append(auth_message)
+                self.auth.auth_info[restart_conn_key]['message'].append(auth_message)
 
             # Bump auth related counters
-            self.auth['cipher_ctr'] = self.auth.get('cipher_ctr', 0) + 1
-            self.auth['auth_info'][restart_conn_key]['count'] = (
-                self.auth['auth_info'][restart_conn_key].get('count', 0) + 1
-            )
+            self.auth.counters['cipher_ctr'] += 1
+            self.auth.auth_info[restart_conn_key]['count'] += 1
 
         if auth_message:
             if auth_message == 'client bound as':
-                self.auth['ssl_client_bind_ctr'] = self.auth.get('ssl_client_bind_ctr', 0) + 1
+                self.auth.counters['ssl_client_bind_ctr'] += 1
             elif auth_message == 'failed to map client certificate to LDAP DN':
-                self.auth['ssl_client_bind_failed_ctr'] = self.auth.get('ssl_client_bind_failed_ctr', 0) + 1
+                self.auth.counters['ssl_client_bind_failed_ctr'] += 1
+
+        self.logger.debug(f"_process_auth_stats - End")
 
     def _process_vlv_stats(self, groups: dict):
         """
@@ -1231,33 +1282,37 @@ class logAnalyser:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
                 - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_vlv_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
             op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
-        # Create tracking keys
+        # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_op_key = (restart_ctr, conn_id, op_id)
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         # Bump vlv and global op stats
-        self.vlv['vlv_ctr'] = self.vlv.get('vlv_ctr', 0) + 1
-        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        self.vlv.counters['vlv'] += 1
+        self.operation.counters['total'] = self.operation.counters['total'] + 1
 
         # Key and value are the same, makes set operations easier later on
-        self.vlv['vlv_map_rco'][restart_conn_op_key] = restart_conn_op_key
+        self.vlv.rst_con_op_map[restart_conn_op_key] = restart_conn_op_key
+
+        self.logger.debug(f"_process_vlv_stats - End")
 
     def _process_abandon_stats(self, groups: dict):
         """
@@ -1267,38 +1322,41 @@ class logAnalyser:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
                 - 'op_id': Operation identifier.
-                - 'restart_ctr': Server restart count.
                 - 'targetop': The target operation.
                 - 'msgid': Message ID.
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_abandon_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
             op_id = groups.get('op_id')
-            restart_ctr = groups.get('restart_ctr')
             targetop = groups.get('targetop')
             msgid = groups.get('msgid')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
-        # Create a tracking keys
-        restart_conn_op_key = (restart_ctr, conn_id, op_id)
+        # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         # Bump some stats
-        self.result['result_ctr'] = self.result.get('result_ctr', 0) + 1
-        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
-        self.operation['abandon_op_ctr'] = self.operation.get('abandon_op_ctr', 0) + 1
+        self.result.counters['result'] += 1
+        self.operation.counters['total'] = self.operation.counters['total'] + 1
+        self.operation.counters['abandon']  += 1
 
         # Track abandoned operation for later processing
-        self.operation['abandoned_map_rco'][restart_conn_op_key] = (conn_id, op_id, targetop, msgid)
+        self.operation.rst_con_op_map['abandon'] = (conn_id, op_id, targetop, msgid)
+
+        self.logger.debug(f"_process_abandon_stats - End")
 
     def _process_sort_stats(self, groups: dict):
         """
@@ -1307,26 +1365,30 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_sort_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
-        self.operation['sort_op_ctr'] = self.operation.get('sort_op_ctr', 0) + 1
+        self.operation.counters['sort'] += 1
+
+        self.logger.debug(f"_process_sort_stats - End")
 
     def _process_extend_op_stats(self, groups: dict):
         """
@@ -1342,6 +1404,9 @@ class logAnalyser:
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_extend_op_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
             op_id = groups.get('op_id')
@@ -1352,31 +1417,34 @@ class logAnalyser:
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_op_key = (restart_ctr, conn_id, op_id)
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         # Increment global operation counters
-        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
-        self.operation['extnd_op_ctr'] = self.operation.get('extnd_op_ctr', 0) + 1
+        self.operation.counters['total'] = self.operation.counters['total'] + 1
+        self.operation.counters['extnd'] += 1
 
         # Track extended operation data if an OID is present
         if oid is not None:
-            self.operation['extop_dict'][oid] = self.operation['extop_dict'].get(oid, 0) + 1
-            self.operation['extop_map_rco'][restart_conn_op_key] = (
-                self.operation['extop_map_rco'].get(restart_conn_op_key, 0) + 1
+            self.operation.extended[oid] += 1
+            self.operation.rst_con_op_map['extnd'][restart_conn_op_key] = (
+                self.operation.rst_con_op_map['extnd'].get(restart_conn_op_key, 0) + 1
             )
 
         # If the conn_id is associated with this DN, update op counter
-        for dn in self.bind['report_dn']:
-            conns = self.bind['report_dn'][dn]['conn']
+        for dn in self.bind.report_dn:
+            conns = self.bind.report_dn[dn]['conn']
             if conn_id in conns:
                 bind_dn_key = self._report_dn_key(dn, self.report_dn)
                 if bind_dn_key:
-                    self.bind['report_dn'][bind_dn_key]['ext'] = self.bind['report_dn'][bind_dn_key].get('ext', 0) + 1
+                    self.bind.report_dn[bind_dn_key]['ext'] = self.bind.report_dn[bind_dn_key].get('ext', 0) + 1
+
+        self.logger.debug(f"_process_extend_op_stats - End")
 
     def _process_autobind_stats(self, groups: dict):
         """
@@ -1385,43 +1453,47 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
                 - 'bind_dn': Bind DN ("cn=Directory Manager")
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_autobind_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
             bind_dn = groups.get('bind_dn')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         # Bump relevant counters
-        self.bind['bind_ctr'] = self.bind.get('bind_ctr', 0) + 1
-        self.bind['autobind_ctr'] = self.bind.get('autobind_ctr', 0) + 1
-        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        self.bind.counters['bind'] += 1
+        self.bind.counters['autobind'] += 1
+        self.operation.counters['total'] += 1
 
         # Handle an anonymous autobind (empty bind_dn)
         if bind_dn == "":
-            self.bind['anon_bind_ctr'] = self.bind.get('anon_bind_ctr', 0) + 1
+            self.bind.counters['anon'] += 1
         else:
-            # Process non-anonymous binds, does the bind_dn if exist in dn_map_rc
-            bind_dn = self.bind['dn_map_rc'].get(restart_conn_key, bind_dn)
+            # Process non-anonymous binds, does the bind_dn if exist in restart_conn_dn_map
+            bind_dn = self.bind.restart_conn_dn_map.get(restart_conn_key, bind_dn)
             if bind_dn:
                 if bind_dn.casefold() == self.root_dn.casefold():
-                    self.bind['rootdn_bind_ctr'] = self.bind.get('rootdn_bind_ctr', 0) + 1
+                    self.bind.counters['rootdn'] += 1
                 bind_dn = bind_dn.lower()
-                self.bind['dn_freq'][bind_dn] = self.bind['dn_freq'].get(bind_dn, 0) + 1
+                self.bind.dns[bind_dn] = self.bind.dns.get(bind_dn, 0) + 1
+
+        self.logger.debug(f"_process_autobind_stats - End")
 
     def _process_disconnect_stats(self, groups: dict):
         """
@@ -1430,7 +1502,6 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
                 - 'timestamp': The timestamp of the disconnect event.
                 - 'error_code': Error code associated with the disconnect, if any.
                 - 'disconnect_code': Disconnect code, if any.
@@ -1438,9 +1509,11 @@ class logAnalyser:
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+
+        self.logger.debug(f"_process_disconnect_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
             timestamp = groups.get('timestamp')
             error_code = groups.get('error_code')
             disconnect_code = groups.get('disconnect_code')
@@ -1449,17 +1522,18 @@ class logAnalyser:
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         if self.verbose:
             # Handle verbose logging for open connections and IP addresses
-            src_ip = self.connection['restart_conn_ip_map'].get(restart_conn_key)
-            if src_ip and src_ip in self.connection.get('open_conns', {}):
-                open_conns = self.connection['open_conns']
+            src_ip = self.connection.restart_conn_ip_map.get(restart_conn_key)
+            if src_ip and src_ip in self.connection.open_conns:
+                open_conns = self.connection.open_conns
                 if open_conns[src_ip] > 1:
                     open_conns[src_ip] -= 1
                 else:
@@ -1467,7 +1541,7 @@ class logAnalyser:
 
         # Handle latency and disconnect times
         if self.verbose:
-            start_time = self.connection['start_time'].get(conn_id, None)
+            start_time = self.connection.start_time[conn_id]
             finish_time = groups.get('timestamp')
             if start_time and timestamp:
                 latency = self.get_elapsed_time(start_time, finish_time, "seconds")
@@ -1475,28 +1549,29 @@ class logAnalyser:
                 LATENCY_GROUPS[bucket] += 1
 
                 # Reset start time for the connection
-                self.connection['start_time'][conn_id] = None
+                self.connection.start_time[conn_id] = None
 
         # Update connection stats
-        self.connection['sim_conn_ctr'] = self.connection.get('sim_conn_ctr', 0) - 1
-        self.connection['fd_returned_ctr'] = (
-            self.connection.get('fd_returned_ctr', 0) + 1
-        )
+        self.connection.counters['sim_conn'] -= 1
+        self.connection.counters['fd_returned'] += 1
 
         # Track error and disconnect codes if provided
         if error_code is not None:
             error_type = DISCONNECT_ERRORS.get(error_code, 'unknown')
             if disconnect_code is not None:
                 # Increment the count for the specific error and disconnect code
-                error_map = self.connection.setdefault(error_type, {})
-                error_map[disconnect_code] = error_map.get(disconnect_code, 0) + 1
+                # error_map = self.connection.setdefault(error_type, {})
+                # error_map[disconnect_code] = error_map.get(disconnect_code, 0) + 1
+                self.connection[error_type][disconnect_code] += 1
 
         # Handle disconnect code and update stats
         if disconnect_code is not None:
-            self.connection['disconnect_code'][disconnect_code] = (
-                self.connection['disconnect_code'].get(disconnect_code, 0) + 1
+            self.connection.disconnect_code[disconnect_code] = (
+                self.connection.disconnect_code.get(disconnect_code, 0) + 1
             )
-            self.connection['disconnect_code_map'][restart_conn_key] = disconnect_code
+            self.connection.restart_conn_disconnect_map[restart_conn_key] = disconnect_code
+
+        self.logger.debug(f"_process_disconnect_stats - End")
 
     def _group_latencies(self, latency_seconds: int):
         """
@@ -1530,49 +1605,57 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
                 - 'op_id': Operation identifier.
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+        self.logger.debug(f"_process_crud_stats - Start - {groups}")
         try:
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
             op_type = groups.get('op_type')
-            internal = groups.get('internal')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
-        self.operation['all_op_ctr'] = self.operation.get('all_op_ctr', 0) + 1
+        self.operation.counters['total'] = self.operation.counters['total'] + 1
 
         # Use operation type as key for stats
         if op_type is not None:
             op_key = op_type.lower()
-            self.operation[f"{op_key}_op_ctr"] = self.operation.get(f"{op_key}_op_ctr", 0) + 1
-            self.operation[f"{op_key}_map_rco"][restart_conn_key] = (
-                self.operation[f"{op_key}_map_rco"].get(restart_conn_key, 0) + 1
-            )
+            if op_key not in self.operation.counters:
+                self.operation.counters[op_key] = 0
+            if op_key not in self.operation.rst_con_op_map:
+                self.operation.rst_con_op_map[op_key] = {}
+
+            # Increment op type counter
+            self.operation.counters[op_key] += 1
+
+            # Increment the op type map counter
+            current_count = self.operation.rst_con_op_map[op_key].get(restart_conn_key, 0)
+            self.operation.rst_con_op_map[op_key][restart_conn_key] = current_count + 1
 
         # If the conn_id is associated with this DN, update op counter
-        for dn in self.bind['report_dn']:
-            conns = self.bind['report_dn'][dn]['conn']
+        for dn in self.bind.report_dn:
+            conns = self.bind.report_dn[dn]['conn']
             if conn_id in conns:
                 bind_dn_key = self._report_dn_key(dn, self.report_dn)
                 if bind_dn_key:
-                    self.bind['report_dn'][bind_dn_key][op_key] = self.bind['report_dn'][bind_dn_key].get(op_key, 0) + 1
+                    self.bind.report_dn[bind_dn_key][op_key] = self.bind.report_dn[bind_dn_key].get(op_key, 0) + 1
 
         # Authorization identity
         if groups['authzid_dn'] is not None:
-            self.operation['authzid'] = self.operation.get('authzid', 0) + 1
+            self.operation.counters['authzid'] += 1
+
+        self.logger.debug(f"_process_crud_stats - End")
 
     def _process_entry_referral_stats(self, groups: dict):
         """
@@ -1581,33 +1664,36 @@ class logAnalyser:
         Args:
             groups (dict): A dictionary containing operation information. Expected keys:
                 - 'conn_id': Connection identifier.
-                - 'restart_ctr': Server restart count.
                 - 'op_id': Operation identifier.
 
         Raises:
             KeyError: If required keys are missing in the `groups` dictionary.
         """
+        self.logger.debug(f"_process_entry_referral_stats - Start - {groups}")
+
         try:
             conn_id = groups.get('conn_id')
-            restart_ctr = groups.get('restart_ctr')
             op_type = groups.get('op_type')
         except KeyError as e:
             self.logger.error(f"Missing key in groups: {e}")
             return
 
         # Create a tracking key for this entry
+        restart_ctr = self.server.counters['restart']
         restart_conn_key = (restart_ctr, conn_id)
 
         # Should we ignore this operation
-        if restart_conn_key in self.connection['exclude_ip_map']:
+        if restart_conn_key in self.connection.exclude_ip:
             return None
 
         # Process operation type
         if op_type is not None:
             if op_type == 'ENTRY':
-                self.result['entry_count'] = self.result.get('entry_count', 0) + 1
+                self.result.counters['entry'] += 1
             elif op_type == 'REFERRAL':
-                self.result['referral_count'] = self.result.get('referral_count', 0) + 1
+                self.result.counters['referral'] += 1
+
+        self.logger.debug(f"_process_entry_referral_stats - End")
 
     def _process_and_write_stats(self, norm_timestamp: str, bytes_read: int):
         """
@@ -1620,6 +1706,7 @@ class logAnalyser:
         Returns:
             None
         """
+        self.logger.debug(f"_process_and_write_stats - Start")
 
         if self.csv_writer is None:
             self.logger.error("CSV writer not enabled.")
@@ -1627,23 +1714,23 @@ class logAnalyser:
 
         # Define the stat mapping
         stats = {
-            'result_ctr': self.result,
-            'search_ctr': self.search,
-            'add_op_ctr': self.operation,
-            'mod_op_ctr': self.operation,
-            'modrdn_op_ctr': self.operation,
-            'cmp_op_ctr': self.operation,
-            'del_op_ctr': self.operation,
-            'abandon_op_ctr': self.operation,
-            'conn_ctr': self.connection,
-            'ldaps_ctr': self.connection,
-            'bind_ctr': self.bind,
-            'anon_bind_ctr': self.bind,
-            'unbind_ctr': self.bind,
-            'notesA_ctr': self.result,
-            'notesU_ctr': self.result,
-            'notesF_ctr': self.result,
-            'etime_stat': self.result
+            'result': self.result.counters,
+            'search': self.search.counters,
+            'add': self.operation.counters,
+            'mod': self.operation.counters,
+            'modrdn': self.operation.counters,
+            'cmp': self.operation.counters,
+            'del': self.operation.counters,
+            'abandon': self.operation.counters,
+            'conn': self.connection.counters,
+            'ldaps': self.connection.counters,
+            'bind': self.bind.counters,
+            'anon': self.bind.counters,
+            'unbind': self.bind.counters,
+            'notesA': self.result.counters,
+            'notesU': self.result.counters,
+            'notesF': self.result.counters,
+            'etime_stat': self.result.counters
         }
 
         # Build the current stat block
@@ -1675,8 +1762,7 @@ class logAnalyser:
 
                 # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
                 self.csv_writer.writerow(out_stat_block)
-
-                self.result['etime_stat'] = 0.0
+                self.result.etime_stat = 0.0
 
                 # Update previous stats for the next interval
                 self.prev_stats = curr_stat_block
@@ -1705,7 +1791,9 @@ class logAnalyser:
             # Write the stat block to csv and reset elapsed time for the next interval
             # out_stat_block[0] = self._convert_datetime_to_timestamp(out_stat_block[0])
             self.csv_writer.writerow(out_stat_block)
-            self.result['etime_stat'] = 0.0
+            self.result.etime_stat = 0.0
+
+        self.logger.debug(f"_process_and_write_stats - End")
 
     def process_file(self, log_num: str, filepath: str):
         """
@@ -2254,45 +2342,45 @@ def main():
         sys.exit(1)
 
     # Prep for display
-    elapsed_time = db.get_elapsed_time(db.server['first_time'], db.server['last_time'], "hms")
-    elapsed_secs = db.get_elapsed_time(db.server['first_time'], db.server['last_time'], "seconds")
-    num_ops = db.operation.get('all_op_ctr', 0)
-    num_results = db.result.get('result_ctr', 0)
-    num_conns = db.connection.get('conn_ctr', 0)
-    num_ldap = db.connection.get('ldap_ctr', 0)
-    num_ldapi = db.connection.get('ldapi_ctr', 0)
-    num_ldaps = db.connection.get('ldaps_ctr', 0)
-    num_startls = db.operation['extop_dict'].get(STLS_OID, 0)
-    num_search = db.search.get('search_ctr', 0)
-    num_mod = db.operation.get('mod_op_ctr', 0)
-    num_add = db.operation.get('add_op_ctr', 0)
-    num_del = db.operation.get('del_op_ctr', 0)
-    num_modrdn = db.operation.get('modrdn_op_ctr', 0)
-    num_cmp = db.operation.get('cmp_op_ctr', 0)
-    num_bind = db.bind.get('bind_ctr', 0)
-    num_unbind = db.bind.get('unbind_ctr', 0)
-    num_proxyd_auths = db.operation.get('authzid', 0) + db.search.get('authzid', 0)
-    num_time_count = db.result.get('timestamp_ctr')
+    elapsed_time = db.get_elapsed_time(db.server.first_time, db.server.last_time, "hms")
+    elapsed_secs = db.get_elapsed_time(db.server.first_time, db.server.last_time, "seconds")
+    num_ops = db.operation.counters['total']
+    num_results = db.result.counters['result']
+    num_conns = db.connection.counters['conn']
+    num_ldap = db.connection.counters['ldap']
+    num_ldapi = db.connection.counters['ldapi']
+    num_ldaps = db.connection.counters['ldaps']
+    num_startls = db.operation.extended.get(STLS_OID, 0)
+    num_search = db.search.counters['search']
+    num_mod = db.operation.counters['mod']
+    num_add = db.operation.counters['add']
+    num_del = db.operation.counters['del']
+    num_modrdn = db.operation.counters['modrdn']
+    num_cmp = db.operation.counters['cmp']
+    num_bind = db.bind.counters['bind']
+    num_unbind = db.bind.counters['unbind']
+    num_proxyd_auths = db.operation.counters['authzid'] + db.search.counters['authzid']
+    num_time_count = db.result.counters['timestamp']
     if num_time_count:
-        avg_wtime = round(db.result.get('total_wtime', 0)/num_time_count, 9)
-        avg_optime = round(db.result.get('total_optime', 0)/num_time_count, 9)
-        avg_etime = round(db.result.get('total_etime', 0)/num_time_count, 9)
-    num_fd_taken = db.connection.get('fd_taken_ctr', 0)
-    num_fd_rtn = db.connection.get('fd_returned_ctr', 0)
+        avg_wtime = round(db.result.total_wtime/num_time_count, 9)
+        avg_optime = round(db.result.total_optime/num_time_count, 9)
+        avg_etime = round(db.result.total_etime/num_time_count, 9)
+    num_fd_taken = db.connection.counters['fd_taken']
+    num_fd_rtn = db.connection.counters['fd_returned']
 
-    num_DM_binds = db.bind.get('rootdn_bind_ctr', 0)
-    num_base_search = db.search.get('base_search_ctr', 0)
+    num_DM_binds = db.bind.counters['rootdn']
+    num_base_search = db.search.counters['base_search']
     try:
-        log_start_time = db.convert_timestamp_to_string(db.server.get('first_time', ""))
+        log_start_time = db.convert_timestamp_to_string(db.server.first_time)
     except ValueError:
         log_start_time = "Unknown"
 
     try:
-        log_end_time = db.convert_timestamp_to_string(db.server.get('last_time', ""))
+        log_end_time = db.convert_timestamp_to_string(db.server.last_time)
     except ValueError:
         log_end_time = "Unknown"
 
-    print(f"\n\nTotal Log Lines Analysed:{db.server['lines_parsed']}\n")
+    print(f"\n\nTotal Log Lines Analysed:{db.server.counters['lines_parsed']}\n")
     print("\n----------- Access Log Output ------------\n")
     print(f"Start of Logs:                  {log_start_time}")
     print(f"End of Logs:                    {log_end_time}")
@@ -2302,12 +2390,12 @@ def main():
         db.display_bind_report()
         sys.exit(1)
 
-    print(f"\nRestarts:                       {db.server.get('restart_ctr', 0)}")
-    if db.auth.get('cipher_ctr', 0) > 0:
+    print(f"\nRestarts:                       {db.server.counters['restart']}")
+    if db.auth.counters['cipher_ctr'] > 0:
         print(f"Secure Protocol Versions:")
         # Group data by protocol + version + unique message
         grouped_data = defaultdict(lambda: {'count': 0, 'messages': set()})
-        for _, details in db.auth['auth_info'].items():
+        for _, details in db.auth.auth_info.items():
             # If there is no protocol version
             if details['version']:
                 proto_version = f"{details['proto']}{details['version']}"
@@ -2323,7 +2411,7 @@ def main():
         for ((proto_version, message), data) in grouped_data.items():
             print(f"  - {proto_version} {message} ({data['count']} connection{'s' if data['count'] > 1 else ''})")
 
-    print(f"Peak Concurrent connections:    {db.connection.get('max_sim_conn_ctr', 0)}")
+    print(f"Peak Concurrent connections:    {db.connection.counters['max_sim_conn']}")
     print(f"Total Operations:               {num_ops}")
     print(f"Total Results:                  {num_results}")
     print(f"Overall Performance:            {db.get_overall_perf(num_results, num_ops)}%")
@@ -2344,111 +2432,112 @@ def main():
         print(f"\nAverage wtime (wait time):      {avg_wtime:.9f}")
         print(f"Average optime (op time):       {avg_optime:.9f}")
         print(f"Average etime (elapsed time):   {avg_etime:.9f}")
-    print(f"\nMulti-factor Authentications:   {db.result.get('notesM_ctr', 0)}")
+    print(f"\nMulti-factor Authentications:   {db.result.counters['notesM']}")
     print(f"Proxied Auth Operations:        {num_proxyd_auths}")
-    print(f"Persistent Searches:            {db.search.get('persistent_ctr', 0)}")
-    print(f"Internal Operations:            {db.server.get('internal_op_ctr', 0)}")
-    print(f"Entry Operations:               {db.result.get('entry_count', 0)}")
-    print(f"Extended Operations:            {db.operation.get('extnd_op_ctr', 0)}")
-    print(f"Abandoned Requests:             {db.operation.get('abandon_op_ctr', 0)}")
-    print(f"Smart Referrals Received:       {db.result.get('referral_count', 0)}")
-    print(f"\nVLV Operations:                 {db.vlv.get('vlv_ctr', 0)}")
-    print(f"VLV Unindexed Searches:         {len([key for key, value in db.vlv['vlv_map_rco'].items() if value == 'A'])}")
-    print(f"VLV Unindexed Components:       {len([key for key, value in db.vlv['vlv_map_rco'].items() if value == 'U'])}")
-    print(f"SORT Operations:                {db.operation.get('sort_op_ctr', 0)}")
-    print(f"\nEntire Search Base Queries:     {db.search.get('base_search_ctr', 0)}")
-    print(f"Paged Searches:                 {db.result.get('notesP_ctr', 0)}")
-    num_unindexed_search = len(db.notesA.keys())
+    print(f"Persistent Searches:            {db.search.counters['persistent']}")
+    print(f"Internal Operations:            {db.operation.counters['internal']}")
+    print(f"Entry Operations:               {db.result.counters['entry']}")
+    print(f"Extended Operations:            {db.operation.counters['extnd']}")
+    print(f"Abandoned Requests:             {db.operation.counters['abandon']}")
+    print(f"Smart Referrals Received:       {db.result.counters['referral']}")
+    print(f"\nVLV Operations:                 {db.vlv.counters['vlv']}")
+    print(f"VLV Unindexed Searches:         {len([key for key, value in db.vlv.rst_con_op_map.items() if value == 'A'])}")
+    print(f"VLV Unindexed Components:       {len([key for key, value in db.vlv.rst_con_op_map.items() if value == 'U'])}")
+    print(f"SORT Operations:                {db.operation.counters['sort']}")
+    print(f"\nEntire Search Base Queries:     {num_base_search}")
+    print(f"Paged Searches:                 {db.result.counters['notesP']}")
+    num_unindexed_search = len(db.result.notes['A'])
     print(f"Unindexed Searches:             {num_unindexed_search}")
-    if db.verbose:
-        if num_unindexed_search > 0:
-            for num, key in enumerate(db.notesA, start=1):
-                src, conn, op = key
-                restart_conn_op_key = (src, conn, op)
-                print(f"\nUnindexed Search #{num} (notes=A)")
-                print(f"  -  Date/Time:             {db.notesA[restart_conn_op_key]['time']}")
-                print(f"  -  Connection Number:     {conn}")
-                print(f"  -  Operation Number:      {op}")
-                print(f"  -  Etime:                 {db.notesA[restart_conn_op_key]['etime']}")
-                print(f"  -  Nentries:              {db.notesA[restart_conn_op_key]['nentries']}")
-                print(f"  -  IP Address:            {db.notesA[restart_conn_op_key]['ip']}")
-                print(f"  -  Search Base:           {db.notesA[restart_conn_op_key]['base']}")
-                print(f"  -  Search Scope:          {db.notesA[restart_conn_op_key]['scope']}")
-                print(f"  -  Search Filter:         {db.notesA[restart_conn_op_key]['filter']}")
-                print(f"  -  Bind DN:               {db.notesA[restart_conn_op_key]['bind_dn']}\n")
+    if db.verbose and num_unindexed_search > 0:
+        for num, key in enumerate(db.result.notes['A'], start=1):
+            src, conn, op = key
+            data = db.result.notes['A'][key]
 
-    num_unindexed_component = len(db.notesU.keys())
+            print(f"\n  Unindexed Search #{num} (notes=A)")
+            print(f"    - Date/Time:           {data.get('time', '-')}")
+            print(f"    - Connection Number:   {conn}")
+            print(f"    - Operation Number:    {op}")
+            print(f"    - Etime:               {data.get('etime', '-')}")
+            print(f"    - Nentries:            {data.get('nentries', 0)}")
+            print(f"    - IP Address:          {data.get('ip', '-')}")
+            print(f"    - Search Base:         {data.get('base', '-')}")
+            print(f"    - Search Scope:        {data.get('scope', '-')}")
+            print(f"    - Search Filter:       {data.get('filter', '-')}")
+            print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
+
+    num_unindexed_component = len(db.result.notes['U'])
     print(f"Unindexed Components:           {num_unindexed_component}")
-    if db.verbose:
-        if num_unindexed_component > 0:
-            for num, key in enumerate(db.notesU, start=1):
-                src, conn, op = key
-                restart_conn_op_key = (src, conn, op)
-                print(f"\nUnindexed Component #{num} (notes=U)")
-                print(f"  -  Date/Time:             {db.notesU[restart_conn_op_key]['time']}")
-                print(f"  -  Connection Number:     {conn}")
-                print(f"  -  Operation Number:      {op}")
-                print(f"  -  Etime:                 {db.notesU[restart_conn_op_key]['etime']}")
-                print(f"  -  Nentries:              {db.notesU[restart_conn_op_key]['nentries']}")
-                print(f"  -  IP Address:            {db.notesU[restart_conn_op_key]['ip']}")
-                print(f"  -  Search Base:           {db.notesU[restart_conn_op_key]['base']}")
-                print(f"  -  Search Scope:          {db.notesU[restart_conn_op_key]['scope']}")
-                print(f"  -  Search Filter:         {db.notesU[restart_conn_op_key]['filter']}")
-                print(f"  -  Bind DN:               {db.notesU[restart_conn_op_key]['bind_dn']}\n")
+    if db.verbose and num_unindexed_component > 0:
+        for num, key in enumerate(db.result.notes['U'], start=1):
+            src, conn, op = key
+            data = db.result.notes['U'][key]
 
-    num_invalid_filter = len(db.notesF.keys())
+            print(f"\n  Unindexed Component #{num} (notes=U)")
+            print(f"    - Date/Time:           {data.get('time', '-')}")
+            print(f"    - Connection Number:   {conn}")
+            print(f"    - Operation Number:    {op}")
+            print(f"    - Etime:               {data.get('etime', '-')}")
+            print(f"    - Nentries:            {data.get('nentries', 0)}")
+            print(f"    - IP Address:          {data.get('ip', '-')}")
+            print(f"    - Search Base:         {data.get('base', '-')}")
+            print(f"    - Search Scope:        {data.get('scope', '-')}")
+            print(f"    - Search Filter:       {data.get('filter', '-')}")
+            print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
+
+    num_invalid_filter = len(db.result.notes['F'])
     print(f"Invalid Attribute Filters:      {num_invalid_filter}")
-    if db.verbose:
-        if num_invalid_filter > 0:
-            for num, key in enumerate(db.notesF, start=1):
-                src, conn, op = key
-                restart_conn_op_key = (src, conn, op)
-                print(f"\nInvalid Attribute Filter #{num} (notes=F)")
-                print(f"  -  Date/Time:             {db.notesF[restart_conn_op_key]['time']}")
-                print(f"  -  Connection Number:     {conn}")
-                print(f"  -  Operation Number:      {op}")
-                print(f"  -  Etime:                 {db.notesF[restart_conn_op_key]['etime']}")
-                print(f"  -  Nentries:              {db.notesF[restart_conn_op_key]['nentries']}")
-                print(f"  -  IP Address:            {db.notesF[restart_conn_op_key]['ip']}")
-                print(f"  -  Search Filter:         {db.notesF[restart_conn_op_key]['filter']}")
-                print(f"  -  Bind DN:               {db.notesF[restart_conn_op_key]['bind_dn']}\n")
+    if db.verbose and num_invalid_filter > 0:
+        for num, key in enumerate(db.result.notes['F'], start=1):
+            src, conn, op = key
+            data = db.result.notes['F'][key]
+
+            print(f"\n  Invalid Attribute Filter #{num} (notes=F)")
+            print(f"    - Date/Time:           {data.get('time', '-')}")
+            print(f"    - Connection Number:   {conn}")
+            print(f"    - Operation Number:    {op}")
+            print(f"    - Etime:               {data.get('etime', '-')}")
+            print(f"    - Nentries:            {data.get('nentries', 0)}")
+            print(f"    - IP Address:          {data.get('ip', '-')}")
+            print(f"    - Search Filter:       {data.get('filter', '-')}")
+            print(f"    - Bind DN:             {data.get('bind_dn', '-')}\n")
+
     print(f"FDs Taken:                      {num_fd_taken}")
     print(f"FDs Returned:                   {num_fd_rtn}")
-    print(f"Highest FD Taken:               {db.connection.get('fd_max_ctr', 0)}\n")
-    num_broken_pipe = len(db.connection['broken_pipe'])
+    print(f"Highest FD Taken:               {db.connection.counters['fd_max']}\n")
+    num_broken_pipe = len(db.connection.broken_pipe)
     print(f"Broken Pipes:                   {num_broken_pipe}")
     if num_broken_pipe > 0:
-        for code, count in db.connection['broken_pipe'].items():
+        for code, count in db.connection.broken_pipe.items():
             print(f"    - {count} ({code}) {DISCONNECT_MSG.get(code, 'unknown')}")
         print()
-    num_reset_peer = len(db.connection['connection_reset'])
+    num_reset_peer = len(db.connection.connection_reset)
     print(f"Connection Reset By Peer:       {num_reset_peer}")
     if num_reset_peer > 0:
-        for code, count in db.connection['connection_reset'].items():
+        for code, count in db.connection.connection_reset.items():
             print(f"    - {count} ({code}) {DISCONNECT_MSG.get(code, 'unknown')}")
         print()
-    num_resource_unavail = len(db.connection['resource_unavail'])
+    num_resource_unavail = len(db.connection.resource_unavail)
     print(f"Resource Unavailable:           {num_resource_unavail}")
     if num_resource_unavail > 0:
-        for code, count in db.connection['resource_unavail'].items():
+        for code, count in db.connection.resource_unavail.items():
             print(f"    - {count} ({code}) {DISCONNECT_MSG.get(code, 'unknown')}")
         print()
-    print(f"Max BER Size Exceeded:          {db.connection['disconnect_code'].get('B2', 0)}\n")
-    print(f"Binds:                          {db.bind.get('bind_ctr', 0)}")
-    print(f"Unbinds:                        {db.bind.get('unbind_ctr', 0)}")
+    print(f"Max BER Size Exceeded:          {db.connection.disconnect_code.get('B2', 0)}\n")
+    print(f"Binds:                          {db.bind.counters['bind']}")
+    print(f"Unbinds:                        {db.bind.counters['unbind']}")
     print(f"----------------------------------")
-    print(f"- LDAP v2 Binds:                {db.bind.get('version', {}).get('2', 0)}")
-    print(f"- LDAP v3 Binds:                {db.bind.get('version', {}).get('3', 0)}")
-    print(f"- AUTOBINDs(LDAPI):             {db.bind.get('autobind_ctr', 0)}")
-    print(f"- SSL Client Binds              {db.auth.get('ssl_client_bind_ctr', 0)}")
-    print(f"- Failed SSL Client Binds:      {db.auth.get('ssl_client_bind_failed_ctr', 0)}")
-    print(f"- SASL Binds:                   {db.bind.get('sasl_bind_ctr', 0)}")
-    if db.bind.get('sasl_bind_ctr', 0) > 0:
-        saslmech = db.bind['sasl_mech_freq']
+    print(f"- LDAP v2 Binds:                {db.bind.version.get('2', 0)}")
+    print(f"- LDAP v3 Binds:                {db.bind.version.get('3', 0)}")
+    print(f"- AUTOBINDs(LDAPI):             {db.bind.counters['autobind']}")
+    print(f"- SSL Client Binds              {db.auth.counters['ssl_client_bind_ctr']}")
+    print(f"- Failed SSL Client Binds:      {db.auth.counters['ssl_client_bind_failed_ctr']}")
+    print(f"- SASL Binds:                   {db.bind.counters['sasl']}")
+    if db.bind.counters['sasl'] > 0:
+        saslmech = db.bind.sasl_mech
         for saslb in sorted(saslmech.keys(), key=lambda k: saslmech[k], reverse=True):
             print(f"   - {saslb:<4}: {saslmech[saslb]}")
     print(f"- Directory Manager Binds:      {num_DM_binds}")
-    print(f"- Anonymous Binds:              {db.bind.get('anon_bind_ctr', 0)}\n")
+    print(f"- Anonymous Binds:              {db.bind.counters['anon']}\n")
     if db.verbose:
         # Connection Latency
         print(f"\n ----- Connection Latency Details -----\n")
@@ -2465,7 +2554,7 @@ def main():
             f"{LATENCY_GROUPS['> 15']:^7}")
 
         # Open Connections
-        open_conns = db.connection['open_conns']
+        open_conns = db.connection.open_conns
         if len(open_conns) > 0:
             print(f"\n ----- Current Open Connection IDs -----\n")
             for conn in sorted(open_conns.keys(), key=lambda k: open_conns[k], reverse=True):
@@ -2473,12 +2562,12 @@ def main():
 
         # Error Codes
         print(f"\n----- Errors -----\n")
-        error_freq = db.result['error_freq']
+        error_freq = db.result.error_freq
         for err in sorted(error_freq.keys(), key=lambda k: error_freq[k], reverse=True):
             print(f"err={err:<2} {error_freq[err]:>10}  {LDAP_ERR_CODES[err]:<30}")
 
         # Failed Logins
-        bad_pwd_map = db.result['bad_pwd_map']
+        bad_pwd_map = db.result.bad_pwd_map
         bad_pwd_map_len = len(bad_pwd_map)
         if bad_pwd_map_len > 0:
             print(f"\n----- Top {db.size_limit} Failed Logins ------\n")
@@ -2495,27 +2584,27 @@ def main():
                 print(f"{count:<10} {ip}")
 
         # Connection Codes
-        disconnect_codes = db.connection['disconnect_code']
+        disconnect_codes = db.connection.disconnect_code
         if len(disconnect_codes) > 0:
             print(f"\n----- Total Connection Codes ----\n")
             for code in disconnect_codes:
                 print(f"{code:<2} {disconnect_codes[code]:>10}  {DISCONNECT_MSG.get(code, 'unknown'):<30}")
 
         # Unique IPs
-        restart_conn_ip_map = db.connection['restart_conn_ip_map']
-        ip_map = db.connection['ip_map']
-        ips_len = len(ip_map)
+        restart_conn_ip_map = db.connection.restart_conn_ip_map
+        src_ip_map = db.connection.src_ip_map
+        ips_len = len(src_ip_map)
         if ips_len > 0:
             print(f"\n----- Top {db.size_limit} Clients -----\n")
             print(f"Number of Clients:  {ips_len}")
-            for num, (outer_ip, ip_info) in enumerate(ip_map.items(), start=1):
+            for num, (outer_ip, ip_info) in enumerate(src_ip_map.items(), start=1):
                 temp = {}
                 print(f"\n[{num}] Client: {outer_ip}")
                 print(f"    {ip_info['count']} - Connection{'s' if ip_info['count'] > 1 else ''}")
                 for id, inner_ip in restart_conn_ip_map.items():
                     (src, conn) = id
                     if outer_ip == inner_ip:
-                        code = db.connection['disconnect_code_map'].get((src, conn), 0)
+                        code = db.connection.restart_conn_disconnect_map[(src, conn)]
                         if code:
                             temp[code] = temp.get(code, 0) + 1
                 for code, count in temp.items():
@@ -2524,7 +2613,7 @@ def main():
                     break
 
         # Unique Bind DN's
-        binds = db.bind.get('dn_freq', 0)
+        binds = db.bind.dns
         binds_len = len(binds)
         if binds_len > 0:
             print(f"\n----- Top {db.size_limit} Bind DN's ----\n")
@@ -2532,10 +2621,10 @@ def main():
             for num, bind in enumerate(sorted(binds.keys(), key=lambda k: binds[k], reverse=True)):
                 if num >= db.size_limit:
                     break
-                print(f"{db.bind['dn_freq'][bind]:<10}  {bind:<30}")
+                print(f"{db.bind.dns[bind]:<10}  {bind:<30}")
 
         # Unique search bases
-        bases = db.search['base_map']
+        bases = db.search.bases
         num_bases = len(bases)
         if num_bases > 0:
             print(f"\n----- Top {db.size_limit} Search Bases -----\n")
@@ -2543,10 +2632,10 @@ def main():
             for num, base in enumerate(sorted(bases.keys(), key=lambda k: bases[k], reverse=True)):
                 if num >= db.size_limit:
                     break
-                print(f"{db.search['base_map'][base]:<10}  {base}")
+                print(f"{db.search.bases[base]:<10}  {base}")
 
         # Unique search filters
-        filters = sorted(db.search['filter_list'], reverse=True)
+        filters = sorted(db.search.filter_list, reverse=True)
         num_filters = len(filters)
         if num_filters > 0:
             print(f"\n----- Top {db.size_limit} Search Filters -----\n")
@@ -2556,7 +2645,7 @@ def main():
                 print(f"{count:<10} {filter}")
 
         # Longest elapsed times
-        etimes = sorted(db.result['etime_duration'], reverse=True)
+        etimes = sorted(db.result.etime_duration, reverse=True)
         num_etimes = len(etimes)
         if num_etimes > 0:
             print(f"\n----- Top {db.size_limit} Longest etimes (elapsed times) -----\n")
@@ -2566,7 +2655,7 @@ def main():
                 print(f"etime={etime:<12}")
 
         # Longest wait times
-        wtimes = sorted(db.result['wtime_duration'], reverse=True)
+        wtimes = sorted(db.result.wtime_duration, reverse=True)
         num_wtimes = len(wtimes)
         if num_wtimes > 0:
             print(f"\n----- Top {db.size_limit} Longest wtimes (wait times) -----\n")
@@ -2576,7 +2665,7 @@ def main():
                 print(f"wtime={wtime:<12}")
 
         # Longest operation times
-        optimes = sorted(db.result['optime_duration'], reverse=True)
+        optimes = sorted(db.result.optime_duration, reverse=True)
         num_optimes = len(optimes)
         if num_optimes > 0:
             print(f"\n----- Top {db.size_limit} Longest optimes (actual operation times) -----\n")
@@ -2586,7 +2675,7 @@ def main():
                 print(f"optime={optime:<12}")
 
         # Largest nentries returned
-        nentries = sorted(db.result['nentries_num'], reverse=True)
+        nentries = sorted(db.result.nentries_num, reverse=True)
         num_nentries = len(nentries)
         if num_nentries > 0:
             print(f"\n----- Top {db.size_limit} Largest nentries -----\n")
@@ -2597,7 +2686,7 @@ def main():
             print()
 
         # Extended operations
-        oids = db.operation['extop_dict']
+        oids = db.operation.extended
         num_oids = len(oids)
         if num_oids > 0:
             print(f"\n----- Top {db.size_limit} Extended Operations -----\n")
@@ -2607,7 +2696,7 @@ def main():
                 print(f"{oids[oid]:<12} {oid:<30} {OID_MSG.get(oid, 'Other'):<60}")
 
         # Commonly requested attributes
-        attrs = db.search['attr_dict']
+        attrs = db.search.attrs
         num_nattrs = len(attrs)
         if num_nattrs > 0:
             print(f"\n----- Top {db.size_limit} Most Requested Attributes -----\n")
@@ -2617,14 +2706,14 @@ def main():
                 print(f"{attrs[attr]:<11} {attr:<10}")
             print()
 
-        abandoned = db.operation['abandoned_map_rco']
+        abandoned = db.operation.rst_con_op_map['abandon']
         num_abandoned = len(abandoned)
         if num_abandoned > 0:
             print(f"\n----- Abandon Request Stats -----\n")
             for num, abandon in enumerate(abandoned, start=1):
                 (restart, conn, op) = abandon
-                conn, op, target_op, msgid = db.operation['abandoned_map_rco'][(restart, conn, op)]
-                print(f"{num:<6} conn={conn} op={op} msgid={msgid} target_op:{target_op} client={db.connection['restart_conn_ip_map'].get((restart, conn), 'Unknown')}")
+                conn, op, target_op, msgid = db.operation.rst_con_op_map['abandoned'][(restart, conn, op)]
+                print(f"{num:<6} conn={conn} op={op} msgid={msgid} target_op:{target_op} client={db.connection.restart_conn_ip_map.get((restart, conn), 'Unknown')}")
             print()
 
     if db.recommends or db.verbose:
@@ -2639,15 +2728,15 @@ def main():
             print(f"\n {rec_count}. You have unindexed components. This can be caused by a search on an unindexed attribute or by returned results exceeding the nsslapd-idlistscanlimit. Unindexed components are not recommended. To refuse unindexed searches, set 'nsslapd-require-index' to 'on' under your database entry (e.g. cn=UserRoot,cn=ldbm database,cn=plugins,cn=config).\n")
             rec_count += 1
 
-        if db.connection['disconnect_code'].get('T1', 0) > 0:
+        if db.connection.disconnect_code.get('T1', 0) > 0:
             print(f"\n {rec_count}. You have some connections being closed by the idletimeout setting. You may want to increase the idletimeout if it is set low.\n")
             rec_count += 1
 
-        if db.connection['disconnect_code'].get('T2', 0) > 0:
+        if db.connection.disconnect_code.get('T2', 0) > 0:
             print(f"\n {rec_count}. You have some connections being closed by the ioblocktimeout setting. You may want to increase the ioblocktimeout.\n")
             rec_count += 1
 
-        if db.connection['disconnect_code'].get('T3', 0) > 0:
+        if db.connection.disconnect_code.get('T3', 0) > 0:
             print(f"\n {rec_count}. You have some connections being closed because a paged result search limit has been exceeded. You may want to increase the search time limit.\n")
             rec_count += 1
 
@@ -2663,29 +2752,29 @@ def main():
             print(f"\n {rec_count}. You have a high number of Directory Manager binds. The Directory Manager account should only be used under certain circumstances. Avoid using this account for client applications.\n")
             rec_count += 1
 
-        num_success = db.result['error_freq'].get('0', 0)
-        num_err = sum(v for k, v in db.result['error_freq'].items() if k != '0')
+        num_success = db.result.error_freq.get('0', 0)
+        num_err = sum(v for k, v in db.result.error_freq.items() if k != '0')
         if num_err > num_success:
             print(f"\n {rec_count}. You have more unsuccessful operations than successful operations. You should investigate this difference.\n")
             rec_count += 1
 
-        num_close_clean = db.connection['disconnect_code'].get('U1', 0)
-        num_close_total = num_err = sum(v for k, v in db.connection['disconnect_code'].items())
+        num_close_clean = db.connection.disconnect_code.get('U1', 0)
+        num_close_total = num_err = sum(v for k, v in db.connection.disconnect_code.items())
         if num_close_clean < (num_close_total - num_close_clean):
             print(f"\n {rec_count}. You have more abnormal connection codes than cleanly closed connections. You may want to investigate this difference.\n")
             rec_count += 1
 
         if num_time_count:
-            if round(avg_etime, 1) > 0:
-                print(f"\n {rec_count}. Your average etime is {avg_etime:.1f}. You may want to investigate this performance problem.\n")
+            if round(avg_etime, 9) > 0:
+                print(f"\n {rec_count}. Your average etime is {avg_etime:.9f}. You may want to investigate this performance problem.\n")
                 rec_count += 1
 
-            if round(avg_wtime, 1) > 0.5:
-                print(f"\n {rec_count}. Your average wtime is {avg_wtime:.1f}. You may need to increase the number of worker threads (nsslapd-threadnumber).\n")
+            if round(avg_wtime, 9) > 0.5:
+                print(f"\n {rec_count}. Your average wtime is {avg_wtime:.9f}. You may need to increase the number of worker threads (nsslapd-threadnumber).\n")
                 rec_count += 1
 
-            if round(avg_optime, 1) > 0:
-                print(f"\n {rec_count}. Your average optime is {avg_optime:.1f}. You may want to investigate this performance problem.\n")
+            if round(avg_optime, 9) > 0:
+                print(f"\n {rec_count}. Your average optime is {avg_optime:.9f}. You may want to investigate this performance problem.\n")
                 rec_count += 1
 
         if num_base_search > (num_search * 0.25):
