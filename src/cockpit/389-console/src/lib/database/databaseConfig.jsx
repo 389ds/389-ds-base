@@ -8,7 +8,6 @@ import {
     Form,
     Grid,
     GridItem,
-    Hr,
     NumberInput,
     Spinner,
     Switch,

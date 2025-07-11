@@ -456,7 +456,7 @@ class AttributesTable extends React.Component {
 
     handleCollapse(event, rowKey, isOpen) {
         const { rows, perPage, page } = this.state;
-        const index = (perPage * (page - 1) * 2) + rowKey; // Adjust for page set
+        const index = (perPage * (page - 1)) + rowKey; // Adjust for page set
         rows[index].isOpen = isOpen;
         this.setState({
             rows
@@ -517,7 +517,7 @@ class AttributesTable extends React.Component {
     ];
 
     render() {
-        const { perPage, page, sortBy, rows, noRows, columns } = this.state;
+        const { perPage, page, sortBy, rows, columns } = this.state;
         const startIdx = (perPage * page) - perPage;
         const tableRows = rows.slice(startIdx, startIdx + perPage);
 
