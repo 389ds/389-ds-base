@@ -526,6 +526,8 @@ acllist_free_aci(aci_t *item)
 
     slapi_sdn_free(&item->aci_sdn);
     slapi_filter_free(item->target, 1);
+    slapi_filter_free(item->target_to, 1);
+    slapi_filter_free(item->target_from, 1);
 
     /* slapi_filter_free(item->targetAttr, 1); */
     attrArray = item->targetAttr;

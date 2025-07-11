@@ -258,6 +258,7 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_in
     rv = ACL_GetAttribute(errp, DS_PROP_ACLPB, (void **)&aclpb, subject, resource, auth_info, global_auth);
     if (rv != LAS_EVAL_TRUE || (NULL == aclpb)) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "DS_LASIpGetter: Unable to get the ACLPB(%d)\n", rv);
         return LAS_EVAL_FAIL;
@@ -334,6 +335,7 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_i
                           subject, resource, auth_info, global_auth);
     if (rv != LAS_EVAL_TRUE || (NULL == aclpb)) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "DS_LASDnsGetter - Unable to get the ACLPB(%d)\n", rv);
         return LAS_EVAL_FAIL;
@@ -3743,6 +3745,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
 
     if (rc != LAS_EVAL_TRUE) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the clientdn attribute(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3762,6 +3765,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
     if ((rc = PListFindValue(subject, DS_ATTR_ENTRY,
                              (void **)&linfo->resourceEntry, NULL)) < 0) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the Slapi_Entry attr(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3772,6 +3776,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
                           subject, resource, auth_info, global_auth);
     if (rc != LAS_EVAL_TRUE) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the ACLPB(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3795,6 +3800,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
     if ((rc = PListFindValue(subject, DS_ATTR_AUTHTYPE,
                              (void **)&linfo->authType, NULL)) < 0) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the auth type(%d)\n", lasName, rc);
         return LAS_EVAL_FAIL;
@@ -3804,6 +3810,7 @@ __acllas_setup(NSErr_t *errp, char *attr_name, CmpOp_t comparator, int allow_ran
     if ((rc = PListFindValue(subject, DS_ATTR_SSF,
                              (void **)&linfo->ssf, NULL)) < 0) {
         acl_print_acllib_err(errp, NULL);
+        nserrDispose(errp);
         slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                       "__acllas_setup - %s:Unable to get the ssf(%d)\n", lasName, rc);
     }

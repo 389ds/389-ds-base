@@ -64,11 +64,18 @@ variable	[\*a-zA-Z0-9\.\-\_][\*a-zA-Z0-9\.\-\_]*
 
 <<EOF>>		{	
 			yylval.string = NULL;
-			last_string = yylval.string;
+			if (last_string) {
+				PERM_FREE(last_string);
+				last_string = NULL;
+			}
 			return(0);
 		}
 
 {qstring}	{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+				last_string = NULL;
+			}
 			yylval.string = PERM_STRDUP( yytext+1 );
 			last_string = yylval.string;
 			if ( yylval.string[yyleng-2] != '"' )
@@ -81,96 +88,144 @@ variable	[\*a-zA-Z0-9\.\-\_][\*a-zA-Z0-9\.\-\_]*
 
 
 absolute	{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_ABSOLUTE_TOK; 
 		}
 
 acl		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_ACL_TOK; 
 		}
 
 allow		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_ALLOW_TOK; 
 		}
 
 always		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_ALWAYS_TOK; 
 		}
 
 at		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_AT_TOK; 
 		}
 
 authenticate	{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_AUTHENTICATE_TOK; 
 		}
 
 content		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_CONTENT_TOK; 
 		}
 
 default		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_DEFAULT_TOK; 
 		}
 
 deny		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_DENY_TOK; 
 		}
 
 in		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_IN_TOK; 
 		}
 
 inherit		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_INHERIT_TOK; 
 		}
 
 terminal	{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_TERMINAL_TOK; 
 		}
 
 version		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_VERSION_TOK; 
 		}
 
 with		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_WITH_TOK; 
 		}
 
 not		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return ACL_NOT_TOK; 
 		}
 
 and 		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = ACL_EXPR_OP_AND;
 			acl_tokenpos += yyleng; 
@@ -178,6 +233,9 @@ and 		{
 		}
 
 or		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = ACL_EXPR_OP_OR;
 			acl_tokenpos += yyleng; 
@@ -185,6 +243,9 @@ or		{
 		}
 
 "="		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = CMP_OP_EQ;
 			acl_tokenpos += yyleng; 
@@ -192,6 +253,9 @@ or		{
 		}
 
 ">="		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = CMP_OP_GE; 
 			acl_tokenpos += yyleng; 
@@ -199,6 +263,9 @@ or		{
 		}
 
 ">"		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = CMP_OP_GT; 
 			acl_tokenpos += yyleng; 
@@ -206,6 +273,9 @@ or		{
 		}
 
 "<"		{ 	
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = CMP_OP_LT; 
 			acl_tokenpos += yyleng; 
@@ -213,6 +283,9 @@ or		{
 		}
 
 "<="		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = CMP_OP_LE; 
 			acl_tokenpos += yyleng; 
@@ -220,6 +293,9 @@ or		{
 		}
 
 "!="		{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			yylval.ival = CMP_OP_NE;
 			acl_tokenpos += yyleng; 
@@ -227,6 +303,9 @@ or		{
 		}
 
 [(){},;]	{ 
+			if (last_string) {
+				PERM_FREE(last_string);
+			}
 			last_string = NULL;
 			acl_tokenpos += yyleng; 
 			return yytext[0]; 
@@ -234,6 +313,10 @@ or		{
 
 {variable}	{ 
 			acl_tokenpos += yyleng; 
+			if (last_string) {
+				PERM_FREE(last_string);
+				last_string = NULL;
+			}
 			yylval.string = PERM_STRDUP( yytext );
 			last_string = yylval.string;
 			return ACL_VARIABLE_TOK;
@@ -272,8 +355,10 @@ char	errorStr[256];
 #if defined(UTEST) || defined(ACL_COMPILER)
 	printf("ACL file: %s\n", acl_filename);
 	printf("Syntax error at line: %d, token: %s\n", acl_lineno, yytext);
-	if ( last_string )
-		free(last_string);
+	if ( last_string ) {
+		PERM_FREE(last_string);
+		last_string = NULL;
+	}
 #else
 	sprintf(errorStr, "%d", acl_lineno);
 	if (yytext) {
@@ -283,8 +368,10 @@ char	errorStr[256];
 		nserrGenerate(acl_errp, ACLERRPARSE, ACLERR1780, ACL_Program,
                       2, acl_filename, errorStr);
 	}
-	if ( last_string )
-		free(last_string);
+	if ( last_string ) {
+		PERM_FREE(last_string);
+		last_string = NULL;
+	}
 #endif
 
 }
@@ -294,6 +381,7 @@ acl_InitScanner(NSErr_t *errp, char *filename, char *buffer)
 {
 	acl_errp = errp;
 	acl_lineno = 1;
+	last_string = NULL;
 	acl_use_buffer = (filename == NULL) ? 1 : 0 ;
 	if ( filename != NULL ) {
 		PL_strncpyz(acl_filename, filename, sizeof(acl_filename));
@@ -342,6 +430,12 @@ acl_EndScanner()
 #endif
 		yyin = NULL ;
 	}
+
+	if ( last_string ) {
+		PERM_FREE(last_string);
+		last_string = NULL;
+	}
+
 	return(0);
 }
 
