@@ -11,12 +11,13 @@ import subprocess
 import pytest
 import logging
 import os
+import json
 
 from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.service import list, get, get_dn, create, delete, modify, rename
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
-from lib389.utils import ds_is_older, ensure_str
+from lib389.utils import ds_is_older, ensure_str, is_a_dn
 from lib389.idm.services import ServiceAccounts
 from . import check_value_in_log_and_reset
 
@@ -73,6 +74,7 @@ def test_dsidm_service_list(topology_st, create_test_service):
     standalone = topology_st.standalone
     args = FakeArgs()
     args.json = False
+    args.full_dn = False
     service_value = 'test_service'
     json_list = ['type',
                  'list',
@@ -90,12 +92,21 @@ def test_dsidm_service_list(topology_st, create_test_service):
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value=service_value)
 
+    log.info('Test full_dn option with list')
+    args.full_dn = True
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert is_a_dn(json_result['items'][0])
+    args.full_dn = False
+
     log.info('Delete the service')
     services = ServiceAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     testservice = services.get(service_value)
     testservice.delete()
 
     log.info('Test empty dsidm service list with json')
+    topology_st.logcap.flush()
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value_not=service_value)
 

@@ -11,12 +11,13 @@ import subprocess
 import pytest
 import logging
 import os
+import json
 
 from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.organizationalunit import get, get_dn, create, modify, delete, list, rename
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, is_a_dn
 from lib389.idm.organizationalunit import OrganizationalUnits
 from . import check_value_in_log_and_reset
 
@@ -110,6 +111,7 @@ def test_dsidm_organizational_unit_list(topology_st, create_test_ou):
     standalone = topology_st.standalone
     args = FakeArgs()
     args.json = False
+    args.full_dn = False
     json_list = ['type',
                  'list',
                  'items']
@@ -126,7 +128,16 @@ def test_dsidm_organizational_unit_list(topology_st, create_test_ou):
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, check_value=ou_name)
 
+    log.info('Test full_dn option with list')
+    args.full_dn = True
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert is_a_dn(json_result['items'][0])
+    args.full_dn = False
+
     log.info('Delete the organizational unit')
+    topology_st.logcap.flush()
     ous = OrganizationalUnits(standalone, DEFAULT_SUFFIX)
     test_ou = ous.get(ou_name)
     test_ou.delete()
