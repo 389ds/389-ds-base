@@ -12,12 +12,13 @@ import pytest
 import logging
 import os
 import ldap
+import json
 
 from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.user import list, get, get_dn, create, delete, modify, rename
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
-from lib389.utils import ds_is_older, ensure_str
+from lib389.utils import ds_is_older, ensure_str, is_a_dn
 from lib389.idm.user import nsUserAccounts
 from . import check_value_in_log_and_reset
 
@@ -74,6 +75,7 @@ def test_dsidm_user_list(topology_st, create_test_user):
     standalone = topology_st.standalone
     args = FakeArgs()
     args.json = False
+    args.full_dn = False
     user_value = 'test_user_1000'
     json_list = ['type',
                  'list',
@@ -91,6 +93,15 @@ def test_dsidm_user_list(topology_st, create_test_user):
     args.json = True
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value=user_value)
+
+    log.info('Test full_dn option with list')
+    args.full_dn = True
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert is_a_dn(json_result['items'][0])
+    args.full_dn = False
+    topology_st.logcap.flush()
 
     log.info('Delete the user')
     users = nsUserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
@@ -777,6 +788,7 @@ def test_dsidm_user_list_rdn_after_rename(topology_st):
         log.info('Test dsidm user list without json')
         args = FakeArgs()
         args.json = False
+        args.full_dn = False
         list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         # Should show the new name, not the original name
         check_value_in_log_and_reset(topology_st, check_value=new_name, check_value_not=original_name)
@@ -786,6 +798,14 @@ def test_dsidm_user_list_rdn_after_rename(topology_st):
         list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
         # Should show the new name in JSON output as well
         check_value_in_log_and_reset(topology_st, check_value=new_name, check_value_not=original_name)
+
+        log.info('Test full_dn option with list')
+        args.full_dn = True
+        list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+        result = topology_st.logcap.get_raw_outputs()
+        json_result = json.loads(result[0])
+        assert is_a_dn(json_result['items'][0])
+        args.full_dn = False
 
         log.info('Directly verify RDN extraction works correctly')
         renamed_user = users.get(new_name)

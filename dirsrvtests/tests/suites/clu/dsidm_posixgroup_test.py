@@ -9,12 +9,13 @@
 import pytest
 import logging
 import os
+import json
 
 from lib389 import DEFAULT_SUFFIX
 from lib389.cli_idm.posixgroup import list, get, get_dn, create, delete, modify, rename
 from lib389.topologies import topology_st
 from lib389.cli_base import FakeArgs
-from lib389.utils import ds_is_older, ensure_str
+from lib389.utils import ds_is_older, ensure_str, is_a_dn
 from lib389.idm.posixgroup import PosixGroups
 from . import check_value_in_log_and_reset
 
@@ -195,6 +196,7 @@ def test_dsidm_posixgroup_list(topology_st, create_test_posixgroup):
     standalone = topology_st.standalone
     args = FakeArgs()
     args.json = False
+    args.full_dn = False
     json_list = ['type',
                  'list',
                  'items']
@@ -211,12 +213,21 @@ def test_dsidm_posixgroup_list(topology_st, create_test_posixgroup):
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value=posixgroup_name)
 
+    log.info('Test full_dn option with list')
+    args.full_dn = True
+    list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
+    result = topology_st.logcap.get_raw_outputs()
+    json_result = json.loads(result[0])
+    assert is_a_dn(json_result['items'][0])
+    args.full_dn = False
+
     log.info('Delete the posixgroup')
     posixgroups = PosixGroups(standalone, DEFAULT_SUFFIX)
     test_posixgroup = posixgroups.get(posixgroup_name)
     test_posixgroup.delete()
 
     log.info('Test empty dsidm posixgroup list with json')
+    topology_st.logcap.flush()
     list(standalone, DEFAULT_SUFFIX, topology_st.logcap.log, args)
     check_value_in_log_and_reset(topology_st, content_list=json_list, check_value_not=posixgroup_name)
 
