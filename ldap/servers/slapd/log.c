@@ -174,17 +174,28 @@ get_syslog_loglevel(int loglevel)
 }
 
 static int
-compress_log_file(char *log_name)
+compress_log_file(char *log_name, int32_t mode)
 {
     char gzip_log[BUFSIZ] = {0};
     char buf[LOG_CHUNK] = {0};
     size_t bytes_read = 0;
     gzFile outfile = NULL;
     FILE *source = NULL;
+    int fd = 0;
 
     PR_snprintf(gzip_log, sizeof(gzip_log), "%s.gz", log_name);
-    if ((outfile = gzopen(gzip_log,"wb")) == NULL) {
-        /* Failed to open new gzip file */
+
+    /*
+     * Try to open the file as we may have an incorrect path. We also need to
+     * set the permissions using open() as gzopen() creates the file with
+     * 644 permissions (world readable - bad). So we create an empty file with
+     * the correct permissions, then we pass the FD to gzdopen() to write the
+     * compressed content.
+     */
+    if ((fd = open(gzip_log, O_WRONLY|O_CREAT|O_TRUNC, mode)) >= 0) {
+        /* FIle successfully created, now pass the FD to gzdopen() */
+        outfile = gzdopen(fd, "ab");
+    } else {
         return -1;
     }
 
@@ -193,6 +204,7 @@ compress_log_file(char *log_name)
         gzclose(outfile);
         return -1;
     }
+
     bytes_read = fread(buf, 1, LOG_CHUNK, source);
     while (bytes_read > 0) {
         int bytes_written = gzwrite(outfile, buf, bytes_read);
@@ -3402,7 +3414,7 @@ log__open_accesslogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_access_compress) {
-                if (compress_log_file(newfile) != 0) {
+                if (compress_log_file(newfile, loginfo.log_access_mode) != 0) {
                     slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
                             "failed to compress rotated access log (%s)\n",
                             newfile);
@@ -3570,7 +3582,7 @@ log__open_securitylogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_security_compress) {
-                if (compress_log_file(newfile) != 0) {
+                if (compress_log_file(newfile, loginfo.log_security_mode) != 0) {
                     slapi_log_err(SLAPI_LOG_ERR, "log__open_securitylogfile",
                             "failed to compress rotated security audit log (%s)\n",
                             newfile);
@@ -6288,7 +6300,7 @@ log__open_errorlogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_error_compress) {
-                if (compress_log_file(newfile) != 0) {
+                if (compress_log_file(newfile, loginfo.log_error_mode) != 0) {
                     PR_snprintf(buffer, sizeof(buffer), "Failed to compress errors log file (%s)\n", newfile);
                     log__error_emergency(buffer, 1, 1);
                 } else {
@@ -6476,7 +6488,7 @@ log__open_auditlogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_audit_compress) {
-                if (compress_log_file(newfile) != 0) {
+                if (compress_log_file(newfile, loginfo.log_audit_mode) != 0) {
                     slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
                             "failed to compress rotated audit log (%s)\n",
                             newfile);
@@ -6641,7 +6653,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
                     return LOG_UNABLE_TO_OPENFILE;
                 }
             } else if (loginfo.log_auditfail_compress) {
-                if (compress_log_file(newfile) != 0) {
+                if (compress_log_file(newfile, loginfo.log_auditfail_mode) != 0) {
                     slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
                             "failed to compress rotated auditfail log (%s)\n",
                             newfile);
