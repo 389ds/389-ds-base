@@ -903,7 +903,7 @@ oc_check_allowed_sv(Slapi_PBlock *pb, Slapi_Entry *e, const char *type, struct o
 
         if (pb) {
             PR_snprintf(errtext, sizeof(errtext),
-                        "attribute \"%s\" not allowed\n",
+                        "attribute \"%s\" not allowed",
                         escape_string(type, ebuf));
             slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, errtext);
         }

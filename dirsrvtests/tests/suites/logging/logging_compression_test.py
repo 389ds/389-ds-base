@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -22,12 +22,21 @@ log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.tier1
 
+
 def log_rotated_count(log_type, log_dir, check_compressed=False):
-    # Check if the log was rotated
+    """
+    Check if the log was rotated and has the correct permissions
+    """
     log_file = f'{log_dir}/{log_type}.2*'
     if check_compressed:
         log_file += ".gz"
-    return len(glob.glob(log_file))
+    log_files = glob.glob(log_file)
+    for logf in log_files:
+        # Check permissions
+        st = os.stat(logf)
+        assert oct(st.st_mode) == '0o100600'  # 0600
+
+    return len(log_files)
 
 
 def update_and_sleep(inst, suffix, sleep=True):
