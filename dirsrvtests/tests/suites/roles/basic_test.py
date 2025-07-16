@@ -510,6 +510,76 @@ def test_vattr_on_managed_role(topo, request):
 
     request.addfinalizer(fin)
 
+def test_rewriter_with_invalid_filter(topo, request):
+    """Test that server does not crash when having
+       invalid filter in filtered role
+
+    :id: 5013b0b2-0af6-11f0-8684-482ae39447e5
+    :setup: standalone server
+    :steps:
+        1. Setup filtered role with good filter
+        2. Setup nsrole rewriter
+        3. Restart the server
+        4. Search for entries
+        5. Setup filtered role with bad filter
+        6. Search for entries
+    :expectedresults:
+        1. Operation should  succeed
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+    """
+    inst = topo.standalone
+    entries = []
+
+    def fin():
+        inst.start()
+        for entry in entries:
+            entry.delete()
+    request.addfinalizer(fin)
+
+    # Setup filtered role
+    roles = FilteredRoles(inst, f'ou=people,{DEFAULT_SUFFIX}')
+    filter_ko = '(&((objectClass=top)(objectClass=nsPerson))'
+    filter_ok = '(&(objectClass=top)(objectClass=nsPerson))'
+    role_properties = {
+        'cn': 'TestFilteredRole',
+        'nsRoleFilter': filter_ok,
+        'description': 'Test good filter',
+    }
+    role = roles.create(properties=role_properties)
+    entries.append(role)
+
+    # Setup nsrole rewriter
+    rewriters = Rewriters(inst)
+    rewriter_properties = {
+        "cn": "nsrole",
+        "nsslapd-libpath": 'libroles-plugin',
+        "nsslapd-filterrewriter": 'role_nsRole_filter_rewriter',
+    }
+    rewriter = rewriters.ensure_state(properties=rewriter_properties)
+    entries.append(rewriter)
+
+    # Restart thge instance
+    inst.restart()
+
+    # Search for entries
+    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+
+    # Set bad filter
+    role_properties = {
+        'cn': 'TestFilteredRole',
+        'nsRoleFilter': filter_ko,
+        'description': 'Test bad filter',
+    }
+    role.ensure_state(properties=role_properties)
+
+    # Search for entries
+    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
+
+
 def test_managed_and_filtered_role_rewrite(topo, request):
     """Test that filter components containing 'nsrole=xxx'
     are reworked if xxx is either a filtered role or a managed
@@ -581,17 +651,11 @@ def test_managed_and_filtered_role_rewrite(topo, request):
     PARENT="ou=people,%s" % DEFAULT_SUFFIX
     dbgen_users(topo.standalone, 90000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
 
-    # online import
+    # Online import
     import_task = ImportTask(topo.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    # Check for up to 200sec that the completion
-    for i in range(1, 20):
-        if len(topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9000.*')) > 0:
-            break
-        time.sleep(10)
-    import_complete = topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9000.*')
-    assert (len(import_complete) == 1)
-
+    import_task.wait(timeout=400)
+    assert import_task.get_exit_code() == 0
     # Restart server
     topo.standalone.restart()
 
@@ -715,17 +779,11 @@ def test_not_such_entry_role_rewrite(topo, request):
     PARENT="ou=people,%s" % DEFAULT_SUFFIX
     dbgen_users(topo.standalone, 91000, import_ldif, DEFAULT_SUFFIX, entry_name=RDN, generic=True, parent=PARENT)
 
-    # online import
+    # Online import
     import_task = ImportTask(topo.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    # Check for up to 200sec that the completion
-    for i in range(1, 20):
-        if len(topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9100.*')) > 0:
-            break
-        time.sleep(10)
-    import_complete = topo.standalone.ds_error_log.match('.*import userRoot: Import complete.  Processed 9100.*')
-    assert (len(import_complete) == 1)
-
+    import_task.wait(timeout=400)
+    assert import_task.get_exit_code() == 0
     # Restart server
     topo.standalone.restart()
 
@@ -767,76 +825,6 @@ def test_not_such_entry_role_rewrite(topo, request):
         os.remove(import_ldif)
 
     request.addfinalizer(fin)
-
-
-def test_rewriter_with_invalid_filter(topo, request):
-    """Test that server does not crash when having
-       invalid filter in filtered role
-
-    :id: 5013b0b2-0af6-11f0-8684-482ae39447e5
-    :setup: standalone server
-    :steps:
-        1. Setup filtered role with good filter
-        2. Setup nsrole rewriter
-        3. Restart the server
-        4. Search for entries
-        5. Setup filtered role with bad filter
-        6. Search for entries
-    :expectedresults:
-        1. Operation should  succeed
-        2. Operation should  succeed
-        3. Operation should  succeed
-        4. Operation should  succeed
-        5. Operation should  succeed
-        6. Operation should  succeed
-    """
-    inst = topo.standalone
-    entries = []
-
-    def fin():
-        inst.start()
-        for entry in entries:
-            entry.delete()
-    request.addfinalizer(fin)
-
-    # Setup filtered role
-    roles = FilteredRoles(inst, f'ou=people,{DEFAULT_SUFFIX}')
-    filter_ko = '(&((objectClass=top)(objectClass=nsPerson))'
-    filter_ok = '(&(objectClass=top)(objectClass=nsPerson))'
-    role_properties = {
-        'cn': 'TestFilteredRole',
-        'nsRoleFilter': filter_ok,
-        'description': 'Test good filter',
-    }
-    role = roles.create(properties=role_properties)
-    entries.append(role)
-
-    # Setup nsrole rewriter
-    rewriters = Rewriters(inst)
-    rewriter_properties = {
-        "cn": "nsrole",
-        "nsslapd-libpath": 'libroles-plugin',
-        "nsslapd-filterrewriter": 'role_nsRole_filter_rewriter',
-    }
-    rewriter = rewriters.ensure_state(properties=rewriter_properties)
-    entries.append(rewriter)
-
-    # Restart thge instance
-    inst.restart()
-
-    # Search for entries
-    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
-
-    # Set bad filter
-    role_properties = {
-        'cn': 'TestFilteredRole',
-        'nsRoleFilter': filter_ko,
-        'description': 'Test bad filter',
-    }
-    role.ensure_state(properties=role_properties)
-
-    # Search for entries
-    entries = inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(nsrole=%s)" % role.dn)
 
 
 if __name__ == "__main__":
