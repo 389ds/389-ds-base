@@ -7270,6 +7270,8 @@ slapd_log_pblock_init(slapd_log_pblock *logpb, int32_t log_format, Slapi_PBlock 
         slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     }
 
+    memset(logpb, 0, sizeof(slapd_log_pblock));
+
     logpb->loginfo = &loginfo;
     logpb->level = 256; /* default log level */
     logpb->log_format = log_format;
