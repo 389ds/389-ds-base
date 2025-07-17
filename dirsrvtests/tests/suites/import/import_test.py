@@ -27,7 +27,7 @@ from lib389.index import Indexes
 from lib389.monitor import Monitor
 from lib389.backend import Backends
 from lib389.config import LDBMConfig
-from lib389.config import LMDB_LDBMConfig
+from lib389.config import LMDB_LDBMConfig, BDB_LDBMConfig
 from lib389.utils import ds_is_newer, get_default_db_lib
 from lib389.idm.user import UserAccount
 from lib389.idm.account import Accounts
@@ -368,7 +368,6 @@ def test_ldif2db_syntax_check(topo, _import_clean):
     topo.standalone.start()
 
 
-@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not cache size over mdb")
 def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
     """Report during startup if nsslapd-cachememsize is too small
 
@@ -387,7 +386,10 @@ def test_issue_a_warning_if_the_cache_size_is_smaller(topo, _import_clean):
         4. Operation successful
         5. Operation successful
     """
-    config = LDBMConfig(topo.standalone)
+    if get_default_db_lib() == "bdb":
+        config = BDB_LDBMConfig(topo.standalone)
+    else:
+        config = LMDB_LDBMConfig(topo.standalone)
     backend = Backends(topo.standalone).list()[0]
     # Set nsslapd-cache-autosize to 0
     config.replace('nsslapd-cache-autosize', '0')

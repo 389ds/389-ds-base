@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2595,10 +2595,17 @@ error:
             slapi_task_finish(job->task, ret);
         }
     } else {
+        dblayer_private *priv = NULL;
+        struct ldbminfo *li = inst->inst_li;
+
         if (job->task) {
             slapi_task_dec_refcount(job->task);
         }
         bdb_import_all_done(job, ret);
+
+        /* Import is done, we need to autotune caches */
+        priv = (dblayer_private *)li->li_dblayer_private;
+        priv->dblayer_auto_tune_fn(li);
     }
 
     /* set task warning if there are no errors */
