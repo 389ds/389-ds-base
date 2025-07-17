@@ -1117,16 +1117,17 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
 
     rolescopeDN = slapi_entry_attr_get_charptr(role_entry, ROLE_SCOPE_DN);
     if (rolescopeDN) {
-        Slapi_DN *rolescopeSDN;
-        Slapi_DN *top_rolescopeSDN, *top_this_roleSDN;
+        Slapi_DN *rolescopeSDN = NULL;
+        Slapi_DN *top_rolescopeSDN = NULL;
+        Slapi_DN *top_this_roleSDN = NULL;
 
         /* Before accepting to use this scope, first check if it belongs to the same suffix */
         rolescopeSDN = slapi_sdn_new_dn_byref(rolescopeDN);
-        if ((strlen((char *)slapi_sdn_get_ndn(rolescopeSDN)) > 0) &&
+        if (rolescopeSDN && (strlen((char *)slapi_sdn_get_ndn(rolescopeSDN)) > 0) &&
             (slapi_dn_syntax_check(NULL, (char *)slapi_sdn_get_ndn(rolescopeSDN), 1) == 0)) {
             top_rolescopeSDN = roles_cache_get_top_suffix(rolescopeSDN);
             top_this_roleSDN = roles_cache_get_top_suffix(this_role->dn);
-            if (slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
+            if (top_rolescopeSDN && top_this_roleSDN && slapi_sdn_compare(top_rolescopeSDN, top_this_roleSDN) == 0) {
                 /* rolescopeDN belongs to the same suffix as the role, we can use this scope */
                 this_role->rolescopedn = rolescopeSDN;
             } else {
@@ -1148,6 +1149,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                           rolescopeDN);
             slapi_sdn_free(&rolescopeSDN);
         }
+        slapi_ch_free_string(&rolescopeDN);
     }
 
     /* Depending upon role type, pull out the remaining information we need */
