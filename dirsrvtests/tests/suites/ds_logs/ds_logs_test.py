@@ -356,6 +356,10 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_acc
     log.info('Restart the server to flush the logs')
     topo.restart()
 
+    # After 947ee67 log dynamic has changed slightly
+    # Do another MOD to trigger the internal search
+    topo.config.set(LOG_ACCESS_LEVEL, access_log_level)
+
     try:
         # These comments contain lines we are trying to find without regex (the op numbers are just examples)
         log.info("Check if access log contains internal MOD operation in correct format")
