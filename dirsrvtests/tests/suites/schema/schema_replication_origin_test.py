@@ -157,6 +157,7 @@ def test_schema_xorigin_repl(topology, schema_replication_init, xorigin):
     schema is pushed and there is a message in the error log
 
     :id: 2b29823b-3e83-4b25-954a-8a081dbc15ee
+    :parametrized: yes
     :setup: Supplier and consumer topology, with one user entry;
             Supplier, hub and consumer topology, with one user entry
     :steps:
