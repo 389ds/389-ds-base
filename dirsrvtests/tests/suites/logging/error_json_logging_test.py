@@ -29,6 +29,7 @@ def test_error_json_format(topo, log_format):
     """Test error log is in JSON
 
     :id: c9afb295-43de-4581-af8b-ec8f25a06d75
+    :parametrized: yes
     :setup: Standalone
     :steps:
         1. Check error log has json and the expected data is present
