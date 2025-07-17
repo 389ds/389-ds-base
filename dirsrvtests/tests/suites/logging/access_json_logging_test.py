@@ -19,6 +19,8 @@ from lib389.idm.user import UserAccounts
 from lib389.dirsrv_log import DirsrvAccessJSONLog
 from lib389.index import VLVSearch, VLVIndex
 from lib389.tasks import Tasks
+from lib389.config import CertmapLegacy
+from lib389.nss_ssl import NssSsl
 from ldap.controls.vlv import VLVRequestControl
 from ldap.controls.sss import SSSRequestControl
 from ldap.controls import SimplePagedResultsControl
@@ -67,11 +69,11 @@ def get_log_event(inst, op, key=None, val=None, key2=None, val2=None):
                     if val == str(event[key]).lower() and \
                        val2 == str(event[key2]).lower():
                         return event
-
-            elif key is not None and key in event:
-                val = str(val).lower()
-                if val == str(event[key]).lower():
-                    return event
+            elif key is not None:
+                if key in event:
+                    val = str(val).lower()
+                    if val == str(event[key]).lower():
+                        return event
             else:
                 return event
 
@@ -163,6 +165,7 @@ def test_access_json_format(topo_m2, setup_test):
         14. Test PAGED SEARCH is logged correctly
         15. Test PERSISTENT SEARCH is logged correctly
         16. Test EXTENDED OP
+        17. Test TLS_INFO is logged correctly
     :expectedresults:
         1. Success
         2. Success
@@ -180,6 +183,7 @@ def test_access_json_format(topo_m2, setup_test):
         14. Success
         15. Success
         16. Success
+        17. Success
     """
 
     inst = topo_m2.ms["supplier1"]
@@ -559,6 +563,88 @@ def test_access_json_format(topo_m2, setup_test):
     assert event is not None
     assert event['oid_name'] == "REPL_END_NSDS50_REPLICATION_REQUEST_OID"
     assert event['name'] == "replication-multisupplier-extop"
+
+    #
+    # TLS INFO/TLS CLIENT INFO
+    #
+    RDN_TEST_USER = 'testuser'
+    RDN_TEST_USER_WRONG = 'testuser_wrong'
+    inst.enable_tls()
+    inst.restart()
+
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        'uid': RDN_TEST_USER,
+        'cn': RDN_TEST_USER,
+        'sn': RDN_TEST_USER,
+        'uidNumber': '1000',
+        'gidNumber': '2000',
+        'homeDirectory': f'/home/{RDN_TEST_USER}'
+    })
+
+    ssca_dir = inst.get_ssca_dir()
+    ssca = NssSsl(dbpath=ssca_dir)
+    ssca.create_rsa_user(RDN_TEST_USER)
+    ssca.create_rsa_user(RDN_TEST_USER_WRONG)
+
+    # Get the details of where the key and crt are.
+    tls_locs = ssca.get_rsa_user(RDN_TEST_USER)
+    tls_locs_wrong = ssca.get_rsa_user(RDN_TEST_USER_WRONG)
+
+    user.enroll_certificate(tls_locs['crt_der_path'])
+
+    # Turn on the certmap.
+    cm = CertmapLegacy(inst)
+    certmaps = cm.list()
+    certmaps['default']['DNComps'] = ''
+    certmaps['default']['FilterComps'] = ['cn']
+    certmaps['default']['VerifyCert'] = 'off'
+    cm.set(certmaps)
+
+    # Check that EXTERNAL is listed in supported mechns.
+    assert (inst.rootdse.supports_sasl_external())
+
+    # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
+    # here, it breaks on auth. see lib389/__init__.py
+    inst.restart(post_open=False)
+
+    # Attempt a bind with TLS external
+    inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
+              userkey=tls_locs['key'], usercert=tls_locs['crt'])
+    inst.restart()
+
+    event = get_log_event(inst, "TLS_INFO")
+    assert event is not None
+    assert 'tls_version' in event
+    assert 'keysize' in event
+    assert 'cipher' in event
+
+    event = get_log_event(inst, "TLS_CLIENT_INFO",
+                          "subject",
+                          "CN=testuser,O=testing,L=389ds,ST=Queensland,C=AU")
+    assert event is not None
+    assert 'tls_version' in event
+    assert 'keysize' in event
+    assert 'issuer' in event
+
+    event = get_log_event(inst, "TLS_CLIENT_INFO",
+                          "client_dn",
+                          "uid=testuser,ou=People,dc=example,dc=com")
+    assert event is not None
+    assert 'tls_version' in event
+    assert event['msg'] == "client bound"
+
+    # Check for failed certmap error
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
+                  userkey=tls_locs_wrong['key'],
+                  usercert=tls_locs_wrong['crt'])
+
+    event = get_log_event(inst, "TLS_CLIENT_INFO", "err", -185)
+    assert event is not None
+    assert 'tls_version' in event
+    assert event['msg'] == "failed to map client certificate to LDAP DN"
+    assert event['err_msg'] == "Certificate couldn't be mapped to an ldap entry"
 
 
 if __name__ == '__main__':

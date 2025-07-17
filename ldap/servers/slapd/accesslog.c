@@ -1147,3 +1147,117 @@ slapd_log_access_sort(slapd_log_pblock *logpb)
 
     return rc;
 }
+
+/*
+ * TLS connection
+ *
+ * int32_t log_format
+ * time_t conn_time
+ * uint64_t conn_id
+ * const char *msg
+ * const char *tls_version
+ * int32_t keysize
+ * const char *cipher
+ * int32_t err
+ * const char *err_str
+ */
+int32_t
+slapd_log_access_tls(slapd_log_pblock *logpb)
+{
+    int32_t rc = 0;
+    char *msg = NULL;
+    json_object *json_obj = NULL;
+
+    if ((json_obj = build_base_obj(logpb, "TLS_INFO")) == NULL) {
+        return rc;
+    }
+
+    if (logpb->msg) {
+        json_object_object_add(json_obj, "msg", json_obj_add_str(logpb->msg));
+    }
+    if (logpb->tls_version) {
+        json_object_object_add(json_obj, "tls_version", json_obj_add_str(logpb->tls_version));
+    }
+    if (logpb->cipher) {
+        json_object_object_add(json_obj, "cipher", json_obj_add_str(logpb->cipher));
+    }
+    if (logpb->keysize) {
+        json_object_object_add(json_obj, "keysize", json_object_new_int(logpb->keysize));
+    }
+    if (logpb->err_str) {
+        json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
+        json_object_object_add(json_obj, "err_msg", json_obj_add_str(logpb->err_str));
+    }
+
+    /* Convert json object to string and log it */
+    msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
+    rc = slapd_log_access_json(msg);
+
+    /* Done with JSON object - free it */
+    json_object_put(json_obj);
+
+    return rc;
+}
+
+/*
+ * TLS client auth
+ *
+ * int32_t log_format
+ * time_t conn_time
+ * uint64_t conn_id
+ * const char* tls_version
+ * const char* keysize
+ * const char* cipher
+ * const char* msg
+ * const char* subject
+ * const char* issuer
+ * int32_t err
+ * const char* err_str
+ * const char *client_dn
+ */
+int32_t
+slapd_log_access_tls_client_auth(slapd_log_pblock *logpb)
+{
+    int32_t rc = 0;
+    char *msg = NULL;
+    json_object *json_obj = NULL;
+
+    if ((json_obj = build_base_obj(logpb, "TLS_CLIENT_INFO")) == NULL) {
+        return rc;
+    }
+
+    if (logpb->tls_version) {
+        json_object_object_add(json_obj, "tls_version", json_obj_add_str(logpb->tls_version));
+    }
+    if (logpb->cipher) {
+        json_object_object_add(json_obj, "cipher", json_obj_add_str(logpb->cipher));
+    }
+    if (logpb->keysize) {
+        json_object_object_add(json_obj, "keysize", json_object_new_int(logpb->keysize));
+    }
+    if (logpb->subject) {
+        json_object_object_add(json_obj, "subject", json_obj_add_str(logpb->subject));
+    }
+    if (logpb->issuer) {
+        json_object_object_add(json_obj, "issuer", json_obj_add_str(logpb->issuer));
+    }
+    if (logpb->client_dn) {
+        json_object_object_add(json_obj, "client_dn", json_obj_add_str(logpb->client_dn));
+    }
+    if (logpb->msg) {
+        json_object_object_add(json_obj, "msg", json_obj_add_str(logpb->msg));
+    }
+    if (logpb->err_str) {
+        json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
+        json_object_object_add(json_obj, "err_msg", json_obj_add_str(logpb->err_str));
+    }
+
+    /* Convert json object to string and log it */
+    msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
+    rc = slapd_log_access_json(msg);
+
+    /* Done with JSON object - free it */
+    json_object_put(json_obj);
+
+    return rc;
+}
