@@ -67,6 +67,7 @@ def create_test_filtered_role(topology_st, request):
 
     properties = FakeArgs()
     properties.cn = filtered_role_name
+    properties.nsrolefilter = "(cn=*)"
     create_filtered(topology_st.standalone, DEFAULT_SUFFIX, topology_st.logcap.log, properties)
     test_filtered_role = filtered_roles.get(filtered_role_name)
 
@@ -92,7 +93,7 @@ def create_test_nested_role(topology_st, create_test_managed_role, request):
 
     properties = FakeArgs()
     properties.cn = nested_role_name
-    properties.nsRoleDN = managed_role.dn
+    properties.nsroledn = managed_role.dn
     create_nested(topology_st.standalone, DEFAULT_SUFFIX, topology_st.logcap.log, properties)
     test_nested_role = nested_roles.get(nested_role_name)
 
@@ -341,14 +342,8 @@ def test_dsidm_role_list(topology_st, create_test_managed_role):
 @pytest.mark.parametrize(
     "role_name, fixture, objectclasses",
     [(managed_role_name, 'create_test_managed_role', ['nsSimpleRoleDefinition', 'nsManagedRoleDefinition']),
-     (pytest.param(filtered_role_name,
-                   create_test_filtered_role,
-                   ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition'],
-                   marks=pytest.mark.xfail(reason="DS6492"))),
-     (pytest.param(nested_role_name,
-                   create_test_nested_role,
-                   ['nsComplexRoleDefinition', 'nsNestedRoleDefinition'],
-                   marks=pytest.mark.xfail(reason="DS6493")))])
+     (filtered_role_name, 'create_test_filtered_role', ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition']),
+     (nested_role_name, 'create_test_nested_role', ['nsComplexRoleDefinition', 'nsNestedRoleDefinition'])])
 def test_dsidm_role_get(topology_st, role_name, fixture, objectclasses, request):
     """ Test dsidm role get option for managed, filtered and nested role
 
@@ -422,14 +417,8 @@ def test_dsidm_role_get(topology_st, role_name, fixture, objectclasses, request)
 @pytest.mark.parametrize(
     "role_name, fixture, objectclasses",
     [(managed_role_name, 'create_test_managed_role', ['nsSimpleRoleDefinition', 'nsManagedRoleDefinition']),
-     (pytest.param(filtered_role_name,
-                   create_test_filtered_role,
-                   ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition'],
-                   marks=pytest.mark.xfail(reason="DS6492"))),
-     (pytest.param(nested_role_name,
-                   create_test_nested_role,
-                   ['nsComplexRoleDefinition', 'nsNestedRoleDefinition'],
-                   marks=pytest.mark.xfail(reason="DS6493")))])
+     (filtered_role_name, 'create_test_filtered_role', ['nsComplexRoleDefinition', 'nsFilteredRoleDefinition']),
+     (nested_role_name, 'create_test_nested_role', ['nsComplexRoleDefinition', 'nsNestedRoleDefinition'])])
 def test_dsidm_role_get_by_dn(topology_st, role_name, fixture, objectclasses, request):
     """ Test dsidm role get-by-dn option for managed, filtered and nested role
 
