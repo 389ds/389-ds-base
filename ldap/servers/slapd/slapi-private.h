@@ -1549,6 +1549,13 @@ typedef struct slapd_log_pblock {
     PRBool using_tls;
     PRBool haproxied;
     const char *bind_dn;
+    /* TLS */
+    const char *tls_version;
+    int32_t keysize;
+    const char *cipher;
+    const char *subject;
+    const char *issuer;
+    const char *client_dn;
     /* Close connection */
     const char *close_error;
     const char *close_reason;
@@ -1619,6 +1626,7 @@ typedef struct slapd_log_pblock {
     const char *oid;
     const char *msg;
     const char *name;
+    const char *err_str;
     LDAPControl **request_controls;
     LDAPControl **response_controls;
 } slapd_log_pblock;
@@ -1645,6 +1653,8 @@ int32_t slapd_log_access_entry(slapd_log_pblock *logpb);
 int32_t slapd_log_access_referral(slapd_log_pblock *logpb);
 int32_t slapd_log_access_extop(slapd_log_pblock *logpb);
 int32_t slapd_log_access_sort(slapd_log_pblock *logpb);
+int32_t slapd_log_access_tls(slapd_log_pblock *logpb);
+int32_t slapd_log_access_tls_client_auth(slapd_log_pblock *logpb);
 
 #ifdef __cplusplus
 }
