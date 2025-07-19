@@ -2556,12 +2556,15 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
             }
         }
     } else {
-        slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext",
-                "Not setting conn %d to be disconnected: %s\n",
-                conn->c_sd,
-                (conn->c_sd == SLAPD_INVALID_SOCKET) ? "socket is invalid" :
-                        ((conn->c_connid != opconnid) ? "conn id does not match op conn id" :
-                                    ((conn->c_flags & CONN_FLAG_CLOSING) ? "conn is closing" : "unknown")));
+        /* We avoid logging an invalid conn=0 connection as it is not a real connection. */
+        if (!(conn->c_sd == SLAPD_INVALID_SOCKET && conn->c_connid == 0)) {
+            slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext",
+                    "Not setting conn %d to be disconnected: %s\n",
+                    conn->c_sd,
+                    (conn->c_sd == SLAPD_INVALID_SOCKET) ? "socket is invalid" :
+                            ((conn->c_connid != opconnid) ? "conn id does not match op conn id" :
+                                        ((conn->c_flags & CONN_FLAG_CLOSING) ? "conn is closing" : "unknown")));
+        }
     }
 }
 

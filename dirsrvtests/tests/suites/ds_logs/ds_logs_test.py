@@ -24,7 +24,7 @@ from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, Aut
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, PASSWORD
+from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, PASSWORD, ErrorLog
 from lib389.utils import ds_is_older, ds_is_newer
 from lib389.config import RSA
 from lib389.dseldif import DSEldif
@@ -1408,6 +1408,55 @@ def test_errorlog_buffering(topology_st, request):
 
     time.sleep(1)
     assert inst.ds_error_log.match(".*slapd_daemon - slapd started.*")
+
+
+def test_no_repeated_disconnect_messages(topology_st):
+    """Test that there are no repeated "Not setting conn 0 to be disconnected: socket is invalid" messages on restart
+
+    :id: 72b5e1ce-2db8-458f-b2cd-0a0b6525f51f
+    :setup: Standalone Instance
+    :steps:
+        1. Set error log level to CONNECTION
+        2. Clear existing error logs
+        3. Restart the server with 30 second timeout
+        4. Check error log for repeated disconnect messages
+        5. Verify there are no more than 10 occurrences of the disconnect message
+    :expectedresults:
+        1. Error log level should be set successfully
+        2. Error logs should be cleared
+        3. Server should restart successfully within 30 seconds
+        4. Error log should be accessible
+        5. There should be no more than 10 repeated disconnect messages
+    """
+
+    inst = topology_st.standalone
+
+    log.info('Set error log level to CONNECTION')
+    inst.config.loglevel([ErrorLog.CONNECT])
+    current_level = inst.config.get_attr_val_int('nsslapd-errorlog-level')
+    log.info(f'Error log level set to: {current_level}')
+
+    log.info('Clear existing error logs')
+    inst.deleteErrorLogs()
+
+    log.info('Restart the server with 30 second timeout')
+    inst.restart(timeout=30)
+
+    log.info('Check error log for repeated disconnect messages')
+    disconnect_message = "Not setting conn 0 to be disconnected: socket is invalid"
+
+    # Count occurrences of the disconnect message
+    error_log_lines = inst.ds_error_log.readlines()
+    disconnect_count = 0
+
+    for line in error_log_lines:
+        if disconnect_message in line:
+            disconnect_count += 1
+
+    log.info(f'Found {disconnect_count} occurrences of disconnect message')
+
+    log.info('Verify there are no more than 10 occurrences')
+    assert disconnect_count <= 10, f"Found {disconnect_count} repeated disconnect messages, expected <= 10"
 
 
 if __name__ == '__main__':
