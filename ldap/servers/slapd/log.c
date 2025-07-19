@@ -2949,7 +2949,7 @@ vslapd_log_error(
         json_obj = json_object_new_object();
         json_object_object_add(json_obj, "local_time",      json_object_new_string(local_time));
         json_object_object_add(json_obj, "severity",  json_object_new_string(get_log_sev_name(sev_level, sev_name)));
-        json_object_object_add(json_obj, "subsystem", json_object_new_string(subsystem));
+        json_object_object_add(json_obj, "subsystem", json_object_new_string(subsystem ? subsystem : ""));
         json_object_object_add(json_obj, "msg",       json_object_new_string(vbuf));
 
         PR_snprintf(buffer, sizeof(buffer), "%s\n",
