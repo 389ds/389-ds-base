@@ -1652,6 +1652,7 @@ int32_t slapd_log_access_vlv(slapd_log_pblock *logpb);
 int32_t slapd_log_access_entry(slapd_log_pblock *logpb);
 int32_t slapd_log_access_referral(slapd_log_pblock *logpb);
 int32_t slapd_log_access_extop(slapd_log_pblock *logpb);
+int32_t slapd_log_access_extop_info(slapd_log_pblock *logpb);
 int32_t slapd_log_access_sort(slapd_log_pblock *logpb);
 int32_t slapd_log_access_tls(slapd_log_pblock *logpb);
 int32_t slapd_log_access_tls_client_auth(slapd_log_pblock *logpb);
