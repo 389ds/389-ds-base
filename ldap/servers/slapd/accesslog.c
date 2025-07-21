@@ -1114,6 +1114,53 @@ slapd_log_access_extop(slapd_log_pblock *logpb)
 }
 
 /*
+ * Extended operation information
+ *
+ * int32_t log_format
+ * time_t conn_time
+ * uint64_t conn_id
+ * int32_t op_id
+ * const char *name
+ * const char *bind_dn
+ * const char *tartet_dn
+ * const char *msg
+ */
+int32_t
+slapd_log_access_extop_info(slapd_log_pblock *logpb)
+{
+    int32_t rc = 0;
+    char *msg = NULL;
+    json_object *json_obj = NULL;
+
+    if ((json_obj = build_base_obj(logpb, "EXTENDED_OP_INFO")) == NULL) {
+        return rc;
+    }
+
+    if (logpb->name) {
+        json_object_object_add(json_obj, "name", json_obj_add_str(logpb->name));
+    }
+    if (logpb->target_dn) {
+        json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
+    }
+    if (logpb->bind_dn) {
+        json_object_object_add(json_obj, "bind_dn", json_obj_add_str(logpb->bind_dn));
+    }
+    if (logpb->msg) {
+        json_object_object_add(json_obj, "msg", json_obj_add_str(logpb->msg));
+    }
+    json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
+
+    /* Convert json object to string and log it */
+    msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
+    rc = slapd_log_access_json(msg);
+
+    /* Done with JSON object - free it */
+    json_object_put(json_obj);
+
+    return rc;
+}
+
+/*
  * Sort
  *
  * int32_t log_format

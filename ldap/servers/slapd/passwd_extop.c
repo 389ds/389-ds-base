@@ -465,12 +465,14 @@ passwd_modify_extop(Slapi_PBlock *pb)
     BerElement *response_ber = NULL;
     Slapi_Entry *targetEntry = NULL;
     Connection *conn = NULL;
+    Operation *pb_op = NULL;
     LDAPControl **req_controls = NULL;
     LDAPControl **resp_controls = NULL;
     passwdPolicy *pwpolicy = NULL;
     Slapi_DN *target_sdn = NULL;
     Slapi_Entry *referrals = NULL;
-    /* Slapi_DN sdn; */
+    Slapi_Backend *be = NULL;
+    int32_t log_format = config_get_accesslog_log_format();
 
     slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_extop", "=>\n");
 
@@ -647,7 +649,7 @@ parse_req_done:
     }
     dn = slapi_sdn_get_ndn(target_sdn);
     if (dn == NULL || *dn == '\0') {
-        /* Refuse the operation because they're bound anonymously */
+        /* Invalid DN - refuse the operation */
         errMesg = "Invalid dn.";
         rc = LDAP_INVALID_DN_SYNTAX;
         goto free_and_return;
@@ -724,14 +726,19 @@ parse_req_done:
         ber_free(response_ber, 1);
     }
 
-    slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void *)dn);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+    if (pb_op == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL\n");
+        goto free_and_return;
+    }
 
+    slapi_pblock_set(pb, SLAPI_ORIGINAL_TARGET, (void *)dn);
     /* Now we have the DN, look for the entry */
     ret = passwd_modify_getEntry(dn, &targetEntry);
     /* If we can't find the entry, then that's an error */
     if (ret) {
         /* Couldn't find the entry, fail */
-        errMesg = "No such Entry exists.";
+        errMesg = "No such entry exists.";
         rc = LDAP_NO_SUCH_OBJECT;
         goto free_and_return;
     }
@@ -742,30 +749,18 @@ parse_req_done:
         leak any useful information to the client such as current password
         wrong, etc.
       */
-    Operation *pb_op = NULL;
-    slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
-    if (pb_op == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "pb_op is NULL\n");
-        goto free_and_return;
-    }
-
     operation_set_target_spec(pb_op, slapi_entry_get_sdn(targetEntry));
     slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &pb_op->o_isroot);
 
-    /* In order to perform the access control check , we need to select a backend (even though
-     * we don't actually need it otherwise).
-     */
-    {
-        Slapi_Backend *be = NULL;
-
-        be = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(targetEntry));
-        if (NULL == be) {
-            errMesg = "Failed to find backend for target entry";
-            rc = LDAP_OPERATIONS_ERROR;
-            goto free_and_return;
-        }
-        slapi_pblock_set(pb, SLAPI_BACKEND, be);
+    /* In order to perform the access control check, we need to select a backend (even though
+     * we don't actually need it otherwise). */
+    be = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(targetEntry));
+    if (NULL == be) {
+        errMesg = "Failed to find backend for target entry";
+        rc = LDAP_NO_SUCH_OBJECT;
+        goto free_and_return;
     }
+    slapi_pblock_set(pb, SLAPI_BACKEND, be);
 
     /* Check if the pwpolicy control is present */
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &need_pwpolicy_ctrl);
@@ -797,10 +792,7 @@ parse_req_done:
     /* Check if password policy allows users to change their passwords.  We need to do
      * this here since the normal modify code doesn't perform this check for
      * internal operations. */
-
-    Connection *pb_conn;
-    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-    if (!pb_op->o_isroot && !pb_conn->c_needpw && !pwpolicy->pw_change) {
+    if (!pb_op->o_isroot && !conn->c_needpw && !pwpolicy->pw_change) {
         if (NULL == bindSDN) {
             bindSDN = slapi_sdn_new_normdn_byref(bindDN);
         }
@@ -847,6 +839,27 @@ parse_req_done:
 free_and_return:
     slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
                   "%s\n", errMesg ? errMesg : "success");
+
+    if (dn) {
+        /* Log the target ndn (if we have a target ndn) */
+        if (log_format != LOG_FORMAT_DEFAULT) {
+            /* JSON logging */
+            slapd_log_pblock logpb = {0};
+            slapd_log_pblock_init(&logpb, log_format, pb);
+            logpb.name = "passwd_modify_plugin";
+            logpb.target_dn = dn;
+            logpb.bind_dn = bindDN;
+            logpb.msg = errMesg ? errMesg : "success";
+            logpb.err = rc;
+            slapd_log_access_extop_info(&logpb);
+        } else {
+            slapi_log_access(LDAP_DEBUG_STATS,
+                    "conn=%" PRIu64 " op=%d EXT_INFO name=\"passwd_modify_plugin\" bind_dn=\"%s\" target_dn=\"%s\" msg=\"%s\" rc=%d\n",
+                    conn ? conn->c_connid : -1, pb_op ? pb_op->o_opid : -1,
+                    bindDN ? bindDN : "", dn,
+                    errMesg ? errMesg : "success", rc);
+        }
+    }
 
     if ((rc == LDAP_REFERRAL) && (referrals)) {
         send_referrals_from_entry(pb, referrals);

@@ -11,7 +11,7 @@ import os
 import time
 import ldap
 import pytest
-from lib389._constants import DEFAULT_SUFFIX, PASSWORD, LOG_ACCESS_LEVEL
+from lib389._constants import DEFAULT_SUFFIX, PASSWORD, LOG_ACCESS_LEVEL, DN_DM
 from lib389.properties import TASK_WAIT
 from lib389.topologies import topology_m2 as topo_m2
 from lib389.idm.group import Groups
@@ -549,22 +549,6 @@ def test_access_json_format(topo_m2, setup_test):
                              "LDAP_CONTROL_PERSISTENTSEARCH")
 
     #
-    # Extended op
-    #
-    log.info("Test EXTENDED_OP")
-    event = get_log_event(inst, "EXTENDED_OP", "oid",
-                          "2.16.840.1.113730.3.5.12")
-    assert event is not None
-    assert event['oid_name'] == "REPL_START_NSDS90_REPLICATION_REQUEST_OID"
-    assert event['name'] == "replication-multisupplier-extop"
-
-    event = get_log_event(inst, "EXTENDED_OP", "oid",
-                          "2.16.840.1.113730.3.5.5")
-    assert event is not None
-    assert event['oid_name'] == "REPL_END_NSDS50_REPLICATION_REQUEST_OID"
-    assert event['name'] == "replication-multisupplier-extop"
-
-    #
     # TLS INFO/TLS CLIENT INFO
     #
     RDN_TEST_USER = 'testuser'
@@ -579,7 +563,8 @@ def test_access_json_format(topo_m2, setup_test):
         'sn': RDN_TEST_USER,
         'uidNumber': '1000',
         'gidNumber': '2000',
-        'homeDirectory': f'/home/{RDN_TEST_USER}'
+        'homeDirectory': f'/home/{RDN_TEST_USER}',
+        'userpassword': 'password'
     })
 
     ssca_dir = inst.get_ssca_dir()
@@ -645,6 +630,83 @@ def test_access_json_format(topo_m2, setup_test):
     assert 'tls_version' in event
     assert event['msg'] == "failed to map client certificate to LDAP DN"
     assert event['err_msg'] == "Certificate couldn't be mapped to an ldap entry"
+
+    #
+    # Extended op
+    #
+    log.info("Test EXTENDED_OP")
+    event = get_log_event(inst, "EXTENDED_OP", "oid",
+                          "2.16.840.1.113730.3.5.12")
+    assert event is not None
+    assert event['oid_name'] == "REPL_START_NSDS90_REPLICATION_REQUEST_OID"
+    assert event['name'] == "replication-multisupplier-extop"
+
+    event = get_log_event(inst, "EXTENDED_OP", "oid",
+                          "2.16.840.1.113730.3.5.5")
+    assert event is not None
+    assert event['oid_name'] == "REPL_END_NSDS50_REPLICATION_REQUEST_OID"
+    assert event['name'] == "replication-multisupplier-extop"
+
+    #
+    # Extended op info
+    #
+    log.info("Test EXTENDED_OP_INFO")
+    OLD_PASSWD = 'password'
+    NEW_PASSWD = 'newpassword'
+
+    assert inst.simple_bind_s(DN_DM, PASSWORD)
+
+    assert inst.passwd_s(user.dn, OLD_PASSWD, NEW_PASSWD)
+    event = get_log_event(inst, "EXTENDED_OP_INFO", "name",
+                          "passwd_modify_plugin")
+    assert event is not None
+    assert event['bind_dn'] == "cn=directory manager"
+    assert event['target_dn'] == user.dn.lower()
+    assert event['msg'] == "success"
+
+    # Test no such object
+    BAD_DN = user.dn + ",dc=not"
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        inst.passwd_s(BAD_DN, OLD_PASSWD, NEW_PASSWD)
+
+    event = get_log_event(inst, "EXTENDED_OP_INFO", "target_dn", BAD_DN)
+    assert event is not None
+    assert event['bind_dn'] == "cn=directory manager"
+    assert event['target_dn'] == BAD_DN.lower()
+    assert event['msg'] == "No such entry exists."
+
+    # Test invalid old password
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        inst.passwd_s(user.dn, "not_the_old_pw", NEW_PASSWD)
+    event = get_log_event(inst, "EXTENDED_OP_INFO", "err", 49)
+    assert event is not None
+    assert event['bind_dn'] == "cn=directory manager"
+    assert event['target_dn'] == user.dn.lower()
+    assert event['msg'] == "Invalid oldPasswd value."
+
+    # Test user without permissions
+    user2 = users.create(properties={
+        'uid': RDN_TEST_USER + "2",
+        'cn': RDN_TEST_USER + "2",
+        'sn': RDN_TEST_USER + "2",
+        'uidNumber': '1001',
+        'gidNumber': '2001',
+        'homeDirectory': f'/home/{RDN_TEST_USER + "2"}',
+        'userpassword': 'password'
+    })
+    inst.simple_bind_s(user2.dn, 'password')
+    with pytest.raises(ldap.INSUFFICIENT_ACCESS):
+        inst.passwd_s(user.dn, NEW_PASSWD, OLD_PASSWD)
+    event = get_log_event(inst, "EXTENDED_OP_INFO", "err", 50)
+    assert event is not None
+    assert event['bind_dn'] == user2.dn.lower()
+    assert event['target_dn'] == user.dn.lower()
+    assert event['msg'] == "Insufficient access rights"
+
+
+    # Reset bind
+    inst.simple_bind_s(DN_DM, PASSWORD)
+
 
 
 if __name__ == '__main__':
