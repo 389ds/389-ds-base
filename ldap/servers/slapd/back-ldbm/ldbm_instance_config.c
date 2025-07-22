@@ -350,7 +350,7 @@ ldbm_config_cache_preserved_entries_set(void *arg,
                               "Error: Invalid value for %s (%ld). The value must not be negative\n",
                               CONFIG_INSTANCE_CACHE_PRESERVED_ENTRIES, val);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_weight_threshold_set",
-                      "Invalid value for %s (%ld). The value must be greater than \"100\"\n",
+                      "Invalid value for %s (%ld). The value must not be negative\n",
                       CONFIG_INSTANCE_CACHE_PRESERVED_ENTRIES, val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
