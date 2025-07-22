@@ -32,6 +32,8 @@ os.environ['DS389_MDB_MAX_SIZE'] = str(200 * 1024 * 1024)
 
 SEED = 195707
 
+CONFIG_ATTR_PINNED_ENTRIES = 'nsslapd-cache-pinned-entries'
+
 # Ensure that the dn, attributes and values are not sorted
 class LdifScrambler(ldif.LDIFParser):
 
@@ -187,7 +189,7 @@ def test_entry_cache_eviction(topology_st, prepare_be):
     inst = topology_st.standalone
     bename, suffix, be1, people_base, groups_base = prepare_be
 
-    be1.replace('nsslapd-cache-preserved-entries', '10')
+    be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '10')
     # Search all groups then all people to try to evict the groups from entrycache
     inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
@@ -198,8 +200,7 @@ def test_entry_cache_eviction(topology_st, prepare_be):
     assert len(adds) == 5
     assert len(dels) == 0
 
-
-    be1.replace('nsslapd-cache-preserved-entries', '0')
+    be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '0')
     # Search all people to evict groups from entrycache
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     # Check error logs
@@ -217,7 +218,7 @@ def test_entry_cache_eviction(topology_st, prepare_be):
     assert len(adds) == 5+5
     assert len(dels) == 5+5
 
-    be1.replace('nsslapd-cache-preserved-entries', '4')
+    be1.replace(CONFIG_ATTR_PINNED_ENTRIES, '4')
     # Search all groups then all people to try to evict the groups from entrycache
     inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')

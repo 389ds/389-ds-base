@@ -17,9 +17,10 @@
 
 #ifdef DEBUG
 #define LDAP_CACHE_DEBUG
-/* #define LDAP_CACHE_DEBUG_LRU_EVICTION * causes slowdown */
 /* #define LDAP_CACHE_DEBUG_LRU * causes slowdown */
 /* #define CACHE_DEBUG * causes slowdown */
+#define LDAP_CACHE_DEBUG_LRU  1
+#define CACHE_DEBUG  1
 #endif
 
 
@@ -51,29 +52,32 @@
     } while (0)
 
 #define LOG(...) slapi_log_err(SLAPI_LOG_CACHE, (char *)__func__, __VA_ARGS__)
-// #define LOG2(msg, ...) { if (cache->c_inst->cache_debug_re) slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, "CACHE DEBUG: " msg, __VA_ARGS__); }
+//# define LOG(_a, _x1, _x2, _x3)  slapi_log_err(SLAPI_LOG_CACHE, _a, _x1, _x2, _x3)
 #else
 #define ASSERT(_x) ;
 //#define LOG(_a, _x1, _x2, _x3)  ;
 #define LOG(...)
 #endif
-#define LOGPATTERN(cache, dn, msg, ...) { if (debug_pattern_matches(cache, dn)) slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, "CACHE DEBUG: " msg, __VA_ARGS__); }
+#define LOGPATTERN(cache, dn, msg, ...) { if (debug_pattern_matches(cache, dn)) { slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, "CACHE DEBUG: " msg, __VA_ARGS__); } }
+#define LOG2(...) slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, __VA_ARGS__)
+
+
+struct pinned_ctx {
+    struct backentry *head;
+    struct backentry *tail;
+    uint64_t npinned;
+    uint64_t size;
+};
+
 
 typedef enum {
     ENTRY_CACHE,
     DN_CACHE,
 } CacheType;
 
-typedef enum {
-    LRU_REGULAR,
-    LRU_PRESERVED,
-} LRUQueueType;
-
 #define LRU_DETACH(cache, e) lru_detach((cache), (void *)(e))
-#define CACHE_LRU_Q(cache, lruid) (&(cache)->c_lrus[lruid])
-#define CACHE_LRU_EOQ(cache, lruid, e) (((struct backcommon *)(e)) == CACHE_LRU_Q(cache, lruid))
-#define CACHE_LRU_HEAD(cache, lruid, type) ((type)(CACHE_LRU_Q(cache, lruid)->ep_lrunext))
-#define CACHE_LRU_TAIL(cache, lruid, type) ((type)(CACHE_LRU_Q(cache, lruid)->ep_lruprev))
+#define CACHE_LRU_HEAD(cache, type) ((type)((cache)->c_lruhead))
+#define CACHE_LRU_TAIL(cache, type) ((type)((cache)->c_lrutail))
 #define BACK_LRU_NEXT(entry, type) ((type)((entry)->ep_lrunext))
 #define BACK_LRU_PREV(entry, type) ((type)((entry)->ep_lruprev))
 
@@ -87,10 +91,7 @@ static int entrycache_add_int(struct cache *cache, struct backentry *e, int stat
 static struct backentry *entrycache_flush(struct cache *cache);
 static bool debug_pattern_matches(struct cache *cache, const char *dn);
 #ifdef LDAP_CACHE_DEBUG_LRU
-static void entry_lru_verify(struct cache *cache, struct backentry *e, bool in, LRUQueueType lruid);
-#endif
-#ifdef LDAP_CACHE_DEBUG_LRU_EVICTION
-static void debug_verify_entrycache_lru(int level, struct cache *cache, LRUQueueType lruid, int lineno);
+static void entry_lru_verify(struct cache *cache, struct backentry *e, int in);
 #endif
 
 static int dn_same_id(const void *bdn, const void *k);
@@ -102,8 +103,10 @@ static int dncache_replace(struct cache *cache, struct backdn *olddn, struct bac
 static int dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backdn **alt);
 static struct backdn *dncache_flush(struct cache *cache);
 static int cache_is_in_cache_nolock(void *ptr);
+void pinned_remove(struct cache *cache, void *ptr);
+void pinned_flush(struct cache *cache);
 #ifdef LDAP_CACHE_DEBUG_LRU
-static void dn_lru_verify(struct cache *cache, struct backdn *dn, bool in);
+static void dn_lru_verify(struct cache *cache, struct backdn *dn, int in);
 #endif
 
 /***** tiny hashtable implementation *****/
@@ -354,7 +357,25 @@ hash_stats(Hashtable *ht, u_long *slots, int *total_entries, int *max_entries_pe
 
 #ifdef LDAP_CACHE_DEBUG_LRU
 static void
-lru_verify(struct cache *cache, void *ptr, bool in, LRUQueueType lruid)
+pinned_verify(struct cache *cache, int lineno)
+{
+    uint64_t size = 0;
+    uint64_t count = 0;
+    struct backentry *e = cache->c_pinned_ctx->head;
+    for (;e; e = BACK_LRU_NEXT(e, struct backentry*)) {
+        if (e->ep_lrunext == NULL) {
+            ASSERT (cache->c_pinned_ctx->tail == e);
+        }
+        ASSERT((e->ep_state & ENTRY_STATE_PINNED) == ENTRY_STATE_PINNED);
+        size += e->ep_size;
+        count ++;
+    }
+    ASSERT(size == cache->c_pinned_ctx->size);
+    ASSERT(count == cache->c_pinned_ctx->npinned);
+}
+
+static void
+lru_verify(struct cache *cache, void *ptr, int in)
 {
     struct backcommon *e;
     if (NULL == ptr) {
@@ -363,7 +384,7 @@ lru_verify(struct cache *cache, void *ptr, bool in, LRUQueueType lruid)
     }
     e = (struct backcommon *)ptr;
     if (CACHE_TYPE_ENTRY == e->ep_type) {
-        entry_lru_verify(cache, (struct backentry *)e, in, lruid);
+        entry_lru_verify(cache, (struct backentry *)e, in);
     } else {
         dn_lru_verify(cache, (struct backdn *)e, in);
     }
@@ -374,235 +395,126 @@ lru_verify(struct cache *cache, void *ptr, bool in, LRUQueueType lruid)
  * should NOT be in the list.
  */
 static void
-entry_lru_verify(struct cache *cache, struct backentry *e, bool in, LRUQueueType lruid)
+entry_lru_verify(struct cache *cache, struct backentry *e, int in)
 {
-    bool is_in = false;
+    int is_in = 0;
     int count = 0;
     struct backentry *ep;
 
-    ep = CACHE_LRU_HEAD(cache, lruid, struct backentry *);
-    while (!CACHE_LRU_EOQ(cache, lruid, ep)) {
+    ep = CACHE_LRU_HEAD(cache, struct backentry *);
+    while (ep) {
+        ASSERT((e->ep_state & ENTRY_STATE_PINNED) == 0);
         count++;
         if (ep == e) {
-            is_in = true;
+            is_in = 1;
         }
-        ASSERT(BACK_LRU_NEXT(BACK_LRU_PREV(ep, struct backentry *), struct backentry *) == ep);
-        ASSERT(BACK_LRU_PREV(BACK_LRU_NEXT(ep, struct backentry *), struct backentry *) == ep);
+        if (ep->ep_lruprev) {
+            ASSERT(BACK_LRU_NEXT(BACK_LRU_PREV(ep, struct backentry *), struct backentry *) == ep);
+        } else {
+            ASSERT(ep == CACHE_LRU_HEAD(cache, struct backentry *));
+        }
+        if (ep->ep_lrunext) {
+            ASSERT(BACK_LRU_PREV(BACK_LRU_NEXT(ep, struct backentry *), struct backentry *) == ep);
+        } else {
+            ASSERT(ep == CACHE_LRU_TAIL(cache, struct backentry *));
+        }
+
         ep = BACK_LRU_NEXT(ep, struct backentry *);
     }
-    ASSERT(BACK_LRU_NEXT(BACK_LRU_PREV(ep, struct backentry *), struct backentry *) == ep);
-    ASSERT(BACK_LRU_PREV(BACK_LRU_NEXT(ep, struct backentry *), struct backentry *) == ep);
     ASSERT(is_in == in);
 }
+#else
+#define pinned_verify(cache, lineno)
 #endif
 
-/* detach the entries and all next ones. Assume lock is held */
+/* assume lock is held */
 static void
 lru_detach(struct cache *cache, void *ptr)
 {
-    struct backcommon *e = (struct backcommon *)ptr;
-    struct backcommon *e2 = CACHE_LRU_Q(cache, LRU_REGULAR)->ep_lruprev;
+    struct backcommon *e;
     if (NULL == ptr) {
         LOG("=> lru_detach\n<= lru_detach (null entry)\n");
         return;
     }
-    ASSERT(!CACHE_LRU_EOQ(cache, LRU_REGULAR, e));
+    e = (struct backcommon *)ptr;
 #ifdef LDAP_CACHE_DEBUG_LRU
-    lru_verify(cache, e, true, LRU_REGULAR);
+    pinned_verify(cache, __LINE__);
+    lru_verify(cache, e, 1);
 #endif
-    e->ep_lruprev->ep_lrunext = CACHE_LRU_Q(cache, LRU_REGULAR);
-    CACHE_LRU_Q(cache, LRU_REGULAR)->ep_lruprev = e->ep_lruprev;
-    e->ep_lruprev = NULL;
-    e2->ep_lrunext = NULL;
-#ifdef LDAP_CACHE_DEBUG_LRU
-    lru_verify(cache, e, false, LRU_REGULAR);
-#endif
-}
-
-static void
-lru_delete_int(struct cache *cache, struct backcommon *e, LRUQueueType lruid, CacheType type)
-{
-    ASSERT(!CACHE_LRU_EOQ(cache, LRU_REGULAR, e));
-    ASSERT(!CACHE_LRU_EOQ(cache, LRU_PRESERVED, e));
-    if (type == ENTRY_CACHE && slapi_is_loglevel_set(SLAPI_LOG_CACHE)) {
-#ifdef LDAP_CACHE_DEBUG
-        struct backentry *e2 = (struct backentry *)e;
-        LOG("Removing entry %s with weight %lu from %s LRU list\n",
-            backentry_get_ndn(e2), e2->ep_weight,
-            lruid ? "preserved": "regular" );
-#endif
+    if (e->ep_lruprev) {
+        e->ep_lruprev->ep_lrunext = NULL;
+        cache->c_lrutail = e->ep_lruprev;
+    } else {
+        cache->c_lruhead = NULL;
+        cache->c_lrutail = NULL;
     }
 #ifdef LDAP_CACHE_DEBUG_LRU
-    lru_verify(cache, e, true, lruid);
-#endif
-#ifdef LDAP_CACHE_DEBUG_LRU_EVICTION
-    if (type == ENTRY_CACHE) {
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_PRESERVED, __LINE__);
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_REGULAR, __LINE__);
-    }
-#endif
-    if (lruid == LRU_PRESERVED) {
-#ifdef LDAP_CACHE_DEBUG
-        struct backentry *e2 = (struct backentry *)e;
-        LOG("Removing entry %s with weight %lu from preserved LRU list\n",
-                        backentry_get_ndn(e2), e2->ep_weight);
-#endif
-        cache->c_nbpreserved --;
-        ASSERT( ((int64_t)(cache->c_nbpreserved)) >= 0 );
-    }
-    e->ep_lruprev->ep_lrunext = e->ep_lrunext;
-    e->ep_lrunext->ep_lruprev = e->ep_lruprev;
-    e->ep_lrunext = e->ep_lruprev = NULL;
-#ifdef LDAP_CACHE_DEBUG_LRU
-    lru_verify(cache, e, false, lruid);
-#endif
-#ifdef LDAP_CACHE_DEBUG_LRU_EVICTION
-    if (type == ENTRY_CACHE) {
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_PRESERVED, __LINE__);
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_REGULAR, __LINE__);
-    }
-#endif
-}
-
-/* Remove the entries from lru queue. Assume lock is held */
-static void
-lru_delete(struct cache *cache, void *ptr, CacheType type)
-{
-    struct backcommon *e = (struct backcommon *)ptr;
-
-    if (NULL == ptr) {
-        LOG("=> lru_delete\n<= lru_delete (null entry)\n");
-        return;
-    }
-    if (type == ENTRY_CACHE) {
-        struct backentry *pe0 = CACHE_LRU_HEAD(cache, LRU_PRESERVED, struct backentry *);
-        struct backentry *e2 = (struct backentry *)ptr;
-        /* Check whether entry is in preserved or regulat queue:
-         * if entry weight is higher than the first preserved entry, it is preserved.
-         * if entry weight is same than the first preserved entry, it may be (or not) preserved
-         * so we should walk the entry to check if it there.
-         */
-        while ((!CACHE_LRU_EOQ(cache, LRU_PRESERVED, pe0)) && (e2->ep_weight >= pe0->ep_weight)) {
-            if (pe0 == e2 || e2->ep_weight > pe0->ep_weight) {
-                /* Entry is preserved, lets remove it */
-                lru_delete_int(cache, e, LRU_PRESERVED, type);
-                return;
-            }
-            /* Seen entry has the right weight but is not our entry, look at next entry */
-            pe0 = BACK_LRU_NEXT(pe0, struct backentry *);
-        }
-    }
-    lru_delete_int(cache, e, LRU_REGULAR, type);
-}
-
-static void
-lru_add_before(struct cache *cache, void *ptr, void *nextptr, LRUQueueType lruid, CacheType type)
-{
-    struct backcommon *e = (struct backcommon *)ptr;
-    struct backcommon *nexte = (struct backcommon *)nextptr;
-
-    ASSERT(!CACHE_LRU_EOQ(cache, LRU_REGULAR, e));
-    ASSERT(!CACHE_LRU_EOQ(cache, LRU_PRESERVED, e));
-    if (type == ENTRY_CACHE && slapi_is_loglevel_set(SLAPI_LOG_CACHE)) {
-#ifdef LDAP_CACHE_DEBUG
-        struct backentry  *e2 = (struct backentry *)e;
-        struct backentry  *n2 = (struct backentry *)nexte;
-        if (CACHE_LRU_EOQ(cache, lruid, nexte)) {
-            LOG("Added entry %s with weight %lu at head of %s LRU list\n",
-                backentry_get_ndn(e2), e2->ep_weight,
-                lruid ? "preserved": "regular" );
-        } else {
-            LOG("Added entry %s with weight %lu in %s LRU list "
-                "before entry %s with weight %lu\n",
-                backentry_get_ndn(e2), e2->ep_weight,
-                (lruid ? "preserved": "regular"),
-                backentry_get_ndn(n2), n2->ep_weight);
-        }
-#endif
-    }
-#ifdef LDAP_CACHE_DEBUG_LRU_EVICTION
-    if (type == ENTRY_CACHE) {
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_PRESERVED, __LINE__);
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_REGULAR, __LINE__);
-    }
-#endif
-#ifdef LDAP_CACHE_DEBUG_LRU
-    lru_verify(cache, e, false, lruid);
-#endif
-    e->ep_lrunext = nexte;
-    e->ep_lruprev = nexte->ep_lruprev;
-    e->ep_lrunext->ep_lruprev = e;
-    e->ep_lruprev->ep_lrunext = e;
-    if (lruid == LRU_PRESERVED) {
-#ifdef LDAP_CACHE_DEBUG
-        struct backentry  *e2 = (struct backentry *)e;
-        LOG("Adding entry %s with weight %lu from preserved LRU list\n",
-                        backentry_get_ndn(e2), e2->ep_weight);
-#endif
-        cache->c_nbpreserved ++;
-    }
-#ifdef LDAP_CACHE_DEBUG_LRU
-    lru_verify(cache, e, true, lruid);
-#endif
-#ifdef LDAP_CACHE_DEBUG_LRU_EVICTION
-    if (type == ENTRY_CACHE) {
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_PRESERVED, __LINE__);
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_REGULAR, __LINE__);
-    }
+    lru_verify(cache, e, 0);
 #endif
 }
 
 /* assume lock is held */
 static void
-lru_add(struct cache *cache, void *ptr, CacheType type)
+lru_delete(struct cache *cache, void *ptr)
 {
-    struct backcommon *e = (struct backcommon *)ptr;
-    struct backentry *pe = NULL;
+    struct backcommon *e;
+    if (NULL == ptr) {
+        LOG("=> lru_delete\n<= lru_delete (null entry)\n");
+        return;
+    }
+    e = (struct backcommon *)ptr;
+#ifdef LDAP_CACHE_DEBUG_LRU
+    pinned_verify(cache, __LINE__);
+    lru_verify(cache, e, 1);
+#endif
+    if (e->ep_lruprev)
+        e->ep_lruprev->ep_lrunext = e->ep_lrunext;
+    else
+        cache->c_lruhead = e->ep_lrunext;
+    if (e->ep_lrunext)
+        e->ep_lrunext->ep_lruprev = e->ep_lruprev;
+    else
+        cache->c_lrutail = e->ep_lruprev;
+#ifdef LDAP_CACHE_DEBUG_LRU
+    e->ep_lrunext = e->ep_lruprev = NULL;
+    lru_verify(cache, e, 0);
+#endif
+}
+
+/* assume lock is held */
+static void
+lru_add(struct cache *cache, void *ptr)
+{
+    struct backcommon *e;
     if (NULL == ptr) {
         LOG("=> lru_add\n<= lru_add (null entry)\n");
         return;
     }
-    if (type == ENTRY_CACHE) {
-        struct backentry  *e2 = (struct backentry *)e;
-        if (e2->ep_weight == 0 || cache->c_inst->cache_preserved_entries == 0) {
-            /* Do not try to preserve entries without any weight or if no entries are preserved */
-            lru_add_before(cache, e, CACHE_LRU_HEAD(cache, LRU_REGULAR, struct backcommon *), LRU_REGULAR, type);
-            return;
-        }
+    e = (struct backcommon *)ptr;
+    ASSERT(e->ep_refcnt == 0);
+    ASSERT((e->ep_state & ENTRY_STATE_PINNED) == 0);
 
-        /* Let move first preserved entry in regular list until there is enough
-         * space to add a new entry
-         */
-        while (cache->c_nbpreserved >= cache->c_inst->cache_preserved_entries) {
-            pe = CACHE_LRU_HEAD(cache, LRU_PRESERVED, struct backentry *);
-            if (e2->ep_weight <= pe->ep_weight) {
-                /* Entry weight is too small to preserve that entry */
-                lru_add_before(cache, e, CACHE_LRU_HEAD(cache, LRU_REGULAR, struct backcommon *), LRU_REGULAR, type);
-                return;
-            }
-            if (slapi_is_loglevel_set(SLAPI_LOG_CACHE)) {
-                LOG("Moving entry %s with weight %lu from preserved to regular LRU\n",
-                    backentry_get_ndn(pe), pe->ep_weight);
-            }
-            lru_delete(cache, pe, type);
-            lru_add_before(cache, pe, CACHE_LRU_HEAD(cache, LRU_REGULAR, struct backcommon *), LRU_REGULAR, type);
-        }
-        /* Insert new entry in preserved list at the right position */
-        pe = CACHE_LRU_HEAD(cache, LRU_PRESERVED, struct backentry *);
-        while (!CACHE_LRU_EOQ(cache, LRU_PRESERVED, pe) && e2->ep_weight >= pe->ep_weight) {
-            pe = BACK_LRU_NEXT(pe, struct backentry *);
-        }
-        lru_add_before(cache, e, pe, LRU_PRESERVED, type);
-        return;
-    }
-    lru_add_before(cache, e, CACHE_LRU_HEAD(cache, LRU_REGULAR, struct backcommon *), LRU_REGULAR, type);
+#ifdef LDAP_CACHE_DEBUG_LRU
+    pinned_verify(cache, __LINE__);
+    lru_verify(cache, e, 0);
+#endif
+    e->ep_lruprev = NULL;
+    e->ep_lrunext = cache->c_lruhead;
+    cache->c_lruhead = e;
+    if (e->ep_lrunext)
+        e->ep_lrunext->ep_lruprev = e;
+    if (!cache->c_lrutail)
+        cache->c_lrutail = e;
+#ifdef LDAP_CACHE_DEBUG_LRU
+    lru_verify(cache, e, 1);
+#endif
 }
 
 
 /***** cache overhead *****/
 
 static void
-cache_make_hashes(struct cache *cache, CacheType type)
+cache_make_hashes(struct cache *cache, int type)
 {
     u_long hashsize = (cache->c_stats.maxentries > 0) ? cache->c_stats.maxentries : (cache->c_stats.maxsize / 512);
 
@@ -687,7 +599,7 @@ dbgec_test_if_entry_pointer_is_valid(void *e, void *prev, int slot, int line)
  * removed so another thread can not use/lock the invalid cache entry.
  */
 static void
-flush_hash(struct cache *cache, struct timespec *start_time, CacheType type)
+flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
 {
     Hashtable *ht = cache->c_idtable; /* start with the ID table as it's in both ENTRY and DN caches */
     void *e, *laste = NULL;
@@ -720,7 +632,12 @@ flush_hash(struct cache *cache, struct timespec *start_time, CacheType type)
                 entry->ep_state |= ENTRY_STATE_INVALID;
                 if (entry->ep_refcnt == 0) {
                     entry->ep_refcnt++;
-                    lru_delete(cache, laste, type);
+                    if (entry->ep_state & ENTRY_STATE_PINNED) {
+                        pinned_remove(cache, laste);
+                        lru_delete(cache, laste);
+                    } else {
+                        lru_delete(cache, laste);
+                    }
                     if (type == ENTRY_CACHE) {
                         entrycache_remove_int(cache, laste);
                         entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
@@ -763,7 +680,12 @@ flush_hash(struct cache *cache, struct timespec *start_time, CacheType type)
                     entry->ep_state |= ENTRY_STATE_INVALID;
                     if (entry->ep_refcnt == 0) {
                         entry->ep_refcnt++;
-                        lru_delete(cache, laste, type);
+                        if (entry->ep_state & ENTRY_STATE_PINNED) {
+                            pinned_remove(cache, laste);
+                            lru_delete(cache, laste);
+                        } else {
+                            lru_delete(cache, laste);
+                        }
                         entrycache_remove_int(cache, laste);
                         entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
                     } else {
@@ -806,11 +728,10 @@ cache_init(struct cache *cache, struct ldbm_instance *inst, uint64_t maxsize, in
     /* coverity[missing_lock] */
     cache->c_stats.maxentries = maxentries;
     cache->c_inst = inst;
-    cache->c_lrus[0].ep_lruprev = cache->c_lrus[0].ep_lrunext = &cache->c_lrus[0];
-    cache->c_lrus[1].ep_lruprev = cache->c_lrus[1].ep_lrunext = &cache->c_lrus[1];
+    cache->c_lruhead = cache->c_lrutail = NULL;
     cache_make_hashes(cache, type);
-    cache->c_nbpreserved = 0;
-
+    cache->c_pinned_ctx = (struct pinned_ctx*)slapi_ch_calloc(1, sizeof (struct pinned_ctx));
+    
     if (((cache->c_mutex = PR_NewMonitor()) == NULL) ||
         ((cache->c_emutexalloc_mutex = PR_NewLock()) == NULL)) {
         slapi_log_err(SLAPI_LOG_ERR, "cache_init", "PR_NewMonitor failed\n");
@@ -839,80 +760,34 @@ cache_init(struct cache *cache, struct ldbm_instance *inst, uint64_t maxsize, in
 static struct backentry *
 entrycache_flush(struct cache *cache)
 {
-    struct backentry *e = (struct backentry *)CACHE_LRU_Q(cache, LRU_REGULAR);
-    struct backentry *pe = NULL;
-    bool noentryremoved = true;
+    struct backentry *e = NULL;
 
     LOG("=> entrycache_flush\n");
-
-    while (cache->c_nbpreserved > cache->c_inst->cache_preserved_entries) {
-        /* Moving entries from preserved list to regular one
-         * after configured number of preserved entries get decreased
-         * so that they can get evicted.
-         */
-        struct backcommon *head = CACHE_LRU_HEAD(cache, LRU_REGULAR, struct backcommon *);
-        struct backcommon *pfirst = CACHE_LRU_HEAD(cache, LRU_PRESERVED, struct backcommon *);
-        ASSERT(!CACHE_LRU_EOQ(cache, LRU_PRESERVED, pfirst));  /* queue should not be empty */
-        lru_delete_int(cache, pfirst, LRU_PRESERVED, ENTRY_CACHE);
-        lru_add_before(cache, pfirst, head, LRU_REGULAR, ENTRY_CACHE);
-    }
-    pe = CACHE_LRU_HEAD(cache, LRU_PRESERVED, struct backentry *);
 
     /* all entries on the LRU list are guaranteed to have a refcnt = 0
      * (iow, nobody's using them), so just delete from the tail down
      * until the cache is a managable size again.
      * (cache->c_mutex is locked when we enter this)
      */
-    while (CACHE_FULL(cache)) {
-        e = BACK_LRU_PREV(e, struct backentry *);
-        if (CACHE_LRU_EOQ(cache, LRU_REGULAR, e)) {
-            break;
+    while ((cache->c_lrutail != NULL) && CACHE_FULL(cache)) {
+        if (e == NULL) {
+            e = CACHE_LRU_TAIL(cache, struct backentry *);
+        } else {
+            e = BACK_LRU_PREV(e, struct backentry *);
         }
         ASSERT(e->ep_refcnt == 0);
         e->ep_refcnt++;
         if (entrycache_remove_int(cache, e) < 0) {
-            e->ep_refcnt--;
-            e = BACK_LRU_NEXT(e, struct backentry *);
             slapi_log_err(SLAPI_LOG_ERR,
                           "entrycache_flush", "Unable to delete entry\n");
             break;
         }
-        noentryremoved = false;
-    }
-    if (noentryremoved) {
-        e = NULL;
-    } else {
-        if (e == (struct backentry *)CACHE_LRU_Q(cache, LRU_REGULAR)) {
-            e = BACK_LRU_NEXT(e, struct backentry *);
+        if (e == CACHE_LRU_HEAD(cache, struct backentry *)) {
+            break;
         }
-        ASSERT(!CACHE_LRU_EOQ(cache, LRU_REGULAR, e));
-        CACHE_LRU_Q(cache, LRU_REGULAR)->ep_lruprev->ep_lrunext = NULL;
+    }
+    if (e)
         LRU_DETACH(cache, e);
-    }
-    /* Now check if we need to remove preserved entries
-     * These entries are sorted for the less costly to the more costly
-     * so lets loop on trying to remove the first entry
-     */
-    while (CACHE_FULL(cache) && !CACHE_LRU_EOQ(cache, 1, pe)) {
-        lru_delete(cache, pe, ENTRY_CACHE);
-        pe->ep_lrunext = (struct backcommon *)e;
-        pe->ep_lruprev = NULL;
-        if (e) {
-            e->ep_lruprev = (struct backcommon *)pe;
-        }
-        e = (struct backentry *)pe;
-        ASSERT(e->ep_refcnt == 0);
-        e->ep_refcnt++;
-        if (entrycache_remove_int(cache, e) < 0) {
-            e->ep_refcnt--;
-            e = BACK_LRU_NEXT(e, struct backentry *);
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "entrycache_flush", "Unable to delete entry\n");
-            break;
-        }
-        pe = CACHE_LRU_HEAD(cache, LRU_PRESERVED, struct backentry *);
-    }
-
     LOG("<= entrycache_flush (down to %lu entries, %lu bytes)\n",
         cache->c_stats.nentries, cache->c_stats.size);
     return e;
@@ -927,6 +802,7 @@ entrycache_clear_int(struct cache *cache)
     size_t size = cache->c_stats.maxsize;
 
     cache->c_stats.maxsize = 0;
+    pinned_flush(cache);
     eflush = entrycache_flush(cache);
     while (eflush) {
         eflushtemp = BACK_LRU_NEXT(eflush, struct backentry *);
@@ -959,7 +835,7 @@ cache_clear(struct cache *cache, int type)
 }
 
 static void
-erase_cache(struct cache *cache, CacheType type)
+erase_cache(struct cache *cache, int type)
 {
     if (CACHE_TYPE_ENTRY == type) {
         entrycache_clear_int(cache);
@@ -1016,6 +892,7 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
     LOG("entry cache size set to %" PRIu64 "\n", bytes);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {
+        pinned_flush(cache);
         eflush = entrycache_flush(cache);
     }
     while (eflush) {
@@ -1064,8 +941,10 @@ cache_set_max_entries(struct cache *cache, int64_t entries, bool autotuned)
     }
 
     /* check for full cache, and clear out if necessary */
-    if (CACHE_FULL(cache))
+    if (CACHE_FULL(cache)) {
+        pinned_flush(cache);
         eflush = entrycache_flush(cache);
+    }
     cache_unlock(cache);
     while (eflush) {
         eflushtemp = BACK_LRU_NEXT(eflush, struct backentry *);
@@ -1194,45 +1073,6 @@ debug_pattern_matches(struct cache *cache, const char *dn)
     return false;
 }
 
-#ifdef LDAP_CACHE_DEBUG_LRU_EVICTION
-static void
-debug_verify_entrycache_lru(int level, struct cache *cache, LRUQueueType lruid, int lineno)
-{
-    struct backentry *e = CACHE_LRU_HEAD(cache, lruid, struct backentry*);
-    int n = 0;
-    uint64_t wmax = 0;
-
-    /* Verify link consistency, count the entries and grab maximum weight */
-    for (; !CACHE_LRU_EOQ(cache, lruid, e); e = BACK_LRU_NEXT(e, struct backentry *)) {
-        ASSERT(e);
-        ASSERT(e->lru_prev);
-        ASSERT(e->lru_next);
-        ASSERT(e->lru_next->lru_prev == (struct backcommon *)e);
-        ASSERT(e->lru_prev->lru_next == (struct backcommon *)e);
-        if (e->ep_weight > wmax) {
-            wmax = e->ep_weight;
-        }
-        n++;
-        ASSERT(n>0);   /* Make sure there is no infinite loop */
-    }
-    /* If counts are incostistents, logs some data, dump the preserved list and abort */
-    if (lruid == LRU_PRESERVED && cache->c_nbpreserved != n) {
-        slapi_log_err(level, (char*)__func__, "[%d] %s cache %p preserved: (nb=%ld max=%d) "
-                      "contains %d entries (maxweight is %lu)\n", lineno,
-                      (lruid ? "Preserved" : "Regular") , cache, cache->c_nbpreserved,
-                      cache->c_inst->cache_preserved_entries, n, wmax);
-        e = CACHE_LRU_HEAD(cache, lruid, struct backentry*);
-        for (n=0; !CACHE_LRU_EOQ(cache, lruid, e); e = BACK_LRU_NEXT(e, struct backentry *)) {
-            slapi_log_err(level, (char*)__func__, "%s backentry [%d] %p size=%lu weight=%lu dn=%s\n",
-                          (lruid ? "Preserved" : "Regular") , n++, e, e->ep_size,
-                          e->ep_weight, backentry_get_ndn(e));
-            n++;
-        }
-        ASSERT(cache->c_nbpreserved == n);
-    }
-}
-#endif
-
 /* remove an entry from the cache */
 /* you must be holding c_mutex !! */
 static int
@@ -1249,12 +1089,6 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
                " cache with size: %lu, weight: %lu, dn:%s\n",
                AV_WEIGHT(cache), e->ep_size, e->ep_weight,
                backentry_get_ndn(e));
-#ifdef LDAP_CACHE_DEBUG_LRU_EVICTION
-    if (debug_pattern_matches(cache, backentry_get_ndn(e))) {
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_PRESERVED, __LINE__);
-        debug_verify_entrycache_lru(SLAPI_LOG_INFO, cache, LRU_REGULAR, __LINE__);
-    }
-#endif
     LOG("=> entrycache_remove_int (%s) (%u) (%u)\n", backentry_get_ndn(e), e->ep_id, e->ep_refcnt);
     if (e->ep_state & ENTRY_STATE_NOTINCACHE) {
         return ret;
@@ -1316,6 +1150,145 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
 #endif
     LOG("<= entrycache_remove_int: %d\n", ret);
     return ret;
+}
+
+/* Remove the entry from pinned table.
+ * Assume lock is held
+ */
+void
+pinned_remove(struct cache *cache, void *ptr)
+{
+    struct backentry *e = (struct backentry *)ptr;
+    ASSERT(e->ep_state & ENTRY_STATE_PINNED);
+    cache->c_pinned_ctx->npinned--;
+    cache->c_pinned_ctx->size -= e->ep_size;
+    e->ep_state &= ~ENTRY_STATE_PINNED;
+    LOGPATTERN(cache, backentry_get_ndn(e),
+               "Removing entry %s weight: %lu from pinned entries\n",
+               backentry_get_ndn(e), e->ep_weight);
+
+    if (cache->c_pinned_ctx->head == e) {
+        if (cache->c_pinned_ctx->tail == e) {
+            cache->c_pinned_ctx->head = cache->c_pinned_ctx->tail = NULL;
+        } else {
+            cache->c_pinned_ctx->head = BACK_LRU_NEXT(e, struct backentry *);
+        }
+    } else if (cache->c_pinned_ctx->tail == e) {
+        cache->c_pinned_ctx->tail = BACK_LRU_PREV(e, struct backentry *);
+    } else {
+        BACK_LRU_PREV(e, struct backentry *)->ep_lrunext = BACK_LRU_NEXT(e, struct backcommon *);
+        BACK_LRU_NEXT(e, struct backentry *)->ep_lruprev = BACK_LRU_PREV(e, struct backcommon *);
+    }
+    e->ep_lrunext = e->ep_lruprev = NULL;
+    if (e->ep_refcnt == 0) {
+        lru_add(cache, ptr);
+    }
+}
+
+/* Ensure pinned entries respects the cache memory and maxentrie limits
+ * May put entries back in the lru so this function should be called 
+ * just before calling entrycache_flush
+ */
+void
+pinned_flush(struct cache *cache)
+{
+    uint64_t maxpinned = cache->c_inst->cache_pinned_entries;
+
+    pinned_verify(cache, __LINE__);
+    if (cache->c_stats.maxentries >= 0 && cache->c_stats.maxentries < maxpinned) {
+        maxpinned = cache->c_stats.maxentries;
+    }
+    while (cache->c_pinned_ctx->npinned > maxpinned) {
+        pinned_remove(cache, cache->c_pinned_ctx->head);
+    }
+    pinned_verify(cache, __LINE__);
+    while (cache->c_pinned_ctx->size > (cache)->c_stats.maxsize) {
+        pinned_remove(cache, cache->c_pinned_ctx->head);
+    }
+    pinned_verify(cache, __LINE__);
+}
+
+/* Check if entry should be pinned and eventuially add it in the
+ *  pinned entry list
+ * Returns true if the entry is pinned
+ * Assume lock is held
+ */
+bool
+pinned_add(struct cache *cache, void *ptr)
+{
+    struct backentry *e = (struct backentry *)ptr;
+    struct backentry *e2 = NULL;
+    uint64_t maxpinned = cache->c_inst->cache_pinned_entries;
+
+    if (cache->c_stats.maxentries >= 0 && cache->c_stats.maxentries < maxpinned) {
+        maxpinned = cache->c_stats.maxentries;
+    }
+
+    if (cache->c_pinned_ctx->npinned > maxpinned) {
+        pinned_flush(cache);
+    }
+    pinned_verify(cache, __LINE__);
+    if (cache->c_inst->cache_pinned_entries == 0) {
+        return false;
+    }
+    if (e->ep_weight == 0) {
+        /* Do not bother to store entries without weight in the pinned array */
+        return false;
+    }
+    if (e->ep_state & ENTRY_STATE_PINNED) {
+        /* Entry is already pinned ==> nothingh to do */
+        return true;
+    }
+    if ((cache->c_pinned_ctx->head) &&
+        (cache->c_pinned_ctx->npinned >= maxpinned) &&
+        (cache->c_pinned_ctx->head->ep_weight >= e->ep_weight)) {
+            return false;
+    }
+    /* Now it is time to insert the entry in the pinned list */
+    cache->c_pinned_ctx->npinned++;
+    cache->c_pinned_ctx->size += e->ep_size;
+    e->ep_state |= ENTRY_STATE_PINNED;
+    e2 = cache->c_pinned_ctx->head;
+    if (e2 == NULL) {
+        cache->c_pinned_ctx->head = cache->c_pinned_ctx->tail = e;
+        e->ep_lrunext = e->ep_lruprev = NULL;
+        LOGPATTERN(cache, backentry_get_ndn(e),
+                   "Adding entry %s weight: %lu from pinned entries\n",
+                   backentry_get_ndn(e), e->ep_weight);
+        pinned_flush(cache);
+        pinned_verify(cache, __LINE__);
+        return true;
+    }
+    for (;;) {
+        if (e2->ep_weight > e->ep_weight) {
+            /* Should insert e before e2 */
+            e->ep_lrunext = (struct backcommon*)e2;
+            e->ep_lruprev = e2->ep_lruprev;
+            e2->ep_lruprev = (struct backcommon*)e;
+            if (e->ep_lruprev == NULL) {
+                cache->c_pinned_ctx->head = e;
+            } else {
+                e->ep_lruprev->ep_lrunext = (struct backcommon*)e;
+            }
+            break;
+        } else if (e2->ep_lrunext == NULL) {
+            /* Should add e after e2 */
+            e2->ep_lrunext = (struct backcommon*)e;
+            e->ep_lruprev = (struct backcommon*)e2;
+            e->ep_lrunext = NULL;
+            cache->c_pinned_ctx->tail = e;
+            break;
+        } else {
+            e2 = BACK_LRU_NEXT(e2, struct backentry*);
+        }
+    }
+    pinned_verify(cache, __LINE__);
+    pinned_flush(cache);
+    pinned_verify(cache, __LINE__);
+    LOGPATTERN(cache, backentry_get_ndn(e),
+               "Adding entry %s weight: %lu from pinned entries\n",
+               backentry_get_ndn(e), e->ep_weight);
+    return true;
 }
 
 /* remove an entry/a dn from the cache.
@@ -1452,7 +1425,8 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
      * which could happen since the entry is not necessarily locked.
      * This is ok.
      */
-    olde->ep_state = ENTRY_STATE_DELETED; /* olde is removed from the cache, so set DELETED here. */
+    olde->ep_state &= ~ENTRY_STATE_UNAVAILABLE;  /* Reset the state */
+    olde->ep_state |= ENTRY_STATE_DELETED; /* olde is removed from the cache, so set DELETED here. */
     if (!found) {
         if (olde->ep_state & ENTRY_STATE_DELETED) {
             LOG("entry cache replace (%s): cache index tables out of sync - found dn [%d] id [%d]; but the entry is alreay deleted.\n",
@@ -1519,7 +1493,7 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
     } else if (newe->ep_size < olde->ep_size) {
         cache->c_stats.size -= olde->ep_size - newe->ep_size;
     }
-    newe->ep_state = 0;
+    newe->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
     cache_unlock(cache);
     LOG("<= entrycache_replace OK,  cache size now %lu cache count now %ld\n",
         cache->c_stats.size, cache->c_stats.nentries);
@@ -1558,9 +1532,6 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
         slapi_log_err(SLAPI_LOG_ERR, "entrycache_return", "Backentry is NULL\n");
         return;
     }
-
-    ASSERT(!CACHE_LRU_EOQ(cache, LRU_REGULAR, e));
-    ASSERT(!CACHE_LRU_EOQ(cache, LRU_PRESERVED, e));
     LOG("entrycache_return - (%s) entry count: %d, entry in cache:%ld\n",
         backentry_get_ndn(e), e->ep_refcnt, cache->c_stats.nentries);
 
@@ -1593,13 +1564,21 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
                 }
                 backentry_free(bep);
             } else {
-                lru_add(cache, e, ENTRY_CACHE);
+                pinned_verify(cache, __LINE__);
+                if (!pinned_add(cache, e)) {
+                    lru_add(cache, e);
+                }
+                pinned_verify(cache, __LINE__);
                 /* the cache might be overfull... */
-                if (CACHE_FULL(cache))
+                if (CACHE_FULL(cache)) {
+                    pinned_flush(cache);
                     eflush = entrycache_flush(cache);
+                }
+                pinned_verify(cache, __LINE__);
             }
         }
     }
+    pinned_verify(cache, __LINE__);
     if (locked == PR_FALSE) {
         cache_unlock(cache);
     }
@@ -1608,6 +1587,7 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
         backentry_free(&eflush);
         eflush = eflushtemp;
     }
+    pinned_verify(cache, __LINE__);
     LOG("entrycache_return - returning.\n");
 }
 
@@ -1624,14 +1604,14 @@ cache_find_dn(struct cache *cache, const char *dn, unsigned long ndnlen)
     cache_lock(cache);
     if (find_hash(cache->c_dntable, (void *)dn, ndnlen, (void **)&e)) {
         /* need to check entry state */
-        if (e->ep_state != 0) {
+        if ((e->ep_state & ENTRY_STATE_UNAVAILABLE) != 0) {
             /* entry is deleted or not fully created yet */
             cache_unlock(cache);
             LOG("<= cache_find_dn (NOT FOUND)\n");
             return NULL;
         }
-        if (e->ep_refcnt == 0)
-            lru_delete(cache, (void *)e, ENTRY_CACHE);
+        if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
+            lru_delete(cache, (void *)e);
         e->ep_refcnt++;
         cache->c_stats.hits++;
     }
@@ -1654,14 +1634,14 @@ cache_find_id(struct cache *cache, ID id)
     cache_lock(cache);
     if (find_hash(cache->c_idtable, &id, sizeof(ID), (void **)&e)) {
         /* need to check entry state */
-        if (e->ep_state != 0) {
+        if ((e->ep_state & ENTRY_STATE_UNAVAILABLE) != 0) {
             /* entry is deleted or not fully created yet */
             cache_unlock(cache);
             LOG("<= cache_find_id (NOT FOUND)\n");
             return NULL;
         }
-        if (e->ep_refcnt == 0)
-            lru_delete(cache, (void *)e, ENTRY_CACHE);
+        if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
+            lru_delete(cache, (void *)e);
         e->ep_refcnt++;
         cache->c_stats.hits++;
     }
@@ -1684,14 +1664,14 @@ cache_find_uuid(struct cache *cache, const char *uuid)
     cache_lock(cache);
     if (find_hash(cache->c_uuidtable, uuid, strlen(uuid), (void **)&e)) {
         /* need to check entry state */
-        if (e->ep_state != 0) {
+        if ((e->ep_state & ENTRY_STATE_UNAVAILABLE) != 0) {
             /* entry is deleted or not fully created yet */
             cache_unlock(cache);
             LOG("<= cache_find_uuid (NOT FOUND)\n");
             return NULL;
         }
-        if (e->ep_refcnt == 0)
-            lru_delete(cache, (void *)e, ENTRY_CACHE);
+        if (e->ep_refcnt == 0 && (entry->ep_state & ENTRY_STATE_PINNED) == 0)
+            lru_delete(cache, (void *)e);
         e->ep_refcnt++;
         cache->c_stats.hits++;
     }
@@ -1717,6 +1697,9 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
     size_t entry_size = 0;
     int already_in = 0;
     Slapi_Attr *attr = NULL;
+
+    LOG("=> entrycache_add_int( \"%s\", %ld )\n", backentry_get_ndn(e),
+        (long int)e->ep_id);
 
     if (e->ep_size == 0) {
         /*
@@ -1768,9 +1751,10 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
                  *    ==> increase the refcnt
                  */
                 if (e->ep_refcnt == 0)
-                    lru_delete(cache, (void *)e, ENTRY_CACHE);
+                    lru_delete(cache, (void *)e);
                 e->ep_refcnt++;
-                e->ep_state = state; /* might be CREATING */
+                e->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
+                e->ep_state |= state; /* might be CREATING */
                 /* returning 1 (entry already existed), but don't set to alt
                  * to prevent that the caller accidentally thinks the existing
                  * entry is not the same one the caller has and releases it.
@@ -1793,8 +1777,8 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
             } else {
                 if (alt) {
                     *alt = my_alt;
-                    if ((*alt)->ep_refcnt == 0)
-                        lru_delete(cache, (void *)*alt, ENTRY_CACHE);
+                    if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
+                        lru_delete(cache, (void *)*alt);
                     (*alt)->ep_refcnt++;
                     LOG("the entry %s already exists.  returning existing entry %s (state: 0x%x)\n",
                         ndn, backentry_get_ndn(my_alt), state);
@@ -1868,7 +1852,8 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
 #endif
     }
 
-    e->ep_state = state;
+    e->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
+    e->ep_state |= state;
 
     if (!already_in) {
         e->ep_refcnt = 1;
@@ -1889,8 +1874,10 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
                 cache->c_stats.nentries, cache->c_stats.maxentries);
         }
         /* check for full cache, and clear out if necessary */
-        if (CACHE_FULL(cache))
+        if (CACHE_FULL(cache)) {
+            pinned_flush(cache);
             eflush = entrycache_flush(cache);
+        }
     }
     cache_unlock(cache);
 
@@ -2166,7 +2153,7 @@ dncache_return(struct cache *cache, struct backdn **bdn)
                 }
                 backdn_free(bdn);
             } else {
-                lru_add(cache, (void *)*bdn, DN_CACHE);
+                lru_add(cache, (void *)*bdn);
                 /* the cache might be overfull... */
                 if (CACHE_FULL(cache)) {
                     dnflush = dncache_flush(cache);
@@ -2200,7 +2187,7 @@ dncache_find_id(struct cache *cache, ID id)
             return NULL;
         }
         if (bdn->ep_refcnt == 0)
-            lru_delete(cache, (void *)bdn, DN_CACHE);
+            lru_delete(cache, (void *)bdn);
         bdn->ep_refcnt++;
         cache->c_stats.hits++;
     }
@@ -2247,7 +2234,7 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backd
                  *    ==> increase the refcnt
                  */
                 if (bdn->ep_refcnt == 0)
-                    lru_delete(cache, (void *)bdn, DN_CACHE);
+                    lru_delete(cache, (void *)bdn);
                 bdn->ep_refcnt++;
                 bdn->ep_state = state; /* might be CREATING */
                 /* returning 1 (entry already existed), but don't set to alt
@@ -2272,7 +2259,7 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backd
                 if (alt) {
                     *alt = my_alt;
                     if ((*alt)->ep_refcnt == 0)
-                        lru_delete(cache, (void *)*alt, DN_CACHE);
+                        lru_delete(cache, (void *)*alt);
                     (*alt)->ep_refcnt++;
                 }
                 cache_unlock(cache);
@@ -2374,8 +2361,7 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
 static struct backdn *
 dncache_flush(struct cache *cache)
 {
-    struct backdn *dn = (struct backdn *)CACHE_LRU_Q(cache, LRU_REGULAR);
-    bool noentryremoved = true;
+    struct backdn *dn = NULL;
 
     LOG("->\n");
 
@@ -2384,10 +2370,11 @@ dncache_flush(struct cache *cache)
      * until the cache is a managable size again.
      * (cache->c_mutex is locked when we enter this)
      */
-    while (CACHE_FULL(cache)) {
-        dn = BACK_LRU_PREV(dn, struct backdn *);
-        if (CACHE_LRU_EOQ(cache, LRU_REGULAR, dn)) {
-            break;
+    while ((cache->c_lrutail != NULL) && CACHE_FULL(cache)) {
+        if (dn == NULL) {
+            dn = CACHE_LRU_TAIL(cache, struct backdn *);
+        } else {
+            dn = BACK_LRU_PREV(dn, struct backdn *);
         }
         ASSERT(dn->ep_refcnt == 0);
         dn->ep_refcnt++;
@@ -2395,18 +2382,12 @@ dncache_flush(struct cache *cache)
             slapi_log_err(SLAPI_LOG_ERR, "dncache_flush", "Unable to delete entry\n");
             break;
         }
-        noentryremoved = false;
-    }
-    if (noentryremoved) {
-        dn = NULL;
-    } else {
-        if (dn == (struct backdn *)CACHE_LRU_Q(cache, LRU_REGULAR)) {
-            dn = BACK_LRU_NEXT(dn, struct backdn *);
+        if (dn == CACHE_LRU_HEAD(cache, struct backdn *)) {
+            break;
         }
-        ASSERT(!CACHE_LRU_EOQ(cache, LRU_REGULAR, dn));
-        CACHE_LRU_Q(cache, LRU_REGULAR)->ep_lruprev->ep_lrunext = NULL;
-        LRU_DETACH(cache, dn);
     }
+    if (dn)
+        LRU_DETACH(cache, dn);
     LOG("(down to %lu dns, %lu bytes)\n", cache->c_stats.nentries,
         cache->c_stats.size);
     return dn;
@@ -2418,27 +2399,27 @@ dncache_flush(struct cache *cache)
  * should NOT be in the list.
  */
 static void
-dn_lru_verify(struct cache *cache, struct backdn *dn, bool in)
+dn_lru_verify(struct cache *cache, struct backdn *dn, int in)
 {
-    bool is_in = false;
+    int is_in = 0;
     int count = 0;
     struct backdn *dnp;
 
-    dnp = CACHE_LRU_HEAD(cache, LRU_REGULAR, struct backdn *);
-    while (!CACHE_LRU_EOQ(cache, LRU_REGULAR, dnp)) {
+    dnp = CACHE_LRU_HEAD(cache, struct backdn *);
+    while (dnp) {
         count++;
         if (dnp == dn) {
-            is_in = true;
+            is_in = 1;
         }
         if (dnp->ep_lruprev) {
             ASSERT(BACK_LRU_NEXT(BACK_LRU_PREV(dnp, struct backdn *), struct backdn *) == dnp);
         } else {
-            ASSERT(dnp == CACHE_LRU_HEAD(cache, LRU_REGULAR, struct backdn *));
+            ASSERT(dnp == CACHE_LRU_HEAD(cache, struct backdn *));
         }
         if (dnp->ep_lrunext) {
             ASSERT(BACK_LRU_PREV(BACK_LRU_NEXT(dnp, struct backdn *), struct backdn *) == dnp);
         } else {
-            ASSERT(dnp == CACHE_LRU_TAIL(cache, LRU_REGULAR, struct backdn *));
+            ASSERT(dnp == CACHE_LRU_TAIL(cache, struct backdn *));
         }
 
         dnp = BACK_LRU_NEXT(dnp, struct backdn *);

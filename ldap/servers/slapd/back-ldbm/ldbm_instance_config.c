@@ -327,16 +327,16 @@ ldbm_instance_config_require_internalop_index_set(void *arg,
 }
 
 static void *
-ldbm_config_cache_preserved_entries_get(void *arg)
+ldbm_config_cache_pinned_entries_get(void *arg)
 {
     struct ldbm_instance *inst = (struct ldbm_instance *)arg;
 
-    return (void *)((uintptr_t)(inst->cache_preserved_entries));
+    return (void *)((uintptr_t)(inst->cache_pinned_entries));
 
 }
 
 static int
-ldbm_config_cache_preserved_entries_set(void *arg,
+ldbm_config_cache_pinned_entries_set(void *arg,
                                void *value,
                                char *errorbuf,
                                int phase __attribute__((unused)),
@@ -348,14 +348,14 @@ ldbm_config_cache_preserved_entries_set(void *arg,
     if (val < 0) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                               "Error: Invalid value for %s (%ld). The value must not be negative\n",
-                              CONFIG_INSTANCE_CACHE_PRESERVED_ENTRIES, val);
+                              CONFIG_INSTANCE_CACHE_PINNED_ENTRIES, val);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_cache_weight_threshold_set",
                       "Invalid value for %s (%ld). The value must not be negative\n",
-                      CONFIG_INSTANCE_CACHE_PRESERVED_ENTRIES, val);
+                      CONFIG_INSTANCE_CACHE_PINNED_ENTRIES, val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
     if (apply) {
-        inst->cache_preserved_entries = val;
+        inst->cache_pinned_entries = val;
     }
     return LDAP_SUCCESS;
 }
@@ -425,7 +425,7 @@ static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_REQUIRE_INTERNALOP_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_internalop_index_get, &ldbm_instance_config_require_internalop_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_UINT64, DEFAULT_DNCACHE_SIZE_STR, &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_INSTANCE_CACHE_PRESERVED_ENTRIES, CONFIG_TYPE_INT, DEFAULT_CACHE_PRESERVED_ENTRIES_STR, &ldbm_config_cache_preserved_entries_get, &ldbm_config_cache_preserved_entries_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_CACHE_PINNED_ENTRIES, CONFIG_TYPE_INT, DEFAULT_CACHE_PINNED_ENTRIES_STR, &ldbm_config_cache_pinned_entries_get, &ldbm_config_cache_pinned_entries_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_CACHE_DEBUG_PATTERN, CONFIG_TYPE_STRING, NULL, &ldbm_config_cache_debug_pattern_get, &ldbm_config_cache_debug_pattern_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
