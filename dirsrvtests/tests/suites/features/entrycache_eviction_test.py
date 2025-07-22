@@ -187,6 +187,7 @@ def test_entry_cache_eviction(topology_st, prepare_be):
     inst = topology_st.standalone
     bename, suffix, be1, people_base, groups_base = prepare_be
 
+    be1.replace('nsslapd-cache-preserved-entries', '10')
     # Search all groups then all people to try to evict the groups from entrycache
     inst.search_s(groups_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')
     inst.search_s(people_base, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'], escapehatch='i am sure')

@@ -145,7 +145,7 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_CACHE_SIZE       (uint64_t)0
 #define DEFAULT_CACHE_SIZE_STR   "0"
 #define DEFAULT_CACHE_ENTRIES    -1 /* no limit */
-#define DEFAULT_CACHE_PRESERVED_ENTRIES_STR "10"
+#define DEFAULT_CACHE_PRESERVED_ENTRIES_STR "0"
 #define DEFAULT_DNCACHE_SIZE     (uint64_t)16777216
 #define DEFAULT_DNCACHE_SIZE_STR "16777216"
 #define DEFAULT_DNCACHE_MAXCOUNT -1 /* no limit */
