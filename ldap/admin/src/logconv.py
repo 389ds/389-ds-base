@@ -19,7 +19,7 @@ from collections import defaultdict, Counter
 import datetime
 from dataclasses import dataclass, field
 import heapq
-from typing import Optional, Dict, List, Set, Tuple, DefaultDict
+from typing import Optional, Dict, List, Set, Tuple, DefaultDict, Union
 import magic
 import json
 import inspect
@@ -350,47 +350,39 @@ class AuthData:
     counters: Dict[str, int] = field(default_factory=lambda: defaultdict(
         int,
         {
-            'ssl_client_bind_ctr': 0,
-            'ssl_client_bind_failed_ctr': 0,
-            'cipher_ctr': 0
+            'client_bind': 0,
+            'cert_map_fail': 0,
+            'cipher': 0
         }
     ))
     auth_info: DefaultDict[str, str] = field(default_factory=lambda: defaultdict(str))
 
 class logAnalyser:
     """
-    A class to parse and analyse log files with configurable options.
+    Parses and analyses log files with configurable options.
 
     Attributes:
-        verbose (Optional[bool]): Enable verbose data gathering and reporting.
-        recommends (Optional[bool]): Provide some recommendations post analysis.
-        size_limit (Optional[int]): Maximum size of entries to report.
-        root_dn (Optional[str]): Directory Managers DN.
-        exclude_ip (Optional[str]): IPs to exclude from analysis.
-        stats_file_sec (Optional[str]): Interval (in seconds) for statistics reporting.
-        stats_file_min (Optional[str]): Interval (in minutes) for statistics reporting.
-        report_dn (Optional[str]): Generate a report on DN activity.
+        verbose (bool): Enable verbose data gathering and reporting. Defaults to False.
+        recommends (bool): Enable post-analysis recommendations. Defaults to False.
+        size_limit (Optional[int]): Maximum size of entries to report. Defaults to None.
+        root_dn (Optional[str]): Directory Manager's DN. Defaults to None.
+        exclude_ip (Optional[List[str]]): List of IPs to exclude from analysis. Defaults to empty list.
+        stats_file_sec (Optional[str]): Interval in seconds for statistics reporting. Defaults to None.
+        stats_file_min (Optional[str]): Interval in minutes for statistics reporting. Defaults to None.
+        report_dn (Optional[str]): DN for generating reports. Defaults to None.
+        regexes (dict): Mapping of keys to tuples of (compiled regex pattern, handler function) for parsing legacy log formats.
+        json_handlers (dict): Mapping of JSON log operations to handler function.
     """
     def __init__(self,
-                 verbose: Optional[bool] = False,
-                 recommends: Optional[bool] = False,
+                 verbose: bool = False,
+                 recommends: bool = False,
                  size_limit: Optional[int] = None,
                  root_dn: Optional[str] = None,
                  exclude_ip: Optional[List[str]] = None,
                  stats_file_sec: Optional[str] = None,
                  stats_file_min: Optional[str] = None,
                  report_dn: Optional[str] = None):
-        """
-        Args:
-            verbose (bool): Enable verbose logging.
-            recommends (bool): Enable performance recommendations.
-            size_limit (int): Limit on search result size.
-            root_dn (str): Directory manager DN.
-            exclude_ip (List[str]): IP addresses to exclude from analysis.
-            stats_file_sec (str): Stats output file (seconds granularity).
-            stats_file_min (str): Stats output file (minutes granularity).
-            report_dn (str): DN to report bind usage for.
-        """
+
         self.verbose = verbose
         self.recommends = recommends
         self.size_limit = size_limit
@@ -425,7 +417,13 @@ class logAnalyser:
 
     def _setup_logger(self, log_level: int):
         """
-        Setup logging
+        Setup logging.
+
+        Args:
+            log_level (int): Log level
+
+        Returns:
+            logger object.
         """
         logger = logging.getLogger("logAnalyser")
         formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
@@ -471,15 +469,20 @@ class logAnalyser:
         internal state updates.
 
         Returns:
-            dict: A mapping of pattern names to (compiled regex, match handler function) tuples.
+            dict: A mapping of pattern names to (regex, match handler function) tuple.
         """
         # Reusable patterns
         TIMESTAMP_PATTERN = r'''
-            \[(?P<timestamp>(?P<day>\d{2})\/(?P<month>[A-Za-z]{3})\/(?P<year>\d{4}):(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})\.(?P<nanosecond>\d{9})\s(?P<timezone>[+-]\d{4}))\]
+            \[
+                (?P<timestamp>
+                    \d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2}\.\d{9}
+                    \s[+-]\d{4}
+                )
+            \]
         '''
         CONN_ID_PATTERN = r'\sconn=(?P<conn_id>\d+)'
         CONN_ID_INTERNAL_PATTERN = r'\sconn=(?P<conn_id>\d+|Internal\(\d+\))'
-        OP_ID_PATTERN = r'\sop=(?P<op_id>\d+)'
+        OP_ID_PATTERN = r'\s+op=(?P<op_id>-?\d+)'
 
         return {
             'RESULT_REGEX': (re.compile(rf'''
@@ -543,13 +546,13 @@ class logAnalyser:
             ''', re.VERBOSE), self._process_connect_legacy),
             'DISCONNECT_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
-                {CONN_ID_PATTERN}                                   # conn=int
-                \s+op=(?P<op_id>-?\d+)                              # op=int
-                \s+fd=(?P<fd>\d+)                                   # fd=int
-                \s*(?P<status>closed|Disconnect)                    # closed|Disconnect
-                \s*-\s*                                             # dash separator after status
-                \s(?:.*?-\s*)*?                                     # skip any intermediate bits
-                \s*(?P<close_reason>[^-]+?\s*-\s*[A-Z]\d)\s*$
+                {CONN_ID_PATTERN}
+                {OP_ID_PATTERN} 
+                \s+fd=(?P<fd>\d+)
+                \s+(?P<status>closed|Disconnect)
+                \s*-\s*
+                (?P<close_reason>.+)
+                $
             ''', re.VERBOSE), self._process_disconnect_legacy),
             'EXTEND_OP_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
@@ -557,7 +560,7 @@ class logAnalyser:
                 {OP_ID_PATTERN}                                     # op=int
                 \sEXT                                               # EXT
                 \soid="(?P<oid>[^"]+)"                              # oid="string"
-                \sname="(?P<name>[^"]+)"                            # namme="string"
+               (?:\sname="(?P<name>[^"]+)")?                        # Optional: namme="string"
             ''', re.VERBOSE), self._process_extend_op_legacy),
             'AUTOBIND_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
@@ -567,12 +570,20 @@ class logAnalyser:
             ''', re.VERBOSE), self._process_autobind_legacy),
             'AUTH_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
-                {CONN_ID_PATTERN}                                   # conn=int
-                \s+(?P<auth_protocol>SSL|TLS)                       # Match SSL or TLS
-                (?P<auth_version>\d(?:\.\d)?)?                      # Capture the version (X.Y)
-                \s+                                                 # Match one or more spaces
-                (?P<auth_message>.+)                                # Capture an associated message
-            ''', re.VERBOSE), self._process_auth_entry),
+                {CONN_ID_PATTERN} 
+                \s+(?P<tls_version>TLS\d+(?:\.\d+)?)     # TLS1.3
+                (?:
+                    \s+(?P<keysize>\d+)-bit
+                    \s+(?P<cipher>[A-Za-z0-9\-]+)
+                    (?:;\s*client\s+CN=(?P<subject>[^;]+))?
+                    (?:;\s*issuer\s+CN=(?P<issuer>[^;]+))?
+                    |
+                    \s+(?P<msg>
+                        client\s+bound\s+as\s+.+ |
+                        failed\s+to\s+map\s+client\s+certificate\s+to\s+LDAP\s+DN(?:\s*\(.*?\))?
+                    )
+                )?
+                ''', re.VERBOSE), self._process_auth_legacy),
             'VLV_REGEX': (re.compile(rf'''
                 {TIMESTAMP_PATTERN}
                 {CONN_ID_PATTERN}                                   # conn=int
@@ -625,7 +636,7 @@ class logAnalyser:
         Set up a mapping between JSON log operation types and their corresponding handler methods.
 
         Returns:
-            dict: A dictionary mapping operation types (str) to handler methods.
+            dict: A dictionary mapping operation types to handler methods.
         """
         return {
             "SEARCH": self._process_search_entry,
@@ -646,7 +657,9 @@ class logAnalyser:
             "COMPARE": self._process_crud_entry,
             "MODRDN": self._process_crud_entry,
             "ENTRY": self._process_entry_referral_entry,
-            "REFERRAL": self._process_entry_referral_entry
+            "REFERRAL": self._process_entry_referral_entry,
+            "TLS_INFO": self._process_auth_entry,
+            "TLS_CLIENT_INFO": self._process_auth_entry
         }
 
     def process_file(self, log_num: str, filepath: str):
@@ -784,7 +797,7 @@ class logAnalyser:
         Common logic to run after a line has been successfully matched and handled.
 
         Args:
-            timestamp_dt (datetime): Normalized timestamp of the log line.
+            timestamp (datetime): Normalized timestamp of the log line.
             bytes_read (int): Number of bytes read so far.
         """
         if self.server.first_time is None:
@@ -801,6 +814,10 @@ class logAnalyser:
         """
         Process a single access log line (JSON or legacy format).
 
+        Args:
+            line (str): Single log line.
+            bytes_read (int): Number of bytes read so far.
+
         Returns:
             bool: True if a match was found and processed, False otherwise.
         """
@@ -815,8 +832,11 @@ class logAnalyser:
             timestamp_raw = log_entry.get("local_time")
             if timestamp_raw:
                 try:
+                    # Convert raw timestamp to datetime object for easier comparison,
+                    # and remove the original 'local_time' entry
                     timestamp_dt = self.convert_timestamp_to_datetime(timestamp_raw)
                     log_entry["timestamp_dt"] = timestamp_dt
+                    del log_entry["local_time"] 
                 except (ValueError, TypeError) as e:
                     self.logger.error(f"Failed to convert timestamp to datetime: {timestamp_raw} - {e}")
                     return False
@@ -855,8 +875,11 @@ class logAnalyser:
                 timestamp_raw = groups.get('timestamp')
                 if timestamp_raw:
                     try:
+                        # Convert raw timestamp to datetime object for easier comparison,
+                        # and remove the original 'timestamp' entry
                         timestamp_dt = self.convert_timestamp_to_datetime(timestamp_raw)
                         groups["timestamp_dt"] = timestamp_dt
+                        del groups["timestamp"]
                     except (ValueError, TypeError) as e:
                         self.logger.error(f"Failed to convert timestamp to datetime: {timestamp_raw} - {e}")
                         return False
@@ -868,6 +891,7 @@ class logAnalyser:
                 action(groups)
 
                 self._finalise_match(timestamp_dt, bytes_read)
+
                 return True
 
         self.logger.debug(f"No match found on line: {line}")
@@ -879,11 +903,11 @@ class logAnalyser:
         Convert the given value string to an integer.
 
         Args:
-            value: The input value string to convert.
-            default: The value to return if conversion fails (default is None).
+            value: The input string to convert.
+            default: The value to return if conversion fails.
 
         Returns:
-            int: The integer conversion of value or default.
+            int: The int conversion of input string or default.
         """
         try:
             return int(value)
@@ -921,7 +945,7 @@ class logAnalyser:
             legacy_name (str): The legacy name of the control
 
         Returns:
-            str: The corresponding LDAP control name if known; otherwise, the original value.
+            str: The LDAP control name if known, else the original value.
         """
         control_name_map = {
             "persistent": "LDAP_CONTROL_PERSISTENTSEARCH",
@@ -942,11 +966,11 @@ class logAnalyser:
         Maps an LDAP control name to its corresponding counter key.
 
         Args:
-            control_name (str): The LDAP control name (LDAP_CONTROL_PERSISTENTSEARCH, etc).
+            control_name (str): The LDAP control name.
             default (str): Value to return if the control name is not found.
 
         Returns:
-            str: The counter key (persistent, etc) or default.
+            str: The counter key or default.
         """
         control_map = {
             "LDAP_CONTROL_PERSISTENTSEARCH": "persistent",
@@ -961,7 +985,7 @@ class logAnalyser:
 
     def extract_close_code(self, log_entry: dict, default=None):
         """
-        Extracts a close reason code from a log entry.
+        Extracts a close reason code from a legacy log entry.
 
         Args:
             log_entry (dict): Log entry containing 'close_reason'.
@@ -1031,8 +1055,8 @@ class logAnalyser:
         Notes:
             - Normalises legacy notes format into a list of note dicts.
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Normalises keys and formats to align with the newer JSON log entries.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -1070,6 +1094,8 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
+        del log_entry
+
         self._process_result_entry(log_entry_norm)
 
     def _process_result_entry(self, log_entry: dict):
@@ -1086,15 +1112,13 @@ class logAnalyser:
 
         timestamp_dt = log_entry.get("timestamp_dt", None)
         op_id = log_entry.get("op_id", None)
-        tag = log_entry.get("tag", None)
         bind_dn = log_entry.get("bind_dn", "")
-
-        err = log_entry.get("err", None)
-        nentries = log_entry.get("nentries", None)
+        etime = log_entry.get("etime", "")
         wtime = log_entry.get("wtime", "")
         optime = log_entry.get("optime", "")
-        etime = log_entry.get("etime", "")
-
+        nentries = log_entry.get("nentries", None)
+        tag = log_entry.get("tag", None)
+        err = log_entry.get("err", None)
         internal_op = log_entry.get("internal_op", None)
         notes = log_entry.get("notes", [])
 
@@ -1265,16 +1289,17 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Normalises keys and formats to align with the newer JSON log entries.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
-            "bind_dn": log_entry.get('bind_dn'),
-            "method": log_entry.get('bind_method'),
+            "bind_dn": log_entry.get('bind_dn', ""),
+            "method": log_entry.get('bind_method', ""),
+            "mech": log_entry.get('sasl_mech', ""),
             "version": self.convert_to_int(log_entry.get('bind_version', None))
         }
 
@@ -1286,6 +1311,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_bind_entry(log_entry_norm)
 
@@ -1301,9 +1328,9 @@ class logAnalyser:
         conn_id = log_entry.get("conn_id", None)
         op_id = log_entry.get("op_id",None)
         bind_dn = log_entry.get("bind_dn", "")
-        version = log_entry.get("version", None)
         method = log_entry.get("method", "")
         mech = log_entry.get("mech", "")
+        version = log_entry.get("version", None)
 
         # Tracking key
         conn_scope_key = log_entry.get("key", "")
@@ -1373,19 +1400,19 @@ class logAnalyser:
         Notes:
             - Normalises legacy request control format.
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Normalises keys and formats to align with the newer JSON log entries.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
             "base_dn": log_entry.get('search_base', ""),
             "scope": self.convert_to_int(log_entry.get('search_scope', None)),
             "filter": log_entry.get('search_filter', ""),
             "attrs": log_entry.get('search_attrs', []),
+            "authzid": log_entry.get("authzid", ""),
             "request_controls": [
                 {
                     "oid_name": self.map_legacy_control_name(log_entry.get('options', None))
@@ -1401,6 +1428,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_search_entry(log_entry_norm)
 
@@ -1534,7 +1563,7 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
@@ -1543,10 +1572,8 @@ class logAnalyser:
             "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "fd": self.convert_to_int(log_entry.get('fd', None)),
-            "slot": self.convert_to_int(log_entry.get('slot', "")),
             "tls": log_entry.get('ssl', None),
-            "client_ip": log_entry.get('src_ip', ""),
-            "server_ip": log_entry.get('dst_ip', ""),
+            "client_ip": log_entry.get('src_ip', "")
         }
 
         # Compute and inject connection scoped key
@@ -1557,10 +1584,9 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
+        del log_entry
+
         self._process_connect_entry(log_entry_norm)
-
-
-
 
     def _process_connect_entry(self, log_entry: dict):
         """
@@ -1592,10 +1618,7 @@ class logAnalyser:
             return None
 
         if self.verbose:
-            # Update open connection count
             self.connection.open_conns[client_ip] += 1
-
-            # Track the connection start time
             self.connection.start_time[conn_id] = timestamp_dt
 
         # Update general connection counters
@@ -1639,17 +1662,12 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
-        # Normalise legacy formats
-        log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
-            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
-            "op_id": self.convert_to_int(log_entry.get('op_id', None)),
-        }
+        log_entry_norm = {}
 
         # Compute and inject connection scoped key
         restart = self.server.counters['restart']
@@ -1660,7 +1678,10 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
+        del log_entry
+
         self._process_unbind_entry(log_entry_norm)
+
 
     def _process_unbind_entry(self, log_entry: dict):
         """
@@ -1681,6 +1702,52 @@ class logAnalyser:
         # Bump unbind count
         self.bind.counters['unbind'] += 1
 
+    def _process_auth_legacy(self, log_entry: dict):
+        """
+         Processes a legacy TLS/SSL log entry from access logs.
+
+        Args:
+            log_entry (dict): Parsed legacy log entry dictionary.
+
+        Notes:
+            - Converts legacy log string numeric fields to integers where appropriate.
+            - Normalises keys and formats to align with the newer JSON log entries.
+            - Delegates further handling to a unified bind processing method.
+        """
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+
+        # Hack to extract client_dn from legacy AUTH log entry
+        msg = log_entry.get("msg", "")
+        client_dn = None
+        if msg and msg.startswith("client bound as"):
+            match = re.search(r"client bound as (?P<client_dn>.+)", msg)
+            if match:
+                client_dn = match.group("client_dn")
+
+        log_entry_norm = {
+            "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
+            "tls_version": log_entry.get('tls_version', ""),
+            "keysize": self.convert_to_int(log_entry.get('keysize', None)),
+            "cipher": log_entry.get('cipher', ""),
+            "subject": log_entry.get('subject', ""),
+            "issuer": log_entry.get('issuer', ""),
+            "client_dn": client_dn,
+            "msg": log_entry.get('msg', ""),
+        }
+
+        # Compute and inject connection scoped key
+        restart = self.server.counters['restart']
+        conn_id = self.convert_to_int(log_entry.get('conn_id', None))
+
+        if restart is not None and conn_id is not None:
+            log_entry_norm["key"] = (restart, conn_id)
+        else:
+            log_entry_norm["key"] = None
+
+        del log_entry
+
+        self._process_auth_entry(log_entry_norm)
+
     def _process_auth_entry(self, log_entry: dict):
         """
         Processes an SSL log entry from access logs.
@@ -1690,9 +1757,13 @@ class logAnalyser:
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
-        auth_protocol = log_entry.get('auth_protocol', "")
-        auth_version = log_entry.get('auth_version', "")
-        auth_message = log_entry.get('auth_message', "")
+        tls_version = log_entry.get('tls_version', "")
+        keysize = log_entry.get('keysize', None)
+        cipher = log_entry.get('cipher', "")
+        subject = log_entry.get('subject', "")
+        issuer = log_entry.get('issuer', "")
+        client_dn = log_entry.get('client_dn', "")
+        msg = log_entry.get('msg', "")
 
         # Tracking key
         conn_scope_key = log_entry.get("key", "")
@@ -1701,29 +1772,49 @@ class logAnalyser:
         if conn_scope_key in self.connection.exclude_ip:
             return None
 
-        if auth_protocol:
+        if tls_version:
             if conn_scope_key not in self.auth.auth_info:
                 self.auth.auth_info[conn_scope_key] = {
-                    'proto': auth_protocol,
-                    'version': auth_version,
+                    'tls_version': tls_version,
+                    'keysize': keysize,
+                    'cipher': cipher,
                     'count': 0,
-                    'message': []
+                    'subject': subject,
+                    'issuer': issuer,
+                    'client_dn': client_dn,
+                    'msg': msg,
                     }
 
-            if auth_message:
-                # Increment counters and add auth message
-                self.auth.auth_info[conn_scope_key]['message'].append(auth_message)
+                if cipher:
+                    self.auth.counters['cipher'] += 1
+            else:
+                if tls_version:
+                    self.auth.auth_info[conn_scope_key]['tls_version'] = tls_version
+                if keysize:
+                    self.auth.auth_info[conn_scope_key]['keysize'] = keysize
+                if cipher:
+                    self.auth.auth_info[conn_scope_key]['cipher'] = cipher
+                if subject:
+                    self.auth.auth_info[conn_scope_key]['subject'] = subject
+                if issuer:
+                    self.auth.auth_info[conn_scope_key]['issuer'] = issuer
+                if client_dn:
+                    self.auth.auth_info[conn_scope_key]['client_dn'] = client_dn
+                if msg:
+                    self.auth.auth_info[conn_scope_key]['msg'] = msg
 
-            # Bump auth related counters
-            self.auth.counters['cipher_ctr'] += 1
-            self.auth.auth_info[conn_scope_key]['count'] += 1
+                if cipher:
+                    self.auth.counters['cipher'] += 1
 
-        if auth_message:
-            if auth_message == 'client bound as':
-                self.auth.counters['ssl_client_bind_ctr'] += 1
-            elif auth_message == 'failed to map client certificate to LDAP DN':
-                self.auth.counters['ssl_client_bind_failed_ctr'] += 1
-                self.auth.counters['ssl_client_bind_failed_ctr'] += 1
+            if cipher:
+                self.auth.auth_info[conn_scope_key]['count'] += 1
+
+            if client_dn:
+                self.auth.counters['client_bind'] += 1
+
+            if msg:
+                if "failed to map client certificate" in msg:
+                    self.auth.counters['cert_map_fail'] += 1
 
     def _process_vlv_legacy(self, log_entry: dict):
         """
@@ -1735,13 +1826,12 @@ class logAnalyser:
         Notes:
             - Normalises legacy vlv_request format.
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
             "vlv_request": {
@@ -1762,6 +1852,8 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
+        del log_entry
+
         self._process_vlv_entry(log_entry_norm)
 
     def _process_vlv_entry(self, log_entry: dict):
@@ -1779,9 +1871,8 @@ class logAnalyser:
 
         op_id = log_entry.get("op_id")
 
-        # Extract VLV request and response
+        # Extract VLV request
         vlv_req = log_entry.get("vlv_request", {})
-        vlv_res = log_entry.get("vlv_response", {})
 
         # Request Fields
         sort = vlv_req.get("request_sort", "")
@@ -1817,13 +1908,12 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
             "target_op": self.convert_to_int(log_entry.get('targetop', None)),
@@ -1838,6 +1928,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_abandon_entry(log_entry_norm)
 
@@ -1880,13 +1972,12 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
             "attribute": self.convert_to_int(log_entry.get('attribute', "")),
@@ -1901,6 +1992,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_sort_entry(log_entry_norm)
 
@@ -1931,7 +2024,7 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
@@ -1950,6 +2043,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_extend_op_entry(log_entry_norm)
 
@@ -2004,13 +2099,12 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "bind_dn": log_entry.get('bind_id', ""),
         }
@@ -2023,6 +2117,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_autobind_entry(log_entry_norm)
 
@@ -2049,17 +2145,12 @@ class logAnalyser:
         self.bind.counters['autobind'] += 1
         self.operation.counters['total'] += 1
 
-        # Track DN statistics
-        if bind_dn == "":
-            self.bind.counters['anon'] += 1
-        else:
-            # Process non-anonymous binds, does the bind_dn if exist in bind_dn_map
-            existing_bind_dn = self.bind.bind_dn_map.get(conn_scope_key, bind_dn)
-            if existing_bind_dn:
-                if existing_bind_dn.casefold() == self.root_dn.casefold():
-                    self.bind.counters['rootdn'] += 1
-                existing_bind_dn = existing_bind_dn.lower()
-                self.bind.dns[existing_bind_dn] += 1
+        existing_bind_dn = self.bind.bind_dn_map.get(conn_scope_key, bind_dn)
+        if existing_bind_dn:
+            if existing_bind_dn.casefold() == self.root_dn.casefold():
+                self.bind.counters['rootdn'] += 1
+            existing_bind_dn = existing_bind_dn.lower()
+            self.bind.dns[existing_bind_dn] += 1
 
     def _process_disconnect_legacy(self, log_entry: dict):
         """
@@ -2070,7 +2161,7 @@ class logAnalyser:
 
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
@@ -2093,6 +2184,8 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
+        del log_entry
+
         self._process_disconnect_entry(log_entry_norm)
 
     def _process_disconnect_entry(self, log_entry: dict):
@@ -2105,11 +2198,7 @@ class logAnalyser:
         self.logger.debug(f"_process_disconnect_entry - Start - {log_entry}")
 
         timestamp_dt = log_entry.get("timestamp_dt", None)
-        operation = log_entry.get("operation", "")
-        key = log_entry.get("key", "")
         conn_id = log_entry.get("conn_id", None)
-        op_id = log_entry.get("op_id",None)
-        fd = log_entry.get("fd", None)
         close_reason = log_entry.get("close_reason","")
         close_error = log_entry.get("close_error","")
 
@@ -2177,13 +2266,12 @@ class logAnalyser:
         Notes:
             - Maps legacy op format to JSON format.
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
             "operation": self.convert_op_format(log_entry.get('op_type', None)),
@@ -2197,6 +2285,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_crud_entry(log_entry_norm)
 
@@ -2260,13 +2350,12 @@ class logAnalyser:
         Notes:
             - Maps legacy op format to JSON format.
             - Converts legacy log string numeric fields to integers where appropriate.
-            - Normalises keys and formats to align with the newer JSON-style log entries.
+            - Normalises keys and formats to align with the newer JSON log entries.
             - Delegates further handling to a unified bind processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         log_entry_norm = {
-            "timestamp_dt": log_entry.get('timestamp_dt', None),
             "conn_id": self.convert_to_int(log_entry.get('conn_id', None)),
             "op_id": self.convert_to_int(log_entry.get('op_id', None)),
             "target_dn": log_entry.get('dn', ""),
@@ -2281,6 +2370,8 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
+
+        del log_entry
 
         self._process_entry_referral_entry(log_entry_norm)
 
@@ -2933,36 +3024,57 @@ def main():
         sys.exit(1)
 
     print(f"\nRestarts:                       {db.server.counters['restart']}")
-    if db.auth.counters['cipher_ctr'] > 0:
-        print(f"Secure Protocol Versions:")
-        # Group data by protocol + version + unique message
-        grouped_data = defaultdict(lambda: {'count': 0, 'messages': set()})
-        for _, details in db.auth.auth_info.items():
-            # If there is no protocol version
-            if details['version']:
-                proto_version = f"{details['proto']}{details['version']}"
-            else:
-                proto_version = f"{details['proto']}"
+    if db.auth.counters['cipher'] > 0:
+        tls_passwd = defaultdict(int)
+        tls_cert = []
 
-            for message in details['message']:
-                # Unique key for protocol-version and message
-                unique_key = (proto_version, message)
-                grouped_data[unique_key]['count'] += details['count']
-                grouped_data[unique_key]['messages'].add(message)
+        for details in db.auth.auth_info.values():
+            tls_version = details['tls_version']
+            count = details['count']
 
-        for ((proto_version, message), data) in grouped_data.items():
-            print(f"  - {proto_version} {message} ({data['count']} connection{'s' if data['count'] > 1 else ''})")
+            if details.get('subject') or details.get('issuer'):
+                tls_cert.append({
+                    'tls_version': tls_version,
+                    'count': count,
+                    'keysize': details.get('keysize'),
+                    'cipher': details.get('cipher'),
+                    'subject': details.get('subject'),
+                    'issuer': details.get('issuer'),
+                    'client_dn': details['client_dn']
+                })
+                continue
+
+            key = (tls_version, details.get('keysize'), details.get('cipher'))
+            tls_passwd[key] += count
+
+        print("TLS Password authentication:")
+        for (tls_version, keysize, cipher), count in tls_passwd.items():
+            keysize_str = f"{keysize}-bit" if keysize else ""
+            print(f"- {tls_version} {keysize_str} {cipher}    ({count} connection{'s' if count > 1 else ''})")
+        print()
+
+        print("TLS Certificate authentication:")
+        for entry in tls_cert:
+            keysize_str = f"{entry['keysize']}-bit" if entry['keysize'] else ""
+            print(f"- {entry['tls_version']} {keysize_str} {entry['cipher']}   ({entry['count']} connection{'s' if entry['count'] > 1 else ''})")
+            if entry['client_dn']:
+                print(f"  Client DN: {entry['client_dn']}")
+            if entry['subject']:
+                print(f"  Client CN: {entry['subject']}")
+            if entry['issuer']:
+                print(f"  Issuer CN: {entry['issuer']}")
+            print()
 
     print(f"Peak Concurrent connections:    {db.connection.counters['max_sim_conn']}")
     print(f"Total Operations:               {num_ops}")
     print(f"Total Results:                  {num_results}")
     print(f"Overall Performance:            {db.get_overall_perf(num_results, num_ops)}%")
-    if elapsed_secs:
+    if elapsed_secs > 0:
         print(f"\nTotal connections:              {num_conns:<10}{num_conns/elapsed_secs:>10.2f}/sec {(num_conns/elapsed_secs) * 60:>10.2f}/min")
         print(f"- LDAP connections:             {num_ldap:<10}{num_ldap/elapsed_secs:>10.2f}/sec {(num_ldap/elapsed_secs) * 60:>10.2f}/min")
         print(f"- LDAPI connections:            {num_ldapi:<10}{num_ldapi/elapsed_secs:>10.2f}/sec {(num_ldapi/elapsed_secs) * 60:>10.2f}/min")
         print(f"- LDAPS connections:            {num_ldaps:<10}{num_ldaps/elapsed_secs:>10.2f}/sec {(num_ldaps/elapsed_secs) * 60:>10.2f}/min")
-        print(f"- StartTLS Extended Ops         {num_startls:<10}{num_startls/elapsed_secs:>10.2f}/sec {(num_startls/elapsed_secs) * 60:>10.2f}/min")
+        print(f"- StartTLS Extended Ops:        {num_startls:<10}{num_startls/elapsed_secs:>10.2f}/sec {(num_startls/elapsed_secs) * 60:>10.2f}/min")
         print(f"\nSearches:                       {num_search:<10}{num_search/elapsed_secs:>10.2f}/sec {(num_search/elapsed_secs) * 60:>10.2f}/min")
         print(f"Modifications:                  {num_mod:<10}{num_mod/elapsed_secs:>10.2f}/sec {(num_mod/elapsed_secs) * 60:>10.2f}/min")
         print(f"Adds:                           {num_add:<10}{num_add/elapsed_secs:>10.2f}/sec {(num_add/elapsed_secs) * 60:>10.2f}/min")
@@ -2970,6 +3082,21 @@ def main():
         print(f"Mod RDNs:                       {num_modrdn:<10}{num_modrdn/elapsed_secs:>10.2f}/sec {(num_modrdn/elapsed_secs) * 60:>10.2f}/min")
         print(f"Compares:                       {num_cmp:<10}{num_cmp/elapsed_secs:>10.2f}/sec {(num_cmp/elapsed_secs) * 60:>10.2f}/min")
         print(f"Binds:                          {num_bind:<10}{num_bind/elapsed_secs:>10.2f}/sec {(num_bind/elapsed_secs) * 60:>10.2f}/min")
+    else:
+        print("\nElapsed time is unavailable, rate based metrics will not be shown.")
+        print(f"Total connections:              {num_conns}")
+        print(f"- LDAP connections:             {num_ldap}")
+        print(f"- LDAPI connections:            {num_ldapi}")
+        print(f"- LDAPS connections:            {num_ldaps}")
+        print(f"- StartTLS Extended Ops:        {num_startls}")
+        print(f"Searches:                       {num_search}")
+        print(f"Modifications:                  {num_mod}")
+        print(f"Adds:                           {num_add}")
+        print(f"Deletes:                        {num_del}")
+        print(f"Mod RDNs:                       {num_modrdn}")
+        print(f"Compares:                       {num_cmp}")
+        print(f"Binds:                          {num_bind}")
+
     if num_time_count:
         print(f"\nAverage wtime (wait time):      {avg_wtime:.9f}")
         print(f"Average optime (op time):       {avg_optime:.9f}")
@@ -3074,8 +3201,8 @@ def main():
     print(f"- LDAP v2 Binds:                {db.bind.version.get('2', 0)}")
     print(f"- LDAP v3 Binds:                {db.bind.version.get('3', 0)}")
     print(f"- AUTOBINDs(LDAPI):             {db.bind.counters['autobind']}")
-    print(f"- SSL Client Binds              {db.auth.counters['ssl_client_bind_ctr']}")
-    print(f"- Failed SSL Client Binds:      {db.auth.counters['ssl_client_bind_failed_ctr']}")
+    print(f"- SSL Client Binds:             {db.auth.counters['client_bind']}")
+    print(f"- Failed SSL Client Binds:      {db.auth.counters['cert_map_fail']}")
     print(f"- SASL Binds:                   {db.bind.counters['sasl']}")
     if db.bind.counters['sasl'] > 0:
         saslmech = db.bind.sasl_mech
