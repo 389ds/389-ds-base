@@ -682,7 +682,6 @@ create_repl_schema_policy(void)
                       repl_schema_top,
                       ldap_err2string(return_value));
         rc = -1;
-        slapi_entry_free(e); /* The entry was not consumed */
         goto done;
     }
     slapi_pblock_destroy(pb);
@@ -703,7 +702,6 @@ create_repl_schema_policy(void)
                       repl_schema_supplier,
                       ldap_err2string(return_value));
         rc = -1;
-        slapi_entry_free(e); /* The entry was not consumed */
         goto done;
     }
     slapi_pblock_destroy(pb);
@@ -724,7 +722,6 @@ create_repl_schema_policy(void)
                       repl_schema_consumer,
                       ldap_err2string(return_value));
         rc = -1;
-        slapi_entry_free(e); /* The entry was not consumed */
         goto done;
     }
     slapi_pblock_destroy(pb);
