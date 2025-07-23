@@ -465,10 +465,10 @@ replica_subentry_create(const char *repl_root, ReplicaId rid)
     if (return_value != LDAP_SUCCESS &&
         return_value != LDAP_ALREADY_EXISTS &&
         return_value != LDAP_REFERRAL /* CONSUMER */) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_subentry_create - Unable to "
-                                                       "create replication keep alive entry %s: error %d - %s\n",
-                      slapi_entry_get_dn_const(e),
-                      return_value, ldap_err2string(return_value));
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_subentry_create - "
+                "Unable to create replication keep alive entry 'cn=%s %d,%s': error %d - %s\n",
+                KEEP_ALIVE_ENTRY, rid, repl_root,
+                return_value, ldap_err2string(return_value));
         rc = -1;
         goto done;
     }
