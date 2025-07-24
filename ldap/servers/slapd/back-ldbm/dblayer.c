@@ -196,7 +196,7 @@ backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
          */
         if (((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) == 0) && not_exporting()) {
             slapi_log_error(SLAPI_LOG_FATAL, "dblayer_setup",
-                            "bdb implementation is no more supported."
+                            "bdb implementation is no longer supported."
                             " Directory server cannot be started without migrating to lmdb first."
                             " To migrate, please run: dsctl instanceName dblib bdb2mdb\n");
             exit(1);
