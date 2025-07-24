@@ -26,7 +26,11 @@
 %bcond repl_reports 1
 %endif
 
-%bcond libbdb_ro %{!defined rhel}
+%if 0%{?centos} >= 11 || 0%{?fedora} >= 43
+%bcond libbdb_ro 1
+%else
+%bcond libbdb_ro 0
+%endif
 
 # This is used in certain builds to help us know if it has extra features.
 %global variant base
