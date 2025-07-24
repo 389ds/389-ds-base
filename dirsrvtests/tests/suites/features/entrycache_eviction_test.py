@@ -16,10 +16,12 @@ from contextlib import suppress
 from lib389.backend import Backends
 from lib389.cli_base import FakeArgs
 from lib389.cli_ctl.dbgen import dbgen_create_groups
+from lib389.config import BDB_LDBMConfig
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.tasks import ImportTask
 from lib389.topologies import topology_st
+from lib389.utils import get_default_db_lib
 
 
 pytestmark = pytest.mark.tier1
@@ -131,6 +133,10 @@ def prepare_be(topology_st, request):
     dbgen_create_groups(inst, log, args)
     assert os.path.exists(ldif_file)
 
+    # Turn off bdb cache autosizing
+    if get_default_db_lib() == 'bdb':
+        config_ldbm = BDB_LDBMConfig(inst)
+        config_ldbm.set('nsslapd-cache-autosize', '0')
     # Set entry cache large enough to hold all the large groups
     # and with a limited number of entries to trigger eviction
     be1.replace('nsslapd-cachememsize',  '8000000' )
@@ -144,6 +150,14 @@ def prepare_be(topology_st, request):
     if not inst.ldif2db(bename, None, None, None, ldif_file):
         log.fatal('Failed to import {ldif_file}')
         assert False
+    if get_default_db_lib() == 'bdb':
+        # bdb import uses the entry cache ==> Must clear the pattern from the log
+        with open(inst.ds_paths.error_log, 'r') as fin:
+            lines = fin.readlines()
+        with open(inst.ds_paths.error_log, 'w') as fout:
+            for line in lines:
+                fout.write(line.replace('- entrycache_', '- Xntrycache_'))
+
     inst.start()
 
     return (bename, suffix, be1, people_base, groups_base)

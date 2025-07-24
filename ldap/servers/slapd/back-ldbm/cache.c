@@ -1443,15 +1443,20 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
             return 1;
         }
     }
-    /* Lets propagate the weight */
-    if (newe->ep_weight == 0) {
-        newe->ep_weight = olde->ep_weight;
-    }
-    if (olde->ep_weight) {
-        cache->c_stats.nehw--;
-    }
-    if (newe->ep_weight) {
-        cache->c_stats.nehw++;
+    if (olde->ep_weight != newe->ep_weight) {
+        /* Lets propagate the weight */
+        if (newe->ep_weight == 0) {
+            newe->ep_weight = olde->ep_weight;
+        }
+        /* Then update the cache statistics */
+        cache->c_stats.weight -= olde->ep_weight;
+        cache->c_stats.weight += newe->ep_weight;
+        if (olde->ep_weight) {
+            cache->c_stats.nehw--;
+        }
+        if (newe->ep_weight) {
+            cache->c_stats.nehw++;
+        }
     }
     /* now, add the new entry to the hashtables */
     /* (probably don't need such extensive error handling, once this has been
