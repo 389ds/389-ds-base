@@ -2007,7 +2007,7 @@ _cl5DispatchTrimThread(Replica *replica)
                           (void *)replica, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                           PR_UNJOINABLE_THREAD, DEFAULT_THREAD_STACKSIZE);
     if (NULL == pth) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "_cl5DispatchTrimThread - Failed to create trimming thread for %s"
                       "; NSPR error - %d\n", replica_get_name(replica),
                       PR_GetError());
@@ -2788,7 +2788,7 @@ _cl5TrimEntry(dbi_val_t *key, dbi_val_t *data, void *ctx)
             return DBI_RC_NOTFOUND;
         } else {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                          "_cl5TrimReplica - Changelog purge skipped anchor csn %s\n",
+                          "_cl5TrimEntry - Changelog purge skipped anchor csn %s\n",
                           (char*)key->data);
             return DBI_RC_SUCCESS;
         }
@@ -2867,8 +2867,8 @@ _cl5TrimReplica(Replica *r)
     slapi_ch_free((void**)&dblcictx.rids);
 
     if (dblcictx.changed.tot) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5TrimReplica - Trimmed %ld changes from the changelog\n",
-                      dblcictx.changed.tot);
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5TrimReplica - Scanned %ld records, and trimmed %ld changes from the changelog\n",
+                      dblcictx.seen.tot, dblcictx.changed.tot);
     }
 }
 
