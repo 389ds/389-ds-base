@@ -44,7 +44,10 @@ static int
 is_password_attribute(const char *attr_name)
 {
     return (strcasecmp(attr_name, SLAPI_USERPWD_ATTR) == 0 ||
-            strcasecmp(attr_name, CONFIG_ROOTPW_ATTRIBUTE) == 0);
+            strcasecmp(attr_name, CONFIG_ROOTPW_ATTRIBUTE) == 0 ||
+            strcasecmp(attr_name, SLAPI_MB_CREDENTIALS) == 0 ||
+            strcasecmp(attr_name, SLAPI_REP_CREDENTIALS) == 0 ||
+            strcasecmp(attr_name, SLAPI_REP_BOOTSTRAP_CREDENTIALS) == 0);
 }
 
 /* Helper function to create a masked string representation of an entry */
@@ -58,18 +61,22 @@ create_masked_entry_string(Slapi_Entry *original_entry, int *len)
     char *next_line = NULL;
     char *colon_pos = NULL;
     int has_password_attrs = 0;
-    size_t userpassword_len = 0;
-    size_t rootpw_len = 0;
 
     if (original_entry == NULL) {
         return NULL;
     }
 
-    /* Quick check: does this entry even have password attributes? */
-    if (slapi_entry_attr_find(original_entry, SLAPI_USERPWD_ATTR, &attr) == 0) {
-        has_password_attrs = 1;
-    } else if (slapi_entry_attr_find(original_entry, CONFIG_ROOTPW_ATTRIBUTE, &attr) == 0) {
-        has_password_attrs = 1;
+    /* Single pass through attributes to check for password attributes */
+    for (slapi_entry_first_attr(original_entry, &attr); attr != NULL;
+         slapi_entry_next_attr(original_entry, attr, &attr)) {
+
+        char *attr_name = NULL;
+        slapi_attr_get_type(attr, &attr_name);
+
+        if (is_password_attribute(attr_name)) {
+            has_password_attrs = 1;
+            break;
+        }
     }
 
     /* If no password attributes, return original string - no masking needed */
@@ -79,8 +86,6 @@ create_masked_entry_string(Slapi_Entry *original_entry, int *len)
     }
 
     /* Process the string in-place, replacing password values */
-    userpassword_len = strlen(SLAPI_USERPWD_ATTR);
-    rootpw_len = strlen(CONFIG_ROOTPW_ATTRIBUTE);
     current_pos = entry_str;
     while ((line_start = current_pos) != NULL && *line_start != '\0') {
         /* Find the end of current line */
@@ -92,12 +97,18 @@ create_masked_entry_string(Slapi_Entry *original_entry, int *len)
             current_pos = NULL;  /* Last line */
         }
 
-        /* Check if this line is a password attribute */
-        if (((strncasecmp(line_start, SLAPI_USERPWD_ATTR ":", userpassword_len + 1) == 0) ||
-             (strncasecmp(line_start, CONFIG_ROOTPW_ATTRIBUTE ":", rootpw_len + 1) == 0)) &&
-            (colon_pos = strchr(line_start, ':')) != NULL) {
+        /* Find the colon that separates attribute name from value */
+        colon_pos = strchr(line_start, ':');
+        if (colon_pos != NULL) {
+            char saved_colon = *colon_pos;
+            *colon_pos = '\0';  /* Temporarily null-terminate attribute name */
 
-            strcpy(colon_pos + 1, " **********************");
+            /* Check if this is a password attribute that needs masking */
+            if (is_password_attribute(line_start)) {
+                strcpy(colon_pos + 1, " **********************");
+            }
+
+            *colon_pos = saved_colon;  /* Restore colon */
         }
 
         /* Restore newline if it was there */
