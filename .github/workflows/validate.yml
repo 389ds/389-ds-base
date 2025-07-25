@@ -32,8 +32,17 @@ jobs:
 
       - name: Check for minimal Python version for lib389
         if: always()
-        run: uv tool run vermin --target=3.8 src/lib389
+        run: |
+          uv tool run vermin --target=3.8 src/lib389 || {
+            echo "Check failed, rerunning in verbose mode..."
+            uv tool run vermin -vv --target=3.8 src/lib389
+          }
 
       - name: Check for minimal Python version for dirsrvtests
         if: always()
-        run: uv tool run vermin --target=3.8 dirsrvtests
+        run: |
+          uv tool run vermin --target=3.8 dirsrvtests || {
+            echo "Check failed, rerunning in verbose mode..."
+            uv tool run vermin -vv --target=3.8 dirsrvtests
+          }
+
