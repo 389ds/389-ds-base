@@ -26,7 +26,7 @@
 %bcond repl_reports 1
 %endif
 
-%if 0%{?centos} >= 11 || 0%{?fedora} >= 43
+%if 0%{?fedora} >= 43
 %bcond libbdb_ro 1
 %else
 %bcond libbdb_ro 0

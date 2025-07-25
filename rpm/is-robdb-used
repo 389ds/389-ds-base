@@ -42,5 +42,4 @@ if os.getenv("WITHOUT_ROBDB") is not None:
     rc(False)
 
 checkVersion('/etc/fedora-release', 43, True)
-checkVersion('/etc/centos-release', 11, True)
 rc(False)
