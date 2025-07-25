@@ -16,7 +16,7 @@ import socket
 import subprocess
 import tarfile
 import time
-from contextlib import suppress, chdir
+from contextlib import suppress
 from itertools import permutations
 from lib389 import DirSrv
 from lib389._constants import *
@@ -233,11 +233,14 @@ def test_generate_tarball(topo_m2):
         inst.stop()
     tardir = Path(TARFILENAME).parent
     os.makedirs(tardir, mode = 0o755, exist_ok = True)
-    with tarfile.open(name=TARFILENAME, mode='w:gz') as tar, chdir(idir):
+    this_dir = os.getcwd()
+    with tarfile.open(name=TARFILENAME, mode='w:gz') as tar:
+        os.chdir(idir)
         for inst in topo_m2:
             name = inst.serverid
-            tar.add(strip_path(f'{idir}/etc/dirsrv/slapd-{name}'))
-            tar.add(strip_path(f'{idir}/var/lib/dirsrv/slapd-{name}/db'))
+            tar.add(strip_path(f'/etc/dirsrv/slapd-{name}'))
+            tar.add(strip_path(f'/var/lib/dirsrv/slapd-{name}/db'))
+    os.chdir(this_dir)
     for inst in topo_m2:
         inst.start()
 
