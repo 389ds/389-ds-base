@@ -1786,7 +1786,7 @@ def get_default_mdb_max_size(paths):
     """
     if paths is None:
         paths = Paths()
-    mdb_max_size = DEFAULT_LMDB_SIZE
+    mdb_max_size = format_size(parse_size(DEFAULT_LMDB_SIZE))
     size = parse_size(mdb_max_size)
     # Make sure that there is enough available disk space
     # otherwise decrease the value
