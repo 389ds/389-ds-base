@@ -454,6 +454,7 @@ int dblayer_private_open(const char *plgname, const char *dbfilename, int rw, Sl
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = get_li_directory(dbfilename);
+    li->li_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, plgname);
@@ -541,6 +542,10 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome)
     li->li_plugin->plg_name = (char*) "back-ldbm-dbimpl";
     li->li_plugin->plg_libpath = (char*) "libback-ldbm";
     li->li_directory = slapi_ch_strdup(dbhome);
+    /* Set SLAPI_TASK_RUNNING_FROM_COMMANDLINE to tell that
+     * read-only bdb is usable with dbscan
+     */
+    li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
 
     /* Initialize database plugin */
     rc = dbimpl_setup(li, dbimpl_name);

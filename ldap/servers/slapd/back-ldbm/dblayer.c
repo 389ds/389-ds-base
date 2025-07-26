@@ -164,8 +164,21 @@ dblayer_init(struct ldbminfo *li)
     return ret;
 }
 
-
-
+/* Check that export locking file is not set */
+static bool
+not_exporting(void)
+{
+    pid_t pid = getpid();
+    struct stat astat;
+    bool res = true;
+    char *export_lock = slapi_ch_smprintf("%s/exports/%d",  getFrontendConfig()->lockdir, pid);
+    if (stat(export_lock, &astat) == 0) {
+        res = false;
+    }
+    slapi_ch_free_string(&export_lock);
+    return res;
+}
+        
 /* Get the db implementation plugin path (either libback-ldbm.so or libback-bdb.so) */
 char *
 backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
@@ -175,6 +188,19 @@ backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
     const char *prefix = getenv(PREFIX_ENV);
     if (strcmp(plgname, BDB_IMPL)) {
         /* mdb ==> lets use default (libback-ldbm.so) */
+        return li->li_plugin->plg_libpath;
+    }
+    if (PR_FindSymbolAndLibrary("bdbreader_bdb_open", &lib)) {
+        /* read-only bdb is used ==> should be using dbscan or ns-slapd db2ldif
+         * bdb_init is within libback-ldbm.so ==> lets use default (libback-ldbm.so)
+         */
+        if (((li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) == 0) && not_exporting()) {
+            slapi_log_error(SLAPI_LOG_FATAL, "dblayer_setup",
+                            "bdb implementation is no longer supported."
+                            " Directory server cannot be started without migrating to lmdb first."
+                            " To migrate, please run: dsctl instanceName dblib bdb2mdb\n");
+            exit(1);
+        }
         return li->li_plugin->plg_libpath;
     }
     if (PR_FindSymbolAndLibrary("bdb_init", &lib)) {
@@ -1462,9 +1488,9 @@ dblayer_is_lmdb(Slapi_Backend *be)
 }
 
 /*
- * Iterate on the provided curor starting at startingkey (or first key if 
+ * Iterate on the provided curor starting at startingkey (or first key if
  *  startingkey is NULL) and call action_cb for each records
- * 
+ *
  * action_cb callback returns:
  *     DBI_RC_SUCCESS to iterate on next entry
  *     DBI_RC_NOTFOUND to stop iteration with DBI_RC_SUCCESS code

@@ -10,7 +10,12 @@
 #include "../back-ldbm.h"
 #include "../dblayer.h"
 #include "../import.h"
+#ifdef WITH_LIBBDB_RO
+#include "bdb_bdbreader_db.h"
+#else
 #include <db.h>
+#endif
+
 
 #define BDB_CONFIG(li) ((bdb_config *)(li)->li_dblayer_config)
 

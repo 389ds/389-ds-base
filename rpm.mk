@@ -26,6 +26,11 @@ RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_LIBDB)),--with bundle_libdb,--with
 LIBDB_URL ?= $(shell rpmspec $(RPMBUILD_OPTIONS) -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
 LIBDB_TARBALL ?= $(shell basename "$(LIBDB_URL)")
 
+# Check if BUNDLE_BDBREADERS is enabled.
+BUNDLE_BDBREADERS = $(shell ./rpm/is-robdb-used $(BUNDLE_LIBDB))
+RPMBUILD_OPTIONS += $(if $(filter 1, $(BUNDLE_BDBREADERS)),--with libbdb_ro,--without libbdb_ro)
+
+
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
 RPMBUILD_OPTIONS += $(if $(filter 1, $(CLANG_ON)),--with clang,--without clang)
@@ -111,7 +116,7 @@ endif
 	fi ; \
 	if [ $(BUNDLE_LIBDB) -eq 1 ]; then \
 		curl -LO $(LIBDB_URL) ; \
-	fi
+	fi ;
 
 rpmroot:
 	rm -rf $(RPMBUILD)
@@ -149,6 +154,7 @@ srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep
 	python3 rpm/bundle-rust-npm.py $(CARGO_PATH) $(NODE_MODULES_PATH) $(RPMBUILD)/SPECS/$(PACKAGE).spec -f
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec $(RPMBUILD_OPTIONS)
 	cp $(RPMBUILD)/SRPMS/*.src.rpm dist/srpms/
+	@echo RPMBUILD=$(RPMBUILD)
 	rm -rf $(RPMBUILD)
 
 srpm: srpms
@@ -164,8 +170,22 @@ rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec $(RPMBUILD_OPTIONS)
 	cp $(RPMBUILD)/RPMS/*/*.rpm dist/rpms/
 	cp $(RPMBUILD)/SRPMS/*.src.rpm dist/srpms/
+	@echo RPMBUILD=$(RPMBUILD)
 	rm -rf $(RPMBUILD)
 
 rpm: rpms
 
 patch_rpms: | patch rpms
+
+debug:
+	@echo BUNDLE_JEMALLOC=$(BUNDLE_JEMALLOC)
+	@echo BUNDLE_LIBDB=$(BUNDLE_LIBDB)
+	@echo BUNDLE_BDBREADERS=$(BUNDLE_BDBREADERS)
+	@echo CLANG_ON=$(CLANG_ON)
+	@echo ASAN_ON=$(ASAN_ON)
+	@echo MSAN_ON=$(MSAN_ON)
+	@echo TSAN_ON=$(TSAN_ON)
+	@echo UBSAN_ON=$(UBSAN_ON)
+	@echo COCKPIT_ON=$(COCKPIT_ON)
+	@echo JEMALLOC_URL=$(JEMALLOC_URL)
+	@echo LIBDB_URL=$(LIBDB_URL)

@@ -24,6 +24,7 @@ from lib389.cli_base import CustomHelpFormatter
 from lib389._constants import DEFAULT_LMDB_SIZE, BDB_IMPL_STATUS, DN_CONFIG, DBSCAN
 from lib389.dseldif import DSEldif
 from lib389.utils import parse_size, format_size, check_plugin_strings, find_plugin_path
+from lib389.paths import Paths
 from pathlib import Path
 
 
@@ -136,19 +137,23 @@ class DbscanHelper:
 
 
 def get_bdb_impl_status():
+    p = Paths()
+    p._read_defaults()
+    libdir = f"{p._config['slapd']['lib_dir']}/dirsrv"
+    robdb = glob.glob(f'{libdir}/librobdb.so*')
+    has_robdb = len(robdb) > 0
     backldbm = 'libback-ldbm'
     bundledbdb_plugin = 'libback-bdb'
-    robdb_symbol = 'bdbro_getcb_vector'
     libdb = 'libdb-'
-    plgstrs = check_plugin_strings(backldbm, [bundledbdb_plugin, robdb_symbol, libdb])
+    plgstrs = check_plugin_strings(backldbm, [bundledbdb_plugin, libdb])
+    if has_robdb is True:
+        # read-only bdb build
+        return BDB_IMPL_STATUS.READ_ONLY
     if plgstrs[bundledbdb_plugin] is True:
         # bundled bdb build
         if find_plugin_path(bundledbdb_plugin):
             return BDB_IMPL_STATUS.BUNDLED
         return BDB_IMPL_STATUS.NONE
-    if plgstrs[robdb_symbol] is True:
-        # read-only bdb build
-        return BDB_IMPL_STATUS.READ_ONLY
     if plgstrs[libdb] is True:
         # standard bdb package build
         return BDB_IMPL_STATUS.STANDARD
@@ -445,6 +450,9 @@ def dblib_bdb2mdb(inst, log, args):
         log.info(f"Backends exportation {progress*100/total_dbsize:2f}% ({bename})")
         log.debug(f"inst.db2ldif({bename}, None, None, {encrypt}, True, {be['ldifname']})")
         inst.db2ldif(bename, None, None, encrypt, True, be['ldifname'], False)
+        if not os.path.isfile(be['ldifname']):
+            raise RuntimeError(f"Failed to export backend {bename} into {be['ldifname']}.")
+
         be['cl5'] = export_changelog(be, 'bdb')
         progress += be['dbsize']
     log.info("Backends exportation 100%")
