@@ -248,6 +248,10 @@ gentimeToEpochtime(char *gentimestr)
 
     /* Turn tm object into local epoch time */
     epochtime = mktime(&t);
+    if (epochtime == (time_t) -1) {
+        /* mktime failed */
+        return 0;
+    }
 
     /* Turn local epoch time into GMT epoch time */
     epochtime -= zone_offset;

@@ -261,6 +261,7 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
         if (inst_dirp && *inst_dir) {
             return_value = env->remove(env, inst_dirp, 0);
         } else {
+            slapi_ch_free((void **)&env);
             return_value = -1;
         }
         if (return_value == EBUSY) {

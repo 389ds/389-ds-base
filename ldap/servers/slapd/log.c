@@ -202,6 +202,7 @@ compress_log_file(char *log_name, int32_t mode)
     if ((source = fopen(log_name, "r")) == NULL) {
         /* Failed to open log file */
         gzclose(outfile);
+        close(fd);
         return -1;
     }
 
@@ -212,12 +213,14 @@ compress_log_file(char *log_name, int32_t mode)
         {
             fclose(source);
             gzclose(outfile);
+            close(fd);
             return -1;
         }
         bytes_read = fread(buf, 1, LOG_CHUNK, source);
     }
     gzclose(outfile);
     fclose(source);
+    close(fd);
     PR_Delete(log_name); /* remove the old uncompressed log */
 
     return 0;
