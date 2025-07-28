@@ -846,6 +846,7 @@ void task_cleanup(void);
 /* for reversible encyrption */
 #define SLAPI_MB_CREDENTIALS "nsmultiplexorcredentials"
 #define SLAPI_REP_CREDENTIALS "nsds5ReplicaCredentials"
+#define SLAPI_REP_BOOTSTRAP_CREDENTIALS "nsds5ReplicaBootstrapCredentials"
 int pw_rever_encode(Slapi_Value **vals, char *attr_name);
 int pw_rever_decode(char *cipher, char **plain, const char *attr_name);
 
