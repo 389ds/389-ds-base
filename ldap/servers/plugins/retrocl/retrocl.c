@@ -552,6 +552,22 @@ retrocl_start(Slapi_PBlock *pb)
         slapi_ch_array_free(values);
     }
 
+#ifdef DEBUG
+    /* Process debug changenumber configuration attribute */
+    values = slapi_entry_attr_get_charray(e, CONFIG_CHANGELOG_DEBUG_CHANGENUMBER);
+    if (values != NULL) {
+        if (values[1] != NULL) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                          "retrocl_start - Multiple values specified for attribute: %s\n", CONFIG_CHANGELOG_DEBUG_CHANGENUMBER);
+        } else {
+            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                          "retrocl_start - Processing debug changenumber command: %s\n", values[0]);
+            retrocl_set_debug_changenumber(values[0]);
+        }
+        slapi_ch_array_free(values);
+    }
+#endif
+
     return 0;
 }
 

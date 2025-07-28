@@ -70,6 +70,9 @@ typedef struct _cnumRet
 #define CONFIG_CHANGELOG_INCLUDE_SUFFIX      "nsslapd-include-suffix"
 #define CONFIG_CHANGELOG_EXCLUDE_SUFFIX      "nsslapd-exclude-suffix"
 #define CONFIG_CHANGELOG_EXCLUDE_ATTRS       "nsslapd-exclude-attrs"
+#ifdef DEBUG
+#define CONFIG_CHANGELOG_DEBUG_CHANGENUMBER  "nsslapd-retrocl-debug-changenumber"
+#endif
 
 #define RETROCL_CHANGELOG_DN   "cn=changelog"
 #define RETROCL_MAPPINGTREE_DN "cn=\"cn=changelog\",cn=mapping tree,cn=config"
@@ -136,6 +139,10 @@ extern void retrocl_commit_changenumber(void);
 extern void retrocl_release_changenumber(void);
 extern void retrocl_set_check_changenumber(void);
 extern changeNumber retrocl_assign_changenumber(void);
+extern int retrocl_changenumber_exists(changeNumber cn);
+#ifdef DEBUG
+extern int retrocl_set_debug_changenumber(const char *value);
+#endif
 extern int retrocl_get_changenumbers(void);
 extern void retrocl_forget_changenumbers(void);
 extern time_t retrocl_getchangetime(int type, int *err);

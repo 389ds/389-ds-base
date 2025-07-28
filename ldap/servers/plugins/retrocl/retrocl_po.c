@@ -361,24 +361,48 @@ write_replog_db(
 
     /* Call the repl backend to add this entry */
     if (0 == err) {
-        newPb = slapi_pblock_new();
-        slapi_add_entry_internal_set_pb(newPb, e, NULL /* controls */,
-                                        g_plg_identity[PLUGIN_RETROCL],
-                                        /* dont leave entry in cache if main oparation is aborted */
-                                        SLAPI_OP_FLAG_NEVER_CACHE);
-        slapi_add_internal_pb(newPb);
-        slapi_pblock_get(newPb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
-        slapi_pblock_destroy(newPb);
-        if (0 != ret) {
+        /* Double-check that this change number doesn't already exist
+         * This is an additional safety check for race conditions */
+        if (retrocl_changenumber_exists(changenum) == 1) {
             slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
-                          "write_replog_db - An error occured while adding change "
-                          "number %lu, dn = %s: %s. \n",
-                          changenum, edn, ldap_err2string(ret));
-            retrocl_release_changenumber();
-
-        } else {
-            /* Tell the change numbering system this one's committed to disk  */
+                          "write_replog_db - Change number %lu already exists in changelog, "
+                          "cannot add duplicate entry. This indicates a race condition or "
+                          "transaction rollback issue.\n", changenum);
+            /* Commit the change number since it's already used */
             retrocl_commit_changenumber();
+            ret = LDAP_ALREADY_EXISTS;
+        } else {
+            newPb = slapi_pblock_new();
+            slapi_add_entry_internal_set_pb(newPb, e, NULL /* controls */,
+                                            g_plg_identity[PLUGIN_RETROCL],
+                                            /* don't leave entry in cache if main operation is aborted */
+                                            SLAPI_OP_FLAG_NEVER_CACHE);
+            slapi_add_internal_pb(newPb);
+            slapi_pblock_get(newPb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+            slapi_pblock_destroy(newPb);
+            if (0 != ret) {
+                slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                              "write_replog_db - An error occured while adding change "
+                              "number %lu, dn = %s: %s. \n",
+                              changenum, edn, ldap_err2string(ret));
+                /* If the entry already exists, don't release the change number
+                 * as it was already consumed. This prevents change number reuse
+                 * in transaction rollback scenarios. */
+                if (ret != LDAP_ALREADY_EXISTS) {
+                    retrocl_release_changenumber();
+                } else {
+                    /* Entry already exists - commit the change number to prevent reuse */
+                    retrocl_commit_changenumber();
+                    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                                  "write_replog_db - Change number %lu already exists in changelog, "
+                                  "committing to prevent reuse. This may indicate a transaction "
+                                  "rollback scenario.\n", changenum);
+                }
+
+            } else {
+                /* Tell the change numbering system this one's committed to disk  */
+                retrocl_commit_changenumber();
+            }
         }
     } else {
         slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,

@@ -150,7 +150,7 @@ retrocl_get_changenumbers(void)
 
     retrocl_internal_cn = cr.cr_cnum;
 
-    slapi_log_err(SLAPI_LOG_PLUGIN, "retrocl", "Got changenumbers %lu and %lu\n",
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_get_changenumbers - Got changenumbers %lu and %lu\n",
                   retrocl_first_cn,
                   retrocl_internal_cn);
 
@@ -304,9 +304,17 @@ void
 retrocl_commit_changenumber(void)
 {
     slapi_rwlock_wrlock(retrocl_cn_lock);
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                  "retrocl_commit_changenumber - BEFORE: internal_cn=%lu, first_cn=%lu\n",
+                  retrocl_internal_cn, retrocl_first_cn);
     if (retrocl_first_cn == 0) {
         retrocl_first_cn = retrocl_internal_cn;
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                      "retrocl_commit_changenumber - Set first_cn=%lu\n", retrocl_first_cn);
     }
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                  "retrocl_commit_changenumber - COMMITTED: internal_cn=%lu, first_cn=%lu\n",
+                  retrocl_internal_cn, retrocl_first_cn);
     slapi_rwlock_unlock(retrocl_cn_lock);
 }
 
@@ -325,7 +333,11 @@ void
 retrocl_release_changenumber(void)
 {
     slapi_rwlock_wrlock(retrocl_cn_lock);
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                  "retrocl_release_changenumber - BEFORE: internal_cn=%lu\n", retrocl_internal_cn);
     retrocl_internal_cn--;
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                  "retrocl_release_changenumber - AFTER: internal_cn=%lu\n", retrocl_internal_cn);
     slapi_rwlock_unlock(retrocl_cn_lock);
 }
 
@@ -359,7 +371,7 @@ retrocl_update_lastchangenumber(void)
 
     slapi_rwlock_wrlock(retrocl_cn_lock);
     retrocl_internal_cn = cr.cr_cnum;
-    slapi_log_err(SLAPI_LOG_PLUGIN, "retrocl", "Refetched last changenumber =  %lu \n",
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_update_lastchangenumber - Refetched last changenumber =  %lu \n",
                   retrocl_internal_cn);
 
     slapi_ch_free((void **)&cr.cr_time);
@@ -391,6 +403,10 @@ retrocl_assign_changenumber(void)
 
     slapi_rwlock_wrlock(retrocl_cn_lock);
 
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                  "retrocl_assign_changenumber - BEFORE: internal_cn=%lu, first_cn=%lu, check_flag=%d\n",
+                  retrocl_internal_cn, retrocl_first_cn, check_last_changenumber);
+
     if ((check_last_changenumber) ||
         ((retrocl_internal_cn <= retrocl_first_cn) &&
          (retrocl_internal_cn > 1))) {
@@ -403,13 +419,35 @@ retrocl_assign_changenumber(void)
          *
          * after the first change was applied both _cn numbers are 1, that's ok
          */
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                      "retrocl_assign_changenumber - Updating last change number from DB\n");
         retrocl_update_lastchangenumber();
         check_last_changenumber = 0;
     }
     retrocl_internal_cn++;
     cn = retrocl_internal_cn;
 
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                  "retrocl_assign_changenumber - ASSIGNED: cn=%lu, new_internal_cn=%lu\n",
+                  cn, retrocl_internal_cn);
+
+    /* Check if this change number already exists in the changelog
+     * This can happen after transaction rollbacks where the changelog
+     * entry was written but the main operation failed */
     slapi_rwlock_unlock(retrocl_cn_lock);
+
+    while (retrocl_changenumber_exists(cn) == 1) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                      "retrocl_assign_changenumber - Change number %lu already exists, "
+                      "skipping to next number\n", cn);
+        slapi_rwlock_wrlock(retrocl_cn_lock);
+        retrocl_internal_cn++;
+        cn = retrocl_internal_cn;
+        slapi_rwlock_unlock(retrocl_cn_lock);
+    }
+
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                  "retrocl_assign_changenumber - FINAL: returning cn=%lu\n", cn);
 
     return cn;
 }
@@ -421,3 +459,155 @@ retrocl_set_check_changenumber(void)
     check_last_changenumber = 1;
     slapi_rwlock_unlock(retrocl_cn_lock);
 }
+
+/*
+ * Function: retrocl_changenumber_exists
+ *
+ * Returns: 1 if change number exists, 0 if not, -1 on error
+ *
+ * Arguments: cn - change number to check
+ *
+ * Description: Check if a specific change number already exists in the changelog
+ *
+ */
+
+int
+retrocl_changenumber_exists(changeNumber cn)
+{
+    Slapi_PBlock *pb;
+    char fstr[12 + 1 + CNUMSTR_LEN]; /* "changenumber" + "=" + number + null */
+    int rc, exists = 0;
+    Slapi_Entry **entries = NULL;
+
+    if (cn == 0UL || retrocl_be_changelog == NULL) {
+        return -1;
+    }
+
+    PR_snprintf(fstr, sizeof(fstr), "%s=%lu", retrocl_changenumber, cn);
+
+    pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(pb, RETROCL_CHANGELOG_DN,
+                                 LDAP_SCOPE_SUBTREE, fstr,
+                                 NULL /* attrs */,
+                                 0 /* attrsonly */,
+                                 NULL /* controls */,
+                                 NULL /* uniqueid */,
+                                 g_plg_identity[PLUGIN_RETROCL],
+                                 0 /* actions */);
+
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+
+    if (rc == LDAP_SUCCESS) {
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries && entries[0]) {
+            exists = 1;
+        }
+    }
+
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+
+    if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) {
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                      "retrocl_changenumber_exists - Error searching for change number %lu: %s\n",
+                      cn, ldap_err2string(rc));
+        return -1;
+    }
+
+    return exists;
+}
+
+#ifdef DEBUG
+/*
+ * Function: retrocl_set_debug_changenumber
+ *
+ * Returns: 0 on success, -1 on error
+ *
+ * Arguments: value - string value from configuration attribute
+ *
+ * Description: Handle nsslapd-retrocl-debug-changenumber configuration attribute
+ *              Supported formats:
+ *              - "reset" - reset internal_cn to match database
+ *              - "set:N" - set internal_cn to specific number N
+ *              - "dec:N" - decrement internal_cn by N (simulate rollback)
+ *              - "sync" - force resynchronization with database
+ *
+ */
+
+int
+retrocl_set_debug_changenumber(const char *value)
+{
+    changeNumber old_internal_cn, old_first_cn;
+
+    if (!value || !*value) {
+        return 0; /* Empty value is OK, do nothing */
+    }
+
+    slapi_rwlock_wrlock(retrocl_cn_lock);
+    old_internal_cn = retrocl_internal_cn;
+    old_first_cn = retrocl_first_cn;
+
+    slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                  "retrocl_set_debug_changenumber - Processing command '%s' - BEFORE: internal_cn=%lu, first_cn=%lu\n",
+                  value, retrocl_internal_cn, retrocl_first_cn);
+
+    if (strcasecmp(value, "reset") == 0) {
+        /* Reset internal_cn to database value */
+        slapi_rwlock_unlock(retrocl_cn_lock);
+        retrocl_update_lastchangenumber();
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                      "retrocl_set_debug_changenumber - set - Updated internal_cn from database\n");
+    } else if (strncasecmp(value, "set:", 4) == 0) {
+        /* Set internal_cn to specific value */
+        changeNumber new_cn = strntoul((char *)(value + 4), strlen(value + 4), 10);
+        if (new_cn > 0) {
+            retrocl_internal_cn = new_cn;
+            slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                          "retrocl_set_debug_changenumber - set - Changed internal_cn from %lu to %lu\n",
+                          old_internal_cn, retrocl_internal_cn);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                          "retrocl_set_debug_changenumber - set - Invalid value '%s', must be set:N where N > 0\n", value);
+            slapi_rwlock_unlock(retrocl_cn_lock);
+            return -1;
+        }
+        slapi_rwlock_unlock(retrocl_cn_lock);
+    } else if (strncasecmp(value, "dec:", 4) == 0) {
+        /* Decrement internal_cn by specified amount (simulate rollback) */
+        changeNumber dec_amount = strntoul((char *)(value + 4), strlen(value + 4), 10);
+        if (dec_amount > 0 && retrocl_internal_cn >= dec_amount) {
+            retrocl_internal_cn -= dec_amount;
+            slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                          "retrocl_set_debug_changenumber - dec - Decremented internal_cn from %lu to %lu (simulating rollback)\n",
+                          old_internal_cn, retrocl_internal_cn);
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                          "retrocl_set_debug_changenumber - dec - Invalid decrement '%s' or would result in negative number\n", value);
+            slapi_rwlock_unlock(retrocl_cn_lock);
+            return -1;
+        }
+        slapi_rwlock_unlock(retrocl_cn_lock);
+    } else if (strcasecmp(value, "sync") == 0) {
+        /* Force resynchronization */
+        check_last_changenumber = 1;
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                      "retrocl_set_debug_changenumber - sync - Forced check_last_changenumber flag\n");
+        slapi_rwlock_unlock(retrocl_cn_lock);
+    } else {
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                      "retrocl_set_debug_changenumber - Unknown command '%s'. Supported: reset, set:N, dec:N, sync\n", value);
+        slapi_rwlock_unlock(retrocl_cn_lock);
+        return -1;
+    }
+
+    /* Log final state */
+    slapi_rwlock_rdlock(retrocl_cn_lock);
+    slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                  "retrocl_set_debug_changenumber - AFTER: internal_cn=%lu, first_cn=%lu\n",
+                  retrocl_internal_cn, retrocl_first_cn);
+    slapi_rwlock_unlock(retrocl_cn_lock);
+
+    return 0;
+}
+#endif
