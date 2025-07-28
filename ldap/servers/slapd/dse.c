@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -637,7 +637,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
     /* Now compute the new value */
     if (SLAPI_OPERATION_ADD == op) {
         current_sub_count++;
-    } else {
+    } else if (current_sub_count > 0) {
         current_sub_count--;
     }
     {

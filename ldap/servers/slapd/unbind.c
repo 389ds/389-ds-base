@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -87,8 +87,12 @@ do_unbind(Slapi_PBlock *pb)
     /* pass the unbind to all backends */
     be_unbindall(pb_conn, operation);
 
-free_and_return:;
+free_and_return:
 
-    /* close the connection to the client */
-    disconnect_server(pb_conn, operation->o_connid, operation->o_opid, SLAPD_DISCONNECT_UNBIND, 0);
+    /* close the connection to the client after refreshing the operation */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+    disconnect_server(pb_conn,
+                      operation ? operation->o_connid : -1,
+                      operation ? operation->o_opid : -1,
+                      SLAPD_DISCONNECT_UNBIND, 0);
 }
