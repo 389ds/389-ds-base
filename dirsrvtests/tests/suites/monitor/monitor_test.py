@@ -177,6 +177,42 @@ def test_num_subordinates_with_monitor_suffix(topo):
     assert len(filter2) == num_subordinates_val
 
 
+def test_monitor_connections(topo):
+    """Validates connection monitoring functionality.
+
+    :id: 34eb85c7-00cf-4e72-8467-a431040150a0
+    :setup: Standalone Instance
+    :steps:
+        1. Clone the DirSrv object to create a new connection handle.
+        2. Open a persistent connection to the server.
+        3. Query the 'cn=monitor' entry to fetch connection statistics.
+        4. Verify that the 'currentconnections' count is greater than 0.
+        5. Close the persistent connection.
+    :expectedresults:
+        1. The connection is established successfully.
+        2. The server's monitoring entry returns valid statistics.
+        3. The number of current connections reported is at least 1.
+        4. The connection is closed successfully.
+    """
+    inst1 = topo.standalone
+    monitor = Monitor(inst1)
+
+    conn = inst1.clone()
+    try:
+        conn.open()
+        log.info('LDAP connection established for monitoring check via conn.open()')
+
+        _, current_connections, _ = monitor.get_connections()
+        num_conns = int(current_connections[0])
+        log.info(f"Reported current connections: {num_conns}")
+
+        assert num_conns > 0
+
+    finally:
+        conn.close()
+        log.info("LDAP monitoring connection closed via conn.close()")
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
