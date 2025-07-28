@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1492,6 +1492,15 @@ referint_thread_func(void *arg __attribute__((unused)))
             }
 
             ptoken = ldap_utf8strtok_r(NULL, delimiter, &iter);
+            if (ptoken == NULL) {
+                /* Invalid line in referint log, skip it */
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                        "Skipping invalid referint log line: (%s)\n", thisline);
+                slapi_sdn_free(&sdn);
+                continue;
+            }
+
+            slapi_sdn_free(&tmpsuperior);
             if (!strcasecmp(ptoken, "NULL")) {
                 tmpsuperior = NULL;
             } else {

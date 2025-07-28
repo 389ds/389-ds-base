@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1657,6 +1657,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
                             /* We already did the search for this backend, don't
                              * do it again when we fall through */
                             do_suffix_search = PR_FALSE;
+                            slapi_pblock_init(search_pb);
                         }
                     }
                 } else if (!all_backends) {
@@ -3755,6 +3756,10 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *group_
 
                     pre_index++;
                 } else {
+                    if (pre_index >= pre_total || post_index >= post_total) {
+                        /* Don't overrun pre_array/post_array */
+                        break;
+                    }
                     /* decide what to do */
                     int cmp = memberof_compare(
                         config,
@@ -4445,10 +4450,12 @@ memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc)
 
         while (1) {
             slapi_pblock_init(mod_pb);
-
+            Slapi_DN *sdn = slapi_sdn_new_normdn_byref(dn);
             /* Internal mod with error overrides for DEL/ADD */
-            rc = slapi_single_modify_internal_override(mod_pb, slapi_sdn_new_normdn_byref(dn), single_mod,
-                                                        memberof_get_plugin_id(), SLAPI_OP_FLAG_BYPASS_REFERRALS);
+            rc = slapi_single_modify_internal_override(mod_pb, sdn, single_mod,
+                                                       memberof_get_plugin_id(),
+                                                       SLAPI_OP_FLAG_BYPASS_REFERRALS);
+            slapi_sdn_free(&sdn);
             if (rc == LDAP_OBJECT_CLASS_VIOLATION) {
                 if (!add_oc || added_oc) {
                     /*

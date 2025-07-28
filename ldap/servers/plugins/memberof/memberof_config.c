@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -568,18 +568,32 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         slapi_filter_free(theConfig.group_filter, 1);
 
         if (num_groupattrs > 1) {
-            int bytes_out = 0;
-            int filter_str_len = groupattr_name_len + (num_groupattrs * 4) + 4;
+            size_t bytes_out = 0;
+            size_t filter_str_len = groupattr_name_len + (num_groupattrs * 4) + 4;
+            int32_t rc = 0;
 
             /* Allocate enough space for the filter */
             filter_str = slapi_ch_malloc(filter_str_len);
 
             /* Add beginning of filter. */
-            bytes_out = snprintf(filter_str, filter_str_len - bytes_out, "(|");
+            rc = snprintf(filter_str, filter_str_len - bytes_out, "(|");
+            if (rc < 0) {
+                slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                goto done;
+            } else {
+                bytes_out = rc;
+            }
 
             /* Add filter section for each groupattr. */
-            for (i = 0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
-                bytes_out += snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
+            for (size_t i=0; theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
+                int32_t bytes_read = snprintf(filter_str + bytes_out, filter_str_len - bytes_out, "(%s=*)", theConfig.groupattrs[i]);
+                if (bytes_read<0) {
+                    slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "snprintf unexpectly failed in memberof_apply_config.\n");
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
+                    goto done;
+                }
+                bytes_out += bytes_read;
             }
 
             /* Add end of filter. */

@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2023 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2026,9 +2026,13 @@ bdb_pre_close(struct ldbminfo *li)
     conf = (bdb_config *)li->li_dblayer_config;
     bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
 
+    if (pEnv == NULL) {
+        return;
+    }
+
     pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
 
-    if (conf->bdb_stop_threads || !pEnv) {
+    if (conf->bdb_stop_threads) {
         /* already stopped.  do nothing... */
         goto timeout_escape;
     }
@@ -2202,6 +2206,7 @@ bdb_remove_env(struct ldbminfo *li)
     }
     if (NULL == li) {
         slapi_log_err(SLAPI_LOG_ERR, "bdb_remove_env", "No ldbm info is given\n");
+        slapi_ch_free((void **)&env);
         return -1;
     }
 
@@ -2211,10 +2216,11 @@ bdb_remove_env(struct ldbminfo *li)
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "bdb_remove_env", "Failed to remove DB environment files. "
-                                                "Please remove %s/__db.00# (# is 1 through 6)\n",
+                          "Please remove %s/__db.00# (# is 1 through 6)\n",
                           home_dir);
         }
     }
+    slapi_ch_free((void **)&env);
     return rc;
 }
 
@@ -6340,6 +6346,7 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
                 db->close(db, 0);
                 rc = bdb_db_remove_ex((bdb_db_env *)priv->dblayer_env, path, NULL, PR_TRUE);
                 inst->inst_changelog = NULL;
+                slapi_ch_free_string(&path);
                 slapi_ch_free_string(&instancedir);
             }
         }
