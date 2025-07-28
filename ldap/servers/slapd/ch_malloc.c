@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -254,7 +254,7 @@ slapi_ch_bvecdup(struct berval **v)
             ++i;
         newberval = (struct berval **)slapi_ch_malloc((i + 1) * sizeof(struct berval *));
         newberval[i] = NULL;
-        while (i-- > 0) {
+        while (i > 0 && i-- > 0) {
             newberval[i] = slapi_ch_bvdup(v[i]);
         }
     }

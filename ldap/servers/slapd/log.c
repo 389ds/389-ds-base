@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005-2024 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -201,6 +201,7 @@ compress_log_file(char *log_name, int32_t mode)
 
     if ((source = fopen(log_name, "r")) == NULL) {
         /* Failed to open log file */
+        /* coverity[leaked_storage] gzclose does close FD */
         gzclose(outfile);
         return -1;
     }
@@ -211,11 +212,13 @@ compress_log_file(char *log_name, int32_t mode)
         if (bytes_written == 0)
         {
             fclose(source);
+            /* coverity[leaked_storage] gzclose does close FD */
             gzclose(outfile);
             return -1;
         }
         bytes_read = fread(buf, 1, LOG_CHUNK, source);
     }
+    /* coverity[leaked_storage] gzclose does close FD */
     gzclose(outfile);
     fclose(source);
     PR_Delete(log_name); /* remove the old uncompressed log */

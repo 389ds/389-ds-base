@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -261,6 +261,7 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
         if (inst_dirp && *inst_dir) {
             return_value = env->remove(env, inst_dirp, 0);
         } else {
+            slapi_ch_free((void **)&env);
             return_value = -1;
         }
         if (return_value == EBUSY) {
