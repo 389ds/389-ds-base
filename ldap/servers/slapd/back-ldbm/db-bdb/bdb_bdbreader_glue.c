@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2024 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -19,7 +19,7 @@ int db_close(DB *, u_int32_t);
 #undef slapi_log_err
 
 #define LOGK(k)    (((k)&&(k)->data && (k)->size) ? (k)->data : "<NULL>")
-#define LOGN(v, names)    (((v)> sizeof names/sizeof names[0]) ? "Unexpected value" : names[v])
+#define LOGN(v, names)    (((v)>= sizeof names/sizeof names[0]) ? "Unexpected value" : names[v])
 
 int db_cursor(DB *db, DB_TXN *txnid, DBC **cursorp, u_int32_t flags);
 int dbc_close(DBC *dbc);
@@ -92,7 +92,7 @@ char *db_version(int *major, int *minor, int *patch)
     return version;
 }
 
-int nothing()
+int nothing(void)
 {
     return DB_SUCCESS;
 }
@@ -235,7 +235,7 @@ int db_open(DB *db, DB_TXN *txnid, const char *file,
             const char *database, DBTYPE type, u_int32_t flags, int mode)
 {
     slapi_log_err(SLAPI_LOG_INFO, "bdb_ro", "%s: db=%p txnid=%p file=%s database=%s "
-                  "type=0x%x flags=0x%x mode=0x%x\n", __FUNCTION__, db, 
+                  "type=0x%x flags=0x%x mode=0x%x\n", __FUNCTION__, db,
                    txnid, file, database, type, flags, mode);
     if (*file == '/') {
         db->fname = slapi_ch_strdup(file);
@@ -458,11 +458,16 @@ int dbc_count(DBC *dbc, void *countp, u_int32_t flags)
 
 int db_cursor(DB *db, DB_TXN *txnid, DBC **cursorp, u_int32_t flags)
 {
-    DBC *dbc = (void*)slapi_ch_calloc(1, sizeof *dbc);
+    DBC *dbc = NULL;
 
+    if (db->impl == NULL) {
+        *cursorp = NULL;
+        return DB_OSERROR;
+    }
+
+    dbc = (void*)slapi_ch_calloc(1, sizeof *dbc);
     *cursorp = dbc;
     dbc->dbp = db;
-
     dbc->c_close = dbc_close;
     dbc->c_del = dbc_del;
     dbc->c_get = dbc_get;
@@ -471,7 +476,7 @@ int db_cursor(DB *db, DB_TXN *txnid, DBC **cursorp, u_int32_t flags)
     dbc->impl = bdbreader_cur_open(db->impl);
 
     slapi_log_err(SLAPI_LOG_INFO, "bdb_ro", "%s: dbc=%p dbc->impl=%p\n", __FUNCTION__, dbc, dbc->impl);
-    return (db->impl == NULL) ? DB_OSERROR : DB_SUCCESS;
+    return DB_SUCCESS;
 }
 
 int db_del(DB *db, DB_TXN *txnid, DBT *key, u_int32_t flags)

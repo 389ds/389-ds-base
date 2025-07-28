@@ -174,7 +174,6 @@ create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **sessi
     char *undefined_sid = "undefined sid";
     const char *sid;
     int rc = 0;
-    int tag;
     LDAPControl *ctrl = NULL;
 
     if (session_tracking_id) {
@@ -183,9 +182,7 @@ create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **sessi
         sid = undefined_sid;
     }
     ctrlber = ber_alloc();
-    tag = ber_printf( ctrlber, "{nnno}", sid, strlen(sid));
-    if (rc == LBER_ERROR) {
-        tag = -1;
+    if ((rc = ber_printf( ctrlber, "{nnno}", sid, strlen(sid)) == LBER_ERROR)) {
         goto done;
     }
     slapi_build_control(LDAP_CONTROL_X_SESSION_TRACKING, ctrlber, 0, &ctrl);

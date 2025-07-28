@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2021 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -202,7 +202,7 @@ agmt_init_session_id(Repl_Agmt *ra)
     char *host = NULL; /* e.g. localhost.domain */
     char port[10];   /* e.g. 389 */
     char sport[10];  /* e.g. 636 */
-    char *hash_in;
+    char *hash_in = NULL;
     int32_t max_str_sid = SESSION_ID_STR_SZ - 4;
 
     if (ra == NULL) {
@@ -2718,31 +2718,26 @@ agmt_update_init_status(Repl_Agmt *ra)
         mod_idx++;
     }
 
-    if (nb_mods) {
-        /* it is ok to release the lock here because we are done with the agreement data.
-           we have to do it before issuing the modify operation because it causes
-           agmtlist_notify_all to be called which uses the same lock - hence the deadlock */
-        PR_Unlock(ra->lock);
+    /* it is ok to release the lock here because we are done with the agreement data.
+       we have to do it before issuing the modify operation because it causes
+       agmtlist_notify_all to be called which uses the same lock - hence the deadlock */
+    PR_Unlock(ra->lock);
 
-        pb = slapi_pblock_new();
-        mods[nb_mods] = NULL;
+    pb = slapi_pblock_new();
+    mods[nb_mods] = NULL;
 
-        slapi_modify_internal_set_pb_ext(pb, ra->dn, mods, NULL, NULL,
-                                         repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
-        slapi_modify_internal_pb(pb);
+    slapi_modify_internal_set_pb_ext(pb, ra->dn, mods, NULL, NULL,
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
+    slapi_modify_internal_pb(pb);
 
-        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-        if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_ATTRIBUTE) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_update_consumer_ruv - "
-                                                           "%s: agmt_update_consumer_ruv: "
-                                                           "failed to update consumer's RUV; LDAP error - %d\n",
-                          ra->long_name, rc);
-        }
-
-        slapi_pblock_destroy(pb);
-    } else {
-        PR_Unlock(ra->lock);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_ATTRIBUTE) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_update_consumer_ruv - "
+                      "%s: agmt_update_consumer_ruv: failed to update consumer's RUV; LDAP error - %d\n",
+                      ra->long_name, rc);
     }
+
+    slapi_pblock_destroy(pb);
     slapi_ch_free((void **)&mods);
     slapi_mod_done(&smod_start_time);
     slapi_mod_done(&smod_end_time);
