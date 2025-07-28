@@ -24,7 +24,7 @@ MemoryAccounting=yes
 
 # Allow non-root instances to bind to low ports.
 AmbientCapabilities=CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE CAP_CHOWN
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE CAP_CHOWN CAP_FOWNER
 
 PrivateTmp=on
 # https://en.opensuse.org/openSUSE:Security_Features#Systemd_hardening_effort
