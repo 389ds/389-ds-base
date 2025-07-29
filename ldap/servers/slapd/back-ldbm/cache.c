@@ -59,7 +59,6 @@
 #define LOG(...)
 #endif
 #define LOGPATTERN(cache, dn, msg, ...) { if (debug_pattern_matches(cache, dn)) { slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, "CACHE DEBUG: " msg, __VA_ARGS__); } }
-#define LOG2(...) slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, __VA_ARGS__)
 
 
 struct pinned_ctx {
