@@ -44,7 +44,7 @@ ERROR_LEVELS = {
                 + "methods used for a SASL bind"
     },
     "default": {
-        "level": 6384,
+        "level": 16384,
         "desc": "Default logging level"
     },
     "filter": {
