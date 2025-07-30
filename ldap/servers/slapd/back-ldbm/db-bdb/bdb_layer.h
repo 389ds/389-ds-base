@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -235,6 +235,7 @@ int bdb_public_in_import(ldbm_instance *inst);
 int bdb_dblayer_cursor_iterate(dbi_cursor_t *cursor,
                            int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
                            const dbi_val_t *startingkey, void *ctx);
+uint32_t bdb_get_inst_page_count(struct ldbminfo *li, ldbm_instance *inst);
 
 
 /* dbimpl helpers */

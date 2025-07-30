@@ -580,3 +580,24 @@ normalize_dir(char *dir)
     }
     *(p + 1) = '\0';
 }
+
+char *
+convert_bytes_to_str(double value, char *buffer, int level)
+{
+    const char *unit[10] = {
+        "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+    };
+
+    PR_ASSERT(level < 10);
+    if (level > 9) {
+        return "<value exceeded limits>";
+    }
+
+    if (value > 1024) {
+        double next_val = value / 1024;
+        convert_bytes_to_str(next_val, buffer, ++level);
+    } else {
+        sprintf(buffer, "%.1f %s", value, unit[level]);
+    }
+    return buffer;
+}

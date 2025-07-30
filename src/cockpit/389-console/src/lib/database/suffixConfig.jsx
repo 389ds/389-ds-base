@@ -11,15 +11,18 @@ import {
     GridItem,
     TextInput,
 } from "@patternfly/react-core";
+import { displayBytes } from "../tools.jsx";
 
 const _ = cockpit.gettext;
 
 export class SuffixConfig extends React.Component {
     render() {
+        const ec_size_pretty = displayBytes(this.props.cachememsize);
+        const dn_size_pretty = displayBytes(this.props.dncachememsize);
         let cacheInputs;
         if (this.props.autoTuning) {
             const cacheValue = this.props.cachesize + "  (auto-sized)";
-            const cachememValue = this.props.cachememsize + "  (auto-sized)";
+            const cachememValue = displayBytes(this.props.cachememsize) + "  (auto-sized)";
             cacheInputs = (
                 <Form isHorizontal autoComplete="off">
                     <Grid title={_("The entry cache size in bytes setting is being auto-sized and is read-only - see Global Database Configuration")}>
@@ -56,7 +59,7 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("DN Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={9} title={dn_size_pretty}>
                             <TextInput
                                 value={this.props.dncachememsize}
                                 type="number"
@@ -78,7 +81,7 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("Entry Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={9} title={ec_size_pretty}>
                             <TextInput
                                 value={this.props.cachememsize}
                                 type="number"
@@ -112,7 +115,7 @@ export class SuffixConfig extends React.Component {
                         <GridItem className="ds-label" span={3}>
                             {_("DN Cache Size")}
                         </GridItem>
-                        <GridItem span={9}>
+                        <GridItem span={9} title={dn_size_pretty}>
                             <TextInput
                                 value={this.props.dncachememsize}
                                 type="number"

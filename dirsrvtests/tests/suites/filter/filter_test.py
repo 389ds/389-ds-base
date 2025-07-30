@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020-2025 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,12 +13,13 @@ import time
 from ldap import SCOPE_SUBTREE
 from lib389.dirsrv_log import DirsrvAccessLog
 from lib389.tasks import *
-from lib389.backend import Backends, Backend
+from lib389.backend import Backends
 from lib389.dbgen import dbgen_users, dbgen_groups
 from lib389.topologies import topology_st
-from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX, DN_CONFIG_LDBM
+from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.utils import *
+from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
 
 pytestmark = pytest.mark.tier1
 
@@ -380,8 +381,10 @@ def test_match_large_valueset(topology_st):
     # Set the entry cache to 200Mb as the 1K groups of 2K users require at
     # least 170Mb
     if get_default_db_lib() == "bdb":
-        config_ldbm = DSLdapObject(inst, DN_CONFIG_LDBM)
-        config_ldbm.set('nsslapd-cache-autosize', '0')
+        config_ldbm = BDB_LDBMConfig(inst)
+    else:
+        config_ldbm = LMDB_LDBMConfig(inst)
+    config_ldbm.set('nsslapd-cache-autosize', '0')
     be_groups.replace('nsslapd-cachememsize', groups_entrycache)
 
     # Step 2. Generate a test ldif (10k users entries)
