@@ -237,7 +237,7 @@ class TestLogconv:
             2. Success
             3. Success
             4. Success
-            4. Actual stats match expected
+            5. Actual stats match expected
         """
         self.truncate_logs()
 
