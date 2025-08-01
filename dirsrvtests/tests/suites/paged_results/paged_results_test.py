@@ -1271,6 +1271,52 @@ def test_search_stress_abandon(create_40k_users, create_user):
         paged_search(conn, create_40k_users.suffix, [req_ctrl], search_flt, searchreq_attrlist, abandon_rate=abandon_rate)
 
 
+def test_search_referral(topology_st):
+    """Test a paged search on a referred suffix doesnt crash the server.
+
+    :id: c788bdbf-965b-4f12-ac24-d4d695e2cce2
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Configure a default referral.
+         2. Create a paged result search control.
+         3. Paged result search on referral suffix (doesnt exist on the instance, triggering a referral).
+         4. Check the server is still running.
+         5. Remove referral.
+
+    :expectedresults:
+         1. Referral sucessfully set.
+         2. Control created.
+         3. Search returns ldap.REFERRAL (10).
+         4. Server still running.
+         5. Referral removed.
+    """
+
+    page_size = 5
+    SEARCH_SUFFIX = "dc=referme,dc=com"
+    REFERRAL = "ldap://localhost.localdomain:389/o%3dnetscaperoot"
+
+    log.info('Configuring referral')
+    topology_st.standalone.config.set('nsslapd-referral', REFERRAL)
+    referral = topology_st.standalone.config.get_attr_val_utf8('nsslapd-referral')
+    assert (referral == REFERRAL)
+
+    log.info('Create paged result search control')
+    req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
+
+    log.info('Perform a paged result search on referred suffix, no chase')
+    with pytest.raises(ldap.REFERRAL):
+        topology_st.standalone.search_ext_s(SEARCH_SUFFIX, ldap.SCOPE_SUBTREE, serverctrls=[req_ctrl])
+
+    log.info('Confirm instance is still running')
+    assert (topology_st.standalone.status())
+
+    log.info('Remove referral')
+    topology_st.standalone.config.remove_all('nsslapd-referral')
+    referral = topology_st.standalone.config.get_attr_val_utf8('nsslapd-referral')
+    assert (referral == None)
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
