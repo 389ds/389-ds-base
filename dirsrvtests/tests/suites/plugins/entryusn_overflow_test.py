@@ -81,6 +81,7 @@ def setup_usn_test(topology_st, request):
     return created_users
 
 
+@pytest.mark.xfail(reason="DS6250")
 def test_entryusn_overflow_on_add_existing_entries(topology_st, setup_usn_test):
     """Test that reproduces entryUSN overflow when adding existing entries
 
@@ -232,6 +233,7 @@ def test_entryusn_overflow_on_add_existing_entries(topology_st, setup_usn_test):
     log.info("EntryUSN overflow test completed successfully")
 
 
+@pytest.mark.xfail(reason="DS6250")
 def test_entryusn_consistency_after_failed_adds(topology_st, setup_usn_test):
     """Test that entryUSN remains consistent after failed add operations
 
