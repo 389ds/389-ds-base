@@ -32,48 +32,41 @@ from lib389.topologies import create_topology
 
 log = logging.getLogger(__name__)
 
-class LogConvTest:
-    TEST_TIMEOUT = 10
+@pytest.fixture(scope="class", params=["default", "json"])
+def topology_st(request):
+    """Create DS standalone instance"""
+    log_format = request.param
+    topology = create_topology({ReplicaRole.STANDALONE: 1})
+    topology.standalone.config.set('nsslapd-accesslog-logbuffering', "off")
+    topology.standalone.config.set('nsslapd-accesslog-log-format', log_format)
 
-    def __init__(self, instance, log_format="default"):
-        self.inst = instance
-        self.log_format = log_format 
-        self.logconv_path = self.get_logconv_path()
+    def fin():
+        if topology.standalone.exists():
+            topology.standalone.delete()
+    request.addfinalizer(fin)
+
+    return topology
+
+class TestLogconv:
+
+    @pytest.fixture(autouse=True)
+    def setup(self, topology_st):
+        self.inst = topology_st.standalone
+        self.logconv_path = shutil.which("logconv.py") or None
+        self.log_format = self.inst.config.get_attr_val_utf8("nsslapd-accesslog-log-format")
         self.access_log_path = self.get_access_log_path()
-        self.expected = None
         self.debug_output = 'logconv-debug.log'
 
-    def get_access_log_path(self, timeout: int = 10):
+    def get_access_log_path(self):
         """
         Get server access log file.
         """
-        start = time.time()
-        while not self.inst.state == DIRSRV_STATE_ONLINE:
-            if (time.time() - start > timeout):
-                pytest.fail("Instance failed to come online before: {timeout}")
-            time.sleep(1) 
-
         path = self.inst.config.get_attr_val_utf8('nsslapd-accesslog')
         if not path:
             pytest.fail("Access log path not found: {path}")
             return None
 
         return path
-
-    def get_logconv_path(self):
-        """ 
-        Get the location of logconv script.
-        """
-        return shutil.which("logconv.py") or None
-
-    def configure_logs(self, format: str = "default", buffering: str = "off"):
-        """
-        Configure logbuffering and log-format values.
-        """
-        self.inst.config.set('nsslapd-accesslog-logbuffering', buffering)
-        self.inst.config.set('nsslapd-accesslog-log-format', format)
-
-        self.log_format = format 
 
     def truncate_logs(self):
         """ 
@@ -84,23 +77,10 @@ class LogConvTest:
 
         with open(self.access_log_path, "w") as f:
             f.truncate(0)
-    
-    def run_operation(self, operation_function):
-        """
-        Run an LDAP operation.
-        """
-        if not callable(operation_function):
-            pytest.fail(f"Operation function must be callable. {operation_function}")
 
-        try:
-            operation_function(self)
-        except Exception as e:
-            log.error(f"{operation_function} failed: {e}")
-            raise 
-
-    def parse_summary(self, output: str):
+    def extract_logconv_stats(self, output: str):
         """
-        Parse the default logconv output and extract key numeric statistics.
+        Parse the default logconv output and extract key counts.
 
         Uses regex patterns to match lines in the logconv output.
 
@@ -168,17 +148,17 @@ class LogConvTest:
             "smart_referrals": r"^Smart Referrals Received:\s+(\d+)",
         }
 
-        summary = {}
+        logconv_stats = {}
         for key, pattern in patterns.items():
             match = re.search(pattern, output, re.IGNORECASE | re.MULTILINE)
             if match:
                 value = match.group(1)
                 try:
-                    summary[key] = float(value) if '.' in value else int(value)
+                    logconv_stats[key] = float(value) if '.' in value else int(value)
                 except (ValueError) as e:
-                    log.info(f"Failed to parse value for {key}")
+                    pytest.fail(f"Failed to parse value for {key}")
 
-        return summary
+        return logconv_stats
 
     def run_logconv(self, debug_output=True):
         """
@@ -187,205 +167,81 @@ class LogConvTest:
         Args:
             debug_output (bool): If True, writes logconv output to a debug file.
         """
-        
+
         if not self.logconv_path:
-            raise FileNotFoundError(f"{self.logconv_path} not found.")
+            raise FileNotFoundError("logconv.py not found.")
 
         if not self.access_log_path:
-            raise FileNotFoundError(f"{self.access_log_path} not found.")
-        
+            raise FileNotFoundError("access log not found.")
+
         try:
             result = subprocess.run(
                 [self.logconv_path, self.access_log_path],
                 capture_output=True,
                 text=True
             )
-        except FileNotFoundError as e:
-            print("Exception message 1:", e.value)
-            raise FileNotFoundError(f"Logconv script not found: {self.logconv_path}") from e
         except Exception as e:
-             print("Exception message 2:", e.value)
-             raise RuntimeError(f"Logconv script unexpected error: {e}") from e
+            raise RuntimeError(f"Failed to run logconv.py: {e}")
 
         if result.returncode != 0:
-            raise RuntimeError(f"{self.logconv_path} failed: {result.stderr}")
+            raise RuntimeError(f"logconv.py exited with error: {result.stderr}")
 
-        summary = result.stdout
+        logconv_stats = result.stdout
 
         if debug_output:
             with open(self.debug_output, 'w') as f:
-                f.write(summary)
+                f.write(logconv_stats)
             os.chmod(self.debug_output, 0o644)
 
-        return summary
+        return logconv_stats
 
-    def wait_for_log_counts(self, expected: dict, test_name=None, poll_interval=1):
+    def validate_logconv_stats(self, expected: dict, logconv_stats: dict, test_name=None):
         """
-        Wait for the parsed logconv output to meet or exceed the expected op count, 
-        retrying every poll_interval until the condition is met or it times out.
-
         The comparison is loose, it passes once the actual counts are greater than or equal 
         to the expected count.
 
         Args:
             expected: dict of expected exact counts
+            logconv_stats: dict of key value stats from logconv
             test_name: string for logging
-            poll_interval: how often to poll the logs in seconds
         """
         IGNORE_KEYS = {"highest_fd_taken", "concurrent_conns"}
 
-        now = time.time()
-        while True:
-            errors = []
-            try:
-                output = self.run_logconv()
-            except (FileNotFoundError, RuntimeError) as e:
-                log.error(f"{test_name}: Error running logconv: {e}")
-                raise
+        errors = []
+        for key, existing_val in logconv_stats.items():
+            if key in IGNORE_KEYS:
+                continue
+            expected_val = expected.get(key, 0)
+            if existing_val < expected_val:
+                errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
 
-            summary = self.parse_summary(output)
-            for key, existing_val in summary.items():
-                if key in IGNORE_KEYS:
-                    continue
-                expected_val = expected.get(key, 0)
-                if existing_val < expected_val:
-                    errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
+        if errors:
+            print("\n".join(errors))
+            return False
 
-            if not errors:
-                log.info(f"{test_name}: Pass.")
-                return
+        return True
 
-            if (time.time() - now) > self.TEST_TIMEOUT:
-                error_report = "\n".join(errors)
-                return f"\n{error_report}"
- 
-            time.sleep(poll_interval)
+    def test_add(self):
+        """Validate add operation stats reported by logconv.
 
-@pytest.fixture
-def fresh_instance():
-    topo = create_topology({ReplicaRole.STANDALONE: 1})
-    inst = topo.standalone
-    inst.start()
-    yield inst
-    inst.stop()
-    inst.delete(escapehatch="i am sure")
+        :id: 7747b0e5-9dac-471a-bfb1-7b4dded6afa0
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Create 3 users
+            3. Delete 3 user
+            4. Run logconv
+            5. Compare actual stats with expected
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Success
+            4. Actual stats match expected
+        """
+        self.truncate_logs()
 
-@pytest.mark.parametrize("log_format", ["default", "json"])
-def test_logconv_suite(fresh_instance, log_format):
-    """
-    Validate logconv.py reported stats for default and json access log formats.
-
-    :id: aee85f04-ddb8-4732-adba-2100ab94cd7b
-    :setup: Standalone Instance
-    :steps:
-        1. Test ADD stats
-        2. Test DELETE stats
-        3. Test MODIFY stats
-        4. Test MODRDN stats
-        5. Test COMPARE stats
-        6. Test SEARCH stats
-        7. Test internal stats
-        8. Test BASE SEARCH stats
-        9. Test PAGED SEARCH stats
-        10. Test PERSISTENT SEARCH stats
-        11. Test SIMPLE BIND stats
-        12. Test ANONYMOUS BIND stats
-        13. Test LDAPI BIND stats
-        14. Test server restart stats
-        15. Test invalid filter stats
-        16. Test partially unindexed VLV sort stats
-        17. Test fully unindexed search stats
-        18. Test LDAPS connection stats
-        19. Test STARTTLS operation stats
-        20. Test behavior with missing access log
-        21. Test behavior with invalid access log format
-    :expectedresults:
-        1. Success
-        2. Success
-        3. Success
-        4. Success
-        5. Success
-        6. Success
-        7. Success
-        8. Success
-        9. Success
-        10. Success
-        11. Success
-        12. Success
-        13. Success
-        14. Success
-        15. Success
-        16. Success
-        17. Success
-        18. Success
-        19. Success
-        20. Success
-        21. Success
-    """
-    log.info(f"Running logconv test suite in {log_format.upper()} mode\n")
-
-    test_env = LogConvTest(fresh_instance, log_format)
-    failures = []
-
-    def run(test_func):
-        try:
-            test_func(test_env)
-            err = test_env.wait_for_log_counts(expected=test_env.expected, test_name=test_func.__name__)
-            if err:
-                full_name = f"{log_format} - {test_func.__name__}"
-                # raise AssertionError(f"\n\n=== Logconv Test Failure ===\n\n{full_name}:\n{err}")
-                failures.append((full_name, err))
-        except Exception as e:
-            full_name = f"{log_format} - {test_func.__name__}"
-            failures.append((full_name, f"Unexpected exception: {e}"))
-
-    test_cases = [
-        _test_add_del,
-        _test_modify,
-        _test_modrdn,
-        _test_compare,
-        _test_search,
-        _test_internal_ops,
-        _test_base_search,
-        _test_paged_search,
-        _test_persistant_search,
-        _test_simple_bind,
-        _test_anon_bind,
-        _test_ldapi,
-        _test_restart,
-        _test_invalid_filter,
-        _test_partially_unindexed_vlv_sort,
-        _test_fully_unindexed_search,
-        _test_ldaps,
-        _test_starttls,
-        _test_missing_access_log,
-        _test_invalid_access_log_format
-    ]
-
-    test_env.configure_logs(log_format)
-
-    for test in test_cases:
-        run(test)
-
-    if os.path.exists(test_env.debug_output):
-        os.remove(test_env.debug_output)
-
-    if failures:
-        summary_lines = []
-        summary_lines.append("=== Logconv Test Failures ===\n")
-
-        for name, error in failures:
-            summary_lines.append(f"{name}:")
-            summary_lines.extend(f"  {line}" for line in error.strip().splitlines())
-            summary_lines.append("")
-
-        summary = "\n".join(summary_lines)
-        raise AssertionError(f"\n{summary}")
-
-def _test_add_del(test_env):
-
-    def _add_del_users(test_env):
-        users = UserAccounts(test_env.inst, DEFAULT_SUFFIX)
+        users = UserAccounts(self.inst, DEFAULT_SUFFIX)
         try:
             for idx in range(3):
                 users.create_test_user(uid=str(idx), gid=str(idx))
@@ -398,177 +254,290 @@ def _test_add_del(test_env):
             except Exception as e:
                 log.warning(f"Failed to delete user: {e}")
 
-    test_env.operation = _add_del_users
+        expected = {
+            "adds": 3,
+            "deletes": 3,
+            "searches": 13,
+            "operations": 19,
+            "results": 19
+        }
 
-    test_env.expected = {
-        "adds": 3,
-        "deletes": 3,
-        "searches": 13,
-        "operations": 19,
-        "results": 19
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_add")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_modify(self):
+        """Validate modify operation stats reported by logconv.
 
-def _test_modify(test_env):
+        :id: d5c37b3f-be79-47da-8ce3-051724f21e09
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Create a user
+            3. Modify the userPassword attribute
+            4. Delete the user
+            5. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Success
+            5. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _mod_user_passwd(test_env):
-        users = UserAccounts(test_env.inst, DEFAULT_SUFFIX)
+        users = UserAccounts(self.inst, DEFAULT_SUFFIX)
         user = users.create_test_user(uid=1, gid=1)
         user.set("userPassword", "newpass")
         user.delete()
 
-    test_env.operation = _mod_user_passwd
+        expected = {
+            "adds": 1,
+            "mods": 1,
+            "deletes": 1,
+            "searches": 2,
+            "operations": 5,
+            "results": 5
+        }
 
-    test_env.expected = {
-        "adds": 1,
-        "mods": 1,
-        "deletes": 1,
-        "searches": 2,
-        "operations": 5,
-        "results": 5
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_modify")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_modrdn(self):
+        """Validate MODRDN operation stats reported by logconv.
 
-def _test_modrdn(test_env):
+        :id: ded94158-d92a-4696-9d49-2fb5437cae26
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Create a user
+            3. Rename the user's DN
+            4. Delete the user
+            5. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Success
+            5. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _user_modrdn(test_env):
-        users = UserAccounts(test_env.inst, DEFAULT_SUFFIX)
+        users = UserAccounts(self.inst, DEFAULT_SUFFIX)
         user = users.create_test_user(uid=1, gid=1)
         user.rename('uid=user_modrdn_renamed')
         user.delete()
 
-    test_env.operation = _user_modrdn
+        expected = {
+            "adds": 1,
+            "deletes": 1,
+            "modrdns": 1,
+            "searches": 3,
+            "operations": 6,
+            "results": 6
+        }
 
-    test_env.expected = {
-        "adds": 1,
-        "deletes": 1,
-        "modrdns": 1,
-        "searches": 3,
-        "operations": 6,
-        "results": 6
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_modrdn")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
 
-def _test_compare(test_env):
+    def test_compare(self):
+        """Validate compare operation stats reported by logconv.
 
-    def _user_compare(test_env):
-        users = UserAccounts(test_env.inst, DEFAULT_SUFFIX)
+        :id: 0c874c9a-21bb-41a9-a6dd-e4ae77a24bfa
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Create a user
+            3. Perform compare on 'cn' attribute
+            4. Delete the user
+            5. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Success
+            5. Actual stats match expected
+        """
+        self.truncate_logs()
+
+        users = UserAccounts(self.inst, DEFAULT_SUFFIX)
         user = users.create_test_user(uid=1, gid=1)
-        test_env.inst.compare_ext_s(user.dn, 'cn', b'compare')
+        self.inst.compare_ext_s(user.dn, 'cn', b'compare')
         user.delete()
 
-    test_env.operation = _user_compare
-    
-    test_env.expected = {
-        "adds": 1,
-        "deletes": 1,
-        "compares": 1,
-        "searches": 2,
-        "operations": 5,
-        "results": 5
-    }
+        expected = {
+            "adds": 1,
+            "deletes": 1,
+            "compares": 1,
+            "searches": 2,
+            "operations": 5,
+            "results": 5
+        }
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_compare")
 
-def _test_search(test_env):
+    def test_search(self):
+        """Validate basic search operation stats reported by logconv.
 
-    def _norm_search(test):
+        :id: e81e2b0b-0c67-4ba0-8dff-2371a3f91546
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Perform subtree search for non existent uid
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
+
         try:
-            test_env.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=findmeifucan)')
+            self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=findmeifucan)')
         except ldap.LDAPError as e:
             log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
             raise e
 
-    test_env.operation = _norm_search
+        expected = {
+            "searches": 1,
+            "operations": 1,
+            "results": 1
+        }
 
-    test_env.expected = {
-        "searches": 1,
-        "operations": 1,
-        "results": 1
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_search")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_internal_ops(self):
+        """Validate internal operation stats reported by logconv.
 
-def _test_internal_ops(test_env):
+        :id: 631ba514-349d-49f6-961e-a6fca3071cf3
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Modify access log config, resulting in internal ops
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _internal_op(test_env):
-        default_log_level = test_env.inst.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
+        default_log_level = self.inst.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
         access_log_level = '4'
-        test_env.inst.config.set(LOG_ACCESS_LEVEL, access_log_level)
-        test_env.inst.config.set('nsslapd-plugin-logging', 'on')
-        test_env.inst.config.set(LOG_ACCESS_LEVEL, default_log_level)
-        test_env.inst.config.set('nsslapd-plugin-logging', 'off')
+        self.inst.config.set(LOG_ACCESS_LEVEL, access_log_level)
+        self.inst.config.set('nsslapd-plugin-logging', 'on')
+        self.inst.config.set(LOG_ACCESS_LEVEL, default_log_level)
+        self.inst.config.set('nsslapd-plugin-logging', 'off')
 
-    test_env.operation = _internal_op
+        expected = {
+            "internal_ops": 2,
+            "mods": 2,
+            "searches": 3,
+            "operations": 5,
+            "results": 5,
+        }
 
-    test_env.expected = {
-        "internal_ops": 2,
-        "mods": 2,
-        "searches": 3,
-        "operations": 5,
-        "results": 5,
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_internal_ops")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_base_search(self):
+        """Validate base search operation stats reported by logconv.
 
-def _test_base_search(test_env):
+        :id: d7557ef2-582c-42bb-a9ee-ded0680ba707
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Run a base search
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _base_search(test_env):
         try:
-            test_env.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
+            self.inst.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(objectclass=top)', ['dn'])
         except ldap.LDAPError as e:
                 log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
                 raise e
 
-    test_env.operation = _base_search
+        expected = {
+            "searches": 1,
+            "operations": 1,
+            "entire_search_base_queries": 1,
+            "results": 1
+        }
 
-    test_env.expected = {
-        "searches": 1,
-        "operations": 1,
-        "entire_search_base_queries": 1,
-        "results": 1
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_base_search")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_paged_search(self):
+        """Validate paged search operation stats reported by logconv.
 
-def _test_paged_search(test_env):
+        :id: 729cb831-bcbe-4f88-8f42-12be5c48b5e6
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Run a paged search
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
 
-    def _paged_search(test_env):
+        self.truncate_logs()
+
         req_ctrl = SimplePagedResultsControl(True, size=3, cookie='')
         try:
-            test_env.inst.search_ext(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "sn=user_*", ['cn'], serverctrls=[req_ctrl])
+            self.inst.search_ext(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "sn=user_*", ['cn'], serverctrls=[req_ctrl])
         except ldap.LDAPError as e:
                 log.error('Search failed on {}'.format(DEFAULT_SUFFIX))
                 raise e
 
-    test_env.operation = _paged_search
+        # Need to wait a little here
+        time.sleep(2)
 
-    test_env.expected = {
-        "searches": 1,
-        "operations": 1,
-        "paged_searches": 1,
-        "results": 1
-    }
+        expected = {
+            "searches": 1,
+            "operations": 1,
+            "paged_searches": 1,
+            "results": 1
+        }
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_paged_search")
 
-def _test_persistant_search(test_env):
+    def test_persistant_search(self):
+        """Validate persistant search operation stats reported by logconv.
 
-    def _persistant_search(test_env):
+        :id: a0552c17-d70a-4fe2-b4af-9292d4862da6
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Run a persistant search
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
+
         psc = PersistentSearchControl()
 
-        msgid = test_env.inst.search_ext(
+        msgid = self.inst.search_ext(
             base=DEFAULT_SUFFIX,
             scope=ldap.SCOPE_ONELEVEL,
             filterstr='(objectClass=person)',
@@ -576,28 +545,39 @@ def _test_persistant_search(test_env):
             serverctrls=[psc]
         )
 
-        test_env.inst.abandon(msgid)
+        expected = {
+            "searches": 1,
+            "persistent_searches": 1,
+            "operations": 1,
+        }
 
-    test_env.operation = _persistant_search
-
-    test_env.expected = {
-        "searches": 1,
-        "persistent_searches": 1,
-        "abandoned": 1,
-        "operations": 2,
-        "results": 1, # abandoned op counted as a result
-    }
-
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+        time.sleep(2)
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_persistant_search")
 
 
-def _test_simple_bind(test_env):
+    def test_simple_bind(self):
+        """Validate simple bind operation stats reported by logconv.
 
-    def _simple_bind(test_env):
+        :id: 20d5244a-3cda-434f-9957-062aaa88e66f
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Create a user and set password
+            3. Perform a simple bind and unbind
+            4. Delete user
+            5. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Success
+            5. Actual stats match expected
+        """
+        self.truncate_logs()
 
-
-        users = UserAccounts(test_env.inst, DEFAULT_SUFFIX)
+        users = UserAccounts(self.inst, DEFAULT_SUFFIX)
         user = users.create_test_user(uid=1, gid=1)
         user.set("userPassword", "password")
 
@@ -606,60 +586,89 @@ def _test_simple_bind(test_env):
         conn.unbind_s()
         user.delete()
 
-    test_env.operation = _simple_bind
+        expected = {
+            "adds": 1,
+            "mods": 1,
+            "deletes": 1,
+            "binds": 1,
+            "unbinds": 1,
+            "searches": 2,
+            "operations": 6,
+            "results": 6,
+            "total_connections": 1,
+            "concurrent_conns": 1,
+            "ldap_conns": 1,
+            "fds_taken": 1,
+            "fds_returned": 1
+        }
 
-    test_env.expected = {
-        "adds": 1,
-        "mods": 1,
-        "deletes": 1,
-        "binds": 1,
-        "unbinds": 1,
-        "searches": 2,
-        "operations": 6,
-        "results": 6,
-        "total_connections": 1,
-        "concurrent_conns": 1,
-        "ldap_conns": 1,
-        "fds_taken": 1,
-        "fds_returned": 1
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_simple_bind")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_anon_bind(self):
+        """Validate anonymous bind operation stats reported by logconv.
 
-def _test_anon_bind(test_env):
+        :id: 893b8388-4a6b-4434-89ce-f93e518eff9d
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Perform an anonymous bind and unbind
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _anon_bind(test_env):
-        conn = Anonymous(test_env.inst).bind()
+        conn = Anonymous(self.inst).bind()
         conn.unbind()
 
-    test_env.operation = _anon_bind
+        expected = {
+            "binds": 1,
+            "unbinds": 1,
+            "anon_binds": 1,
+            "searches": 1,
+            "operations": 2,
+            "results": 2,
+            "ldap_conns": 1,
+            "concurrent_conns": 1,
+            "total_connections": 1,
+            "fds_taken": 1,
+            "fds_returned": 1
+        }
 
-    test_env.expected = {
-        "binds": 1,
-        "unbinds": 1,
-        "anon_binds": 1,
-        "searches": 1,
-        "operations": 2,
-        "results": 2,
-        "ldap_conns": 1,
-        "concurrent_conns": 1,
-        "total_connections": 1,
-        "fds_taken": 1,
-        "fds_returned": 1
-    }
+        time.sleep(2)
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_anon_bind")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_ldapi(self):
+        """Validate ldapi operation stats reported by logconv.
 
-def _test_ldapi(test_env):
+        :id: 169545bc-cd1e-477a-bd73-3d593cb1ff98
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Configure ldapi
+            3. Restart instance for config to take effect
+            4. Run an ldapi search
+            5. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Success
+            5. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _ldapi_search(tetest_envt):
-        test_env.inst.config.set('nsslapd-ldapilisten', 'on')
-        test_env.inst.config.set('nsslapd-ldapiautobind', 'on')
-        test_env.inst.config.set('nsslapd-ldapifilepath', f'/var/run/slapd-{test_env.inst.serverid}.socket')
-        test_env.inst.restart()
-        ldapi_socket = test_env.inst.config.get_attr_val_utf8('nsslapd-ldapifilepath').replace('/', '%2F')
+        self.inst.config.set('nsslapd-ldapilisten', 'on')
+        self.inst.config.set('nsslapd-ldapiautobind', 'on')
+        self.inst.config.set('nsslapd-ldapifilepath', f'/var/run/slapd-{self.inst.serverid}.socket')
+        self.inst.restart()
+        ldapi_socket = self.inst.config.get_attr_val_utf8('nsslapd-ldapifilepath').replace('/', '%2F')
         cmd = [
             "ldapsearch",
             "-H", f"ldapi://{ldapi_socket}",
@@ -668,77 +677,116 @@ def _test_ldapi(test_env):
         ]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    test_env.operation = _ldapi_search
+        expected = {
+            "mods": 3,
+            "autobinds": 1,
+            "sasl_binds": 1,
+            "binds": 3,
+            "unbinds": 1,
+            "searches": 2,
+            "operations": 8,
+            "results": 7,
+            "entire_search_base_queries": 1,
+            "unindexed_components": 1,
+            "ldap_conns": 1,
+            "ldapi_conns": 1,
+            "concurrent_conns": 1,
+            "total_connections": 2,
+            "fds_taken": 2,
+            "fds_returned": 2,
+            "restarts": 1
+        }
 
-    test_env.expected = {
-        "mods": 3,
-        "autobinds": 1,
-        "sasl_binds": 1,
-        "binds": 3,
-        "unbinds": 1,
-        "searches": 2,
-        "operations": 8,
-        "results": 7,
-        "entire_search_base_queries": 1,
-        "unindexed_components": 1,
-        "ldap_conns": 1,
-        "ldapi_conns": 1,
-        "concurrent_conns": 1,
-        "total_connections": 2,
-        "fds_taken": 2,
-        "fds_returned": 2,
-        "restarts": 1
-    }
+        time.sleep(2)
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_ldapi")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_restart(self):
+        """Validate restart stats reported by logconv.
 
-def _test_restart(test_env):
+        :id: 1c98b6da-d37b-48f5-ae36-72c62ddccdb1
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Restart the instance twice
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. SUccess
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _server_restart(test_env):
-        test_env.inst.restart()
-        test_env.inst.restart()
+        self.inst.restart()
+        self.inst.restart()
 
-    test_env.operation = _server_restart
+        expected = {
+            "binds": 2,
+            "operations": 2,
+            "results": 2,
+            "ldap_conns": 2,
+            "total_connections": 2,
+            "fds_taken": 2,
+            "fds_returned": 2,
+            "restarts": 2
+        }
 
-    test_env.expected = {
-        "binds": 2,
-        "operations": 2,
-        "results": 2,
-        "ldap_conns": 2,
-        "total_connections": 2,
-        "fds_taken": 2,
-        "fds_returned": 2,
-        "restarts": 2
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_restart")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_invalid_filter(self):
+        """Validate invalid filter search stats reported by logconv.
 
-def _test_invalid_filter(test_env):
+        :id: c2d9c082-eaf5-4eba-a977-c28d3f02d51f
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Run a search with a filter that doesnt exist
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. SUccess
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _search_invalid_filter(test_env):
-        test_env.inst.search_ext_s(
+        self.inst.search_ext_s(
             base=DEFAULT_SUFFIX,
             scope=ldap.SCOPE_SUBTREE,
             filterstr='(idontexist=*)',
         )
 
-    test_env.operation = _search_invalid_filter
+        expected = {
+            "invalid_attribute_filters": 1,
+            "searches": 1,
+            "operations": 1,
+            "results": 1
+        }
 
-    test_env.expected = {
-        "invalid_attribute_filters": 1,
-        "searches": 1,
-        "operations": 1,
-        "results": 1
-    }
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_invalid_filter")
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+    def test_partially_unindexed_vlv_sort(self):
+        """Validate an unindexed VLV search + sort stats reported by logconv.
 
-def _test_partially_unindexed_vlv_sort(test_env):
+        :id: 88af0fcc-d351-4ad2-8be9-8adcb0bd6bf0
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Configure VLV and SSS request controls
+            3. Run an unindexed search
+            4. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. SUccess
+            3. SUccess
+            4. Actual stats match expected
+        """
+        self.truncate_logs()
 
-    def _search_partially_unindexed_vlv_sort(test_env):
         vlv_control = VLVRequestControl(
             criticality=True,
             before_count="1",
@@ -750,38 +798,56 @@ def _test_partially_unindexed_vlv_sort(test_env):
         )
         sss_control = SSSRequestControl(criticality=True, ordering_rules=['givenName'])
 
-        test_env.inst.search_ext_s(
+        self.inst.search_ext_s(
             base=DEFAULT_SUFFIX,
             scope=ldap.SCOPE_SUBTREE,
             filterstr='(givenName=*)',
             serverctrls=[vlv_control, sss_control]
         )
 
-    test_env.operation = _search_partially_unindexed_vlv_sort
-    
-    test_env.expected = {
-        "vlv_operations": 1,
-        "sort_operations": 1,
-        "searches": 1,
-        "unindexed_components": 0,
-        "operations": 2,
-        "results": 1
-    }
-    
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+        expected = {
+            "vlv_operations": 1,
+            "sort_operations": 1,
+            "searches": 1,
+            "unindexed_components": 0,
+            "operations": 2,
+            "results": 1
+        }
 
-def _test_fully_unindexed_search(test_env):
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_partially_unindexed_vlv_sort")
 
-    def _search_fully_unindexed(test_env):
+    def test_fully_unindexed_search(self):
+        """Validate an unindexed VLV search stats reported by logconv.
+
+        :id: 93d5a42e-ed78-4257-ba8c-f54a14d95b94
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Lower idlistscanlimit to force unindexed search
+            3. Create 10 test users
+            4. Perform a search triggering unindexed search
+            5. Restore idlistscanlimit and delete users
+            6. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Success
+            5. Success
+            6. Actual stats match expected
+        """
+        self.truncate_logs()
+
         # Force an unindexed search
-        db_cfg = DatabaseConfig(test_env.inst)
+        db_cfg = DatabaseConfig(self.inst)
         default_idlistscanlimit = db_cfg.get_attr_vals_utf8('nsslapd-idlistscanlimit')
         db_cfg.set([('nsslapd-idlistscanlimit', '100')])
-        users = UserAccounts(test_env.inst, DEFAULT_SUFFIX)
+        users = UserAccounts(self.inst, DEFAULT_SUFFIX)
         for i in range(10):
             users.create_test_user(uid=i)
-        raw_objects = DSLdapObjects(test_env.inst, basedn=DEFAULT_SUFFIX)
+        raw_objects = DSLdapObjects(self.inst, basedn=DEFAULT_SUFFIX)
         raw_objects.filter("(description=test*)")
         db_cfg.set([('nsslapd-idlistscanlimit', default_idlistscanlimit)])
 
@@ -791,104 +857,40 @@ def _test_fully_unindexed_search(test_env):
             except Exception as e:
                 log.warning(f"Failed to delete user: {e}")
 
-    test_env.operation = _search_fully_unindexed
+        expected = {
+            "mods": 2,
+            "adds": 10,
+            "deletes": 10,
+            "searches": 44,
+            "unindexed_components": 1,
+            "operations": 66,
+            "results": 66,
+        }
 
-    test_env.expected = {
-        "mods": 2,
-        "adds": 10,
-        "deletes": 10,
-        "searches": 44,
-        "unindexed_components": 1,
-        "operations": 66,
-        "results": 66,
-    }
-    
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_fully_unindexed_search")
 
-def _test_ldaps(test_env):
+    def test_starttls(self):
+        """Validate an starttls operation stats reported by logconv.
 
-    def _search_ldaps(test_env):
-        
-        RDN_TEST_USER = 'testuser'
-        RDN_TEST_USER_WRONG = 'testuser_wrong'
-        test_env.inst.enable_tls()
-        test_env.inst.restart()
+        :id: 3e76cd43-0a20-4a7b-854c-5292571be8a6
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Run a search with starttls flag enabled
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
 
-        users = UserAccounts(test_env.inst, DEFAULT_SUFFIX)
-        user = users.create(properties={
-            'uid': RDN_TEST_USER,
-            'cn': RDN_TEST_USER,
-            'sn': RDN_TEST_USER,
-            'uidNumber': '1000',
-            'gidNumber': '2000',
-            'homeDirectory': f'/home/{RDN_TEST_USER}'
-        })
-
-        ssca_dir = test_env.inst.get_ssca_dir()
-        ssca = NssSsl(dbpath=ssca_dir)
-        ssca.create_rsa_user(RDN_TEST_USER)
-        ssca.create_rsa_user(RDN_TEST_USER_WRONG)
-
-        # Get the details of where the key and crt are.
-        tls_locs = ssca.get_rsa_user(RDN_TEST_USER)
-        tls_locs_wrong = ssca.get_rsa_user(RDN_TEST_USER_WRONG)
-
-        user.enroll_certificate(tls_locs['crt_der_path'])
-
-        # Turn on the certmap.
-        cm = CertmapLegacy(test_env.inst)
-        certmaps = cm.list()
-        certmaps['default']['DNComps'] = ''
-        certmaps['default']['FilterComps'] = ['cn']
-        certmaps['default']['VerifyCert'] = 'off'
-        cm.set(certmaps)
-
-        # Check that EXTERNAL is listed in supported mechns.
-        assert (test_env.inst.rootdse.supports_sasl_external())
-
-        # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
-        # here, it breaks on auth. see lib389/__init__.py
-        test_env.inst.restart(post_open=False)
-
-        # Attempt a bind with TLS external
-        test_env.inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
-                userkey=tls_locs['key'], usercert=tls_locs['crt'])
-    
-        test_env.inst.restart()
-
-        # Check for failed certmap error
-        with pytest.raises(ldap.INVALID_CREDENTIALS):
-            test_env.inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
-                    userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
-
-    test_env.operation = _search_ldaps
-
-    test_env.expected = {
-        "mods": 1,
-        "binds": 1,
-        "searches": 3,
-        "operations": 5,
-        "results": 5,
-        "ldaps_conns": 1,
-        "ssl_client_binds": 1,
-        "ssl_client_bind_failed": 1,
-        "total_connections": 1,
-        "fds_taken": 1,
-        "fds_returned": 1,
-        "restarts": 1
-    }
-
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
-
-def _test_starttls(test_env):
-
-    def _search_starttls(test_env):
         cmd = [
             "ldapsearch",
             "-x",
-            "-H", f"ldap://localhost:{test_env.inst.port}",
+            "-H", f"ldap://localhost:{self.inst.port}",
             "-Z",
             "-D", "cn=Directory Manager",
             "-w", "password",
@@ -897,44 +899,63 @@ def _test_starttls(test_env):
         ]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    test_env.operation = _search_starttls
-    
-    test_env.expected = {
-        "starttls_conns": 1,
-        "extended_ops": 1,
-        "operations": 1,
-        "results": 1,
-        "ldap_conns": 1,
-        "total_connections": 1,
-        "fds_taken": 1,
-    }
+        expected = {
+            "binds": 1,
+            "unbinds": 1,
+            "searches": 1,
+            "entire_search_base_queries": 1,
+            "unindexed_components": 1,
+            "starttls_conns": 1,
+            "extended_ops": 1,
+            "operations": 3,
+            "results": 3,
+            "ldap_conns": 1,
+            "total_connections": 1,
+            "fds_taken": 1,
+            "fds_returned": 1,
+        }
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+        time.sleep(4)
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_starttls")
 
-def _test_missing_access_log(test_env):
+    def test_missing_access_log(self):
+        """Validate behavior when access log path is invalid.
 
-    def _missing_access_log(test_env):
-        orig_access_log_path = test_env.access_log_path
-        test_env.access_log_path = "somewhereovertherainbow"
+        :id: 2ea0230b-6a12-4a41-ac7f-6c42862c9095
+        :setup: Standalone Instance
+        :steps:
+            1. Set access log path to an invalid location
+            2. Run logconv
+        :expectedresults:
+            1. Success
+            2. RuntimeError is raised
+        """
+        orig_access_log_path = self.access_log_path
+        self.access_log_path = "somewhereovertherainbow"
         try:
             with pytest.raises(RuntimeError):
-                test_env.run_logconv()
-                
+                self.run_logconv()
+
         finally:
-            test_env.access_log_path = orig_access_log_path
+            self.access_log_path = orig_access_log_path
 
-    test_env.operation = _missing_access_log
+    def test_invalid_access_log_format(self):
+        """Validate logconv handles malformed or mixed format logs.
 
-    test_env.expected = {}
-
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
-
-def _test_invalid_access_log_format(test_env):
-    def _invalid_access_log(test_env):
-        orig_access_log_path = test_env.access_log_path
-        invalid_log_path = "invalid_access.log"
+        :id: a7fae8d1-0400-44f6-ba61-fbd04c0f0bca
+        :setup: Standalone Instance
+        :steps:
+            1. Truncate access log
+            2. Inject invalid and mixed format entries
+            3. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. SUccess
+            3. Actual stats match expected
+        """
+        self.truncate_logs()
 
         lines = [
             "[what do you mean im not an access log]\n",
@@ -955,26 +976,118 @@ def _test_invalid_access_log_format(test_env):
             "{\"local_time\":\"2025-07-28T23:55:12.049130196 +0000\",\"operation\":\"RESULT\",\"key\":\"1753746910-1\",\"conn_id\":1,\"op_id\":10,\"msg\":\"\",\"tag\":109,\"err\":0,\"nentries\":0,\"wtime\":\"0.000127592\",\"optime\":\"0.243312815\",\"etime\":\"0.243438839\",\"client_ip\":\"127.0.0.1\"}\n"
         ]
 
-        with open(invalid_log_path, "w") as f:
+        with open(self.access_log_path, "w") as f:
             for line in lines:
                 f.write(line)
 
-        test_env.access_log_path = invalid_log_path
+        expected = {
+            "searches": 2,
+            "adds": 1,
+            "modrdns": 1,
+            "operations": 4,
+            "results": 4,
+            "invalid_attribute_filters": 2
+        }
 
-    test_env.operation = _invalid_access_log
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_invalid_access_log_format")
 
-    test_env.expected = {
-        "searches": 2,
-        "add": 1,
-        "modrdn": 1,
-        "operations": 4
-    }
+    def test_ldaps(self):
+        """Validate LDAPS and certificate-based bind stats reported by logconv.
 
-    test_env.truncate_logs()
-    test_env.run_operation(test_env.operation)
+        :id: e14e5b57-87fe-4b72-b787-b987a62b8ee9
+        :setup: Standalone Instance with TLS enabled
+        :steps:
+            1. Truncate access log
+            2. Enable TLS and configure certificate-based binds
+            3. Perform SASL EXTERNAL bind with correct and incorrect certs
+            4. Run logconv and compare stats
+        :expectedresults:
+            1. Success
+            2. Success
+            3. Success
+            4. Actual stats match expected
+        """
+        self.truncate_logs()
+
+        RDN_TEST_USER = 'testuser'
+        RDN_TEST_USER_WRONG = 'testuser_wrong'
+        self.inst.enable_tls()
+        self.inst.restart()
+
+        users = UserAccounts(self.inst, DEFAULT_SUFFIX)
+        user = users.create(properties={
+            'uid': RDN_TEST_USER,
+            'cn': RDN_TEST_USER,
+            'sn': RDN_TEST_USER,
+            'uidNumber': '1000',
+            'gidNumber': '2000',
+            'homeDirectory': f'/home/{RDN_TEST_USER}'
+        })
+
+        ssca_dir = self.inst.get_ssca_dir()
+        ssca = NssSsl(dbpath=ssca_dir)
+        ssca.create_rsa_user(RDN_TEST_USER)
+        ssca.create_rsa_user(RDN_TEST_USER_WRONG)
+
+        # Get the details of where the key and crt are.
+        tls_locs = ssca.get_rsa_user(RDN_TEST_USER)
+        tls_locs_wrong = ssca.get_rsa_user(RDN_TEST_USER_WRONG)
+
+        user.enroll_certificate(tls_locs['crt_der_path'])
+
+        # Turn on the certmap.
+        cm = CertmapLegacy(self.inst)
+        certmaps = cm.list()
+        certmaps['default']['DNComps'] = ''
+        certmaps['default']['FilterComps'] = ['cn']
+        certmaps['default']['VerifyCert'] = 'off'
+        cm.set(certmaps)
+
+        # Check that EXTERNAL is listed in supported mechns.
+        assert (self.inst.rootdse.supports_sasl_external())
+
+        # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
+        # here, it breaks on auth. see lib389/__init__.py
+        self.inst.restart(post_open=False)
+
+        # Attempt a bind with TLS external
+        self.inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
+                userkey=tls_locs['key'], usercert=tls_locs['crt'])
+
+        self.inst.restart()
+
+        # Check for failed certmap error
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            self.inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
+                    userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
+
+        expected = {
+            "mods": 2,
+            "adds": 1,
+            "binds": 5,
+            "sasl_binds": 2,
+            "searches": 6,
+            "operations": 14,
+            "results": 14,
+            "unbinds": 1,
+            "ldaps_conns": 5,
+            "ssl_client_binds": 1,
+            "ssl_client_bind_failed": 1,
+            "total_connections": 5,
+            "fds_taken": 5,
+            "fds_returned": 5,
+            "restarts": 4
+        }
+
+        output = self.run_logconv()
+        logconv_stats = self.extract_logconv_stats(output)
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_ldaps")
 
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
+
