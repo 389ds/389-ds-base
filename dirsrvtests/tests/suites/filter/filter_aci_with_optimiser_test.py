@@ -21,7 +21,7 @@ def test_filter_access(topo):
     :steps:
         1. Add anonymous aci
         2. Add ou
-        2. Test good filters
+        3. Test good filters
         4. Test bad filters
     :expectedresults:
         1. Success
