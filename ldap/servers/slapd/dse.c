@@ -637,7 +637,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
     /* Now compute the new value */
     if (SLAPI_OPERATION_ADD == op) {
         current_sub_count++;
-    } else {
+    } else if (current_sub_count > 0) {
         current_sub_count--;
     }
     {

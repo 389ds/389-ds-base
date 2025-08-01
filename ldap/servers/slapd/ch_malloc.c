@@ -254,7 +254,7 @@ slapi_ch_bvecdup(struct berval **v)
             ++i;
         newberval = (struct berval **)slapi_ch_malloc((i + 1) * sizeof(struct berval *));
         newberval[i] = NULL;
-        while (i-- > 0) {
+        while (i > 0 && i-- > 0) {
             newberval[i] = slapi_ch_bvdup(v[i]);
         }
     }

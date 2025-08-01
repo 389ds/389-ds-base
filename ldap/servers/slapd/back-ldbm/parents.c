@@ -123,7 +123,7 @@ parent_update_on_childchange(modify_context *mc, int op, size_t *new_sub_count)
         /* Now compute the new value */
         if ((PARENTUPDATE_ADD == op) || (PARENTUPDATE_RESURECT == op)) {
             current_sub_count++;
-        } else {
+        } else if (current_sub_count > 0) {
             current_sub_count--;
         }
 

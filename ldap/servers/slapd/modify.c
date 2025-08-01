@@ -498,7 +498,7 @@ slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod 
  *
  * Any other errors encountered during the operation will be returned as-is.
  */
-int 
+int
 slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDAPMod **mod, Slapi_ComponentId *plugin_id, int op_flags)
 {
     int rc = 0;
@@ -512,7 +512,7 @@ slapi_single_modify_internal_override(Slapi_PBlock *pb, const Slapi_DN *sdn, LDA
                     !pb ? "pb " : "",
                     !sdn ? "sdn " : "",
                     !mod ? "mod " : "",
-                    !mod[0] ? "mod[0] " : "");
+                    !mod || !mod[0] ? "mod[0] " : "");
 
         return LDAP_PARAM_ERROR;
     }
