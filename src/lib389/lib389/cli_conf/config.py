@@ -102,8 +102,6 @@ def config_add_attr(inst, basedn, log, args):
         # Missing value
         raise ValueError("Missing attribute to add")    
 
-    _config_display_ldapimaprootdn_warning(log, args)
-
 
 def config_del_attr(inst, basedn, log, args):
     conf = Config(inst, basedn)
