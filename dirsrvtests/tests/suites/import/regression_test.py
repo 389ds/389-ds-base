@@ -320,7 +320,7 @@ ou: myDups00001
     assert standalone.ds_error_log.match('.*Duplicated DN detected.*')
 
 @pytest.mark.tier2
-@pytest.mark.xfail(not _check_disk_space(), reason="not enough disk space for lmdb map")
+@pytest.mark.skipif(not _check_disk_space(), reason="not enough disk space for lmdb map")
 @pytest.mark.xfail(ds_is_older("1.3.10.1"), reason="bz1749595 not fixed on versions older than 1.3.10.1")
 def test_large_ldif2db_ancestorid_index_creation(topo, _set_mdb_map_size):
     """Import with ldif2db a large file - check that the ancestorid index creation phase has a correct performance
@@ -396,39 +396,39 @@ def test_large_ldif2db_ancestorid_index_creation(topo, _set_mdb_map_size):
     log.info('Starting the server')
     topo.standalone.start()
 
-    # With lmdb there is no more any special phase for ancestorid 
+    # With lmdb there is no more any special phase for ancestorid
     # because ancestorsid get updated on the fly while processing the
     # entryrdn (by up the parents chain to compute the parentid
-    # 
+    #
     # But there is still a numSubordinates generation phase
     if get_default_db_lib() == "mdb":
         log.info('parse the errors logs to check lines with "Generating numSubordinates complete." are present')
         end_numsubordinates = str(topo.standalone.ds_error_log.match(r'.*Generating numSubordinates complete.*'))[1:-1]
         assert len(end_numsubordinates) > 0
-    
+
     else:
         log.info('parse the errors logs to check lines with "Starting sort of ancestorid" are present')
         start_sort_str = str(topo.standalone.ds_error_log.match(r'.*Starting sort of ancestorid non-leaf IDs*'))[1:-1]
         assert len(start_sort_str) > 0
-    
+
         log.info('parse the errors logs to check lines with "Finished sort of ancestorid" are present')
         end_sort_str = str(topo.standalone.ds_error_log.match(r'.*Finished sort of ancestorid non-leaf IDs*'))[1:-1]
         assert len(end_sort_str) > 0
-    
+
         log.info('parse the error logs for the line with "Gathering ancestorid non-leaf IDs"')
         start_ancestorid_indexing_op_str = str(topo.standalone.ds_error_log.match(r'.*Gathering ancestorid non-leaf IDs*'))[1:-1]
         assert len(start_ancestorid_indexing_op_str) > 0
-    
+
         log.info('parse the error logs for the line with "Created ancestorid index"')
         end_ancestorid_indexing_op_str = str(topo.standalone.ds_error_log.match(r'.*Created ancestorid index*'))[1:-1]
         assert len(end_ancestorid_indexing_op_str) > 0
-    
+
         log.info('get the ancestorid non-leaf IDs indexing start and end time from the collected strings')
         # Collected lines look like : '[15/May/2020:05:30:27.245967313 -0400] - INFO - bdb_get_nonleaf_ids - import userRoot: Gathering ancestorid non-leaf IDs...'
         # We are getting the sec.nanosec part of the date, '27.245967313' in the above example
         start_time = (start_ancestorid_indexing_op_str.split()[0]).split(':')[3]
         end_time = (end_ancestorid_indexing_op_str.split()[0]).split(':')[3]
-    
+
         log.info('Calculate the elapsed time for the ancestorid non-leaf IDs index creation')
         etime = (Decimal(end_time) - Decimal(start_time))
         # The time for the ancestorid index creation should be less than 10s for an offline import of an ldif file with 100000 entries / 5 entries per node
