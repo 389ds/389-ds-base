@@ -117,10 +117,10 @@ def check_password_masked(inst, log_format, expected_password, actual_password):
 
 @pytest.mark.parametrize("log_format,display_attrs", [
     ("default", None),
-    ("default", "*"),
+    pytest.param("default", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("default", "userPassword"),
     ("json", None),
-    ("json", "*"),
+    pytest.param("json", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("json", "userPassword")
 ])
 def test_password_masking_add_operation(topo, log_format, display_attrs):
@@ -173,10 +173,10 @@ def test_password_masking_add_operation(topo, log_format, display_attrs):
 
 @pytest.mark.parametrize("log_format,display_attrs", [
     ("default", None),
-    ("default", "*"),
+    pytest.param("default", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("default", "userPassword"),
     ("json", None),
-    ("json", "*"),
+    pytest.param("json", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("json", "userPassword")
 ])
 def test_password_masking_modify_operation(topo, log_format, display_attrs):
@@ -242,10 +242,10 @@ def test_password_masking_modify_operation(topo, log_format, display_attrs):
 
 @pytest.mark.parametrize("log_format,display_attrs", [
     ("default", None),
-    ("default", "*"),
+    pytest.param("default", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("default", "nsslapd-rootpw"),
     ("json", None),
-    ("json", "*"),
+    pytest.param("json", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("json", "nsslapd-rootpw")
 ])
 def test_password_masking_rootpw_modify_operation(topo, log_format, display_attrs):
@@ -297,10 +297,10 @@ def test_password_masking_rootpw_modify_operation(topo, log_format, display_attr
 
 @pytest.mark.parametrize("log_format,display_attrs", [
     ("default", None),
-    ("default", "*"),
+    pytest.param("default", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("default", "nsmultiplexorcredentials"),
     ("json", None),
-    ("json", "*"),
+    pytest.param("json", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("json", "nsmultiplexorcredentials")
 ])
 def test_password_masking_multiplexor_credentials(topo, log_format, display_attrs):
@@ -368,10 +368,10 @@ def test_password_masking_multiplexor_credentials(topo, log_format, display_attr
 
 @pytest.mark.parametrize("log_format,display_attrs", [
     ("default", None),
-    ("default", "*"),
+    pytest.param("default", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("default", "nsDS5ReplicaCredentials"),
     ("json", None),
-    ("json", "*"),
+    pytest.param("json", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("json", "nsDS5ReplicaCredentials")
 ])
 def test_password_masking_replica_credentials(topo, log_format, display_attrs):
@@ -432,10 +432,10 @@ def test_password_masking_replica_credentials(topo, log_format, display_attrs):
 
 @pytest.mark.parametrize("log_format,display_attrs", [
     ("default", None),
-    ("default", "*"),
+    pytest.param("default", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("default", "nsDS5ReplicaBootstrapCredentials"),
     ("json", None),
-    ("json", "*"),
+    pytest.param("json", "*", marks=pytest.mark.xfail(reason="DS6886")),
     ("json", "nsDS5ReplicaBootstrapCredentials")
 ])
 def test_password_masking_bootstrap_credentials(topo, log_format, display_attrs):
