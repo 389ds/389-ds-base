@@ -164,6 +164,32 @@ def set_description_index(request, topo, add_a_group_with_users):
     return (indexes, attr)
 
 
+@pytest.fixture(scope="function")
+def homeDirectory_index_cleanup(request, topo):
+    """
+    Ensure homeDirectory index is not present at start and end of test
+    """
+    inst = topo.standalone
+    backends = Backends(inst)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+
+    try:
+        idx = indexes.get('homeDirectory')
+        idx.delete()
+    except ldap.NO_SUCH_OBJECT:
+        pass
+
+    def cleanup():
+        try:
+            idx = indexes.get('homeDirectory')
+            idx.delete()
+        except ldap.NO_SUCH_OBJECT:
+            pass
+
+    request.addfinalizer(cleanup)
+
+
 def check_dbi(dbsh, attr_name, expected = True, lowercase=False):
     dbsh.resync()
     # mdb dbi names are always lowercase while bdb names are case sensitive
@@ -625,7 +651,7 @@ def test_update_eq_index_after_deleting_and_readding_attribute_in_one_step(topo)
         10. No entry found
         11. Original user found
     """
-    
+
     rdn = 'user0099'
     name = 'Test User'
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
@@ -757,6 +783,121 @@ def test_update_eq_index_after_deleting_and_readding_attribute_in_one_step(topo)
     except ldap.LDAPError as e:
         log.fatal('Failed to search for user: {}'.format(e))
         assert False
+
+
+def test_concurrent_modifications_during_indexing(topo, homeDirectory_index_cleanup):
+    """Test that concurrent modifications are rejected during index rebuilding
+
+    :id: 1df16d5a-1b92-46b7-8435-876b87545748
+    :setup: Standalone Instance
+    :steps:
+        1. Create homeDirectory index with substring matching
+        2. Create 100 users with large homeDirectory values to slow down indexing
+        3. Start an indexing task WITHOUT waiting for its completion
+        4. Monitor task status and verify modifications are rejected with UNWILLING_TO_PERFORM
+        5. Verify modifications work once indexing is complete
+    :expectedresults:
+        1. Index configuration succeeds
+        2. Users are successfully created
+        3. Indexing task starts
+        4. Modifications return UNWILLING_TO_PERFORM while indexing is in progress
+        5. Modifications succeed once indexing is complete
+    """
+
+    inst = topo.standalone
+
+    backends = Backends(inst)
+    backend = backends.get(DEFAULT_BENAME)
+    indexes = backend.get_indexes()
+
+    log.info("Creating homeDirectory index")
+    index = indexes.create(properties={
+        'cn': 'homeDirectory',
+        'nsSystemIndex': 'false',
+        'nsMatchingRule': ['caseIgnoreIA5Match', 'caseExactIA5Match'],
+        'nsIndexType': ['eq', 'sub', 'pres']
+    })
+
+    inst.restart()
+
+    log.info("Creating 100 users with large homeDirectory values")
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    test_users = []
+    home_value = 'x' * (32 * 1024)
+
+    for i in range(100):
+        user_name = f'testuser{i}'
+        user = users.create(properties={
+            'uid': user_name,
+            'cn': user_name,
+            'sn': f'_{user_name}',
+            'uidNumber': str(1000 + i),
+            'gidNumber': str(2000 + i),
+            'homeDirectory': home_value
+        })
+        test_users.append(user)
+
+    log.info("Starting indexing task without waiting for completion")
+    tasks = Tasks(inst)
+    tasks.reindex(
+        suffix=DEFAULT_SUFFIX,
+        attrname='homeDirectory',
+        args={TASK_WAIT: False}
+    )
+
+    reindex_task = Task(inst, tasks.dn)
+
+    finish_pattern = re.compile(r".*Finished indexing.*")
+    max_attempts = 20
+    unwilling_to_perform_seen = False
+
+    for attempt in range(max_attempts):
+        log.info(f"Monitoring task status, attempt {attempt + 1}/{max_attempts}")
+
+        try:
+            task_status = reindex_task.status()
+            if task_status:
+                log.info(f"Task status: {task_status}")
+                is_finished = finish_pattern.search(task_status)
+            else:
+                log.info("Task status: NO STATUS")
+                is_finished = False
+
+            if not is_finished:
+                try:
+                    test_users[0].replace('sn', f'modified_{attempt}')
+                    log.info("Modification succeeded - indexing might have just finished")
+                    final_status = reindex_task.status()
+                    if final_status and finish_pattern.search(final_status):
+                        log.info("Confirmed: indexing just finished")
+                        break
+                    else:
+                        log.info("Unexpected: modification succeeded but indexing not finished")
+                except ldap.UNWILLING_TO_PERFORM:
+                    log.info("Expected UNWILLING_TO_PERFORM during indexing")
+                    unwilling_to_perform_seen = True
+            else:
+                test_users[0].replace('sn', f'final_modification_{attempt}')
+                log.info("Modification succeeded after indexing completed")
+                break
+
+        except ldap.NO_SUCH_OBJECT:
+            log.info("Task completed and cleaned up")
+            break
+
+        time.sleep(3)
+
+    if unwilling_to_perform_seen:
+        log.info("Successfully observed UNWILLING_TO_PERFORM during indexing")
+    else:
+        log.info("Indexing completed too quickly to observe UNWILLING_TO_PERFORM")
+
+    test_users[0].replace('sn', 'final_test')
+    assert test_users[0].get_attr_val_utf8('sn') == 'final_test'
+
+    log.info("Cleaning up test data")
+    for user in test_users:
+        user.delete()
 
 
 if __name__ == "__main__":
