@@ -3211,7 +3211,7 @@ _cl5EnumConsumerRUV(const ruv_enum_data *element, void *arg)
     RUV *ruv;
     CSN *csn = NULL;
 
-    PR_ASSERT(element && element->csn && arg);
+    PR_ASSERT(element && arg);
 
     ruv = (RUV *)arg;
 

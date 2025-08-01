@@ -394,8 +394,6 @@ void dbmdb_restore_file_update(struct ldbminfo *li, const char *directory);
 int dbmdb_import_file_init(ldbm_instance *inst);
 void dbmdb_import_file_update(ldbm_instance *inst);
 int dbmdb_import_file_check(ldbm_instance *inst);
-int dbmdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count);
-int dbmdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id);
 void dbmdb_import_configure_index_buffer_size(size_t size);
 size_t dbmdb_import_get_index_buffer_size(void);
 int dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb);

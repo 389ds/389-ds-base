@@ -215,8 +215,6 @@ void bdb_restore_file_update(struct ldbminfo *li, const char *directory);
 int bdb_import_file_init(ldbm_instance *inst);
 void bdb_import_file_update(ldbm_instance *inst);
 int bdb_import_file_check(ldbm_instance *inst);
-int bdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count);
-int bdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id);
 void bdb_import_configure_index_buffer_size(size_t size);
 size_t bdb_import_get_index_buffer_size(void);
 int bdb_ldbm_back_wire_import(Slapi_PBlock *pb);
@@ -235,6 +233,7 @@ int bdb_public_in_import(ldbm_instance *inst);
 int bdb_dblayer_cursor_iterate(dbi_cursor_t *cursor,
                            int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
                            const dbi_val_t *startingkey, void *ctx);
+dbi_error_t bdb_map_error(const char *funcname, int err);
 
 
 /* dbimpl helpers */
