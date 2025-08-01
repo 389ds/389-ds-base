@@ -30,6 +30,18 @@ static int bdb_ancestorid_create_index(backend *be, ImportJob *job);
 static int bdb_ancestorid_default_create_index(backend *be, ImportJob *job);
 static int bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job);
 
+/* Helper struct used to compute numsubordinates */
+
+typedef struct {
+    backend *be;
+    DB_TXN *txn;
+    const char *attrname;
+    struct attrinfo *ai;
+    dbi_db_t *db;
+    DBC *dbc;
+} subcount_cursor_info_t;
+
+
 /* Start of definitions for a simple cache using a hash table */
 
 typedef struct id2idl
@@ -994,173 +1006,85 @@ out:
 
     return ret;
 }
-/* Update subordinate count in a hint list, given the parent's ID */
-int
-bdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count)
-{
-    PR_ASSERT(NULL == PL_HashTableLookup(mothers->hashtable, (void *)((uintptr_t)parent_id)));
-    PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)count);
-    return 0;
-}
-
-/* Look for a subordinate count in a hint list, given the parent's ID */
-static int
-bdb_import_subcount_mothers_lookup(import_subcount_stuff *mothers,
-                               ID parent_id,
-                               size_t *count)
-{
-    size_t stored_count = 0;
-
-    *count = 0;
-    /* Lookup hash table for ID */
-    stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void *)((uintptr_t)parent_id));
-    /* If present, return the count found */
-    if (0 != stored_count) {
-        *count = stored_count;
-        return 0;
-    }
-    return -1;
-}
-
-/* Update subordinate count in a hint list, given the parent's ID */
-int
-bdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id)
-{
-    size_t stored_count = 0;
-
-    /* Lookup the hash table for the target ID */
-    stored_count = (size_t)PL_HashTableLookup(mothers->hashtable,
-                                              (void *)((uintptr_t)parent_id));
-    PR_ASSERT(0 != stored_count);
-    /* Increment the count */
-    stored_count++;
-    PL_HashTableAdd(mothers->hashtable, (void *)((uintptr_t)parent_id), (void *)stored_count);
-    return 0;
-}
-
-static int
-bdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted)
-{
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    int ret = 0;
-    modify_context mc = {0};
-    char value_buffer[22] = {0}; /* enough digits for 2^64 children */
-    struct backentry *e = NULL;
-    int isreplace = 0;
-    char *numsub_str = numsubordinates;
-
-    /* Get hold of the parent */
-    e = id2entry(be, parentid, NULL, &ret);
-    if ((NULL == e) || (0 != ret)) {
-        ldbm_nasty("bdb_import_update_entry_subcount", sourcefile, 5, ret);
-        return (0 == ret) ? -1 : ret;
-    }
-    /* Lock it (not really required since we're single-threaded here, but
-     * let's do it so we can reuse the modify routines) */
-    cache_lock_entry(&inst->inst_cache, e);
-    modify_init(&mc, e);
-    mc.attr_encrypt = isencrypted;
-    sprintf(value_buffer, "%lu", (long unsigned int)sub_count);
-    /* If it is a tombstone entry, add tombstonesubordinates instead of
-     * numsubordinates. */
-    if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        numsub_str = LDBM_TOMBSTONE_NUMSUBORDINATES_STR;
-    }
-    /* attr numsubordinates/tombstonenumsubordinates could already exist in
-     * the entry, let's check whether it's already there or not */
-    isreplace = (attrlist_find(e->ep_entry->e_attrs, numsub_str) != NULL);
-    {
-        int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
-        Slapi_Mods *smods = slapi_mods_new();
-
-        slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsub_str,
-                       strlen(value_buffer), value_buffer);
-        ret = modify_apply_mods(&mc, smods); /* smods passed in */
-    }
-    if (0 == ret || LDAP_TYPE_OR_VALUE_EXISTS == ret) {
-        /* This will correctly index subordinatecount: */
-        ret = modify_update_all(be, NULL, &mc, NULL);
-        if (0 == ret) {
-            modify_switch_entries(&mc, be);
-        }
-    }
-    /* entry is unlocked and returned to the cache in modify_term */
-    modify_term(&mc, be);
-    return ret;
-}
-struct _import_subcount_trawl_info
-{
-    struct _import_subcount_trawl_info *next;
-    ID id;
-    size_t sub_count;
-};
-typedef struct _import_subcount_trawl_info import_subcount_trawl_info;
 
 static void
-bdb_import_subcount_trawl_add(import_subcount_trawl_info **list, ID id)
+bdb_close_subcount_cursor(subcount_cursor_info_t *info)
 {
-    import_subcount_trawl_info *new_info = CALLOC(import_subcount_trawl_info);
-
-    new_info->next = *list;
-    new_info->id = id;
-    *list = new_info;
+    if  (info->dbc) {
+        int ret = info->dbc->c_close(info->dbc);
+        if (ret) {
+            char errfunc[60];
+            snprintf(errfunc, (sizeof errfunc), "%s[%s]", __FUNCTION__, info->attrname);
+            ldbm_nasty(errfunc, sourcefile, 73, ret);
+        }
+        info->dbc = NULL;
+    }
+    if (info->db) {
+        dblayer_release_index_file(info->be, info->ai, info->db);
+        info->db = NULL;
+        info->ai = NULL;
+    }
 }
 
 static int
-bdb_import_subcount_trawl(backend *be,
-                      import_subcount_trawl_info *trawl_list,
-                      int isencrypted)
+bdb_open_subcount_cursor(backend *be, const char *attrname, DB_TXN *txn, subcount_cursor_info_t *info)
 {
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    ID id = 1;
+    char errfunc[60];
+    DB *db = NULL;
     int ret = 0;
-    import_subcount_trawl_info *current = NULL;
-    char value_buffer[20]; /* enough digits for 2^64 children */
 
-    /* OK, we do */
-    /* We open id2entry and iterate through it */
-    /* Foreach entry, we check to see if its parentID matches any of the
-     * values in the trawl list . If so, we bump the sub count for that
-     * parent in the list.
+    snprintf(errfunc, (sizeof errfunc), "%s[%s]", __FUNCTION__, attrname);
+    info->attrname = attrname;
+    info->txn = txn;
+    info->be = be;
+
+    /* Lets get the attrinfo */
+    ainfo_get(be, (char*)attrname, &info->ai);
+    PR_ASSERT(info->ai);
+    /* Lets get the db instance */
+    if ((ret = dblayer_get_index_file(be, info->ai, &info->db, 0)) != 0) {
+        if (ret == DBI_RC_NOTFOUND) {
+            bdb_close_subcount_cursor(info);
+            return 0;
+        }
+        ldbm_nasty(errfunc, sourcefile, 70, ret);
+        bdb_close_subcount_cursor(info);
+        return ret;
+    }
+
+    /* Lets get the cursor */
+    db = (DB*)(info->db);
+    if ((ret = db->cursor(db, info->txn, &info->dbc, 0)) != 0) {
+        ldbm_nasty(errfunc, sourcefile, 71, ret);
+        bdb_close_subcount_cursor(info);
+        ret = bdb_map_error(__FUNCTION__, ret);
+    }
+    return 0;
+}
+
+static bool
+bdb_subcount_is_tombstone(subcount_cursor_info_t *info, DBT *id)
+{
+    /*
+     * Check if record =nstombstone ==> id exists in objectclass index
      */
-    while (1) {
-        struct backentry *e = NULL;
+    DBT key = {0};
+    DBC *dbc = info->dbc;
+    int ret;
+    key.flags = DB_DBT_USERMEM;
+    key.data = "=nstombstone" ;
+    key.size = key.ulen = 13;
+    ret = dbc->c_get(dbc, &key, id, DB_GET_BOTH);
 
-        /* Get the next entry */
-        e = id2entry(be, id, NULL, &ret);
-        if ((NULL == e) || (0 != ret)) {
-            if (DB_NOTFOUND == ret) {
-                break;
-            } else {
-                ldbm_nasty("bdb_import_subcount_trawl", sourcefile, 8, ret);
-                return ret;
-            }
-        }
-        for (current = trawl_list; current != NULL; current = current->next) {
-            sprintf(value_buffer, "%lu", (u_long)current->id);
-            if (slapi_entry_attr_hasvalue(e->ep_entry, LDBM_PARENTID_STR, value_buffer)) {
-                /* If this entry's parent ID matches one we're trawling for,
-                 * bump its count */
-                current->sub_count++;
-            }
-        }
-        /* Free the entry */
-        CACHE_REMOVE(&inst->inst_cache, e);
-        CACHE_RETURN(&inst->inst_cache, &e);
-        id++;
+    switch (ret) {
+        case 0:
+            return true;
+        case DB_NOTFOUND:
+            return false;
+        default:
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 72, ret);
+            return false;
     }
-    /* Now update the parent entries from the list */
-    for (current = trawl_list; current != NULL; current = current->next) {
-        /* Update the parent entry with the correctly counted subcount */
-        ret = bdb_import_update_entry_subcount(be, current->id,
-                                           current->sub_count, isencrypted);
-        if (0 != ret) {
-            ldbm_nasty("bdb_import_subcount_trawl", sourcefile, 10, ret);
-            break;
-        }
-    }
-    return ret;
 }
 
 /*
@@ -1172,63 +1096,72 @@ bdb_import_subcount_trawl(backend *be,
 static int
 bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
 {
-    import_subcount_stuff *mothers = job->mothers;
-    int isencrypted = job->encrypt;
+    subcount_cursor_info_t c_objectclass = {0};
+    subcount_cursor_info_t c_parentid = {0};
     int started_progress_logging = 0;
-    int key_count = 0;
-    int ret = 0;
-    DB *db = NULL;
-    DBC *dbc = NULL;
-    struct attrinfo *ai = NULL;
-    DBT key = {0};
-    dbi_val_t dbikey = {0};
+    int isencrypted = job->encrypt;
     DBT data = {0};
-    import_subcount_trawl_info *trawl_list = NULL;
+    DBT key = {0};
+    int key_count = 0;
+    char tmp[11];
+    char oldkey[11];
+    ID data_data;
+    int ret2 = 0;
+    int ret = 0;
 
-    /* Open the parentid index */
-    ainfo_get(be, LDBM_PARENTID_STR, &ai);
-
-    /* Open the parentid index file */
-    if ((ret = dblayer_get_index_file(be, ai, (dbi_db_t**)&db, DBOPEN_CREATE)) != 0) {
-        ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 67, ret);
-        return (ret);
+    /* Open cursor on the objectclass index */
+    ret = bdb_open_subcount_cursor(be, SLAPI_ATTR_OBJECTCLASS, txn, &c_objectclass);
+    if (ret) {
+        if (ret != DBI_RC_NOTFOUND) {
+            /* No database ==> There is nothing to do. */
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 61, ret);
+        }
+        return ret;
     }
-    /* Get a cursor so we can walk through the parentid */
-    ret = db->cursor(db, txn, &dbc, 0);
-    if (ret != 0) {
-        ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 68, ret);
-        dblayer_release_index_file(be, ai, db);
+    /* on bdb parentid does not index tombstone so let use entryrdn instead */
+    /* Open cursor on the entryrdn index */
+    ret = bdb_open_subcount_cursor(be, LDBM_ENTRYRDN_STR, txn, &c_parentid);
+    if (ret) {
+        ldbm_nasty((char*)__FUNCTION__, sourcefile, 62, ret);
+        bdb_close_subcount_cursor(&c_objectclass);
         return ret;
     }
 
-    /* Walk along the index */
-    while (1) {
+    key.flags = DB_DBT_USERMEM;
+    key.ulen = sizeof tmp;
+    key.data = tmp;
+    /* Only the first 4 bytes of the data record interrest us */
+    data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
+    data.ulen = sizeof data_data;
+    data.data = &data_data;
+    data.dlen = sizeof (ID);
+    data.doff = 0;
+
+    /* Starts from C key (usually C1) and walk along the entryrdn index */
+    strcpy(tmp, "C");
+    key.size = 1;
+    ret = c_parentid.dbc->c_get(c_parentid.dbc, &key, &data, DB_SET_RANGE);
+
+    while (ret == 0 || ret == DB_BUFFER_SMALL) {
         size_t sub_count = 0;
-        int found_count = 1;
+        size_t t_sub_count = 0;
         ID parentid = 0;
 
-        /* Foreach key which is an equality key : */
-        data.flags = DB_DBT_MALLOC;
-        key.flags = DB_DBT_MALLOC;
-        ret = dbc->c_get(dbc, &key, &data, DB_NEXT_NODUP);
-        if (NULL != data.data) {
-            slapi_ch_free(&(data.data));
-            data.data = NULL;
-        }
-        if (0 != ret) {
-            if (ret != DB_NOTFOUND) {
-                ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 62, ret);
-            }
-            if (NULL != key.data) {
-                slapi_ch_free(&(key.data));
-                key.data = NULL;
-            }
-            break;
-        }
         /* check if we need to abort */
         if (job->flags & FLAG_ABORT) {
-            import_log_notice(job, SLAPI_LOG_ERR, "bdb_update_subordinatecounts",
+            import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_update_subordinatecounts",
                               "numsubordinate generation aborted.");
+            break;
+        }
+        if (ret == DB_BUFFER_SMALL) {
+            /* Not an equality record ==> get next */
+            data.size = key.ulen = sizeof data_data;
+            key.size = key.ulen = sizeof tmp;
+            ret = c_parentid.dbc->c_get(c_parentid.dbc, &key, &data, DB_NEXT_NODUP);
+            continue;
+        }
+        if (0 != ret) {
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
             break;
         }
         /*
@@ -1236,87 +1169,63 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
          */
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "bdb_update_subordinatecounts",
+            import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_update_subordinatecounts",
                               "numsubordinate generation: processed %d entries...",
                               key_count);
             started_progress_logging = 1;
         }
-
-        if (*(char *)key.data == EQ_PREFIX) {
-            char *idptr = NULL;
-
-            /* construct the parent's ID from the key */
-            /* Look for the ID in the hint list supplied by the caller */
-            /* If its there, we know the answer already */
-            idptr = (((char *)key.data) + 1);
-            parentid = (ID)atol(idptr);
-            PR_ASSERT(0 != parentid);
-            ret = bdb_import_subcount_mothers_lookup(mothers, parentid, &sub_count);
-            if (0 != ret) {
-                IDList *idl = NULL;
-
-                /* If it's not, we need to compute it ourselves: */
-                /* Load the IDL matching the key */
-                key.flags = DB_DBT_REALLOC;
-                ret = NEW_IDL_NO_ALLID;
-                bdb_dbt2dbival(&key, &dbikey, PR_FALSE);
-                idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
-                bdb_dbival2dbt(&dbikey, &key, PR_TRUE);
-                dblayer_value_protect_data(be, &dbikey);
-                if ((NULL == idl) || (0 != ret)) {
-                    ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 4, ret);
-                    dblayer_release_index_file(be, ai, db);
-                    return (0 == ret) ? -1 : ret;
-                }
-                /* The number of IDs in the IDL tells us the number of
-                 * subordinates for the entry */
-                /* Except, the number might be above the allidsthreshold,
-                 * in which case */
-                if (ALLIDS(idl)) {
-                    /* We add this ID to the list for which to trawl */
-                    bdb_import_subcount_trawl_add(&trawl_list, parentid);
-                    found_count = 0;
-                } else {
-                    /* We get the count from the IDL */
-                    sub_count = idl->b_nids;
-                }
-                idl_free(&idl);
-            }
-            /* Did we get the count ? */
-            if (found_count) {
-                PR_ASSERT(0 != sub_count);
-                /* If so, update the parent now */
-                bdb_import_update_entry_subcount(be, parentid, sub_count, isencrypted);
-            }
+        if (key.size == 0 || *(char *)key.data != 'C') {
+            /* No more children */
+            break;
         }
-        if (NULL != key.data) {
-            slapi_ch_free(&(key.data));
-            key.data = NULL;
+
+        /* construct the parent's ID from the key */
+        if (key.size >= sizeof tmp) {
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
+            break;
+        }
+        /* Generate expected value for parentid */
+        tmp[key.size] = 0;
+        parentid = (ID)atol(tmp+1);
+        PR_ASSERT(0 != parentid);
+        strcpy(oldkey,tmp);
+        /* Walk the entries having same key and check if they are tombstone */
+        do {
+            /* Reorder data_data */
+            ID old_data_data = data_data;
+            id_internal_to_stored(old_data_data, (char*)&data_data);
+            if (!bdb_subcount_is_tombstone(&c_objectclass, &data)) {
+                sub_count++;
+            } else {
+                t_sub_count++;
+            }
+            ret = c_parentid.dbc->c_get(c_parentid.dbc, &key, &data, DB_NEXT);
+            if (ret == 0 && key.size < sizeof tmp) {
+                tmp[key.size] = 0;
+            } else {
+                break;
+            }
+        } while (strcmp(key.data, oldkey) == 0);
+        ret2 = import_update_entry_subcount(be, parentid, sub_count, t_sub_count, isencrypted, (dbi_txn_t*)txn);
+        if (ret2) {
+            ret = ret2;
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 65, ret);
+            break;
         }
     }
     if (started_progress_logging) {
         /* Finish what we started... */
-        import_log_notice(job, SLAPI_LOG_INFO, "bdb_update_subordinatecounts",
+        import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_update_subordinatecounts",
                           "numsubordinate generation: processed %d entries.",
                           key_count);
         job->numsubordinates = key_count;
     }
-
-    ret = dbc->c_close(dbc);
-    if (0 != ret) {
-        ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 6, ret);
+    if (ret == DB_NOTFOUND) {
+        ret = 0;
     }
-    dblayer_release_index_file(be, ai, db);
-
-    /* Now see if we need to go trawling through id2entry for the info
-     * we need */
-    if (NULL != trawl_list) {
-        ret = bdb_import_subcount_trawl(be, trawl_list, isencrypted);
-        if (0 != ret) {
-            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 7, ret);
-        }
-    }
-    return (ret);
+    bdb_close_subcount_cursor(&c_parentid);
+    bdb_close_subcount_cursor(&c_objectclass);
+    return ret;
 }
 
 /* Function used to gather a list of indexed attrs */
@@ -1453,10 +1362,6 @@ bdb_import_free_job(ImportJob *job)
         slapi_ch_free((void **)&asabird);
     }
     job->index_list = NULL;
-    if (NULL != job->mothers) {
-        import_subcount_stuff_term(job->mothers);
-        slapi_ch_free((void **)&job->mothers);
-    }
 
     bdb_back_free_incl_excl(job->include_subtrees, job->exclude_subtrees);
     charray_free(job->input_filenames);
@@ -2708,7 +2613,6 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
     }
     job->starting_ID = 1;
     job->first_ID = 1;
-    job->mothers = CALLOC(import_subcount_stuff);
 
     /* how much space should we allocate to index buffering? */
     job->job_index_buffer_size = bdb_import_get_index_buffer_size();
@@ -2719,7 +2623,6 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
             (job->inst->inst_li->li_import_cachesize / 10) + (1024 * 1024);
         PR_Unlock(job->inst->inst_li->li_config_mutex);
     }
-    import_subcount_stuff_init(job->mothers);
 
     if (job->task != NULL) {
         /* count files, use that to track "progress" in cn=tasks */

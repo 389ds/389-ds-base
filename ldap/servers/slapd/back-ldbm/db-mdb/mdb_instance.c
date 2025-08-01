@@ -1357,7 +1357,7 @@ int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, dbmdb_dbi_t *dbi
     dbicur->dbi = dbi;
     if (ctx->readonly)
         flags |= MDB_RDONLY;
-    rc = START_TXN(&dbicur->txn, NULL, 0);
+    rc = START_TXN(&dbicur->txn, NULL, ((flags&MDB_RDONLY) ? TXNFL_RDONLY : 0));
     if (rc) {
         return rc;
     }
