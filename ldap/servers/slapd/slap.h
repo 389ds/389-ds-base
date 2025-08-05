@@ -14,6 +14,15 @@
 
 #pragma once
 
+/* XXX Does someone have a better solution to the CTIME conflict? */
+#ifdef HAVE_SYS_EPOLL_H
+#include "sys/epoll.h"
+#undef CTIME /* avoid conflict with portable.h */
+#endif /* HAVE_SYS_EPOLL_H */
+#ifdef HAVE_SYS_TIMERFD_H
+#include "sys/timerfd.h"
+#endif /* HAVE_SYS_TIMERFD_H */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -1690,6 +1699,11 @@ typedef struct conn
     Sockbuf *c_sb;                   /* ber connection stuff          */
     conn_state c_state;              /* Used in connection table and done to see what's free or not. Later we could use this for other state handlings. */
     int c_sd;                        /* the actual socket descriptor      */
+#ifdef ENABLE_EPOLL
+    struct epoll_event *c_event;     /* epoll event for this connection */
+    struct epoll_event *c_idle_event;/* epoll event for timerfd */
+    int c_idle_tfd;                  /* timerfd for this connection */
+#endif /* ENABLE_EPOLL */
     int c_ldapversion;               /* version of LDAP protocol       */
     char *c_dn;                      /* current DN bound to this conn  */
     int c_isroot;                    /* c_dn was rootDN at time of bind? */
@@ -2476,6 +2490,11 @@ typedef struct _slapdFrontendConfig
     slapi_int_t ioblocktimeout;
     slapi_onoff_t lastmod;
     int64_t maxdescriptors;
+#ifdef LINUX
+#ifdef ENABLE_EPOLL
+    int64_t maxuserwatches;
+#endif /* ENABLE_EPOLL */
+#endif /* LINUX */
     int num_listeners;
     slapi_int_t maxthreadsperconn;
     int outbound_ldap_io_timeout;

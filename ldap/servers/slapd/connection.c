@@ -189,6 +189,14 @@ connection_cleanup(Connection *conn)
     if (conn->c_prfd) {
         PR_Close(conn->c_prfd);
     }
+#ifdef ENABLE_EPOLL_NOTYET
+    if (conn->c_idle_tfd >= 0) {
+        /* Close the idle timer */
+        timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
+        close(conn->c_idle_tfd);
+        conn->c_idle_tfd = -1;
+    }
+#endif /* ENABLE_EPOLL */
 
     conn->c_sd = SLAPD_INVALID_SOCKET;
     conn->c_ldapversion = 0;
@@ -1905,6 +1913,18 @@ connection_threadmain(void *arg)
                update c_idlesince here since, if we got some read activity, we are
                not idle */
             conn->c_idlesince = curtime;
+#ifdef ENABLE_EPOLL
+            if (conn->c_idle_tfd >= 0) {
+                /* Reset the idle timer */
+                slapi_log_err(SLAPI_LOG_DEBUG,
+                              "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
+                timerfd_settime(conn->c_idle_tfd, 0,
+                                &(struct itimerspec) {
+                                    .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
+                                    .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
+                                }, NULL);
+            }
+#endif /* ENABLE_EPOLL */
         }
 
         /*
@@ -1938,6 +1958,18 @@ connection_threadmain(void *arg)
                      * are bypassing both of those, we set idlesince here
                      */
                     conn->c_idlesince = curtime;
+#ifdef ENABLE_EPOLL
+                    if (conn->c_idle_tfd >= 0) {
+                        /* Reset the idle timer */
+                        slapi_log_err(SLAPI_LOG_DEBUG,
+                                      "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
+                        timerfd_settime(conn->c_idle_tfd, 0,
+                                        &(struct itimerspec) {
+                                            .it_value = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 },
+                                            .it_interval = { .tv_sec = conn->c_idletimeout, .tv_nsec = 0 }
+                                        }, NULL);
+                    }
+#endif /* ENABLE_EPOLL */
                     connection_activity(conn, maxthreads);
                     slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain", "conn %" PRIu64 " queued because more_data\n",
                                   conn->c_connid);
@@ -2493,6 +2525,29 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
          * The last thread to stop using the connection will do the closing.
          */
         conn->c_flags |= CONN_FLAG_CLOSING;
+#ifdef ENABLE_EPOLL
+        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing connection %d from epoll_fd %d\n",
+                  conn->c_sd, conn->c_ct->epoll_fd[conn->c_ct_list]);
+        if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_sd, NULL) == -1) {
+            slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext",
+                        "epoll_ctl failed to remove connection %d from epoll_fd %d\n",
+                        conn->c_sd, conn->c_ct->epoll_fd);
+        }
+        slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
+                  conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci);
+        /* Remove the idle timer if it exists */
+        if (conn->c_idle_event) {
+            if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL) == -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext", "Failed to remove idle timer fd %d for connection %d - %s\n",
+                              conn->c_idle_tfd, conn->c_sd, strerror(errno));
+            }
+        }
+        if (conn->c_idle_tfd >= 0) {
+            /* Close the idle timer */
+            close(conn->c_idle_tfd);
+            conn->c_idle_tfd = -1;
+        }
+#endif /* ENABLE_EPOLL */
         g_decrement_current_conn_count();
 
         slapd_log_pblock_init(&logpb, log_format, NULL);

@@ -140,6 +140,21 @@ connection_table_new(int table_size)
     slapi_log_err(SLAPI_LOG_INFO, "connection_table_new", "Number of connection sub-tables %d, each containing %d slots.\n",
         ct->list_num, ct->list_size);
 
+#ifdef ENABLE_EPOLL
+    ct->epoll_fd = (int *)slapi_ch_calloc(1, ct->list_num * sizeof(int));
+    if (ct->epoll_fd == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll fds\n");
+        exit(1);
+    }
+    for (ct_list = 0; ct_list < ct->list_num; ct_list++) {
+        ct->epoll_fd[ct_list] = epoll_create1(EPOLL_CLOEXEC);
+        if (ct->epoll_fd[ct_list] < 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to create epoll fd for connection table list %zu\n", ct_list);
+            exit(1);
+        }
+    }
+#endif /* ENABLE_EPOLL */
+
     pthread_mutexattr_t monitor_attr = {0};
     pthread_mutexattr_init(&monitor_attr);
     pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);
@@ -156,6 +171,19 @@ connection_table_new(int table_size)
             */
             ct->c[ct_list][i].c_state = CONN_STATE_FREE;
             /* Start the conn setup. */
+
+#ifdef ENABLE_EPOLL
+            ct->c[ct_list][i].c_event = (struct epoll_event *)slapi_ch_calloc(1, sizeof(struct epoll_event));
+            if (ct->c[ct_list][i].c_event == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for epoll event for connection %zu\n", i);
+                exit(1);
+            }
+            ct->c[ct_list][i].c_idle_event = (struct epoll_event *)slapi_ch_calloc(1, sizeof(struct epoll_event));
+            if (ct->c[ct_list][i].c_idle_event == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for idle event for connection %zu\n", i);
+                exit(1);
+            }
+#endif
 
             LBER_SOCKET invalid_socket;
             /* DBDB---move this out of here once everything works */
@@ -227,6 +255,14 @@ connection_table_free(Connection_Table *ct)
             /* Free the contents of the connection structure */
             Connection *c = &(ct->c[ct_list][i]);
             connection_done(c);
+#ifdef ENABLE_EPOLL
+            if (c->c_event) {
+                slapi_ch_free((void **)&c->c_event);
+            }
+            if (c->c_idle_event) {
+                slapi_ch_free((void **)&c->c_idle_event);
+            }
+#endif /* ENABLE_EPOLL */
         }
 
         slapi_ch_free((void **)&ct->c[ct_list]);
