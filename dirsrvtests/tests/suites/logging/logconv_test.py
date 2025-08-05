@@ -75,6 +75,7 @@ class TestLogconv:
         if not self.access_log_path:
             pytest.fail(f"Access log not found. {self.access_log_path}")
 
+        time.sleep(3)
         with open(self.access_log_path, "w") as f:
             f.truncate(0)
 
@@ -212,7 +213,7 @@ class TestLogconv:
             if key in IGNORE_KEYS:
                 continue
             expected_val = expected.get(key, 0)
-            if existing_val < expected_val:
+            if existing_val != expected_val:
                 errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
 
         if errors:
