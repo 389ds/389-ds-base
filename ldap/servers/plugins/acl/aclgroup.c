@@ -50,8 +50,20 @@ aclgroup_init()
 void
 aclgroup_free()
 {
-    slapi_destroy_rwlock(aclUserGroups->aclg_rwlock);
-    slapi_ch_free((void **)&aclUserGroups);
+    aclUserGroup *u_group, *next_group;
+
+    if (aclUserGroups) {
+        /* Clean up all user groups */
+        u_group = aclUserGroups->aclg_first;
+        while (u_group) {
+            next_group = u_group->aclug_next;
+            __aclg__delete_userGroup(u_group);
+            u_group = next_group;
+        }
+
+        slapi_destroy_rwlock(aclUserGroups->aclg_rwlock);
+        slapi_ch_free((void **)&aclUserGroups);
+    }
 }
 
 /*
