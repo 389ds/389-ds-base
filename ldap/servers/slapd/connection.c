@@ -189,7 +189,7 @@ connection_cleanup(Connection *conn)
     if (conn->c_prfd) {
         PR_Close(conn->c_prfd);
     }
-#ifdef ENABLE_EPOLL_NOTYET
+#ifdef ENABLE_EPOLL
     if (conn->c_idle_tfd >= 0) {
         /* Close the idle timer */
         timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);

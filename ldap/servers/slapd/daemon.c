@@ -845,10 +845,9 @@ static void
 handle_listeners(struct epoll_event *events, int event_count)
 {
     Connection_Table *ct = the_connection_table;
-    size_t idx;
     int ctlist = 0;
     struct listener_info *listener = NULL;
-    for (idx = 0; idx < (size_t)event_count; idx++) {
+    for (size_t idx = 0; idx < (size_t)event_count; idx++) {
         listener = (struct listener_info *)events[idx].data.ptr;
         PRFileDesc *listenfd = (PRFileDesc *)listener->listenfd;
         int secure = listener->secure;
