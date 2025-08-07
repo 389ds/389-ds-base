@@ -2227,6 +2227,53 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
         }
         return -1;
     }
+
+#ifdef ENABLE_EPOLL
+    /* Set up the epoll event for this connection */
+    conn->c_event->events = EPOLL_EVENTS;
+    conn->c_event->data.ptr = conn;
+    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
+                  "Adding connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d with flags %s\n",
+                  conn, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_ct_list, conn->c_ci,
+                  the_connection_table->epoll_fd[conn->c_ct_list], epoll_event_flags_to_string(conn->c_event->events));
+
+    /* Add the connection to the epoll instance */
+    if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event) == -1) {
+        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "epoll_ctl() failed: %s at line %d\n",
+                      strerror(errno), __LINE__);
+        return -1;
+    }
+
+    if ((conn->c_idle_tfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK)) < 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "timerfd_create() failed: %s\n",
+                      strerror(errno));
+        epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event);
+        return -1;
+    }
+    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
+                  "Created idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
+                  conn->c_idle_tfd, conn, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_ct_list, conn->c_ci);
+    /* Add the idle timer to the epoll instance */
+    conn->c_idle_event->events = EPOLL_EVENTS;
+    conn->c_idle_event->data.ptr = conn;
+    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
+                  "Adding idle timer %p (descriptor %d, table %d, conn %d) to epoll_fd %d with flags %s\n",
+                  conn->c_idle_event, conn->c_idle_tfd, conn->c_ct_list, conn->c_ci,
+                  the_connection_table->epoll_fd[conn->c_ct_list], epoll_event_flags_to_string(conn->c_idle_event->events));
+    if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, conn->c_idle_tfd, conn->c_idle_event) == -1) {
+        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "epoll_ctl() failed: %s at line %d\n",
+                      strerror(errno), __LINE__);
+        close(conn->c_idle_tfd);
+        conn->c_idle_tfd = -1;
+        epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event);
+        return -1;
+    }
+    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
+                  "Added idle timer fd %d for connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d\n",
+                  conn->c_idle_tfd, conn, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_ct_list, conn->c_ci,
+                  the_connection_table->epoll_fd[conn->c_ct_list]);
+#endif /* ENABLE_EPOLL */
+
     pthread_mutex_lock(&(conn->c_mutex));
 
     /*
@@ -2314,51 +2361,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
         /* Now give the new connection to the connection code*/
         connection_table_move_connection_on_to_active_list(the_connection_table, conn);
     }
-
-#ifdef ENABLE_EPOLL
-    /* Set up the epoll event for this connection */
-    conn->c_event->events = EPOLL_EVENTS;
-    conn->c_event->data.ptr = conn;
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Adding connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d with flags %s\n",
-                  conn, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_ct_list, conn->c_ci,
-                  the_connection_table->epoll_fd[conn->c_ct_list], epoll_event_flags_to_string(conn->c_event->events));
-
-    /* Add the connection to the epoll instance */
-    if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_event) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "epoll_ctl() failed: %s\n",
-                      strerror(errno));
-        disconnect_server_nomutex(conn, conn->c_connid, -1,
-                                SLAPD_DISCONNECT_ABORT, ECANCELED);
-    }
-
-    if ((conn->c_idle_tfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK)) < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "timerfd_create() failed: %s\n",
-                      strerror(errno));
-        disconnect_server_nomutex(conn, conn->c_connid, -1,
-                                SLAPD_DISCONNECT_ABORT, ECANCELED);
-    }
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Created idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
-                  conn->c_idle_tfd, conn, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_ct_list, conn->c_ci);
-    /* Add the idle timer to the epoll instance */
-    conn->c_idle_event->events = EPOLL_EVENTS;
-    conn->c_idle_event->data.ptr = conn;
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Adding idle timer %p (descriptor %d, table %d, conn %d) to epoll_fd %d with flags %s\n",
-                  conn->c_idle_event, conn->c_idle_tfd, conn->c_ct_list, conn->c_ci,
-                  the_connection_table->epoll_fd[conn->c_ct_list], epoll_event_flags_to_string(conn->c_idle_event->events));
-    if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, conn->c_idle_tfd, conn->c_idle_event) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "epoll_ctl() failed: %s\n",
-                      strerror(errno));
-        disconnect_server_nomutex(conn, conn->c_connid, -1,
-                                SLAPD_DISCONNECT_ABORT, ECANCELED);
-    }
-    slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
-                  "Added idle timer fd %d for connection %p (descriptor %d, table %d, conn %d) to epoll_fd %d\n",
-                  conn->c_idle_tfd, conn, PR_FileDesc2NativeHandle(conn->c_prfd), conn->c_ct_list, conn->c_ci,
-                  the_connection_table->epoll_fd[conn->c_ct_list]);
-#endif /* ENABLE_EPOLL */
 
     pthread_mutex_unlock(&(conn->c_mutex));
 
