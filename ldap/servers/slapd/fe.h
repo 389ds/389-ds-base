@@ -89,6 +89,9 @@ struct connection_table
     Connection **c_freelist;
     size_t conn_next_offset;
     struct POLL_STRUCT **fd;
+#ifdef ENABLE_EPOLL
+    int *epoll_fd;  /* epoll file descriptor for each connection table list */
+#endif /* ENABLE_EPOLL */
     PRLock *table_mutex;
 };
 typedef struct connection_table Connection_Table;
