@@ -2239,8 +2239,9 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
 
     /* Add the connection to the epoll instance */
     if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "epoll_ctl() failed: %s at line %d\n",
-                      strerror(errno), __LINE__);
+        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "Adding connection to epoll_ctl() failed: %s\n",
+                      strerror(errno));
+        PR_Close(pr_accepted_fd);
         return -1;
     }
 
@@ -2248,6 +2249,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
         slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "timerfd_create() failed: %s\n",
                       strerror(errno));
         epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event);
+        PR_Close(pr_accepted_fd);
         return -1;
     }
     slapi_log_err(SLAPI_LOG_DEBUG, "handle_new_connection",
@@ -2261,8 +2263,9 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *listenfd, int 
                   conn->c_idle_event, conn->c_idle_tfd, conn->c_ct_list, conn->c_ci,
                   the_connection_table->epoll_fd[conn->c_ct_list], epoll_event_flags_to_string(conn->c_idle_event->events));
     if (epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_ADD, conn->c_idle_tfd, conn->c_idle_event) == -1) {
-        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "epoll_ctl() failed: %s at line %d\n",
-                      strerror(errno), __LINE__);
+        slapi_log_err(SLAPI_LOG_ERR, "handle_new_connection", "Adding idle timer to epoll_ctl() failed: %s\n",
+                      strerror(errno));
+        PR_Close(pr_accepted_fd);
         close(conn->c_idle_tfd);
         conn->c_idle_tfd = -1;
         epoll_ctl(the_connection_table->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, PR_FileDesc2NativeHandle(pr_accepted_fd), conn->c_event);
