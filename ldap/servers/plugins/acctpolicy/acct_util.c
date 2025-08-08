@@ -17,7 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 Contributors:
 Hewlett-Packard Development Company, L.P.
 
-Copyright (C) 2021 Red Hat, Inc.
+Copyright (C) 2025 Red Hat, Inc.
 ******************************************************************************/
 
 #include <stdio.h>
@@ -248,6 +248,10 @@ gentimeToEpochtime(char *gentimestr)
 
     /* Turn tm object into local epoch time */
     epochtime = mktime(&t);
+    if (epochtime == (time_t) -1) {
+        /* mktime failed */
+        return 0;
+    }
 
     /* Turn local epoch time into GMT epoch time */
     epochtime -= zone_offset;
