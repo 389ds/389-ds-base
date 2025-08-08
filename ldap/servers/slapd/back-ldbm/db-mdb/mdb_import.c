@@ -26,7 +26,16 @@
 
 static char *sourcefile = "dbmdb_import.c";
 
-static int dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted, back_txn *txn);
+/* Helper struct used to compute numsubordinates */
+
+typedef struct {
+    backend *be;
+    dbi_txn_t *txn;
+    const char *attrname;
+    struct attrinfo *ai;
+    dbi_db_t *db;
+    MDB_cursor *dbc;
+} subcount_cursor_info_t;
 
 /********** routines to manipulate the entry fifo **********/
 
@@ -126,57 +135,74 @@ dbmdb_import_task_abort(Slapi_Task *task)
 
 /********** helper functions for importing **********/
 
-static int
-dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, int isencrypted, back_txn *txn)
+static void
+dbmdb_close_subcount_cursor(subcount_cursor_info_t *info)
 {
-    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    if  (info->dbc) {
+        MDB_CURSOR_CLOSE(info->dbc);
+        info->dbc = NULL;
+    }
+    if (info->db) {
+        dblayer_release_index_file(info->be, info->ai, info->db);
+        info->db = NULL;
+        info->ai = NULL;
+    }
+}
+
+static int
+dbmdb_open_subcount_cursor(backend *be, const char *attrname, dbi_txn_t *txn, subcount_cursor_info_t *info)
+{
+    char errfunc[60];
     int ret = 0;
-    modify_context mc = {0};
-    char value_buffer[22] = {0}; /* enough digits for 2^64 children */
-    struct backentry *e = NULL;
-    int isreplace = 0;
-    char *numsub_str = numsubordinates;
 
-    /* Get hold of the parent */
-    e = id2entry(be, parentid, txn, &ret);
-    if ((NULL == e) || (0 != ret)) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_update_entry_subcount", "failed to read entry with ID %d ret=%d\n",
-                parentid, ret);
-        ldbm_nasty("dbmdb_import_update_entry_subcount", sourcefile, 5, ret);
-        return (0 == ret) ? -1 : ret;
-    }
-    /* Lock it (not really required since we're single-threaded here, but
-     * let's do it so we can reuse the modify routines) */
-    cache_lock_entry(&inst->inst_cache, e);
-    modify_init(&mc, e);
-    mc.attr_encrypt = isencrypted;
-    sprintf(value_buffer, "%lu", (long unsigned int)sub_count);
-    /* If it is a tombstone entry, add tombstonesubordinates instead of
-     * numsubordinates. */
-    if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) {
-        numsub_str = LDBM_TOMBSTONE_NUMSUBORDINATES_STR;
-    }
-    /* attr numsubordinates/tombstonenumsubordinates could already exist in
-     * the entry, let's check whether it's already there or not */
-    isreplace = (attrlist_find(e->ep_entry->e_attrs, numsub_str) != NULL);
-    {
-        int op = isreplace ? LDAP_MOD_REPLACE : LDAP_MOD_ADD;
-        Slapi_Mods *smods = slapi_mods_new();
+    snprintf(errfunc, (sizeof errfunc), "%s[%s]", __FUNCTION__, attrname);
+    info->attrname = attrname;
+    info->txn = txn;
+    info->be = be;
 
-        slapi_mods_add(smods, op | LDAP_MOD_BVALUES, numsub_str,
-                       strlen(value_buffer), value_buffer);
-        ret = modify_apply_mods(&mc, smods); /* smods passed in */
-    }
-    if (0 == ret || LDAP_TYPE_OR_VALUE_EXISTS == ret) {
-        /* This will correctly index subordinatecount: */
-        ret = modify_update_all(be, NULL, &mc, txn);
-        if (0 == ret) {
-            modify_switch_entries(&mc, be);
+    /* Lets get the attrinfo */
+    ainfo_get(be, (char*)attrname, &info->ai);
+    PR_ASSERT(info->ai);
+    /* Lets get the db instance */
+    if ((ret = dblayer_get_index_file(be, info->ai, &info->db, 0)) != 0) {
+        if (ret == DBI_RC_NOTFOUND) {
+            dbmdb_close_subcount_cursor(info);
+            return 0;
         }
+        ldbm_nasty(errfunc, sourcefile, 70, ret);
+        dbmdb_close_subcount_cursor(info);
+        return ret;
     }
-    /* entry is unlocked and returned to the cache in modify_term */
-    modify_term(&mc, be);
-    return ret;
+
+    /* Lets get the cursor */
+    if ((ret = MDB_CURSOR_OPEN(TXN(info->txn), DB(info->db), &info->dbc)) != 0) {
+        ldbm_nasty(errfunc, sourcefile, 71, ret);
+        dbmdb_close_subcount_cursor(info);
+        ret = dbmdb_map_error(__FUNCTION__, ret);
+    }
+    return 0;
+}
+
+static bool
+dbmdb_subcount_is_tombstone(subcount_cursor_info_t *info, MDB_val *id)
+{
+    /*
+     * Check if record =nstombstone ==> id exists in objectclass index
+     */
+    MDB_val key = {0};
+    int ret;
+    key.mv_data = "=nstombstone" ;
+    key.mv_size = 13;
+    ret = MDB_CURSOR_GET(info->dbc, &key, id, MDB_GET_BOTH);
+    switch (ret) {
+        case 0:
+            return true;
+        case MDB_NOTFOUND:
+            return false;
+        default:
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 72, ret);
+            return false;
+    }
 }
 
 /*
@@ -188,47 +214,54 @@ dbmdb_import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, i
 static int
 dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
 {
-    int isencrypted = job->encrypt;
+    subcount_cursor_info_t c_objectclass = {0};
+    subcount_cursor_info_t c_parentid = {0};
     int started_progress_logging = 0;
-    int key_count = 0;
-    int ret = 0;
-    dbmdb_dbi_t*db = NULL;
-    MDB_cursor *dbc = NULL;
-    struct attrinfo *ai = NULL;
-    MDB_val key = {0};
+    int isencrypted = job->encrypt;
     MDB_val data = {0};
-    dbmdb_cursor_t cursor = {0};
-    struct ldbminfo *li = (struct ldbminfo*)be->be_database->plg_private;
-	back_txn btxn = {0};
+    MDB_val key = {0};
+    back_txn btxn = {0};
+    int key_count = 0;
+    char tmp[11];
+    int ret2 = 0;
+    int ret = 0;
 
-    /* Open the parentid index */
-    ainfo_get(be, LDBM_PARENTID_STR, &ai);
-
-    /* Open the parentid index file */
-    if ((ret = dblayer_get_index_file(be, ai, (dbi_db_t**)&db, DBOPEN_CREATE)) != 0) {
-        ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 67, ret);
-        return (ret);
+    PR_ASSERT(txn == NULL); /* Apparently always called with null txn */
+    /* Need txn / should be rw to update id2entry */
+    ret = START_TXN(&txn, NULL, 0);
+    if (ret) {
+        ldbm_nasty((char*)__FUNCTION__, sourcefile, 60, ret);
+        return dbmdb_map_error(__FUNCTION__, ret);
     }
-    /* Get a cursor with r/w txn so we can walk through the parentid */
-    ret = dbmdb_open_cursor(&cursor, MDB_CONFIG(li), db, 0);
-    if (ret != 0) {
-        ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 68, ret);
-        dblayer_release_index_file(be, ai, db);
-        return ret;
-    }
-    dbc = cursor.cur;
-    txn = cursor.txn;
     btxn.back_txn_txn = txn;
-    ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_FIRST);
+    /* Open cursor on the objectclass index */
+    ret = dbmdb_open_subcount_cursor(be, SLAPI_ATTR_OBJECTCLASS, txn, &c_objectclass);
+    if (ret) {
+        if (ret != DBI_RC_NOTFOUND) {
+            /* No database ==> There is nothing to do. */
+            ldbm_nasty((char*)__FUNCTION__, sourcefile, 61, ret);
+        }
+        return END_TXN(&txn, ret);
+    }
+    /* Open cursor on the parentid index */
+    ret = dbmdb_open_subcount_cursor(be, LDBM_PARENTID_STR, txn, &c_parentid);
+    if (ret) {
+        ldbm_nasty((char*)__FUNCTION__, sourcefile, 62, ret);
+        dbmdb_close_subcount_cursor(&c_objectclass);
+        return END_TXN(&txn, ret);
+    }
 
-    /* Walk along the index */
-    while (ret != MDB_NOTFOUND) {
+    /* Walk along the parentid index */
+    ret = MDB_CURSOR_GET(c_parentid.dbc, &key, &data, MDB_FIRST);
+    while (ret == 0) {
         size_t sub_count = 0;
+        size_t t_sub_count = 0;
+        MDB_val oldkey = key;
         ID parentid = 0;
 
         if (0 != ret) {
             key.mv_data=NULL;
-            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 62, ret);
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
             break;
         }
         /* check if we need to abort */
@@ -247,33 +280,38 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
                               key_count);
             started_progress_logging = 1;
         }
-
-        if (*(char *)key.mv_data == EQ_PREFIX) {
-            char tmp[11];
-
-            /* construct the parent's ID from the key */
-            if (key.mv_size >= sizeof tmp) {
-                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 66, ret);
-                break;
-            }
-            memcpy(tmp, key.mv_data, key.mv_size);
-            tmp[key.mv_size] = 0;
-            parentid = (ID)atol(tmp+1);
-            PR_ASSERT(0 != parentid);
-            /* Get number of records having the same key */
-            ret = mdb_cursor_count(dbc, &sub_count);
-            if (ret) {
-                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
-                break;
-            }
-            PR_ASSERT(0 != sub_count);
-            ret = dbmdb_import_update_entry_subcount(be, parentid, sub_count, isencrypted, &btxn);
-            if (ret) {
-                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
-                break;
-            }
+        if (!key.mv_data || *(char *)key.mv_data != EQ_PREFIX) {
+            ret = MDB_CURSOR_GET(c_parentid.dbc, &key, &data, MDB_NEXT_NODUP);
+            continue;
         }
-        ret = MDB_CURSOR_GET(dbc, &key, &data, MDB_NEXT_NODUP);
+
+        /* construct the parent's ID from the key */
+        if (key.mv_size >= sizeof tmp) {
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
+            break;
+        }
+        /* Generate expected value for parentid */
+        memcpy(tmp, key.mv_data, key.mv_size);
+        tmp[key.mv_size] = 0;
+        parentid = (ID)atol(tmp+1);
+        PR_ASSERT(0 != parentid);
+        oldkey = key;
+        /* Walk the entries having same key and check if they are tombstone */
+        do {
+            if (!dbmdb_subcount_is_tombstone(&c_objectclass, &data)) {
+                sub_count++;
+            } else {
+                t_sub_count++;
+            }
+            ret = MDB_CURSOR_GET(c_parentid.dbc, &key, &data, MDB_NEXT);
+        } while (ret == 0 && key.mv_size == oldkey.mv_size &&
+             memcmp(key.mv_data, oldkey.mv_data, key.mv_size) == 0);
+        ret2 = import_update_entry_subcount(be, parentid, sub_count, t_sub_count, isencrypted, &btxn);
+        if (ret2) {
+            ret = ret2;
+            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 65, ret);
+            break;
+        }
     }
     if (started_progress_logging) {
         /* Finish what we started... */
@@ -285,11 +323,13 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
     if (ret == MDB_NOTFOUND) {
         ret = 0;
     }
-
-    dbmdb_close_cursor(&cursor, ret);
-    dblayer_release_index_file(be, ai, db);
-
-    return (ret);
+    dbmdb_close_subcount_cursor(&c_parentid);
+    dbmdb_close_subcount_cursor(&c_objectclass);
+    if (txn) {
+        return END_TXN(&txn, ret);
+    } else {
+        return ret;
+    }
 }
 
 /* Function used to gather a list of indexed attrs */
@@ -364,10 +404,6 @@ dbmdb_import_free_job(ImportJob *job)
         slapi_ch_free((void **)&asabird);
     }
     job->index_list = NULL;
-    if (NULL != job->mothers) {
-        import_subcount_stuff_term(job->mothers);
-        slapi_ch_free((void **)&job->mothers);
-    }
 
     dbmdb_back_free_incl_excl(job->include_subtrees, job->exclude_subtrees);
 
@@ -1245,7 +1281,6 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
     }
     job->starting_ID = 1;
     job->first_ID = 1;
-    job->mothers = CALLOC(import_subcount_stuff);
 
     /* how much space should we allocate to index buffering? */
     job->job_index_buffer_size = dbmdb_import_get_index_buffer_size();
@@ -1256,7 +1291,6 @@ dbmdb_run_ldif2db(Slapi_PBlock *pb)
             (job->inst->inst_li->li_import_cachesize / 10) + (1024 * 1024);
         PR_Unlock(job->inst->inst_li->li_config_mutex);
     }
-    import_subcount_stuff_init(job->mothers);
 
     if (job->task != NULL) {
         /* count files, use that to track "progress" in cn=tasks */
@@ -1383,7 +1417,6 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
     job->starting_ID = 1;
     job->first_ID = 1;
 
-    job->mothers = CALLOC(import_subcount_stuff);
     /* how much space should we allocate to index buffering? */
     job->job_index_buffer_size = dbmdb_import_get_index_buffer_size();
     if (job->job_index_buffer_size == 0) {
@@ -1391,7 +1424,6 @@ dbmdb_bulk_import_start(Slapi_PBlock *pb)
         job->job_index_buffer_size = (job->inst->inst_li->li_dbcachesize / 10) +
                                      (1024 * 1024);
     }
-    import_subcount_stuff_init(job->mothers);
     dbmdb_import_init_writer(job, IM_BULKIMPORT);
 
     pthread_mutex_init(&job->wire_lock, NULL);

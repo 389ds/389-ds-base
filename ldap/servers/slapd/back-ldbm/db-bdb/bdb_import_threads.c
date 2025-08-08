@@ -2244,17 +2244,6 @@ bdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_
         ret = index_addordel_values_ext_sv(be, LDBM_PARENTID_STR, svals, NULL,
                                            entry->ep_id, BE_INDEX_ADD,
                                            NULL, &idl_disposition, NULL);
-        if (idl_disposition != IDL_INSERT_NORMAL) {
-            char *attr_value = slapi_value_get_berval(svals[0])->bv_val;
-            ID parent_id = atol(attr_value);
-
-            if (idl_disposition == IDL_INSERT_NOW_ALLIDS) {
-                bdb_import_subcount_mother_init(job->mothers, parent_id,
-                                            idl_get_allidslimit(parentid_ai, 0) + 1);
-            } else if (idl_disposition == IDL_INSERT_ALLIDS) {
-                bdb_import_subcount_mother_count(job->mothers, parent_id);
-            }
-        }
         if (ret != 0) {
             import_log_notice(job, SLAPI_LOG_ERR, "bdb_foreman_do_parentid",
                               "Can't update parentid index (error %d)", ret);
@@ -2989,7 +2978,6 @@ bdb_bulk_import_start(Slapi_PBlock *pb)
     job->starting_ID = 1;
     job->first_ID = 1;
 
-    job->mothers = CALLOC(import_subcount_stuff);
     /* how much space should we allocate to index buffering? */
     job->job_index_buffer_size = bdb_import_get_index_buffer_size();
     if (job->job_index_buffer_size == 0) {
@@ -2997,7 +2985,6 @@ bdb_bulk_import_start(Slapi_PBlock *pb)
         job->job_index_buffer_size = (job->inst->inst_li->li_dbcachesize / 10) +
                                      (1024 * 1024);
     }
-    import_subcount_stuff_init(job->mothers);
 
     pthread_mutex_init(&job->wire_lock, NULL);
     pthread_cond_init(&job->wire_cv, NULL);

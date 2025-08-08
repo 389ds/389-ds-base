@@ -200,7 +200,7 @@ class DSLdapObject(DSLogging, DSLint):
         if scope == 'base':
             search_scope = ldap.SCOPE_BASE
         elif scope == 'one':
-            search_scope = ldap.SCOPE_ONE
+            search_scope = ldap.SCOPE_ONELEVEL
         elif scope == 'subtree':
             search_scope = ldap.SCOPE_SUBTREE
         return _search_ext_s(self._instance,self._dn, search_scope, filter,

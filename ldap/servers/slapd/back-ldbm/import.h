@@ -117,7 +117,6 @@ typedef struct _ImportJob
                                     * another pass */
     int uuid_gen_type;             /* kind of uuid to generate */
     char *uuid_namespace;          /* namespace for name-generated uuid */
-    import_subcount_stuff *mothers;
     double average_progress_rate;
     double recent_progress_rate;
     double cache_hit_ratio;
@@ -209,6 +208,7 @@ struct _import_worker_info
 /* import.c */
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
 int import_main_offline(void *arg);
+int import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t t_sub_count, int isencrypted, back_txn *txn);
 
 /* ldif2ldbm.c */
 void reset_progress(void);
