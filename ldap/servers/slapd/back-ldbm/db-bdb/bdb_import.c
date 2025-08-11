@@ -1097,7 +1097,7 @@ static int
 bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
 {
     subcount_cursor_info_t c_objectclass = {0};
-    subcount_cursor_info_t c_parentid = {0};
+    subcount_cursor_info_t c_entryrdn = {0};
     int started_progress_logging = 0;
     int isencrypted = job->encrypt;
     DBT data = {0};
@@ -1118,9 +1118,9 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
         }
         return ret;
     }
-    /* on bdb parentid does not index tombstone so let use entryrdn instead */
+    /* Open entryrdn index */
     /* Open cursor on the entryrdn index */
-    ret = bdb_open_subcount_cursor(be, LDBM_ENTRYRDN_STR, txn, &c_parentid);
+    ret = bdb_open_subcount_cursor(be, LDBM_ENTRYRDN_STR, txn, &c_entryrdn);
     if (ret) {
         ldbm_nasty((char*)__FUNCTION__, sourcefile, 62, ret);
         bdb_close_subcount_cursor(&c_objectclass);
@@ -1137,10 +1137,10 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
     data.dlen = sizeof (ID);
     data.doff = 0;
 
-    /* Starts from C key (usually C1) and walk along the entryrdn index */
+    /* Walk along C* keys (usually starting at C1) */
     strcpy(tmp, "C");
     key.size = 1;
-    ret = c_parentid.dbc->c_get(c_parentid.dbc, &key, &data, DB_SET_RANGE);
+    ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_SET_RANGE);
 
     while (ret == 0 || ret == DB_BUFFER_SMALL) {
         size_t sub_count = 0;
@@ -1157,7 +1157,7 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
             /* Not an equality record ==> get next */
             data.size = key.ulen = sizeof data_data;
             key.size = key.ulen = sizeof tmp;
-            ret = c_parentid.dbc->c_get(c_parentid.dbc, &key, &data, DB_NEXT_NODUP);
+            ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_NEXT_NODUP);
             continue;
         }
         if (0 != ret) {
@@ -1199,7 +1199,7 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
             } else {
                 t_sub_count++;
             }
-            ret = c_parentid.dbc->c_get(c_parentid.dbc, &key, &data, DB_NEXT);
+            ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_NEXT);
             if (ret == 0 && key.size < sizeof tmp) {
                 tmp[key.size] = 0;
             } else {
@@ -1223,7 +1223,7 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
     if (ret == DB_NOTFOUND) {
         ret = 0;
     }
-    bdb_close_subcount_cursor(&c_parentid);
+    bdb_close_subcount_cursor(&c_entryrdn);
     bdb_close_subcount_cursor(&c_objectclass);
     return ret;
 }

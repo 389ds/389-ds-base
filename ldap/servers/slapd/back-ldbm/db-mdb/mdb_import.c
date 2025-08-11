@@ -215,7 +215,7 @@ static int
 dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
 {
     subcount_cursor_info_t c_objectclass = {0};
-    subcount_cursor_info_t c_parentid = {0};
+    subcount_cursor_info_t c_entryrdn = {0};
     int started_progress_logging = 0;
     int isencrypted = job->encrypt;
     MDB_val data = {0};
@@ -243,16 +243,18 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
         }
         return END_TXN(&txn, ret);
     }
-    /* Open cursor on the parentid index */
-    ret = dbmdb_open_subcount_cursor(be, LDBM_PARENTID_STR, txn, &c_parentid);
+			/* Open cursor on the entryrdn index */
+    ret = dbmdb_open_subcount_cursor(be, LDBM_ENTRYRDN_STR, txn, &c_entryrdn);
     if (ret) {
         ldbm_nasty((char*)__FUNCTION__, sourcefile, 62, ret);
         dbmdb_close_subcount_cursor(&c_objectclass);
         return END_TXN(&txn, ret);
     }
 
-    /* Walk along the parentid index */
-    ret = MDB_CURSOR_GET(c_parentid.dbc, &key, &data, MDB_FIRST);
+    /* Walk along C* keys (usually starting at C1) */
+    key.mv_data = "C";
+    key.mv_size = 1;
+    ret = MDB_CURSOR_GET(c_entryrdn.dbc, &key, &data, MDB_SET_RANGE);
     while (ret == 0) {
         size_t sub_count = 0;
         size_t t_sub_count = 0;
@@ -280,14 +282,15 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
                               key_count);
             started_progress_logging = 1;
         }
-        if (!key.mv_data || *(char *)key.mv_data != EQ_PREFIX) {
-            ret = MDB_CURSOR_GET(c_parentid.dbc, &key, &data, MDB_NEXT_NODUP);
-            continue;
+        if (!key.mv_data || *(char *)key.mv_data != 'C') {
+            /* No more children */
+            break;
         }
 
         /* construct the parent's ID from the key */
         if (key.mv_size >= sizeof tmp) {
             ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
+            ret = DBI_RC_INVALID;
             break;
         }
         /* Generate expected value for parentid */
@@ -298,12 +301,23 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
         oldkey = key;
         /* Walk the entries having same key and check if they are tombstone */
         do {
+            /* Reorder data */
+            ID old_data, new_data;
+            if (data.mv_size < sizeof old_data) {
+                ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 66, ret);
+                ret = DBI_RC_INVALID;
+                break;
+            }
+            memcpy(&old_data, data.mv_data, sizeof old_data);
+            id_internal_to_stored(old_data, (char*)&new_data);
+            data.mv_data = &new_data;
+            data.mv_size = sizeof new_data;
             if (!dbmdb_subcount_is_tombstone(&c_objectclass, &data)) {
                 sub_count++;
             } else {
                 t_sub_count++;
             }
-            ret = MDB_CURSOR_GET(c_parentid.dbc, &key, &data, MDB_NEXT);
+            ret = MDB_CURSOR_GET(c_entryrdn.dbc, &key, &data, MDB_NEXT);
         } while (ret == 0 && key.mv_size == oldkey.mv_size &&
              memcmp(key.mv_data, oldkey.mv_data, key.mv_size) == 0);
         ret2 = import_update_entry_subcount(be, parentid, sub_count, t_sub_count, isencrypted, &btxn);
@@ -323,7 +337,7 @@ dbmdb_update_subordinatecounts(backend *be, ImportJob *job, dbi_txn_t *txn)
     if (ret == MDB_NOTFOUND) {
         ret = 0;
     }
-    dbmdb_close_subcount_cursor(&c_parentid);
+    dbmdb_close_subcount_cursor(&c_entryrdn);
     dbmdb_close_subcount_cursor(&c_objectclass);
     if (txn) {
         return END_TXN(&txn, ret);

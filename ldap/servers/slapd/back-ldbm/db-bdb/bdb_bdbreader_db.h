@@ -81,6 +81,7 @@ enum {
 #define DB_DBT_USERMEM 1
 #define DB_DBT_MALLOC  2
 #define DB_DBT_REALLOC 4
+#define DB_DBT_PARTIAL 8
 
 #define DB_MULTIPLE_INIT(pointer, dbt)
 #define DB_MULTIPLE_NEXT(pointer, dbt, retdata, retdlen)
@@ -195,6 +196,8 @@ typedef struct dbt {
     u_int32_t flags;
     u_int32_t size;
     u_int32_t ulen;
+    u_int32_t dlen;
+    u_int32_t doff;
     void *data;
 } DBT;
 
