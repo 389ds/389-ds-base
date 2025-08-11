@@ -285,14 +285,6 @@ main_setuid(char *username)
     return 0;
 }
 
-/* set good defaults for front-end config in referral mode */
-static void
-referral_set_defaults(void)
-{
-    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
-    config_set_maxdescriptors(CONFIG_MAXDESCRIPTORS_ATTRIBUTE, "1024", errorbuf, 1);
-}
-
 static int
 name2exemode(char *progname, char *s, int exit_if_unknown)
 {
