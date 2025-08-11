@@ -190,7 +190,7 @@ connection_cleanup(Connection *conn)
         PR_Close(conn->c_prfd);
     }
 #ifdef ENABLE_EPOLL
-    if (conn->c_idle_tfd >= 0) {
+    if (conn->c_idle_tfd != -1) {
         /* Close the idle timer */
         timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
         close(conn->c_idle_tfd);
@@ -1914,7 +1914,7 @@ connection_threadmain(void *arg)
                not idle */
             conn->c_idlesince = curtime;
 #ifdef ENABLE_EPOLL
-            if (conn->c_idle_tfd >= 0) {
+            if (conn->c_idle_tfd != -1) {
                 /* Reset the idle timer */
                 slapi_log_err(SLAPI_LOG_DEBUG,
                               "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
@@ -1959,7 +1959,7 @@ connection_threadmain(void *arg)
                      */
                     conn->c_idlesince = curtime;
 #ifdef ENABLE_EPOLL
-                    if (conn->c_idle_tfd >= 0) {
+                    if (conn->c_idle_tfd != -1) {
                         /* Reset the idle timer */
                         slapi_log_err(SLAPI_LOG_DEBUG,
                                       "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n", conn->c_ci, conn->c_idletimeout);
@@ -2536,16 +2536,16 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
         slapi_log_err(SLAPI_LOG_DEBUG, "disconnect_server_nomutex_ext", "Removing idle timer fd %d for connection %p (descriptor %d, table %d, conn %d)\n",
                   conn->c_idle_tfd, conn, conn->c_sd, conn->c_ct_list, conn->c_ci);
         /* Remove the idle timer if it exists */
-        if (conn->c_idle_event) {
+        if (conn->c_idle_tfd != -1) {
             if (epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL) == -1) {
                 slapi_log_err(SLAPI_LOG_ERR, "disconnect_server_nomutex_ext", "Failed to remove idle timer fd %d for connection %d - %s\n",
                               conn->c_idle_tfd, conn->c_sd, strerror(errno));
             }
-        }
-        if (conn->c_idle_tfd >= 0) {
             /* Close the idle timer */
             close(conn->c_idle_tfd);
             conn->c_idle_tfd = -1;
+
+            conn->c_idle_event = NULL;
         }
 #endif /* ENABLE_EPOLL */
         g_decrement_current_conn_count();

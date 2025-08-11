@@ -117,6 +117,7 @@ connection_table_new(int table_size)
     size_t i = 0;
     size_t ct_list = 0;
     size_t free_idx = 0;
+
     ber_len_t maxbersize = config_get_maxbersize();
     ct = (Connection_Table *)slapi_ch_calloc(1, sizeof(Connection_Table));
     ct->list_num = config_get_num_listeners();
@@ -183,6 +184,7 @@ connection_table_new(int table_size)
                 slapi_log_err(SLAPI_LOG_ERR, "connection_table_new", "Failed to allocate memory for idle event for connection %zu\n", i);
                 exit(1);
             }
+            ct->c[ct_list][i].c_idle_tfd = -1;
 #endif
 
             LBER_SOCKET invalid_socket;
