@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -43,7 +43,7 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
         targetdn = 'cn=config'
         policydn = targetdn
         basedn = targetdn
-        attr_list.extend(['passwordisglobalpolicy', 'nsslapd-pwpolicy_local'])
+        attr_list.extend(['passwordisglobalpolicy', 'nsslapd-pwpolicy-local'])
         all_attrs = inst.config.get_attrs_vals_utf8(attr_list)
         attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     else:
