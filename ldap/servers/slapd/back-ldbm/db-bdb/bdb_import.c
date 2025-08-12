@@ -68,6 +68,69 @@ static int bdb_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid);
 static int bdb_check_cache(id2idl_hash *ht);
 static IDList *bdb_idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b);
 
+
+/********** Code to debug numsubordinates/tombstonenumsubordinates computation **********/
+
+#ifdef DEBUG_SUBCOUNT
+#define DEBUG_SUBCOUNT_MSG(msg, ...) { debug_subcount(__FUNCTION__, __LINE__, (msg), __VA_ARGS__); }
+#define DUMP_SUBCOUNT_KEY(msg, key, ret) { debug_subcount(__FUNCTION__, __LINE__, "ret=%d size=%u ulen=%u doff=%u dlen=%u", \
+                                               ret, (key).size, (key).ulen, (key).doff, (key).dlen); \
+                                           if (ret == 0) hexadump(msg, (key).data, 0, (key).size); \
+                                           else if (ret == DB_BUFFER_SMALL) \
+                                                hexadump(msg, (key).data, 0, (key).ulen); }
+
+static void
+debug_subcount(const char *funcname, int line, char *msg, ...)
+{
+    va_list ap;
+    char buff[1024];
+    va_start(ap, msg);
+    PR_vsnprintf(buff, (sizeof buff), msg, ap);
+    va_end(ap);
+    slapi_log_err(SLAPI_LOG_INFO, (char*)funcname, "DEBUG SUBCOUNT [%d] %s\n", line, buff);
+}
+
+/*
+ * Dump a memory buffer in hexa and ascii in error log
+ *
+ * addr - The memory buffer address.
+ * len - The memory buffer lenght.
+ */
+static void
+hexadump(char *msg, const void *addr, size_t offset, size_t len)
+{
+#define  HEXADUMP_TAB 4
+/* 4 characters per bytes:  2 hexa digits, 1 space and the ascii  */
+#define  HEXADUMP_BUF_SIZE (4*16+HEXADUMP_TAB)
+    char hexdigit[] = "0123456789ABCDEF";
+
+    const unsigned char *pt = addr;
+    char buff[HEXADUMP_BUF_SIZE+1];
+    memset (buff, ' ', HEXADUMP_BUF_SIZE);
+    buff[HEXADUMP_BUF_SIZE] = '\0';
+    while (len > 0) {
+        int dpl;
+        for (dpl = 0; dpl < 16 && len>0; dpl++, len--) {
+           buff[3*dpl] = hexdigit[((*pt) >> 4) & 0xf];
+           buff[3*dpl+1] = hexdigit[(*pt) & 0xf];
+           buff[3*16+HEXADUMP_TAB+dpl] = (*pt>=0x20 && *pt<0x7f) ? *pt : '.';
+           pt++;
+        }
+        for (;dpl < 16; dpl++) {
+           buff[3*dpl] = ' ';
+           buff[3*dpl+1] = ' ';
+           buff[3*16+HEXADUMP_TAB+dpl] = ' ';
+        }
+        slapi_log_err(SLAPI_LOG_INFO, msg, "[0x%08lx]  %s\n", offset, buff);
+        offset += 16;
+    }
+}
+#else
+#define DEBUG_SUBCOUNT_MSG(msg, ...)
+#define DUMP_SUBCOUNT_KEY(msg, key, ret)
+#endif
+
+
 /********** routines to manipulate the entry fifo **********/
 
 /* this is pretty bogus -- could be a HUGE amount of memory */
@@ -1142,23 +1205,18 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
     key.size = 1;
     ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_SET_RANGE);
 
-    while (ret == 0 || ret == DB_BUFFER_SMALL) {
+    while (ret == 0) {
         size_t sub_count = 0;
         size_t t_sub_count = 0;
         ID parentid = 0;
 
+        DUMP_SUBCOUNT_KEY("key:", key, ret);
+        DUMP_SUBCOUNT_KEY("data:", data, ret);
         /* check if we need to abort */
         if (job->flags & FLAG_ABORT) {
             import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_update_subordinatecounts",
                               "numsubordinate generation aborted.");
             break;
-        }
-        if (ret == DB_BUFFER_SMALL) {
-            /* Not an equality record ==> get next */
-            data.size = key.ulen = sizeof data_data;
-            key.size = key.ulen = sizeof tmp;
-            ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_NEXT_NODUP);
-            continue;
         }
         if (0 != ret) {
             ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
@@ -1199,7 +1257,11 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
             } else {
                 t_sub_count++;
             }
+            DUMP_SUBCOUNT_KEY("key:", key, ret);
+            DUMP_SUBCOUNT_KEY("data:", data, ret);
             ret = c_entryrdn.dbc->c_get(c_entryrdn.dbc, &key, &data, DB_NEXT);
+            DUMP_SUBCOUNT_KEY("key:", key, ret);
+            DUMP_SUBCOUNT_KEY("data:", data, ret);
             if (ret == 0 && key.size < sizeof tmp) {
                 tmp[key.size] = 0;
             } else {
@@ -1220,7 +1282,10 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
                           key_count);
         job->numsubordinates = key_count;
     }
-    if (ret == DB_NOTFOUND) {
+    if (ret == DB_NOTFOUND || ret == DB_BUFFER_SMALL) {
+        /* No more records or record is the suffix dn
+         * ==> there is no more children to look at
+         */
         ret = 0;
     }
     bdb_close_subcount_cursor(&c_entryrdn);
