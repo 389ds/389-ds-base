@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -872,6 +872,7 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
                                EQ_PREFIX, (u_long)id);
         key.size++; /* include the null terminator */
         ret = NEW_IDL_NO_ALLID;
+        idl_free(&children);
         children = idl_fetch(be, db_pid, &key, txn, ai_pid, &ret);
         if (ret != 0) {
             ldbm_nasty("bdb_ancestorid_new_idl_create_index", sourcefile, 13070, ret);
@@ -882,6 +883,7 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
         if (job->flags & FLAG_ABORT) {
             import_log_notice(job, SLAPI_LOG_ERR, "bdb_ancestorid_new_idl_create_index",
                               "ancestorid creation aborted.");
+            idl_free(&children);
             ret = -1;
             break;
         }
@@ -1316,6 +1318,10 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
             ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 7, ret);
         }
     }
+
+    slapi_ch_free(&(key.data));
+    key.data = NULL;
+
     return (ret);
 }
 
