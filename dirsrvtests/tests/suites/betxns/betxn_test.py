@@ -91,7 +91,11 @@ def test_betxt_7bit(topology_st):
     log.info('test_betxt_7bit: PASSED')
 
 
-def test_betxn_attr_uniqueness(topology_st):
+
+@pytest.mark.parametrize('unique_attribute, uid_values, sn_values',
+                         [('uid', ['testuser2', 'testuser1'], 'user2'),
+                          ('sn', 'testuser2', ['user1', 'user2'])])
+def test_betxn_attr_uniqueness(topology_st, unique_attribute, uid_values, sn_values):
     """Test that we can not add two entries that have the same attr value that is
     defined by the plugin
 
@@ -101,21 +105,27 @@ def test_betxn_attr_uniqueness(topology_st):
 
     :steps: 1. Enable PLUGIN_ATTR_UNIQUENESS plugin as "ON"
             2. Add a test user
-            3. Add another test user having duplicate uid as previous one
-            4. Cleanup - disable PLUGIN_ATTR_UNIQUENESS plugin as "OFF"
-            5. Cleanup - remove test user entry
+            3. Restart server to ensure persistence
+            4. Add another test user having duplicate uid/sn as previous one
+            5. Verify duplicate entry doesn't exist using .exists()
+            6. Verify duplicate entry doesn't exist using search with NO_SUCH_OBJECT
+            7. Cleanup - disable PLUGIN_ATTR_UNIQUENESS plugin as "OFF"
+            8. Cleanup - remove test user entry
 
     :expectedresults:
             1. PLUGIN_ATTR_UNIQUENESS plugin should be ON
             2. Test user should be added
-            3. Add operation should FAIL
-            4. PLUGIN_ATTR_UNIQUENESS plugin should be "OFF"
-            5. Test user entry should be removed
+            3. Server restart should succeed
+            4. Add operation should FAIL
+            5. Duplicate entry should not exist
+            6. Search for duplicate entry should raise NO_SUCH_OBJECT
+            7. PLUGIN_ATTR_UNIQUENESS plugin should be "OFF"
+            8. Test user entry should be removed
     """
 
     attruniq = AttributeUniquenessPlugin(topology_st.standalone, dn="cn=attruniq,cn=plugins,cn=config")
     attruniq.create(properties={'cn': 'attruniq'})
-    attruniq.add_unique_attribute('uid')
+    attruniq.add_unique_attribute(unique_attribute)
     attruniq.add_unique_subtree(DEFAULT_SUFFIX)
     attruniq.enable_all_subtrees()
     attruniq.enable()
@@ -131,16 +141,34 @@ def test_betxn_attr_uniqueness(topology_st):
         'homeDirectory': '/home/testuser1'
     })
 
+    # Restart server to ensure persistence
+    topology_st.standalone.restart()
+
     with pytest.raises(ldap.LDAPError):
         users.create(properties={
-            'uid': ['testuser2', 'testuser1'],
+            'uid': uid_values,
             'cn': 'testuser2',
-            'sn': 'user2',
+            'sn': sn_values,
             'uidNumber': '1002',
             'gidNumber': '2002',
             'homeDirectory': '/home/testuser2'
         })
 
+    # Verify with .exists() that duplicate entry doesn't exist
+    try:
+        duplicate_user = users.get('testuser2')
+        assert not duplicate_user.exists(), "Duplicate user should not exist after failed creation"
+    except ldap.NO_SUCH_OBJECT:
+        # This is expected - the duplicate user should not exist
+        pass
+
+    # Search and expect NO_SUCH_OBJECT exception
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        users.get('testuser2')
+
+    # Clean up for the next test
+    attruniq.disable()
+    attruniq.delete()
     user1.delete()
 
     log.info('test_betxn_attr_uniqueness: PASSED')
