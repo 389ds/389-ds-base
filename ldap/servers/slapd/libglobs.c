@@ -1757,6 +1757,9 @@ FrontendConfig_init(void)
     slapdFrontendConfig_t *cfg = getFrontendConfig();
     struct rlimit rlp;
     int64_t maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
+#ifdef ENABLE_EPOLL
+    int64_t epoll_max_user_watches = SLAPD_DEFAULT_MAXDESCRIPTORS;
+#endif /* ENABLE_EPOLL */
 
     /* prove rust is working */
     PR_ASSERT(do_nothing_rust() == 0);
@@ -1782,6 +1785,38 @@ FrontendConfig_init(void)
             maxdescriptors = (int64_t)rlp.rlim_max;
         }
     }
+
+#ifdef ENABLE_EPOLL
+/* Determine the value of fs.epoll.max_user_watches, if this is smaller than
+ * maxdescriptors, then reduce maxdescriptors to match
+ */
+
+    FILE *f;
+    char epoll_max_user_watches_s[32];
+    epoll_max_user_watches_s[sizeof(epoll_max_user_watches_s) - 1] = '\0';
+
+    if ((f = fopen("/proc/sys/fs/epoll/max_user_watches", "r")) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+                      "Unable to open file \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
+        exit(-1);
+    } else {
+        if (fgets(epoll_max_user_watches_s, sizeof(epoll_max_user_watches_s) - 1, f) == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "Frontend_config_init",
+                          "Unable to get value from \"/proc/sys/fs/epoll/max_user_watches\". errno=%d\n", errno);
+            exit(-1);
+        } else {
+            epoll_max_user_watches = atoll(epoll_max_user_watches_s);
+        }
+    }
+    fclose(f);
+    if (epoll_max_user_watches > 0 && epoll_max_user_watches < maxdescriptors) {
+        maxdescriptors = epoll_max_user_watches;
+        slapi_log_err(SLAPI_LOG_INFO, "Frontend_config_init",
+                      "Reducing maxdescriptors to %lld based on /proc/sys/fs/epoll/max_user_watches\n",
+                      (long long)maxdescriptors);
+    }
+
+#endif /* ENABLE_EPOLL */
 
     /* Take the lock to make sure we barrier correctly. */
     CFG_LOCK_WRITE(cfg);
