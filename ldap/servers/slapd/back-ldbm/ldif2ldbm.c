@@ -54,49 +54,6 @@ typedef struct _export_args
 /* static functions */
 
 
-/**********  common routines for classic/deluxe import code **********/
-
-static PRIntn
-import_subcount_hash_compare_keys(const void *v1, const void *v2)
-{
-    return (((ID)((uintptr_t)v1) == (ID)((uintptr_t)v2)) ? 1 : 0);
-}
-
-static PRIntn
-import_subcount_hash_compare_values(const void *v1, const void *v2)
-{
-    return (((size_t)v1 == (size_t)v2) ? 1 : 0);
-}
-
-static PLHashNumber
-import_subcount_hash_fn(const void *id)
-{
-    return (PLHashNumber)((uintptr_t)id);
-}
-
-void
-import_subcount_stuff_init(import_subcount_stuff *stuff)
-{
-    stuff->hashtable = PL_NewHashTable(IMPORT_SUBCOUNT_HASHTABLE_SIZE,
-                                       import_subcount_hash_fn, import_subcount_hash_compare_keys,
-                                       import_subcount_hash_compare_values, NULL, NULL);
-}
-
-void
-import_subcount_stuff_term(import_subcount_stuff *stuff)
-{
-    if (stuff != NULL && stuff->hashtable != NULL) {
-        PL_HashTableDestroy(stuff->hashtable);
-    }
-}
-
-
-
-/**********  functions for maintaining the subordinate count **********/
-
-
-
-
 /**********  ldif2db entry point  **********/
 
 /*
