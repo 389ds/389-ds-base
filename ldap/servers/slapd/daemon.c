@@ -1966,7 +1966,7 @@ handle_pr_read_ready(Connection_Table *ct, int list_num, PRIntn num_poll __attri
                                   "handle_pr_read_ready", "read activity on %d\n", c->c_ci);
                     c->c_idlesince = curtime;
 #ifdef ENABLE_EPOLL
-                    if (c->c_idle_tfd != -1 && c->c_idle_tfd >= 0) {
+                    if (c->c_idle_tfd != -1) {
                         /* Reset the idle timer */
                         slapi_log_err(SLAPI_LOG_DEBUG,
                                       "handle_pr_read_ready", "resetting idle timer for connection %d to %d\n",

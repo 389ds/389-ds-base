@@ -192,6 +192,7 @@ connection_cleanup(Connection *conn)
 #ifdef ENABLE_EPOLL
     if (conn->c_idle_tfd != -1) {
         /* Close the idle timer */
+        epoll_ctl(conn->c_ct->epoll_fd[conn->c_ct_list], EPOLL_CTL_DEL, conn->c_idle_tfd, NULL);
         timerfd_settime(conn->c_idle_tfd, 0, NULL, NULL);
         close(conn->c_idle_tfd);
         conn->c_idle_tfd = -1;
@@ -2544,8 +2545,6 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
             /* Close the idle timer */
             close(conn->c_idle_tfd);
             conn->c_idle_tfd = -1;
-
-            conn->c_idle_event = NULL;
         }
 #endif /* ENABLE_EPOLL */
         g_decrement_current_conn_count();
