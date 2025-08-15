@@ -17,7 +17,7 @@
 
 import sys
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 import stat
 import pwd
 import grp
@@ -67,7 +67,8 @@ from lib389.utils import (
     get_default_db_lib,
     selinux_present,
     selinux_label_port,
-    get_user_is_root)
+    get_user_is_root,
+    get_instance_list)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
 from lib389.tasks import BackupTask, RestoreTask, Task
@@ -248,6 +249,57 @@ class DirSrv(SimpleLDAPObject, object):
         self.instdir = self.ds_paths.inst_dir
         self.dbdir = self.ds_paths.db_dir
         self.changelogdir = os.path.join(os.path.dirname(self.dbdir), DEFAULT_CHANGELOG_DB)
+
+    def _extract_serverid_from_string(self, text):
+        """Extract serverid from a string containing 'slapd-<serverid>' pattern.
+        Returns the serverid or None if not found or validation fails.
+        Only attempts derivation if serverid is currently None.
+        """
+        if getattr(self, 'serverid', None) is not None:
+            return None
+        if not text:
+            return None
+
+        # Use regex to extract serverid from "slapd-<serverid>" or "slapd-<serverid>.socket"
+        match = re.search(r'slapd-([A-Za-z0-9._-]+?)(?:\.socket)?(?:$|/)', text)
+        if not match:
+            return None
+        candidate = match.group(1)
+
+        self.serverid = candidate
+        try:
+            insts = get_instance_list()
+        except Exception:
+            self.serverid = None
+            return None
+        if f'slapd-{candidate}' in insts or candidate in insts:
+            return candidate
+        # restore original and report failure
+        self.serverid = None
+        return None
+
+    def _derive_serverid_from_ldapi(self):
+        """Attempt to derive serverid from an LDAPI socket path or URI and
+        verify it exists on the system. Returns the serverid or None.
+        """
+        socket_path = None
+        if hasattr(self, 'ldapi_socket') and self.ldapi_socket:
+            socket_path = unquote(self.ldapi_socket)
+        elif hasattr(self, 'ldapuri') and isinstance(self.ldapuri, str) and self.ldapuri.startswith('ldapi://'):
+            socket_path = unquote(self.ldapuri[len('ldapi://'):])
+
+        return self._extract_serverid_from_string(socket_path)
+
+    def _derive_serverid_from_instancedir(self):
+        """Extract serverid from nsslapd-instancedir path like '/usr/lib64/dirsrv/slapd-<serverid>'"""
+        try:
+            from lib389.config import Config
+            config = Config(self)
+            instancedir = config.get_attr_val_utf8_l("nsslapd-instancedir")
+        except Exception:
+            return None
+
+        return self._extract_serverid_from_string(instancedir)
 
     def rebind(self):
         """Reconnect to the DS
@@ -528,6 +580,15 @@ class DirSrv(SimpleLDAPObject, object):
             self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
             self.isLocal = True
             self.log.debug("Allocate %s with %s", self.__class__, self.ldapi_socket)
+        elif self.ldapuri is not None and isinstance(self.ldapuri, str) and self.ldapuri.startswith('ldapi://'):
+            # Try to learn serverid from ldapi uri
+            try:
+                self.ldapi_enabled = 'on'
+                self.ldapi_socket = unquote(self.ldapuri[len('ldapi://'):])
+                self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
+                self.isLocal = True
+            except Exception:
+                pass
         # Settings from args of server attributes
         self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
         if self.strict_hostname is True:
@@ -548,9 +609,16 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.log.debug("Allocate %s with %s:%s", self.__class__, self.host, (self.sslport or self.port))
 
-        if SER_SERVERID_PROP in args:
-            self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self, local=self.isLocal)
+        # Try to determine serverid if not provided
+        if SER_SERVERID_PROP in args and args.get(SER_SERVERID_PROP) is not None:
             self.serverid = args.get(SER_SERVERID_PROP, None)
+        elif getattr(self, 'serverid', None) is None and self.isLocal:
+            sid = self._derive_serverid_from_ldapi()
+            if sid:
+                self.serverid = sid
+
+        if getattr(self, 'serverid', None):
+            self.ds_paths = Paths(serverid=self.serverid, instance=self, local=self.isLocal)
         else:
             self.ds_paths = Paths(instance=self, local=self.isLocal)
 
@@ -989,6 +1057,17 @@ class DirSrv(SimpleLDAPObject, object):
             self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
         # Now that we're online, some of our methods may try to query the version online.
+
+        # After transitioning online, attempt to derive serverid if still unknown.
+        # If we find it, refresh ds_paths and rerun __initPart2
+        if getattr(self, 'serverid', None) is None and self.isLocal:
+            sid = self._derive_serverid_from_instancedir()
+            if sid:
+                self.serverid = sid
+                # Reinitialize paths with the new serverid
+                self.ds_paths = Paths(serverid=self.serverid, instance=self, local=self.isLocal)
+                if not connOnly:
+                    self.__initPart2()
         self.__add_brookers__()
 
     def close(self):
@@ -3537,8 +3616,4 @@ class DirSrv(SimpleLDAPObject, object):
         """
         Get the pid of the running server
         """
-        pid = pid_from_file(self.pid_file())
-        if pid == 0 or pid is None:
-            return 0
-        else:
-            return pid
+        return pid_from_file(self.pid_file())
