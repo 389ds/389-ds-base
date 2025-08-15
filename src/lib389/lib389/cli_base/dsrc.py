@@ -56,7 +56,7 @@ def dsrc_arg_concat(args, dsrc_inst):
         new_dsrc_inst['args'][SER_ROOT_DN] = new_dsrc_inst['binddn']
         if new_dsrc_inst['uri'][0:8] == 'ldapi://':
             new_dsrc_inst['args'][SER_LDAPI_ENABLED] = "on"
-            new_dsrc_inst['args'][SER_LDAPI_SOCKET] = new_dsrc_inst['uri'][9:]
+            new_dsrc_inst['args'][SER_LDAPI_SOCKET] = new_dsrc_inst['uri'][8:]
             new_dsrc_inst['args'][SER_LDAPI_AUTOBIND] = "on"
 
         # Make new
@@ -170,7 +170,7 @@ def dsrc_to_ldap(path, instance_name, log):
     dsrc_inst['args'][SER_ROOT_DN] = dsrc_inst['binddn']
     if dsrc_inst['uri'][0:8] == 'ldapi://':
         dsrc_inst['args'][SER_LDAPI_ENABLED] = "on"
-        dsrc_inst['args'][SER_LDAPI_SOCKET] = dsrc_inst['uri'][9:]
+        dsrc_inst['args'][SER_LDAPI_SOCKET] = dsrc_inst['uri'][8:]
         dsrc_inst['args'][SER_LDAPI_AUTOBIND] = "on"
 
     # Return the dict.
