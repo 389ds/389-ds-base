@@ -739,7 +739,7 @@ def test_basic_db2index(topology_st):
     topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=indexes)
     log.info('Checking the server logs for %d backend indexes INFO' % numIndexes)
     for indexNum, index in enumerate(indexes):
-        if index in "entryrdn":
+        if index in ["entryrdn", "ancestorid"]:
             assert topology_st.standalone.searchErrorsLog(
                 f'INFO - {dbprefix}_db2index - {DEFAULT_BENAME}: Indexing {index}')
         else:
