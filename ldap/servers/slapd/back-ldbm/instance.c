@@ -16,7 +16,7 @@
 
 /* Forward declarations */
 static void ldbm_instance_destructor(void **arg);
-Slapi_Entry *ldbm_instance_init_config_entry(char *cn_val, char *v1, char *v2, char *v3, char *v4);
+Slapi_Entry *ldbm_instance_init_config_entry(char *cn_val, char *v1, char *v2, char *v3, char *v4, char *mr);
 
 
 /* Creates and initializes a new ldbm_instance structure.
@@ -126,7 +126,7 @@ done:
  * Take a bunch of strings, and create a index config entry
  */
 Slapi_Entry *
-ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3, char *val4)
+ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3, char *val4, char *mr)
 {
     Slapi_Entry *e = slapi_entry_alloc();
     struct berval *vals[2];
@@ -161,6 +161,12 @@ ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3
         slapi_entry_add_values(e, "nsIndexType", vals);
     }
 
+    if (mr) {
+        val.bv_val = mr;
+        val.bv_len = strlen(mr);
+        slapi_entry_add_values(e, "nsMatchingRule", vals);
+    }
+
     return e;
 }
 
@@ -182,42 +188,42 @@ ldbm_instance_create_default_indexes(backend *be)
      * since they are used by some searches, replication and the
      * ACL routines.
      */
-    e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR, "subtree", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR, "subtree", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry("objectclass", "eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry("objectclass", "eq", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry("aci", "pres", 0, 0, 0);
+    e = ldbm_instance_init_config_entry("aci", "pres", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry(LDBM_NUMSUBORDINATES_STR, "pres", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_NUMSUBORDINATES_STR, "pres", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry(SLAPI_ATTR_UNIQUEID, "eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(SLAPI_ATTR_UNIQUEID, "eq", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* For MMR, we need this attribute (to replace use of dncomp in delete). */
-    e = ldbm_instance_init_config_entry(ATTR_NSDS5_REPLCONFLICT, "eq", "pres", 0, 0);
+    e = ldbm_instance_init_config_entry(ATTR_NSDS5_REPLCONFLICT, "eq", "pres", 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* write the dse file only on the final index */
-    e = ldbm_instance_init_config_entry(SLAPI_ATTR_NSCP_ENTRYDN, "eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(SLAPI_ATTR_NSCP_ENTRYDN, "eq", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* ldbm_instance_config_add_index_entry(inst, 2, argv); */
-    e = ldbm_instance_init_config_entry(LDBM_PSEUDO_ATTR_DEFAULT, "none", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_PSEUDO_ATTR_DEFAULT, "none", 0, 0, 0, 0);
     attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
     slapi_entry_free(e);
 
@@ -225,7 +231,7 @@ ldbm_instance_create_default_indexes(backend *be)
      * ancestorid is special, there is actually no such attr type
      * but we still want to use the attr index file APIs.
      */
-    e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
     attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
     slapi_entry_free(e);
 
