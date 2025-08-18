@@ -1214,12 +1214,12 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
         DUMP_SUBCOUNT_KEY("data:", data, ret);
         /* check if we need to abort */
         if (job->flags & FLAG_ABORT) {
-            import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_update_subordinatecounts",
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_update_subordinatecounts",
                               "numsubordinate generation aborted.");
             break;
         }
         if (0 != ret) {
-            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 63, ret);
+            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 63, ret);
             break;
         }
         /*
@@ -1227,7 +1227,7 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
          */
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_update_subordinatecounts",
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_update_subordinatecounts",
                               "numsubordinate generation: processed %d entries...",
                               key_count);
             started_progress_logging = 1;
@@ -1239,7 +1239,7 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
 
         /* construct the parent's ID from the key */
         if (key.size >= sizeof tmp) {
-            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 64, ret);
+            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 64, ret);
             break;
         }
         /* Generate expected value for parentid */
@@ -1271,13 +1271,13 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
         ret2 = import_update_entry_subcount(be, parentid, sub_count, t_sub_count, isencrypted, (dbi_txn_t*)txn);
         if (ret2) {
             ret = ret2;
-            ldbm_nasty("dbmdb_update_subordinatecounts", sourcefile, 65, ret);
+            ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 65, ret);
             break;
         }
     }
     if (started_progress_logging) {
         /* Finish what we started... */
-        import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_update_subordinatecounts",
+        import_log_notice(job, SLAPI_LOG_INFO, "bdb_update_subordinatecounts",
                           "numsubordinate generation: processed %d entries.",
                           key_count);
         job->numsubordinates = key_count;

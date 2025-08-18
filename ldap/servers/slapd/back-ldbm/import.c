@@ -260,9 +260,9 @@ import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t 
     /* Get hold of the parent */
     e = id2entry(be, parentid, txn, &ret);
     if ((NULL == e) || (0 != ret)) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_update_entry_subcount", "failed to read entry with ID %d ret=%d\n",
+        slapi_log_err(SLAPI_LOG_ERR, "import_update_entry_subcount", "failed to read entry with ID %d ret=%d\n",
                 parentid, ret);
-        ldbm_nasty("dbmdb_import_update_entry_subcount", sourcefile, 5, ret);
+        ldbm_nasty("import_update_entry_subcount", sourcefile, 5, ret);
         return (0 == ret) ? -1 : ret;
     }
     /* Lock it (not really required since we're single-threaded here, but
