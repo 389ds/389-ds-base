@@ -36,7 +36,8 @@ from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
-from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSVIRTLE0001, DSCLLE0001
+from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSBLE0007, DSVIRTLE0001, DSCLLE0001
+from lib389.plugins import USNPlugin
 
 
 class BackendLegacy(object):
@@ -532,6 +533,136 @@ class Backend(DSLdapObject):
             # Suffix is not replicated
             self._log.debug(f"_lint_cl_trimming - backend ({suffix}) is not replicated")
             pass
+
+    def _lint_system_indexes(self):
+        """Check that system indexes are correctly configured"""
+        bename = self.lint_uid()
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        indexes = self.get_indexes()
+
+        # Default system indexes taken from ldap/servers/slapd/back-ldbm/instance.c
+        expected_system_indexes = {
+            'entryrdn': {'types': ['subtree'], 'matching_rule': None},
+            'parentId': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'},
+            'ancestorId': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'},
+            'objectClass': {'types': ['eq'], 'matching_rule': None},
+            'aci': {'types': ['pres'], 'matching_rule': None},
+            'nscpEntryDN': {'types': ['eq'], 'matching_rule': None},
+            'nsUniqueId': {'types': ['eq'], 'matching_rule': None},
+            'nsds5ReplConflict': {'types': ['eq', 'pres'], 'matching_rule': None}
+        }
+
+        # Default system indexes taken from ldap/ldif/template-dse.ldif.in
+        expected_system_indexes.update({
+            'nsCertSubjectDN': {'types': ['eq'], 'matching_rule': None},
+            'numsubordinates': {'types': ['pres'], 'matching_rule': None},
+            'nsTombstoneCSN': {'types': ['eq'], 'matching_rule': None},
+            'targetuniqueid': {'types': ['eq'], 'matching_rule': None}
+        })
+
+
+        # RetroCL plugin creates its own backend with an additonal index for changeNumber
+        # See ldap/servers/plugins/retrocl/retrocl_create.c
+        if suffix.lower() == 'cn=changelog':
+            expected_system_indexes.update({
+                'changeNumber': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'}
+            })
+
+        # USN plugin requires entryusn attribute indexed for equality with integerOrderingMatch rule
+        # See ldap/ldif/template-dse.ldif.in
+        try:
+            usn_plugin = USNPlugin(self._instance)
+            if usn_plugin.status():
+                expected_system_indexes.update({
+                    'entryusn': {'types': ['eq'], 'matching_rule': 'integerOrderingMatch'}
+                })
+        except Exception as e:
+            self._log.debug(f"_lint_system_indexes - Error checking USN plugin: {e}")
+
+        discrepancies = []
+        remediation_commands = []
+        reindex_attrs = set()
+
+        for attr_name, expected_config in expected_system_indexes.items():
+            try:
+                index = indexes.get(attr_name)
+                # Check if index exists
+                if index is None:
+                    discrepancies.append(f"Missing system index: {attr_name}")
+                    # Generate remediation command
+                    index_types = ' '.join([f"--add-type {t}" for t in expected_config['types']])
+                    cmd = f"dsconf YOUR_INSTANCE backend index add {bename} --attr {attr_name} {index_types}"
+                    if expected_config['matching_rule']:
+                        cmd += f" --add-mr {expected_config['matching_rule']}"
+                    remediation_commands.append(cmd)
+                    reindex_attrs.add(attr_name)  # New index needs reindexing
+                else:
+                    # Index exists, check configuration
+                    actual_types = index.get_attr_vals_utf8('nsIndexType') or []
+                    actual_mrs = index.get_attr_vals_utf8('nsMatchingRule') or []
+
+                    # Normalize to lowercase for comparison
+                    actual_types = [t.lower() for t in actual_types]
+                    expected_types = [t.lower() for t in expected_config['types']]
+
+                    # Check index types
+                    missing_types = set(expected_types) - set(actual_types)
+                    if missing_types:
+                        discrepancies.append(f"Index {attr_name} missing types: {', '.join(missing_types)}")
+                        missing_type_args = ' '.join([f"--add-type {t}" for t in missing_types])
+                        cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} {missing_type_args}"
+                        remediation_commands.append(cmd)
+                        reindex_attrs.add(attr_name)
+
+                    # Check matching rules
+                    expected_mr = expected_config['matching_rule']
+                    if expected_mr:
+                        actual_mrs_lower = [mr.lower() for mr in actual_mrs]
+                        if expected_mr.lower() not in actual_mrs_lower:
+                            discrepancies.append(f"Index {attr_name} missing matching rule: {expected_mr}")
+                            # Add the missing matching rule
+                            cmd = f"dsconf YOUR_INSTANCE backend index set {bename} --attr {attr_name} --add-mr {expected_mr}"
+                            remediation_commands.append(cmd)
+                            reindex_attrs.add(attr_name)
+
+            except Exception as e:
+                self._log.debug(f"_lint_system_indexes - Error checking index {attr_name}: {e}")
+                discrepancies.append(f"Unable to check index {attr_name}: {str(e)}")
+
+        if discrepancies:
+            report = copy.deepcopy(DSBLE0007)
+            report['check'] = f'backends:{bename}:system_indexes'
+            report['items'] = [suffix]
+
+            expected_indexes_list = []
+            for attr_name, config in expected_system_indexes.items():
+                types_str = "', '".join(config['types'])
+                index_desc = f"- {attr_name}: index type{'s' if len(config['types']) > 1 else ''} '{types_str}'"
+                if config['matching_rule']:
+                    index_desc += f" with matching rule '{config['matching_rule']}'"
+                expected_indexes_list.append(index_desc)
+
+            formatted_expected_indexes = '\n'.join(expected_indexes_list)
+            report['detail'] = report['detail'].replace('EXPECTED_INDEXES', formatted_expected_indexes)
+            report['detail'] = report['detail'].replace('DISCREPANCIES', '\n'.join([f"- {d}" for d in discrepancies]))
+
+            formatted_commands = '\n'.join([f"    # {cmd}" for cmd in remediation_commands])
+            report['fix'] = report['fix'].replace('REMEDIATION_COMMANDS', formatted_commands)
+
+            # Generate specific reindex commands for affected attributes
+            if reindex_attrs:
+                reindex_commands = []
+                for attr in sorted(reindex_attrs):
+                    reindex_cmd = f"dsconf YOUR_INSTANCE backend index reindex {bename} --attr {attr}"
+                    reindex_commands.append(f"    # {reindex_cmd}")
+                formatted_reindex_commands = '\n'.join(reindex_commands)
+            else:
+                formatted_reindex_commands = "    # No reindexing needed"
+
+            report['fix'] = report['fix'].replace('REINDEX_COMMANDS', formatted_reindex_commands)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['fix'] = report['fix'].replace('BACKEND_NAME', bename)
+            yield report
 
     def create_sample_entries(self, version):
         """Creates sample entries under nsslapd-suffix value
