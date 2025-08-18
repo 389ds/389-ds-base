@@ -977,6 +977,14 @@ cn: aci
 nssystemindex: true
 nsindextype: pres
 
+dn: cn=ancestorid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: ancestorid
+nssystemindex: true
+nsindextype: eq
+nsmatchingrule: integerOrderingMatch
+
 dn: cn=cn,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
