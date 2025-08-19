@@ -92,21 +92,47 @@ class Monitor(DSLdapObject):
         Get CPU and memory stats
         """
         stats = {}
-        pid = self._instance.get_pid()
+        try:
+            pid = self._instance.get_pid()
+        except Exception:
+            pid = None
         total_mem = psutil.virtual_memory()[0]
-        p = psutil.Process(pid)
-        memory_stats = p.memory_full_info()
 
-        # Get memory & CPU stats
+        # Always include total system memory
         stats['total_mem'] = [str(total_mem)]
-        stats['rss'] = [str(memory_stats[0])]
-        stats['vms'] = [str(memory_stats[1])]
-        stats['swap'] = [str(memory_stats[9])]
-        stats['mem_rss_percent'] = [str(round(p.memory_percent("rss")))]
-        stats['mem_vms_percent'] = [str(round(p.memory_percent("vms")))]
-        stats['mem_swap_percent'] = [str(round(p.memory_percent("swap")))]
-        stats['total_threads'] = [str(p.num_threads())]
-        stats['cpu_usage'] = [str(round(p.cpu_percent(interval=0.1)))]
+
+        # Process-specific stats - only if process is running (pid is not None)
+        if pid is not None:
+            try:
+                p = psutil.Process(pid)
+                memory_stats = p.memory_full_info()
+
+                # Get memory & CPU stats
+                stats['rss'] = [str(memory_stats[0])]
+                stats['vms'] = [str(memory_stats[1])]
+                stats['swap'] = [str(memory_stats[9])]
+                stats['mem_rss_percent'] = [str(round(p.memory_percent("rss")))]
+                stats['mem_vms_percent'] = [str(round(p.memory_percent("vms")))]
+                stats['mem_swap_percent'] = [str(round(p.memory_percent("swap")))]
+                stats['total_threads'] = [str(p.num_threads())]
+                stats['cpu_usage'] = [str(round(p.cpu_percent(interval=0.1)))]
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Process exists in PID file but is not accessible or doesn't exist
+                pid = None
+
+        # If no valid PID, provide zero values for process stats
+        if pid is None:
+            stats['rss'] = ['0']
+            stats['vms'] = ['0']
+            stats['swap'] = ['0']
+            stats['mem_rss_percent'] = ['0']
+            stats['mem_vms_percent'] = ['0']
+            stats['mem_swap_percent'] = ['0']
+            stats['total_threads'] = ['0']
+            stats['cpu_usage'] = ['0']
+            stats['server_status'] = ['PID unavailable']
+        else:
+            stats['server_status'] = ['Server running']
 
         # Connections to DS
         if self._instance.port == "0":
