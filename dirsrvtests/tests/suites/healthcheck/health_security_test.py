@@ -39,6 +39,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.list_checks = False
     args.check = ['config', 'encryption', 'tls', 'fschecks']
     args.dry_run = False
+    args.exclude_check = []
 
     if json:
         log.info('Use healthcheck with --json option')

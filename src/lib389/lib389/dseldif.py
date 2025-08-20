@@ -23,7 +23,8 @@ from lib389.lint import (
     DSPERMLE0002,
     DSSKEWLE0001,
     DSSKEWLE0002,
-    DSSKEWLE0003
+    DSSKEWLE0003,
+    DSSKEWLE0004
 )
 
 
@@ -68,26 +69,49 @@ class DSEldif(DSLint):
         return 'dseldif'
 
     def _lint_nsstate(self):
+        """
+        Check the nsState attribute, which contains the CSN generator time
+        diffs, for excessive replication time skew
+        """
+        ignoring_skew = False
+        skew_high = 86400  # 1 day
+        skew_medium = 43200  # 12 hours
+        skew_low = 21600  # 6 hours
+
+        ignore_skew = self.get("cn=config", "nsslapd-ignore-time-skew")
+        if ignore_skew is not None and ignore_skew[0].lower() == "on":
+            # If we are ignoring time skew only report a warning if the skew
+            # is significant
+            ignoring_skew = True
+            skew_high = 86400 * 365  # Report a warning for skew over a year
+            skew_medium = 99999999999
+            skew_low = 99999999999
+
         suffixes = self.readNsState()
         for suffix in suffixes:
             # Check the local offset first
             report = None
-            skew = int(suffix['time_skew'])
-            if skew >= 86400:
-                # 24 hours - replication will break
-                report = copy.deepcopy(DSSKEWLE0003)
-            elif skew >= 43200:
+            skew = abs(int(suffix['time_skew']))
+            if skew >= skew_high:
+                if ignoring_skew:
+                    # Ignoring skew, but it's too excessive not to report it
+                    report = copy.deepcopy(DSSKEWLE0004)
+                else:
+                    # 24 hours of skew - replication will break
+                    report = copy.deepcopy(DSSKEWLE0003)
+            elif skew >= skew_medium:
                 # 12 hours
                 report = copy.deepcopy(DSSKEWLE0002)
-            elif skew >= 21600:
+            elif skew >= skew_low:
                 # 6 hours
                 report = copy.deepcopy(DSSKEWLE0001)
             if report is not None:
                 report['items'].append(suffix['suffix'])
                 report['items'].append('Time Skew')
                 report['items'].append('Skew: ' + suffix['time_skew_str'])
-                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                report['check'] = f'dseldif:nsstate'
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE',
+                                                      self._instance.serverid)
+                report['check'] = 'dseldif:nsstate'
                 yield report
 
     def _update(self):
