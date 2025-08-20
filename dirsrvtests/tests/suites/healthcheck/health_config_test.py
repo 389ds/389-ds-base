@@ -10,7 +10,7 @@
 import pytest
 import os
 import subprocess
-
+import time
 from lib389.backend import Backends, DatabaseConfig
 from lib389.cos import CosTemplates, CosPointerDefinitions
 from lib389.dbgen import dbgen_users
@@ -41,6 +41,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.list_checks = False
     args.check = ['config', 'refint', 'backends', 'monitor-disk-space', 'logs', 'memberof']
     args.dry_run = False
+    args.exclude_check = []
 
     # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
     if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \

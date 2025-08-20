@@ -101,7 +101,7 @@ def assert_is_in_result(result, searched_code, isnot=False):
     # Assert if searched_code is not in logcap
     if searched_code is None:
         return
-    
+
     # Handle positive and negative tests:
     nomatch, match, f = LOGIC_DICT[bool(isnot)]
     try:
@@ -316,6 +316,7 @@ def test_healthcheck_non_replicated_suffixes(topology_m2):
     args.check = ['backends']
     args.dry_run = False
     args.json = False
+    args.exclude_check = []
 
     health_check_run(inst, topology_m2.logcap.log, args)
 
