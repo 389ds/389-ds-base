@@ -30,18 +30,22 @@ ds_paths = Paths()
 log = logging.getLogger(__name__)
 
 
-def run_healthcheck_and_flush_log(logcap, instance, searched_code=None, json=False, searched_code2=None,
-                                  list_checks=False, list_errors=False, check=None, searched_list=None):
+def run_healthcheck_and_flush_log(logcap, instance, searched_code=None,
+                                  json=False, searched_code2=None,
+                                  list_checks=False, list_errors=False,
+                                  check=None, searched_list=None):
     args = FakeArgs()
     args.instance = instance.serverid
     args.verbose = instance.verbose
     args.list_errors = list_errors
     args.list_checks = list_checks
     args.check = check
+    args.exclude_check = []
     args.dry_run = False
     args.json = json
 
-    # If we are using BDB as a backend, we will get error DSBLE0006 on new versions
+    # If we are using BDB as a backend, we will get error DSBLE0006 on new
+    # versions
     if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
        (searched_code is CMD_OUTPUT or searched_code is JSON_OUTPUT):
         searched_code = 'DSBLE0006'
@@ -52,17 +56,37 @@ def run_healthcheck_and_flush_log(logcap, instance, searched_code=None, json=Fal
     if searched_list is not None:
         for item in searched_list:
             assert logcap.contains(item)
-            log.info('Healthcheck returned searched item: %s' % item)
+            log.info('Healthcheck returned searched item: %s', item)
     else:
         assert logcap.contains(searched_code)
-        log.info('Healthcheck returned searched code: %s' % searched_code)
+        log.info('Healthcheck returned searched code: %s', searched_code)
 
     if searched_code2 is not None:
         if ds_is_newer("3.0.0") and instance.get_db_lib() == 'bdb' and \
-        (searched_code2 is CMD_OUTPUT or searched_code2 is JSON_OUTPUT):
+           (searched_code2 is CMD_OUTPUT or searched_code2 is JSON_OUTPUT):
             searched_code = 'DSBLE0006'
         assert logcap.contains(searched_code2)
-        log.info('Healthcheck returned searched code: %s' % searched_code2)
+        log.info('Healthcheck returned searched code: %s', searched_code2)
+
+    log.info('Clear the log')
+    logcap.flush()
+
+
+def run_healthcheck_exclude(logcap, instance, unwanted, wanted, exclude_check):
+    args = FakeArgs()
+    args.instance = instance.serverid
+    args.verbose = instance.verbose
+    args.list_errors = False
+    args.list_checks = False
+    args.check = None
+    args.exclude_check = [exclude_check]
+    args.dry_run = False
+    args.json = False
+
+    health_check_run(instance, logcap.log, args)
+
+    assert not logcap.contains(unwanted)
+    assert logcap.contains(wanted)
 
     log.info('Clear the log')
     logcap.flush()
@@ -127,7 +151,7 @@ def test_healthcheck_standalone(topology_st):
 
     standalone = topology_st.standalone
 
-    run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT,json=False)
+    run_healthcheck_and_flush_log(topology_st.logcap, standalone, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_st.logcap, standalone, JSON_OUTPUT, json=True)
 
 
@@ -276,8 +300,40 @@ def test_healthcheck_check_option(topology_st):
         run_healthcheck_and_flush_log(topology_st.logcap, standalone, searched_code=JSON_OUTPUT, json=True, check=[item])
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
+def test_healthcheck_exclude_option(topology_st):
+    """Check functionality of HealthCheck Tool with --exclude-check option
+
+    :id: a4e2103c-67b8-4359-a8ba-67a8650cd3b7
+    :setup: Standalone instance
+    :steps:
+        1. Set check to exclude from list
+        2. Run HealthCheck
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topology_st.standalone
+
+    exclude_list = [
+        ('config:passwordscheme', 'config:passwordscheme',
+         'config:securitylog_buffering'),
+        ('config', 'config:', 'backends:userroot:mappingtree')
+    ]
+
+    for exclude, unwanted, wanted in exclude_list:
+        unwanted_pattern = 'Checking ' + unwanted
+        wanted_pattern = 'Checking ' + wanted
+
+        log.info('Exclude check: %s unwanted: %s wanted: %s',
+                 exclude, unwanted, wanted)
+
+        run_healthcheck_exclude(topology_st.logcap, inst,
+                                unwanted=unwanted_pattern,
+                                wanted=wanted_pattern,
+                                exclude_check=exclude)
+
+
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_standalone_tls(topology_st):
     """Check functionality of HealthCheck Tool on TLS enabled standalone instance with no errors
