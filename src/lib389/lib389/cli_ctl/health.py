@@ -75,6 +75,9 @@ def _list_errors(log):
 
 
 def _list_checks(inst, specs: Iterable[str]):
+    if specs is None:
+        yield []
+        return
     o_uids = dict(_list_targets(inst))
     for s in specs:
         wanted, rest = DSLint._dslint_parse_spec(s)
@@ -85,19 +88,27 @@ def _list_checks(inst, specs: Iterable[str]):
             for l in o_uids[wanted].lint_list(rest):
                 yield o_uids[wanted], l
         else:
-            raise ValueError('No such object specifier')
+            raise ValueError('No such object specifier: ' + wanted)
 
 
 def _print_checks(inst, log, specs: Iterable[str]) -> None:
     for o, s in _list_checks(inst, specs):
         log.info(f'{o.lint_uid()}:{s[0]}')
 
-def _run(inst, log, args, checks):
+
+def _run(inst, log, args, checks, exclude_checks):
     if not args.json:
         log.info("Beginning lint report, this could take a while ...")
 
     report = []
+    excludes = []
+    for _, skip in exclude_checks:
+        excludes.append(skip[0])
+
     for o, s in checks:
+        if s[0] in excludes:
+            continue
+
         if not args.json:
             log.info(f"Checking {o.lint_uid()}:{s[0]} ...")
         try:
@@ -119,12 +130,12 @@ def _run(inst, log, args, checks):
         if count > 1:
             plural = "s"
         if not args.json:
-            log.info("{} Issue{} found!  Generating report ...".format(count, plural))
+            log.info(f"{count} Issue{plural} found!  Generating report ...")
             idx = 1
             for item in report:
                 _format_check_output(log, item, idx)
                 idx += 1
-            log.info('\n\n===== End Of Report ({} Issue{} found) ====='.format(count, plural))
+            log.info(f'\n\n===== End Of Report ({count} Issue{plural} found) =====')
         else:
             log.info(json.dumps(report, indent=4))
 
@@ -147,17 +158,21 @@ def health_check_run(inst, log, args):
     dsrc_inst = dsrc_to_ldap(DSRC_HOME, args.instance, log.getChild('dsrc'))
     dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
     try:
-        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
+        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose,
+                                args=args)
     except Exception as e:
-        raise ValueError('Failed to connect to Directory Server instance: ' + str(e))
+        raise ValueError('Failed to connect to Directory Server instance: ' +
+                         str(e)) from e
 
     checks = args.check or dict(_list_targets(inst)).keys()
-
+    exclude_checks = args.exclude_check
+    print("MARK excl: " + str(exclude_checks))
     if args.list_checks or args.dry_run:
         _print_checks(inst, log, checks)
         return
 
-    _run(inst, log, args, _list_checks(inst, checks))
+    _run(inst, log, args, _list_checks(inst, checks),
+         _list_checks(inst, exclude_checks))
 
     disconnect_instance(inst)
 
@@ -174,4 +189,7 @@ def create_parser(subparsers):
     run_healthcheck_parser.add_argument('--dry-run', action='store_true', help='Do not execute the actual check, only list what would be done')
     run_healthcheck_parser.add_argument('--check', nargs='+', default=None,
                                         help='Areas to check. These can be obtained by --list-checks. Every element on the left of the colon (:)'
+                                             ' may be replaced by an asterisk if multiple options on the right are available.')
+    run_healthcheck_parser.add_argument('--exclude-check', nargs='+', default=[],
+                                        help='Areas to skip. These can be obtained by --list-checks. Every element on the left of the colon (:)'
                                              ' may be replaced by an asterisk if multiple options on the right are available.')

@@ -322,6 +322,7 @@ def test_healthcheck_non_replicated_suffixes(topology_m2):
     args.check = ['backends']
     args.dry_run = False
     args.json = False
+    args.exclude_check = []
 
     health_check_run(inst, topology_m2.logcap.log, args)
 
