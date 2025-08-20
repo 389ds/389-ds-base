@@ -41,6 +41,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=F
     args.list_errors = list_errors
     args.list_checks = list_checks
     args.check = check
+    args.exclude_check = []
     args.dry_run = False
     args.json = json
 
@@ -265,8 +266,40 @@ def test_healthcheck_check_option(topology_st):
         run_healthcheck_and_flush_log(topology_st, standalone, searched_code=JSON_OUTPUT, json=True, check=[item])
 
 
-@pytest.mark.ds50873
-@pytest.mark.bz1685160
+def test_healthcheck_exclude_option(topology_st):
+    """Check functionality of HealthCheck Tool with --exclude-check option
+
+    :id: a4e2103c-67b8-4359-a8ba-67a8650cd3b7
+    :setup: Standalone instance
+    :steps:
+        1. Set check to exclude from list
+        2. Run HealthCheck
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topology_st.standalone
+
+    exclude_list = [
+        ('config:passwordscheme', 'config:passwordscheme',
+         'config:securitylog_buffering'),
+        ('config', 'config:', 'backends:userroot:mappingtree')
+    ]
+
+    for exclude, unwanted, wanted in exclude_list:
+        unwanted_pattern = 'Checking ' + unwanted
+        wanted_pattern = 'Checking ' + wanted
+
+        log.info('Exclude check: %s unwanted: %s wanted: %s',
+                 exclude, unwanted, wanted)
+
+        run_healthcheck_exclude(topology_st.logcap, inst,
+                                unwanted=unwanted_pattern,
+                                wanted=wanted_pattern,
+                                exclude_check=exclude)
+
+
 @pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_standalone_tls(topology_st):
     """Check functionality of HealthCheck Tool on TLS enabled standalone instance with no errors

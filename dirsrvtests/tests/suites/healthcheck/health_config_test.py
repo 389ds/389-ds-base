@@ -10,7 +10,7 @@
 import pytest
 import os
 import subprocess
-
+import time
 from lib389.backend import Backends, DatabaseConfig
 from lib389.cos import CosTemplates, CosPointerDefinitions
 from lib389.dbgen import dbgen_users
@@ -46,6 +46,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.list_checks = False
     args.check = ['config', 'refint', 'backends', 'monitor-disk-space', 'logs', 'memberof']
     args.dry_run = False
+    args.exclude_check = []
 
     if json:
         log.info('Use healthcheck with --json option')
