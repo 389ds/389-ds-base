@@ -557,6 +557,17 @@ Also look at https://access.redhat.com/documentation/en-us/red_hat_directory_ser
 and find the paragraph "Too much time skew"."""
 }
 
+DSSKEWLE0004 = {
+    'dsle': 'DSSKEWLE0004',
+    'severity': 'Low',
+    'description': 'Extensive time skew.',
+    'items': ['Replication'],
+    'detail': """The time skew is over 365 days. If the time skew continues to
+increase eventually serious replication problems can occur.""",
+    'fix': """Avoid making changes to the system time, and make sure the clocks
+on all the replicas are correct."""
+}
+
 DSLOGNOTES0001 = {
     'dsle': 'DSLOGNOTES0001',
     'severity': 'Medium',

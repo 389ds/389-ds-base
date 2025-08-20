@@ -90,6 +90,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.verbose = instance.verbose
     args.list_errors = False
     args.list_checks = False
+    args.exclude_check = []
     args.check = [
         "config",
         "refint",
