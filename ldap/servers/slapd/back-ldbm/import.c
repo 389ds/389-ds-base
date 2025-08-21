@@ -241,3 +241,62 @@ wait_for_ref_count(Slapi_Counter *inst_ref_count)
     /* Done waiting, return the current ref count */
     return slapi_counter_get_value(inst_ref_count);
 }
+
+/********** helper functions for importing **********/
+
+int
+import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t t_sub_count, int isencrypted, back_txn *txn)
+{
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    int ret = 0;
+    modify_context mc = {0};
+    char value_buffer[22] = {0}; /* enough digits for 2^64 children */
+    char t_value_buffer[22] = {0}; /* enough digits for 2^64 children */
+    struct backentry *e = NULL;
+    char *numsub_str = numsubordinates;
+    Slapi_Mods *smods = NULL;
+    static char *sourcefile = "import.c";
+
+    /* Get hold of the parent */
+    e = id2entry(be, parentid, txn, &ret);
+    if ((NULL == e) || (0 != ret)) {
+        slapi_log_err(SLAPI_LOG_ERR, "import_update_entry_subcount", "failed to read entry with ID %d ret=%d\n",
+                parentid, ret);
+        ldbm_nasty("import_update_entry_subcount", sourcefile, 5, ret);
+        return (0 == ret) ? -1 : ret;
+    }
+    /* Lock it (not really required since we're single-threaded here, but
+     * let's do it so we can reuse the modify routines) */
+    cache_lock_entry(&inst->inst_cache, e);
+    modify_init(&mc, e);
+    mc.attr_encrypt = isencrypted;
+    sprintf(value_buffer, "%lu", (long unsigned int)sub_count);
+    sprintf(t_value_buffer, "%lu", (long unsigned int)t_sub_count);
+    smods = slapi_mods_new();
+    if (sub_count) {
+        slapi_mods_add(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, numsub_str,
+                       strlen(value_buffer), value_buffer);
+    } else {
+        /* Make sure that the attribute is deleted */
+        slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, numsub_str, NULL);
+    }
+    if (t_sub_count) {
+        slapi_mods_add(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, LDBM_TOMBSTONE_NUMSUBORDINATES_STR,
+                       strlen(t_value_buffer), t_value_buffer);
+    } else {
+        /* Make sure that the attribute is deleted */
+        slapi_mods_add_mod_values(smods, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES, LDBM_TOMBSTONE_NUMSUBORDINATES_STR, NULL);
+    }
+    ret = modify_apply_mods(&mc, smods); /* smods passed in */
+    if (0 == ret) {
+        /* This will correctly index subordinatecount: */
+        ret = modify_update_all(be, NULL, &mc, txn);
+        if (0 == ret) {
+            modify_switch_entries(&mc, be);
+        }
+    }
+    /* entry is unlocked and returned to the cache in modify_term */
+    modify_term(&mc, be);
+    return ret;
+}
+

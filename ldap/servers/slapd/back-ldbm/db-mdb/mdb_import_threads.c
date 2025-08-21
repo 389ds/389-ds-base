@@ -2928,6 +2928,7 @@ dbmdb_add_op_attrs(ImportJob *job, struct backentry *ep, ID pid)
     /* Get rid of attributes you're not allowed to specify yourself */
     slapi_entry_delete_values(ep->ep_entry, hassubordinates, NULL);
     slapi_entry_delete_values(ep->ep_entry, numsubordinates, NULL);
+    slapi_entry_delete_values(ep->ep_entry, tombstone_numsubordinates, NULL);
 
     /* Upgrade DN format only */
     /* Set current parentid to e_aux_attrs to remove it from the index file. */
