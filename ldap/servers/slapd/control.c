@@ -172,7 +172,7 @@ create_sessiontracking_ctrl(const char *session_tracking_id, LDAPControl **sessi
 {
     BerElement *ctrlber = NULL;
     char *undefined_sid = "undefined sid";
-    char *sid;
+    const char *sid;
     int rc = 0;
     int tag;
     LDAPControl *ctrl = NULL;

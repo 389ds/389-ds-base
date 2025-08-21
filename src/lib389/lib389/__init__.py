@@ -1803,7 +1803,7 @@ class DirSrv(SimpleLDAPObject, object):
            one entry.
             @param  - entry dn
             @param  - search scope, in ldap.SCOPE_BASE (default),
-                      ldap.SCOPE_SUB, ldap.SCOPE_ONE
+                      ldap.SCOPE_SUB, ldap.SCOPE_ONELEVEL
             @param filterstr - filterstr, default '(objectClass=*)' from
                                SimpleLDAPObject
             @param attrlist - list of attributes to retrieve. eg ['cn', 'uid']
