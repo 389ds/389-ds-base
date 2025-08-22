@@ -23,10 +23,10 @@ pub struct BerValRef {
 }
 
 impl BerValRef {
-    pub fn new(raw_berval: *const libc::c_void) -> Self {
+    pub const fn new(raw_berval: *const libc::c_void) -> Self {
         // so we retype this
-        let raw_berval = raw_berval as *const ol_berval;
-        BerValRef { raw_berval }
+        let raw_berval: *const ol_berval = raw_berval.cast();
+        Self { raw_berval }
     }
 
     pub(crate) fn into_cstring(&self) -> Option<CString> {
@@ -51,7 +51,6 @@ impl BerValRef {
                     "invalid ber parse attempt, may contain a null byte? -> {:?}",
                     self
                 );
-                ()
             })
             .ok()
     }
@@ -66,7 +65,6 @@ impl BerValRef {
                         "failed to convert cstring to string -> {:?}",
                         self
                     );
-                    ()
                 })
                 .ok()
         })
@@ -79,7 +77,7 @@ impl TryFrom<&BerValRef> for Uuid {
     fn try_from(value: &BerValRef) -> Result<Self, Self::Error> {
         let val_string = value.into_string().ok_or(PluginError::BervalString)?;
 
-        Uuid::parse_str(val_string.as_str())
+        Self::parse_str(val_string.as_str())
             .map(|r| {
                 log_error!(ErrorLevel::Trace, "valid uuid -> {:?}", r);
                 r

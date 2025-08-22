@@ -8,8 +8,8 @@ use std::ffi::CString;
 use std::ops::Deref;
 use std::os::raw::c_char;
 
-extern "C" {
-    fn slapi_modify_internal_set_pb_ext(
+unsafe extern "C" {
+    unsafe fn slapi_modify_internal_set_pb_ext(
         pb: *const libc::c_void,
         dn: *const libc::c_void,
         mods: *const *const libc::c_void,
@@ -18,11 +18,11 @@ extern "C" {
         plugin_ident: *const libc::c_void,
         op_flags: i32,
     );
-    fn slapi_modify_internal_pb(pb: *const libc::c_void);
-    fn slapi_mods_free(smods: *const *const libc::c_void);
-    fn slapi_mods_get_ldapmods_byref(smods: *const libc::c_void) -> *const *const libc::c_void;
-    fn slapi_mods_new() -> *const libc::c_void;
-    fn slapi_mods_add_mod_values(
+    unsafe fn slapi_modify_internal_pb(pb: *const libc::c_void);
+    unsafe fn slapi_mods_free(smods: *const *const libc::c_void);
+    unsafe fn slapi_mods_get_ldapmods_byref(smods: *const libc::c_void) -> *const *const libc::c_void;
+    unsafe fn slapi_mods_new() -> *const libc::c_void;
+    unsafe fn slapi_mods_add_mod_values(
         smods: *const libc::c_void,
         mtype: i32,
         attrtype: *const c_char,
@@ -45,15 +45,15 @@ pub struct SlapiMods {
 
 impl Drop for SlapiMods {
     fn drop(&mut self) {
-        unsafe { slapi_mods_free(&self.inner as *const *const libc::c_void) }
+        unsafe { slapi_mods_free(&raw const self.inner) }
     }
 }
 
 impl SlapiMods {
     pub fn new() -> Self {
-        SlapiMods {
+        Self {
             inner: unsafe { slapi_mods_new() },
-            vas: Vec::new(),
+            vas: vec![],
         }
     }
 
@@ -81,7 +81,7 @@ pub struct ModifyResult {
 }
 
 impl Modify {
-    pub fn new(dn: &SdnRef, mods: SlapiMods, plugin_id: PluginIdRef) -> Result<Self, PluginError> {
+    pub fn new(dn: &SdnRef, mods: SlapiMods, plugin_id: &PluginIdRef) -> Result<Self, PluginError> {
         let pb = Pblock::new();
         let lmods = unsafe { slapi_mods_get_ldapmods_byref(mods.inner) };
         // OP_FLAG_ACTION_LOG_ACCESS
@@ -94,15 +94,15 @@ impl Modify {
                 std::ptr::null(),
                 std::ptr::null(),
                 plugin_id.raw_pid,
-                0 as i32,
-            )
+                0_i32,
+            );
         };
 
-        Ok(Modify { pb, mods })
+        Ok(Self { pb, mods })
     }
 
     pub fn execute(self) -> Result<ModifyResult, LDAPError> {
-        let Modify {
+        let Self {
             mut pb,
             mods: _mods,
         } = self;

@@ -17,7 +17,7 @@ impl SlapiSyntaxPlugin1 for EntryUuidSyntax {
     }
 
     fn attr_compat_oids() -> Vec<&'static str> {
-        Vec::new()
+        vec![]
     }
 
     fn attr_supported_names() -> Vec<&'static str> {

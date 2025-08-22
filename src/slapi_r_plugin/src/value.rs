@@ -9,9 +9,9 @@ use std::ops::Deref;
 use std::ptr;
 use uuid::Uuid;
 
-extern "C" {
-    fn slapi_value_new() -> *mut slapi_value;
-    fn slapi_value_free(v: *mut *const libc::c_void);
+unsafe extern "C" {
+    unsafe fn slapi_value_new() -> *mut slapi_value;
+    unsafe fn slapi_value_free(v: *mut *const libc::c_void);
 }
 
 #[repr(C)]
@@ -40,9 +40,9 @@ impl<'a> Iterator for ValueArrayRefIter<'a> {
                 None
             } else {
                 // Advance the iter.
-                self.idx = self.idx + 1;
-                let raw_berval: *const ol_berval = &(*n_ptr).bv as *const _;
-                Some(ValueRef {
+                self.idx += 1;
+                let raw_berval: *const ol_berval = &raw const (*n_ptr).bv;
+                Some(Self::Item {
                     raw_slapi_val: n_ptr,
                     bvr: BerValRef { raw_berval },
                 })
@@ -56,15 +56,15 @@ pub struct ValueArrayRef {
 }
 
 impl ValueArrayRef {
-    pub fn new(raw_slapi_val: *const libc::c_void) -> Self {
-        let raw_slapi_val = raw_slapi_val as *const _ as *const *const slapi_value;
-        ValueArrayRef { raw_slapi_val }
+    pub const fn new(raw_slapi_val: *const libc::c_void) -> Self {
+        let raw_slapi_val: *const *const slapi_value = (&raw const raw_slapi_val).cast();
+        Self { raw_slapi_val }
     }
 
-    pub fn iter(&self) -> ValueArrayRefIter<'_> {
+    pub const fn iter(&self) -> ValueArrayRefIter<'_> {
         ValueArrayRefIter {
             idx: 0,
-            va_ref: &self,
+            va_ref: self,
         }
     }
 
@@ -89,7 +89,7 @@ impl Deref for ValueArray {
 impl ValueArray {
     /// Take ownership of this value array, returning the pointer to the inner memory
     /// and forgetting about it for ourself. This prevents the drop handler from freeing
-    /// the slapi_value, ie we are giving this to the 389-ds framework to manage from now.
+    /// the `slapi_value`, ie we are giving this to the 389-ds framework to manage from now.
     pub unsafe fn take_ownership(mut self) -> *const *const slapi_value {
         let mut vs = Vec::new();
         mem::swap(&mut self.data, &mut vs);
@@ -98,7 +98,7 @@ impl ValueArray {
     }
 
     pub fn as_ptr(&self) -> *const *const slapi_value {
-        self.data.as_ptr() as *const *const slapi_value
+        self.data.as_ptr().cast()
     }
 }
 
@@ -107,20 +107,20 @@ impl FromIterator<Value> for ValueArray {
         let data: Vec<*mut slapi_value> = iter
             .into_iter()
             .map(|v| unsafe { v.take_ownership() })
-            .chain(once(ptr::null_mut() as *mut slapi_value))
+            .chain(once(ptr::null_mut::<slapi_value>()))
             .collect();
         let vrf = ValueArrayRef {
-            raw_slapi_val: data.as_ptr() as *const *const slapi_value,
+            raw_slapi_val: data.as_ptr().cast(),
         };
-        ValueArray { data, vrf }
+        Self { data, vrf }
     }
 }
 
 impl Drop for ValueArray {
     fn drop(&mut self) {
         self.data.drain(0..).for_each(|mut v| unsafe {
-            slapi_value_free(&mut v as *mut _ as *mut *const libc::c_void);
-        })
+            slapi_value_free((&raw mut v).cast());
+        });
     }
 }
 
@@ -131,7 +131,7 @@ pub struct ValueRef {
 }
 
 impl ValueRef {
-    pub(crate) unsafe fn as_ptr(&self) -> *const slapi_value {
+    pub(crate) const unsafe fn as_ptr(&self) -> *const slapi_value {
         // This is unsafe as the *const may outlive the value ref.
         self.raw_slapi_val
     }
@@ -145,18 +145,18 @@ impl Value {
     pub unsafe fn take_ownership(mut self) -> *mut slapi_value {
         let mut n_ptr = ptr::null();
         mem::swap(&mut self.value.raw_slapi_val, &mut n_ptr);
-        n_ptr as *mut slapi_value
+        n_ptr.cast_mut()
         // Now drop will run and not care.
     }
 }
 
 impl Drop for Value {
     fn drop(&mut self) {
-        if self.value.raw_slapi_val != ptr::null() {
+        if !self.value.raw_slapi_val.is_null() {
             // free it
             unsafe {
                 slapi_value_free(
-                    &mut self.value.raw_slapi_val as *mut _ as *mut *const libc::c_void,
+                    (&raw mut self.value.raw_slapi_val).cast(),
                 );
             }
         }
@@ -185,20 +185,20 @@ impl From<&Uuid> for Value {
         let v = unsafe { slapi_value_new() };
         unsafe {
             (*v).bv.len = len;
-            (*v).bv.data = s_ptr as *const u8;
+            (*v).bv.data = s_ptr.cast::<u8>();
         }
 
-        Value {
-            value: ValueRef::new(v as *const libc::c_void),
+        Self {
+            value: ValueRef::new(v.cast()),
         }
     }
 }
 
 impl ValueRef {
-    pub fn new(raw_slapi_val: *const libc::c_void) -> Self {
-        let raw_slapi_val = raw_slapi_val as *const _ as *const slapi_value;
-        let raw_berval: *const ol_berval = unsafe { &(*raw_slapi_val).bv as *const _ };
-        ValueRef {
+    pub const fn new(raw_slapi_val: *const libc::c_void) -> Self {
+        let raw_slapi_val: *const slapi_value = raw_slapi_val.cast();
+        let raw_berval: *const ol_berval = unsafe { &raw const (*raw_slapi_val).bv };
+        Self {
             raw_slapi_val,
             bvr: BerValRef { raw_berval },
         }
@@ -232,9 +232,9 @@ impl TryFrom<&ValueRef> for Sdn {
     }
 }
 
-impl AsRef<ValueRef> for ValueRef {
-    fn as_ref(&self) -> &ValueRef {
-        &self
+impl AsRef<Self> for ValueRef {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 

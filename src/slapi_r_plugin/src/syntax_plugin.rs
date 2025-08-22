@@ -11,8 +11,8 @@ use std::ptr;
 
 // need a call to slapi_register_plugin_ext
 
-extern "C" {
-    fn slapi_matchingrule_register(mr: *const slapi_matchingRuleEntry) -> i32;
+unsafe extern "C" {
+    unsafe fn slapi_matchingrule_register(mr: *const slapi_matchingRuleEntry) -> i32;
 }
 
 #[repr(C)]
@@ -58,7 +58,7 @@ pub unsafe fn matchingrule_register(
         mr_compat_syntax: compat_syntax_ca.as_ptr(),
     };
 
-    let new_mr_ptr = &new_mr as *const _;
+    let new_mr_ptr: *const slapi_matchingRuleEntry = &raw const new_mr;
     slapi_matchingrule_register(new_mr_ptr)
 }
 

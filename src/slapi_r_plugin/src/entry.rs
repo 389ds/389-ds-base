@@ -3,14 +3,14 @@ use crate::value::{slapi_value, ValueArrayRef, ValueRef};
 use std::ffi::CString;
 use std::os::raw::c_char;
 
-extern "C" {
-    fn slapi_entry_get_sdn(e: *const libc::c_void) -> *const libc::c_void;
-    fn slapi_entry_add_value(
+unsafe extern "C" {
+    unsafe fn slapi_entry_get_sdn(e: *const libc::c_void) -> *const libc::c_void;
+    unsafe fn slapi_entry_add_value(
         e: *const libc::c_void,
         a: *const c_char,
         v: *const slapi_value,
     ) -> i32;
-    fn slapi_entry_attr_get_valuearray(
+    unsafe fn slapi_entry_attr_get_valuearray(
         e: *const libc::c_void,
         a: *const c_char,
     ) -> *const *const slapi_value;
@@ -49,8 +49,8 @@ impl Entry {
 */
 
 impl EntryRef {
-    pub fn new(raw_e: *const libc::c_void) -> Self {
-        EntryRef { raw_e }
+    pub const fn new(raw_e: *const libc::c_void) -> Self {
+        Self { raw_e }
     }
 
     // get the sdn
@@ -66,7 +66,7 @@ impl EntryRef {
         if va.is_null() {
             None
         } else {
-            Some(ValueArrayRef::new(va as *const libc::c_void))
+            Some(ValueArrayRef::new(va.cast()))
         }
     }
 
