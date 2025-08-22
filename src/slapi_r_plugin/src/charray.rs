@@ -15,7 +15,7 @@ impl Charray {
             .map(|s| CString::new(*s).map_err(|_e| ()))
             .collect();
 
-        let pin = pin?;
+        let pin: Vec<CString> = pin?;
 
         let charray: Vec<_> = pin
             .iter()
@@ -23,7 +23,7 @@ impl Charray {
             .chain(once(ptr::null()))
             .collect();
 
-        Ok(Charray { _pin: pin, charray })
+        Ok(Self { _pin: pin, charray })
     }
 
     pub fn as_ptr(&self) -> *const *const c_char {

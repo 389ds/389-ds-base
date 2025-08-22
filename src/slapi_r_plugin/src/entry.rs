@@ -3,14 +3,14 @@ use crate::value::{slapi_value, ValueArrayRef, ValueRef};
 use std::ffi::CString;
 use std::os::raw::c_char;
 
-extern "C" {
-    fn slapi_entry_get_sdn(e: *const libc::c_void) -> *const libc::c_void;
-    fn slapi_entry_add_value(
+unsafe extern "C" {
+    unsafe fn slapi_entry_get_sdn(e: *const libc::c_void) -> *const libc::c_void;
+    unsafe fn slapi_entry_add_value(
         e: *const libc::c_void,
         a: *const c_char,
         v: *const slapi_value,
     ) -> i32;
-    fn slapi_entry_attr_get_valuearray(
+    unsafe fn slapi_entry_attr_get_valuearray(
         e: *const libc::c_void,
         a: *const c_char,
     ) -> *const *const slapi_value;
@@ -49,30 +49,30 @@ impl Entry {
 */
 
 impl EntryRef {
-    pub fn new(raw_e: *const libc::c_void) -> Self {
-        EntryRef { raw_e }
+    pub const fn new(raw_e: *const libc::c_void) -> Self {
+        Self { raw_e }
     }
 
     // get the sdn
     pub fn get_sdnref(&self) -> SdnRef {
-        let sdn_ptr = unsafe { slapi_entry_get_sdn(self.raw_e) };
+        let sdn_ptr: *const libc::c_void = unsafe { slapi_entry_get_sdn(self.raw_e) };
         SdnRef::new(sdn_ptr)
     }
 
     pub fn get_attr(&self, name: &str) -> Option<ValueArrayRef> {
-        let cname = CString::new(name).expect("invalid attr name");
-        let va = unsafe { slapi_entry_attr_get_valuearray(self.raw_e, cname.as_ptr()) };
+        let cname: CString = CString::new(name).expect("invalid attr name");
+        let va: *const *const slapi_value = unsafe { slapi_entry_attr_get_valuearray(self.raw_e, cname.as_ptr()) };
 
         if va.is_null() {
             None
         } else {
-            Some(ValueArrayRef::new(va as *const libc::c_void))
+            Some(ValueArrayRef::new(va.cast()))
         }
     }
 
     pub fn contains_attr(&self, name: &str) -> bool {
-        let cname = CString::new(name).expect("invalid attr name");
-        let va = unsafe { slapi_entry_attr_get_valuearray(self.raw_e, cname.as_ptr()) };
+        let cname: CString = CString::new(name).expect("invalid attr name");
+        let va: *const *const slapi_value = unsafe { slapi_entry_attr_get_valuearray(self.raw_e, cname.as_ptr()) };
 
         // If it's null, it's not present, so flip the logic.
         !va.is_null()
@@ -81,9 +81,9 @@ impl EntryRef {
     pub fn add_value(&mut self, a: &str, v: &ValueRef) {
         // turn the attr to a c string.
         // TODO FIX
-        let attr_name = CString::new(a).expect("Invalid attribute name");
+        let attr_name: CString = CString::new(a).expect("Invalid attribute name");
         // Get the raw ptr.
-        let raw_value_ref = unsafe { v.as_ptr() };
+        let raw_value_ref: *const slapi_value = unsafe { v.as_ptr() };
         // We ignore the return because it always returns 0.
         let _ = unsafe {
             // By default, this clones.

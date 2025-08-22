@@ -28,7 +28,7 @@ slapi_r_plugin_hooks!(entryuuid, EntryUuid);
 slapi_r_search_callback_mapfn!(entryuuid, entryuuid_fixup_cb, entryuuid_fixup_mapfn);
 
 fn assign_uuid(e: &mut EntryRef) {
-    let sdn = e.get_sdnref();
+    let sdn: SdnRef = e.get_sdnref();
 
     // 🚧 safety barrier 🚧
     if e.contains_attr("entryUUID") {
@@ -41,10 +41,10 @@ fn assign_uuid(e: &mut EntryRef) {
     }
 
     // We could consider making these lazy static.
-    let config_sdn = Sdn::try_from("cn=config").expect("Invalid static dn");
-    let schema_sdn = Sdn::try_from("cn=schema").expect("Invalid static dn");
+    let config_sdn: Sdn = Sdn::try_from("cn=config").expect("Invalid static dn");
+    let schema_sdn: Sdn = Sdn::try_from("cn=schema").expect("Invalid static dn");
 
-    if sdn.is_below_suffix(&*config_sdn) || sdn.is_below_suffix(&*schema_sdn) {
+    if sdn.is_below_suffix(&config_sdn) || sdn.is_below_suffix(&schema_sdn) {
         // We don't need to assign to these suffixes.
         log_error!(
             ErrorLevel::Plugin,
@@ -63,7 +63,7 @@ fn assign_uuid(e: &mut EntryRef) {
         sdn.to_dn_string()
     );
 
-    let uuid_value = Value::from(&u);
+    let uuid_value: Value = Value::from(&u);
 
     // Add it to the entry
     e.add_value("entryUUID", &uuid_value);
@@ -86,7 +86,7 @@ impl SlapiPlugin3 for EntryUuid {
 
         log_error!(ErrorLevel::Plugin, "betxn_pre_add -> start");
 
-        let mut e = pb.get_op_add_entryref().map_err(|_| PluginError::Pblock)?;
+        let mut e: EntryRef = pb.get_op_add_entryref().map_err(|_| PluginError::Pblock)?;
         assign_uuid(&mut e);
 
         Ok(())
@@ -113,7 +113,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .as_ref()
                 .try_into()
                 .map_err(|e| {
-                    log_error!(ErrorLevel::Plugin, "task_validate basedn error -> {:?}", e);
+                    log_error!(ErrorLevel::Plugin, "task_validate basedn error -> {e:?}");
                     LDAPError::Operation
                 })?,
             None => return Err(LDAPError::ObjectClassViolation),
@@ -132,7 +132,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .as_ref()
                 .try_into()
                 .map_err(|e| {
-                    log_error!(ErrorLevel::Plugin, "task_validate filter error -> {:?}", e);
+                    log_error!(ErrorLevel::Plugin, "task_validate filter error -> {e:?}");
                     LDAPError::Operation
                 })?,
             None => {
@@ -166,23 +166,21 @@ impl SlapiPlugin3 for EntryUuid {
     fn task_handler(_task: &Task, data: Self::TaskData) -> Result<Self::TaskData, PluginError> {
         log_error!(
             ErrorLevel::Plugin,
-            "task_handler -> start thread with -> {:?}",
-            data
+            "task_handler -> start thread with -> {data:?}",
         );
 
-        let search = Search::new_map_entry(
-            &(*data.basedn),
+        let search: Search = Search::new_map_entry(
+            &data.basedn,
             SearchScope::Subtree,
             &data.raw_filter,
-            plugin_id(),
+            &plugin_id(),
             &(),
             entryuuid_fixup_cb,
         )
         .map_err(|e| {
             log_error!(
                 ErrorLevel::Error,
-                "task_handler -> Unable to construct search -> {:?}",
-                e
+                "task_handler -> Unable to construct search -> {e:?}",
             );
             e
         })?;
@@ -196,8 +194,7 @@ impl SlapiPlugin3 for EntryUuid {
                 // log, and return
                 log_error!(
                     ErrorLevel::Error,
-                    "task_handler -> fixup complete, failed -> {:?}",
-                    e
+                    "task_handler -> fixup complete, failed -> {e:?}",
                 );
                 Err(PluginError::GenericFailure)
             }
@@ -217,7 +214,7 @@ impl SlapiPlugin3 for EntryUuid {
 
 pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError> {
     /* Supply a modification to the entry. */
-    let sdn = e.get_sdnref();
+    let sdn: SdnRef = e.get_sdnref();
 
     /* Check that entryuuid doesn't already exist, and is valid */
     if let Some(valueset) = e.get_attr("entryUUID") {
@@ -236,15 +233,15 @@ pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError
     }
 
     // Setup the modifications
-    let mut mods = SlapiMods::new();
+    let mut mods: SlapiMods = SlapiMods::new();
 
     let u: Uuid = Uuid::new_v4();
-    let uuid_value = Value::from(&u);
+    let uuid_value: Value = Value::from(&u);
     let values: ValueArray = std::iter::once(uuid_value).collect();
     mods.append(ModType::Replace, "entryUUID", values);
 
     /* */
-    let lmod = Modify::new(&sdn, mods, plugin_id())?;
+    let lmod: Modify = Modify::new(&sdn, mods, &plugin_id())?;
 
     match lmod.execute() {
         Ok(_) => {
@@ -254,9 +251,8 @@ pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError
         Err(e) => {
             log_error!(
                 ErrorLevel::Error,
-                "entryuuid_fixup_mapfn -> fixup failed -> {} {:?}",
+                "entryuuid_fixup_mapfn -> fixup failed -> {} {e:?}",
                 sdn.to_dn_string(),
-                e
             );
             Err(PluginError::GenericFailure)
         }
