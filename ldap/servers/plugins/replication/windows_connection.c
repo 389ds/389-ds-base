@@ -1248,7 +1248,7 @@ windows_conn_connect(Repl_Connection *conn)
                       secure ? "secure" : "non-secure",
                       (secure == SLAPI_LDAP_INIT_FLAG_startTLS) ? " startTLS" : "");
 
-        conn->ld = slapi_ldap_init_ext(NULL, conn->hostname, conn->port, secure, 0, NULL);
+        conn->ld = slapi_ldap_init_ext(NULL, conn->hostname, conn->port, secure, 0, NULL, NULL);
         if (NULL == conn->ld) {
             return_value = CONN_OPERATION_FAILED;
             conn->state = STATE_DISCONNECTED;
