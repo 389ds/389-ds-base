@@ -156,7 +156,7 @@ def config_refresh_certs(inst, basedn, log, args):
     conf = Config(inst, basedn)
     conf.replace(refresh_certs_attr, 'on')
     while True:
-        for i in range(timeout):
+        for _ in range(timeout):
             if conf.get_attr_val_utf8_l(refresh_certs_attr) == 'off':
                 time.sleep(1)
                 log.info('Successfully refreshed the certificates')
