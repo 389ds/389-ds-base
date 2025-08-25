@@ -300,7 +300,7 @@ def open_ldapi_conn(inst, logfile=None):
     return ld
 
 
-def tls_search(capsys, inst, ca):
+def tls_search(inst, ca):
     with traced_ldap_connection(inst.toLDAPURL(), f'ldaps bind using CA {ca}') as ld:
         #ld.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_NEVER)
         ld.set_option(ldap.OPT_X_TLS_REQUIRE_CERT,ldap.OPT_X_TLS_DEMAND)
@@ -351,7 +351,6 @@ def test_ecdsa(topo):
         inst.enable_tls()
         tls_enabled = True
     with TemporaryDirectory() as dir:
-        dir="/home/progier/sb/i1108/389-ds-base/dirsrvtests/tests/suites/tls/tmp"
         ca = ECDSA_Certificate("CA", dir)
         ca.generate_CA()
         cert = ECDSA_Certificate("Cert", dir)
@@ -361,14 +360,93 @@ def test_ecdsa(topo):
         tls_search(inst, ca)
 
 
-def test_refresh_ecdsa(topo, capsys):
-    """Test dynamic refresh of certificate
+def test_refresh_ecdsa_1ca(topo):
+    """Test dynamic refresh of server certificate
 
     :id: 96039bce-5370-11f0-9de5-c85309d5c3e3
     :setup: Standalone Instance
     :steps:
         1. Generate ECDSA CA and User Cert
         2. Generate a second ECDSA CA and User Cert pair
+        3. Install the first set of certificates
+        4. Restart the server
+        5. Open ldaps connection with server CA certificate and search root entry
+        6. Open a second ldaps connection with server CA certificate and keep it open
+        7. Open a third ldaps connection with server CA2 certificate and keep it open
+        8. Install the second set of certificates
+        9. Set the certificate refresh attribute to true (using ldapi)
+        10. Wait a bit until certificates get replaced
+        11. Open ldaps connection with new server CA certificate and search root entry
+        12. Perform a search on the second open connection
+        13. Perform a search on the third open connection
+    :expectedresults:
+        1. No error
+        2. No error
+        3. No error
+        4. No error
+        5. No error
+        6. No error
+        7. No error
+        8. No error
+        9. No error
+        10. No error
+        11. No error
+        12. ldap.SERVER_DOWN because the old CA does not match the server one
+        13. No error
+    """
+
+    inst=topo.standalone
+    global tls_enabled
+    if not tls_enabled:
+        inst.enable_tls()
+        tls_enabled = True
+    with TemporaryDirectory() as dir:
+        ca = ECDSA_Certificate("CA", dir)
+        ca.generate_CA()
+        cert = ECDSA_Certificate("Cert", dir)
+        cert.generate_cert(ca)
+        ca2 = ca
+        cert2 = ECDSA_Certificate("Cert2", dir)
+        cert2.generate_cert(ca2)
+
+        install_certs(ca, cert, inst)
+        inst.restart(post_open=False)
+        tls_search(inst, ca)
+        ld = open_ldaps_conn(inst, ca)
+        ld2 = open_ldaps_conn(inst, ca2)
+
+        install_certs(ca2, cert2, inst)
+        refresh_certs(inst)
+        time.sleep(1)
+
+        # if we restart the next tls_search is OK and ld.search_s fails as expected
+        # if we dont the tls_search fails ==> something is down
+        tls_search(inst, ca2)
+        # When trying to use an already open connection with the old CA.
+        # the server renegotiate the SSL after server certificate change
+        # So the ldap operation fails
+        with redirect_stdio("Search using already open connection with CA 'CA'"):
+            # Although connection is open, the certificate change triggers a renegotiation
+            # That must be done with the new certificate
+            results = ld.search_s('', ldap.SCOPE_BASE)
+            assert len(results) == 1
+            ld.unbind()
+
+        with redirect_stdio("Search using already open connection with CA 'CA2'"):
+            # Although connection is open, the certificate change triggers a renegotiation
+            # That must be done with the new certificate
+            results = ld2.search_s('', ldap.SCOPE_BASE)
+            assert len(results) == 1
+            ld2.unbind()
+
+def test_refresh_ecdsa_2ca(topo):
+    """Test dynamic refresh of server certificate and CA
+
+    :id: 96039bce-5370-11f0-9de5-c85309d5c3e3
+    :setup: Standalone Instance
+    :steps:
+        1. Generate ECDSA CA and User Cert
+        2. Generate a second User Cert pair
         3. Install the first set of certificates
         4. Restart the server
         5. Open ldaps connection with server CA certificate and search root entry
@@ -413,7 +491,7 @@ def test_refresh_ecdsa(topo, capsys):
 
         install_certs(ca, cert, inst)
         inst.restart(post_open=False)
-        tls_search(capsys, inst, ca)
+        tls_search(inst, ca)
         ld = open_ldaps_conn(inst, ca)
         ld2 = open_ldaps_conn(inst, ca2)
 
@@ -423,7 +501,7 @@ def test_refresh_ecdsa(topo, capsys):
 
         # if we restart the next tls_search is OK and ld.search_s fails as expected
         # if we dont the tls_search fails ==> something is down
-        tls_search(capsys, inst, ca2)
+        tls_search(inst, ca2)
         # When trying to use an already open connection with the old CA.
         # the server renegotiate the SSL after server certificate change
         # So the ldap operation fails

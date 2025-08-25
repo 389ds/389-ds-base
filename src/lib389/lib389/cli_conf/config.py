@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
+import time
 from enum import Enum
 from lib389.config import Config
 from lib389.cli_base import (
@@ -153,16 +154,21 @@ def config_del_attr(inst, basedn, log, args):
 def config_refresh_certs(inst, basedn, log, args):
     refresh_certs_attr = 'nsslapd-refresh-certificates'
     timeout = 10
+    val = 'on'
     conf = Config(inst, basedn)
-    conf.replace(refresh_certs_attr, 'on')
-    while True:
-        for _ in range(timeout):
-            if conf.get_attr_val_utf8_l(refresh_certs_attr) == 'off':
-                time.sleep(1)
-                log.info('Successfully refreshed the certificates')
-                return
-            time.sleep(1)
-        log.warning('Still waiting for certificate refresh completion. Maybe a very long operation is in progress ?')
+    conf.replace(refresh_certs_attr, val)
+    count = 0
+    while val == 'on':
+        count += 1
+        if count >= timeout:
+            log.warning('Still waiting for certificate refresh completion. Maybe a very long operation is in progress ?')
+            count = 0
+        time.sleep(1)
+        val = conf.get_attr_val_utf8_l(refresh_certs_attr)
+    if val is None:
+        log.error('Failed to refresh the certificate. The server has been stopped')
+    if val == 'off':
+        log.info('Successfully refreshed the certificates')
 
 
 def create_parser(subparsers):

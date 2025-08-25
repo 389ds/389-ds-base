@@ -809,6 +809,7 @@ char *epoll_event_flags_to_string(PRUint32 events)
     static char buf[64];
     int len = 0;
 
+#ifdef ENABLE_EPOLL
     if (events & EPOLLIN) {
         len += snprintf(buf + len, sizeof(buf) - len, "EPOLLIN|");
     }
@@ -836,6 +837,7 @@ char *epoll_event_flags_to_string(PRUint32 events)
     if (events & EPOLLET) {
         len += snprintf(buf + len, sizeof(buf) - len, "EPOLLET|");
     }
+#endif
     if (len == 0) {
         len += snprintf(buf + len, sizeof(buf) - len, "EPOLLUNKNOWN|");
     }

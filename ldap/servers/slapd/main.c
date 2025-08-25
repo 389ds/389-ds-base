@@ -2899,7 +2899,9 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt, int s_por
      */
     PRBool isFIPS = slapd_pk11_isFIPS();
     int init_ssl = config_get_security();
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
+    slapdFrontendConfig->ssl_refresh_certs = LDAP_OFF;
     if (isFIPS && !init_ssl) {
         slapi_log_err(SLAPI_LOG_WARNING, "slapd_do_all_nss_ssl_init",
                       "ERROR: TLS is not enabled, and the machine is in FIPS mode. "
