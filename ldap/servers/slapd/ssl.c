@@ -37,8 +37,6 @@
 #define MAXPATHLEN 1024
 #endif
 
-#include "sslimpl.h"
-
 
 /******************************************************************************
  * Default SSL Version Rule
@@ -3091,34 +3089,6 @@ pop_ssl_layer(PRFileDesc *fd)
 }
 
 void
-dbg_fd_stack(PRFileDesc *stack, const char *msg)
-{
-    PRFileDesc *fd = stack;
-    CERTCertList *list = PK11_ListCerts(PK11CertListAll, NULL);
-    CERTCertListNode *node;
-    int i = 0;
-    for (node = CERT_LIST_HEAD(list); !CERT_LIST_END(node, list);
-        node = CERT_LIST_NEXT(node)) {
-        CERTCertificate *cert = node->cert;
-        slapd_SSL_info("dbg_fd_stack:    Subject is: %s", cert->subjectName);
-        slapd_SSL_info("dbg_fd_stack:    Issuer is: %s", cert->issuerName);
-    }
-    CERT_DestroyCertList(list);
-    while (fd) {
-        PRDescIdentity id = PR_GetLayersIdentity(fd);
-        const char *name = PR_GetNameForIdentity(id);
-        slapi_log_err(SLAPI_LOG_INFO, "dbg_fd_stack", "stack %p layer [%d] %p id=%d name=%s - %s\n", stack, i++, fd, id, name, msg);
-        if (name && strcmp(name,"SSL")==0) {
-            sslSocket *ss = (sslSocket *)fd->secret;
-            if (ss) {
-                slapi_log_err(SLAPI_LOG_INFO, "dbg_fd_stack", "ss %p url=%s handle=%p\n", ss, ss->url, ss->dbHandle);
-            }
-        }
-        fd = fd->lower;
-    }
-}
-
-void
 refresh_certs(daemon_ports_t *ports)
 {
     /*
@@ -3135,10 +3105,9 @@ refresh_certs(daemon_ports_t *ports)
     _security_library_initialized = 0;
     reset_nss_slot();
     for (sock = ports->s_socket; sock && *sock; sock++) {
-        dbg_fd_stack(*sock, "Before refresh");
         pop_ssl_layer(*sock);
     }
-    /* SSL_ClearSessionCache(); */
+    SSL_ClearSessionCache();
 
     /* In error case, there are no good choices:
      *   Going on using the old certificates may be a security risk.
@@ -3161,7 +3130,6 @@ refresh_certs(daemon_ports_t *ports)
             slapi_log_err(SLAPI_LOG_CRIT, "Security certificates refresh",
                 "Failed to update the new certificates. Stopping the server.");
         }
-        dbg_fd_stack(*sock, "After refresh");
     }
     CFG_LOCK_WRITE(slapdFrontendConfig);
     slapdFrontendConfig->ssl_refresh_certs = LDAP_OFF;

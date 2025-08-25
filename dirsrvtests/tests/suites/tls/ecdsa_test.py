@@ -351,7 +351,6 @@ def test_ecdsa(topo):
         inst.enable_tls()
         tls_enabled = True
     with TemporaryDirectory() as dir:
-        dir="/home/progier/sb/i1108/389-ds-base/dirsrvtests/tests/suites/tls/tmp"
         ca = ECDSA_Certificate("CA", dir)
         ca.generate_CA()
         cert = ECDSA_Certificate("Cert", dir)
