@@ -3099,6 +3099,7 @@ dbg_fd_stack(PRFileDesc *stack, const char *msg)
         slapd_SSL_info("dbg_fd_stack:    Subject is: %s", cert->subjectName);
         slapd_SSL_info("dbg_fd_stack:    Issuer is: %s", cert->issuerName);
     }
+    CERT_DestroyCertList(list);
     while (fd) {
         PRDescIdentity id = PR_GetLayersIdentity(fd);
         const char *name = PR_GetNameForIdentity(id);
