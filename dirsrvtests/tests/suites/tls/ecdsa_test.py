@@ -316,7 +316,7 @@ def refresh_certs(inst, timeout=60):
     ld = open_ldapi_conn(inst)
     ld.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-refresh-certificates', b'on')])
     # Now lets wait until the config value is off again
-    for i in range(timeout):
+    for _ in range(timeout):
         result = ld.search_s('cn=config', ldap.SCOPE_BASE, attrlist=['nsslapd-refresh-certificates',])
         log.info(f'cn=config result: {result}')
         attrs = result[0][1]
