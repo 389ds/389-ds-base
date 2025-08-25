@@ -3123,7 +3123,7 @@ refresh_certs(daemon_ports_t *ports)
     PRFileDesc **sock = NULL;
 
     slapi_log_err(SLAPI_LOG_WARNING, "Security certificates refresh",
-                  "Refresh in propgress.\n");
+                  "Refresh in progress.\n");
 
     /* Perform some cleanup */
     _nss_initialized = 0;
