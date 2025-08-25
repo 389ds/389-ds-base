@@ -3080,10 +3080,14 @@ pop_ssl_layer(PRFileDesc *fd)
      * certificate
      */
     PRFileDesc *oldsock = PR_PopIOLayer(fd, PR_TOP_IO_LAYER);
-    PRDescIdentity id = PR_GetLayersIdentity(oldsock);
-    const char *name = PR_GetNameForIdentity(id);
-    slapi_log_err(SLAPI_LOG_DEBUG, "pop_ssl_layer", "Poping %s layer\n", name);
-    oldsock->dtor(oldsock); /* Call nspr layer destructor */
+    if (oldsock != NULL) {
+        PRDescIdentity id = PR_GetLayersIdentity(oldsock);
+        const char *name = PR_GetNameForIdentity(id);
+        slapi_log_err(SLAPI_LOG_DEBUG, "pop_ssl_layer", "Poping %s layer\n", name);
+        if (oldsock->dtor) {
+            oldsock->dtor(oldsock); /* Call nspr layer destructor */
+        }
+    }
 }
 
 void
