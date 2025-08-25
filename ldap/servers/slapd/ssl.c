@@ -3069,7 +3069,7 @@ reset_nss_slot(void)
      */
     SECMODModule *module = SECMOD_GetInternalModule();
     int rv = SECMOD_DeleteInternalModule(module->commonName);
-    slapd_SSL_info("Reset nss intern al slot. rv=%d\n", rv);
+    slapd_SSL_info("Reset nss internal slot. rv=%d\n", rv);
 }
 
 static void
