@@ -150,6 +150,21 @@ def config_del_attr(inst, basedn, log, args):
     _config_display_ldapimaprootdn_warning(log, args)
 
 
+def config_refresh_certs(inst, basedn, log, args):
+    refresh_certs_attr = 'nsslapd-refresh-certificates'
+    timeout = 10
+    conf = Config(inst, basedn)
+    conf.replace(refresh_certs_attr, 'on')
+    while True:
+        for i in range(timeout):
+            if conf.get_attr_val_utf8_l(refresh_certs_attr) == 'off':
+                time.sleep(1)
+                log.info('Successfully refreshed the certificates')
+                return
+            time.sleep(1)
+        log.warning('Still waiting for certificate refresh completion. Maybe a very long operation is in progress ?')
+
+
 def create_parser(subparsers):
     config_parser = subparsers.add_parser('config', help="Manage the server configuration", formatter_class=CustomHelpFormatter)
 
@@ -170,3 +185,6 @@ def create_parser(subparsers):
     del_attr_parser = subcommands.add_parser('delete', help='Delete attribute value in configuration', formatter_class=CustomHelpFormatter)
     del_attr_parser.set_defaults(func=config_del_attr)
     del_attr_parser.add_argument('attr', nargs='*', help='Configuration attribute to delete')
+
+    refresh_certs_parser = subcommands.add_parser('refresh-certs', help='Refresh the server certificate after a changing the NSS certificate database', formatter_class=CustomHelpFormatter)
+    refresh_certs_parser.set_defaults(func=config_refresh_certs)

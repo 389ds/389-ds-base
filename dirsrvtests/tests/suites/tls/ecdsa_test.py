@@ -419,6 +419,7 @@ def test_refresh_ecdsa(topo, capsys):
 
         install_certs(ca2, cert2, inst)
         refresh_certs(inst)
+        time.sleep(1)
 
         # if we restart the next tls_search is OK and ld.search_s fails as expected
         # if we dont the tls_search fails ==> something is down
