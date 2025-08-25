@@ -292,7 +292,7 @@ def open_ldaps_conn(inst, ca):
 def open_ldapi_conn(inst, logfile=None):
     dse = DSEldif(inst)
     ldapi_socket = dse.get('cn=config', 'nsslapd-ldapifilepath', single=True)
-    url = "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
+    url = f"ldapi://{ldapurl.ldapUrlEscape(ensure_str(ldapi_socket))}"
     ld = ldap.initialize(url)
     # Perform autobind
     sasl_auth = ldap.sasl.external()
