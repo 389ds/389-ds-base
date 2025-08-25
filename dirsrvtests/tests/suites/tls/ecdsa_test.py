@@ -173,7 +173,7 @@ class ECDSA_Certificate:
         self.dir = outdir
         self.prefix = prefix
         self.args = { **ECDSA_Certificate.VDEF, **kwargs }
-        if not 'organizationName' in kwargs:
+        if 'organizationName' not in kwargs:
             self.args['organizationName'] = f'{self.args["organizationName"]}-{prefix}'
         self.args['subject'] = self.get_subject()
         for name in ( 'conf', 'csr', 'key', 'p12', 'pem', 'pw1', 'pw2'):
