@@ -24,6 +24,9 @@ else:
     # Filter out webui because of broken tests
     suites.remove('webui')
 
+    # Filter out webui because of broken tests
+    suites.remove('webui')
+
     # Run each replication test module separately to speed things up
     suites.remove('replication')
     repl_tests = glob.glob('dirsrvtests/tests/suites/replication/*_test.py')
