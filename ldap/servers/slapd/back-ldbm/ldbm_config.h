@@ -130,6 +130,8 @@ struct config_info
 /* instance config options */
 #define CONFIG_INSTANCE_CACHESIZE "nsslapd-cachesize"
 #define CONFIG_INSTANCE_CACHEMEMSIZE "nsslapd-cachememsize"
+#define CONFIG_INSTANCE_CACHE_PINNED_ENTRIES "nsslapd-cache-pinned-entries"
+#define CONFIG_INSTANCE_CACHE_DEBUG_PATTERN "nsslapd-cache-debug-pattern"
 #define CONFIG_INSTANCE_DNCACHEMEMSIZE "nsslapd-dncachememsize"
 #define CONFIG_INSTANCE_SUFFIX "nsslapd-suffix"
 #define CONFIG_INSTANCE_READONLY "nsslapd-readonly"
