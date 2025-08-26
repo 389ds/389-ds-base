@@ -35,7 +35,10 @@ log = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def test_user(topology_st, request):
-    """User for binding operation"""
+    """User for binding operation
+
+    :id: test-user-fixture
+    """
     topology_st.standalone.config.set('nsslapd-auditlog-logging-enabled', 'on')
     log.info('Adding test user {}')
     users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
@@ -188,9 +191,9 @@ def test_global_tpr_maxuse_2(topology_st, test_user, request):
         2. Set passwordTPRMaxUse=5
         3. Set passwordMaxFailure to a higher value to not disturb the test
         4. Bind with a wrong password less than passwordTPRMaxUse times and check INVALID_CREDENTIALS
-        7. Bind successfully with a valid password 10 times
+        5. Bind successfully with a valid password 10 times
            and check passwordTPRRetryCount returns to 0
-        8. Reset password policy configuration
+        6. Reset password policy configuration
     :expectedresults:
         1. Success
         2. Success
@@ -198,8 +201,6 @@ def test_global_tpr_maxuse_2(topology_st, test_user, request):
         4. Success
         5. Success
         6. Success
-        7. Success
-        8. Success
     """
 
     try_tpr_failure = 5
@@ -667,10 +668,10 @@ def test_global_tpr_delayValidFrom_1(topology_st, test_user, request):
         1. Enable passwordMustChange
         2. Set passwordTPRDelayValidFrom=10s
         3. Create a account user
-        5. Reset the password
-        6. Check that Validity is not reached yet
+        4. Reset the password
+        5. Check that Validity is not reached yet
            pwdTPRValidFrom >= now + passwordTPRDelayValidFrom - 2 (safety)
-        7. Bind with valid password, Fails because of CONSTRAINT_VIOLATION
+        6. Bind with valid password, Fails because of CONSTRAINT_VIOLATION
     :expectedresults:
         1. Success
         2. Success
@@ -678,7 +679,6 @@ def test_global_tpr_delayValidFrom_1(topology_st, test_user, request):
         4. Success
         5. Success
         6. Success
-        7. Success
     """
 
     ValidFrom = 10
@@ -733,11 +733,11 @@ def test_global_tpr_delayValidFrom_2(topology_st, test_user, request):
         1. Enable passwordMustChange
         2. Set passwordTPRDelayValidFrom=6s
         3. Create a account user
-        5. Reset the password
-        6. Wait for passwordTPRDelayValidFrom=6s
-        7. Bind with valid password, reset password
+        4. Reset the password
+        5. Wait for passwordTPRDelayValidFrom=6s
+        6. Bind with valid password, reset password
            to allow further searches
-        8. Check bound user can search attribute ('uid')
+        7. Check bound user can search attribute ('uid')
     :expectedresults:
         1. Success
         2. Success
@@ -746,7 +746,6 @@ def test_global_tpr_delayValidFrom_2(topology_st, test_user, request):
         5. Success
         6. Success
         7. Success
-        8. Success
     """
 
     ValidFrom = 6
@@ -806,15 +805,15 @@ def test_global_tpr_delayValidFrom_3(topology_st, test_user, request):
         1. Enable passwordMustChange
         2. Set passwordTPRDelayValidFrom=6s
         3. Create a account user
-        5. Reset the password
-        6. Check pwdReset/pwdTPRReset/pwdTPRValidFrom
-        7. wait for 6s to let the new TPR password being valid
-        8. Bind with valid password, reset password
+        4. Reset the password
+        5. Check pwdReset/pwdTPRReset/pwdTPRValidFrom
+        6. wait for 6s to let the new TPR password being valid
+        7. Bind with valid password, reset password
            to allow further searches
-        9. Check bound user can search attribute ('uid')
-        10. Bound as user, check user has not the rights to
-            modify pwdTPRValidFrom
-        11. Bound as DM, check user has the right to
+        8. Check bound user can search attribute ('uid')
+        9. Bound as user, check user has not the rights to
+           modify pwdTPRValidFrom
+        10. Bound as DM, check user has the right to
             modify pwdTPRValidFrom
 
     :expectedresults:
@@ -826,9 +825,8 @@ def test_global_tpr_delayValidFrom_3(topology_st, test_user, request):
         6. Success
         7. Success
         8. Success
-        9. Success
-        10. ldap.INSUFFICIENT_ACCESS
-        11. Success
+        9. ldap.INSUFFICIENT_ACCESS
+        10. Success
     """
 
     ValidFrom = 6
@@ -909,9 +907,9 @@ def test_global_tpr_delayExpireAt_1(topology_st, test_user, request):
         1. Enable passwordMustChange
         2. Set passwordTPRDelayExpireAt=6s
         3. Create a account user
-        5. Reset the password
-        6. Wait for passwordTPRDelayExpireAt=6s + 2s (safety)
-        7. Bind with valid password should fail with ldap.CONSTRAINT_VIOLATION
+        4. Reset the password
+        5. Wait for passwordTPRDelayExpireAt=6s + 2s (safety)
+        6. Bind with valid password should fail with ldap.CONSTRAINT_VIOLATION
     :expectedresults:
         1. Success
         2. Success
@@ -919,7 +917,6 @@ def test_global_tpr_delayExpireAt_1(topology_st, test_user, request):
         4. Success
         5. Success
         6. Success
-        7. Success
     """
 
     ExpireAt = 6
@@ -980,9 +977,9 @@ def test_global_tpr_delayExpireAt_2(topology_st, test_user, request):
         1. Enable passwordMustChange
         2. Set passwordTPRDelayExpireAt=6s
         3. Create a account user
-        5. Reset the password
-        6. Wait for 1s
-        7. Bind with valid password should succeeds
+        4. Reset the password
+        5. Wait for 1s
+        6. Bind with valid password should succeeds
     :expectedresults:
         1. Success
         2. Success
@@ -990,7 +987,6 @@ def test_global_tpr_delayExpireAt_2(topology_st, test_user, request):
         4. Success
         5. Success
         6. Success
-        7. Success
     """
 
     ExpireAt = 6
@@ -1053,15 +1049,15 @@ def test_global_tpr_delayExpireAt_3(topology_st, test_user, request):
         1. Enable passwordMustChange
         2. Set passwordTPRDelayExpireAt=6s
         3. Create a account user
-        5. Reset the password
-        6. Check pwdReset/pwdTPRReset/pwdTPRValidFrom
-        7. wait for 1s so that TPR has not expired
-        8. Bind with valid password, reset password
+        4. Reset the password
+        5. Check pwdReset/pwdTPRReset/pwdTPRValidFrom
+        6. wait for 1s so that TPR has not expired
+        7. Bind with valid password, reset password
            to allow further searches
-        9. Check bound user can search attribute ('uid')
-        10. Bound as user, check user has not the rights to
-            modify pwdTPRExpireAt
-        11. Bound as DM, check user has the right to
+        8. Check bound user can search attribute ('uid')
+        9. Bound as user, check user has not the rights to
+           modify pwdTPRExpireAt
+        10. Bound as DM, check user has the right to
             modify pwdTPRExpireAt
 
     :expectedresults:
@@ -1073,9 +1069,8 @@ def test_global_tpr_delayExpireAt_3(topology_st, test_user, request):
         6. Success
         7. Success
         8. Success
-        9. Success
-        10. ldap.INSUFFICIENT_ACCESS
-        11. Success
+        9. ldap.INSUFFICIENT_ACCESS
+        10. Success
     """
 
     ExpireAt = 6

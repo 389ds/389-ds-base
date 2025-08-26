@@ -77,7 +77,7 @@ def search_entries(inst, dnfilter):
 def list_all_order_combinations(m, n):
     # list all way to order pair of m per n elements
     # knowing that element (m, 0) should be the first for m
-    # But m=3, n=4 generates 1247400 combinations 
+    # But m=3, n=4 generates 1247400 combinations
     # and testing them would requires 3.5 years ...
     # So we are using list_order_combinations which is a subset
     actions = list(product(range(m), range(n)))
@@ -110,8 +110,8 @@ def list_order_combinations(m, n):
             self.n = n
 
         def bypass(self, idx):
-            # Keep the first action in order 
-            # Changing the order of the first action is 
+            # Keep the first action in order
+            # Changing the order of the first action is
             # equivalent to swapping the instances so lets avoid to
             # do it to decrease the number of tests to perform.
             for i in range(self.n):
@@ -143,7 +143,7 @@ def list_order_combinations(m, n):
             return result
 
     if SKIP_THE_TESTS:
-        # Lets avoid generating 5000 tests to skip 
+        # Lets avoid generating 5000 tests to skip
         return [ 'skipped', ]
     return OrderedCombination(m,n).run()
 
@@ -151,7 +151,7 @@ def list_order_combinations(m, n):
 @pytest.fixture(scope="module")
 def urp_tester(topology_m3):
     class UrpTesterInstances:
-        # Contains the data and the methods about a specific instance 
+        # Contains the data and the methods about a specific instance
         def __init__(self, tester, inst):
             self.tester = tester
             self.inst = inst
@@ -256,7 +256,7 @@ def urp_tester(topology_m3):
             for agmt in Agreements(inst).list():
                 agmt.begin_reinit()
                 (done, error) = agmt.wait_reinit()
-                assert done is True 
+                assert done is True
                 assert error is False
             for agmt in agmts:
                 agmt.pause()
@@ -278,16 +278,19 @@ def test_urp_delete(urp_tester, actionorder):
     :parametrized: yes
     :steps:
         On every possible combinations (i.e 5775) for the actions on all instances
-          1. Reinitialise the instances
-          2. Run the action on specified order and specified instances
-             The actions are:
-                  - Add the entry on current replica
-                  - Sync first other replica changes with current replica
-                  - Sync second other replica changes with current replica
-                  - Find the entry added on this replica and remove it
-          3. Wait until instances are in sync
-          4. Check that entry type,nsuniqueids pair are the same on all replica
-                  (entry type is either tombstone, conflct, or regular)
+
+        1. Reinitialise the instances
+        2. Run the action on specified order and specified instances
+           The actions are:
+
+           - Add the entry on current replica
+           - Sync first other replica changes with current replica
+           - Sync second other replica changes with current replica
+           - Find the entry added on this replica and remove it
+
+        3. Wait until instances are in sync
+        4. Check that entry type,nsuniqueids pair are the same on all replica
+           (entry type is either tombstone, conflct, or regular)
     :expectedresults:
         1. Should Success.
         2. Should Success.
