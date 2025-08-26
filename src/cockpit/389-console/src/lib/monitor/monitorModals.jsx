@@ -2015,7 +2015,7 @@ class LagReportModal extends React.Component {
                                     {csvPreview ? (
                                         <TextContent>
                                             <Text component={TextVariants.h3}>{_("First 20 lines of CSV data:")}</Text>
-                                            <pre className="ds-code-block ds-no-margin-bottom">{data}</pre>
+                                            <pre className="ds-code-block ds-no-margin-bottom">{csvPreview}</pre>
                                         </TextContent>
                                     ) : (
                                         <EmptyState>
