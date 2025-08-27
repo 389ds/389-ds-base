@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2025 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1114,6 +1114,9 @@ error:
         import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_public_dbmdb_import_main", "%s failed.", opstr);
         dbmdb_task_finish(job, ret);
     } else {
+        dblayer_private *priv = NULL;
+        struct ldbminfo *li = inst->inst_li;
+
         if (job->task) {
             /* set task warning if there are no errors */
             if (job->skipped) {
@@ -1128,6 +1131,10 @@ error:
             ret |= ERR_DUPLICATE_DN;
         }
         dbmdb_import_all_done(job, ret);
+
+        /* Import is done, we need to autotune caches */
+        priv = (dblayer_private *)li->li_dblayer_private;
+        priv->dblayer_auto_tune_fn(li);
     }
 
     /* Re-enable the ndn cache */

@@ -338,7 +338,6 @@ static void *
 bdb_config_dbcachesize_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
-
     return (void *)((uintptr_t)li->li_new_dbcachesize);
 }
 
@@ -2138,8 +2137,10 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
         bdb_config_get(arg, config, buf);
         if (PL_strncmp(buf, bval->bv_val, bval->bv_len)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
-                                  "value [%s] for attribute %s does not match existing value [%s].\n", bval->bv_val, attr_name, buf);
-slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__, "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
+                                  "value [%s] for attribute %s does not match existing value [%s].\n",
+                                  bval->bv_val, attr_name, buf);
+            slapi_log_err(SLAPI_LOG_ERR, (char*)__FUNCTION__,
+                          "%s:%d returns LDAP_NO_SUCH_ATTRIBUTE\n", __FILE__, __LINE__);
             return LDAP_NO_SUCH_ATTRIBUTE;
         }
     }
