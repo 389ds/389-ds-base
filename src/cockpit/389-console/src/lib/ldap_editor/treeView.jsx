@@ -29,6 +29,8 @@ import {
 	TextListVariants,
 	TextListItem,
 	TextListItemVariants,
+    ToggleGroup,
+    ToggleGroupItem,
 	Tooltip, EmptyStateHeader
 } from '@patternfly/react-core';
 import {
@@ -109,6 +111,8 @@ class EditorTreeView extends React.Component {
             entryStateIcon: null,
             isSuffixEntry: false,
             entryModTime: '',
+            entryModTimeLocal: '',
+            timeFormat: 'utc',
             isEmptySuffix: false,
             showPagination: false,
             isEntryTooLarge: false,
@@ -132,6 +136,12 @@ class EditorTreeView extends React.Component {
 
         this.removeAlert = key => {
             this.setState({ alerts: [...this.state.alerts.filter(el => el.key !== key)] });
+        };
+
+        this.handleTimeToggle = (format) => {
+            this.setState({
+                timeFormat: format
+            });
         };
 
         this.onNodeOnClick = (treeViewItem) => {
@@ -208,6 +218,7 @@ class EditorTreeView extends React.Component {
                 entryRows: this.tableEmtpyStateRow,
                 tableModificationTime: Date.now(), // Passed as property.
                 entryModTime: '', // An empty value will not be rendered.
+                entryModTimeLocal: '',
                 entryIcon: null,
                 entryDn: '', // An empty value disables the actions dropdown menu.
                 latestEntryRefreshTime: Date.now(),
@@ -226,6 +237,7 @@ class EditorTreeView extends React.Component {
         const entryDn = treeViewItem.dn === '' ? 'Root DSE' : treeViewItem.dn;
         const isSuffixEntry = treeViewItem.id === "0";
         const entryModTime = treeViewItem.modTime;
+        const entryModTimeLocal = treeViewItem.modTimeLocal;
         const fullEntry = treeViewItem.fullEntry;
         const encodedValues = [];
         let isRole = false;
@@ -341,6 +353,7 @@ class EditorTreeView extends React.Component {
                         entryState,
                         isSuffixEntry,
                         entryModTime,
+                        entryModTimeLocal,
                         isEmptySuffix,
                         entryIsLoading,
                         isEntryTooLarge,
@@ -481,10 +494,12 @@ class EditorTreeView extends React.Component {
 
     render () {
         const {
-            alerts, searching, isSuffixEntry, isRole,
-            firstClickOnTree, entryColumns, entryRows, entryIcon, entryDn, entryModTime, isEmptySuffix,
-            isEntryTooLarge, tableModificationTime, showEmptySuffixModal, entryState,
-            newSuffixData, isTreeLoading, refreshButtonTriggerTime, latestEntryRefreshTime, entryStateIcon
+            alerts, searching, isSuffixEntry, isRole, firstClickOnTree,
+            entryColumns, entryRows, entryIcon, entryDn, entryModTime,
+            entryModTimeLocal, isEmptySuffix, isEntryTooLarge,
+            tableModificationTime, showEmptySuffixModal, entryState,
+            newSuffixData, isTreeLoading, refreshButtonTriggerTime,
+            latestEntryRefreshTime, entryStateIcon, timeFormat
         } = this.state;
 
         const { loading } = this.props;
@@ -745,7 +760,7 @@ class EditorTreeView extends React.Component {
                                                 dropdownItems={dropdownItems}
                                                 position="right"
                                             /></>, hasNoOffset: false, className: undefined}} >
-                                        
+
                                         <Title headingLevel="h6" size="md">
                                             {entryIcon}<span>&ensp;{entryDn} </span>
                                             {(entryState !== "") && (entryStateIcon !== "") && (entryState !== "activated")
@@ -806,7 +821,33 @@ class EditorTreeView extends React.Component {
                                     </CardBody>
                                     { !isEmptySuffix && (entryModTime.length > 0) &&
                                         <CardFooter>
-                                            {_("Last Modified Time")}: {entryModTime}
+                                            <div>
+                                                {_("Last Modified Time")}: <Label>
+                                                    <i>{timeFormat === 'utc' ? entryModTime : entryModTimeLocal}</i>
+                                                </Label>
+                                                <ToggleGroup
+                                                    className="ds-inline ds-left-margin"
+                                                    isCompact
+                                                    aria-label="time format toggle"
+                                                >
+                                                    <ToggleGroupItem
+                                                        text="UTC"
+                                                        buttonId="utc"
+                                                        isSelected={timeFormat === 'utc'}
+                                                        onChange={() => this.handleTimeToggle("utc")}
+                                                        className="ds-inline"
+                                                        title="UTC time"
+                                                    />
+                                                    <ToggleGroupItem
+                                                        text="Local time"
+                                                        buttonId="local"
+                                                        isSelected={timeFormat === 'local'}
+                                                        onChange={() => this.handleTimeToggle("local")}
+                                                        className="ds-inline"
+                                                        title="Local time"
+                                                    />
+                                                </ToggleGroup>
+                                            </div>
                                             <div className="ds-margin-bottom-md" />
                                             <Divider />
                                             <div className="ds-margin-bottom-md" />

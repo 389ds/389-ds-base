@@ -665,7 +665,7 @@ class AddUser extends React.Component {
                             <b>Traditional Account</b> - This type of user entry uses a traditional/legacy set of objectclasses (person, organizationalPerson, and inetOrgPerson).
                         </Text>
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
-                            <b>{_("Posix Account")}</b>{_(" - This type of user entry uses a similar set of objectclasses as the ")}<i>{_("Basic Account")}</i> {_("(nsPerson, nsAccount, nsOrgPerson, and posixAccount), but it includes POSIX attributes like:")}
+                            <b>{_("Posix Account")}</b>{_(" - This type of user entry uses a similar set of objectclasses as the ")}<i>{_("Basic Account")}</i> {_("(nsPerson, nsAccount, nsOrgPerson, and posixAccount), but it includes POSIX attributes like: ")}
                             <i>{_("uidNumber, gidNumber, homeDirectory, loginShell, and gecos")}</i>.
                         </Text>
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">

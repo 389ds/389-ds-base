@@ -1571,7 +1571,7 @@ class MemberOf extends React.Component {
                                     ))}
                                 </Select>
                                 <FormHelperText  >
-                                    {"values must be valid DN's"}
+                                    {"Values must be valid DN's"}
                                 </FormHelperText>
                             </GridItem>
                             <GridItem className="ds-left-margin" span={3}>
