@@ -735,12 +735,12 @@ msgstr "グルーエントリ"
 
 #: src/lib/monitor/replMonConflict.jsx:436
 msgid ""
-"When a <b>Delete</b> operation is replicated and the consumer server finds "
+"When a Delete operation is replicated and the consumer server finds "
 "that the entry to be deleted has child entries, the conflict resolution "
-"procedure creates a \"<i>glue entry</i>\" to avoid having orphaned entries "
-"in the database.  In the same way, when an <b>Add</b> operation is "
+"procedure creates a \"glue entry\" to avoid having orphaned entries "
+"in the database.  In the same way, when an Add operation is "
 "replicated and the consumer server cannot find the parent entry, the "
-"conflict resolution procedure creates a \"<i>glue entry</i>\", representing "
+"conflict resolution procedure creates a \"glue entry\", representing "
 "the \"parent entry\", so that the new entry is not an orphaned entry.  You "
 "can choose to convert the glue entry, or remove the glue entry and all its "
 "child entries."
@@ -5558,7 +5558,7 @@ msgstr ""
 
 #: src/lib/database/localPwp.jsx:462 src/lib/database/localPwp.jsx:2682
 #: src/lib/database/globalPwp.jsx:1126
-msgid "Time Until <i>Failure Count</i> Resets"
+msgid "Time Until Failure Count Resets"
 msgstr "失敗回数がリセットされるまでの時間"
 
 #: src/lib/database/localPwp.jsx:477 src/lib/database/localPwp.jsx:2697
@@ -7305,7 +7305,7 @@ msgstr "検索範囲"
 msgid ""
 "After creating this VLV Search entry you can go to the table and add VLV "
 "Sort Indexes to this VLV Search.  After adding the Sort Indexes you will "
-"need to <i>reindex</i> the VLV Index to make it active."
+"need to reindex the VLV Index to make it active."
 msgstr ""
 "このVLV検索エントリを作成した後、テーブルに移動してこのVLV検索にVLVソートイン"
 "デックスを追加できます。ソートインデックスを追加した後は、VLVインデックスを再"

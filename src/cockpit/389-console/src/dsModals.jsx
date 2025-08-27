@@ -398,8 +398,13 @@ export class CreateInstanceModal extends React.Component {
                     >
                         {saveBtnName}
                     </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        {_("Cancel")}
+                    <Button
+                        key="close"
+                        variant="link"
+                        onClick={closeHandler}
+                        isDisabled={loadingCreate}
+                    >
+                        {_("Close")}
                     </Button>
                 ]}
             >

@@ -79,7 +79,7 @@ export class ReplMonConflict extends React.Component {
         this.props.enableTree();
     }
 
-    onRadioChange(value, evt) {
+    onRadioChange(_, value) {
         // Handle the radio button changes
         const radioID = {
             swapConflictRadio: false,
@@ -396,7 +396,7 @@ export class ReplMonConflict extends React.Component {
                     <TextContent>
                         <Text component={TextVariants.h3}>
                             {_("Monitor Conflict and Glue Entries")}
-                            <Button 
+                            <Button
                                 variant="plain"
                                 aria-label={_("Refresh replication monitor")}
                                 onClick={this.props.handleReload}
@@ -430,7 +430,7 @@ export class ReplMonConflict extends React.Component {
                             <Tooltip
                                 content={
                                     <div>
-                                        {_("When a <b>Delete</b> operation is replicated and the consumer server finds that the entry to be deleted has child entries, the conflict resolution procedure creates a \"<i>glue entry</i>\" to avoid having orphaned entries in the database.  In the same way, when an <b>Add</b> operation is replicated and the consumer server cannot find the parent entry, the conflict resolution procedure creates a \"<i>glue entry</i>\", representing the \"parent entry\", so that the new entry is not an orphaned entry.  You can choose to convert the glue entry, or remove the glue entry and all its child entries.")}
+                                        {_("When a Delete operation is replicated and the consumer server finds that the entry to be deleted has child entries, the conflict resolution procedure creates a \"glue entry\" to avoid having orphaned entries in the database.  In the same way, when an Add operation is replicated and the consumer server cannot find the parent entry, the conflict resolution procedure creates a \"glue entry\", representing the \"parent entry\", so that the new entry is not an orphaned entry.  You can choose to convert the glue entry, or remove the glue entry and all its child entries.")}
                                     </div>
                                 }
                             >
