@@ -802,6 +802,7 @@ export class LDAPEditor extends React.Component {
             fullEntry: info.fullEntry, //
             children: numSubValue > 0 ? nodeChildren : null,
             modTime: info.modifyTimestamp,
+            modTimeLocal: info.modifyTimestampLocal,
             // The DN value can also be retrieved from info.fullEntry
             // ( but will require to retrieve the DN line and then split it. Taking a lazy approach here ;-))
             dn: info.dn,
