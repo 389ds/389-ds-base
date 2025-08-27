@@ -91,6 +91,7 @@ class LdapNavigator extends React.Component {
                                                     name: treeViewItem.name,
                                                     fullEntry: treeViewItem.fullEntry,
                                                     modTime: treeViewItem.modTime,
+                                                    modTimeLocal: treeViewItem.modTimeLocal,
                                                     addNotification: this.props.addNotification,
                                                     filter: this.props.skipLeafEntries
                                                         ? '(|(&(numSubordinates=*)(numSubordinates>=1))(objectClass=organizationalunit)(objectClass=organization))'
@@ -342,6 +343,7 @@ class LdapNavigator extends React.Component {
                             name: relativeDn,
                             fullEntry: info.fullEntry,
                             modTime: info.modifyTimestamp,
+                            modTimeLocal: info.modifyTimestampLocal,
                             dn: info.dn,
                             id: `${parentId}.${mySubId}`,
                             loadChildren: false
@@ -490,6 +492,7 @@ class LdapNavigator extends React.Component {
                 // IMPORTANT: Need to add the children so the tree shows the expansion button!
                 children: nodeChildren,
                 modTime: info.modifyTimestamp,
+                modTimeLocal: info.modifyTimestampLocal,
                 dn: info.dn,
                 id: `${myActiveNode.id}.${childId}`,
                 loadChildren: numSubValue > 0 // Used to insert child nodes when needed.

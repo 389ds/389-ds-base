@@ -253,12 +253,12 @@ export class CertificateManagement extends React.Component {
         });
     }
 
-    onRadioChange(_, e) {
+    onRadioChange(e, _) {
         // Handle the add cert options
         let certRadioFile = false;
-
         let certRadioSelect = false;
         let certRadioUpload = false;
+
         if (e.target.id === "certRadioFile") {
             certRadioFile = true;
         } else if (e.target.id === "certRadioSelect") {

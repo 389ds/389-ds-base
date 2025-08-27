@@ -454,7 +454,7 @@ class CreatePolicy extends React.Component {
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("The number of seconds until an accounts failure count is reset (passwordResetFailureCount).")}>
                                     <GridItem className="ds-label" span={4}>
-                                        {_("Time Until <i>Failure Count</i> Resets")}
+                                        {_("Time Until Failure Count Resets")}
                                     </GridItem>
                                     <GridItem span={2}>
                                         <TextInput
