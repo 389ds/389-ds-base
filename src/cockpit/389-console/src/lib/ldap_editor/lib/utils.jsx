@@ -23,32 +23,21 @@ export function generateUniqueId () {
 
 const _ = cockpit.gettext;
 
-// Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
-function getDateString (timestamp) {
-    if (!!timestamp === false) {
-        console.log('Not a real timestamp!');
-        return '';
-    }
-
-    const year = timestamp.substring(0, 4);
-    const month = timestamp.substring(4, 6);
-    const day = timestamp.substring(6, 8);
-    const hour = timestamp.substring(8, 10);
-    const minute = timestamp.substring(10, 12);
-    const sec = timestamp.substring(12, 14);
-
-    const value = `${year}-${month}-${day}T${hour}:${minute}:${sec}Z`;
-    const myDate = new Date(value);
-    return myDate.toLocaleString();
-}
-
-function getModDateUTC (modDate) {
+function getModDate (modDate, format) {
     if (!modDate) {
-    // Some entries ( for instance "cn=plugins,cn=config" )
-    // don't have the modifyTimestamp attribute present.
-    // console.log('Not a real modifyTimestamp value!')
+        // Some entries ( for instance "cn=plugins,cn=config" )
+        // don't have the modifyTimestamp attribute present.
         return '';
     }
+    const FORMAT_OPTIONS = {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+    };
     const y = modDate.substring(0, 4);
     const m = modDate.substring(4, 6);
     const d = modDate.substring(6, 8);
@@ -56,11 +45,17 @@ function getModDateUTC (modDate) {
     const min = modDate.substring(10, 12);
     const sec = modDate.substring(12, 14);
     const value = `${y}-${m}-${d}T${h}:${min}:${sec}Z`;
-    // const date = new Date();
-    // date.setTime(Date.parse(value));
-
     const date = new Date(value);
-    return date.toUTCString();
+
+    // Apply the same format, just change the timezone
+    if (format === "local") {
+        return date.toLocaleString('en-US', FORMAT_OPTIONS);
+    } else {
+        return date.toLocaleString('en-US', {
+            ...FORMAT_OPTIONS,
+            timeZone: 'UTC'
+        });
+    }
 }
 
 export function getUserSuffixes (serverId, suffixCallback) {
@@ -188,7 +183,8 @@ export function getRootSuffixEntryDetails (params, entryDetailsCallback) {
                     {
                         dn,
                         numSubordinates,
-                        modifyTimestamp: getModDateUTC(modifyTimestamp),
+                        modifyTimestamp: getModDate(modifyTimestamp, "utc"),
+                        modifyTimestampLocal: getModDate(modifyTimestamp, "local"),
                         parentId: params.parentId,
                         fullEntry: entryArray,
                         errorCode: 0
@@ -324,7 +320,8 @@ export function getSearchEntries (params, resultCallback) {
                             {
                                 dn,
                                 numSubordinates,
-                                modifyTimestamp: getModDateUTC(modifyTimestamp),
+                                modifyTimestamp: getModDate(modifyTimestamp, "utc"),
+                                modifyTimestampLocal: getModDate(modifyTimestamp, "local"),
                                 ldapsubentry,
                                 isRole,
                                 isLockable,
@@ -596,7 +593,10 @@ export function getOneLevelEntries (params, oneLevelCallback) {
                             {
                                 dn,
                                 numSubordinates,
-                                modifyTimestamp: getModDateUTC(modifyTimestamp),
+                                modifyTimestamp: getModDate(modifyTimestamp,
+                                                            "utc"),
+                                modifyTimestampLocal: getModDate(modifyTimestamp,
+                                                                 "local"),
                                 ldapsubentry,
                                 isRole,
                                 isLockable,
@@ -659,86 +659,6 @@ export function runGenericSearch (params, searchCallback) {
                 console.log('FAIL err.exit_status ==> ' + err.exit_status);
                 console.log('FAIL err.message ==> ' + err.message);
                 searchCallback([]);
-            });
-}
-
-export function getMonitoringInfo (serverId, monitorEntryCallback) {
-    const cmd = [
-        'ldapsearch',
-        '-LLL',
-        '-o',
-        'ldif-wrap=no',
-        '-Y',
-        'EXTERNAL',
-        '-b',
-        'cn=monitor',
-        '-H',
-        'ldapi://%2fvar%2frun%2fslapd-' + serverId + '.socket',
-        '-s',
-        'base',
-        'version',
-        'threads',
-        'currentConnections',
-        'totalConnections',
-        'startTime'
-    ];
-
-    log_cmd("getMonitoringInfo", "", cmd);
-    // TODO: Use an object
-    // monitorObject = {version: version, threads: threads, ...}
-    let version = '';
-    let threads = '';
-    let currentConnections = '';
-    let totalConnections = '';
-    let startTime = '';
-    cockpit
-            .spawn(cmd, { superuser: true, err: 'message' })
-            .done(data => {
-                // console.log('SUCCESS ' + data);
-                const lines = data.split('\n');
-                lines.map(currentLine => {
-                    if (isAttributeLine(currentLine, 'version:')) {
-                        version = (currentLine.split(':')[1]).trim();
-                    } else if (isAttributeLine(currentLine, 'threads:')) {
-                        threads = (currentLine.split(':')[1]).trim();
-                        // console.log('threads = ' + threads);
-                    } else if (isAttributeLine(currentLine, 'currentConnections:')) {
-                        currentConnections = (currentLine.split(':')[1]).trim();
-                        // console.log('currentConnections = ' + currentConnections);
-                    } else if (isAttributeLine(currentLine, 'totalConnections:')) {
-                        totalConnections = (currentLine.split(':')[1]).trim();
-                        // console.log('currentConnections = ' + currentConnections);
-                    } else if (isAttributeLine(currentLine, 'startTime:')) {
-                        startTime = (currentLine.split(':')[1]).trim();
-                        // console.log('startTime = ' + startTime);
-                    }
-                    return [];
-                });
-                const result = JSON.stringify(
-                    {
-                        failed: false,
-                        version,
-                        threads,
-                        currentConnections,
-                        totalConnections,
-                        startTime: getDateString(startTime)
-                    }
-                );
-                monitorEntryCallback(result);
-            })
-            .fail((err) => {
-                console.log('FAIL err.message ==> ' + err.message);
-                // const m1 = JSON.parse(err)
-                // const m2 = JSON.parse(err).desc
-                // console.log('m1 = ' + m1);
-                // console.log('m2 = ' + m2);
-                const result = JSON.stringify(
-                    {
-                        failed: true,
-                        errMessage: err.message
-                    }
-                );
-                monitorEntryCallback(result);
             });
 }
 
