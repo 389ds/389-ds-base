@@ -39,16 +39,11 @@ class CreateRootSuffix extends React.Component {
                                     const params = { serverId: this.props.editorLdapServer, baseDn: this.props.suffixDn };
                                     getRootSuffixEntryDetails(params, (entryInfo) => {
                                         const info = JSON.parse(entryInfo);
-                                        /* const rootEntryData = {
-                name: info.dn,
-                fullEntry: info.fullEntry,
-                modTime: info.modifyTimestamp,
-                dn: info.dn
-              }; */
                                         resultParams.rootEntryData = {
                                             name: info.dn,
                                             fullEntry: info.fullEntry,
                                             modTime: info.modifyTimestamp,
+                                            modTimeLocal: info.modifyTimestampLocal,
                                             dn: info.dn
                                         };
                                         // this.props.updateEntryRows(entryTreeData);

@@ -121,7 +121,7 @@ export class ReplRUV extends React.Component {
         });
     }
 
-    onRadioChange(_, e) {
+    onRadioChange(e, _) {
         // Handle the changelog export options
         let defaultCL = false;
         let debugCL = false;
@@ -357,7 +357,7 @@ export class ReplRUV extends React.Component {
                 <TextContent>
                     <Text component={TextVariants.h3}>
                         {_("Local RUV")}
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh the RUV for this suffix")}
                             onClick={() => {
@@ -372,7 +372,7 @@ export class ReplRUV extends React.Component {
                 <TextContent className="ds-margin-top-xlg">
                     <Text component={TextVariants.h3}>
                         {_("Remote RUV's")}
-                        <Button 
+                        <Button
                             variant="plain"
                             aria-label={_("Refresh the remote RUVs for this suffix")}
                             onClick={() => {
