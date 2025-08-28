@@ -472,6 +472,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     const char *deferred_update = NULL;
     char *auto_add_oc = NULL;
     const char *needfixup = NULL;
+    const char *launchfixup = NULL;
     int num_vals = 0;
 
     *returncode = LDAP_SUCCESS;
@@ -508,6 +509,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     deferred_update = slapi_entry_attr_get_ref(e, MEMBEROF_DEFERRED_UPDATE_ATTR);
     auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
     needfixup = slapi_entry_attr_get_ref(e, MEMBEROF_NEED_FIXUP);
+    launchfixup = slapi_entry_attr_get_ref(e, MEMBEROF_LAUNCH_FIXUP);
 
     if (auto_add_oc == NULL) {
         auto_add_oc = slapi_ch_strdup(NSMEMBEROF);
@@ -640,6 +642,15 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
             theConfig.deferred_update = PR_TRUE;
         } else {
             theConfig.deferred_update = PR_FALSE;
+        }
+    }
+    theConfig.launch_fixup = PR_FALSE;
+    if (theConfig.deferred_update) {
+        /* The automatic fixup task is only triggered when
+         * deferred update is on
+         */
+        if (launchfixup && (strcasecmp(launchfixup, "on") == 0)) {
+            theConfig.launch_fixup = PR_TRUE;
         }
     }
 
