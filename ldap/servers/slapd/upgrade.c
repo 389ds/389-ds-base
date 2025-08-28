@@ -330,6 +330,189 @@ upgrade_remove_subtree_rename(void)
     return UPGRADE_SUCCESS;
 }
 
+/*
+ * Upgrade the base config of the PAM PTA plugin.
+ *
+ * Check the plugins base DN for any PTA configuration attributes. If any are found
+ * they are migrated to a child entry under the plugins base DN, and the original attrs
+ * are deleted from the base entry.
+ */
+static upgrade_status
+upgrade_pam_pta_default_config(void)
+{
+    const char *parent_dn_str = "cn=PAM Pass Through Auth,cn=plugins,cn=config";
+    char *child_cn_str = "default";
+    const char *pam_cfg_attrs[] = {
+        "pamMissingSuffix",
+        "pamExcludeSuffix",
+        "pamIDMapMethod",
+        "pamIDAttr",
+        "pamFallback",
+        "pamSecure",
+        "pamService",
+        NULL
+    };
+    Slapi_Attr **attrs = NULL;
+    Slapi_PBlock *add_pb = NULL;
+    Slapi_PBlock *mod_pb = NULL;
+    int num_attrs = 0;
+    int rc = 0;
+    int result = LDAP_SUCCESS;
+
+    /* Check base entry exists */
+    Slapi_Entry *base_entry = NULL;
+    Slapi_DN *parent_sdn = slapi_sdn_new_dn_byval(parent_dn_str);
+    rc = slapi_search_internal_get_entry(parent_sdn, NULL, &base_entry, plugin_get_default_component_id());
+    if (rc != LDAP_SUCCESS || !base_entry) {
+        slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                        "Base entry not found: %s\n", parent_dn_str);
+        slapi_sdn_free(&parent_sdn);
+        return UPGRADE_FAILURE;
+    }
+
+    /* Check for config attributes in base entry */
+    for (size_t i = 0; pam_cfg_attrs[i] != NULL; i++) {
+        Slapi_Attr *attr = NULL;
+        if (slapi_entry_attr_find(base_entry, pam_cfg_attrs[i], &attr) == 0) {
+            Slapi_Attr *attr_copy = slapi_attr_dup(attr);
+            if (attr_copy) {
+                attrs = (Slapi_Attr **)slapi_ch_realloc((void *)attrs, sizeof(Slapi_Attr *) * (num_attrs + 1));
+                attrs[num_attrs++] = attr_copy;
+            }
+        }
+    }
+
+    /* NULL terminate discovered attribute array */
+    if (attrs) {
+        attrs = (Slapi_Attr **)slapi_ch_realloc((void *)attrs, sizeof(Slapi_Attr *) * (num_attrs + 1));
+        attrs[num_attrs] = NULL;
+    }
+
+    if (!attrs || num_attrs == 0) {
+        slapi_log_error(SLAPI_LOG_PLUGIN, "upgrade_pam_pta_default_config",
+                        "No config attributes found, nothing to do.\n");
+
+        slapi_entry_free(base_entry);
+        slapi_sdn_free(&parent_sdn);
+        return UPGRADE_SUCCESS;
+    }
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, "upgrade_pam_pta_default_config",
+                    "Detected %d config attributes in %s.\n", num_attrs, parent_dn_str);
+
+    /* Construct child entry string from attr:values discovered in the base entry */
+    char *child_dn = slapi_ch_smprintf("cn=%s,%s", child_cn_str, parent_dn_str);
+    Slapi_Entry *child_entry = NULL;
+    char *entry_string = NULL;
+    if (child_dn) {
+        entry_string = slapi_ch_smprintf("dn: %s\n"
+                                         "cn: %s\n"
+                                         "objectClass: top\n"
+                                         "objectClass: extensibleObject\n"
+                                         "objectClass: pamConfig\n",
+                                         child_dn, child_cn_str);
+
+        if (entry_string) {
+            for (size_t i = 0; attrs[i] != NULL; i++) {
+                Slapi_Attr *attr = attrs[i];
+                Slapi_Value *sval;
+                struct berval *bval;
+                char *attr_type = NULL;
+
+                slapi_attr_get_type(attr, &attr_type);
+                if (slapi_attr_first_value(attr, &sval) == 0) {
+                    if (sval) {
+                        bval = (struct berval *)slapi_value_get_berval(sval);
+                        if (bval && bval->bv_val) {
+                            char *tmp = slapi_ch_smprintf("%s%s: %s\n", entry_string, attr_type, bval->bv_val);
+                            if (tmp) {
+                                slapi_ch_free_string(&entry_string);
+                                entry_string = tmp;
+                            } else {
+                                slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                                                "Failed to create child config entry string for %s.\n", child_dn);
+                            }
+                        }
+                    }
+                }
+            }
+
+            child_entry = slapi_str2entry(entry_string, 0);
+            slapi_ch_free_string(&entry_string);
+        }
+    }
+
+    /* Create child entry */
+    if (child_entry) {
+        add_pb = slapi_pblock_new();
+        slapi_add_entry_internal_set_pb(add_pb, child_entry, NULL, plugin_get_default_component_id(), 0);
+        slapi_add_internal_pb(add_pb);
+        slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+        if (result != LDAP_SUCCESS && result != LDAP_ALREADY_EXISTS) {
+            slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                            "Failed to create child entry %s: %s\n", child_dn, ldap_err2string(result));
+
+            slapi_entry_free(child_entry);
+            slapi_pblock_destroy(add_pb);
+            return UPGRADE_FAILURE;
+        }
+    } else {
+        slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                        "Failed to create child entry %s\n", child_dn);
+
+        slapi_ch_free_string(&child_dn);
+        slapi_pblock_destroy(add_pb);
+        return UPGRADE_FAILURE;
+    }
+
+    /* Construct mods for internal delete */
+    LDAPMod **mods = (LDAPMod **)slapi_ch_calloc(1, ((num_attrs + 1) * sizeof(LDAPMod *)));
+    for (size_t i = 0; attrs[i] != NULL; i++) {
+        LDAPMod *mod = (LDAPMod *)slapi_ch_malloc(sizeof(LDAPMod));
+        Slapi_Attr *attr = attrs[i];
+        char *attr_type = NULL;
+        slapi_attr_get_type(attr, &attr_type);
+        mod->mod_op = LDAP_MOD_DELETE;
+        mod->mod_type = slapi_ch_strdup(attr_type);
+        mod->mod_values = NULL;
+        mods[i] = mod;
+    }
+    mods[num_attrs] = NULL;
+
+    mod_pb = slapi_pblock_new();
+    slapi_modify_internal_set_pb(mod_pb, parent_dn_str, mods, NULL, NULL,
+                                plugin_get_default_component_id(), 0);
+    slapi_modify_internal_pb(mod_pb);
+    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+    if (result != LDAP_SUCCESS) {
+        slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
+                    "Failed to delete config attrs from:%s\n", parent_dn_str);
+    } else {
+        slapi_log_error(SLAPI_LOG_PLUGIN, "upgrade_pam_pta_default_config",
+                    "Deleted %d config attrs from: %s\n", num_attrs, parent_dn_str);
+    }
+
+    /* Clean up */
+    for (size_t i = 0; i < num_attrs; i++) {
+        slapi_attr_free(&attrs[i]);
+        if (mods[i]) {
+            if (mods[i]->mod_type)
+                slapi_ch_free_string(&mods[i]->mod_type);
+            slapi_ch_free((void **)&mods[i]);
+        }
+    }
+
+    slapi_ch_free((void **)&attrs);
+    slapi_entry_free(base_entry);
+    slapi_sdn_free(&parent_sdn);
+    slapi_ch_free_string(&child_dn);
+    slapi_ch_free((void **)&mods);
+    slapi_pblock_destroy(mod_pb);
+
+    return UPGRADE_SUCCESS;
+}
+
+
 upgrade_status
 upgrade_server(void)
 {
@@ -361,6 +544,10 @@ upgrade_server(void)
         return UPGRADE_FAILURE;
     }
 
+    if (upgrade_pam_pta_default_config() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+    
     return UPGRADE_SUCCESS;
 }
 
