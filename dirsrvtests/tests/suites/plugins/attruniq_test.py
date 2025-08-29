@@ -20,6 +20,7 @@ pytestmark = pytest.mark.tier1
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 MAIL_ATTR_VALUE = 'non-uniq@value.net'
+MAIL_ATTR_VALUE_ALT = 'alt-mail@value.net'
 
 
 def test_modrdn_attr_uniqueness(topology_st):
