@@ -44,7 +44,7 @@ fn assign_uuid(e: &mut EntryRef) {
     let config_sdn = Sdn::try_from("cn=config").expect("Invalid static dn");
     let schema_sdn = Sdn::try_from("cn=schema").expect("Invalid static dn");
 
-    if sdn.is_below_suffix(&*config_sdn) || sdn.is_below_suffix(&*schema_sdn) {
+    if sdn.is_below_suffix(&config_sdn) || sdn.is_below_suffix(&schema_sdn) {
         // We don't need to assign to these suffixes.
         log_error!(
             ErrorLevel::Plugin,
@@ -113,7 +113,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .as_ref()
                 .try_into()
                 .map_err(|e| {
-                    log_error!(ErrorLevel::Plugin, "task_validate basedn error -> {:?}", e);
+                    log_error!(ErrorLevel::Plugin, "task_validate basedn error -> {e:?}");
                     LDAPError::Operation
                 })?,
             None => return Err(LDAPError::ObjectClassViolation),
@@ -132,7 +132,7 @@ impl SlapiPlugin3 for EntryUuid {
                 .as_ref()
                 .try_into()
                 .map_err(|e| {
-                    log_error!(ErrorLevel::Plugin, "task_validate filter error -> {:?}", e);
+                    log_error!(ErrorLevel::Plugin, "task_validate filter error -> {e:?}");
                     LDAPError::Operation
                 })?,
             None => {
@@ -166,23 +166,21 @@ impl SlapiPlugin3 for EntryUuid {
     fn task_handler(_task: &Task, data: Self::TaskData) -> Result<Self::TaskData, PluginError> {
         log_error!(
             ErrorLevel::Plugin,
-            "task_handler -> start thread with -> {:?}",
-            data
+            "task_handler -> start thread with -> {data:?}",
         );
 
         let search = Search::new_map_entry(
-            &(*data.basedn),
+            &data.basedn,
             SearchScope::Subtree,
             &data.raw_filter,
-            plugin_id(),
+            &plugin_id(),
             &(),
             entryuuid_fixup_cb,
         )
         .map_err(|e| {
             log_error!(
                 ErrorLevel::Error,
-                "task_handler -> Unable to construct search -> {:?}",
-                e
+                "task_handler -> Unable to construct search -> {e:?}",
             );
             e
         })?;
@@ -196,8 +194,7 @@ impl SlapiPlugin3 for EntryUuid {
                 // log, and return
                 log_error!(
                     ErrorLevel::Error,
-                    "task_handler -> fixup complete, failed -> {:?}",
-                    e
+                    "task_handler -> fixup complete, failed -> {e:?}",
                 );
                 Err(PluginError::GenericFailure)
             }
@@ -244,7 +241,7 @@ pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError
     mods.append(ModType::Replace, "entryUUID", values);
 
     /* */
-    let lmod = Modify::new(&sdn, mods, plugin_id())?;
+    let lmod = Modify::new(&sdn, mods, &plugin_id())?;
 
     match lmod.execute() {
         Ok(_) => {
@@ -254,9 +251,8 @@ pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError
         Err(e) => {
             log_error!(
                 ErrorLevel::Error,
-                "entryuuid_fixup_mapfn -> fixup failed -> {} {:?}",
+                "entryuuid_fixup_mapfn -> fixup failed -> {} {e:?}",
                 sdn.to_dn_string(),
-                e
             );
             Err(PluginError::GenericFailure)
         }

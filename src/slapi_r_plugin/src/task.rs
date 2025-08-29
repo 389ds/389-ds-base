@@ -6,15 +6,15 @@ use std::os::raw::c_char;
 use std::thread;
 use std::time::Duration;
 
-extern "C" {
-    fn slapi_plugin_new_task(ndn: *const c_char, arg: *const libc::c_void) -> *const libc::c_void;
-    fn slapi_task_dec_refcount(task: *const libc::c_void);
-    fn slapi_task_inc_refcount(task: *const libc::c_void);
-    fn slapi_task_get_refcount(task: *const libc::c_void) -> i32;
-    fn slapi_task_begin(task: *const libc::c_void, rc: i32);
-    fn slapi_task_finish(task: *const libc::c_void, rc: i32);
+unsafe extern "C" {
+    unsafe fn slapi_plugin_new_task(ndn: *const c_char, arg: *const libc::c_void) -> *const libc::c_void;
+    unsafe fn slapi_task_dec_refcount(task: *const libc::c_void);
+    unsafe fn slapi_task_inc_refcount(task: *const libc::c_void);
+    unsafe fn slapi_task_get_refcount(task: *const libc::c_void) -> i32;
+    unsafe fn slapi_task_begin(task: *const libc::c_void, rc: i32);
+    unsafe fn slapi_task_finish(task: *const libc::c_void, rc: i32);
 
-    fn slapi_plugin_task_register_handler(
+    unsafe fn slapi_plugin_task_register_handler(
         ident: *const c_char,
         cb: extern "C" fn(
             *const libc::c_void,
@@ -26,7 +26,7 @@ extern "C" {
         ) -> i32,
         pb: *const libc::c_void,
     ) -> i32;
-    fn slapi_plugin_task_unregister_handler(
+    unsafe fn slapi_plugin_task_unregister_handler(
         ident: *const c_char,
         cb: extern "C" fn(
             *const libc::c_void,
@@ -37,7 +37,7 @@ extern "C" {
             *const libc::c_void,
         ) -> i32,
     ) -> i32;
-    fn slapi_task_set_destructor_fn(
+    unsafe fn slapi_task_set_destructor_fn(
         task: *const libc::c_void,
         cb: extern "C" fn(*const libc::c_void),
     );
@@ -94,7 +94,7 @@ impl Task {
         let ndn = unsafe { sdn.as_ndnref() };
         let raw_task = unsafe { slapi_plugin_new_task(ndn.as_ptr(), arg) };
         unsafe { slapi_task_inc_refcount(raw_task) };
-        Task {
+        Self {
             value: TaskRef { raw_task },
         }
     }
@@ -130,8 +130,8 @@ impl Drop for Task {
 }
 
 impl TaskRef {
-    pub fn new(raw_task: *const libc::c_void) -> Self {
-        TaskRef { raw_task }
+    pub const fn new(raw_task: *const libc::c_void) -> Self {
+        Self { raw_task }
     }
 
     pub fn block(&self) {

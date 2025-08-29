@@ -23,7 +23,7 @@ impl Charray {
             .chain(once(ptr::null()))
             .collect();
 
-        Ok(Charray { _pin: pin, charray })
+        Ok(Self { _pin: pin, charray })
     }
 
     pub fn as_ptr(&self) -> *const *const c_char {

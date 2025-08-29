@@ -2,11 +2,11 @@ use crate::dn::SdnRef;
 use crate::pblock::Pblock;
 // use std::ops::Deref;
 
-extern "C" {
-    fn slapi_back_transaction_begin(pb: *const libc::c_void) -> i32;
-    fn slapi_back_transaction_commit(pb: *const libc::c_void);
-    fn slapi_back_transaction_abort(pb: *const libc::c_void);
-    fn slapi_be_select_exact(sdn: *const libc::c_void) -> *const libc::c_void;
+unsafe extern "C" {
+    unsafe fn slapi_back_transaction_begin(pb: *const libc::c_void) -> i32;
+    unsafe fn slapi_back_transaction_commit(pb: *const libc::c_void);
+    unsafe fn slapi_back_transaction_abort(pb: *const libc::c_void);
+    unsafe fn slapi_be_select_exact(sdn: *const libc::c_void) -> *const libc::c_void;
 }
 
 pub struct BackendRef {
@@ -19,11 +19,11 @@ impl BackendRef {
         if raw_be.is_null() {
             Err(())
         } else {
-            Ok(BackendRef { raw_be })
+            Ok(Self { raw_be })
         }
     }
 
-    pub(crate) fn as_ptr(&self) -> *const libc::c_void {
+    pub(crate) const fn as_ptr(&self) -> *const libc::c_void {
         self.raw_be
     }
 
@@ -63,7 +63,7 @@ impl BackendRefTxn {
 
 impl Drop for BackendRefTxn {
     fn drop(&mut self) {
-        if self.committed == false {
+        if !self.committed {
             unsafe {
                 slapi_back_transaction_abort(self.pb.as_ptr());
             }
