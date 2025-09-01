@@ -119,7 +119,10 @@ def test_fixup_task_repair_entry_erroneously_set_as_member(topology_st, prepare_
     assert not group.present('member', member.dn)
 
     log.info('Run the fixup task')
-    memberof.fixup(basedn=DEFAULT_SUFFIX)
+    task = memberof.fixup(basedn=DEFAULT_SUFFIX)
+
+    # Wait for task to complete before reading entries
+    task.wait()
 
     log.info('Verify the memberOf attribute is no longer present')
     try:
