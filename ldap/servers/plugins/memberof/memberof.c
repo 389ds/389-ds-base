@@ -1012,9 +1012,16 @@ deferred_thread_func(void *arg)
      * keep running this thread until plugin is signaled to close
      */
     g_incr_active_threadcnt();
-    if (memberof_get_config()->need_fixup && perform_needed_fixup()) {
-        slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
-                      "Failure occured during global fixup task: memberof values are invalid\n");
+    if (memberof_get_config()->need_fixup) {
+        if (memberof_get_config()->launch_fixup) {
+            if (perform_needed_fixup()) {
+                slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
+                        "Failure occurred during global fixup task: memberof values are invalid\n");
+            }
+        } else {
+            slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
+                          "It is recommended to launch memberof fixup task\n");
+        }
     }
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "deferred_thread_func - thread is starting "
