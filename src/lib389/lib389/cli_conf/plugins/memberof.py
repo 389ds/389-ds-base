@@ -23,6 +23,8 @@ arg_to_attr = {
     'scope': 'memberOfEntryScope',
     'exclude': 'memberOfEntryScopeExcludeSubtree',
     'autoaddoc': 'memberOfAutoAddOC',
+    'deferredupdate': 'memberOfDeferredUpdate',
+    'launchfixup': 'memberOfLaunchFixup',
     'config_entry': 'nsslapd-pluginConfigArea'
 }
 
@@ -119,6 +121,13 @@ def _add_parser_args(parser):
                         help='If an entry does not have an object class that allows the memberOf attribute '
                              'then the memberOf plugin will automatically add the object class listed '
                              'in the memberOfAutoAddOC parameter')
+    parser.add_argument('--deferredupdate', choices=['on', 'off'], type=str.lower,
+                        help='Specifies that the updates of the members are done after the completion '
+                             'of the update of the target group. In addition each update (group/members) '
+                             'uses its own transaction')
+    parser.add_argument('--launchfixup', choices=['on', 'off'], type=str.lower,
+                        help='Specify that if the server disorderly shutdown (crash, kill,..) then '
+                             'at restart the memberof fixup task is launched automatically')
 
 
 def create_parser(subparsers):
