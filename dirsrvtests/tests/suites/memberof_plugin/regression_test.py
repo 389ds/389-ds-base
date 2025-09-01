@@ -1291,15 +1291,19 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
     :setup: Standalone Instance
     :steps:
         1. Enable memberof plugin to scope SUFFIX
-        2. create 1000 users
-        3. Create a large groups with 500 members
+        2. create 500 users
+        3. Create a large groups with 250 members
         4. Restart the instance (using the default 2 minutes timeout)
         5. Check that users memberof and group members are in sync.
-        6. Modify the group to have 10 members.
+        6. Modify the group to have 250 others members.
         7. Restart the instance with short timeout
-        8. Check that fixup task is in progress
-        9. Wait until fixup task is completed
-        10. Check that users memberof and group members are in sync.
+        8. Check that the instance needs fixup
+        9. Check that deferred thread did not run fixup
+        10. Allow deferred thread to run fixup
+        11. Modify the group to have 250 others members.
+        12. Restart the instance with short timeout
+        13. Check that the instance needs fixup
+        14. Check that deferred thread did run fixup
     :expectedresults:
         1. should succeed
         2. should succeed
@@ -1310,13 +1314,17 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
         7. should succeed
         8. should succeed
         9. should succeed
-        10. should succeed
     """
 
     inst = topology_st.standalone
+    inst.stop()
+    lpath = inst.ds_error_log._get_log_path()
+    os.unlink(lpath)
+    inst.start()
     inst.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
     errlog = DirsrvErrorLog(inst)
     test_timeout = 900
+
 
     # Step 1. Enable memberof plugin to scope SUFFIX
     memberof = MemberOfPlugin(inst)
@@ -1338,8 +1346,8 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
     #Creates users and groups
     users_dn = []
 
-    # Step 2. create 1000 users
-    for i in range(1000):
+    # Step 2. create 500 users
+    for i in range(500):
         CN = '%s%d' % (USER_CN, i)
         users = UserAccounts(inst, SUFFIX)
         user_props = TEST_USER_PROPERTIES.copy()
@@ -1349,7 +1357,7 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
 
     # Step 3. Create a large groups with 250 members
     groups = Groups(inst, SUFFIX)
-    testgroup = groups.create(properties={'cn': 'group500', 'member': users_dn[0:249]})
+    testgroup = groups.create(properties={'cn': 'group50', 'member': users_dn[0:249]})
 
     # Step 4. Restart the instance (using the default 2 minutes timeout)
     time.sleep(10)
@@ -1363,7 +1371,7 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
     check_memberof_consistency(inst, testgroup)
 
     # Step 6. Modify the group to get another big group.
-    testgroup.replace('member', users_dn[500:999])
+    testgroup.replace('member', users_dn[250:499])
 
     # Step 7. Restart the instance with short timeout
     pattern = 'deferred_thread_func - thread has stopped'
@@ -1376,38 +1384,69 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
     nbcleanstop = len(errlog.match(pattern))
     assert nbcleanstop == original_nbcleanstop
 
-    original_nbfixupmsg = count_global_fixup_message(errlog)
     log.info(f'Instance restarted after timeout at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     inst.restart()
     assert inst.status()
     log.info(f'Restart completed at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
+    # Step 9.
     # Check that memberofneedfixup is present
-    dse = DSEldif(inst)
-    assert dse.get(memberof.dn, 'memberofneedfixup', single=True)
+    # and fixup task was not launched because by default launch_fixup is no
+    memberof = MemberOfPlugin(inst)
+    memberof.set_memberofdeferredupdate("on")
+    if (memberof.get_memberofdeferredupdate() and memberof.get_memberofdeferredupdate().lower() != "on"):
+        pytest.skip("Memberof deferred update not enabled or not supported.");
+    else:
+        delay=10
+    value = memberof.get_memberofneedfixup()
+    assert ((str(value).lower() == "yes") or (str(value).lower() == "true"))
+    assert len(errlog.match('.*It is recommended to launch memberof fixup task.*')) == 1
 
-    # Step 8. Check that fixup task is in progress
-    # Note we have to wait as there may be some delay
-    elapsed_time = 0
-    nbfixupmsg = count_global_fixup_message(errlog)
-    while nbfixupmsg[0] == original_nbfixupmsg[0]:
-        assert elapsed_time <= test_timeout
-        assert inst.status()
-        time.sleep(5)
-        elapsed_time += 5
-        nbfixupmsg = count_global_fixup_message(errlog)
+    # Step 10. allow the server to launch the fixup task
+    inst.stop()
+    inst.deleteErrorLogs()
+    inst.start()
+    log.info(f'set memberoflaunchfixup=ON')
+    memberof.set_memberoflaunchfixup('on')
+    inst.restart()
 
-    # Step 9. Wait until fixup task is completed
-    while nbfixupmsg[1] == original_nbfixupmsg[1]:
-        assert elapsed_time <= test_timeout
-        assert inst.status()
-        time.sleep(10)
-        elapsed_time += 10
-        nbfixupmsg = count_global_fixup_message(errlog)
+    # Step 11. Modify the group to get another big group.
+    testgroup.replace('member', users_dn[250:499])
 
-    # Step 10. Check that users memberof and group members are in sync.
+    # Step 12. then kill/reset errorlog/restart
+    _kill_instance(inst, sig=signal.SIGKILL, delay=5)
+    log.info(f'Instance restarted after timeout at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    inst.restart()
+    assert inst.status()
+    log.info(f'Restart completed at {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+
+    # step 13. Check that memberofneedfixup is present
+    memberof = MemberOfPlugin(inst)
+    value = memberof.get_memberofneedfixup()
+    assert ((str(value).lower() == "yes") or (str(value).lower() == "true"))
+
+    # step 14. fixup task was not launched because by default launch_fixup is no
+    assert len(errlog.match('.*It is recommended to launch memberof fixup task.*')) == 0
+
+    # Check that users memberof and group members are in sync.
     time.sleep(delay)
     check_memberof_consistency(inst, testgroup)
+
+
+    def fin():
+
+        for dn in users_dn:
+            try:
+                inst.delete_s(dn)
+            except ldap.NO_SUCH_OBJECT:
+                pass
+
+        try:
+            inst.delete_s(testgroup.dn)
+        except ldap.NO_SUCH_OBJECT:
+                pass
+
+    request.addfinalizer(fin)
 
 
 if __name__ == '__main__':
