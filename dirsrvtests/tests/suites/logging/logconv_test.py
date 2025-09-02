@@ -520,14 +520,14 @@ class TestLogconv:
         logconv_stats = self.extract_logconv_stats(output)
         assert self.validate_logconv_stats(expected, logconv_stats, "test_paged_search")
 
-    def test_persistant_search(self):
-        """Validate persistant search operation stats reported by logconv.
+    def test_persistent_search(self):
+        """Validate persistent search operation stats reported by logconv.
 
         :id: a0552c17-d70a-4fe2-b4af-9292d4862da6
         :setup: Standalone Instance
         :steps:
             1. Truncate access log
-            2. Run a persistant search
+            2. Run a persistent search
             3. Run logconv and compare stats
         :expectedresults:
             1. Success
@@ -555,7 +555,7 @@ class TestLogconv:
         time.sleep(2)
         output = self.run_logconv()
         logconv_stats = self.extract_logconv_stats(output)
-        assert self.validate_logconv_stats(expected, logconv_stats, "test_persistant_search")
+        assert self.validate_logconv_stats(expected, logconv_stats, "test_persistent_search")
 
 
     def test_simple_bind(self):
