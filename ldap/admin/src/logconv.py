@@ -2955,16 +2955,26 @@ def main():
             sys.exit(1)
 
         # Sort by creation time
-        existing_logs.sort(key=lambda x: os.path.getctime(x))
-        # We shoud never reach here, if we do put "access" and the end of the log file list
-        if 'access' in existing_logs:
-            existing_logs.append(existing_logs.pop(existing_logs.index('access')))
+        access_logs = []
+        access_log_name = ""
+        for log_path in existing_logs:
+            log_name = log_path.rsplit('/', 1)[-1]
+            if 'access' in log_name:
+                access_logs.append(log_path)
+                if 'access' == log_name:
+                    access_log_name = log_path
 
-        num_logs = len(existing_logs)
+        access_logs.sort(key=lambda x: os.path.getctime(x))
+
+        # Put partial/current log at the end of the list as it's the newest log
+        if access_log_name in access_logs:
+            access_logs.append(access_logs.pop(access_logs.index(access_log_name)))
+
+        num_logs = len(access_logs)
         print(f"Processing {num_logs} access log{'s' if num_logs > 1 else ''}...\n")
 
         # File processing loop
-        for (num, accesslog) in enumerate(existing_logs, start=1):
+        for (num, accesslog) in enumerate(access_logs, start=1):
             if os.path.isfile(accesslog):
                 db.process_file(num, accesslog)
             else:
