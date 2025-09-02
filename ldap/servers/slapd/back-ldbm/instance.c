@@ -38,7 +38,7 @@ ldbm_instance_create(backend *be, char *name)
     inst->inst_name = slapi_ch_strdup(name);
 
     /* initialize the entry cache */
-    if (!cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
+    if (!cache_init(&(inst->inst_cache), inst, DEFAULT_CACHE_SIZE,
                     DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "cache_init failed\n");
         rc = -1;
@@ -49,7 +49,7 @@ ldbm_instance_create(backend *be, char *name)
      * initialize the dn cache
      * It is needed when converting the db from DN to RDN format.
      */
-    if (!cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
+    if (!cache_init(&(inst->inst_dncache), inst, DEFAULT_DNCACHE_SIZE,
                     DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_instance_create", "dn cache_init failed\n");

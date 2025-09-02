@@ -145,6 +145,7 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_CACHE_SIZE       (uint64_t)0
 #define DEFAULT_CACHE_SIZE_STR   "0"
 #define DEFAULT_CACHE_ENTRIES    -1 /* no limit */
+#define DEFAULT_CACHE_PINNED_ENTRIES_STR "0"
 #define DEFAULT_DNCACHE_SIZE     (uint64_t)16777216
 #define DEFAULT_DNCACHE_SIZE_STR "16777216"
 #define DEFAULT_DNCACHE_MAXCOUNT -1 /* no limit */
@@ -319,6 +320,8 @@ struct backcommon
 #define ENTRY_STATE_CREATING   0x2  /* entry is being created; don't touch it */
 #define ENTRY_STATE_NOTINCACHE 0x4  /* cache_add failed; not in the cache */
 #define ENTRY_STATE_INVALID    0x8  /* cache entry is invalid and needs to be removed */
+#define ENTRY_STATE_UNAVAILABLE 0xf /* entry is not fully created or is deleted */
+#define ENTRY_STATE_PINNED     0x10 /* cache entry is pinned (never removed by the lru) */
     int32_t ep_refcnt;              /* entry reference cnt */
     size_t ep_size;                 /* for cache tracking */
     struct timespec ep_create_time; /* the time the entry was added to the cache */
@@ -341,6 +344,7 @@ struct backentry
     void *ep_id_link;               /*     tables used for */
     void *ep_uuid_link;             /*     looking up entries */
     PRMonitor *ep_mutexp;           /* protection for mods; make it reentrant */
+    uint64_t ep_weight;             /* for cache eviction */
 };
 
 /* From ep_type through ep_create_time MUST be identical to backcommon */
@@ -358,24 +362,38 @@ struct backdn
     void *dn_id_link;               /* for hash table */
 };
 
+/* Entry Cache statistics */
+struct cache_stats
+{
+    uint64_t hits;            /* for analysis of hits/misses */
+    uint64_t tries;
+    uint64_t nentries;        /* current # entries in cache */
+    int64_t  maxentries;      /* max entries allowed (-1: no limit) */
+    uint64_t size;            /* current size in bytes */
+    uint64_t maxsize;         /* max size in bytes */
+    uint64_t weight;          /* total weight of all entries */
+    uint64_t nehw;            /* current # entries having weight in cache */
+                              /* weight/nehw is the average time in
+                               * microseconds needed to load an entry
+                               * in the cache
+                               */
+};
+
 /* for the in-core cache of entries */
 struct cache
 {
-    uint64_t c_maxsize;       /* max size in bytes */
-    Slapi_Counter *c_cursize; /* size in bytes */
-    int64_t c_maxentries;     /* max entries allowed (-1: no limit) */
-    uint64_t c_curentries;    /* current # entries in cache */
     Hashtable *c_dntable;
     Hashtable *c_idtable;
 #ifdef UUIDCACHE_ON
     Hashtable *c_uuidtable;
 #endif
-    Slapi_Counter *c_hits; /* for analysis of hits/misses */
-    Slapi_Counter *c_tries;
     struct backcommon *c_lruhead; /* add entries here */
     struct backcommon *c_lrutail; /* remove entries here */
     PRMonitor *c_mutex;           /* lock for cache operations */
     PRLock *c_emutexalloc_mutex;
+    struct cache_stats c_stats;
+    struct ldbm_instance *c_inst;
+    struct pinned_ctx  *c_pinned_ctx; /* Pinned entries handler context */
 };
 
 #define CACHE_ADD(cache, p, a) cache_add((cache), (void *)(p), (void **)(a))
@@ -383,6 +401,9 @@ struct cache
 #define CACHE_REMOVE(cache, p) cache_remove((cache), (void *)(p))
 #define CACHE_LOCK(cache)      cache_lock((cache))
 #define CACHE_UNLOCK(cache)    cache_unlock((cache))
+
+/* For backentry_compute_weight implementation */
+typedef struct timespec BackEntryWeightData;
 
 /* various modules keep private data inside the attrinfo structure */
 typedef struct dblayer_private     dblayer_private;
@@ -785,6 +806,11 @@ typedef struct ldbm_instance
     int require_index;               /* set to 1 to require an index be used in search */
     int require_internalop_index;    /* set to 1 to require an index be used in an internal search */
     struct cache inst_dncache;       /* The dn cache for this instance. */
+    int cache_pinned_entries;        /* Number of entries to preserve during cache eviction */
+    char *cache_debug_pattern;       /* Entries whose dn matche this pattern are logged as INFO
+                                      * when they get added/removed from entry cache
+                                      */
+    Slapi_Regex *cache_debug_re;     /* Compiled version of cache_debug_pattern */
 } ldbm_instance;
 
 /*
