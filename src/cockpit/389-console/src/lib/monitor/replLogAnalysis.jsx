@@ -182,6 +182,10 @@ export class ReplLogAnalysis extends React.Component {
 
         // Add toggle method for accordions
         this.toggleAccordion = this.toggleAccordion.bind(this);
+
+        // Ref for focusing the path input in the file browser
+        this.pathInputRef = React.createRef();
+        this.focusPathInput = this.focusPathInput.bind(this);
     }
 
     componentDidMount() {
@@ -464,7 +468,12 @@ export class ReplLogAnalysis extends React.Component {
         if (this.state.reportName.trim()) {
             dirName = this.state.reportName.trim();
         } else {
-            dirName = `repl_report_${Date.now()}`;
+            // Human-readable local timestamp: YYYY-MM-DD_HH-MM-SS
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const human = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+                `_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+            dirName = `repl_report_${human}`;
         }
 
         if (this.state.useCustomOutputDir && this.state.customOutputDir) {
@@ -735,6 +744,9 @@ export class ReplLogAnalysis extends React.Component {
                         isLoading: false,
                         recentDirectories: recentDirs
                     };
+                }, () => {
+                    // After updating directory view, return focus to the path input
+                    this.focusPathInput();
                 });
             })
             .catch(error => {
@@ -753,6 +765,22 @@ export class ReplLogAnalysis extends React.Component {
             this.browseDirectory(parentPath);
         } else {
             this.browseDirectory('/');
+        }
+    }
+
+    focusPathInput() {
+        // Focus the file browser path input if available
+        if (this.pathInputRef && this.pathInputRef.current) {
+            try {
+                const el = this.pathInputRef.current;
+                el.focus();
+                if (typeof el.setSelectionRange === 'function') {
+                    const len = (el.value || '').length;
+                    el.setSelectionRange(len, len);
+                }
+            } catch (e) {
+                // ignore focus errors
+            }
         }
     }
 
@@ -1003,33 +1031,32 @@ export class ReplLogAnalysis extends React.Component {
         });
     }
 
-    handleStartDateChange(event, inputDate, newDate) {
+    handleStartDateChange(event, value, date) {
         const errors = { ...this.state.errors };
         errors.startDate = "";
 
-        if (isValidDate(this.state.startDate) && isValidDate(newDate) && inputDate === yyyyMMddFormat(newDate)) {
-            // Preserve time when changing date
-            newDate.setHours(this.state.startDate.getHours());
-            newDate.setMinutes(this.state.startDate.getMinutes());
-            newDate.setSeconds(this.state.startDate.getSeconds());
-        }
+        const picked = (date && isValidDate(date)) ? new Date(date) : (value ? new Date(value) : null);
 
-        if (isValidDate(newDate) && inputDate === yyyyMMddFormat(newDate)) {
-            // Check if end date is before start date
-            if (this.state.endDate && newDate > this.state.endDate) {
-                errors.startDate = _("Start date cannot be after end date");
+        if (picked && isValidDate(picked)) {
+            // Preserve prior time component if present
+            if (isValidDate(this.state.startDate)) {
+                picked.setHours(this.state.startDate.getHours());
+                picked.setMinutes(this.state.startDate.getMinutes());
+                picked.setSeconds(this.state.startDate.getSeconds());
             }
 
-            this.setState({
-                startDate: new Date(newDate),
-                errors
-            });
-        } else if (!inputDate) {
+            if (this.state.endDate) {
+                if (picked > this.state.endDate) {
+                    errors.startDate = _("Start date cannot be after end date");
+                } else {
+                    errors.endDate = "";
+                }
+            }
+
+            this.setState({ startDate: picked, errors });
+        } else if (!value) {
             // Clear the date if input is empty
-            this.setState({
-                startDate: null,
-                errors
-            });
+            this.setState({ startDate: null, errors });
         }
     }
 
@@ -1045,8 +1072,12 @@ export class ReplLogAnalysis extends React.Component {
             updatedDate.setSeconds(second || 0);
 
             // Check if end date is before start date
-            if (this.state.endDate && updatedDate > this.state.endDate) {
-                errors.startDate = _("Start time cannot be after end time");
+            if (this.state.endDate) {
+                if (updatedDate > this.state.endDate) {
+                    errors.startDate = _("Start time cannot be after end time");
+                } else {
+                    errors.endDate = "";
+                }
             }
 
             this.setState({
@@ -1056,33 +1087,32 @@ export class ReplLogAnalysis extends React.Component {
         }
     }
 
-    handleEndDateChange(event, inputDate, newDate) {
+    handleEndDateChange(event, value, date) {
         const errors = { ...this.state.errors };
         errors.endDate = "";
 
-        if (isValidDate(this.state.endDate) && isValidDate(newDate) && inputDate === yyyyMMddFormat(newDate)) {
-            // Preserve time when changing date
-            newDate.setHours(this.state.endDate.getHours());
-            newDate.setMinutes(this.state.endDate.getMinutes());
-            newDate.setSeconds(this.state.endDate.getSeconds());
-        }
+        const picked = (date && isValidDate(date)) ? new Date(date) : (value ? new Date(value) : null);
 
-        if (isValidDate(newDate) && inputDate === yyyyMMddFormat(newDate)) {
-            // Check if end date is before start date
-            if (this.state.startDate && newDate < this.state.startDate) {
-                errors.endDate = _("End date cannot be before start date");
+        if (picked && isValidDate(picked)) {
+            // Preserve prior time component if present
+            if (isValidDate(this.state.endDate)) {
+                picked.setHours(this.state.endDate.getHours());
+                picked.setMinutes(this.state.endDate.getMinutes());
+                picked.setSeconds(this.state.endDate.getSeconds());
             }
 
-            this.setState({
-                endDate: new Date(newDate),
-                errors
-            });
-        } else if (!inputDate) {
+            if (this.state.startDate) {
+                if (picked < this.state.startDate) {
+                    errors.endDate = _("End date cannot be before start date");
+                } else {
+                    errors.startDate = "";
+                }
+            }
+
+            this.setState({ endDate: picked, errors });
+        } else if (!value) {
             // Clear the date if input is empty
-            this.setState({
-                endDate: null,
-                errors
-            });
+            this.setState({ endDate: null, errors });
         }
     }
 
@@ -1098,8 +1128,12 @@ export class ReplLogAnalysis extends React.Component {
             updatedDate.setSeconds(second || 0);
 
             // Check if end date is before start date
-            if (this.state.startDate && updatedDate < this.state.startDate) {
-                errors.endDate = _("End time cannot be before start time");
+            if (this.state.startDate) {
+                if (updatedDate < this.state.startDate) {
+                    errors.endDate = _("End time cannot be before start time");
+                } else {
+                    errors.startDate = "";
+                }
             }
 
             this.setState({
@@ -1108,6 +1142,8 @@ export class ReplLogAnalysis extends React.Component {
             });
         }
     }
+
+
 
     formatDateTimeForCommand(date) {
         if (!date || !isValidDate(date)) return "";
@@ -1510,6 +1546,7 @@ export class ReplLogAnalysis extends React.Component {
                                                                     placeholder="YYYY-MM-DD"
                                                                 />
                                                             </InputGroupItem>
+
                                                             <InputGroupItem>
                                                                 <TimePicker
                                                                     time={startDate ?
@@ -1548,9 +1585,10 @@ export class ReplLogAnalysis extends React.Component {
                                                                     aria-label="End date"
                                                                     placeholder="YYYY-MM-DD"
                                                                     rangeStart={startDate}
-                                                                    isDisabled={!startDate}
+                                                                    isDisabled={false}
                                                                 />
                                                             </InputGroupItem>
+
                                                             <InputGroupItem>
                                                                 <TimePicker
                                                                     time={endDate ?
@@ -1989,6 +2027,7 @@ export class ReplLogAnalysis extends React.Component {
                                     value={currentPath}
                                     type="text"
                                     aria-label="Current path"
+                                    ref={this.pathInputRef}
                                     onChange={this.handlePathInputChange}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
