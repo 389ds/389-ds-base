@@ -611,7 +611,8 @@ class AttributeUniqueness extends React.Component {
                     console.info("attrUniqOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        cockpit.format(_("The $0 operation was successfully done on \"$1\" entry"), action, configName)
+                        cockpit.format("The $0 operation was successfully done on \"$1\" entry, please restart the instance for these changes to take effect.",
+                                       action, configName)
                     );
                     this.loadConfigs();
                     this.handleCloseModal();

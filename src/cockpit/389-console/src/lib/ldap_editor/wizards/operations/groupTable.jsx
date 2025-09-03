@@ -13,7 +13,8 @@ import {
     Tbody,
     Tr,
     Th,
-    Td
+    Td,
+    ActionsColumn,
 } from '@patternfly/react-table';
 
 const _ = cockpit.gettext;
@@ -38,7 +39,7 @@ class GroupTable extends React.Component {
         this.handleSetPage = (_event, pageNumber) => {
             this.setState({
                 page: pageNumber,
-                pagedRows: this.getRowsToShow(pageNumber, this.state.perPage)
+                pagedRows: this.getRowsToShow(this.state.rows, pageNumber, this.state.perPage)
             });
         };
 
@@ -46,7 +47,7 @@ class GroupTable extends React.Component {
             this.setState({
                 perPage,
                 page: 1,
-                pagedRows: this.getRowsToShow(1, perPage)
+                pagedRows: this.getRowsToShow(this.state.rows, 1, perPage)
             });
         };
 
@@ -74,14 +75,14 @@ class GroupTable extends React.Component {
         this.setState({
             rows,
             columns,
-            pagedRows: this.getRowsToShow(1, this.state.perPage)
+            pagedRows: this.getRowsToShow(rows, 1, this.state.perPage)
         });
     }
 
-    getRowsToShow = (page, perPage) => {
+    getRowsToShow = (rows, page, perPage) => {
         const start = (page - 1) * perPage;
         const end = page * perPage;
-        return this.state.rows.slice(start, end);
+        return rows.slice(start, end);
     };
 
     handleSearchChange(event, value) {
@@ -103,7 +104,7 @@ class GroupTable extends React.Component {
             rows,
             value,
             page: 1,
-            pagedRows: this.getRowsToShow(1, this.state.perPage)
+            pagedRows: this.getRowsToShow(rows, 1, this.state.perPage)
         });
     }
 
@@ -126,7 +127,7 @@ class GroupTable extends React.Component {
             },
             rows,
             page: 1,
-            pagedRows: this.getRowsToShow(1, this.state.perPage)
+            pagedRows: this.getRowsToShow(rows, 1, this.state.perPage)
         });
     }
 
@@ -135,12 +136,12 @@ class GroupTable extends React.Component {
         if (rowData.cells.length === 1 && rowData.cells[0] === _("No Members")) {
             return [];
         }
-        
+
         // Only return actions for valid rows
         if (!rowData.cells) {
             return [];
         }
-        
+
         return [
             {
                 title: _("View Entry"),
@@ -181,15 +182,17 @@ class GroupTable extends React.Component {
                 <Table aria-label="group table" variant="compact">
                     <Thead>
                         <Tr>
+                            <Th screenReaderText="Selector" />
                             <Th
                                 sort={{
                                     sortBy,
                                     onSort: this.handleSort,
-                                    columnIndex: 0
+                                    columnIndex: 1
                                 }}
                             >
                                 {columns[0].title}
                             </Th>
+                            <Th screenReaderText="Actions" />
                         </Tr>
                     </Thead>
                     <Tbody>
@@ -202,11 +205,16 @@ class GroupTable extends React.Component {
                                             this.props.onSelectMember(row.cells[0], isSelecting);
                                         },
                                         isSelected: row.selected,
-                                        disable: row.disableSelection
+                                        isDisabled: row.disableSelection
                                     }}
-                                    actions={this.getActionsForRow(row)}
-                                >
+                                />
+                                <Td>
                                     {row.cells[0]}
+                                </Td>
+                                <Td isActionCell>
+                                    <ActionsColumn
+                                        items={this.getActionsForRow(row)}
+                                    />
                                 </Td>
                             </Tr>
                         ))}
