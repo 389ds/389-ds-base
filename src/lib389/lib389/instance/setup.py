@@ -352,9 +352,9 @@ class SetupDs(object):
                     continue
 
                 # Check that valid characters are used
-                safe = re.compile(r'^[#%:\w@_-]+$').search
+                safe = re.compile(r'^(?!-)[#%:\w@_-]+$').search
                 if not bool(safe(val)):
-                    print("Server identifier has invalid characters, please choose a different value")
+                    print("Server identifier has invalid characters or starts with a dash, please choose a different value")
                     continue
 
                 # Check if server id is taken
