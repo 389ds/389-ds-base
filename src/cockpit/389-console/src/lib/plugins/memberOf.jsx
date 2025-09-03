@@ -960,7 +960,6 @@ class MemberOf extends React.Component {
 
         if (this.props.rows.length > 0) {
             const pluginRow = this.props.rows.find(row => row.cn[0] === "MemberOf Plugin");
-
             this.setState({
                 memberOfAttr:
                     pluginRow.memberofattr === undefined
@@ -1665,7 +1664,7 @@ class MemberOf extends React.Component {
                                 >
                                     <FormSelectOption key="no_setting" value="" label="-" />
                                     {this.props.objectClasses.map((attr) => (
-                                        <FormSelectOption key={attr} value={attr} label={attr} />
+                                        <FormSelectOption key={attr} value={attr.toLowerCase()} label={attr} />
                                     ))}
                                 </FormSelect>
                             </GridItem>
