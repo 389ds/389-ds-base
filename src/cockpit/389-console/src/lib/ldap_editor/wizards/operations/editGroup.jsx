@@ -115,9 +115,10 @@ class EditGroup extends React.Component {
         this.getEntries = () => {
             const baseDn = this.state.usersSearchBaseDn;
             const pattern = this.state.searchPattern;
+            const coreFilter = '(|(objectClass=person)(objectClass=nsPerson)(objectClass=nsAccount)(objectClass=nsOrgPerson)(objectClass=posixAccount)(objectClass=groupOfNames)(objectClass=groupOfUniqueNames)(objectClass=posixGroup))'
             const filter = pattern === '' || pattern === '*'
-                ? '(|(objectClass=person)(objectClass=nsPerson)(objectClass=nsAccount)(objectClass=nsOrgPerson)(objectClass=posixAccount))'
-                : `(&(|(objectClass=person)(objectClass=nsPerson)(objectClass=nsAccount)(objectClass=nsOrgPerson)(objectClass=posixAccount))(|(cn=*${pattern}*)(uid=*${pattern}*)))`;
+                ? coreFilter
+                : '(&' + coreFilter + `(|(cn=*${pattern}*)(uid=*${pattern}*)))`;
             const attrs = 'dn';
 
             const params = {
@@ -137,6 +138,11 @@ class EditGroup extends React.Component {
                         dnLine = decoded[1];
                     } else {
                         dnLine = dnLine.substring(4);
+                    }
+
+                    if (dnLine === props.groupdn) {
+                        // Don't list our own group
+                        return "skip";
                     }
 
                     // Is this dn already chosen?

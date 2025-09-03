@@ -79,7 +79,7 @@ export class CreateInstanceModal extends React.Component {
     }
 
     validInstName(name) {
-        return /^[\w@_:-]*$/.test(name);
+        return /^(?!-)[\w#%@_:-]*$/.test(name);
     }
 
     validRootDN(dn) {
@@ -118,7 +118,7 @@ export class CreateInstanceModal extends React.Component {
             } else if (!this.validInstName(this.state.createServerId)) {
                 all_good = false;
                 errObj.createServerId = true;
-                createServerIdMsg = _("Instance name can only contain letters, numbers, and these 4 characters:  - @ : _");
+                createServerIdMsg = _("Instance name can only contain letters, numbers, and these characters: % # - @ : _");
             }
         }
 
@@ -410,7 +410,9 @@ export class CreateInstanceModal extends React.Component {
             >
                 <div className={loadingCreate ? "ds-disabled" : ""}>
                     <Form isHorizontal autoComplete="off">
-                        <Grid className="ds-margin-top" title={_("The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and: # @ : - _")}>
+                        <Grid className="ds-margin-top"
+                            title={_("The instance name, this is what gets appended to 'slapd-'. The instance name can only contain letters, numbers, and: # % @ : - _")}
+                        >
                             <GridItem className="ds-label" span={4}>
                                 {_("Instance Name")}
                             </GridItem>
