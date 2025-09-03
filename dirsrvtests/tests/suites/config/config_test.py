@@ -524,6 +524,7 @@ def test_require_index(topo):
 
     db_cfg = DatabaseConfig(topo.standalone)
     db_cfg.set([('nsslapd-idlistscanlimit', '100')])
+    topo.standalone.restart()
 
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     for i in range(101):
@@ -568,6 +569,7 @@ def test_require_internal_index(topo):
     # Create a bunch of users
     db_cfg = DatabaseConfig(topo.standalone)
     db_cfg.set([('nsslapd-idlistscanlimit', '100')])
+    topo.standalone.restart()
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     for i in range(102, 202):
         users.create_test_user(uid=i)
