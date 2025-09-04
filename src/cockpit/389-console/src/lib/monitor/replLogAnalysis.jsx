@@ -64,6 +64,8 @@ import {
     FolderCloseIcon,
 } from "@patternfly/react-icons";
 import { LagReportModal, ChooseLagReportModal } from "./monitorModals.jsx";
+import "@patternfly/patternfly/patternfly-charts.css";
+import "@patternfly/patternfly/patternfly-charts-theme-dark.css";
 
 const _ = cockpit.gettext;
 
@@ -468,12 +470,11 @@ export class ReplLogAnalysis extends React.Component {
         if (this.state.reportName.trim()) {
             dirName = this.state.reportName.trim();
         } else {
-            // Human-readable local timestamp: YYYY-MM-DD_HH-MM-SS
+            // ISO 8601 timestamp for sorting, plus random suffix for uniqueness
             const now = new Date();
-            const pad = (n) => String(n).padStart(2, '0');
-            const human = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
-                `_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-            dirName = `repl_report_${human}`;
+            const iso = now.toISOString().replace(/:/g, '-').replace(/\..+/, ''); // e.g. 2024-06-11T14-23-45
+            const randomSuffix = Math.random().toString(36).slice(2, 8); // 6-char random string
+            dirName = `repl_report_${iso}_${randomSuffix}`;
         }
 
         if (this.state.useCustomOutputDir && this.state.customOutputDir) {

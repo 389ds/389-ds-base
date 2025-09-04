@@ -1265,6 +1265,9 @@ class ScatterLineChart extends React.Component {
         const safeWidth = Math.max(width, 10);
         const safeHeight = 400;
 
+        // Count visible series for the legend toggle button badge
+        const visibleSeriesCount = series.filter((s, idx) => !this.state.hiddenSeries[idx]).length;
+
         return (
             <div ref={this.containerRef}>
                 <div style={{ height: safeHeight + 'px' }}>
@@ -1395,7 +1398,13 @@ class ScatterLineChart extends React.Component {
                     </Chart>
                 </div>
                 <div className="ds-margin-top-sm" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button variant="link" isSmall onClick={() => this.setState({ showLegend: !this.state.showLegend })}>
+                    <Button
+                        variant="link"
+                        isSmall
+                        aria-pressed={this.state.showLegend}
+                        countOptions={{ isRead: true, count: visibleSeriesCount }}
+                        onClick={() => this.setState({ showLegend: !this.state.showLegend })}
+                    >
                         {this.state.showLegend ? _("Hide legend") : _("Show legend")}
                     </Button>
                 </div>
@@ -1403,14 +1412,21 @@ class ScatterLineChart extends React.Component {
                     <div className="ds-margin-top-sm">
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--pf-v5-global--spacer--md)' }}>
                             {series.map((s, idx) => (
-                                <div
+                                <button
                                     key={`legend-${idx}`}
-                                    role="button"
-                                    tabIndex={0}
+                                    type="button"
                                     aria-pressed={!this.state.hiddenSeries[idx]}
                                     onClick={() => this.toggleLegendItem(idx)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.toggleLegendItem(idx); } }}
-                                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', opacity: this.state.hiddenSeries[idx] ? 0.4 : 1 }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        opacity: this.state.hiddenSeries[idx] ? 0.4 : 1,
+                                        border: 'none',
+                                        background: 'none',
+                                        padding: 0,
+                                        margin: 0
+                                    }}
                                 >
                                     <span
                                         aria-hidden="true"
@@ -1426,7 +1442,7 @@ class ScatterLineChart extends React.Component {
                                     <span style={{ color: 'var(--pf-v5-chart-global--label--Fill, currentColor)', fontSize: 14 }}>
                                         {s.legendItem?.name || s.name || `Series ${idx + 1}`}
                                     </span>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </div>

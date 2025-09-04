@@ -771,7 +771,7 @@ class VisualizationHelper:
                     f"Lag Time: {lag_val:.3f}s<br>"
                     f"Duration: {duration_val:.3f}s<br>"
                     f"Suffix: {suffix_val}<br>"
-                    f"Entry: {rec.get('target_dn', '')}"
+                    f"Entry: {(rec.get('target_dn') or 'unknown')}"
                 )
 
         # Convert the dict-of-lists into your namedtuple-based ChartData
@@ -1127,8 +1127,8 @@ class ReplicationLogAnalyzer:
                     f"Consumer: {hop.get('consumer','unknown')}<br>"
                     f"Hop Lag: {hop_lag:.3f}s<br>"
                     f"Arrival Time: {consumer_dt}<br>"
-                    f"Suffix: {hop.get('suffix','unknown')}<br>"
-                    f"Entry: {hop.get('target_dn','')}"
+                    f"Suffix: {(hop.get('suffix') or 'unknown')}<br>"
+                    f"Entry: {(hop.get('target_dn') or 'unknown')}"
                 )
 
                 # showlegend=False means these hop-lag traces won't crowd the legend
@@ -1572,7 +1572,7 @@ class ReplicationLogAnalyzer:
                     f"Target: {target}<br>"
                     f"Hop Lag: {hop_info['hop_lag']:.3f}s<br>"
                     f"Suffix: {hop_info.get('suffix','unknown')}<br>"
-                    f"Entry: {hop_info.get('target_dn','')}"
+                    f"Entry: {(hop_info.get('target_dn') or 'unknown')}"
                 )
 
         # Generate color palette for hop data
@@ -1599,7 +1599,11 @@ class ReplicationLogAnalyzer:
                     "name": key,
                     "x": timestamp,
                     "y": lag_value,
-                    "hoverInfo": hover_text
+                    "hoverInfo": (
+                        hover_text
+                        .replace("Suffix: None", "Suffix: unknown")
+                        .replace("Entry: None", "Entry: unknown")
+                    )
                 })
 
             # Add to hop series
