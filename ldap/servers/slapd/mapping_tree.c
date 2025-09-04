@@ -1189,10 +1189,12 @@ mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
                 node->mtn_referral_entry = referral2entry(referral, subtree);
             } else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
                 /* it is not OK to delete the referrals if they are still
-                 * used
-                 */
-                if ((node->mtn_state == MTN_REFERRAL) ||
-                    (node->mtn_state == MTN_REFERRAL_ON_UPDATE)) {
+                 * used */
+                Slapi_Attr *ref_attr = NULL;
+                if (((node->mtn_state == MTN_REFERRAL) ||
+                    (node->mtn_state == MTN_REFERRAL_ON_UPDATE)) &&
+                    !slapi_entry_attr_find(entryAfter, "nsslapd-referral", &ref_attr)) {
+
                     PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                                 "cannot delete referrals in this state\n");
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
