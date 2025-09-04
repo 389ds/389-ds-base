@@ -568,7 +568,7 @@ def set_per_backend_cl(inst, basedn, log, args):
     did_something = False
 
     if (is_replica_role_consumer(inst, suffix)):
-        log.info("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
+        log.error("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
 
     if args.encrypt:
         cl.replace('nsslapd-encryptionalgorithm', 'AES')
@@ -601,7 +601,7 @@ def get_per_backend_cl(inst, basedn, log, args):
     suffix = args.suffix
 
     if (is_replica_role_consumer(inst, suffix)):
-        log.info("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
+        log.error("Warning: Changelogs are not supported for consumer replicas. You may run into undefined behavior.")
 
     cl = Changelog(inst, suffix)
     if args and args.json:
@@ -710,10 +710,10 @@ def del_repl_manager(inst, basedn, log, args):
 
     log.info("Successfully deleted replication manager: " + manager_dn)
 
-def is_replica_role_consumer(inst, suffix): 
-    """Helper function for get_per_backend_cl and set_per_backend_cl. 
-    Makes sure the instance in question is not a consumer, which is a role that 
-    does not support changelogs. 
+def is_replica_role_consumer(inst, suffix):
+    """Helper function for get_per_backend_cl and set_per_backend_cl.
+    Makes sure the instance in question is not a consumer, which is a role that
+    does not support changelogs.
     """
     replicas = Replicas(inst)
     try:
