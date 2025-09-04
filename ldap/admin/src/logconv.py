@@ -397,6 +397,11 @@ class logAnalyser:
         self.regexes = self._setup_legacy_regexes()
         self.json_handlers = self._setup_json_handlers()
 
+    def close(self):
+        if self._stats_file_handle:
+            self._stats_file_handle.close()
+            self._stats_file_handle = None
+
     def _setup_csv_writer(self, stats_file: str):
         """
         Initialize a CSV writer for statistics reporting.
@@ -829,6 +834,7 @@ class logAnalyser:
                 self.logger.error(f"Malformed JSON line: {line}")
                 return False
 
+            timestamp_dt = None
             timestamp_raw = log_entry.get("local_time")
             if timestamp_raw:
                 try:
@@ -841,8 +847,8 @@ class logAnalyser:
                     self.logger.error(f"Failed to convert timestamp to datetime: {timestamp_raw} - {e}")
                     return False
 
-            if not self._is_timestamp_in_range(timestamp_dt):
-                self.logger.debug(f"Timestamp {timestamp_dt} is out of range. Skipping line.")
+            if timestamp_dt is not None and not self._is_timestamp_in_range(timestamp_dt):
+                self.logger.debug(f"Timestamp {timestamp_dt} is out of range or not present. Skipping line.")
                 return False
 
             operation = log_entry.get("operation")
@@ -1009,41 +1015,55 @@ class logAnalyser:
 
         return default
 
-    def build_op_scope_key(self, conn_scope_key, op_id):
+    def normalise_conn_scope_key(self, conn_scope_key):
         """
-        Build a flat operation scoped key from a connection scoped key and operation ID.
+        Normalise a connection scoped key into a standard tuple.
 
         Args:
             conn_scope_key (str | tuple): Either a legacy tuple (restart, conn_id),
-                                        or a new-format string like "1231231-2".
+            or a JSON format string "1693845600123456-42".
+
+        Returns:
+            tuple(int, int): A tuple of integers (restart or timestamp, conn_id).
+        """
+        # Legacy tuple
+        if isinstance(conn_scope_key, tuple) and len(conn_scope_key) == 2:
+            restart, conn_id = conn_scope_key
+            return int(restart), int(conn_id)
+
+        # JSON string "1752513029-3"
+        if isinstance(conn_scope_key, str) and "-" in conn_scope_key:
+            timestamp_str, conn_id_str = conn_scope_key.split("-", 1)
+            return int(timestamp_str), int(conn_id_str)
+
+        raise ValueError(f"Invalid conn_scope_key format: {conn_scope_key}")
+
+    def build_op_scope_key(self, conn_scope_key, op_id):
+        """
+        Build a flat, operation-scoped key from a normalised connection scoped key and operation ID.
+
+        Args:
+            conn_scope_key (tuple): A tuple identifying the connection, either:
+                - Legacy format: (restart_count, conn_id)
+                - JSON format: (timestamp, conn_id)
             op_id (int | str): The operation ID associated with this log entry.
 
         Returns:
-            tuple: A flattened tuple of the form (restart, conn_id, op_id) that
-                uniquely identifies an operation.
+            tuple: A tuple (restart_or_unique_id, conn_id, op_id) that uniquely
+            identifies an operation.
 
         Raises:
-            ValueError: If the input format is invalid or op_id is None.
+            ValueError: If op_id is None.
+            TypeError: If conn_scope_key is not a tuple of length 2.
         """
         if op_id is None:
             raise ValueError("op_id cannot be None")
 
-        # Convert op_id to int if needed
-        op_id = int(op_id)
+        if not (isinstance(conn_scope_key, tuple)) and len(conn_scope_key) == 2:
+            raise TypeError("conn_scope_key must be a tuple (restart, conn_id)")
 
-        # Legacy format
-        if isinstance(conn_scope_key, tuple) and len(conn_scope_key) == 2:
-            restart, conn_id = conn_scope_key
-            return (restart, conn_id, op_id)
-
-        # New format: string like "1231231-2"
-        if isinstance(conn_scope_key, str) and '-' in conn_scope_key:
-            parts = conn_scope_key.split('-')
-            if len(parts) == 2 and all(part.isdigit() for part in parts):
-                restart, conn_id = map(int, parts)
-                return (restart, conn_id, op_id)
-
-        raise ValueError(f"Invalid conn_scope_key format: {conn_scope_key}")
+        restart, conn_id = conn_scope_key
+        return (int(restart), int(conn_id), int(op_id))
 
     def _process_result_legacy(self, log_entry: dict):
         """
@@ -1094,8 +1114,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_result_entry(log_entry_norm)
 
     def _process_result_entry(self, log_entry: dict):
@@ -1123,7 +1141,7 @@ class logAnalyser:
         notes = log_entry.get("notes", [])
 
         # Tracking key
-        conn_scope_key = log_entry.get("key", "")
+        conn_scope_key = self.normalise_conn_scope_key(log_entry.get("key", ""))
         try:
             op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
         except (ValueError, TypeError) as e:
@@ -1186,7 +1204,7 @@ class logAnalyser:
 
         # Internal operation
         if internal_op:
-            self.operation.counters['internal'] +=1
+            self.operation.counters['internal'] += 1
         
         if isinstance(notes, list):
             for note in notes:
@@ -1312,8 +1330,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_bind_entry(log_entry_norm)
 
     def _process_bind_entry(self, log_entry: dict):
@@ -1429,8 +1445,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_search_entry(log_entry_norm)
 
     def _process_search_entry(self, log_entry: dict):
@@ -1442,7 +1456,7 @@ class logAnalyser:
         Notes:
             - Includes error handling and logging for unexpected parsing issues.
         """
-        self.logger.debug(f"_process_search_entry - Start - {log_entry}")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         conn_id = log_entry.get("conn_id", None)
         op_id = log_entry.get("op_id",None)
@@ -1454,7 +1468,7 @@ class logAnalyser:
         authzid = log_entry.get("authzid", "")
 
         # Tracking key
-        conn_scope_key = log_entry.get("key", "")
+        conn_scope_key = self.normalise_conn_scope_key(log_entry.get("key", ""))
         try:
             op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
         except (ValueError, TypeError) as e:
@@ -1564,7 +1578,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -1583,8 +1597,6 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
-
-        del log_entry
 
         self._process_connect_entry(log_entry_norm)
 
@@ -1663,7 +1675,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -1677,8 +1689,6 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
-
-        del log_entry
 
         self._process_unbind_entry(log_entry_norm)
 
@@ -1712,7 +1722,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -1743,8 +1753,6 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
-
-        del log_entry
 
         self._process_auth_entry(log_entry_norm)
 
@@ -1827,7 +1835,7 @@ class logAnalyser:
             - Normalises legacy vlv_request format.
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -1852,8 +1860,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_vlv_entry(log_entry_norm)
 
     def _process_vlv_entry(self, log_entry: dict):
@@ -1867,7 +1873,7 @@ class logAnalyser:
         Notes:
             - Includes error handling and logging for unexpected parsing issues.
         """
-        self.logger.debug(f"_process_vlv_entry - Start - {log_entry}")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         op_id = log_entry.get("op_id")
 
@@ -1878,7 +1884,7 @@ class logAnalyser:
         sort = vlv_req.get("request_sort", "")
 
        # Tracking key
-        conn_scope_key = log_entry.get("key", "")
+        conn_scope_key = self.normalise_conn_scope_key(log_entry.get("key", ""))
         try:
             op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
         except (ValueError, TypeError) as e:
@@ -1909,7 +1915,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -1929,8 +1935,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_abandon_entry(log_entry_norm)
 
     def _process_abandon_entry(self, log_entry: dict):
@@ -1940,7 +1944,7 @@ class logAnalyser:
         Args:
             log_entry (dict): A dictionary containing the parsed log entry.
         """
-        self.logger.debug(f"_process_abandon_entry - Start - {log_entry}")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         conn_id = log_entry.get("conn_id", None)
         op_id = log_entry.get("op_id", None)
@@ -1973,7 +1977,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -1992,8 +1996,6 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
-
-        del log_entry
 
         self._process_sort_entry(log_entry_norm)
 
@@ -2025,7 +2027,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -2044,8 +2046,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_extend_op_entry(log_entry_norm)
 
     def _process_extend_op_entry(self, log_entry: dict):
@@ -2055,7 +2055,7 @@ class logAnalyser:
         Args:
             log_entry (dict): A dictionary containing the parsed log entry.
         """
-        self.logger.debug(f"_process_extend_op_entry - Start - {log_entry}")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         conn_id = log_entry.get("conn_id", None)
         op_id = log_entry.get("op_id",None)
@@ -2100,7 +2100,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -2118,8 +2118,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_autobind_entry(log_entry_norm)
 
     def _process_autobind_entry(self, log_entry: dict):
@@ -2129,7 +2127,7 @@ class logAnalyser:
         Args:
             log_entry (dict): A dictionary containing the parsed log entry.
         """
-        self.logger.debug(f"_process_extend_op_entry - Start - {log_entry}")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         bind_dn = log_entry.get("bind_dn", "")
         
@@ -2162,7 +2160,7 @@ class logAnalyser:
         Notes:
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -2184,8 +2182,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_disconnect_entry(log_entry_norm)
 
     def _process_disconnect_entry(self, log_entry: dict):
@@ -2195,7 +2191,7 @@ class logAnalyser:
         Args:
             log_entry (dict): A dictionary containing the parsed log entry.
         """
-        self.logger.debug(f"_process_disconnect_entry - Start - {log_entry}")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         timestamp_dt = log_entry.get("timestamp_dt", None)
         conn_id = log_entry.get("conn_id", None)
@@ -2238,9 +2234,8 @@ class logAnalyser:
         # Manage disconnect code
         if close_reason:
             if " - " in close_reason:
-                disconnect_reason, disconnect_code = close_reason.rsplit(" - ", 1)
+                disconnect_code = close_reason.rsplit(" - ", 1)[-1]
             else:
-                disconnect_reason = close_reason.strip()
                 disconnect_code = "Unknown"
             if disconnect_code:
                 self.connection.disconnect_code[disconnect_code] += 1
@@ -2267,7 +2262,7 @@ class logAnalyser:
             - Maps legacy op format to JSON format.
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -2285,8 +2280,6 @@ class logAnalyser:
             log_entry_norm["key"] = (restart, conn_id)
         else:
             log_entry_norm["key"] = None
-
-        del log_entry
 
         self._process_crud_entry(log_entry_norm)
 
@@ -2308,7 +2301,7 @@ class logAnalyser:
         authzid = log_entry.get("authzid", "")
 
         # Tracking key
-        conn_scope_key = log_entry.get("key", "")
+        conn_scope_key = self.normalise_conn_scope_key(log_entry.get("key", ""))
         try:
             op_scope_key = self.build_op_scope_key(conn_scope_key, op_id)
         except (ValueError, TypeError) as e:
@@ -2351,7 +2344,7 @@ class logAnalyser:
             - Maps legacy op format to JSON format.
             - Converts legacy log string numeric fields to integers where appropriate.
             - Normalises keys and formats to align with the newer JSON log entries.
-            - Delegates further handling to a unified bind processing method.
+            - Delegates further handling to a unified processing method.
         """
         self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
@@ -2371,8 +2364,6 @@ class logAnalyser:
         else:
             log_entry_norm["key"] = None
 
-        del log_entry
-
         self._process_entry_referral_entry(log_entry_norm)
 
     def _process_entry_referral_entry(self, log_entry: dict):
@@ -2382,7 +2373,7 @@ class logAnalyser:
         Args:
             log_entry (dict): A dictionary containing the parsed log entry.
         """
-        self.logger.error(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
+        self.logger.debug(f"{inspect.currentframe().f_code.co_name} - log_entry:{log_entry}")
 
         op_type = log_entry.get('operation', "")
 
@@ -2983,6 +2974,10 @@ def main():
     except Exception as e:
         print("An error occurred: %s", e)
         sys.exit(1)
+
+    finally:
+        if db.csv_writer:
+            db.close()
 
     # Prep for display
     elapsed_time = db.get_elapsed_time(db.server.first_time, db.server.last_time, "hms")
