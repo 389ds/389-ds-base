@@ -650,6 +650,9 @@ int32_t config_set_referral_check_period(const char *attrname, char *value, char
 int32_t config_get_return_orig_dn(void);
 int32_t config_set_return_orig_dn(const char *attrname, char *value, char *errorbuf, int apply);
 
+int32_t config_get_refresh_certs();
+int32_t config_set_refresh_certs(const char *attrname, char *value, char *errorbuf, int apply);
+
 int config_set_tcp_fin_timeout(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_tcp_fin_timeout(void);
 int config_set_tcp_keepalive_time(const char *attrname, char *value, char *errorbuf, int apply);
@@ -684,6 +687,8 @@ void slapi_parse_control(LDAPControl *ctrl, char **oid, char **value, bool *isCr
  * daemon.c
  */
 int validate_num_config_reservedescriptors(void) ;
+void set_cert_refresh_asked(bool val);
+
 
 /*
  * delete.c
@@ -1179,6 +1184,7 @@ int slapd_security_library_is_initialized(void);
 int slapd_ssl_listener_is_initialized(void);
 int slapd_SSL_client_auth(LDAP *ld);
 SECKEYPrivateKey *slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg);
+void refresh_certs(daemon_ports_t *ports);
 
 /*
  * security_wrappers.c

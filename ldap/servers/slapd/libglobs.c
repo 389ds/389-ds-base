@@ -270,6 +270,7 @@ slapi_special_filter_verify_t init_verify_filter_schema;
 slapi_onoff_t init_enable_ldapssotoken;
 slapi_onoff_t init_return_orig_dn;
 slapi_onoff_t init_pw_admin_skip_info;
+slapi_onoff_t config_refresh_certs;
 
 static int
 isInt(ConfigVarType type)
@@ -1466,6 +1467,11 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.return_orig_dn,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_return_orig_dn, &init_return_orig_dn, NULL},
+    {CONFIG_REFRESH_CERTS, config_set_refresh_certs,
+     NULL, 0,
+     (void **)&config_refresh_certs,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_refresh_certs, &config_refresh_certs, NULL},
+
     /* End config */
     };
 
@@ -2256,6 +2262,9 @@ get_entry_point(int ep_name, caddr_t *ep_addr)
             break;
         case ENTRY_POINT_SLAPD_SSL_INIT2:
             *ep_addr = sep->sep_slapd_ssl_init2;
+            break;
+        case ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED:
+            *ep_addr = sep->sep_slapd_ssl_refresh_certs;
             break;
         default:
             rc = -1;
@@ -9150,6 +9159,39 @@ config_set_return_orig_dn(const char *attrname, char *value, char *errorbuf, int
                               &(slapdFrontendConfig->return_orig_dn),
                               errorbuf, apply);
     return retVal;
+}
+
+int32_t
+config_get_refresh_certs()
+{
+    int32_t retVal = 0;
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->ssl_refresh_certs;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_refresh_certs(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = 0;
+
+    if (apply) {
+        caddr_t cb = NULL;
+        slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+        retVal = config_set_onoff(attrname, value,
+                                  &(slapdFrontendConfig->ssl_refresh_certs),
+                                  errorbuf, apply);
+        get_entry_point(ENTRY_POINT_SLAPD_CERT_REFRESH_ASKED, &cb);
+        if (cb && retVal == LDAP_SUCCESS && slapdFrontendConfig->ssl_refresh_certs == LDAP_ON) {
+            ((slapd_ssl_set_cert_refresh_asked_ptr)cb)(true);
+        }
+    }
+
+    return LDAP_SUCCESS;
 }
 
 int32_t
