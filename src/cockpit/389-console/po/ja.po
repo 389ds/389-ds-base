@@ -14330,7 +14330,7 @@ msgstr "新しくサーバインスタンスを作成"
 
 #: src/dsModals.jsx:407
 msgid ""
-"The instance name, this is what gets appended to 'slapi-'. The instance name "
+"The instance name, this is what gets appended to 'slapd-'. The instance name "
 "can only contain letters, numbers, and: # @ : - _"
 msgstr ""
 "'slapi-'に追加されるインスタンス名を設定します。インスタンス名は、英数字およ"
