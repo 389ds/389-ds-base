@@ -384,6 +384,14 @@ ldbm_instance_config_add_index_entry(
         }
     }
 
+    /* get nsIndexIDListScanLimit and its values, and add them */
+    if (0 == slapi_entry_attr_find(e, "nsIndexIDListScanLimit", &attr)) {
+        for (j = slapi_attr_first_value(attr, &sval); j != -1; j = slapi_attr_next_value(attr, j, &sval)) {
+            attrValue = slapi_value_get_berval(sval);
+            eBuf = PR_sprintf_append(eBuf, "nsIndexIDListScanLimit: %s\n", attrValue->bv_val);
+        }
+    }
+
     ldbm_config_add_dse_entry(li, eBuf, flags);
     if (eBuf) {
         PR_smprintf_free(eBuf);
