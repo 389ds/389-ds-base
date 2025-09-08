@@ -17,6 +17,9 @@
 #define JBUFSIZE 75
 #define KEY_SIZE 50
 
+/*
+ * Helper function to handle long lines that need truncating
+ */
 struct json_object*
 json_obj_add_str(const char *value)
 {
@@ -34,6 +37,26 @@ json_obj_add_str(const char *value)
 
 }
 
+/*
+ * Wrapper function to check for NULL as NULL would cause
+ * json_object_new_string() to crash. If value is NULL we
+ * do not add anything to the JSON object.
+ */
+static int
+json_add_str(json_object *obj, const char *key, const char *value)
+{
+    if (value) {
+        json_object_object_add(obj, key, json_obj_add_str(value));
+        return 0;
+    } else {
+        /* skipped */
+        return 1;
+    }
+}
+
+/*
+ * Build the core JSON logging object that we can later build upon
+ */
 static json_object *
 build_base_obj(slapd_log_pblock *logpb, char *op_type)
 {
@@ -75,9 +98,9 @@ build_base_obj(slapd_log_pblock *logpb, char *op_type)
                 logpb->conn_time, logpb->conn_id);
 
     json_obj = json_object_new_object();
-    json_object_object_add(json_obj, "local_time", json_obj_add_str(local_time));
-    json_object_object_add(json_obj, "operation",  json_obj_add_str(op_type));
-    json_object_object_add(json_obj, "key",        json_obj_add_str(conn_key));
+    json_add_str(json_obj, "local_time", local_time);
+    json_add_str(json_obj, "operation", op_type);
+    json_add_str(json_obj, "key", conn_key);
     json_object_object_add(json_obj, "conn_id",    json_object_new_int64(logpb->conn_id));
     if (logpb->op_id != -1) {
         json_object_object_add(json_obj, "op_id", json_object_new_int(logpb->op_id));
@@ -91,18 +114,12 @@ build_base_obj(slapd_log_pblock *logpb, char *op_type)
     }
     if (logpb->oid) {
         const char *oid_name = NULL;
-        json_object_object_add(json_obj, "oid", json_obj_add_str(logpb->oid));
+        json_add_str(json_obj, "oid", logpb->oid);
         oid_name = get_oid_name(logpb->oid);
-        if (oid_name) {
-            json_object_object_add(json_obj, "oid_name", json_obj_add_str(oid_name));
-        }
+        json_add_str(json_obj, "oid_name", oid_name);
     }
-    if (logpb->msg) {
-        json_object_object_add(json_obj, "msg", json_obj_add_str(logpb->msg));
-    }
-    if (logpb->authzid) {
-        json_object_object_add(json_obj, "authzid", json_obj_add_str(logpb->authzid));
-    }
+    json_add_str(json_obj, "msg", logpb->msg);
+    json_add_str(json_obj, "authzid", logpb->authzid);
     if (haproxied) {
         json_object_object_add(json_obj, "haproxied", json_object_new_boolean(haproxied));
     }
@@ -126,12 +143,12 @@ build_base_obj(slapd_log_pblock *logpb, char *op_type)
 
             ctrl_obj = json_object_new_object();
             slapi_parse_control(ctrl[i], &oid, &value, &isCritical);
-            json_object_object_add(ctrl_obj, "oid", json_obj_add_str(oid));
-            json_object_object_add(ctrl_obj, "oid_name", json_obj_add_str(get_oid_name(oid)));
+            json_add_str(ctrl_obj, "oid", oid);
+            json_add_str(ctrl_obj, "oid_name", get_oid_name(oid));
             if (value) {
-                json_object_object_add(ctrl_obj, "value", json_obj_add_str(value));
+                json_add_str(ctrl_obj, "value", value);
             } else {
-                json_object_object_add(ctrl_obj, "value", json_obj_add_str(""));
+                json_add_str(ctrl_obj, "value", "");
             }
             json_object_object_add(ctrl_obj, "isCritical", json_object_new_boolean(isCritical));
             json_object_array_add(jarray, ctrl_obj);
@@ -158,12 +175,12 @@ build_base_obj(slapd_log_pblock *logpb, char *op_type)
 
             ctrl_obj = json_object_new_object();
             slapi_parse_control(ctrl[i], &oid, &value, &isCritical);
-            json_object_object_add(ctrl_obj, "oid", json_obj_add_str(oid));
-            json_object_object_add(ctrl_obj, "oid_name", json_obj_add_str(get_oid_name(oid)));
+            json_add_str(ctrl_obj, "oid", oid);
+            json_add_str(ctrl_obj, "oid_name", get_oid_name(oid));
             if (value) {
-                json_object_object_add(ctrl_obj, "value", json_obj_add_str(value));
+                json_add_str(ctrl_obj, "value", value);
             } else {
-                json_object_object_add(ctrl_obj, "value", json_obj_add_str(""));
+                json_add_str(ctrl_obj, "value", "");
             }
             json_object_object_add(ctrl_obj, "isCritical", json_object_new_boolean(isCritical));
             json_object_array_add(jarray, ctrl_obj);
@@ -205,17 +222,15 @@ slapd_log_access_abandon(slapd_log_pblock *logpb)
     if (logpb->tv_sec != -1) {
         PR_snprintf(etime, sizeof(etime), "%" PRId64 ".%010" PRId64,
                     logpb->tv_sec, logpb->tv_nsec);
-        json_object_object_add(json_obj, "etime", json_obj_add_str(etime));
+        json_add_str(json_obj, "etime", etime);
     }
 
     if (logpb->nentries != -1) {
         json_object_object_add(json_obj, "nentries", json_object_new_int(logpb->nentries));
     }
-    if (logpb->sid) {
-        json_object_object_add(json_obj, "sid", json_obj_add_str(logpb->sid));
-    }
+    json_add_str(json_obj, "sid", logpb->sid);
     json_object_object_add(json_obj, "msgid", json_object_new_int(logpb->msgid));
-    json_object_object_add(json_obj, "target_op", json_obj_add_str(logpb->target_op));
+    json_add_str(json_obj, "target_op", logpb->target_op);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -252,7 +267,7 @@ slapd_log_access_add(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -283,7 +298,7 @@ slapd_log_access_autobind(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "bind_dn", json_obj_add_str(logpb->bind_dn));
+    json_add_str(json_obj, "bind_dn", logpb->bind_dn);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -320,12 +335,10 @@ slapd_log_access_bind(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "bind_dn", json_obj_add_str(logpb->bind_dn));
+    json_add_str(json_obj, "bind_dn", logpb->bind_dn);
     json_object_object_add(json_obj, "version", json_object_new_int(logpb->version));
-    json_object_object_add(json_obj, "method", json_obj_add_str(logpb->method));
-    if (logpb->mech) {
-        json_object_object_add(json_obj, "mech", json_obj_add_str(logpb->mech));
-    }
+    json_add_str(json_obj, "method", logpb->method);
+    json_add_str(json_obj, "mech", logpb->mech);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -362,10 +375,7 @@ slapd_log_access_unbind(slapd_log_pblock *logpb)
     if (logpb->err != 0) {
        json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
     }
-    if (logpb->close_error) {
-        json_object_object_add(json_obj, "close_error",
-                               json_obj_add_str(logpb->close_error));
-    }
+    json_add_str(json_obj, "close_error", logpb->close_error);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -400,14 +410,8 @@ slapd_log_access_close(slapd_log_pblock *logpb)
     }
 
     json_object_object_add(json_obj, "fd", json_object_new_int(logpb->fd));
-    if (logpb->close_error) {
-        json_object_object_add(json_obj, "close_error",
-                               json_obj_add_str(logpb->close_error));
-    }
-    if (logpb->close_reason) {
-        json_object_object_add(json_obj, "close_reason",
-                               json_obj_add_str(logpb->close_reason));
-    }
+    json_add_str(json_obj, "close_error", logpb->close_error);
+    json_add_str(json_obj, "close_reason", logpb->close_reason);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -443,8 +447,8 @@ slapd_log_access_cmp(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
-    json_object_object_add(json_obj, "cmp_attr", json_obj_add_str(logpb->cmp_attr));
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
+    json_add_str(json_obj, "cmp_attr", logpb->cmp_attr);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -482,10 +486,8 @@ slapd_log_access_conn(slapd_log_pblock *logpb)
     json_object_object_add(json_obj, "fd", json_object_new_int(logpb->fd));
     json_object_object_add(json_obj, "slot", json_object_new_int(logpb->slot));
     json_object_object_add(json_obj, "tls", json_object_new_boolean(logpb->using_tls));
-    json_object_object_add(json_obj, "client_ip",
-                           json_obj_add_str(logpb->client_ip));
-    json_object_object_add(json_obj, "server_ip",
-                           json_obj_add_str(logpb->server_ip));
+    json_add_str(json_obj, "client_ip", logpb->client_ip);
+    json_add_str(json_obj, "server_ip", logpb->server_ip);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -521,7 +523,7 @@ slapd_log_access_delete(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -558,7 +560,7 @@ slapd_log_access_mod(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -597,11 +599,9 @@ slapd_log_access_modrdn(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
-    json_object_object_add(json_obj, "newrdn", json_obj_add_str(logpb->newrdn));
-    if (logpb->newsup) {
-        json_object_object_add(json_obj, "newsup", json_obj_add_str(logpb->newsup));
-    }
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
+    json_add_str(json_obj, "newrdn", logpb->newrdn);
+    json_add_str(json_obj, "newsup", logpb->newsup);
     json_object_object_add(json_obj, "deleteoldrdn", json_object_new_boolean(logpb->deleteoldrdn));
 
     /* Convert json object to string and log it */
@@ -657,19 +657,18 @@ slapd_log_access_result(slapd_log_pblock *logpb)
     json_object_object_add(json_obj, "tag", json_object_new_int(logpb->tag));
     json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
     json_object_object_add(json_obj, "nentries", json_object_new_int(logpb->nentries));
-    json_object_object_add(json_obj, "wtime", json_obj_add_str(logpb->wtime));
-    json_object_object_add(json_obj, "optime", json_obj_add_str(logpb->optime));
-    json_object_object_add(json_obj, "etime", json_obj_add_str(logpb->etime));
+    json_add_str(json_obj, "wtime", logpb->wtime);
+    json_add_str(json_obj, "optime", logpb->optime);
+    json_add_str(json_obj, "etime", logpb->etime);
     if (conn) {
-        json_object_object_add(json_obj, "client_ip", json_obj_add_str(conn->c_ipaddr));
+        json_add_str(json_obj, "client_ip", conn->c_ipaddr);
     } else {
-        json_object_object_add(json_obj, "client_ip", json_obj_add_str("Internal"));
+        json_add_str(json_obj, "client_ip", "Internal");
     }
     if (logpb->csn) {
         char csn_str[CSN_STRSIZE] = {0};
         csn_as_string(logpb->csn, PR_FALSE, csn_str);
-        json_object_object_add(json_obj, "csn",
-                               json_obj_add_str(csn_str));
+        json_add_str(json_obj, "csn", csn_str);
     }
     if (logpb->pr_idx >= 0) {
         json_object_object_add(json_obj, "pr_idx",
@@ -686,8 +685,8 @@ slapd_log_access_result(slapd_log_pblock *logpb)
         for (size_t i = 0; notes[i]; i++) {
             char *filter_str = NULL;
             json_object *note = json_object_new_object();
-            json_object_object_add(note, "note", json_obj_add_str(notes[i]));
-            json_object_object_add(note, "description", json_obj_add_str(details[i]));
+            json_add_str(note, "note", notes[i]);
+            json_add_str(note, "description", details[i]);
             if ((strcmp("A", notes[i]) == 0 || strcmp("U", notes[i]) == 0) && logpb->pb) {
                 /* Full/partial unindexed search - log more info */
                 char *base_dn;
@@ -697,25 +696,19 @@ slapd_log_access_result(slapd_log_pblock *logpb)
                 slapi_pblock_get(logpb->pb, SLAPI_SEARCH_STRFILTER, &filter_str);
                 slapi_pblock_get(logpb->pb, SLAPI_SEARCH_SCOPE, &scope);
 
-                json_object_object_add(note, "base_dn", json_obj_add_str(base_dn));
-                json_object_object_add(note, "filter", json_obj_add_str(filter_str));
+                json_add_str(note, "base_dn", base_dn);
+                json_add_str(note, "filter", filter_str);
                 json_object_object_add(note, "scope", json_object_new_int(scope));
             } else if (strcmp("F", notes[i]) == 0 && logpb->pb) {
                 slapi_pblock_get(logpb->pb, SLAPI_SEARCH_STRFILTER, &filter_str);
-                json_object_object_add(note, "filter", json_obj_add_str(filter_str));
+                json_add_str(note, "filter", filter_str);
             }
             json_object_array_add(jarray, note);
         }
         json_object_object_add(json_obj, "notes", jarray);
     }
-    if (logpb->sid) {
-        json_object_object_add(json_obj, "sid",
-                               json_obj_add_str(logpb->sid));
-    }
-    if (logpb->bind_dn) {
-        json_object_object_add(json_obj, "bind_dn",
-                               json_obj_add_str(logpb->bind_dn));
-    }
+    json_add_str(json_obj, "sid", logpb->sid);
+    json_add_str(json_obj, "bind_dn", logpb->bind_dn);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -756,9 +749,9 @@ slapd_log_access_search(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "base_dn", json_obj_add_str(logpb->base_dn));
+    json_add_str(json_obj, "base_dn", logpb->base_dn);
     json_object_object_add(json_obj, "scope", json_object_new_int(logpb->scope));
-    json_object_object_add(json_obj, "filter", json_obj_add_str(logpb->filter));
+    json_add_str(json_obj, "filter", logpb->filter);
     if (logpb->psearch) {
         json_object_object_add(json_obj, "psearch", json_object_new_boolean(logpb->psearch));
     }
@@ -814,17 +807,11 @@ slapd_log_access_stat(slapd_log_pblock *logpb)
 
     if (logpb->stat_etime) {
         /* this is the summary stat */
-        json_object_object_add(json_obj, "stat_etime", json_obj_add_str(logpb->stat_etime));
+        json_add_str(json_obj, "stat_etime", logpb->stat_etime);
     } else {
-        if (logpb->stat_attr) {
-            json_object_object_add(json_obj, "stat_attr", json_obj_add_str(logpb->stat_attr));
-        }
-        if (logpb->stat_key) {
-            json_object_object_add(json_obj, "stat_key", json_obj_add_str(logpb->stat_key));
-        }
-        if (logpb->stat_value) {
-            json_object_object_add(json_obj, "stat_key_value", json_obj_add_str(logpb->stat_value));
-        }
+        json_add_str(json_obj, "stat_attr", logpb->stat_attr);
+        json_add_str(json_obj, "stat_key", logpb->stat_key);
+        json_add_str(json_obj, "stat_key_value", logpb->stat_value);
         json_object_object_add(json_obj, "stat_count", json_object_new_int(logpb->stat_count));
     }
 
@@ -863,8 +850,8 @@ slapd_log_access_error(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "operation", json_obj_add_str(logpb->op_type));
-    json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
+    json_add_str(json_obj, "operation", logpb->op_type);
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -935,8 +922,8 @@ slapd_log_access_haproxy(slapd_log_pblock *logpb)
     }
 
     json_object_object_add(json_obj, "fd", json_object_new_int(logpb->fd));
-    json_object_object_add(json_obj, "haproxy_ip", json_obj_add_str(logpb->haproxy_ip));
-    json_object_object_add(json_obj, "haproxy_destip", json_obj_add_str(logpb->haproxy_destip));
+    json_add_str(json_obj, "haproxy_ip", logpb->haproxy_ip);
+    json_add_str(json_obj, "haproxy_destip", logpb->haproxy_destip);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -988,13 +975,9 @@ slapd_log_access_vlv(slapd_log_pblock *logpb)
     json_object_object_add(req_obj, "request_after_count", json_object_new_int(logpb->vlv_req_after_count));
     json_object_object_add(req_obj, "request_index", json_object_new_int(logpb->vlv_req_index));
     json_object_object_add(req_obj, "request_content_count", json_object_new_int(logpb->vlv_req_content_count));
-    if (logpb->vlv_req_value) {
-        json_object_object_add(req_obj, "request_value", json_obj_add_str(logpb->vlv_req_value));
-    }
+    json_add_str(req_obj, "request_value", logpb->vlv_req_value);
     json_object_object_add(req_obj, "request_value_len", json_object_new_int64(logpb->vlv_req_value_len));
-    if (logpb->vlv_sort_str) {
-        json_object_object_add(req_obj, "request_sort", json_obj_add_str(logpb->vlv_sort_str));
-    }
+    json_add_str(req_obj, "request_sort", logpb->vlv_sort_str);
     json_object_object_add(json_obj, "vlv_request", req_obj);
 
     resp_obj = json_object_new_object();
@@ -1035,7 +1018,7 @@ slapd_log_access_entry(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -1099,9 +1082,7 @@ slapd_log_access_extop(slapd_log_pblock *logpb)
         return rc;
     }
 
-    if (logpb->name) {
-        json_object_object_add(json_obj, "name", json_obj_add_str(logpb->name));
-    }
+    json_add_str(json_obj, "name", logpb->name);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -1136,18 +1117,10 @@ slapd_log_access_extop_info(slapd_log_pblock *logpb)
         return rc;
     }
 
-    if (logpb->name) {
-        json_object_object_add(json_obj, "name", json_obj_add_str(logpb->name));
-    }
-    if (logpb->target_dn) {
-        json_object_object_add(json_obj, "target_dn", json_obj_add_str(logpb->target_dn));
-    }
-    if (logpb->bind_dn) {
-        json_object_object_add(json_obj, "bind_dn", json_obj_add_str(logpb->bind_dn));
-    }
-    if (logpb->msg) {
-        json_object_object_add(json_obj, "msg", json_obj_add_str(logpb->msg));
-    }
+    json_add_str(json_obj, "name", logpb->name);
+    json_add_str(json_obj, "target_dn", logpb->target_dn);
+    json_add_str(json_obj, "bind_dn", logpb->bind_dn);
+    json_add_str(json_obj, "msg", logpb->msg);
     json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
 
     /* Convert json object to string and log it */
@@ -1182,8 +1155,7 @@ slapd_log_access_sort(slapd_log_pblock *logpb)
         return rc;
     }
 
-    json_object_object_add(json_obj, "sort_attrs",
-                           json_obj_add_str(logpb->sort_str));
+    json_add_str(json_obj, "sort_attrs", logpb->sort_str);
 
     /* Convert json object to string and log it */
     msg = (char *)json_object_to_json_string_ext(json_obj, logpb->log_format);
@@ -1219,21 +1191,15 @@ slapd_log_access_tls(slapd_log_pblock *logpb)
         return rc;
     }
 
-    if (logpb->msg) {
-        json_object_object_add(json_obj, "msg", json_obj_add_str(logpb->msg));
-    }
-    if (logpb->tls_version) {
-        json_object_object_add(json_obj, "tls_version", json_obj_add_str(logpb->tls_version));
-    }
-    if (logpb->cipher) {
-        json_object_object_add(json_obj, "cipher", json_obj_add_str(logpb->cipher));
-    }
+    json_add_str(json_obj, "msg", logpb->msg);
+    json_add_str(json_obj, "tls_version", logpb->tls_version);
+    json_add_str(json_obj, "cipher", logpb->cipher);
     if (logpb->keysize) {
         json_object_object_add(json_obj, "keysize", json_object_new_int(logpb->keysize));
     }
     if (logpb->err_str) {
         json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
-        json_object_object_add(json_obj, "err_msg", json_obj_add_str(logpb->err_str));
+        json_add_str(json_obj, "err_msg", logpb->err_str);
     }
 
     /* Convert json object to string and log it */
@@ -1273,30 +1239,18 @@ slapd_log_access_tls_client_auth(slapd_log_pblock *logpb)
         return rc;
     }
 
-    if (logpb->tls_version) {
-        json_object_object_add(json_obj, "tls_version", json_obj_add_str(logpb->tls_version));
-    }
-    if (logpb->cipher) {
-        json_object_object_add(json_obj, "cipher", json_obj_add_str(logpb->cipher));
-    }
+    json_add_str(json_obj, "tls_version", logpb->tls_version);
+    json_add_str(json_obj, "cipher", logpb->cipher);
     if (logpb->keysize) {
         json_object_object_add(json_obj, "keysize", json_object_new_int(logpb->keysize));
     }
-    if (logpb->subject) {
-        json_object_object_add(json_obj, "subject", json_obj_add_str(logpb->subject));
-    }
-    if (logpb->issuer) {
-        json_object_object_add(json_obj, "issuer", json_obj_add_str(logpb->issuer));
-    }
-    if (logpb->client_dn) {
-        json_object_object_add(json_obj, "client_dn", json_obj_add_str(logpb->client_dn));
-    }
-    if (logpb->msg) {
-        json_object_object_add(json_obj, "msg", json_obj_add_str(logpb->msg));
-    }
+    json_add_str(json_obj, "subject", logpb->subject);
+    json_add_str(json_obj, "issuer", logpb->issuer);
+    json_add_str(json_obj, "client_dn", logpb->client_dn);
+    json_add_str(json_obj, "msg", logpb->msg);
     if (logpb->err_str) {
         json_object_object_add(json_obj, "err", json_object_new_int(logpb->err));
-        json_object_object_add(json_obj, "err_msg", json_obj_add_str(logpb->err_str));
+        json_add_str(json_obj, "err_msg", logpb->err_str);
     }
 
     /* Convert json object to string and log it */
