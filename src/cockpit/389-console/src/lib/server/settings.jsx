@@ -21,7 +21,6 @@ import {
 	Text,
 	TextContent,
 	TextVariants,
-    Tooltip,
 	ValidatedOptions
 } from '@patternfly/react-core';
 import {
@@ -1190,15 +1189,6 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             {_("LDAP Port")}
                                         </GridItem>
                                         <GridItem span={10}>
-                                            <Tooltip
-                                                content={
-                                                    this.state.errObjConfig['nsslapd-port']
-                                                        ? _("This port is already in use, please choose another.")
-                                                        : ""
-                                                }
-                                                position="top"
-                                                isVisible={!!this.state.errObjConfig['nsslapd-port']}
-                                            >
                                             <NumberInput
                                                 value={this.state['nsslapd-port']}
                                                 min={1}
@@ -1211,9 +1201,14 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-port'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
-                                            </Tooltip>
+                                            {this.state.errObjConfig['nsslapd-port'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1223,15 +1218,6 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             {_("LDAPS Port")}
                                         </GridItem>
                                         <GridItem span={10}>
-                                            <Tooltip
-                                                content={
-                                                    this.state.errObjConfig['nsslapd-secureport']
-                                                    ? _("This port is already in use, please choose another.")
-                                                    : ""
-                                                }
-                                                position="top"
-                                                isVisible={!!this.state.errObjConfig['nsslapd-secureport']}
-                                            >
                                             <NumberInput
                                                 value={this.state['nsslapd-secureport']}
                                                 min={1}
@@ -1244,10 +1230,15 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-secureport'] ? ValidatedOptions.error : ValidatedOptions.default}
 
                                             />
-                                            </Tooltip>
+                                            {this.state.errObjConfig['nsslapd-secureport'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
