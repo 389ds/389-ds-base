@@ -389,3 +389,38 @@ export function callCmdStreamPassword(config) {
                 proc.input(config.passwd + "\n", true);
             });
 }
+
+export function parentExists(params) {
+    if (!params || !params.configDN || !params.serverId) {
+        console.error("parentExists: Missing required parameters");
+        return Promise.resolve(false);
+    }
+
+    let parentDN = params.configDN
+    const idx = params.configDN.indexOf(",");
+    if (idx !== -1) {
+        parentDN = params.configDN.substring(idx + 1);
+    }
+    const cmd = [
+        'ldapsearch',
+        '-LLL',
+        '-Y', 'EXTERNAL',
+        '-b', parentDN,
+        '-H', 'ldapi://%2fvar%2frun%2fslapd-' + params.serverId + '.socket',
+        '-s', 'base',
+        '1.1'
+    ];
+    log_cmd("parentExists", "Checking parent DN exists", cmd);
+
+    return new Promise((resolve) => {
+        cockpit
+            .spawn(cmd, { superuser: true, err: 'message' })
+            .done(data => {
+                resolve(data && data.includes("dn:"));
+            })
+            .fail(err => {
+                console.log(`parentExists: Parent DN:${parentDN} Error:${err.exit_status}`)
+                resolve(false);
+            })
+    });
+}
