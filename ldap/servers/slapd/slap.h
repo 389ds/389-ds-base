@@ -1722,6 +1722,7 @@ typedef struct conn
     uint64_t c_connid;               /* id of this connection for stats*/
     PRUint64 c_maxthreadscount;      /* # of times a conn hit max threads */
     PRUint64 c_maxthreadsblocked;    /* # of operations blocked by maxthreads */
+    PRBool c_flagblocked;            /* Flag the next read operation as blocked */
     int c_opsinitiated;              /* # ops initiated/next op id      */
     PRInt32 c_opscompleted;          /* # ops completed          */
     uint64_t c_anonlimits_set;       /* default anon limits are set */
