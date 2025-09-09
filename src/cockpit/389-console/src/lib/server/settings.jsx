@@ -1201,8 +1201,14 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-port'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
+                                            {this.state.errObjConfig['nsslapd-port'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1224,8 +1230,15 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-secureport'] ? ValidatedOptions.error : ValidatedOptions.default}
+
                                             />
+                                            {this.state.errObjConfig['nsslapd-secureport'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
