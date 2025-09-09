@@ -207,14 +207,23 @@ class TestLogconv:
             test_name: string for logging
         """
         IGNORE_KEYS = {"highest_fd_taken", "concurrent_conns"}
+        LOOSE_VALIDATION_TESTS = {"test_restart", "test_ldapi", "test_ldaps"}
 
         errors = []
         for key, existing_val in logconv_stats.items():
             if key in IGNORE_KEYS:
                 continue
+
             expected_val = expected.get(key, 0)
-            if existing_val != expected_val:
-                errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
+
+            if self.inst.dblib == "bdb" and test_name in LOOSE_VALIDATION_TESTS:
+                # loose validation to account for "extra" bdb rootdse search
+                if existing_val < expected_val:
+                    errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
+            else:
+                # Strict validation
+                if existing_val != expected_val:
+                    errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
 
         if errors:
             print("\n".join(errors))
