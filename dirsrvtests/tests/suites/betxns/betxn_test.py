@@ -16,9 +16,10 @@ from lib389.plugins import (SevenBitCheckPlugin, AttributeUniquenessPlugin,
                             MemberOfPlugin, ManagedEntriesPlugin,
                             ReferentialIntegrityPlugin, MEPTemplates,
                             MEPConfigs, LinkedAttributesPlugin,
-                            LinkedAttributesConfigs)
+                            LinkedAttributesConfigs, AutoMembershipPlugin, AutoMembershipDefinitions,
+                            RetroChangelogPlugin)
 from lib389.plugins import MemberOfPlugin
-from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES, nsUserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
@@ -411,6 +412,7 @@ def test_ri_and_mep_cache_corruption(topology_st):
 
     # Verify test group is still found in entry cache by deleting it
     test_group.delete()
+    user_group.delete()
 
     # Success
     log.info("Test PASSED")
@@ -630,6 +632,97 @@ def test_linked_attributes_plugin(topology_st):
     manager.delete()
     linkedattr.disable()
     linkedattr.delete()
+
+
+def test_incorrect_attribute_values(topology_st):
+    """Test that betxnplugins consistently reject entries with incompatible attribute values
+
+    This test is designed to verify that when new entry is repeatedly rejected by betxn plugins
+    due to incorrect attribute values, the operation consistently fails on UNWILLING TO PERFORM
+    rather than AlreadyExists caused by the entry not being removed from cache.
+
+    :id: 8ec17a8f-d331-4aff-ab80-1afbdf8d4405
+
+    :setup: Standalone instance with MemberOf, AutoMembership, and RetroChangelog plugins
+
+    :steps: 1. Enable MemberOf plugin with memberofAutoAddOC set to "account" 
+               (an objectclass that does not allow memberof attribute)
+            2. Enable AutoMembership plugin
+            3. Enable RetroChangelog plugin
+            4. Create a group for auto-membership
+            5. Configure automember to automatically add users to the group
+            6. Attempt to create a test user (first attempt)
+            7. Attempt to create the same test user again (second attempt)
+            8. Verify both attempts fail with UNWILLING_TO_PERFORM
+            9. Cleanup created objects
+
+    :expectedresults:
+            1. MemberOf plugin should be enabled with incompatible autoAddOC
+            2. AutoMembership plugin should be enabled
+            3. RetroChangelog plugin should be enabled
+            4. Group creation should succeed
+            5. Automember configuration should succeed
+            6. First user creation should fail with UNWILLING_TO_PERFORM
+            7. Second user creation should also fail with UNWILLING_TO_PERFORM
+               (not ALREADY_EXISTS)
+            8. Error codes should be consistent across attempts
+            9. Cleanup should succeed
+    """
+
+    # Enable MemberOf plugin, set memberofAutoAddOC to account (OC that does not allow memberof)
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.set_autoaddoc('account')
+    memberof.enable()
+    topology_st.standalone.restart()
+
+    # Enable AutoMembership plugin
+    automemberplugin = AutoMembershipPlugin(topology_st.standalone)
+    automemberplugin.enable()
+    topology_st.standalone.restart()
+
+    # Enable RetroChangelog plugin
+    rcl = RetroChangelogPlugin(topology_st.standalone)
+    rcl.disable()
+    rcl.enable()
+    topology_st.standalone.restart()
+
+    user_name = 'test_user_1000'
+    group_name = 'group'
+
+    # Create group
+    groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties={'cn': group_name})
+
+    # Create automember config entry
+    automember_prop = {
+        'cn': 'group cfg',
+        'autoMemberScope': DEFAULT_SUFFIX,
+        'autoMemberFilter': f'uid={user_name}',
+        'autoMemberDefaultGroup': f'cn={group_name},ou=groups,dc=example,dc=com',
+        'autoMemberGroupingAttr': 'member:dn',
+    }
+
+    automembers = AutoMembershipDefinitions(topology_st.standalone, 
+                                            "cn=Auto Membership Plugin,cn=plugins,cn=config")
+    automember = automembers.create(properties=automember_prop)
+
+    users = nsUserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+
+    # first attempt to add the user
+    # should fail with UNWILLING_TO_PERFORM due to incompatible object class
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        user = users.create_test_user()
+
+    # second attempt to add the user
+    # should also fail with UNWILLING_TO_PERFORM, not with AlreadyExists
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        user = users.create_test_user()
+
+    # Cleanup
+    rcl.disable()
+    automemberplugin.disable()
+    memberof.disable()
+    group.delete()
 
 
 if __name__ == '__main__':
