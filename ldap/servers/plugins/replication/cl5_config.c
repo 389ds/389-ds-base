@@ -286,7 +286,7 @@ cldb_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, in
                     } else {
                         if (returntext) {
                             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
+                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdDwW]",
                                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value ? config_attr_value : "null",
                                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE,
                                         (long long int)LONG_MAX);
@@ -300,7 +300,7 @@ cldb_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, in
                     } else {
                         if (returntext) {
                             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
+                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdDwW]",
                                         CONFIG_CHANGELOG_TRIM_ATTRIBUTE, config_attr_value,
                                         CONFIG_CHANGELOG_TRIM_ATTRIBUTE,
                                         (long long int)LONG_MAX);
