@@ -9,11 +9,7 @@ import {
 	GridItem,
 	TimePicker
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, listsEqual } from "../tools.jsx";
@@ -82,21 +78,9 @@ class RootDNAccessControl extends React.Component {
 
         // Allow Host
         this.handleAllowHostSelect = (event, selection) => {
-            if (this.state.allowHost.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        allowHost: prevState.allowHost.filter((item) => item !== selection),
-                        isAllowHostOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        allowHost: [...prevState.allowHost, selection],
-                        isAllowHostOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                allowHost: Array.isArray(selection) ? selection : [],
+            });
         };
         this.handleAllowHostToggle = (_event, isAllowHostOpen) => {
             this.setState({
@@ -120,21 +104,9 @@ class RootDNAccessControl extends React.Component {
 
         // Deny Host
         this.handleDenyHostSelect = (event, selection) => {
-            if (this.state.denyHost.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        denyHost: prevState.denyHost.filter((item) => item !== selection),
-                        isDenyHostOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        denyHost: [...prevState.denyHost, selection],
-                        isDenyHostOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                denyHost: Array.isArray(selection) ? selection : [],
+            });
         };
         this.handleDenyHostToggle = (_event, isDenyHostOpen) => {
             this.setState({
@@ -158,21 +130,9 @@ class RootDNAccessControl extends React.Component {
 
         // Allow IP Adddress
         this.handleAllowIPSelect = (event, selection) => {
-            if (this.state.allowIP.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        allowIP: prevState.allowIP.filter((item) => item !== selection),
-                        isAllowIPOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        allowIP: [...prevState.allowIP, selection],
-                        isAllowIPOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                allowIP: Array.isArray(selection) ? selection : [],
+            });
         };
         this.handleAllowIPToggle = (_event, isAllowIPOpen) => {
             this.setState({
@@ -196,21 +156,9 @@ class RootDNAccessControl extends React.Component {
 
         // Deny IP Adddress
         this.handleDenyIPSelect = (event, selection) => {
-            if (this.state.denyIP.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        denyIP: prevState.denyIP.filter((item) => item !== selection),
-                        isDenyIPOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        denyIP: [...prevState.denyIP, selection],
-                        isDenyIPOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                denyIP: Array.isArray(selection) ? selection : [],
+            });
         };
         this.handleDenyIPToggle = (_event, isDenyIPOpen) => {
             this.setState({
@@ -519,27 +467,20 @@ class RootDNAccessControl extends React.Component {
                                 {_("Allow Host")}
                             </GridItem>
                             <GridItem span={10}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a hostname "
-                                    onToggle={(event, isOpen) => this.handleAllowHostToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={allowHost}
                                     onSelect={this.handleAllowHostSelect}
                                     onClear={this.handleAllowHostClear}
-                                    selections={allowHost}
+                                    options={this.state.allowHostOptions}
                                     isOpen={this.state.isAllowHostOpen}
-                                    aria-labelledby="typeAhead-allow-host"
-                                    placeholderText={_("Type a hostname ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
+                                    onToggle={this.handleAllowHostToggle}
+                                    placeholder={_("Type a hostname ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a hostname "
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleAllowHostCreateOption}
-                                >
-                                    {this.state.allowHostOptions.map((host, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={host}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets what hosts, by fully-qualified domain name, the root user is not allowed to use to access the Directory Server.  Wildcards are accepted.  Any hosts not listed are implicitly allowed (rootdn-deny-host). If a host address is listed in both the rootdn-allow-host and rootdn-deny-host attributes, it is denied access.")}>
@@ -547,27 +488,20 @@ class RootDNAccessControl extends React.Component {
                                 {_("Deny Host")}
                             </GridItem>
                             <GridItem span={10}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a hostname "
-                                    onToggle={(event, isOpen) => this.handleDenyHostToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={denyHost}
                                     onSelect={this.handleDenyHostSelect}
                                     onClear={this.handleDenyHostClear}
-                                    selections={denyHost}
+                                    options={this.state.denyHostOptions}
                                     isOpen={this.state.isDenyHostOpen}
-                                    aria-labelledby="typeAhead-deny-host"
-                                    placeholderText={_("Type a hostname ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
+                                    onToggle={this.handleDenyHostToggle}
+                                    placeholder={_("Type a hostname ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a hostname "
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleDenyHostCreateOption}
-                                >
-                                    {this.state.denyHostOptions.map((host, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={host}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets what IP addresses, either IPv4 or IPv6, for machines the root user is allowed to use to access the Directory Server. Wildcards are accepted.  Any IP addresses not listed are implicitly denied (rootdn-allow-ip)")}>
@@ -575,27 +509,20 @@ class RootDNAccessControl extends React.Component {
                                 {_("Allow IP address")}
                             </GridItem>
                             <GridItem span={10}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an IP address"
-                                    onToggle={(event, isOpen) => this.handleDenyHostToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={allowIP}
                                     onSelect={this.handleAllowIPSelect}
                                     onClear={this.handleAllowIPClear}
-                                    selections={allowIP}
+                                    options={this.state.allowIPOptions}
                                     isOpen={this.state.isAllowIPOpen}
-                                    aria-labelledby="typeAhead-allow-ip"
-                                    placeholderText={_("Type an IP address ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
+                                    onToggle={this.handleAllowIPToggle}
+                                    placeholder={_("Type an IP address ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an IP address"
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleAllowIPCreateOption}
-                                >
-                                    {this.state.allowIPOptions.map((ip, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={ip}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets what IP addresses, either IPv4 or IPv6, for machines the root user is not allowed to use to access the Directory Server. Wildcards are accepted. Any IP addresses not listed are implicitly allowed (rootdn-deny-ip) If an IP address is listed in both the rootdn-allow-ip and rootdn-deny-ip attributes, it is denied access.")}>
@@ -603,27 +530,20 @@ class RootDNAccessControl extends React.Component {
                                 {_("Deny IP address")}
                             </GridItem>
                             <GridItem span={10}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an IP address"
-                                    onToggle={(event, isOpen) => this.handleDenyIPToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={denyIP}
                                     onSelect={this.handleDenyIPSelect}
                                     onClear={this.handleDenyIPClear}
-                                    selections={denyIP}
+                                    options={this.state.denyIPOptions}
                                     isOpen={this.state.isDenyIPOpen}
-                                    aria-labelledby="typeAhead-deny-ip"
-                                    placeholderText={_("Type an IP address ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
+                                    onToggle={this.handleDenyIPToggle}
+                                    placeholder={_("Type an IP address ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an IP address"
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleDenyIPCreateOption}
-                                >
-                                    {this.state.denyIPOptions.map((ip, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={ip}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets part of a time period or range when the root user is allowed to access the Directory Server. This sets when the time-based access begins (rootdn-open-time)")}>

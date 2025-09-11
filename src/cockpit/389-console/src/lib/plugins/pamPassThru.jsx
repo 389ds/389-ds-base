@@ -13,11 +13,7 @@ import {
 	TextInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
@@ -80,21 +76,9 @@ class PAMPassthroughAuthentication extends React.Component {
             }, () => { this.validatePAM() });
         };
         this.handleExcludeSelect = (event, selection) => {
-            if (this.state.pamExcludeSuffix.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        pamExcludeSuffix: prevState.pamExcludeSuffix.filter(item => item !== selection),
-                        isExcludeOpen: false
-                    }), () => { this.validatePAM() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        pamExcludeSuffix: [...prevState.pamExcludeSuffix, selection],
-                        isExcludeOpen: false
-                    }), () => { this.validatePAM() }
-                );
-            }
+            this.setState({
+                pamExcludeSuffix: Array.isArray(selection) ? selection : [],
+            }, () => { this.validatePAM() });
         };
         this.handleCreateExcludeOption = newValue => {
             if (!this.state.excludeOptions.includes(newValue)) {
@@ -117,21 +101,9 @@ class PAMPassthroughAuthentication extends React.Component {
             }, () => { this.validatePAM() });
         };
         this.handleIncludeSelect = (event, selection) => {
-            if (this.state.pamIncludeSuffix.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        pamIncludeSuffix: prevState.pamIncludeSuffix.filter(item => item !== selection),
-                        isIncludeOpen: false
-                    })
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        pamIncludeSuffix: [...prevState.pamIncludeSuffix, selection],
-                        isIncludeOpen: false
-                    })
-                );
-            }
+            this.setState({
+                pamIncludeSuffix: Array.isArray(selection) ? selection : [],
+            });
         };
         this.handleCreateIncludeOption = newValue => {
             if (!this.state.includeOptions.includes(newValue)) {
@@ -705,26 +677,19 @@ class PAMPassthroughAuthentication extends React.Component {
                                 {_("Exclude Suffix")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    isCreatable
-                                    onCreateOption={this.handleCreateExcludeOption}
-                                    typeAheadAriaLabel="Add a suffix"
-                                    onToggle={(event, isOpen) => this.handleExcludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={pamExcludeSuffix}
                                     onSelect={this.handleExcludeSelect}
                                     onClear={this.handleClearExcludeSelection}
-                                    selections={pamExcludeSuffix}
+                                    options={this.state.excludeOptions}
                                     isOpen={this.state.isExcludeOpen}
-                                    aria-labelledby="Add a suffix"
-                                    placeholderText={_("Type a suffix DN ...")}
-                                >
-                                    {this.state.excludeOptions.map((suffix, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={suffix}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleExcludeToggle}
+                                    placeholder={_("Type a suffix DN ...")}
+                                    ariaLabel="Add a suffix"
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleCreateExcludeOption}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid>
@@ -736,26 +701,19 @@ class PAMPassthroughAuthentication extends React.Component {
                                 {_("Include Suffix")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    isCreatable
-                                    onCreateOption={this.handleCreateIncludeOption}
-                                    typeAheadAriaLabel="Add an include suffix"
-                                    onToggle={(event, isOpen) => this.handleIncludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={pamIncludeSuffix}
                                     onSelect={this.handleIncludeSelect}
                                     onClear={this.handleClearIncludeSelection}
-                                    selections={pamIncludeSuffix}
+                                    options={this.state.includeOptions}
                                     isOpen={this.state.isIncludeOpen}
-                                    aria-labelledby="Add an include suffix"
-                                    placeholderText={_("Type a suffix DN ...")}
-                                >
-                                    {this.state.includeOptions.map((suffix, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={suffix}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleIncludeToggle}
+                                    placeholder={_("Type a suffix DN ...")}
+                                    ariaLabel="Add an include suffix"
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleCreateIncludeOption}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid>

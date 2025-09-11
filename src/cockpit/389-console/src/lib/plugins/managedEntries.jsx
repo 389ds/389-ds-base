@@ -24,11 +24,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import {
     ExclamationCircleIcon,
 } from '@patternfly/react-icons';
@@ -1189,24 +1185,16 @@ class ManagedEntries extends React.Component {
                             title={_("DN of the template entry")}
                             isRequired
                         >
-                            <Select
-                                variant={SelectVariant.typeahead}
-                                typeAheadAriaLabel="Type an attribute"
-                                onToggle={(event, isOpen) => this.handleRDNToggle(event, isOpen)}
+                            <TypeaheadSelect
+                                selected={templateRDNAttr}
                                 onSelect={this.handleRDNSelect}
                                 onClear={this.handleClearRDNSelection}
-                                selections={templateRDNAttr}
+                                options={attributes}
                                 isOpen={this.state.isRDNOpen}
-                                aria-labelledby="typeAhead-rdn"
-                                placeholderText={_("Type an attribute...")}
-                            >
-                                {attributes.map((attr) => (
-                                    <SelectOption
-                                        key={attr}
-                                        value={attr}
-                                    />
-                                ))}
-                            </Select>
+                                onToggle={this.handleRDNToggle}
+                                placeholder={_("Type an attribute...")}
+                                ariaLabel="Type an attribute"
+                            />
                         </FormGroup>
                     </Form>
                     <Form className="ds-margin-top-lg" autoComplete="off">
@@ -1323,24 +1311,16 @@ class ManagedEntries extends React.Component {
                             fieldId="staticAttr"
                             title={_("The attribute that is set in the managed entry")}
                         >
-                            <Select
-                                variant={SelectVariant.typeahead}
-                                typeAheadAriaLabel="Type an attribute"
-                                onToggle={(event, isOpen) => this.handleStaticToggle(event, isOpen)}
+                            <TypeaheadSelect
+                                selected={this.state.staticAttr}
                                 onSelect={this.handleStaticSelect}
                                 onClear={this.handleClearStaticSelection}
-                                selections={this.state.staticAttr}
+                                options={attributes}
                                 isOpen={this.state.isStaticOpen}
-                                aria-labelledby="typeAhead-static"
-                                placeholderText={_("Type an attribute...")}
-                            >
-                                {attributes.map((attr) => (
-                                    <SelectOption
-                                        key={attr}
-                                        value={attr}
-                                    />
-                                ))}
-                            </Select>
+                                onToggle={this.handleStaticToggle}
+                                placeholder={_("Type an attribute...")}
+                                ariaLabel="Type an attribute"
+                            />
                         </FormGroup>
                         <FormGroup
                             className="ds-margin-top-lg"
@@ -1388,24 +1368,16 @@ class ManagedEntries extends React.Component {
                             fieldId="mappedAttr"
                             title={_("The attribute that is set in the managed entry")}
                         >
-                            <Select
-                                variant={SelectVariant.typeahead}
-                                typeAheadAriaLabel="Type an attribute"
-                                onToggle={(event, isOpen) => this.handleMappedToggle(event, isOpen)}
+                            <TypeaheadSelect
+                                selected={this.state.mappedAttr}
                                 onSelect={this.handleMappedSelect}
                                 onClear={this.handleClearMappedSelection}
-                                selections={this.state.mappedAttr}
+                                options={attributes}
                                 isOpen={this.state.isMappedOpen}
-                                aria-labelledby="typeAhead-static"
-                                placeholderText={_("Type an attribute...")}
-                            >
-                                {attributes.map((attr) => (
-                                    <SelectOption
-                                        key={attr}
-                                        value={attr}
-                                    />
-                                ))}
-                            </Select>
+                                onToggle={this.handleMappedToggle}
+                                placeholder={_("Type an attribute...")}
+                                ariaLabel="Type an attribute"
+                            />
                         </FormGroup>
                         <FormGroup
                             label={_("Mapped Value")}
