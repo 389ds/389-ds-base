@@ -8,6 +8,7 @@
 
 import logging
 import ldap
+import os
 import time
 import threading
 from ldap.syncrepl import SyncreplConsumer
@@ -213,7 +214,10 @@ class Sync_persist(threading.Thread, ReconnectLDAPObject, SyncreplConsumer):
 
     def run(self):
         """Start a sync repl client"""
+        ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(self.inst.get_config_dir(), "ca.crt"))
         ldap_connection = TestSyncer(self.inst.toLDAPURL())
+        ldap_connection.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+        ldap_connection.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
         ldap_connection.simple_bind_s('cn=directory manager', 'password')
         ldap_search = ldap_connection.syncrepl_search(
             "dc=example,dc=com",
@@ -617,7 +621,7 @@ def test_sync_repl_dynamic_plugin(topology, request):
     topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'off')])
     topology.standalone.restart()
 
-    # Now start the test 
+    # Now start the test
     # Enable dynamic plugins
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
