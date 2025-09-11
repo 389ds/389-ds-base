@@ -26,6 +26,7 @@ import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import {
     WrenchIcon,
 } from '@patternfly/react-icons';
@@ -1323,26 +1324,18 @@ class MemberOf extends React.Component {
                                 {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel="Type a member attribute"
-                                    onToggle={(event, isOpen) => this.handleConfigAttrToggle(event, isOpen)}
-                                    onSelect={this.handleConfigAttrSelect}
+                                <TypeaheadSelect
+                                    selected={configAttr}
+                                    onSelect={(event, value) => {
+                                        this.setState({ configAttr: typeof value === 'string' ? value : '' }, () => { this.validateModal(); });
+                                    }}
                                     onClear={this.handleConfigAttrClear}
-                                    selections={configAttr}
-                                    isOpen={this.state.isConfigAttrOpen}
-                                    aria-labelledby="typeAhead-config-attr"
-                                    placeholderText={_("Type a member attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["memberOf"]}
+                                    placeholder={_("Type a member attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configAttr ? "error" : "default"}
-                                >
-                                    {["memberOf"].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
@@ -1350,26 +1343,20 @@ class MemberOf extends React.Component {
                                 {_("Group Attribute")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a member group attribute"
-                                    onToggle={(event, isOpen) => this.handleConfigGroupAttrToggle(event, isOpen)}
-                                    onSelect={this.handleConfigGroupAttrSelect}
+                                <TypeaheadSelect
+                                    isMulti
+                                    hasCheckbox
+                                    selected={configGroupAttr}
+                                    onSelect={(event, newSelections) => {
+                                        this.setState({ configGroupAttr: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateModal(); });
+                                    }}
                                     onClear={this.handleConfigGroupAttrClear}
-                                    selections={configGroupAttr}
-                                    isOpen={this.state.isConfigGroupAttrOpen}
-                                    aria-labelledby="typeAhead-config-group-attr"
-                                    placeholderText={_("Type a member group attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["member", "memberCertificate", "uniqueMember"]}
+                                    placeholder={_("Type a member group attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configGroupAttr ? "error" : "default"}
-                                >
-                                    {["member", "memberCertificate", "uniqueMember"].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member group attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
@@ -1377,28 +1364,24 @@ class MemberOf extends React.Component {
                                 {_("Subtree Scope")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleConfigScopeToggle(event, isOpen)}
-                                    onSelect={this.handleConfigScopeSelect}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={configEntryScope}
+                                    onSelect={(event, newSelections) => {
+                                        this.setState({ configEntryScope: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateModal(); });
+                                    }}
                                     onClear={this.handleConfigScopeClear}
-                                    selections={configEntryScope}
-                                    isOpen={isConfigSubtreeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.configEntryScopeOptions}
                                     isCreatable
                                     onCreateOption={this.handleConfigCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configEntryScope ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleConfigScopeToggle}
+                                    isOpen={isConfigSubtreeScopeOpen}
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
@@ -1418,28 +1401,22 @@ class MemberOf extends React.Component {
                                 {_("Exclude Subtree")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleConfigExcludeScopeToggle(event, isOpen)}
-                                    onSelect={this.handleConfigExcludeScopeSelect}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={configEntryScopeExcludeSubtree}
+                                    onSelect={(event, newSelections) => {
+                                        this.setState({ configEntryScopeExcludeSubtree: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateModal(); });
+                                    }}
                                     onClear={this.handleConfigExcludeScopeClear}
-                                    selections={configEntryScopeExcludeSubtree}
-                                    isOpen={isConfigExcludeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.configEntryScopeExcludeOptions}
                                     isCreatable
                                     onCreateOption={this.handleConfigExcludeCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configEntryScopeExcludeSubtree ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
@@ -1493,26 +1470,18 @@ class MemberOf extends React.Component {
                                 {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel="Type a member attribute"
-                                    onToggle={(event, isOpen) => this.handleMemberOfAttrToggle(event, isOpen)}
-                                    onSelect={this.handleMemberOfAttrSelect}
+                                <TypeaheadSelect
+                                    selected={memberOfAttr}
+                                    onSelect={(event, value) => {
+                                        this.setState({ memberOfAttr: typeof value === 'string' ? value : '' }, () => { this.validateConfig(); });
+                                    }}
                                     onClear={this.handleMemberOfAttrClear}
-                                    selections={memberOfAttr}
-                                    isOpen={this.state.isMemberOfAttrOpen}
-                                    aria-labelledby="typeAhead-memberof-attr"
-                                    placeholderText={_("Type a member attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["memberOf"]}
+                                    placeholder={_("Type a member attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfAttr ? "error" : "default"}
-                                >
-                                    {["memberOf"].map((attr) => (
-                                        <SelectOption
-                                            key={attr}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
@@ -1520,26 +1489,20 @@ class MemberOf extends React.Component {
                                 {_("Group Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a member group attribute"
-                                    onToggle={(event, isOpen) => this.handleMemberOfGroupAttrToggle(event, isOpen)}
-                                    onSelect={this.handleMemberOfGroupAttrSelect}
+                                <TypeaheadSelect
+                                    isMulti
+                                    hasCheckbox
+                                    selected={memberOfGroupAttr}
+                                    onSelect={(event, newSelections) => {
+                                        this.setState({ memberOfGroupAttr: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateConfig(); });
+                                    }}
                                     onClear={this.handleMemberOfGroupAttrClear}
-                                    selections={memberOfGroupAttr}
-                                    isOpen={this.state.isMemberOfGroupAttrOpen}
-                                    aria-labelledby="typeAhead-memberof-group-attr"
-                                    placeholderText={_("Type a member group attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["member", "memberCertificate", "uniqueMember"]}
+                                    placeholder={_("Type a member group attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfGroupAttr ? "error" : "default"}
-                                >
-                                    {["member", "memberCertificate", "uniqueMember"].map((attr) => (
-                                        <SelectOption
-                                            key={attr}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member group attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
@@ -1547,28 +1510,24 @@ class MemberOf extends React.Component {
                                 {_("Subtree Scope")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleSubtreeScopeToggle(event, isOpen)}
-                                    onSelect={this.handleSubtreeScopeSelect}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={memberOfEntryScope}
+                                    onSelect={(event, newSelections) => {
+                                        this.setState({ memberOfEntryScope: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateConfig(); });
+                                    }}
                                     onClear={this.handleSubtreeScopeClear}
-                                    selections={memberOfEntryScope}
-                                    isOpen={isSubtreeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.memberOfEntryScopeOptions}
                                     isCreatable
                                     onCreateOption={this.handleSubtreeScopeCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfEntryScope ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleSubtreeScopeToggle}
+                                    isOpen={isSubtreeScopeOpen}
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {"Values must be valid DN's"}
                                 </FormHelperText>
@@ -1588,28 +1547,24 @@ class MemberOf extends React.Component {
                                 {_("Exclude Subtree")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleExcludeScopeToggle(event, isOpen)}
-                                    onSelect={this.handleExcludeScopeSelect}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={memberOfEntryScopeExcludeSubtree}
+                                    onSelect={(event, newSelections) => {
+                                        this.setState({ memberOfEntryScopeExcludeSubtree: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateConfig(); });
+                                    }}
                                     onClear={this.handleExcludeScopeClear}
-                                    selections={memberOfEntryScopeExcludeSubtree}
-                                    isOpen={isExcludeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.memberOfEntryScopeExcludeOptions}
                                     isCreatable
                                     onCreateOption={this.handleExcludeCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfEntryScopeExcludeSubtree ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleExcludeScopeToggle}
+                                    isOpen={isExcludeScopeOpen}
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
