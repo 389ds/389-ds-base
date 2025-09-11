@@ -47,6 +47,27 @@ def topology_st(request):
 
     return topology
 
+def adjust_expected_for_backend(self, expected: dict):
+    """
+    Adjust expected logconv stats based on backend specific behavior.
+
+    A BDB implementation triggers additional operations during internal
+    actions, like restarts. This helper updates the expected stats to
+    account for these backend specific extra operations.
+
+    Args:
+        expected (dict): Dictionary of expected logconv stats.
+
+    Returns:
+        dict: Updated expected stats reflecting backend behavior.
+    """
+    if self.inst.dblib == "bdb":
+        expected["operations"] = expected.get("operations", 0) + 1
+        expected["searches"] = expected.get("searches", 0) + 1
+        expected["results"] = expected.get("results", 0) + 1
+
+    return expected
+
 class TestLogconv:
 
     @pytest.fixture(autouse=True)
@@ -212,6 +233,7 @@ class TestLogconv:
         for key, existing_val in logconv_stats.items():
             if key in IGNORE_KEYS:
                 continue
+
             expected_val = expected.get(key, 0)
             if existing_val != expected_val:
                 errors.append(f"{test_name} - {key}: expected {expected_val}, got {existing_val}")
@@ -648,6 +670,10 @@ class TestLogconv:
     def test_ldapi(self):
         """Validate ldapi operation stats reported by logconv.
 
+        Note:
+            adjust_expected_for_backend() is used to account for backend specific
+            extra operations.
+
         :id: 169545bc-cd1e-477a-bd73-3d593cb1ff98
         :setup: Standalone Instance
         :steps:
@@ -668,15 +694,6 @@ class TestLogconv:
         self.inst.config.set('nsslapd-ldapilisten', 'on')
         self.inst.config.set('nsslapd-ldapiautobind', 'on')
         self.inst.config.set('nsslapd-ldapifilepath', f'/var/run/slapd-{self.inst.serverid}.socket')
-        self.inst.restart()
-        ldapi_socket = self.inst.config.get_attr_val_utf8('nsslapd-ldapifilepath').replace('/', '%2F')
-        cmd = [
-            "ldapsearch",
-            "-H", f"ldapi://{ldapi_socket}",
-            "-Y", "EXTERNAL",
-            "-b", "dc=example,dc=com"
-        ]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         expected = {
             "mods": 3,
@@ -697,6 +714,18 @@ class TestLogconv:
             "fds_returned": 2,
             "restarts": 1
         }
+        self.inst.restart()
+        # Adjust expected for BDB restart
+        expected = adjust_expected_for_backend(self, expected)
+
+        ldapi_socket = self.inst.config.get_attr_val_utf8('nsslapd-ldapifilepath').replace('/', '%2F')
+        cmd = [
+            "ldapsearch",
+            "-H", f"ldapi://{ldapi_socket}",
+            "-Y", "EXTERNAL",
+            "-b", "dc=example,dc=com"
+        ]
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         time.sleep(2)
         output = self.run_logconv()
@@ -706,21 +735,22 @@ class TestLogconv:
     def test_restart(self):
         """Validate restart stats reported by logconv.
 
+        Note:
+            adjust_expected_for_backend() is used to account for backend specific
+            extra operations.
+
         :id: 1c98b6da-d37b-48f5-ae36-72c62ddccdb1
         :setup: Standalone Instance
         :steps:
             1. Truncate access log
-            2. Restart the instance twice
+            2. Restart instance twice
             3. Run logconv and compare stats
         :expectedresults:
             1. Success
-            2. SUccess
+            2. Success
             3. Actual stats match expected
         """
         self.truncate_logs()
-
-        self.inst.restart()
-        self.inst.restart()
 
         expected = {
             "binds": 2,
@@ -732,6 +762,12 @@ class TestLogconv:
             "fds_returned": 2,
             "restarts": 2
         }
+
+        self.inst.restart()
+        self.inst.restart()
+        # Adjust expected for BDB restarts
+        expected = adjust_expected_for_backend(self, expected)
+        expected = adjust_expected_for_backend(self, expected)
 
         output = self.run_logconv()
         logconv_stats = self.extract_logconv_stats(output)
@@ -997,6 +1033,10 @@ class TestLogconv:
     def test_ldaps(self):
         """Validate LDAPS and certificate-based bind stats reported by logconv.
 
+        Note:
+            adjust_expected_for_backend() is used to account for backend specific
+            extra operations.
+
         :id: e14e5b57-87fe-4b72-b787-b987a62b8ee9
         :setup: Standalone Instance with TLS enabled
         :steps:
@@ -1014,8 +1054,27 @@ class TestLogconv:
 
         RDN_TEST_USER = 'testuser'
         RDN_TEST_USER_WRONG = 'testuser_wrong'
+
+        expected = {
+            "mods": 2,
+            "adds": 1,
+            "binds": 4,
+            "sasl_binds": 2,
+            "searches": 6,
+            "operations": 13,
+            "results": 13,
+            "unbinds": 1,
+            "ldaps_conns": 4,
+            "ssl_client_binds": 1,
+            "ssl_client_bind_failed": 1,
+            "total_connections": 4,
+            "fds_taken": 4,
+            "fds_returned": 4,
+            "restarts": 3
+        }
         self.inst.enable_tls()
-        self.inst.restart()
+        # Adjust expected for BDB, enable_tls() implicit restart
+        expected = adjust_expected_for_backend(self, expected)
 
         users = UserAccounts(self.inst, DEFAULT_SUFFIX)
         user = users.create(properties={
@@ -1052,35 +1111,22 @@ class TestLogconv:
         # Restart to allow certmaps to be re-read: Note, we CAN NOT use post_open
         # here, it breaks on auth. see lib389/__init__.py
         self.inst.restart(post_open=False)
+        # Adjust expected for BDB restart
+        expected = adjust_expected_for_backend(self, expected)
 
         # Attempt a bind with TLS external
         self.inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
                 userkey=tls_locs['key'], usercert=tls_locs['crt'])
 
         self.inst.restart()
+        # Adjust expected for BDB restart
+        expected = adjust_expected_for_backend(self, expected)
 
         # Check for failed certmap error
         with pytest.raises(ldap.INVALID_CREDENTIALS):
             self.inst.open(saslmethod='EXTERNAL', connOnly=True, certdir=ssca_dir,
                     userkey=tls_locs_wrong['key'], usercert=tls_locs_wrong['crt'])
 
-        expected = {
-            "mods": 2,
-            "adds": 1,
-            "binds": 5,
-            "sasl_binds": 2,
-            "searches": 6,
-            "operations": 14,
-            "results": 14,
-            "unbinds": 1,
-            "ldaps_conns": 5,
-            "ssl_client_binds": 1,
-            "ssl_client_bind_failed": 1,
-            "total_connections": 5,
-            "fds_taken": 5,
-            "fds_returned": 5,
-            "restarts": 4
-        }
 
         output = self.run_logconv()
         logconv_stats = self.extract_logconv_stats(output)
