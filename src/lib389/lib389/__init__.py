@@ -2793,6 +2793,7 @@ class DirSrv(SimpleLDAPObject, object):
         if import_cl:
             cmd.append('-R')
 
+        self.log.debug(f"DirSrv.ldif2db: Running {cmd}")
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:

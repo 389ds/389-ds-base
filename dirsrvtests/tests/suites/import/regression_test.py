@@ -12,11 +12,12 @@ import os
 import pytest
 import threading
 import time
+from abc import ABC, abstractmethod
 from lib389.backend import Backends
 from lib389.properties import TASK_WAIT
 from lib389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.tasks import *
 from lib389.idm.user import UserAccounts
 from lib389.idm.directorymanager import DirectoryManager
@@ -90,6 +91,157 @@ class AddDelUsers(threading.Thread):
 
     def has_started(self):
         return self._ran
+
+
+def get_backend_by_name(inst, bename):
+    bes = Backends(inst)
+    bename = bename.lower()
+    be = [ be for be in bes if be.get_attr_val_utf8_l('cn') == bename ]
+    return be[0] if len(be) == 1 else None
+
+
+class LogHandler():
+    def __init__(self, logfd, patterns):
+        self.logfd = logfd
+        self.patterns = [ p.lower() for p in patterns ]
+        self.pos = logfd.tell()
+        self.last_result = None
+
+    def zero(self):
+        return [0 for _ in range(len(self.patterns))]
+
+    def countCaptures(self):
+        res = self.zero()
+        self.logfd.seek(self.pos)
+        for line in iter(self.logfd.readline, ''):
+            log.info(f'ERROR LOG line is {line.strip()}')
+            for idx,pattern in enumerate(self.patterns):
+                if pattern in line.lower():
+                    res[idx] += 1
+        self.pos = self.logfd.tell()
+        self.last_result = res
+        log.info(f'ERROR LOG counts are: {res}')
+        return res
+
+    def seek2end(self):
+        self.pos = os.fstat(self.logfd.fileno()).st_size
+
+    def check(self, idx, val):
+        count = self.last_result[idx]
+        assert count == val , f"Should have {val} '{self.patterns[idx]}' messages but got: {count} - idx = {idx}"
+
+
+class IEHandler(ABC):
+    def __init__(self, inst, errlog, ldifname, bename=DEFAULT_BENAME, suffix=None):
+        self.inst = inst
+        self.errlog = errlog
+        self.ldifname = ldifname
+        self.bename = bename
+        self.suffix = suffix
+        self.ldif = ldifname if ldifname.startswith('/') else f'{inst.get_ldif_dir()}/{ldifname}.ldif'
+
+    @abstractmethod
+    def get_name(self):
+        pass
+
+    @abstractmethod
+    def _run_task_b(self):
+        pass
+
+    @abstractmethod
+    def _run_task_s(self):
+        pass
+
+    @abstractmethod
+    def _run_offline(self):
+        pass
+
+    @abstractmethod
+    def _set_log_pattern(self, success):
+        pass
+
+    def run(self, extra_checks, success=True):
+        self._set_log_pattern(success)
+        self.errlog.seek2end()
+
+        if self.inst.status():
+            if self.bename:
+                log.info(f"Performing online {self.get_name()} of backend {self.bename} into LDIF file {self.ldif}")
+                r = self._run_task_b()
+            else:
+                log.info(f"Performing online {self.get_name()} of suffix {self.suffix} into LDIF file {self.ldif}")
+                r = self._run_task_s()
+            r.wait()
+        else:
+            if self.bename:
+                log.info(f"Performing offline {self.get_name()} of backend {self.bename} into LDIF file {self.ldif}")
+            else:
+                log.info(f"Performing offline {self.get_name()} of suffix {self.suffix} into LDIF file {self.ldif}")
+            self._run_offline()
+        expected_counts = ['*' for _ in range(len(self.errlog.patterns))]
+        for (idx, val) in extra_checks:
+            expected_counts[idx] = val
+        res = self.errlog.countCaptures()
+        log.info(f'Expected errorlog counts are: {expected_counts}')
+        if success is True or success is False:
+            log.info(f'Number of {self.errlog.patterns[0]} in errorlog is: {res[0]}')
+            assert res[0] >= 1
+        for (idx, val) in extra_checks:
+            self.errlog.check(idx, val)
+
+
+
+class Importer(IEHandler):
+    def get_name(self):
+        return "import"
+
+    def _set_log_pattern(self, success):
+        if success is True:
+            self.errlog.patterns[0] = 'import complete'
+        elif success is False:
+            self.errlog.patterns[0] = 'import failed'
+
+    def _run_task_b(self):
+        bes = Backends(self.inst)
+        r = bes.import_ldif(self.bename, [self.ldif,], include_suffixes=self.suffix)
+        return r
+
+    def _run_task_s(self):
+        r = ImportTask(self.inst)
+        r.import_suffix_from_ldif(self.ldif, self.suffix)
+        return r
+
+    def _run_offline(self):
+        log.info(f'self.inst.ldif2db({self.bename}, {self.suffix}, ...)')
+        if self.suffix is None:
+            self.inst.ldif2db(self.bename, self.suffix, None, False, self.ldif)
+        else:
+            self.inst.ldif2db(self.bename, [self.suffix, ], None, False, self.ldif)
+
+
+
+class Exporter(IEHandler):
+    def get_name(self):
+        return "export"
+
+    def _set_log_pattern(self, success):
+        if success is True:
+            self.errlog.patterns[0] = 'export finished'
+        elif success is False:
+            self.errlog.patterns[0] = 'export failed'
+
+    def _run_task_b(self):
+        bes = Backends(self.inst)
+        r = bes.export_ldif(self.bename, self.ldif, include_suffixes=self.suffix)
+        return r
+
+    def _run_task_s(self):
+        r = ExportTask(self.inst)
+        r.export_suffix_to_ldif(self.ldif, self.suffix)
+        return r
+
+    def _run_offline(self):
+        self.inst.db2ldif(self.bename, self.suffix, None, False, False, self.ldif)
 
 
 def test_replay_import_operation(topo):
@@ -485,6 +637,121 @@ def test_ldif2db_after_backend_create(topo):
 
     log.info('Import times should be approximately the same')
     assert abs(import_time_1 - import_time_2) < 5
+
+
+def test_ldif_missing_suffix_entry(topo):
+    """Test that ldif2db/import aborts if suffix entry is not in the ldif
+
+    :id: 731bd0d6-8cc8-11f0-8ef2-c85309d5c3e3
+    :setup: Standalone Instance
+    :steps:
+        1. Prepare final cleanup
+        2. Add a few users
+        3. Export ou=people subtree
+        4. Online import using backend name ou=people subtree
+        5. Online import using suffix name ou=people subtree
+        6. Stop the instance
+        7. Offline import using backend name ou=people subtree
+        8. Offline import using suffix name ou=people subtree
+        9. Final cleanup
+    :expectedresults:
+        1. Operation successful
+        2. Operation successful
+        3. Operation successful
+        4. Import should abort after first warning
+        5. Import should success with warning (and abort on bdb)
+        6. Operation successful
+        7. Import should abort after first warning
+        8. Import should success with warning (and abort on bdb)
+        9. Operation successful
+    """
+
+    inst = topo.standalone
+    # Import behaves differently on bdb and lmdb:
+    # When having suffix,
+    #  On lmdb, the import succeed writing one warning message per
+    #  skipped entries.
+    #  On bdb we get two messages and the import fails at
+    #  numsubordinates computation phase because the db is empty
+    is_mdb = get_default_db_lib() == "mdb"
+    if is_mdb:
+        to_test = {'backend': (
+                      (1, 5), # 5 errors are expected.
+                      (2, 1), # 1 warning is expected.
+                      (3, 1), # 1 'no parent' warning is expected.
+                      (4, 1), # 1 abort because suffix entry is not the first one.
+                    ),
+                   'suffix': (
+                      (1, 0), # no errors are expected.
+                      (2, 12), # 12 warning are expected.
+                      (3, 12), # 12 'no parent' warning are expected.
+                      (4, 0), # no abort because suffix entry is not the first one.
+                    ),
+                  }
+    else:
+        to_test = {'backend': (
+                      (1, 5), # 5 errors are expected.
+                      (2, 1), # 1 warning is expected.
+                      (3, 1), # 1 'no parent' warning is expected.
+                      (4, 1), # 1 abort because suffix entry is not the first one.
+                    ),
+                   'suffix': (
+                      (1, 4), # 4 errors are expected.
+                      (3, 12), # 12 'no parent' warning are expected.
+                      (4, 0), # no abort because suffix entry is not the first one.
+                    ),
+                  }
+
+    with open(inst.ds_paths.error_log, 'at+') as fd:
+        patterns = (
+            "Reserved fo IEHandler",
+            " ERR ",
+            " WARN ",
+            "has no parent",
+            "Import is aborted because trying to import entry",
+        )
+        errlog = LogHandler(fd, patterns)
+        no_errors = ((1, 0), (2, 0)) # no errors nor warnings are expected.
+
+
+        # 1. Prepare final cleanup
+        Exporter(inst, errlog, "full").run(no_errors)
+
+        def fin():
+            inst.start()
+            Importer(inst, errlog, "full").run(no_errors)
+
+        if not DEBUGGING:
+            request.addfinalizer(fin)
+
+        # 2. Add a few users
+        user = UserAccounts(inst, DEFAULT_SUFFIX)
+        users = [ user.create_test_user(uid=i) for i in range(10) ]
+
+        # 3. Export ou=people subtree
+        e = Exporter(inst, errlog, "people", suffix=f'ou=people,{DEFAULT_SUFFIX}')
+        e.run(no_errors) # no errors nor warnings are expected.
+
+        # 4. Online import using backend name ou=people subtree
+        Importer(inst, errlog, "people").run(to_test['backend'], success=False)
+
+        # 5. Online import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "people", suffix=DEFAULT_SUFFIX)
+        e.run(to_test['suffix'], success=is_mdb)
+
+        # 6. Stop the instance
+        inst.stop()
+
+        # 7. Offline import using backend name ou=people subtree
+        Importer(inst, errlog, "people").run(to_test['backend'], success=False)
+
+        # 8. Offline import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "people", suffix=DEFAULT_SUFFIX)
+        e.run(to_test['suffix'], success=is_mdb)
+
+        # 9. Final cleanup
+        if DEBUGGING:
+            fin()
 
 
 if __name__ == '__main__':

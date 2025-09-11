@@ -300,3 +300,31 @@ import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t 
     return ret;
 }
 
+bool
+import_aborts_if_no_suffix(ImportJob *job, const char *dn, ID id)
+{
+    /*
+     * Called during import when dn has no parent entry
+     * Lets abort the import if:
+     *   no include/exclude subtrees
+     *   dn parent is the backend suffix
+     */
+    bool rc = false;
+    backend *be = job->inst->inst_be;
+    if (be == NULL || job->include_subtrees != NULL ||
+        job->exclude_subtrees != NULL) {
+        return rc;
+    }
+    if (id == 1) {
+        /*
+         * Suffix should be the first entry
+         */
+        import_abort_all(job, 0);
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_producer",
+                          "Import is aborted because trying to import "
+                          "entry %s while suffix entry %s is missing.\n",
+                          dn,  slapi_sdn_get_dn(be->be_suffix));
+        rc = true;
+    }
+    return rc;
+}
