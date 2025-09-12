@@ -114,6 +114,9 @@ class LogHandler():
         res = self.zero()
         self.logfd.seek(self.pos)
         for line in iter(self.logfd.readline, ''):
+            # Ignore autotune messages that may confuse the counts
+            if 'bdb_start_autotune' in line:
+                continue
             log.info(f'ERROR LOG line is {line.strip()}')
             for idx,pattern in enumerate(self.patterns):
                 if pattern in line.lower():
@@ -189,6 +192,9 @@ class IEHandler(ABC):
         for (idx, val) in extra_checks:
             self.errlog.check(idx, val)
 
+    def check_db(self):
+       assert self.inst.dbscan(bename=self.bename, index='id2entry')
+
 
 
 class Importer(IEHandler):
@@ -217,7 +223,6 @@ class Importer(IEHandler):
             self.inst.ldif2db(self.bename, self.suffix, None, False, self.ldif)
         else:
             self.inst.ldif2db(self.bename, [self.suffix, ], None, False, self.ldif)
-
 
 
 class Exporter(IEHandler):
@@ -653,54 +658,59 @@ def test_ldif_missing_suffix_entry(topo):
         6. Stop the instance
         7. Offline import using backend name ou=people subtree
         8. Offline import using suffix name ou=people subtree
-        9. Final cleanup
+        9. Generate ldif with a far away suffix
+        10. Offline import using backend name  and "far" ldif
+        11. Offline import using suffix name and "far" ldif
+        12. Start the instance
+        13. Online import using backend name  and "far" ldif
+        14. Online import using suffix name and "far" ldif
     :expectedresults:
         1. Operation successful
         2. Operation successful
         3. Operation successful
-        4. Import should abort after first warning
-        5. Import should success with warning (and abort on bdb)
+        4. Import should success, skip all entries, db should exists
+        5. Import should success, skip all entries, db should exists
         6. Operation successful
-        7. Import should abort after first warning
-        8. Import should success with warning (and abort on bdb)
+        5. Import should success, skip all entries, db should exists
+        5. Import should success, skip all entries, db should exists
         9. Operation successful
+        10. Import should success, skip all entries, db should exists
+        11. Import should success, 10 entries skipped, db should exists
+        12. Operation successful
+        13. Import should success, skip all entries, db should exists
+        14. Import should success, 10 entries skipped, db should exists
     """
 
     inst = topo.standalone
-    # Import behaves differently on bdb and lmdb:
-    # When having suffix,
-    #  On lmdb, the import succeed writing one warning message per
-    #  skipped entries.
-    #  On bdb we get two messages and the import fails at
-    #  numsubordinates computation phase because the db is empty
-    is_mdb = get_default_db_lib() == "mdb"
-    if is_mdb:
-        to_test = {'backend': (
-                      (1, 5), # 5 errors are expected.
-                      (2, 1), # 1 warning is expected.
-                      (3, 1), # 1 'no parent' warning is expected.
-                      (4, 1), # 1 abort because suffix entry is not the first one.
-                    ),
-                   'suffix': (
-                      (1, 0), # no errors are expected.
-                      (2, 12), # 12 warning are expected.
-                      (3, 12), # 12 'no parent' warning are expected.
-                      (4, 0), # no abort because suffix entry is not the first one.
-                    ),
-                  }
-    else:
-        to_test = {'backend': (
-                      (1, 5), # 5 errors are expected.
-                      (2, 1), # 1 warning is expected.
-                      (3, 1), # 1 'no parent' warning is expected.
-                      (4, 1), # 1 abort because suffix entry is not the first one.
-                    ),
-                   'suffix': (
-                      (1, 4), # 4 errors are expected.
-                      (3, 12), # 12 'no parent' warning are expected.
-                      (4, 0), # no abort because suffix entry is not the first one.
-                    ),
-                  }
+    no_suffix_on = (
+        (1, 0), # no errors are expected.
+        (2, 1), # 1 warning is expected.
+        (3, 0), # no 'no parent' warning is expected.
+        (4, 1), # 1 'all entries were skipped' warning
+        (5, 0), # no 'returning task warning' info message
+    )
+    no_suffix_off = (
+        (1, 0), # no errors are expected.
+        (2, 1), # 1 warning is expected.
+        (3, 0), # no 'no parent' warning is expected.
+        (4, 1), # 1 'all entries were skipped' warning
+        (5, 1), # 1 'returning task warning' info message
+    )
+    nbw = 0 if get_default_db_lib() == "bdb" else 10
+    far_suffix_on = (
+        (1, 0), # no errors are expected.
+        (2, nbw), # no/10 warning are expected.
+        (3, nbw), # no/10 'no parent' warning are expected.
+        (4, 0), # no 'all entries were skipped' warning
+        (5, 0), # no 'returning task warning' info message
+    )
+    far_suffix_off = (
+        (1, 0), # no errors are expected.
+        (2, nbw), # no/10 warning is expected.
+        (3, nbw), # no/10 'no parent' warning is expected.
+        (4, 0), # no 'all entries were skipped' warning
+        (5, 0), # no 'returning task warning' info message
+    )
 
     with open(inst.ds_paths.error_log, 'at+') as fd:
         patterns = (
@@ -708,7 +718,8 @@ def test_ldif_missing_suffix_entry(topo):
             " ERR ",
             " WARN ",
             "has no parent",
-            "Import is aborted because trying to import entry",
+            "all entries were skipped",
+            "returning task warning",
         )
         errlog = LogHandler(fd, patterns)
         no_errors = ((1, 0), (2, 0)) # no errors nor warnings are expected.
@@ -733,25 +744,66 @@ def test_ldif_missing_suffix_entry(topo):
         e.run(no_errors) # no errors nor warnings are expected.
 
         # 4. Online import using backend name ou=people subtree
-        Importer(inst, errlog, "people").run(to_test['backend'], success=False)
+        e = Importer(inst, errlog, "people")
+        e.run(no_suffix_on)
+        e.check_db()
 
         # 5. Online import using suffix name ou=people subtree
         e = Importer(inst, errlog, "people", suffix=DEFAULT_SUFFIX)
-        e.run(to_test['suffix'], success=is_mdb)
+        e.run(no_suffix_on)
+        e.check_db()
 
         # 6. Stop the instance
         inst.stop()
 
         # 7. Offline import using backend name ou=people subtree
-        Importer(inst, errlog, "people").run(to_test['backend'], success=False)
+        e = Importer(inst, errlog, "people")
+        e.run(no_suffix_off)
+        e.check_db()
 
         # 8. Offline import using suffix name ou=people subtree
         e = Importer(inst, errlog, "people", suffix=DEFAULT_SUFFIX)
-        e.run(to_test['suffix'], success=is_mdb)
+        e.run(no_suffix_off)
+        e.check_db()
 
-        # 9. Final cleanup
-        if DEBUGGING:
-            fin()
+        # 9. Generate ldif with a far away suffix
+        e = Importer(inst, errlog, "full")
+        people_ldif = e.ldif
+        e = Importer(inst, errlog, "far")
+        with open(e.ldif, "wt") as fout:
+            with open(people_ldif, "rt") as fin:
+                # Copy version
+                line = fin.readline()
+                fout.write(line)
+                line = fin.readline()
+                fout.write(line)
+                # Generate fake entries
+                for idx in range(10):
+                    fout.write(f"dn: uid=id{idx},dc=foo\nobjectclasses: extensibleObject\n\n")
+                for line in iter(fin.readline, ''):
+                    fout.write(line)
+
+        # 10. Offline import using backend name ou=people subtree
+        e.run(no_suffix_off)
+        e.check_db()
+
+        # 11. Offline import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "far", suffix=DEFAULT_SUFFIX)
+        e.run(far_suffix_off)
+        e.check_db()
+
+        # 12. Start the instance
+        inst.start()
+
+        # 13. Online import using backend name ou=people subtree
+        e = Importer(inst, errlog, "far")
+        e.run(no_suffix_on)
+        e.check_db()
+
+        # 14. Online import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "far", suffix=DEFAULT_SUFFIX)
+        e.run(far_suffix_on)
+        e.check_db()
 
 
 if __name__ == '__main__':

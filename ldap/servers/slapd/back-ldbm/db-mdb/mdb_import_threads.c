@@ -1309,7 +1309,6 @@ dbmdb_import_producer(void *param)
                 import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
                                   "Skipping entry \"%s\" which has no parent. The entry ID is %d and is around line %d in file \"%s\"",
                                   wqelmt.dn, wqelmt.wait_id, curr_lineno, curr_filename);
-                import_aborts_if_no_suffix(job, wqelmt.dn, wqelmt.wait_id);
                 slapi_ch_free_string(&wqelmt.dn);
                 slapi_ch_free(&wqelmt.data);
                 job->skipped++;

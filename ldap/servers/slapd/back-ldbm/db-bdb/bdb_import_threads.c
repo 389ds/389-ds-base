@@ -2422,9 +2422,6 @@ bdb_import_foreman(void *param)
                 /* skip this one */
                 fi->bad = FIFOITEM_BAD;
                 job->skipped++;
-                if (import_aborts_if_no_suffix(job, slapi_entry_get_dn(fi->entry->ep_entry), fi->entry->ep_id)) {
-                    goto error;
-                }
                 goto cont; /* below */
             }
         }

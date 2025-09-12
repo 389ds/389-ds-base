@@ -110,7 +110,8 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
     ldbm_instance *inst = NULL;
     char *instance_name;
     Slapi_Task *task = NULL;
-    int ret, task_flags;
+    int ret = -1;
+    int task_flags = 0;
     dbmdb_ctx_t *ctx = NULL;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -151,8 +152,13 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_ERR,
                     "dbmdb_ldif2db", "%s: Failed to write import file, error %d: %s\n",
                     inst->inst_name, ret, slapd_pr_strerror(ret));
-            return -1;
+            goto fail;
         }
+    }
+
+    if (!db2ldif_is_suffix_in_ldif(pb, inst)) {
+        ret = 0; /* Nothing to do */
+        goto fail;
     }
 
     /***** prepare & init lmdb and dblayer *****/
