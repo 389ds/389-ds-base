@@ -8,6 +8,7 @@
 #
 import ldap
 import pytest
+import os
 from lib389.topologies import topology_m2
 from lib389._constants import (DEFAULT_SUFFIX)
 from lib389.agreement import Agreements
@@ -66,6 +67,7 @@ def test_referral_during_tot(topology_m2):
     # This should trigger the referral code.
     referred = False
     for i in range(0, 100):
+        ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, os.path.join(supplier2.get_config_dir(), "ca.crt"))
         conn = ldap.initialize(supplier2.toLDAPURL())
         conn.set_option(ldap.OPT_REFERRALS, False)
         try:

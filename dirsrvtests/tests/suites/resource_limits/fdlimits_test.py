@@ -14,7 +14,7 @@ import resource
 from lib389.backend import Backends
 from lib389._constants import *
 from lib389.topologies import topology_st
-from lib389.utils import ds_is_older, ensure_str
+from lib389.utils import ds_is_older, ensure_str, is_fips
 from subprocess import check_output
 
 pytestmark = pytest.mark.tier1
@@ -109,7 +109,7 @@ def test_reserve_descriptor_validation(topology_st):
     A standalone instance contains a single backend with default indexes
     so we only check these. TODO add tests for repl, chaining, PTA, SSL
     """
-    STANDALONE_INST_RESRV_DESCS = 20 # 20 = Reserve descriptor constant
+    STANDALONE_INST_RESRV_DESCS = 25 if is_fips() else 20 # Reserve descriptor constant (higher in FIPS mode)
     backends = Backends(topology_st.standalone)
     STANDALONE_INST_RESRV_DESCS += (len(backends.list()) * 4) # 4 = Backend descriptor constant
     for be in backends.list() :
