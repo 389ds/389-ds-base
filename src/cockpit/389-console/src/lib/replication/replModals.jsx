@@ -25,11 +25,7 @@ import {
 	TimePicker,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 
@@ -607,25 +603,18 @@ export class WinsyncAgmtModal extends React.Component {
                                         {_("Exclude Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onSelectToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtFracAttrs}
                                             onSelect={(e, selection) => { handleFracChange(selection) }}
                                             onClear={onSelectClear}
-                                            selections={agmtFracAttrs}
+                                            options={availAttrs}
                                             isOpen={isExcludeAttrOpen}
-                                            aria-labelledby="typeAhead-exclude-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                            noResultsFoundText={_("There are no matching entries")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onSelectToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top-med">
@@ -1311,24 +1300,17 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Exclude Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onExcludeAttrsToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtFracAttrs}
                                             onSelect={(e, selection) => { handleFracChange(selection) }}
                                             onClear={onExcludeAttrsClear}
-                                            selections={agmtFracAttrs}
+                                            options={availAttrs}
                                             isOpen={isExcludeAttrsOpen}
-                                            aria-labelledby="typeAhead-exclude-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onExcludeAttrsToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Attribute to exclude from replica Initializations")}>
@@ -1336,25 +1318,18 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Exclude Init Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onExcludeAttrsInitToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtFracInitAttrs}
                                             onSelect={(e, selection) => { handleFracInitChange(selection) }}
                                             onClear={onExcludeAttrsInitClear}
-                                            selections={agmtFracInitAttrs}
+                                            options={availAttrs}
                                             isOpen={isExcludeInitAttrsOpen}
-                                            aria-labelledby="typeAhead-exclude-init-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                            noResultsFoundText={_("There are no matching entries")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onExcludeAttrsInitToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Attributes to strip from a replicatio<Selectn update")}>
@@ -1362,25 +1337,18 @@ export class ReplAgmtModal extends React.Component {
                                         {_("Strip Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={onStripAttrsToggle}
+                                        <TypeaheadSelect
+                                            selected={agmtStripAttrs}
                                             onSelect={(e, selection) => { handleStripChange(selection) }}
                                             onClear={onStripAttrsClear}
-                                            selections={agmtStripAttrs}
+                                            options={availAttrs}
                                             isOpen={isStripAttrsOpen}
-                                            aria-labelledby="typeAhead-strip-attrs"
-                                            placeholderText={_("Start typing an attribute...")}
-                                            noResultsFoundText={_("There are no matching entries")}
-                                        >
-                                            {availAttrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={onStripAttrsToggle}
+                                            placeholder={_("Start typing an attribute...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type an attribute"
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                             </Tab>

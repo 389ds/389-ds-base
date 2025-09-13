@@ -22,11 +22,7 @@ import {
 	TextVariants,
 	TimePicker
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
@@ -92,21 +88,9 @@ export class ServerAuditLog extends React.Component {
         };
 
         this.handleOnDisplayAttrSelect = (event, selection) => {
-            if (this.state.displayAttrs.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        displayAttrs: prevState.displayAttrs.filter((item) => item !== selection),
-                        isDisplayAttrOpen: false
-                    }), () => { this.validateSaveBtn("settings", "none", "none") }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        displayAttrs: [...prevState.displayAttrs, selection],
-                        isDisplayAttrOpen: false
-                    }), () => { this.validateSaveBtn("settings", "none", "none") }
-                );
-            }
+            this.setState({
+                displayAttrs: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateSaveBtn("settings", "none", "none") });
         };
         this.handleOnDisplayAttrToggle = (_event, isDisplayAttrOpen) => {
             this.setState({
@@ -604,25 +588,18 @@ export class ServerAuditLog extends React.Component {
                                 title={_("Display attributes from the entry in the audit log (nsslapd-auditlog-display-attrs).")}
                             >
                                 <div className={this.state.displayAllAttrs ? "ds-hidden" : "ds-margin-bottom"}>
-                                    <Select
-                                        variant={SelectVariant.typeaheadMulti}
-                                        typeAheadAriaLabel="Type an attribute"
-                                        onToggle={(event, isOpen) => this.handleOnDisplayAttrToggle(event, isOpen)}
+                                    <TypeaheadSelect
+                                        isMulti={true}
+                                        ariaLabel="Type an attribute"
+                                        onToggle={this.handleOnDisplayAttrToggle}
                                         onSelect={this.handleOnDisplayAttrSelect}
                                         onClear={this.handleOnDisplayAttrClear}
-                                        selections={this.state.displayAttrs}
+                                        selected={this.state.displayAttrs}
                                         isOpen={this.state.isDisplayAttrOpen}
-                                        aria-labelledby="typeAhead-audit-display-attr"
-                                        placeholderText={_("Type an attribute...")}
-                                        noResultsFoundText={_("There are no matching attributes")}
-                                    >
-                                        {this.state.attributes.map((attr, index) => (
-                                            <SelectOption
-                                                key={index}
-                                                value={attr}
-                                            />
-                                        ))}
-                                    </Select>
+                                        placeholder={_("Type an attribute...")}
+                                        noResultsText={_("There are no matching attributes")}
+                                        options={this.state.attributes}
+                                    />
                                 </div>
                                 <Checkbox
                                     className="ds-lower-field-md"

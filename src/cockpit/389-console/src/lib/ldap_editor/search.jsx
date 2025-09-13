@@ -28,11 +28,7 @@ import {
 	Tooltip,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import {
     expandable
 } from '@patternfly/react-table';
@@ -152,22 +148,10 @@ export class SearchDatabase extends React.Component {
         };
 
         this.handleCustomAttrChange = (event, selection) => {
-            const { customSearchAttrs } = this.state;
-            if (customSearchAttrs.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        customSearchAttrs: prevState.customSearchAttrs.filter(item => item !== selection),
-                        isCustomAttrOpen: false
-                    }), () => { this.buildSearchFilter(this.state.searchText) }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        customSearchAttrs: [...prevState.customSearchAttrs, selection],
-                        isCustomAttrOpen: false,
-                    }), () => { this.buildSearchFilter(this.state.searchText) }
-                );
-            }
+            this.setState({
+                customSearchAttrs: Array.isArray(selection) ? selection : [],
+                isCustomAttrOpen: false,
+            }, () => { this.buildSearchFilter(this.state.searchText) });
         };
 
         this.buildSearchFilter = (value) => {
@@ -1082,27 +1066,20 @@ export class SearchDatabase extends React.Component {
                                         />
                                     </GridItem>
                                 </Grid>
-                                <Grid className="ds-margin-left ds-margin-top" title={_("Enter space or comma separateed list of attributes to search.")}>
+                                <Grid className="ds-margin-left ds-margin-top" title={_("Enter space or comma separated list of attributes to search.")}>
                                     <GridItem span={8}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type attributes to include in filter ..."
-                                            onToggle={(event, isOpen) => this.handleCustomAttrToggle(event, isOpen)}
+                                        <TypeaheadSelect
+                                            selected={this.state.customSearchAttrs}
                                             onSelect={this.handleCustomAttrChange}
                                             onClear={this.handleCustomAttrClear}
-                                            selections={this.state.customSearchAttrs}
+                                            options={this.props.attributes}
                                             isOpen={this.state.isCustomAttrOpen}
-                                            aria-labelledby="typeAhead-attr-filter"
-                                            placeholderText={_("Type attributes to include in the filter ...")}
-                                            noResultsFoundText="There are no matching attributes"
-                                        >
-                                            {this.props.attributes.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            onToggle={this.handleCustomAttrToggle}
+                                            placeholder={_("Type attributes to include in the filter ...")}
+                                            noResultsText="There are no matching attributes"
+                                            ariaLabel="Type attributes to include in filter ..."
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                             </div>

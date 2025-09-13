@@ -20,11 +20,7 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import { SyncAltIcon } from '@patternfly/react-icons';
 
@@ -542,23 +538,11 @@ export class GlobalPwPolicy extends React.Component {
             }
         }
         if (selection) {
-            if (this.state[attr].includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== selection),
-                        isSelectOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], selection],
-                        saveSyntaxDisabled: disableSaveBtn,
-                        isSelectOpen: false
-
-                    }),
-                );
-            }
+            this.setState({
+                [attr]: Array.isArray(selection) ? selection : [],
+                saveSyntaxDisabled: disableSaveBtn,
+                isSelectOpen: false
+            });
         } else {
             this.setState({
                 [attr]: value,
@@ -1211,25 +1195,18 @@ export class GlobalPwPolicy extends React.Component {
                             {_("Check User Attributes")}
                         </GridItem>
                         <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.typeaheadMulti}
-                                typeAheadAriaLabel="Type an attribute to check"
-                                onToggle={(_event, isSelectOpen) => this.handleSelectToggle(isSelectOpen)}
-                                onClear={this.handleSelectClear}
+                            <TypeaheadSelect
+                                selected={this.state.passworduserattributes}
                                 onSelect={this.handleSyntaxChange}
-                                selections={this.state.passworduserattributes}
+                                onClear={this.handleSelectClear}
+                                options={this.props.attrs}
                                 isOpen={this.state.isSelectOpen}
-                                aria-labelledby="typeAhead-user-attr"
-                                placeholderText={_("Type attributes to check...")}
-                                noResultsFoundText="There are no matching entries"
-                            >
-                                {this.props.attrs.map((attr, index) => (
-                                    <SelectOption
-                                        key={index}
-                                        value={attr}
-                                    />
-                                ))}
-                            </Select>
+                                onToggle={this.handleSelectToggle}
+                                placeholder={_("Type attributes to check...")}
+                                noResultsText="There are no matching entries"
+                                ariaLabel="Type an attribute to check"
+                                isMulti={true}
+                            />
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top-lg" title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>

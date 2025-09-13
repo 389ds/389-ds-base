@@ -19,11 +19,7 @@ import {
 	Switch,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -103,21 +99,9 @@ class AttributeUniqueness extends React.Component {
 
         // Attribute Name
         this.handleAttributeNameSelect = (event, selection) => {
-            if (this.state.attrNames.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        attrNames: prevState.attrNames.filter((item) => item !== selection),
-                        isAttributeNameOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        attrNames: [...prevState.attrNames, selection],
-                        isAttributeNameOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                attrNames: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleAttributeNameToggle = (_event, isAttributeNameOpen) => {
             this.setState({
@@ -137,21 +121,9 @@ class AttributeUniqueness extends React.Component {
                 this.setState({isSubtreesOpen: false});
                 return;
             }
-            if (this.state.subtrees.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        subtrees: prevState.subtrees.filter((item) => item !== selection),
-                        isSubtreesOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        subtrees: [...prevState.subtrees, selection],
-                        isSubtreesOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                subtrees: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleSubtreesToggle = (_event, isSubtreesOpen) => {
             this.setState({
@@ -178,21 +150,9 @@ class AttributeUniqueness extends React.Component {
                 this.setState({isExcludeSubtreesOpen: false});
                 return;
             }
-            if (this.state.excludeSubtrees.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        excludeSubtrees: prevState.excludeSubtrees.filter((item) => item !== selection),
-                        isExcludeSubtreesOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        excludeSubtrees: [...prevState.excludeSubtrees, selection],
-                        isExcludeSubtreesOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                excludeSubtrees: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleExcludeSubtreesToggle = (_event, isExcludeSubtreesOpen) => {
             this.setState({
@@ -782,26 +742,19 @@ class AttributeUniqueness extends React.Component {
                                 {_("Attribute Names")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an attribute"
-                                    onToggle={(event, isOpen) => this.handleAttributeNameToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={attrNames}
                                     onSelect={this.handleAttributeNameSelect}
                                     onClear={this.handleAttributeNameClear}
-                                    selections={attrNames}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isAttributeNameOpen}
-                                    aria-labelledby="typeAhead-attr-name"
-                                    placeholderText={_("Type an attribute name...")}
-                                    noResultsFoundText={_("There are no matching attributes")}
+                                    onToggle={this.handleAttributeNameToggle}
+                                    placeholder={_("Type an attribute name...")}
+                                    noResultsText={_("There are no matching attributes")}
+                                    ariaLabel="Type an attribute"
                                     validated={this.state.error.attrNames ? "error" : "default"}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)")}>
@@ -809,28 +762,21 @@ class AttributeUniqueness extends React.Component {
                                 {_("Subtrees")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleSubtreesToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={subtrees}
                                     onSelect={this.handleSubtreesSelect}
                                     onClear={this.handleSubtreesClear}
-                                    selections={subtrees}
+                                    options={[""]}
                                     isOpen={this.state.isSubtreesOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
-                                    onCreateOption={this.handleSubtreesCreateOption}
+                                    onToggle={this.handleSubtreesToggle}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a subtree DN"
                                     validated={this.state.error.subtrees ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleSubtreesCreateOption}
+                                />
                                 {this.state.error.subtrees &&
                                     <FormHelperText >
                                         <HelperText>
@@ -847,28 +793,21 @@ class AttributeUniqueness extends React.Component {
                                 Excluded Subtrees
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an exclude subtree DN"
-                                    onToggle={(event, isOpen) => this.handleExcludeSubtreesToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={excludeSubtrees}
                                     onSelect={this.handleExcludeSubtreesSelect}
                                     onClear={this.handleExcludeSubtreesClear}
-                                    selections={excludeSubtrees}
+                                    options={[""]}
                                     isOpen={this.state.isExcludeSubtreesOpen}
-                                    aria-labelledby="typeAhead-exclude-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
-                                    onCreateOption={this.handleExcludeSubtreesCreateOption}
+                                    onToggle={this.handleExcludeSubtreesToggle}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an exclude subtree DN"
                                     validated={this.state.error.excludeSubtrees ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                    isCreatable={true}
+                                    onCreateOption={this.handleExcludeSubtreesCreateOption}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)")}>
