@@ -17,11 +17,6 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -143,21 +138,9 @@ class MemberOf extends React.Component {
 
         // Config Group Attribute
         this.handleConfigGroupAttrSelect = (event, selection) => {
-            if (this.state.configGroupAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configGroupAttr: prevState.configGroupAttr.filter((item) => item !== selection),
-                        isConfigGroupAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configGroupAttr: [...prevState.configGroupAttr, selection],
-                        isConfigGroupAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configGroupAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigGroupAttrToggle = (_event, isConfigGroupAttrOpen) => {
             this.setState({
@@ -173,14 +156,9 @@ class MemberOf extends React.Component {
 
         // MemberOf Attribute
         this.handleMemberOfAttrSelect = (event, selection) => {
-            if (selection === this.state.configAttr) {
-                this.handleMemberOfAttrClear();
-            } else {
-                this.setState({
-                    memberOfAttr: selection,
-                    isMemberOfAttrOpen: false
-                }, () => { this.validateModal() });
-            }
+            this.setState({
+                memberOfAttr: selection || '',
+            }, () => { this.validateConfig() });
         };
         this.handleMemberOfAttrToggle = (_event, isMemberOfAttrOpen) => {
             this.setState({
@@ -189,28 +167,15 @@ class MemberOf extends React.Component {
         };
         this.handleMemberOfAttrClear = () => {
             this.setState({
-                memberOfAttr: [],
-                isMemberOfAttrOpen: false
+                memberOfAttr: '',
             }, () => { this.validateConfig() });
         };
 
         // MemberOf Group Attribute
         this.handleMemberOfGroupAttrSelect = (event, selection) => {
-            if (this.state.memberOfGroupAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        memberOfGroupAttr: prevState.memberOfGroupAttr.filter((item) => item !== selection),
-                        isMemberOfGroupAttrOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        memberOfGroupAttr: [...prevState.memberOfGroupAttr, selection],
-                        isMemberOfGroupAttrOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                memberOfGroupAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleMemberOfGroupAttrToggle = (_event, isMemberOfGroupAttrOpen) => {
             this.setState({
@@ -220,31 +185,14 @@ class MemberOf extends React.Component {
         this.handleMemberOfGroupAttrClear = () => {
             this.setState({
                 memberOfGroupAttr: [],
-                isMemberOfGroupAttrOpen: false
             }, () => { this.validateConfig() });
         };
 
         // Handle scope subtree
         this.handleSubtreeScopeSelect = (event, selection) => {
-            if (!selection.trim() || !valid_dn(selection)) {
-                this.setState({isSubtreeScopeOpen: false});
-                return;
-            }
-            if (this.state.memberOfEntryScope.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScope: prevState.memberOfEntryScope.filter((item) => item !== selection),
-                        isSubtreeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScope: [...prevState.memberOfEntryScope, selection],
-                        isSubtreeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                memberOfEntryScope: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleSubtreeScopeToggle = (_event, isSubtreeScopeOpen) => {
             this.setState({
@@ -254,39 +202,21 @@ class MemberOf extends React.Component {
         this.handleSubtreeScopeClear = () => {
             this.setState({
                 memberOfEntryScope: [],
-                isSubtreeScopeOpen: false
             }, () => { this.validateConfig() });
         };
         this.handleSubtreeScopeCreateOption = newValue => {
             if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeOptions: [...this.state.memberOfEntryScopeOptions, newValue],
-                    isSubtreeScopeOpen: false
                 }, () => { this.validateConfig() });
             }
         };
 
         // Handle Exclude Scope subtree
         this.handleExcludeScopeSelect = (event, selection) => {
-            if (!selection.trim() || !valid_dn(selection)) {
-                this.setState({isExcludeScopeOpen: false});
-                return;
-            }
-            if (this.state.memberOfEntryScopeExcludeSubtree.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScopeExcludeSubtree: prevState.memberOfEntryScopeExcludeSubtree.filter((item) => item !== selection),
-                        isExcludeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScopeExcludeSubtree: [...prevState.memberOfEntryScopeExcludeSubtree, selection],
-                        isExcludeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                memberOfEntryScopeExcludeSubtree: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleExcludeScopeToggle = (_event, isExcludeScopeOpen) => {
             this.setState({
@@ -296,14 +226,12 @@ class MemberOf extends React.Component {
         this.handleExcludeScopeClear = () => {
             this.setState({
                 memberOfEntryScopeExcludeSubtree: [],
-                isExcludeScopeOpen: false
             }, () => { this.validateConfig() });
         };
         this.handleExcludeCreateOption = newValue => {
-            if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
+            if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeExcludeOptions: [...this.state.memberOfEntryScopeExcludeOptions, newValue],
-                    isExcludeScopeOpen: false
                 }, () => { this.validateConfig() });
             }
         };
@@ -311,25 +239,9 @@ class MemberOf extends React.Component {
         // Modal scope and exclude Scope
         // Handle scope subtree
         this.handleConfigScopeSelect = (event, selection) => {
-            if (selection.trim() === "" || !valid_dn(selection)) {
-                this.setState({isConfigSubtreeScopeOpen: false});
-                return;
-            }
-            if (this.state.configEntryScope.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScope: prevState.configEntryScope.filter((item) => item !== selection),
-                        isConfigSubtreeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScope: [...prevState.configEntryScope, selection],
-                        isConfigSubtreeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configEntryScope: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigScopeToggle = (_event, isConfigSubtreeScopeOpen) => {
             this.setState({
@@ -339,39 +251,21 @@ class MemberOf extends React.Component {
         this.handleConfigScopeClear = () => {
             this.setState({
                 configEntryScope: [],
-                isConfigSubtreeScopeOpen: false
             }, () => { this.validateModal() });
         };
         this.handleConfigCreateOption = newValue => {
             if (newValue.trim() && valid_dn(newValue) && !this.state.configEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeOptions: [...this.state.configEntryScopeOptions, newValue],
-                    isConfigSubtreeScopeOpen: false
                 }, () => { this.validateModal() });
             }
         };
 
         // Handle Exclude Scope subtree
         this.handleConfigExcludeScopeSelect = (event, selection) => {
-            if (selection.trim() === "" || !valid_dn(selection)) {
-                this.setState({isConfigExcludeScopeOpen: false});
-                return;
-            }
-            if (this.state.configEntryScopeExcludeSubtree.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScopeExcludeSubtree: prevState.configEntryScopeExcludeSubtree.filter((item) => item !== selection),
-                        isConfigExcludeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScopeExcludeSubtree: [...prevState.configEntryScopeExcludeSubtree, selection],
-                        isConfigExcludeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configEntryScopeExcludeSubtree: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigExcludeScopeToggle = (_event, isConfigExcludeScopeOpen) => {
             this.setState({
@@ -381,14 +275,12 @@ class MemberOf extends React.Component {
         this.handleConfigExcludeScopeClear = () => {
             this.setState({
                 configEntryScopeExcludeSubtree: [],
-                isConfigExcludeScopeOpen: false
             }, () => { this.validateModal() });
         };
         this.handleConfigExcludeCreateOption = newValue => {
             if (newValue.trim() && valid_dn(newValue) &&  !this.state.configEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeExcludeOptions: [...this.state.configEntryScopeExcludeOptions, newValue],
-                    isConfigExcludeScopeOpen: false
                 }, () => { this.validateModal() });
             }
         };
@@ -1326,9 +1218,7 @@ class MemberOf extends React.Component {
                             <GridItem span={9}>
                                 <TypeaheadSelect
                                     selected={configAttr}
-                                    onSelect={(event, value) => {
-                                        this.setState({ configAttr: typeof value === 'string' ? value : '' }, () => { this.validateModal(); });
-                                    }}
+                                    onSelect={this.handleConfigAttrSelect}
                                     onClear={this.handleConfigAttrClear}
                                     options={["memberOf"]}
                                     placeholder={_("Type a member attribute...")}
@@ -1347,9 +1237,7 @@ class MemberOf extends React.Component {
                                     isMulti
                                     hasCheckbox
                                     selected={configGroupAttr}
-                                    onSelect={(event, newSelections) => {
-                                        this.setState({ configGroupAttr: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateModal(); });
-                                    }}
+                                    onSelect={this.handleConfigGroupAttrSelect}
                                     onClear={this.handleConfigGroupAttrClear}
                                     options={["member", "memberCertificate", "uniqueMember"]}
                                     placeholder={_("Type a member group attribute...")}
@@ -1367,9 +1255,7 @@ class MemberOf extends React.Component {
                                 <TypeaheadSelect
                                     isMulti
                                     selected={configEntryScope}
-                                    onSelect={(event, newSelections) => {
-                                        this.setState({ configEntryScope: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateModal(); });
-                                    }}
+                                    onSelect={this.handleConfigScopeSelect}
                                     onClear={this.handleConfigScopeClear}
                                     options={this.state.configEntryScopeOptions}
                                     isCreatable
@@ -1404,9 +1290,7 @@ class MemberOf extends React.Component {
                                 <TypeaheadSelect
                                     isMulti
                                     selected={configEntryScopeExcludeSubtree}
-                                    onSelect={(event, newSelections) => {
-                                        this.setState({ configEntryScopeExcludeSubtree: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateModal(); });
-                                    }}
+                                    onSelect={this.handleConfigExcludeScopeSelect}
                                     onClear={this.handleConfigExcludeScopeClear}
                                     options={this.state.configEntryScopeExcludeOptions}
                                     isCreatable
@@ -1472,9 +1356,7 @@ class MemberOf extends React.Component {
                             <GridItem span={8}>
                                 <TypeaheadSelect
                                     selected={memberOfAttr}
-                                    onSelect={(event, value) => {
-                                        this.setState({ memberOfAttr: typeof value === 'string' ? value : '' }, () => { this.validateConfig(); });
-                                    }}
+                                    onSelect={this.handleMemberOfAttrSelect}
                                     onClear={this.handleMemberOfAttrClear}
                                     options={["memberOf"]}
                                     placeholder={_("Type a member attribute...")}
@@ -1493,9 +1375,7 @@ class MemberOf extends React.Component {
                                     isMulti
                                     hasCheckbox
                                     selected={memberOfGroupAttr}
-                                    onSelect={(event, newSelections) => {
-                                        this.setState({ memberOfGroupAttr: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateConfig(); });
-                                    }}
+                                    onSelect={this.handleMemberOfGroupAttrSelect}
                                     onClear={this.handleMemberOfGroupAttrClear}
                                     options={["member", "memberCertificate", "uniqueMember"]}
                                     placeholder={_("Type a member group attribute...")}
@@ -1513,9 +1393,7 @@ class MemberOf extends React.Component {
                                 <TypeaheadSelect
                                     isMulti
                                     selected={memberOfEntryScope}
-                                    onSelect={(event, newSelections) => {
-                                        this.setState({ memberOfEntryScope: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateConfig(); });
-                                    }}
+                                    onSelect={this.handleSubtreeScopeSelect}
                                     onClear={this.handleSubtreeScopeClear}
                                     options={this.state.memberOfEntryScopeOptions}
                                     isCreatable
@@ -1550,9 +1428,7 @@ class MemberOf extends React.Component {
                                 <TypeaheadSelect
                                     isMulti
                                     selected={memberOfEntryScopeExcludeSubtree}
-                                    onSelect={(event, newSelections) => {
-                                        this.setState({ memberOfEntryScopeExcludeSubtree: Array.isArray(newSelections) ? newSelections : [] }, () => { this.validateConfig(); });
-                                    }}
+                                    onSelect={this.handleExcludeScopeSelect}
                                     onClear={this.handleExcludeScopeClear}
                                     options={this.state.memberOfEntryScopeExcludeOptions}
                                     isCreatable

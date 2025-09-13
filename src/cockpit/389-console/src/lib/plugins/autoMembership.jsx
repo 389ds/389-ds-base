@@ -15,11 +15,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import {
     ArrowRightIcon,
 } from '@patternfly/react-icons';
@@ -101,22 +97,9 @@ class AutoMembership extends React.Component {
         ));
 
         this.handleRegexExcludeSelect = (event, selection) => {
-            const { regexExclusive } = this.state;
-            if (regexExclusive.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        regexExclusive: prevState.regexExclusive.filter(item => item !== selection),
-                        isRegexExcludeOpen: false
-                    }), () => { this.validateRegex() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        regexExclusive: [...prevState.regexExclusive, selection],
-                        isRegexExcludeOpen: false,
-                    }), () => { this.validateRegex() }
-                );
-            }
+            this.setState({
+                regexExclusive: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateRegex() });
         };
         this.handleCreateRegexExcludeOption = newValue => {
             if (!this.state.excludeOptions.includes(newValue)) {
@@ -139,22 +122,9 @@ class AutoMembership extends React.Component {
         };
 
         this.handleRegexIncludeSelect = (event, selection) => {
-            const { regexInclusive } = this.state;
-            if (regexInclusive.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        regexInclusive: prevState.regexInclusive.filter(item => item !== selection),
-                        isRegexIncludeOpen: false
-                    }), () => { this.validateRegex() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        regexInclusive: [...prevState.regexInclusive, selection],
-                        isRegexIncludeOpen: false
-                    }), () => { this.validateRegex() }
-                );
-            }
+            this.setState({
+                regexInclusive: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateRegex() });
         };
         this.handleCreateRegexIncludeOption = newValue => {
             if (!this.state.includeOptions.includes(newValue)) {
@@ -1280,26 +1250,19 @@ class AutoMembership extends React.Component {
                                 {_("Exclusive Regex")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a regex"
-                                    onToggle={(event, isOpen) => this.handleRegexExcludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={regexExclusive}
                                     onSelect={this.handleRegexExcludeSelect}
                                     onClear={this.handleClearRegexExcludeSelection}
-                                    selections={regexExclusive}
+                                    options={[]}
                                     isOpen={this.state.isRegexExcludeOpen}
-                                    aria-labelledby="typeAhead-excl-regex"
-                                    placeholderText={_("Type a regex...")}
-                                    isCreatable
+                                    onToggle={this.handleRegexExcludeToggle}
+                                    placeholder={_("Type a regex...")}
+                                    ariaLabel="Type a regex"
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleCreateRegexExcludeOption}
-                                >
-                                    {[].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)")}>
@@ -1307,26 +1270,19 @@ class AutoMembership extends React.Component {
                                 {_("Inclusive Regex")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a regex"
-                                    onToggle={(event, isOpen) => this.handleRegexIncludeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={regexInclusive}
                                     onSelect={this.handleRegexIncludeSelect}
                                     onClear={this.handleClearRegexIncludeSelection}
-                                    selections={regexInclusive}
+                                    options={[]}
                                     isOpen={this.state.isRegexIncludeOpen}
-                                    aria-labelledby="typeAhead-incl-regex"
-                                    placeholderText={_("Type a regex...")}
-                                    isCreatable
+                                    onToggle={this.handleRegexIncludeToggle}
+                                    placeholder={_("Type a regex...")}
+                                    ariaLabel="Type a regex"
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleCreateRegexIncludeOption}
-                                >
-                                    {[].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)")}>

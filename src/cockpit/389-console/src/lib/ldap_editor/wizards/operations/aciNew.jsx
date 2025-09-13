@@ -39,11 +39,9 @@ import {
 	ValidatedOptions
 } from '@patternfly/react-core';
 import {
-	Select,
-	SelectOption,
-	SelectVariant,
 	Wizard
 } from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../../../dsBasicComponents.jsx";
 import {
     Table,
     Thead,
@@ -957,18 +955,15 @@ class AddNewAci extends React.Component {
                         </Tooltip>
                     </Text>
                 </TextContent>
-                <Select
-                    variant={SelectVariant.single}
+                <TypeaheadSelect
                     className="ds-margin-top-lg"
-                    aria-label="Select rights"
+                    ariaLabel="Select rights"
                     onToggle={(event, isOpen) => this.handleToggleRights(event, isOpen)}
                     onSelect={this.handleSelectRights}
-                    selections={this.state.rightType}
+                    selected={this.state.rightType}
                     isOpen={this.state.isOpenRights}
-                >
-                    <SelectOption key="allow" value="allow" />
-                    <SelectOption key="deny" value="deny" />
-                </Select>
+                    options={["allow", "deny"]}
+                />
                 <Table
                     aria-label="Selectable Table User Rights"
                     variant="compact"
@@ -1026,17 +1021,14 @@ class AddNewAci extends React.Component {
                         <b>{_("Comparison Operator")}</b>
                     </div>
                     <div className="ds-inline ds-left-margin ds-raise-field-md">
-                        <Select
-                            variant={SelectVariant.single}
-                            aria-label="Select auth compare operator"
+                        <TypeaheadSelect
+                            ariaLabel="Select auth compare operator"
                             onToggle={(event, isOpen) => this.handleToggleTargetAttrOp(event, isOpen)}
                             onSelect={this.handleSelectTargetAttrOp}
-                            selections={this.state.targetAttrCompOp}
+                            selected={this.state.targetAttrCompOp}
                             isOpen={this.state.isOpenTargetAttrOperator}
-                        >
-                            <SelectOption key="targetattrequals" value="=" />
-                            <SelectOption key="targetattrequals" value="!=" />
-                        </Select>
+                            options={["=", "!="]}
+                        />
                     </div>
                 </div>
                 <GenericPagination

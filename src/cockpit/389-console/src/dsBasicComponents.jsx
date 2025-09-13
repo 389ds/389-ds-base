@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
     Select,
@@ -28,15 +28,23 @@ const TypeaheadSelect = ({
     noResultsText = "No results found",
     isDisabled = false,
     validated = 'default',
+    validationMessage,
     ariaLabel = "Select input",
     className,
+    onToggle,
+    isOpen: controlledIsOpen,
+    allowCustomValues = false,
+    openOnClick = true,
+    maxOptionsForClickOpen = 20,
 }) => {
-    const [isOpen, setIsOpen] = useState(false);
+    const [internalIsOpen, setInternalIsOpen] = useState(false);
+    const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
     const [inputValue, setInputValue] = useState('');
     const [selectOptions, setSelectOptions] = useState([]);
     const [focusedItemIndex, setFocusedItemIndex] = useState(null);
     const [activeItemId, setActiveItemId] = useState(null);
     const textInputRef = useRef();
+    const isSelectingRef = useRef(false);
 
     const CREATE_NEW = 'create-new';
 
@@ -51,14 +59,65 @@ const TypeaheadSelect = ({
         });
     };
 
+    // Normalize selected values to handle both string and array inputs consistently
+    const normalizeSelected = (sel) => {
+        if (isMulti) {
+            if (Array.isArray(sel)) return sel;
+            if (sel === null || sel === undefined || sel === '') return [];
+            return [sel];
+        } else {
+            if (Array.isArray(sel)) return sel.length > 0 ? sel[0] : '';
+            return sel || '';
+        }
+    };
+
+    // Enhanced validation for create operations
+    const validateCreateValue = useCallback((value) => {
+        if (!value || !value.trim()) return false;
+
+        if (validateCreate) {
+            const result = validateCreate(value);
+            return typeof result === 'boolean' ? result : result.isValid;
+        }
+
+        return true;
+    }, [validateCreate]);
+
+    const resetActiveAndFocusedItem = () => {
+        setFocusedItemIndex(null);
+        setActiveItemId(null);
+    };
+
+    const closeMenu = useCallback(() => {
+        if (controlledIsOpen === undefined) {
+            setInternalIsOpen(false);
+        }
+        if (onToggle) {
+            onToggle(null, false);
+        }
+        resetActiveAndFocusedItem();
+    }, [controlledIsOpen, onToggle]);
+
+    const openMenu = useCallback(() => {
+        if (controlledIsOpen === undefined) {
+            setInternalIsOpen(true);
+        }
+        if (onToggle) {
+            onToggle(null, true);
+        }
+    }, [controlledIsOpen, onToggle]);
+
     // Update select options based on input
     useEffect(() => {
+        // Skip recalculation if we're in the middle of a selection to prevent flash
+        if (isSelectingRef.current) return;
+
         const normalizedOptions = normalizeOptions(options);
-        const currentSelections = isMulti ? (Array.isArray(selected) ? selected : []) : [];
+        const currentSelections = normalizeSelected(selected);
         let newSelectOptions = normalizedOptions;
 
         // Always ensure selected values are available in options, even if not in original options
-        if (isMulti && currentSelections.length > 0) {
+        if (isMulti && Array.isArray(currentSelections) && currentSelections.length > 0) {
             const selectedNotInOptions = currentSelections
                 .filter(selectedValue => !normalizedOptions.some(opt => opt.value === selectedValue))
                 .map(selectedValue => ({ value: selectedValue, children: selectedValue }));
@@ -66,17 +125,19 @@ const TypeaheadSelect = ({
             newSelectOptions = [...normalizedOptions, ...selectedNotInOptions];
         }
 
-        if (inputValue) {
+        if (inputValue && inputValue.trim()) {
             // Filter options based on input
             newSelectOptions = newSelectOptions.filter(option =>
                 String(option.children).toLowerCase().includes(inputValue.toLowerCase())
             );
 
             // Add create option if applicable
-            if (isCreatable && inputValue) {
-                const isValid = validateCreate ? validateCreate(inputValue) : true;
+            if (isCreatable) {
+                const isValid = validateCreateValue(inputValue);
                 const alreadyExists = normalizedOptions.some(opt => opt.value === inputValue);
-                const alreadySelected = isMulti ? currentSelections.includes(inputValue) : selected === inputValue;
+                const alreadySelected = isMulti ?
+                    (Array.isArray(currentSelections) && currentSelections.includes(inputValue)) :
+                    selected === inputValue;
 
                 if (isValid && !alreadyExists && !alreadySelected) {
                     newSelectOptions = [...newSelectOptions, {
@@ -86,16 +147,20 @@ const TypeaheadSelect = ({
                     }];
                 }
             }
-
-            if (!isOpen) {
-                setIsOpen(true);
-            }
         }
+        // When inputValue is empty, newSelectOptions already contains all options (with selected values if multi)
 
         setSelectOptions(newSelectOptions);
         setFocusedItemIndex(null);
         setActiveItemId(null);
-    }, [inputValue, options, isCreatable, validateCreate, selected, isMulti]);
+    }, [inputValue, options, isCreatable, validateCreateValue, selected, isMulti]);
+
+    // Separate effect to handle opening menu when there's input value
+    useEffect(() => {
+        if (inputValue && !isOpen) {
+            openMenu();
+        }
+    }, [inputValue, isOpen, openMenu]);
 
     const createItemId = (value) => `select-typeahead-${value}`.replace(/\s+/g, '-');
 
@@ -107,19 +172,16 @@ const TypeaheadSelect = ({
         }
     };
 
-    const resetActiveAndFocusedItem = () => {
-        setFocusedItemIndex(null);
-        setActiveItemId(null);
-    };
-
-    const closeMenu = () => {
-        setIsOpen(false);
-        resetActiveAndFocusedItem();
-    };
-
     const onInputClick = () => {
         if (!isOpen) {
-            setIsOpen(true);
+            // Allow opening on click based on configuration
+            if (openOnClick) {
+                const normalizedOptions = normalizeOptions(options);
+                // If there's input, always open. If no input, check if options are small enough
+                if (inputValue || normalizedOptions.length <= maxOptionsForClickOpen) {
+                    openMenu();
+                }
+            }
         } else if (!inputValue) {
             closeMenu();
         }
@@ -128,14 +190,17 @@ const TypeaheadSelect = ({
     const handleSelect = (value) => {
         if (!value) return;
 
+        // Set flag to prevent options recalculation during selection (prevents flash)
+        isSelectingRef.current = true;
+
         if (value === CREATE_NEW) {
-            if (isCreatable && inputValue && (!validateCreate || validateCreate(inputValue))) {
+            if (isCreatable && inputValue && validateCreateValue(inputValue)) {
                 if (onCreateOption) {
                     onCreateOption(inputValue);
                 }
 
                 if (isMulti) {
-                    const currentSelections = Array.isArray(selected) ? selected : [];
+                    const currentSelections = normalizeSelected(selected);
                     if (!currentSelections.includes(inputValue)) {
                         onSelect(null, [...currentSelections, inputValue]);
                     }
@@ -151,18 +216,39 @@ const TypeaheadSelect = ({
             }
         } else {
             if (isMulti) {
-                const currentSelections = Array.isArray(selected) ? selected : [];
+                const currentSelections = normalizeSelected(selected);
                 const newSelections = currentSelections.includes(value)
                     ? currentSelections.filter(selection => selection !== value)
                     : [...currentSelections, value];
                 onSelect(null, newSelections);
                 setInputValue('');
             } else {
+                // For single select, close menu and clear input
+                closeMenu();
                 onSelect(null, value);
                 setInputValue('');
-                closeMenu();
             }
         }
+
+        resetActiveAndFocusedItem();
+
+        // Reset the flag after a brief delay to allow state updates to complete
+        // This ensures proper filter reset while preventing flash during selection
+        setTimeout(() => {
+            isSelectingRef.current = false;
+            // After selection completes, ensure options are reset to the full list
+            setSelectOptions(() => {
+                const normalizedOptions = normalizeOptions(options);
+                const currentSelections = normalizeSelected(selected);
+                if (isMulti && Array.isArray(currentSelections) && currentSelections.length > 0) {
+                    const selectedNotInOptions = currentSelections
+                        .filter(selectedValue => !normalizedOptions.some(opt => opt.value === selectedValue))
+                        .map(selectedValue => ({ value: selectedValue, children: selectedValue }));
+                    return [...normalizedOptions, ...selectedNotInOptions];
+                }
+                return normalizedOptions;
+            });
+        }, 10);
 
         textInputRef.current?.focus();
     };
@@ -175,7 +261,7 @@ const TypeaheadSelect = ({
     const handleMenuArrowKeys = (key) => {
         let indexToFocus = 0;
         if (!isOpen) {
-            setIsOpen(true);
+            openMenu();
         }
 
         if (selectOptions.every(option => option.isDisabled)) {
@@ -221,11 +307,11 @@ const TypeaheadSelect = ({
                 event.preventDefault();
                 if (isOpen && focusedItem && !focusedItem.isDisabled) {
                     handleSelect(focusedItem.value);
-                } else if (isOpen && isCreatable && inputValue && (!validateCreate || validateCreate(inputValue))) {
+                } else if (isOpen && isCreatable && inputValue && validateCreateValue(inputValue)) {
                     // Create new entry when Enter is pressed and input is valid
                     handleSelect(CREATE_NEW);
                 } else if (!isOpen) {
-                    setIsOpen(true);
+                    openMenu();
                 }
                 break;
 
@@ -248,7 +334,11 @@ const TypeaheadSelect = ({
     };
 
     const onToggleClick = () => {
-        setIsOpen(!isOpen);
+        if (isOpen) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
         textInputRef?.current?.focus();
     };
 
@@ -280,8 +370,20 @@ const TypeaheadSelect = ({
         }
     };
 
-    const currentSelections = isMulti ? (Array.isArray(selected) ? selected : []) : [];
-    const displayValue = !isMulti && selected && !isOpen ? selected : inputValue;
+    // Get validation message for create operations
+    const getCreateValidationMessage = (value) => {
+        if (!validateCreate) return null;
+
+        const result = validateCreate(value);
+        if (typeof result === 'object' && result.message) {
+            return result.message;
+        }
+
+        return null;
+    };
+
+    const currentSelections = normalizeSelected(selected);
+    const displayValue = !isMulti && selected && !inputValue ? selected : inputValue;
 
     const toggle = (toggleRef) => (
         <MenuToggle
@@ -303,13 +405,13 @@ const TypeaheadSelect = ({
                     id="typeahead-select-input"
                     autoComplete="off"
                     innerRef={textInputRef}
-                    placeholder={currentSelections.length === 0 || !isMulti ? placeholder : ''}
+                    placeholder={(isMulti ? (Array.isArray(currentSelections) ? currentSelections.length === 0 : true) : !currentSelections) ? placeholder : ''}
                     {...(activeItemId && { 'aria-activedescendant': activeItemId })}
                     role="combobox"
                     isExpanded={isOpen}
                     aria-controls="typeahead-select-listbox"
                 >
-                    {isMulti && currentSelections.length > 0 && (
+                    {isMulti && Array.isArray(currentSelections) && currentSelections.length > 0 && (
                         <LabelGroup aria-label="Current selections">
                             {currentSelections.map((selection, index) => (
                                 <Label
@@ -327,7 +429,7 @@ const TypeaheadSelect = ({
                     )}
                 </TextInputGroupMain>
                 <TextInputGroupUtilities
-                    {...((isMulti ? currentSelections.length === 0 : !selected) && !inputValue ? { style: { display: 'none' } } : {})}
+                    {...((isMulti ? (Array.isArray(currentSelections) ? currentSelections.length === 0 : true) : !selected) && !inputValue ? { style: { display: 'none' } } : {})}
                 >
                     <Button
                         variant="plain"
@@ -364,7 +466,7 @@ const TypeaheadSelect = ({
                 ) : (
                     selectOptions.map((option, index) => {
                         const isSelected = isMulti
-                            ? currentSelections.includes(option.value)
+                            ? (Array.isArray(currentSelections) && currentSelections.includes(option.value))
                             : selected === option.value;
 
                         return (
@@ -414,8 +516,14 @@ TypeaheadSelect.propTypes = {
     noResultsText: PropTypes.string,
     isDisabled: PropTypes.bool,
     validated: PropTypes.oneOf(['default', 'error', 'warning', 'success']),
+    validationMessage: PropTypes.string,
     ariaLabel: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    onToggle: PropTypes.func,
+    isOpen: PropTypes.bool,
+    allowCustomValues: PropTypes.bool,
+    openOnClick: PropTypes.bool,
+    maxOptionsForClickOpen: PropTypes.number,
 };
 
 export default TypeaheadSelect;

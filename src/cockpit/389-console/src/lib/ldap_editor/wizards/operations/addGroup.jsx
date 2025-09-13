@@ -25,11 +25,9 @@ import {
 	ValidatedOptions
 } from '@patternfly/react-core';
 import {
-	Select,
-	SelectOption,
-	SelectVariant,
 	Wizard
 } from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../../../dsBasicComponents.jsx";
 import LdapNavigator from '../../lib/ldapNavigator.jsx';
 import {
     createLdapEntry,
@@ -336,18 +334,15 @@ class AddGroup extends React.Component {
 
                 </div>
                 <div className="ds-indent">
-                    <Select
-                        variant={SelectVariant.single}
+                    <TypeaheadSelect
                         className="ds-margin-top-lg"
-                        aria-label="Select group type"
+                        ariaLabel="Select group type"
                         onToggle={(event, isOpen) => this.handleToggleType(event, isOpen)}
                         onSelect={this.handleSelectType}
-                        selections={this.state.groupType}
+                        selected={this.state.groupType}
                         isOpen={this.state.isOpenType}
-                    >
-                        <SelectOption key="group" value="Basic Group" />
-                        <SelectOption key="posix" value="Posix Group" />
-                    </Select>
+                        options={["Basic Group", "Posix Group"]}
+                    />
                     <TextContent className="ds-margin-top-xlg">
                         <Text component={TextVariants.h6} className="ds-margin-top-lg ds-font-size-md">
                             <b>{_("Basic Group")}</b>{_("- This type of group can use membership attributes: member, or uniqueMember common set of objectclasses and attributes.")}

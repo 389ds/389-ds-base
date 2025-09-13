@@ -25,11 +25,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SyncAltIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
 
@@ -757,26 +753,19 @@ class CreatePolicy extends React.Component {
                                         {_("Check User Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type a attribute name to check"
-                                            onToggle={(event, isOpen) => this.props.onUserAttrsCreateToggle(event, isOpen)}
+                                        <TypeaheadSelect
+                                            selected={this.props.passworduserattributes}
                                             onSelect={this.props.handleChange}
                                             onClear={this.props.onUserAttrsCreateClear}
-                                            selections={this.props.passworduserattributes}
+                                            options={this.props.attrs}
                                             isOpen={this.props.isUserAttrsCreateOpen}
-                                            aria-labelledby="typeAhead-user-attr-create"
-                                            placeholderText={_("Type attributes to check...")}
-                                            noResultsFoundText={_("There are no matching entries")}
+                                            onToggle={this.props.onUserAttrsCreateToggle}
+                                            placeholder={_("Type attributes to check...")}
+                                            noResultsText={_("There are no matching entries")}
+                                            ariaLabel="Type a attribute name to check"
+                                            isMulti={true}
                                             isDisabled={!this.props.passwordchecksyntax}
-                                        >
-                                            {this.props.attrs.map((attr, index) => (
-                                                <SelectOption
-                                                    key={index}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid className="ds-margin-top" title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>
@@ -1325,25 +1314,12 @@ export class LocalPwPolicy extends React.Component {
 
         // Select Typeahead
         if (selection) {
-            if (this.state[attr].includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== selection),
-                        createDisabled: disableSaveBtn,
-                        invalid_dn,
-                        isUserAttrsCreateOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], selection],
-                        createDisabled: disableSaveBtn,
-                        invalid_dn,
-                        isUserAttrsCreateOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                [attr]: Array.isArray(selection) ? selection : [],
+                createDisabled: disableSaveBtn,
+                invalid_dn,
+                isUserAttrsCreateOpen: false
+            });
         } else { // Checkbox
             this.setState({
                 [attr]: value,
@@ -1691,23 +1667,11 @@ export class LocalPwPolicy extends React.Component {
         }
 
         if (selection) {
-            if (this.state[attr].includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== selection),
-                        isSelectOpen: false,
-                        isUserAttrsEditOpen: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], selection],
-                        saveSyntaxDisabled: disableSaveBtn,
-                        isUserAttrsEditOpen: false
-                    }),
-                );
-            }
+            this.setState({
+                [attr]: Array.isArray(selection) ? selection : [],
+                saveSyntaxDisabled: disableSaveBtn,
+                isUserAttrsEditOpen: false
+            });
         } else {
             this.setState({
                 [attr]: value,
@@ -2620,25 +2584,18 @@ export class LocalPwPolicy extends React.Component {
                             {_("Check User Attributes")}
                         </GridItem>
                         <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.typeaheadMulti}
-                                typeAheadAriaLabel="Type an attribute to check"
-                                onToggle={(event, isOpen) => this.handleSelectToggle(event, isOpen)}
+                            <TypeaheadSelect
+                                selected={this.state.passworduserattributes}
                                 onSelect={this.handleSyntaxChange}
                                 onClear={this.handleSelectClear}
-                                selections={this.state.passworduserattributes}
+                                options={this.props.attrs}
                                 isOpen={this.state.isSelectOpen}
-                                aria-labelledby="typeAhead-user-attr"
-                                placeholderText={_("Type attributes to check...")}
-                                noResultsFoundText={_("There are no matching entries")}
-                            >
-                                {this.props.attrs.map((attr, index) => (
-                                    <SelectOption
-                                        key={index}
-                                        value={attr}
-                                    />
-                                ))}
-                            </Select>
+                                onToggle={this.handleSelectToggle}
+                                placeholder={_("Type attributes to check...")}
+                                noResultsText={_("There are no matching entries")}
+                                ariaLabel="Type an attribute to check"
+                                isMulti={true}
+                            />
                         </GridItem>
                     </Grid>
                     <Grid className="ds-margin-top-lg" title={_("Check the password against the system's CrackLib dictionary (passwordDictCheck).")}>

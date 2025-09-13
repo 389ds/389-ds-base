@@ -15,11 +15,7 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { log_cmd } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
 
@@ -219,109 +215,54 @@ export class Ciphers extends React.Component {
 
     handleAllowCipherChange(e, selection) {
         let disableSaveBtn = true;
-        const availableCiphers = [...this.state.availableCiphers];
+        const newAllowCiphers = Array.isArray(selection) ? selection : [];
+
+        // Rebuild available ciphers list based on what's selected
+        const allCiphers = [...this.props.cipherPref];
+        const availableCiphers = allCiphers.filter(cipher =>
+            !newAllowCiphers.includes(cipher) && !this.state.denyCiphers.includes(cipher)
+        ).sort();
 
         if (this.state.cipherPref !== this.state._cipherPref) {
             disableSaveBtn = false;
         }
 
-        if (this.state.allowCiphers.includes(selection)) {
-            // Removing cipher from list
-            availableCiphers.push(selection);
-            availableCiphers.sort();
-
-            // Buld a list of of waht the new cipher list will be, so we can
-            // check if the value changed and the save button can be enabled/disabled
-            const copy_new_ciphers = [...this.state.allowCiphers];
-            const index = copy_new_ciphers.indexOf(selection);
-            if (index > -1) {
-                copy_new_ciphers.splice(index, 1);
-            }
-            if (JSON.stringify(this.state._allowCiphers) !== JSON.stringify(copy_new_ciphers)) {
-                disableSaveBtn = false;
-            }
-
-            this.setState(
-                (prevState) => ({
-                    allowCiphers: prevState.allowCiphers.filter((item) => item !== selection),
-                    isAllowCipherOpen: false,
-                    availableCiphers,
-                    disableSaveBtn,
-                }),
-            );
-        } else {
-            // Adding cipher, but first remove cipher from availableCiphers
-            const index = availableCiphers.indexOf(selection);
-            if (index > -1) {
-                availableCiphers.splice(index, 1);
-                availableCiphers.sort();
-            }
-            if (JSON.stringify(this.state._allowCiphers) !== JSON.stringify([...this.state.allowCiphers, selection])) {
-                disableSaveBtn = false;
-            }
-            this.setState(
-                (prevState) => ({
-                    allowCiphers: [...prevState.allowCiphers, selection],
-                    isAllowCipherOpen: false,
-                    availableCiphers,
-                    disableSaveBtn,
-                }),
-            );
+        if (JSON.stringify(this.state._allowCiphers) !== JSON.stringify(newAllowCiphers)) {
+            disableSaveBtn = false;
         }
+
+        this.setState({
+            allowCiphers: newAllowCiphers,
+            isAllowCipherOpen: false,
+            availableCiphers,
+            disableSaveBtn,
+        });
     }
 
     handleDenyCipherChange(e, selection) {
         let disableSaveBtn = true;
-        const availableCiphers = [...this.state.availableCiphers];
+        const newDenyCiphers = Array.isArray(selection) ? selection : [];
+
+        // Rebuild available ciphers list based on what's selected
+        const allCiphers = [...this.props.cipherPref];
+        const availableCiphers = allCiphers.filter(cipher =>
+            !this.state.allowCiphers.includes(cipher) && !newDenyCiphers.includes(cipher)
+        ).sort();
 
         if (this.state.cipherPref !== this.state._cipherPref) {
             disableSaveBtn = false;
         }
 
-        if (this.state.denyCiphers.includes(selection)) {
-            // Removing cipher from list
-            availableCiphers.push(selection);
-            availableCiphers.sort();
-
-            // Buld a list of of waht the new cipher list will be, so we can
-            // check if the value changed and the save button can be enabled/disabled
-            const copy_new_ciphers = [...this.state.denyCiphers];
-            const index = copy_new_ciphers.indexOf(selection);
-            if (index > -1) {
-                copy_new_ciphers.splice(index, 1);
-            }
-            if (JSON.stringify(this.state._denyCiphers) !== JSON.stringify(copy_new_ciphers)) {
-                disableSaveBtn = false;
-            }
-
-            this.setState(
-                (prevState) => ({
-                    denyCiphers: prevState.denyCiphers.filter((item) => item !== selection),
-                    isDenyCipherOpen: false,
-                    availableCiphers,
-                    disableSaveBtn,
-                }),
-            );
-        } else {
-            // Adding cipher, but first remove cipher from availableCiphers
-            const index = availableCiphers.indexOf(selection);
-            if (index > -1) {
-                availableCiphers.splice(index, 1);
-                availableCiphers.sort();
-            }
-            if (JSON.stringify(this.state._denyCiphers) !== JSON.stringify([...this.state.denyCiphers, selection])) {
-                disableSaveBtn = false;
-            }
-
-            this.setState(
-                (prevState) => ({
-                    denyCiphers: [...prevState.denyCiphers, selection],
-                    isDenyCipherOpen: false,
-                    availableCiphers,
-                    disableSaveBtn,
-                }),
-            );
+        if (JSON.stringify(this.state._denyCiphers) !== JSON.stringify(newDenyCiphers)) {
+            disableSaveBtn = false;
         }
+
+        this.setState({
+            denyCiphers: newDenyCiphers,
+            isDenyCipherOpen: false,
+            availableCiphers,
+            disableSaveBtn,
+        });
     }
 
     render () {
@@ -427,27 +368,19 @@ export class Ciphers extends React.Component {
                                 {_("Allow Specific Ciphers")}
                             </GridItem>
                             <GridItem span={10}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel={_("Type a cipher")}
-                                    isDisabled={this.state.cipherPref === "default"}
-                                    onToggle={(event, isOpen) => this.handleAllowCipherToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={this.state.allowCiphers}
                                     onSelect={this.handleAllowCipherChange}
                                     onClear={this.handleAllowCipherClear}
-                                    selections={this.state.allowCiphers}
+                                    options={this.state.availableCiphers}
                                     isOpen={this.state.isAllowCipherOpen}
-                                    aria-labelledby="typeAhead-allow-cipher"
-                                    placeholderText={_("Type a cipher...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    maxHeight="200px"
-                                >
-                                    {this.state.availableCiphers.map((cipher, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={cipher}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleAllowCipherToggle}
+                                    placeholder={_("Type a cipher...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type a cipher")}
+                                    isMulti={true}
+                                    isDisabled={this.state.cipherPref === "default"}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid>
@@ -455,27 +388,19 @@ export class Ciphers extends React.Component {
                                 {_("Deny Specific Ciphers")}
                             </GridItem>
                             <GridItem span={10}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel={_("Type a cipher")}
-                                    isDisabled={this.state.cipherPref === "default"}
-                                    onToggle={(event, isOpen) => this.handleDenyCipherToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={this.state.denyCiphers}
                                     onSelect={this.handleDenyCipherChange}
                                     onClear={this.handleDenyCipherClear}
-                                    selections={this.state.denyCiphers}
+                                    options={this.state.availableCiphers}
                                     isOpen={this.state.isDenyCipherOpen}
-                                    aria-labelledby="typeAhead-allow-deny"
-                                    placeholderText={_("Type a cipher...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    maxHeight="200px"
-                                >
-                                    {this.state.availableCiphers.map((cipher, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={cipher}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleDenyCipherToggle}
+                                    placeholder={_("Type a cipher...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type a cipher")}
+                                    isMulti={true}
+                                    isDisabled={this.state.cipherPref === "default"}
+                                />
                             </GridItem>
                         </Grid>
                     </Form>
