@@ -23,23 +23,23 @@ pub struct BerValRef {
 }
 
 impl BerValRef {
-    pub fn new(raw_berval: *const libc::c_void) -> Self {
+    pub const fn new(raw_berval: *const libc::c_void) -> Self {
         // so we retype this
-        let raw_berval = raw_berval as *const ol_berval;
-        BerValRef { raw_berval }
+        let raw_berval: *const ol_berval = raw_berval.cast();
+        Self { raw_berval }
     }
 
     pub(crate) fn into_cstring(&self) -> Option<CString> {
         // Cstring does not need a trailing null, so if we have one, ignore it.
         let l: usize = unsafe { (*self.raw_berval).len };
-        let d_slice = unsafe { slice::from_raw_parts((*self.raw_berval).data, l) };
+        let d_slice: &[u8] = unsafe { slice::from_raw_parts((*self.raw_berval).data, l) };
         CString::new(d_slice)
             .or_else(|e| {
                 // Try it again, but with one byte less to trim a potential trailing null that
                 // could have been allocated, and ensure it has at least 1 byte of good data
                 // remaining.
                 if l > 1 {
-                    let d_slice = unsafe { slice::from_raw_parts((*self.raw_berval).data, l - 1) };
+                    let d_slice: &[u8] = unsafe { slice::from_raw_parts((*self.raw_berval).data, l - 1) };
                     CString::new(d_slice)
                 } else {
                     Err(e)
@@ -51,7 +51,6 @@ impl BerValRef {
                     "invalid ber parse attempt, may contain a null byte? -> {:?}",
                     self
                 );
-                ()
             })
             .ok()
     }
@@ -66,7 +65,6 @@ impl BerValRef {
                         "failed to convert cstring to string -> {:?}",
                         self
                     );
-                    ()
                 })
                 .ok()
         })
@@ -77,9 +75,9 @@ impl TryFrom<&BerValRef> for Uuid {
     type Error = PluginError;
 
     fn try_from(value: &BerValRef) -> Result<Self, Self::Error> {
-        let val_string = value.into_string().ok_or(PluginError::BervalString)?;
+        let val_string: String = value.into_string().ok_or(PluginError::BervalString)?;
 
-        Uuid::parse_str(val_string.as_str())
+        Self::parse_str(val_string.as_str())
             .map(|r| {
                 log_error!(ErrorLevel::Trace, "valid uuid -> {:?}", r);
                 r
