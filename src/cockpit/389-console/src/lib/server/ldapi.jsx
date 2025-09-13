@@ -13,11 +13,7 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SyncAltIcon } from "@patternfly/react-icons";
 import PropTypes from "prop-types";
 
@@ -254,9 +250,6 @@ export class ServerLDAPI extends React.Component {
         }
 
         if (this.state['nsslapd-ldapimaptoentries']) {
-            const attributes = this.state.attributes.map((option, index) => (
-                <SelectOption key={index} value={option} />
-            ));
             mapUserAttrs = (
                 <div className="ds-margin-left">
                     <Grid
@@ -267,17 +260,14 @@ export class ServerLDAPI extends React.Component {
                             {_("LDAPI UID Number Attribute")}
                         </GridItem>
                         <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.single}
-                                aria-label="Select UID Input"
-                                onToggle={(event, isOpen) => this.handleUIDToggle(event, isOpen)}
+                            <TypeaheadSelect
+                                ariaLabel="Select UID Input"
+                                onToggle={this.handleUIDToggle}
                                 onSelect={this.handleUIDSelect}
-                                selections={this.state['nsslapd-ldapiuidnumbertype']}
+                                selected={this.state['nsslapd-ldapiuidnumbertype']}
                                 isOpen={this.state.isUIDOpen}
-                                aria-labelledby="UID"
-                            >
-                                {attributes}
-                            </Select>
+                                options={this.state.attributes}
+                            />
                         </GridItem>
                     </Grid>
                     <Grid
@@ -288,17 +278,14 @@ export class ServerLDAPI extends React.Component {
                             {_("LDAPI GID Number Attribute")}
                         </GridItem>
                         <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.single}
-                                aria-label="Select GID Input"
-                                onToggle={(event, isOpen) => this.handleGIDToggle(event, isOpen)}
+                            <TypeaheadSelect
+                                ariaLabel="Select GID Input"
+                                onToggle={this.handleGIDToggle}
                                 onSelect={this.handleGIDSelect}
-                                selections={this.state['nsslapd-ldapigidnumbertype']}
+                                selected={this.state['nsslapd-ldapigidnumbertype']}
                                 isOpen={this.state.isGIDOpen}
-                                aria-labelledby="GID"
-                            >
-                                {attributes}
-                            </Select>
+                                options={this.state.attributes}
+                            />
                         </GridItem>
                     </Grid>
                     <Grid
@@ -405,7 +392,7 @@ export class ServerLDAPI extends React.Component {
                         <TextContent>
                             <Text component={TextVariants.h3}>
                                 {_("LDAPI & AutoBind Settings")}
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh LDAPI settings")}
                                     onClick={this.handleLoadConfig}

@@ -22,11 +22,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import {
     SyncAltIcon,
@@ -1360,7 +1356,7 @@ export class ChainingConfig extends React.Component {
                             <Text className="ds-suffix-header" component={TextVariants.h3}>
                                 <LinkIcon />
                                 &nbsp;&nbsp;{this.props.suffix} (<i>{this.props.bename}</i>)
-                                <Button 
+                                <Button
                                     variant="plain"
                                     aria-label={_("Refresh database link")}
                                     onClick={() => this.props.reload(this.props.suffix)}
@@ -1471,19 +1467,14 @@ export class ChainingConfig extends React.Component {
                         {_("Bind Method")}
                     </GridItem>
                     <GridItem span={9}>
-                        <Select
-                            variant={SelectVariant.single}
-                            aria-label="Select Input"
-                            onToggle={(event, isOpen) => this.handleSelectToggle(event, isOpen)}
+                        <TypeaheadSelect
+                            selected={this.state.nsbindmechanism}
                             onSelect={this.handleSelect}
-                            selections={this.state.nsbindmechanism}
+                            options={["Simple", "SASL/DIGEST-MD5", "SASL/GSSAPI"]}
                             isOpen={this.state.isOpen}
-                            aria-labelledby="UID"
-                        >
-                            <SelectOption key="Simple" value="Simple" />
-                            <SelectOption key="SASL/DIGEST-MD5" value="SASL/DIGEST-MD5" />
-                            <SelectOption key="SASL/GSSAPI" value="SASL/GSSAPI" />
-                        </Select>
+                            onToggle={this.handleSelectToggle}
+                            ariaLabel="Select Input"
+                        />
                     </GridItem>
                 </Grid>
                 <Grid

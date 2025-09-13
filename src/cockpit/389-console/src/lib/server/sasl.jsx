@@ -14,11 +14,7 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
 import { SyncAltIcon } from "@patternfly/react-icons";
@@ -66,22 +62,9 @@ export class ServerSASL extends React.Component {
             });
         };
         this.handleOnSelect = (event, selection) => {
-            const { allowedMechs } = this.state;
-            if (allowedMechs.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        allowedMechs: prevState.allowedMechs.filter(item => item !== selection),
-                        isAllowedMechOpen: false
-                    }), () => { this.validateSaveBtn() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        allowedMechs: [...prevState.allowedMechs, selection],
-                        isAllowedMechOpen: false,
-                    }), () => { this.validateSaveBtn() }
-                );
-            }
+            this.setState({
+                allowedMechs: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateSaveBtn() });
         };
         this.handleOnAllowedMechClear = () => {
             this.setState({
@@ -624,7 +607,7 @@ export class ServerSASL extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("SASL Settings")}
-                                    <Button 
+                                    <Button
                                         variant="plain"
                                         aria-label={_("Refresh SASL settings")}
                                         onClick={this.handleLoadConfig}
@@ -660,25 +643,18 @@ export class ServerSASL extends React.Component {
                                 {_("Allowed SASL Mechanisms")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type SASL mechanism to allow"
-                                    onToggle={(event, isOpen) => this.handleOnAllowedMechToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={this.state.allowedMechs}
                                     onSelect={this.handleOnSelect}
                                     onClear={this.handleOnAllowedMechClear}
-                                    selections={this.state.allowedMechs}
+                                    options={this.state.supportedMechs}
                                     isOpen={this.state.isAllowedMechOpen}
-                                    aria-labelledby="typeAhead-sasl-mechs"
-                                    placeholderText={_("Type SASL mechanism to allow...")}
-                                    noResultsFoundText="There are no matching entries"
-                                >
-                                    {this.state.supportedMechs.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleOnAllowedMechToggle}
+                                    placeholder={_("Type SASL mechanism to allow...")}
+                                    noResultsText="There are no matching entries"
+                                    ariaLabel="Type SASL mechanism to allow"
+                                    isMulti={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid

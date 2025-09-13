@@ -437,23 +437,11 @@ export class WinsyncAgmts extends React.Component {
 
         // We handle strings and arrays here, need to find a better way to differentiate.
         if (attr.endsWith('Attrs')) {
-            if (this.state[attr].includes(value)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== e.target.value),
-                        errObj,
-                        [e.target.toggle]: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], value],
-                        errObj,
-                        [e.target.toggle]: false
-                    }),
-                );
-            }
+            this.setState({
+                [attr]: Array.isArray(value) ? value : [],
+                errObj,
+                [e.target.toggle]: false
+            });
         } else {
             this.setState({
                 [attr]: value,
@@ -464,26 +452,15 @@ export class WinsyncAgmts extends React.Component {
     }
 
     onTAFracAttrChangeEdit (selection) {
-        // TypeAhead handling
-        const { agmtFracAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
-        if (agmtFracAttrs.includes(selection)) {
-            const new_values = this.state.agmtFracAttrs.filter(item => item !== selection);
-            this.setState({
-                agmtFracAttrs: new_values,
-                isExcludeAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        } else {
-            const new_values = [...this.state.agmtFracAttrs, selection];
-            this.setState({
-                agmtFracAttrs: new_values,
-                isExcludeAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        }
+        const newFracAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtFracAttrs: newFracAttrs,
+            isExcludeAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
     onTAFracAttrChange (values) {
-        // TypeAhead handling
         const e = {
             target: {
                 name: 'agmt-modal',

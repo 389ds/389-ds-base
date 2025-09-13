@@ -698,23 +698,11 @@ export class ReplAgmts extends React.Component {
 
         // We handle strings and arrays here, need to find a better way to differentiate.
         if (attr.endsWith('Attrs')) {
-            if (this.state[attr].includes(value)) {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: prevState[attr].filter((item) => item !== e.target.value),
-                        errObj,
-                        [e.target.toggle]: false
-                    }),
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        [attr]: [...prevState[attr], value],
-                        errObj,
-                        [e.target.toggle]: false
-                    }),
-                );
-            }
+            this.setState({
+                [attr]: Array.isArray(value) ? value : [],
+                errObj,
+                [e.target.toggle]: false
+            });
         } else {
             this.setState({
                 [attr]: value,
@@ -725,64 +713,33 @@ export class ReplAgmts extends React.Component {
     }
 
     onTAStripAttrChangeEdit (selection) {
-        // TypeAhead handling
-        const { agmtStripAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
-        if (agmtStripAttrs.includes(selection)) {
-            const new_values = this.state.agmtStripAttrs.filter(item => item !== selection);
-            this.setState({
-                agmtStripAttrs: new_values,
-                isStripAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        } else {
-            const new_values = [...this.state.agmtStripAttrs, selection];
-            this.setState({
-                agmtStripAttrs: new_values,
-                isStripAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        }
+        const newStripAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtStripAttrs: newStripAttrs,
+            isStripAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
     onTAFracAttrChangeEdit (selection) {
-        // TypeAhead handling
-        const { agmtFracAttrs } = this.state;
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
-        if (agmtFracAttrs.includes(selection)) {
-            const new_values = this.state.agmtFracAttrs.filter(item => item !== selection);
-            this.setState({
-                agmtFracAttrs: new_values,
-                isExcludeAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        } else {
-            const new_values = [...this.state.agmtFracAttrs, selection];
-            this.setState({
-                agmtFracAttrs: new_values,
-                isExcludeAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        }
+        const newFracAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtFracAttrs: newFracAttrs,
+            isExcludeAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
     onTAFracInitAttrChangeEdit (selection) {
-        // TypeAhead handling
         const e = { target: { id: 'dummy', value: "", type: 'input' } };
-        const { agmtFracInitAttrs } = this.state;
-        if (agmtFracInitAttrs.includes(selection)) {
-            const new_values = this.state.agmtFracInitAttrs.filter(item => item !== selection);
-            this.setState({
-                agmtFracInitAttrs: new_values,
-                isExcludeInitAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        } else {
-            const new_values = [...this.state.agmtFracInitAttrs, selection];
-            this.setState({
-                agmtFracInitAttrs: new_values,
-                isExcludeInitAttrsEditOpen: false,
-            }, () => { this.onEditChange(e) });
-        }
+        const newFracInitAttrs = Array.isArray(selection) ? selection : [];
+        this.setState({
+            agmtFracInitAttrs: newFracInitAttrs,
+            isExcludeInitAttrsEditOpen: false,
+        }, () => { this.onEditChange(e) });
     }
 
     onTAStripAttrChange (values) {
-        // TypeAhead handling
         const e = {
             target: {
                 name: 'agmt-modal',
@@ -796,7 +753,6 @@ export class ReplAgmts extends React.Component {
     }
 
     onTAFracAttrChange (values) {
-        // TypeAhead handling
         const e = {
             target: {
                 name: 'agmt-modal',
@@ -810,7 +766,6 @@ export class ReplAgmts extends React.Component {
     }
 
     onTAFracInitAttrChange (values) {
-        // TypeAhead handling
         const e = {
             target: {
                 name: 'agmt-modal',
@@ -1632,13 +1587,13 @@ export class ReplAgmts extends React.Component {
                     handleChange={this.onCreateChange}
                     handleTimeChange={this.onTimeChange}
                     handleStripChange={this.onTAStripAttrChange}
-                    handleFracChange={this.onTAFracInitAttrChange}
+                    handleFracChange={this.onTAFracAttrChange}
                     handleFracInitChange={this.onTAFracInitAttrChange}
                     onExcludeAttrsToggle={this.handleExcludeAttrsCreateToggle}
                     onExcludeAttrsClear={this.handleExcludeAttrsCreateClear}
                     onExcludeAttrsInitToggle={this.handleExcludeAttrsInitCreateToggle}
                     onExcludeAttrsInitClear={this.handleExcludeAttrsInitCreateClear}
-                    handleStripAttrsToggle={this.onStripAttrsCreateToggle}
+                    onStripAttrsToggle={this.onStripAttrsCreateToggle}
                     onStripAttrsClear={this.handleStripAttrsCreateClear}
                     isExcludeAttrsOpen={this.state.isExcludeAttrsCreateOpen}
                     isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsCreateOpen}
@@ -1692,7 +1647,7 @@ export class ReplAgmts extends React.Component {
                     onExcludeAttrsClear={this.handleExcludeAttrsEditClear}
                     onExcludeAttrsInitToggle={this.handleExcludeAttrsInitEditToggle}
                     onExcludeAttrsInitClear={this.handleExcludeAttrsInitEditClear}
-                    handleStripAttrsToggle={this.onStripAttrsEditToggle}
+                    onStripAttrsToggle={this.onStripAttrsEditToggle}
                     onStripAttrsClear={this.handleStripAttrsEditClear}
                     isExcludeAttrsOpen={this.state.isExcludeAttrsEditOpen}
                     isExcludeInitAttrsOpen={this.state.isExcludeInitAttrsEditOpen}
