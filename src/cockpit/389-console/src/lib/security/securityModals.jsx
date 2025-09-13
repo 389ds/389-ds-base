@@ -24,11 +24,7 @@ import {
 	Tooltip,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 import PropTypes from "prop-types";
 import { bad_file_name, validHostname } from "../tools.jsx";
@@ -354,13 +350,18 @@ export class SecurityAddCertModal extends React.Component {
     }
 }
 
+const EMPTY_OPTIONS = [];
+
 export class SecurityAddCSRModal extends React.Component {
+    validateCreateHostname = (hostname) => {
+        return validHostname(hostname) !== null;
+    };
+
     render() {
         const {
             showModal,
             closeHandler,
             handleChange,
-            handleAltNameChange,
             saveHandler,
             previewValue,
             spinning,
@@ -440,27 +441,19 @@ export class SecurityAddCSRModal extends React.Component {
                             {_("Subject Alternative Names")}
                         </GridItem>
                         <GridItem span={9}>
-                            <Select
-                                variant={SelectVariant.typeaheadMulti}
-                                typeAheadAriaLabel="Type a host name"
-                                onToggle={handleOnToggle}
+                            <TypeaheadSelect
+                                selected={csrAltNames}
                                 onSelect={handleOnSelect}
-                                selections={csrAltNames}
-                                aria-labelledby="typeAhead-alt-names"
-                                placeholderText={_("Type an alternative host name")}
+                                options={EMPTY_OPTIONS}
                                 isOpen={csrIsSelectOpen}
-                                isCreatable
-                                isCreateOptionOnTop
-                                onCreateOption={handleAltNameChange}
-                                validated={validAltNames ? ValidatedOptions.default : ValidatedOptions.error}
-                            >
-                                {csrAltNames.map((hostname, index) => (
-                                    <SelectOption
-                                        key={index}
-                                        value={hostname}
-                                    />
-                                ))}
-                            </Select>
+                                onToggle={handleOnToggle}
+                                placeholder={_("Type an alternative host name")}
+                                ariaLabel="Type a host name"
+                                isMulti={true}
+                                isCreatable={true}
+                                validateCreate={this.validateCreateHostname}
+                                validated={validAltNames ? "default" : "error"}
+                            />
                             <div className={validAltNames ? "ds-hidden" : ""}>
                                 <HelperText>
                                     <HelperTextItem variant="error">{_("Invalid host names: ")}{invalidNames}</HelperTextItem>

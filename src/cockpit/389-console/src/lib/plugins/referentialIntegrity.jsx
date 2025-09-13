@@ -12,11 +12,7 @@ import {
 	NumberInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { listsEqual, log_cmd, valid_dn, file_is_path } from "../tools.jsx";
@@ -94,21 +90,9 @@ class ReferentialIntegrity extends React.Component {
 
         // Config Membership Attribute
         this.handleConfigMembershipAttrSelect = (event, selection) => {
-            if (this.state.configMembershipAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configMembershipAttr: prevState.configMembershipAttr.filter((item) => item !== selection),
-                        isConfigMembershipAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configMembershipAttr: [...prevState.configMembershipAttr, selection],
-                        isConfigMembershipAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configMembershipAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigMembershipAttrToggle = (_event, isConfigMembershipAttrOpen) => {
             this.setState({
@@ -124,22 +108,9 @@ class ReferentialIntegrity extends React.Component {
 
         // Membership Attribute
         this.handleMembershipAttrSelect = (event, selection) => {
-            if (this.state.membershipAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        membershipAttr: prevState.membershipAttr.filter((item) => item !== selection),
-                        isMembershipAttrOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        membershipAttr: [...prevState.membershipAttr, selection],
-                        isMembershipAttrOpen: false
-                    }),
-                    () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                membershipAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleMembershipAttrToggle = (_event, isMembershipAttrOpen) => {
             this.setState({
@@ -883,26 +854,19 @@ class ReferentialIntegrity extends React.Component {
                                 {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an attribute"
-                                    onToggle={(event, isOpen) => this.handleConfigMembershipAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={configMembershipAttr}
                                     onSelect={this.handleConfigMembershipAttrSelect}
                                     onClear={this.handleConfigMembershipAttrClear}
-                                    selections={configMembershipAttr}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isConfigMembershipAttrOpen}
-                                    aria-labelledby="typeAhead-config-membership-attr"
-                                    placeholderText={_("Type an attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    onToggle={this.handleConfigMembershipAttrToggle}
+                                    placeholder={_("Type an attribute...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute"
                                     validated={errorModal.configMembershipAttr ? 'error' : 'default'}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                />
                                 <FormHelperText  >
                                     {_("At least one attribute must be specified")}
                                 </FormHelperText>
@@ -1030,26 +994,19 @@ class ReferentialIntegrity extends React.Component {
                                 {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an attribute"
-                                    onToggle={(event, isOpen) => this.handleMembershipAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={membershipAttr}
                                     onSelect={this.handleMembershipAttrSelect}
                                     onClear={this.handleMembershipAttrClear}
-                                    selections={membershipAttr}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isMembershipAttrOpen}
-                                    aria-labelledby="typeAhead-membership-attr"
-                                    placeholderText={_("Type an attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    onToggle={this.handleMembershipAttrToggle}
+                                    placeholder={_("Type an attribute...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute"
                                     validated={error.membershipAttr ? 'error' : 'default'}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    isMulti={true}
+                                />
                                 <FormHelperText  >
                                     {_("At least one attribute needs to be specified")}
                                 </FormHelperText>
