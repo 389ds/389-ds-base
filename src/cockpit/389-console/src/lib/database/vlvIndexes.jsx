@@ -19,11 +19,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -528,21 +524,9 @@ class AddVLVIndexModal extends React.Component {
     }
 
     onTypeaheadChange(e, selection) {
-        if (this.state.sortValue.includes(selection)) {
-            this.setState(
-                (prevState) => ({
-                    sortValue: prevState.sortValue.filter((item) => item !== selection),
-                    isVLVSortOpen: false
-                }),
-            );
-        } else {
-            this.setState(
-                (prevState) => ({
-                    sortValue: [...prevState.sortValue, selection],
-                    isVLVSortOpen: false
-                }),
-            );
-        }
+        this.setState({
+            sortValue: Array.isArray(selection) ? selection : [],
+        });
     }
 
     render() {
@@ -591,27 +575,19 @@ class AddVLVIndexModal extends React.Component {
                         <GridItem className="ds-label" span={12}>
                             {_("Build a list of attributes to form the \"Sort\" index")}
                         </GridItem>
-                        <Select
-                            variant={SelectVariant.typeaheadMulti}
-                            typeAheadAriaLabel={_("Type an attribute names to create a sort index")}
-                            className="ds-margin-top-lg"
-                            onToggle={(event, isOpen) => this.handleVLVSortToggle(event, isOpen)}
+                        <TypeaheadSelect
+                            selected={this.state.sortValue}
+                            onSelect={this.onTypeaheadChange}
                             onClear={this.handleVLVSortClear}
-                            onSelect={this.handleTypeaheadChange}
-                            maxHeight={1000}
-                            selections={this.state.sortValue}
+                            options={attrs}
                             isOpen={this.state.isVLVSortOpen}
-                            aria-labelledby="typeAhead-vlv-sort-index"
-                            placeholderText={_("Type an attribute name ...")}
-                            noResultsFoundText={_("There are no matching entries")}
-                        >
-                            {attrs.map((attr, index) => (
-                                <SelectOption
-                                    key={index}
-                                    value={attr}
-                                />
-                            ))}
-                        </Select>
+                            onToggle={this.handleVLVSortToggle}
+                            placeholder={_("Type an attribute name ...")}
+                            noResultsText={_("There are no matching entries")}
+                            ariaLabel={_("Type an attribute names to create a sort index")}
+                            isMulti={true}
+                            className="ds-margin-top-lg"
+                        />
                         <GridItem className="ds-margin-top-xlg" span={12}>
                             <Checkbox
                                 id="reindexVLV"

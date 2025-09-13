@@ -140,18 +140,9 @@ export class CertificateManagement extends React.Component {
         };
 
         this.csrOnSelect = (e, selection) => {
-            if (this.state.csrAltNames.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        csrAltNames: prevState.csrAltNames.filter((item) => item !== selection),
-                        csrIsSelectOpen: false
-                    }),
-                );
-            } else {
-                this.setState({
-                    csrIsSelectOpen: false,
-                });
-            }
+            this.setState({
+                csrAltNames: Array.isArray(selection) ? selection : [],
+            });
         };
 
         this.csrOnToggle = isOpen => {
@@ -162,7 +153,6 @@ export class CertificateManagement extends React.Component {
 
         this.onChange = this.onChange.bind(this);
         this.onCSRChange = this.onCSRChange.bind(this);
-        this.onAltNameChange = this.onAltNameChange.bind(this);
         this.addCert = this.addCert.bind(this);
         this.showAddModal = this.showAddModal.bind(this);
         this.showAddCAModal = this.showAddCAModal.bind(this);
@@ -956,23 +946,6 @@ export class CertificateManagement extends React.Component {
         }, this.buildSubject);
     }
 
-    onAltNameChange (altName) {
-        if (this.state.csrAltNames.includes(altName)) {
-            this.setState(
-                (prevState) => ({
-                    csrAltNames: prevState.csrAltNames.filter((item) => item !== altName),
-                    csrIsSelectOpen: false
-                }),
-            );
-        } else {
-            this.setState(
-                (prevState) => ({
-                    csrAltNames: [...prevState.csrAltNames, altName],
-                    csrIsSelectOpen: false,
-                }),
-            );
-        }
-    }
 
     buildSubject () {
         let subject = "";
@@ -1398,7 +1371,6 @@ export class CertificateManagement extends React.Component {
                     showModal={this.state.showAddCSRModal}
                     closeHandler={this.closeAddCSRModal}
                     handleChange={this.onCSRChange}
-                    handleAltNameChange={this.onAltNameChange}
                     saveHandler={this.addCSR}
                     previewValue={this.state.csrSubject}
                     csrName={this.state.csrName}

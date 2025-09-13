@@ -10,11 +10,7 @@ import {
 	TextInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
@@ -58,21 +54,9 @@ class LinkedAttributes extends React.Component {
 
         // Link Type
         this.handleLinkTypeSelect = (event, selection) => {
-            if (this.state.linkType.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        linkType: prevState.linkType.filter((item) => item !== selection),
-                        isLinkTypeOpen: false
-                    }), () => { this.validate() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        linkType: [...prevState.linkType, selection],
-                        isLinkTypeOpen: false
-                    }), () => { this.validate() }
-                );
-            }
+            this.setState({
+                linkType: selection ? [selection] : [],
+            }, () => { this.validate() });
         };
         this.handleLinkTypeToggle = (_event, isLinkTypeOpen) => {
             this.setState({
@@ -88,21 +72,9 @@ class LinkedAttributes extends React.Component {
 
         // Managed Type
         this.handleManagedTypeSelect = (event, selection) => {
-            if (this.state.managedType.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        managedType: prevState.managedType.filter((item) => item !== selection),
-                        isManagedTypeOpen: false
-                    }), () => { this.validate() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        managedType: [...prevState.managedType, selection],
-                        isManagedTypeOpen: false
-                    }), () => { this.validate() }
-                );
-            }
+            this.setState({
+                managedType: selection ? [selection] : [],
+            }, () => { this.validate() });
         };
         this.handleManagedTypeToggle = (_event, isManagedTypeOpen) => {
             this.setState({
@@ -490,25 +462,17 @@ class LinkedAttributes extends React.Component {
                                 {_("Link Type")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel="Type an attribute name"
-                                    onToggle={(event, isOpen) => this.handleLinkTypeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={linkType.length > 0 ? linkType[0] : ''}
                                     onSelect={this.handleLinkTypeSelect}
                                     onClear={this.handleLinkTypeClear}
-                                    selections={linkType}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isLinkTypeOpen}
-                                    aria-labelledby="typeAhead-link-type"
-                                    placeholderText={_("Type an attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleLinkTypeToggle}
+                                    placeholder={_("Type an attribute...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute name"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets the attribute that is created dynamically by the plugin (managedType)")}>
@@ -516,25 +480,17 @@ class LinkedAttributes extends React.Component {
                                 {_("Managed Type")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel="Type an attribute name"
-                                    onToggle={(event, isOpen) => this.handleManagedTypeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={managedType.length > 0 ? managedType[0] : ''}
                                     onSelect={this.handleManagedTypeSelect}
                                     onClear={this.handleManagedTypeClear}
-                                    selections={managedType}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isManagedTypeOpen}
-                                    placeholderText={_("Type an attribute...")}
-                                    aria-labelledby="typeAhead-managed-type"
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleManagedTypeToggle}
+                                    placeholder={_("Type an attribute...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute name"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)")}>

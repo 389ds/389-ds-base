@@ -206,21 +206,10 @@ export class Schema extends React.Component {
         };
         this.handleAliasNameSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
-            if (this.state.atAlias.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        atAlias: prevState.atAlias.filter((item) => item !== selection),
-                        isAliasNameOpen: false
-                    }), () => { this.onAttrChange(e) }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        atAlias: [...prevState.atAlias, selection],
-                        isAliasNameOpen: false
-                    }), () => { this.onAttrChange(e) }
-                );
-            }
+            this.setState({
+                atAlias: Array.isArray(selection) ? selection : [],
+                isAliasNameOpen: false
+            }, () => { this.onAttrChange(e) });
         };
         this.handleAliasNameCreateOption = (_event, newValue) => {
             if (!this.state.atAliasOptions.includes(newValue)) {
@@ -275,21 +264,10 @@ export class Schema extends React.Component {
         };
         this.handleRequiredAttrsSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
-            if (this.state.ocMust.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        ocMust: prevState.ocMust.filter((item) => item !== selection),
-                        isRequiredAttrsOpen: false
-                    }), () => { this.onOCChange(e) }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        ocMust: [...prevState.ocMust, selection],
-                        isRequiredAttrsOpen: false
-                    }), () => { this.onOCChange(e) }
-                );
-            }
+            this.setState({
+                ocMust: Array.isArray(selection) ? selection : [],
+                isRequiredAttrsOpen: false
+            }, () => { this.onOCChange(e) });
         };
         this.handleRequiredAttrsCreateOption = newValue => {
             if (!this.state.ocMustOptions.includes(newValue)) {
@@ -314,21 +292,10 @@ export class Schema extends React.Component {
         };
         this.handleAllowedAttrsSelect = (event, selection) => {
             const e = { target: { id: 'dummy', value: "", type: 'input' } };
-            if (this.state.ocMay.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        ocMay: prevState.ocMay.filter((item) => item !== selection),
-                        isAllowedAttrsOpen: false
-                    }), () => { this.onOCChange(e) }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        ocMay: [...prevState.ocMay, selection],
-                        isAllowedAttrsOpen: false
-                    }), () => { this.onOCChange(e) }
-                );
-            }
+            this.setState({
+                ocMay: Array.isArray(selection) ? selection : [],
+                isAllowedAttrsOpen: false
+            }, () => { this.onOCChange(e) });
         };
         this.handleAllowedAttrsCreateOption = newValue => {
             if (!this.state.ocMayOptions.includes(newValue)) {

@@ -18,11 +18,7 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 
 const _ = cockpit.gettext;
@@ -74,21 +70,9 @@ export class SuffixIndexes extends React.Component {
 
         // Select Attribute
         this.handleAttributeSelect = (event, selection) => {
-            if (this.state.indexName.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        indexName: prevState.indexName.filter((item) => item !== selection),
-                        isAttributeOpen: false
-                    }), () => { this.validateSaveBtn() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        indexName: [...prevState.indexName, selection],
-                        isAttributeOpen: false
-                    }), () => { this.validateSaveBtn() }
-                );
-            }
+            this.setState({
+                indexName: Array.isArray(selection) ? selection : [selection],
+            }, () => { this.validateSaveBtn() });
         };
         this.handleAttributeToggle = (_event, isAttributeOpen) => {
             this.setState({
@@ -302,21 +286,9 @@ export class SuffixIndexes extends React.Component {
 
     // Edit Matching Rules
     handleMatchingruleSelect(event, selection) {
-        const new_mrs = [...this.state.mrs];
-        if (new_mrs.includes(selection)) {
-            const index = new_mrs.indexOf(selection);
-            new_mrs.splice(index, 1);
-            this.setState({
-                mrs: new_mrs,
-                isMatchingruleOpen: false,
-            }, () => { this.validateSaveBtn() });
-        } else {
-            new_mrs.push(selection);
-            this.setState({
-                mrs: new_mrs,
-                isMatchingruleOpen: false,
-            }, () => { this.validateSaveBtn() });
-        }
+        this.setState({
+            mrs: Array.isArray(selection) ? selection : [],
+        }, () => { this.validateSaveBtn() });
     }
 
     saveIndex() {
@@ -838,26 +810,18 @@ class AddIndexModal extends React.Component {
                             {_("Select An Attribute")}
                         </Text>
                     </TextContent>
-                    <Select
-                        variant={SelectVariant.typeahead}
-                        typeAheadAriaLabel={_("Type a attribute name to index")}
-                        onToggle={onAttributeToggle}
-                        onClear={onAttributeClear}
+                    <TypeaheadSelect
+                        selected={attributeName}
                         onSelect={onAttributeSelect}
-                        selections={attributeName}
+                        onClear={onAttributeClear}
+                        options={availAttrs}
                         isOpen={isAttributeOpen}
-                        aria-labelledby="typeAhead-attr-add"
-                        placeholderText={_("Type a attribute name to index..")}
-                        noResultsFoundText={_("There are no matching entries")}
+                        onToggle={onAttributeToggle}
+                        placeholder={_("Type a attribute name to index..")}
+                        noResultsText={_("There are no matching entries")}
+                        ariaLabel={_("Type a attribute name to index")}
                         validated={attributeName.length === 0 || attributeName[0] === "" ? "error" : "default"}
-                    >
-                        {availAttrs.map((attr, index) => (
-                            <SelectOption
-                                key={index}
-                                value={attr}
-                            />
-                        ))}
-                    </Select>
+                    />
                     <TextContent className="ds-margin-top">
                         <Text component={TextVariants.h4}>
                             {_("Index Types")}
@@ -921,26 +885,18 @@ class AddIndexModal extends React.Component {
                                 </Text>
                             </TextContent>
                             <div className="ds-indent ds-margin-top">
-                                <Select
-                                    id="addMatchingRules"
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a matching rule name"
-                                    onToggle={onMatchingruleAddToggle}
+                                <TypeaheadSelect
+                                    selected={mrs}
                                     onSelect={onMatchingruleSelect}
                                     onClear={onMatchingruleAddClear}
-                                    selections={mrs}
+                                    options={availMR}
                                     isOpen={isMatchingruleOpen}
-                                    aria-labelledby="typeAhead-mr-add"
-                                    placeholderText={_("Type a matching rule name...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {availMR.map((mrs, index) => (
-                                        <SelectOption
-                                           key={index}
-                                           value={mrs}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={onMatchingruleAddToggle}
+                                    placeholder={_("Type a matching rule name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a matching rule name"
+                                    isMulti={true}
+                                />
                             </div>
                         </GridItem>
                     </Grid>
@@ -1173,25 +1129,18 @@ class EditIndexModal extends React.Component {
                                 </Text>
                             </TextContent>
                             <div className="ds-indent ds-margin-top">
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a matching rule name"
-                                    onToggle={onMatchingruleEditToggle}
+                                <TypeaheadSelect
+                                    selected={currentMrs}
                                     onSelect={onMatchingruleSelect}
                                     onClear={onMatchingruleEditClear}
-                                    selections={currentMrs}
+                                    options={availMR}
                                     isOpen={isMatchingruleOpen}
-                                    aria-labelledby="typeAhead-mr-edit"
-                                    placeholderText={_("Type a matching rule name...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {availMR.map((mr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={mr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={onMatchingruleEditToggle}
+                                    placeholder={_("Type a matching rule name...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a matching rule name"
+                                    isMulti={true}
+                                />
                             </div>
                         </GridItem>
                     </Grid>

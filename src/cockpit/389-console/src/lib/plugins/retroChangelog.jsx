@@ -12,11 +12,7 @@ import {
 	NumberInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
@@ -101,21 +97,9 @@ class RetroChangelog extends React.Component {
         };
 
         this.handleExcludeAttrSelect = (event, selection) => {
-            if (this.state.excludeAttrs.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        excludeAttrs: prevState.excludeAttrs.filter((item) => item !== selection),
-                        isExcludeAttrOpen: false
-                    }), () => { this.validate() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        excludeAttrs: [...prevState.excludeAttrs, selection],
-                        isExcludeAttrOpen: false
-                    }), () => { this.validate() }
-                );
-            }
+            this.setState({
+                excludeAttrs: Array.isArray(selection) ? selection : [],
+            }, () => { this.validate() });
         };
         this.handleExcludeAttrToggle = (_event, isExcludeAttrOpen) => {
             this.setState({
@@ -130,21 +114,9 @@ class RetroChangelog extends React.Component {
         };
 
         this.handleExcludeSuffixSelect = (event, selection) => {
-            if (this.state.excludeSuffix.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        excludeSuffix: prevState.excludeSuffix.filter((item) => item !== selection),
-                        isExcludeSuffixOpen: false
-                    }), () => { this.validate() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        excludeSuffix: [...prevState.excludeSuffix, selection],
-                        isExcludeSuffixOpen: false
-                    }), () => { this.validate() }
-                );
-            }
+            this.setState({
+                excludeSuffix: Array.isArray(selection) ? selection : [],
+            }, () => { this.validate() });
         };
         this.handleExcludeSuffixToggle = (_event, isExcludeSuffixOpen) => {
             this.setState({
@@ -381,28 +353,21 @@ class RetroChangelog extends React.Component {
                                 {_("Exclude Suffix")}
                             </GridItem>
                             <GridItem span={5}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a suffix"
-                                    onToggle={(event, isOpen) => this.handleExcludeSuffixToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={excludeSuffix}
                                     onSelect={this.handleExcludeSuffixSelect}
                                     onClear={this.handleExcludeSuffixClear}
-                                    selections={excludeSuffix}
+                                    options={[""]}
                                     isOpen={this.state.isExcludeSuffixOpen}
-                                    aria-labelledby="typeAhead-config-exclude-suffix"
-                                    placeholderText={_("Type a suffix...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
+                                    onToggle={this.handleExcludeSuffixToggle}
+                                    placeholder={_("Type a suffix...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type a suffix"
+                                    validated={error.excludeSuffix ? "error" : "default"}
+                                    isMulti={true}
+                                    isCreatable={true}
                                     onCreateOption={this.handleOnExcludeSuffixCreateOption}
-                                    validated={error.excludeSuffix ? ValidatedOptions.error : ValidatedOptions.default}
-                                >
-                                    {[""].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                />
                                 <FormHelperText  >
                                     {_("Values must be valid DN !")}
                                 </FormHelperText>
@@ -422,26 +387,19 @@ class RetroChangelog extends React.Component {
                                 {_("Exclude attribute")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type an attribute"
-                                    onToggle={(event, isOpen) => this.handleExcludeAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={excludeAttrs}
                                     onSelect={this.handleExcludeAttrSelect}
                                     onClear={this.handleExcludeAttrClear}
-                                    selections={excludeAttrs}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isExcludeAttrOpen}
-                                    aria-labelledby="typeAhead-config-exclude-attr"
-                                    placeholderText={_("Type an attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    validated={error.excludeAttrs ? ValidatedOptions.error : ValidatedOptions.default}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleExcludeAttrToggle}
+                                    placeholder={_("Type an attribute...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel="Type an attribute"
+                                    validated={error.excludeAttrs ? "error" : "default"}
+                                    isMulti={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies the maximum age of any entry in the changelog before it is trimmed from the database (nsslapd-changelogmaxage)")}>
