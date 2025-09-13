@@ -21,11 +21,7 @@ import {
 	Tooltip,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { DNATable, DNASharedTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
@@ -104,22 +100,9 @@ class DNAPlugin extends React.Component {
         };
 
         this.handleSelect = (event, selection) => {
-            const { selected } = this.state;
-            if (selected.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        selected: prevState.selected.filter(item => item !== selection),
-                        isOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    prevState => ({
-                        selected: [...prevState.selected, selection],
-                        isOpen: false,
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                selected: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
 
         this.maxValue = 20000000;
@@ -1089,25 +1072,18 @@ class DNAPlugin extends React.Component {
                                         {_("DNA Managed Attributes")}
                                     </GridItem>
                                     <GridItem span={9}>
-                                        <Select
-                                            variant={SelectVariant.typeaheadMulti}
-                                            typeAheadAriaLabel="Type an attribute"
-                                            onToggle={(event, isOpen) => this.handleToggle(event, isOpen)}
+                                        <TypeaheadSelect
+                                            selected={selected}
                                             onSelect={this.handleSelect}
                                             onClear={this.handleClearSelection}
-                                            selections={selected}
+                                            options={this.props.attributes}
                                             isOpen={this.state.isOpen}
-                                            aria-labelledby="typeAhead-1"
-                                            placeholderText={_("Type an attribute...")}
+                                            onToggle={this.handleToggle}
+                                            placeholder={_("Type an attribute...")}
+                                            ariaLabel="Type an attribute"
                                             validated={selected.length === 0 ? 'error' : 'default'}
-                                        >
-                                            {this.props.attributes.map((attr) => (
-                                                <SelectOption
-                                                    key={attr}
-                                                    value={attr}
-                                                />
-                                            ))}
-                                        </Select>
+                                            isMulti={true}
+                                        />
                                     </GridItem>
                                 </Grid>
                                 <Grid title={_("Sets an LDAP filter to use to search for and identify the entries to which to apply the distributed numeric assignment range (dnaFilter)")}>
