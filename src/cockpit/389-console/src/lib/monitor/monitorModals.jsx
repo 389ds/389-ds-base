@@ -1145,13 +1145,16 @@ class ScatterLineChart extends React.Component {
         this.containerRef = React.createRef();
         this.observer = () => {};
         this.state = {
-            width: 0
+            width: 0,
+            showLegend: this.props.defaultShowLegend !== false,
+            hiddenSeries: {}
         };
         this.handleResize = () => {
             if (this.containerRef.current && this.containerRef.current.clientWidth) {
                 this.setState({ width: this.containerRef.current.clientWidth });
             }
         };
+        this.toggleLegendItem = this.toggleLegendItem.bind(this);
     }
 
     componentDidMount() {
@@ -1163,6 +1166,12 @@ class ScatterLineChart extends React.Component {
         this.observer();
     }
 
+    toggleLegendItem(idx) {
+        this.setState((prev) => ({
+            hiddenSeries: { ...prev.hiddenSeries, [idx]: !prev.hiddenSeries[idx] }
+        }));
+    }
+
     render() {
         const { width } = this.state;
         const { chartData, title, yAxisLabel, xAxisLabel, maxY, minY } = this.props;
@@ -1170,15 +1179,15 @@ class ScatterLineChart extends React.Component {
         // If no data is available, show a message
         if (!chartData || !chartData.series || chartData.series.length === 0) {
             return (
-                <div className="pf-v5-c-empty-state">
-                    <div className="pf-v5-c-empty-state__content">
-                        <i className="pf-v5-c-empty-state__icon pf-v5-pficon pf-v5-pficon-info" />
-                        <h2 className="pf-v5-c-title pf-m-lg">{_("No data available")}</h2>
-                        <div className="pf-v5-c-empty-state__body">
-                            {_("There is no data available for this chart.")}
-                        </div>
-                    </div>
-                </div>
+                <EmptyState>
+                    <EmptyStateIcon icon="info" />
+                    <Title headingLevel="h2" size="lg">
+                        {_("No data available")}
+                    </Title>
+                    <EmptyStateBody>
+                        {_("There is no data available for this chart.")}
+                    </EmptyStateBody>
+                </EmptyState>
             );
         }
 
@@ -1256,6 +1265,9 @@ class ScatterLineChart extends React.Component {
         const safeWidth = Math.max(width, 10);
         const safeHeight = 400;
 
+        // Count visible series for the legend toggle button badge
+        const visibleSeriesCount = series.filter((s, idx) => !this.state.hiddenSeries[idx]).length;
+
         return (
             <div ref={this.containerRef}>
                 <div style={{ height: safeHeight + 'px' }}>
@@ -1277,9 +1289,6 @@ class ScatterLineChart extends React.Component {
                                 }
                             />
                         }
-                        legendData={series.map(s => s.legendItem)}
-                        legendPosition="bottom"
-                        legendOrientation="horizontal"
                         height={safeHeight}
                         maxDomain={{ y: calculatedMaxY }}
                         minDomain={{ y: calculatedMinY }}
@@ -1299,7 +1308,9 @@ class ScatterLineChart extends React.Component {
                                 ticks: { stroke: "var(--pf-v5-global--Color--200, #999)", size: 5 }
                             },
                             legend: {
-                                labels: { fill: "var(--pf-v5-global--Color--100)" }
+                                labels: {
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
+                                }
                             }
                         }}
                     >
@@ -1314,12 +1325,12 @@ class ScatterLineChart extends React.Component {
                                 axisLabel: {
                                     fontSize: 14,
                                     padding: 40,
-                                    fill: "var(--pf-v5-global--Color--100)"
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
                                 },
                                 tickLabels: {
                                     fontSize: 12,
                                     padding: 5,
-                                    fill: "var(--pf-v5-global--Color--100)"
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
                                 }
                             }}
                         />
@@ -1332,12 +1343,12 @@ class ScatterLineChart extends React.Component {
                                 axisLabel: {
                                     fontSize: 14,
                                     padding: 55,
-                                    fill: "var(--pf-v5-global--Color--100)"
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
                                 },
                                 tickLabels: {
                                     fontSize: 12,
                                     padding: 5,
-                                    fill: "var(--pf-v5-global--Color--100)"
+                                    fill: "var(--pf-v5-chart-global--label--Fill, currentColor)"
                                 },
                                 grid: {
                                     stroke: "var(--pf-v5-global--BorderColor--100)"
@@ -1345,37 +1356,97 @@ class ScatterLineChart extends React.Component {
                             }}
                         />
                         <ChartGroup>
-                            {series.map((s, idx) => (
-                                <ChartScatter
-                                    key={`scatter-${idx}`}
-                                    name={`scatter-${idx}`}
-                                    data={s.datapoints}
-                                    style={{
-                                        data: {
-                                            fill: s.color
-                                        }
-                                    }}
-                                />
-                            ))}
+                            {series.map((s, idx) => {
+                                if (this.state.hiddenSeries[idx]) {
+                                    return null;
+                                }
+                                return (
+                                    <ChartScatter
+                                        key={`scatter-${idx}`}
+                                        name={`scatter-${idx}`}
+                                        data={s.datapoints}
+                                        style={{
+                                            data: {
+                                                fill: s.color
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
                         </ChartGroup>
                         <ChartGroup>
-                            {series.map((s, idx) => (
-                                <ChartLine
-                                    key={`line-${idx}`}
-                                    name={`line-${idx}`}
-                                    data={s.datapoints}
-                                    style={{
-                                        data: {
-                                            stroke: s.color,
-                                            strokeWidth: 2,
-                                            strokeDasharray: s.style?.data?.strokeDasharray
-                                        }
-                                    }}
-                                />
-                            ))}
+                            {series.map((s, idx) => {
+                                if (this.state.hiddenSeries[idx]) {
+                                    return null;
+                                }
+                                return (
+                                    <ChartLine
+                                        key={`line-${idx}`}
+                                        name={`line-${idx}`}
+                                        data={s.datapoints}
+                                        style={{
+                                            data: {
+                                                stroke: s.color,
+                                                strokeWidth: 2,
+                                                strokeDasharray: s.style?.data?.strokeDasharray
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
                         </ChartGroup>
                     </Chart>
                 </div>
+                <div className="ds-margin-top-sm" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                        variant="link"
+                        isSmall
+                        aria-pressed={this.state.showLegend}
+                        countOptions={{ isRead: true, count: visibleSeriesCount }}
+                        onClick={() => this.setState({ showLegend: !this.state.showLegend })}
+                    >
+                        {this.state.showLegend ? _("Hide legend") : _("Show legend")}
+                    </Button>
+                </div>
+                {this.state.showLegend && (
+                    <div className="ds-margin-top-sm">
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--pf-v5-global--spacer--md)' }}>
+                            {series.map((s, idx) => (
+                                <button
+                                    key={`legend-${idx}`}
+                                    type="button"
+                                    aria-pressed={!this.state.hiddenSeries[idx]}
+                                    onClick={() => this.toggleLegendItem(idx)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        opacity: this.state.hiddenSeries[idx] ? 0.4 : 1,
+                                        border: 'none',
+                                        background: 'none',
+                                        padding: 0,
+                                        margin: 0
+                                    }}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        style={{
+                                            display: 'inline-block',
+                                            width: 12,
+                                            height: 12,
+                                            background: s.color,
+                                            marginRight: 8,
+                                            borderRadius: 2
+                                        }}
+                                    />
+                                    <span style={{ color: 'var(--pf-v5-chart-global--label--Fill, currentColor)', fontSize: 14 }}>
+                                        {s.legendItem?.name || s.name || `Series ${idx + 1}`}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -1864,6 +1935,7 @@ class LagReportModal extends React.Component {
                                             title={jsonData.replicationLags.title || _("Global Replication Lag Over Time")}
                                             xAxisLabel={(jsonData.replicationLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
                                             yAxisLabel={jsonData.replicationLags.yAxisLabel || _("Lag Time (seconds)")}
+                                            defaultShowLegend={true}
                                         />
                                     </div>
                                 )}
@@ -1877,6 +1949,7 @@ class LagReportModal extends React.Component {
                                             title={jsonData.hopLags.title || _("Per-Hop Replication Lags")}
                                             xAxisLabel={(jsonData.hopLags.xAxisLabel || "").replace(/\s*Time\s*/g, "")}
                                             yAxisLabel={jsonData.hopLags.yAxisLabel || _("Hop Lag Time (seconds)")}
+                                            defaultShowLegend={false}
                                         />
                                     </div>
                                 )}
@@ -2069,6 +2142,53 @@ class LagReportModal extends React.Component {
             );
         }
 
+        const fileEntries = [];
+        if (reportUrls.summary) {
+            fileEntries.push({
+                key: 'summary',
+                label: _("Summary JSON"),
+                desc: _("Analysis summary data in JSON format"),
+                path: reportUrls.summary,
+                filename: "replication_analysis_summary.json"
+            });
+        }
+        if (reportUrls.json) {
+            fileEntries.push({
+                key: 'json',
+                label: _("Interactive Charts JSON"),
+                desc: _("Chart data in JSON format"),
+                path: reportUrls.json,
+                filename: "replication_analysis.json"
+            });
+        }
+        if (reportUrls.png) {
+            fileEntries.push({
+                key: 'png',
+                label: _("PNG Image"),
+                desc: _("Static chart image in PNG format"),
+                path: reportUrls.png,
+                filename: "replication_analysis.png"
+            });
+        }
+        if (reportUrls.csv) {
+            fileEntries.push({
+                key: 'csv',
+                label: _("CSV Data"),
+                desc: _("Tabular data in CSV format"),
+                path: reportUrls.csv,
+                filename: "replication_analysis.csv"
+            });
+        }
+        if (reportUrls.html) {
+            fileEntries.push({
+                key: 'html',
+                label: _("Standalone HTML Report"),
+                desc: _("Self-contained HTML report with embedded charts"),
+                path: reportUrls.html,
+                filename: "replication_analysis.html"
+            });
+        }
+
         return (
             <div className="ds-margin-top">
                 <Grid hasGutter>
@@ -2079,78 +2199,24 @@ class LagReportModal extends React.Component {
                                 <TextContent>
                                     <Text component={TextVariants.h3}>{_("Download report files:")}</Text>
                                 </TextContent>
-                                <List className="ds-margin-top">
-                                    {reportUrls.summary && (
-                                        <ListItem>
-                                            <Button
-                                                variant="link"
-                                                onClick={() => this.downloadFile(reportUrls.summary, "replication_analysis_summary.json")}
-                                                icon={<DownloadIcon />}
-                                            >
-                                                {_("Summary JSON")}
-                                            </Button>
-                                            <Text component={TextVariants.small} className="ds-margin-left-sm">
-                                                {_("Analysis summary data in JSON format")}
-                                            </Text>
-                                        </ListItem>
-                                    )}
-                                    {reportUrls.json && (
-                                        <ListItem>
-                                            <Button
-                                                variant="link"
-                                                onClick={() => this.downloadFile(reportUrls.json, "replication_analysis.json")}
-                                                icon={<DownloadIcon />}
-                                            >
-                                                {_("Interactive Charts JSON")}
-                                            </Button>
-                                            <Text component={TextVariants.small} className="ds-margin-left-sm">
-                                                {_("Chart data in JSON format")}
-                                            </Text>
-                                        </ListItem>
-                                    )}
-                                    {reportUrls.png && (
-                                        <ListItem>
-                                            <Button
-                                                variant="link"
-                                                onClick={() => this.downloadFile(reportUrls.png, "replication_analysis.png")}
-                                                icon={<DownloadIcon />}
-                                            >
-                                                {_("PNG Image")}
-                                            </Button>
-                                            <Text component={TextVariants.small} className="ds-margin-left-sm">
-                                                {_("Static chart image in PNG format")}
-                                            </Text>
-                                        </ListItem>
-                                    )}
-                                    {reportUrls.csv && (
-                                        <ListItem>
-                                            <Button
-                                                variant="link"
-                                                onClick={() => this.downloadFile(reportUrls.csv, "replication_analysis.csv")}
-                                                icon={<DownloadIcon />}
-                                            >
-                                                {_("CSV Data")}
-                                            </Button>
-                                            <Text component={TextVariants.small} className="ds-margin-left-sm">
-                                                {_("Tabular data in CSV format")}
-                                            </Text>
-                                        </ListItem>
-                                    )}
-                                    {reportUrls.html && (
-                                        <ListItem>
-                                            <Button
-                                                variant="link"
-                                                onClick={() => this.downloadFile(reportUrls.html, "replication_analysis.html")}
-                                                icon={<DownloadIcon />}
-                                            >
-                                                {_("Standalone HTML Report")}
-                                            </Button>
-                                            <Text component={TextVariants.small} className="ds-margin-left-sm">
-                                                {_("Self-contained HTML report with embedded charts")}
-                                            </Text>
-                                        </ListItem>
-                                    )}
-                                </List>
+                                <Grid hasGutter className="ds-margin-top">
+                                    {fileEntries.map((f) => (
+                                        <React.Fragment key={f.key}>
+                                            <GridItem span={3}>
+                                                <Button
+                                                    variant="link"
+                                                    onClick={() => this.downloadFile(f.path, f.filename)}
+                                                    icon={<DownloadIcon />}
+                                                >
+                                                    {f.label}
+                                                </Button>
+                                            </GridItem>
+                                            <GridItem span={9}>
+                                                <Text component={TextVariants.small}>{f.desc}</Text>
+                                            </GridItem>
+                                        </React.Fragment>
+                                    ))}
+                                </Grid>
                             </CardBody>
                         </Card>
                     </GridItem>
@@ -2167,31 +2233,6 @@ class LagReportModal extends React.Component {
             return null;
         }
 
-        // Styles for the modal content
-        const modalContentStyle = {
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'hidden' // Prevent outer scrollbar
-        };
-
-        // Styles for the tabs container
-        const tabsContainerStyle = {
-            flex: '0 0 auto',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-            backgroundColor: 'var(--pf-c-modal-box--BackgroundColor, #fff)'
-        };
-
-        // Styles for the tabs content area
-        const tabContentStyle = {
-            flex: '1 1 auto',
-            overflowY: 'auto',
-            paddingTop: '20px',
-            maxHeight: 'calc(75vh - 125px)' // Limit height to prevent overlap
-        };
-
         return (
             <Modal
                 variant={ModalVariant.large}
@@ -2205,8 +2246,8 @@ class LagReportModal extends React.Component {
                 position="top"
                 aria-label={_("Replication Report Modal")}
             >
-                <div style={modalContentStyle}>
-                    <div style={tabsContainerStyle}>
+                <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+                    <div>
                         <Tabs
                             activeKey={activeTabKey}
                             onSelect={this.handleTabClick}
@@ -2245,7 +2286,7 @@ class LagReportModal extends React.Component {
                             />
                         </Tabs>
                     </div>
-                    <div style={tabContentStyle}>
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
                         {activeTabKey === 0 && this.renderSummaryTab()}
                         {activeTabKey === 1 && this.props.reportUrls && this.props.reportUrls.json && this.renderChartsTab()}
                         {activeTabKey === 2 && this.props.reportUrls && this.props.reportUrls.png && this.renderPngTab()}
@@ -2301,17 +2342,35 @@ class ChooseLagReportModal extends React.Component {
         });
 
         // First get all directories in the specified path
-        cockpit.spawn(["find", reportDirectory, "-maxdepth", "1", "-type", "d"], { superuser: true })
+        cockpit.spawn(["ls", "-1A", reportDirectory], { superuser: true, err: "ignore" })
             .then(output => {
                 if (!output.trim()) {
                     this.setState({ loading: false });
                     return;
                 }
 
-                const directories = output.trim().split('\n');
+                // Build absolute candidate paths and include the base directory itself
+                const base = reportDirectory.endsWith('/') ? reportDirectory.slice(0, -1) : reportDirectory;
+                const candidates = output.trim().split('\n').map(entry => `${base}/${entry}`);
+                candidates.unshift(base);
+
+                // Stat each candidate to determine if it's a directory
+                const statPromises = candidates.map(p =>
+                    cockpit.spawn(["stat", "-c", "%F", p], { superuser: true, err: "ignore" })
+                        .then(type => ({ path: p, isDir: type.trim().toLowerCase().includes("directory") }))
+                        .catch(() => ({ path: p, isDir: false }))
+                );
+
+                return Promise.all(statPromises).then(stats => stats.filter(s => s.isDir).map(s => s.path));
+            })
+            .then(directories => {
+                if (!directories) {
+                    return; // previous stage already set loading false
+                }
+
                 const promises = directories.map(dir => {
                     // Check which report files exist in this directory
-                    return cockpit.spawn(["ls", "-la", dir], { superuser: true })
+                    return cockpit.spawn(["ls", "-la", dir], { superuser: true, err: "ignore" })
                         .then(files => {
                             // Check if this directory contains any report files
                             const hasJson = files.includes('replication_analysis.json');
@@ -2329,7 +2388,7 @@ class ChooseLagReportModal extends React.Component {
                             let creationTime = "";
 
                             // Try to get the directory creation time using stat
-                            return cockpit.spawn(["stat", "-c", "%y", dir], { superuser: true })
+                            return cockpit.spawn(["stat", "-c", "%y", dir], { superuser: true, err: "ignore" })
                                 .then(statOutput => {
                                     // Format the creation time from stat output
                                     try {
@@ -2352,7 +2411,6 @@ class ChooseLagReportModal extends React.Component {
                                     };
                                 })
                                 .catch(statError => {
-                                    console.error("Error getting directory stats:", statError);
 
                                     // If we can't get the creation time from stat, try to extract it from filename
                                     // or fall back to using the file listing
@@ -2391,13 +2449,12 @@ class ChooseLagReportModal extends React.Component {
                                     };
                                 });
                         })
-                        .catch(error => {
-                            console.error("Error checking files in directory:", dir, error);
+                        .catch(() => {
                             return null;
                         });
                 });
 
-                Promise.all(promises)
+                return Promise.all(promises)
                     .then(results => {
                         // Filter out null results and directories without report files
                         const validReports = results.filter(report => report !== null);
@@ -2416,20 +2473,12 @@ class ChooseLagReportModal extends React.Component {
                             loading: false
                         });
                     })
-                    .catch(error => {
-                        console.error("Error processing report directories:", error);
-                        this.setState({
-                            error: _("Error processing report directories: ") + error.message,
-                            loading: false
-                        });
+                    .catch(() => {
+                        this.setState({ loading: false });
                     });
             })
-            .catch(error => {
-                console.error("Error finding report directories:", error);
-                this.setState({
-                    error: _("Error finding report directories: ") + error.message,
-                    loading: false
-                });
+            .catch(() => {
+                this.setState({ loading: false });
             });
     }
 
