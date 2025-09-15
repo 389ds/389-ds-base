@@ -25,6 +25,21 @@ log = logging.getLogger(__name__)
 group_name = 'group'
 member_name = 'member'
 
+
+@pytest.fixture(scope="function")
+def memberof(topology_st, request):
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.enable()
+    topology_st.standalone.restart()
+
+    def fin():
+        memberof.disable()
+        topology_st.standalone.restart()
+
+    request.addfinalizer(fin)
+
+    return memberof
+
 @pytest.fixture(scope="function")
 def prepare_entries(topology_st, request):
     groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
@@ -189,6 +204,78 @@ def test_fixup_task_limit(topology_st):
 
     # Add new task which should be allowed now
     memberof.fixup(DEFAULT_SUFFIX)
+
+
+def test_fixup_task_invalid_basedn(topology_st, memberof):
+    """Test memberOf fixup task with invalid basedn
+
+    :id: dce9b898-119d-42b8-a236-1130e59bfe18
+    :setup: Standalone Instance with memberOf plugin enabled
+    :steps:
+        1. Clear error logs to ensure clean testing
+        2. Run fixup task with invalid/non-existent basedn
+        3. Verify task completes but logs appropriate error
+        4. Check error log for "Failed to get be backend" message
+    :expectedresults:
+        1. Error logs should be cleared successfully
+        2. Task should be created successfully
+        3. Task should complete
+        4. Error should be logged about invalid backend
+    """
+
+    # Clear error logs to ensure clean testing
+    log.info('Clearing error logs before test')
+    topology_st.standalone.deleteErrorLogs()
+
+    # Try to run fixup task with invalid basedn
+    invalid_basedn = 'dc=testdb,dc=com'
+    log.info(f'Running fixup task with invalid basedn: {invalid_basedn}')
+
+    # The task should be created successfully even with invalid basedn
+    task = memberof.fixup(basedn=invalid_basedn)
+
+    # Wait for task to complete
+    task.wait()
+
+    # Check that appropriate error was logged
+    log.info('Checking error log for backend error message')
+    assert topology_st.standalone.ds_error_log.match('.*Failed to get be backend.*')
+
+
+def test_fixup_task_invalid_filter(topology_st, memberof):
+    """Test memberOf fixup task with invalid search filter
+
+    :id: dde9e893-119d-42c8-a236-1190e56bfe98
+    :setup: Standalone Instance with memberOf plugin enabled
+    :steps:
+        1. Clear error logs to ensure clean testing
+        2. Run fixup task with invalid/malformed search filter
+        3. Verify task completes but logs appropriate error
+        4. Check error log for "Bad search filter" message
+    :expectedresults:
+        1. Error logs should be cleared successfully
+        2. Task should be created successfully
+        3. Task should complete
+        4. Error should be logged about invalid filter
+    """
+
+    # Clear error logs to ensure clean testing
+    log.info('Clearing error logs before test')
+    topology_st.standalone.deleteErrorLogs()
+
+    # Try to run fixup task with invalid filter (missing closing parenthesis)
+    invalid_filter = '(objectClass=person'
+    log.info(f'Running fixup task with invalid filter: {invalid_filter}')
+
+    # The task should be created successfully even with invalid filter
+    task = memberof.fixup(basedn=DEFAULT_SUFFIX, _filter=invalid_filter)
+
+    # Wait for task to complete
+    task.wait()
+
+    # Check that appropriate error was logged
+    log.info('Checking error log for filter error message')
+    assert topology_st.standalone.ds_error_log.match('.*Bad search filter.*')
 
 
 if __name__ == '__main__':
