@@ -644,7 +644,7 @@ def test_ldif2db_after_backend_create(topo):
     assert abs(import_time_1 - import_time_2) < 5
 
 
-def test_ldif_missing_suffix_entry(topo):
+def test_ldif_missing_suffix_entry(topo, request):
     """Test that ldif2db/import aborts if suffix entry is not in the ldif
 
     :id: 731bd0d6-8cc8-11f0-8ef2-c85309d5c3e3

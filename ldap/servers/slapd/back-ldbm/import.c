@@ -408,6 +408,7 @@ db2ldif_skip_all(void *args)
             "skipped because ldif file does not contain the suffix entry %s).",
              be->be_name, suffix);
     slapi_task_finish(task, 0);
+    g_decr_active_threadcnt();
     return NULL;
 }
 
@@ -449,9 +450,12 @@ db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst)
     }
     slapi_task_set_data(task, inst->inst_be);
     /* Should run in a thread to let current thread creates the task entry */
+    g_incr_active_threadcnt();  /* decreased in db2ldif_skip_all */
     if (task->task_dn == NULL || 
         pthread_create(&tid, NULL, db2ldif_skip_all, task) != 0) {
             db2ldif_skip_all(task);
+    } else {
+        pthread_detach(tid);
     }
     return false;
 }
