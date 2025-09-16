@@ -28,7 +28,7 @@ from lib389.idm.domain import Domain
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.dseldif import DSEldif
 from contextlib import suppress
-
+from . import check_membership
 
 # Skip on older versions
 pytestmark = [pytest.mark.tier1,
@@ -1441,6 +1441,56 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
                 pass
 
     request.addfinalizer(fin)
+
+
+def test_memberof_modrdn_to_itself(topology_st, user1, group1):
+    """Test that memberOf plugin correctly handles modrdn operations on groups
+
+    :id: a4c7f8e9-2f1a-11ef-8a3c-482ae39447e5
+    :setup: Standalone Instance with user1 and group1 fixtures
+    :steps:
+        1. Enable the memberOf plugin and restart the server
+        2. Verify user is not initially a member of the group
+        3. Add user to the group
+        4. Verify user is now a member of the group
+        5. Enable plugin logging to capture modrdn operations
+        6. Perform modrdn operation on group (rename to itself)
+        7. Verify user is still a member of the group after rename
+        8. Verify memberOf plugin logs skip message for identical src/dst rename
+    :expectedresults:
+        1. MemberOf plugin should be enabled successfully
+        2. User should not have memberOf attribute initially
+        3. User should be added to group successfully
+        4. User should have memberOf attribute pointing to group
+        5. Plugin logging should be enabled successfully
+        6. Modrdn operation should complete without errors
+        7. User should retain memberOf attribute after rename operation
+        8. Plugin should log that modrdn was skipped due to identical src/dst
+    """
+
+    # Enable the MemberOf plugin
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.enable()
+    topology_st.standalone.restart()
+
+    # Verify that the user is not a member of the group
+    check_membership(user1, group1.dn, False)
+    # Add the user to the group
+    group1.add_member(user1.dn)
+    # Verify that the user is a member of the group
+    check_membership(user1, group1.dn, True)
+
+    # Enable the plugin log to capture memberof modrdn callback notification
+    topology_st.standalone.config.loglevel(vals=[LOG_PLUGIN, LOG_DEFAULT], service='error')
+
+    # Rename the group on itself
+    group1.rename('cn=group1')
+
+    # Verify that the user is still a member of the group
+    check_membership(user1, group1.dn, True)
+
+    # Verify that the memberof modrdn callback notification is logged
+    assert topology_st.standalone.ds_error_log.match('.*Skip modrdn operation because src/dst identical.*')
 
 
 if __name__ == '__main__':
