@@ -3737,8 +3737,8 @@ out:
 }
 
 /*
- * Helper function that remove * some attributes (that may change)
- * before comparing config entries
+ * Helper function that removes attributes which may change,
+ * to ensure accurate comparison of config entries.
  */
 static void
 clear_recomputed_attributes(Slapi_Entry *entry)
