@@ -9,12 +9,16 @@
 import time
 import subprocess
 import pytest
+import logging
+import os
 
 from lib389.cli_idm.account import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from .. import setup_page, check_frame_assignment, setup_login, enable_replication
+
+log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.skipif(os.getenv('WEBUI') is None, reason="These tests are only for WebUI environment")
 pytest.importorskip('playwright')
@@ -129,7 +133,24 @@ def test_replication_visibility(topology_st, page, browser_name):
     assert frame.get_by_role('button', name='Generate Report').is_visible()
 
     log.info('Click on Agreements tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Agreements').click()
+    frame.locator('#replication-suffix-dc\\=example\\,dc\\=com').wait_for()
     assert frame.locator('#replication-suffix-dc\\=example\\,dc\\=com').is_visible()
+
+    log.info('Click on Winsync tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Winsync').click()
+    frame.get_by_text('Winsync Agreements').wait_for()
+    assert frame.get_by_text('Winsync Agreements').is_visible()
+
+    log.info('Click on Tasks tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Tasks').click()
+    frame.get_by_text('CleanAllRUV Tasks').wait_for()
+    assert frame.get_by_text('CleanAllRUV Tasks').is_visible()
+
+    log.info('Click on Conflict Entries tab and check if element is loaded.')
+    frame.get_by_role('tab', name='Conflict Entries').click()
+    frame.get_by_text('Replication Conflict Entries').wait_for()
+    assert frame.get_by_text('Replication Conflict Entries').is_visible()
 
 
 def test_database_visibility(topology_st, page, browser_name):
