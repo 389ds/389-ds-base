@@ -19,7 +19,7 @@ from lib389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.tasks import *
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.dbgen import *
 from lib389.utils import *
@@ -42,6 +42,12 @@ TEST_DEFAULT_SUFFIX = "dc=default,dc=com"
 TEST_DEFAULT_NAME = "default"
 
 BIG_MAP_SIZE = 35 * 1024 * 1024 * 1024
+
+######################################################################
+# Some test cases are destroying the backend.                        #
+# They should use preserve (or preserve_r if preserve does fail)     #
+# fixture to restore the backend when the test complete              #
+######################################################################
 
 def _check_disk_space():
     if get_default_db_lib() == "mdb":
@@ -164,8 +170,9 @@ class IEHandler(ABC):
         pass
 
     def run(self, extra_checks, success=True):
-        self._set_log_pattern(success)
-        self.errlog.seek2end()
+        if self.errlog:
+            self._set_log_pattern(success)
+            self.errlog.seek2end()
 
         if self.inst.status():
             if self.bename:
@@ -175,26 +182,27 @@ class IEHandler(ABC):
                 log.info(f"Performing online {self.get_name()} of suffix {self.suffix} into LDIF file {self.ldif}")
                 r = self._run_task_s()
             r.wait()
+            time.sleep(1)
         else:
             if self.bename:
                 log.info(f"Performing offline {self.get_name()} of backend {self.bename} into LDIF file {self.ldif}")
             else:
                 log.info(f"Performing offline {self.get_name()} of suffix {self.suffix} into LDIF file {self.ldif}")
             self._run_offline()
-        expected_counts = ['*' for _ in range(len(self.errlog.patterns))]
-        for (idx, val) in extra_checks:
-            expected_counts[idx] = val
-        res = self.errlog.countCaptures()
-        log.info(f'Expected errorlog counts are: {expected_counts}')
-        if success is True or success is False:
-            log.info(f'Number of {self.errlog.patterns[0]} in errorlog is: {res[0]}')
-            assert res[0] >= 1
-        for (idx, val) in extra_checks:
-            self.errlog.check(idx, val)
+        if self.errlog:
+            expected_counts = ['*' for _ in range(len(self.errlog.patterns))]
+            for (idx, val) in extra_checks:
+                expected_counts[idx] = val
+            res = self.errlog.countCaptures()
+            log.info(f'Expected errorlog counts are: {expected_counts}')
+            if success is True or success is False:
+                log.info(f'Number of {self.errlog.patterns[0]} in errorlog is: {res[0]}')
+                assert res[0] >= 1
+            for (idx, val) in extra_checks:
+                self.errlog.check(idx, val)
 
     def check_db(self):
        assert self.inst.dbscan(bename=self.bename, index='id2entry')
-
 
 
 class Importer(IEHandler):
@@ -249,7 +257,42 @@ class Exporter(IEHandler):
         self.inst.db2ldif(self.bename, self.suffix, None, False, False, self.ldif)
 
 
-def test_replay_import_operation(topo):
+def preserve_func(topo, request, restart):
+    # Ensure that topology get preserved helper
+    inst = topo.standalone
+
+    def fin():
+        if restart:
+            inst.restart()
+        Importer(inst, None, "save").run(())
+
+    r = Exporter(inst, None, "save")
+    if not os.path.isfile(r.ldif):
+        r.run(())
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="function")
+def preserve(topo, request):
+    # Ensure that topology get preserved (no restart)
+    preserve_func(topo, request, False)
+
+
+@pytest.fixture(scope="function")
+def preserve_r(topo, request):
+    # Ensure that topology get preserved (with restart)
+    preserve_func(topo, request, True)
+
+
+@pytest.fixture(scope="function")
+def verify(topo):
+    # Check that backend is not broken
+    inst = topo.standalone
+    dn=f'uid=demo_user,ou=people,{DEFAULT_SUFFIX}'
+    assert UserAccount(inst,dn).exists()
+
+
+def test_replay_import_operation(topo, preserve_r, verify):
     """ Check after certain failed import operation, is it
      possible to replay an import operation
 
@@ -298,7 +341,7 @@ def test_replay_import_operation(topo):
     r.import_suffix_from_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
 
 
-def test_import_be_default(topo):
+def test_import_be_default(topo, verify):
     """ Create a backend using the name "default". previously this name was
     used int
 
@@ -342,7 +385,7 @@ def test_import_be_default(topo):
     log.info('Test PASSED')
 
 
-def test_del_suffix_import(topo):
+def test_del_suffix_import(topo, verify):
     """Adding a database entry fails if the same database was deleted after an import
 
     :id: 652421ef-738b-47ed-80ec-2ceece6b5d77
@@ -380,7 +423,7 @@ def test_del_suffix_import(topo):
                                 'name': TEST_BACKEND1})
 
 
-def test_del_suffix_backend(topo):
+def test_del_suffix_backend(topo, verify):
     """Adding a database entry fails if the same database was deleted after an import
 
     :id: ac702c35-74b6-434e-8e30-316433f3e91a
@@ -418,7 +461,7 @@ def test_del_suffix_backend(topo):
     assert not topo.standalone.detectDisorderlyShutdown()
 
 
-def test_import_duplicate_dn(topo):
+def test_import_duplicate_dn(topo, preserve, verify):
     """Import ldif with duplicate DNs, should not log error "unable to flush"
 
     :id: dce2b898-119d-42b8-a236-1130f58bff17
@@ -479,7 +522,7 @@ ou: myDups00001
 @pytest.mark.tier2
 @pytest.mark.skipif(not _check_disk_space(), reason="not enough disk space for lmdb map")
 @pytest.mark.xfail(ds_is_older("1.3.10.1"), reason="bz1749595 not fixed on versions older than 1.3.10.1")
-def test_large_ldif2db_ancestorid_index_creation(topo, _set_mdb_map_size):
+def test_large_ldif2db_ancestorid_index_creation(topo, _set_mdb_map_size, verify):
     """Import with ldif2db a large file - check that the ancestorid index creation phase has a correct performance
 
     :id: fe7f78f6-6e60-425d-ad47-b39b67e29113
@@ -613,7 +656,7 @@ def create_backend_and_import(instance, ldif_file, suffix, backend):
 
 
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not cache size over mdb")
-def test_ldif2db_after_backend_create(topo):
+def test_ldif2db_after_backend_create(topo, verify):
     """Test that ldif2db after backend creation is not slow first time
 
     :id: c1ab1df7-c70a-46be-bbca-8d65c6ebaa14
@@ -644,7 +687,7 @@ def test_ldif2db_after_backend_create(topo):
     assert abs(import_time_1 - import_time_2) < 5
 
 
-def test_ldif_missing_suffix_entry(topo, request):
+def test_ldif_missing_suffix_entry(topo, request, verify):
     """Test that ldif2db/import aborts if suffix entry is not in the ldif
 
     :id: 731bd0d6-8cc8-11f0-8ef2-c85309d5c3e3
@@ -714,7 +757,7 @@ def test_ldif_missing_suffix_entry(topo, request):
 
     with open(inst.ds_paths.error_log, 'at+') as fd:
         patterns = (
-            "Reserved fo IEHandler",
+            "Reserved for IEHandler",
             " ERR ",
             " WARN ",
             "has no parent",
