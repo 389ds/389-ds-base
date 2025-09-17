@@ -714,8 +714,8 @@ def test_ldif_missing_suffix_entry(topo, request, verify):
         4. Import should success, skip all entries, db should exists
         5. Import should success, skip all entries, db should exists
         6. Operation successful
-        5. Import should success, skip all entries, db should exists
-        5. Import should success, skip all entries, db should exists
+        7. Import should success, skip all entries, db should exists
+        8. Import should success, skip all entries, db should exists
         9. Operation successful
         10. Import should success, skip all entries, db should exists
         11. Import should success, 10 entries skipped, db should exists
