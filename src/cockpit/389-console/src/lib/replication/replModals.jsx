@@ -1750,18 +1750,19 @@ export class EnableReplModal extends React.Component {
                             {_("Replication Role")}
                         </GridItem>
                         <GridItem span={2}>
-                            <FormSelect
-                                id="enableRole"
-                                value={enableRole}
-                                onChange={(e, str) => {
-                                    handleChange(e);
+                            <TypeaheadSelect
+                                selected={enableRole}
+                                onSelect={(e, selection) => {
+                                    const syntheticEvent = { target: { id: 'enableRole', value: selection } };
+                                    handleChange(syntheticEvent);
                                 }}
-                                aria-label="FormSelect Input"
-                            >
-                                <FormSelectOption key={0} value="Supplier" label={_("Supplier")} />
-                                <FormSelectOption key={1} value="Hub" label={_("Hub")} />
-                                <FormSelectOption key={2} value="Consumer" label={_("Consumer")} />
-                            </FormSelect>
+                                options={[_("Supplier"), _("Hub"), _("Consumer")]}
+                                isOpen={false}
+                                onToggle={() => {}}
+                                placeholder={_("Select role...")}
+                                ariaLabel="Replication role selection"
+                                isMulti={false}
+                            />
                         </GridItem>
                     </Grid>
                     {replicaIDRow}
