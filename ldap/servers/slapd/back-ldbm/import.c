@@ -310,7 +310,7 @@ struct silctx {
 };
 
 /* Read ldif line to check if suffix is present */
-bool
+static bool
 db2ldif_read_ldif_line(FILE *fd, struct silctx *ctx)
 {
     int c = 0;
@@ -341,7 +341,7 @@ db2ldif_read_ldif_line(FILE *fd, struct silctx *ctx)
     return c!= EOF;
 }
 
-bool
+static bool
 db2ldif_is_suffix_in_file(const char *filename, struct silctx *ctx)
 {
     FILE *fd = fopen(filename, "r");
@@ -449,9 +449,16 @@ db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst)
         task = &pseudo_task;
     }
     slapi_task_set_data(task, inst->inst_be);
-    /* Should run in a thread to let current thread creates the task entry */
+    /*
+     * if task->task_dn it is a real task that should run in another
+     * thread to let current thread creates the task entry
+     * otherwise it is a pseudo task that should run in current thread
+     * and if pthreasd_create fails we also run in current thread
+     * to ensure the work is done but this will trigger a warning
+     * about being unable to modify the task.
+     */
     g_incr_active_threadcnt();  /* decreased in db2ldif_skip_all */
-    if (task->task_dn == NULL || 
+    if (task->task_dn == NULL ||
         pthread_create(&tid, NULL, db2ldif_skip_all, task) != 0) {
             db2ldif_skip_all(task);
     } else {

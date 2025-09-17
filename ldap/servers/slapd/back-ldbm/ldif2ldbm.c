@@ -113,16 +113,16 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
     }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
-    slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm", 
+    slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm",
         "Starting %s of ldif file %s over backend %s.\n",
         action, ldif, bename);
     rc =  priv->dblayer_ldif2db_fn(pb);;
     /*
-     * On line import task is still running in another thread 
+     * On line import task is still running in another thread
      * so we can only log the off-line completion
      */
     if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
-        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm", 
+        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm",
             "Ending %s of ldif file %s over backend %s (rc=%d).\n",
             action, ldif, bename, rc);
     }
