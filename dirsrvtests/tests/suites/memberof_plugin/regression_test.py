@@ -409,6 +409,10 @@ def test_memberof_with_changelog_reset(topo_m2):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.test_replication_topology(topo_m2)
 
+    # Clean up
+    for user in users_list:
+        user.delete()
+
 
 def add_container(inst, dn, name, sleep=False):
     """Creates container entry"""
@@ -1491,6 +1495,145 @@ def test_memberof_modrdn_to_itself(topology_st, user1, group1):
 
     # Verify that the memberof modrdn callback notification is logged
     assert topology_st.standalone.ds_error_log.match('.*Skip modrdn operation because src/dst identical.*')
+
+
+def check_memberof_on_server(server, group, users, expected_present=True):
+    for user in users:
+        entry = server.getEntry(user.dn, ldap.SCOPE_BASE, "(objectclass=*)")
+        if expected_present:
+            assert entry.hasAttr('memberof') and ensure_str(entry.getValue('memberof')) == group.dn
+        else:
+            assert not entry.hasAttr('memberof')
+
+
+def test_memberof_total_init_with_fractional_replication(topo_m2):
+    """Test that memberOf attributes survive total initialization when configured
+    with fractional replication that excludes memberOf from regular updates but
+    NOT from total initialization.
+
+    :id: 2c3f1a88-1e4f-4a97-8b2a-1d5c6e7f8901
+    :setup: Two suppliers with memberOf plugin and fractional replication
+    :steps:
+        1. Configure memberOf plugin on supplier1 with fractional replication
+           (excludes memberOf from regular updates, includes in total init)
+        2. Enable memberOf plugin on supplier2
+        3. Create 5 test users on supplier1 and wait for replication
+        4. Verify users exist on supplier2
+        5. Create test group with all users as members on supplier1
+        6. Wait for group replication and verify group exists on supplier2
+        7. Verify memberOf attributes are present on both suppliers
+        8. Perform total initialization from supplier1 to supplier2
+        9. Verify memberOf attributes survive total initialization on both suppliers
+        10. Add new user and verify ongoing replication still works correctly
+    :expectedresults:
+        1. MemberOf plugin and fractional replication should be configured successfully
+        2. MemberOf plugin should be enabled on supplier2
+        3. Test users should be created and replicated successfully
+        4. Users should exist on both suppliers
+        5. Test group should be created with members successfully
+        6. Group should replicate and exist on both suppliers
+        7. MemberOf attributes should be present on both suppliers before total init
+        8. Total initialization should complete successfully
+        9. MemberOf attributes should survive total initialization despite fractional exclusion
+        10. Post-init replication should work correctly with memberOf attributes
+    """
+
+    supplier1 = topo_m2.ms["supplier1"]
+    supplier2 = topo_m2.ms["supplier2"]
+
+    # Enable memberOf plugin on supplier1 with fractional replication to exclude
+    # memberOf from regular updates but NOT from total initialization
+    config_memberof(supplier1)
+
+    # Enable memberOf plugin on supplier2
+    memberof2 = MemberOfPlugin(supplier2)
+    memberof2.enable()
+    supplier2.restart()
+
+    # Create test users on supplier1
+    users = add_users(topo_m2, 5, DEFAULT_SUFFIX)
+
+    # Wait for replication of users
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+
+    # Verify users exist on supplier2
+    users2 = UserAccounts(supplier2, DEFAULT_SUFFIX)
+    for user in users:
+        user2 = users2.get(dn=user.dn)
+        assert user2.exists()
+        log.info(f'Verified user exists on supplier2: {user2.dn}')
+
+    # Create test group with members on supplier1
+    groups1 = Groups(supplier1, DEFAULT_SUFFIX)
+    group_props = {
+        'cn': 'testgroup',
+        'member': [user.dn for user in users]
+    }
+    group1 = groups1.create(properties=group_props)
+    log.info(f'Created group with members: {group1.dn}')
+
+    # Wait for replication of group
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+
+    # Verify group exists on supplier2
+    groups2 = Groups(supplier2, DEFAULT_SUFFIX)
+    group2 = groups2.get('testgroup')
+    assert group2.exists()
+    log.info(f'Verified group exists on supplier2: {group2.dn}')
+
+    # Verify memberOf attributes are present on both suppliers
+    time.sleep(5)  # Allow time for memberOf plugin to process
+
+    check_memberof_on_server(supplier1, group1, users, True)
+    check_memberof_on_server(supplier2, group2, users, True)
+    log.info('MemberOf attributes verified on both suppliers before total init')
+
+    # Perform total initialization from supplier1 to supplier2
+    log.info('Starting total initialization from supplier1 to supplier2')
+    supplier1.agreement.init(DEFAULT_SUFFIX, supplier2.host, supplier2.port)
+    log.info('Total initialization initiated')
+
+    # Wait for total initialization to complete
+    supplier1.waitForReplInit(supplier1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn)
+    log.info('Total initialization completed')
+
+    # Verify memberOf attributes are still present on both suppliers after total init
+    time.sleep(5)  # Allow time for any post-init processing
+
+    check_memberof_on_server(supplier1, group1, users, True)
+    check_memberof_on_server(supplier2, group2, users, True)
+    log.info('MemberOf attributes verified on both suppliers after total init')
+
+    # Additional verification: ensure replication is still working
+    log.info('Verifying replication still works after total init')
+
+    # Add a new member to test ongoing replication
+    new_user_props = {
+        'uid': 'member',
+        'cn': 'member',
+        'sn': 'member',
+        'uidNumber': '1005',
+        'gidNumber': '2005',
+        'homeDirectory': '/home/member'
+    }
+    users1 = UserAccounts(supplier1, DEFAULT_SUFFIX)
+    new_user = users1.create(properties=new_user_props)
+    group1.add_member(new_user.dn)
+
+    # Wait for replication
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+    time.sleep(5)
+
+    # Verify new member has memberOf on both suppliers
+    user1_new = users1.get('member')
+    user2_new = users2.get('member')
+
+    memberof1_new = user1_new.get_attr_vals_utf8('memberOf')
+    memberof2_new = user2_new.get_attr_vals_utf8('memberOf')
+
+    assert memberof1_new and group1.dn in memberof1_new
+    assert memberof2_new and group2.dn in memberof2_new
 
 
 if __name__ == '__main__':
