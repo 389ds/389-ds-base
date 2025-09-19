@@ -1045,10 +1045,16 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
        certdir is the path where the NSS database is located
      */
     certdir = config_get_certdir();
+    if (certdir == NULL || *certdir == '\0') {
+        slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
+                      "slapd_nss_init - Certificate directory is not configured");
+        slapi_ch_free_string(&certdir);
+        return -1;
+    }
 
     /* make sure path does not end in the path separator character */
     len = strlen(certdir);
-    if (certdir[len - 1] == '/' || certdir[len - 1] == '\\') {
+    if (len > 1 && (certdir[len - 1] == '/' || certdir[len - 1] == '\\')) {
         certdir[len - 1] = '\0';
     }
 
