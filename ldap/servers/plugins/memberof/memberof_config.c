@@ -638,10 +638,15 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
 
 
     if (deferred_update) {
+        theConfig.deferred_update = PR_FALSE;
         if (strcasecmp(deferred_update, "on") == 0) {
-            theConfig.deferred_update = PR_TRUE;
-        } else {
-            theConfig.deferred_update = PR_FALSE;
+            if (slapi_db_is_lmdb()) {
+                slapi_log_err(SLAPI_LOG_NOTICE, MEMBEROF_PLUGIN_SUBSYSTEM,
+                              "memberof_apply_config - "
+                              "deferred_update is not supported with LMDB backend and will be ignored\n");
+            } else {
+                theConfig.deferred_update = PR_TRUE;
+            }
         }
     }
     theConfig.launch_fixup = PR_FALSE;

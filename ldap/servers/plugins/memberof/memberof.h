@@ -28,6 +28,7 @@
 
 /* Private API: to get SLAPI_DSE_RETURNTEXT_SIZE, DSE_FLAG_PREOP, and DSE_FLAG_POSTOP */
 #include "slapi-private.h"
+#include "../../slapd/back-ldbm/dbimpl.h" /* for slapi_db_is_lmdb */
 
 /*
  * macros
