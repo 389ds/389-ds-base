@@ -41,11 +41,11 @@ pub enum LDAPError {
 impl From<i32> for LDAPError {
     fn from(value: i32) -> Self {
         match value {
-            0 => LDAPError::Success,
-            1 => LDAPError::Operation,
-            65 => LDAPError::ObjectClassViolation,
-            80 => LDAPError::Other,
-            _ => LDAPError::Unknown,
+            0 => Self::Success,
+            1 => Self::Operation,
+            65 => Self::ObjectClassViolation,
+            80 => Self::Other,
+            _ => Self::Unknown,
         }
     }
 }
