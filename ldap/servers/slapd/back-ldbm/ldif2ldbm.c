@@ -76,9 +76,20 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
     int rc, task_flags;
+    const char *action = "On-line import";
+    char *bename = NULL;
+    char *ldif = "";
+    char **ldifs = NULL;
+
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &bename);
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_FILE, &ldifs);
+    if (ldifs && ldifs[0]) {
+        ldif = ldifs[0];
+    }
+
     if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
         /* initialize UniqueID generator - must be done once backends are started
            and event queue is initialized but before plugins are started */
@@ -98,10 +109,24 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
 
         dblayer_setup(li);
         li->li_flags |= SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
+        action = "Off-line import";
     }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
-    return priv->dblayer_ldif2db_fn(pb);;
+    slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm",
+        "Starting %s of ldif file %s over backend %s.\n",
+        action, ldif, bename);
+    rc =  priv->dblayer_ldif2db_fn(pb);;
+    /*
+     * On line import task is still running in another thread
+     * so we can only log the off-line completion
+     */
+    if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldif2ldbm",
+            "Ending %s of ldif file %s over backend %s (rc=%d).\n",
+            action, ldif, bename, rc);
+    }
+    return rc;
 }
 
 

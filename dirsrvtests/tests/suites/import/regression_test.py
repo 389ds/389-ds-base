@@ -12,13 +12,14 @@ import os
 import pytest
 import threading
 import time
+from abc import ABC, abstractmethod
 from lib389.backend import Backends
 from lib389.properties import TASK_WAIT
 from lib389.topologies import topology_st as topo
 from lib389.dbgen import dbgen_users
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.tasks import *
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.dbgen import *
 from lib389.utils import *
@@ -41,6 +42,12 @@ TEST_DEFAULT_SUFFIX = "dc=default,dc=com"
 TEST_DEFAULT_NAME = "default"
 
 BIG_MAP_SIZE = 35 * 1024 * 1024 * 1024
+
+######################################################################
+# Some test cases are destroying the backend.                        #
+# They should use preserve (or preserve_r if preserve does fail)     #
+# fixture to restore the backend when the test complete              #
+######################################################################
 
 def _check_disk_space():
     if get_default_db_lib() == "mdb":
@@ -92,7 +99,200 @@ class AddDelUsers(threading.Thread):
         return self._ran
 
 
-def test_replay_import_operation(topo):
+def get_backend_by_name(inst, bename):
+    bes = Backends(inst)
+    bename = bename.lower()
+    be = [ be for be in bes if be.get_attr_val_utf8_l('cn') == bename ]
+    return be[0] if len(be) == 1 else None
+
+
+class LogHandler():
+    def __init__(self, logfd, patterns):
+        self.logfd = logfd
+        self.patterns = [ p.lower() for p in patterns ]
+        self.pos = logfd.tell()
+        self.last_result = None
+
+    def zero(self):
+        return [0 for _ in range(len(self.patterns))]
+
+    def countCaptures(self):
+        res = self.zero()
+        self.logfd.seek(self.pos)
+        for line in iter(self.logfd.readline, ''):
+            # Ignore autotune messages that may confuse the counts
+            if 'bdb_start_autotune' in line:
+                continue
+            log.info(f'ERROR LOG line is {line.strip()}')
+            for idx,pattern in enumerate(self.patterns):
+                if pattern in line.lower():
+                    res[idx] += 1
+        self.pos = self.logfd.tell()
+        self.last_result = res
+        log.info(f'ERROR LOG counts are: {res}')
+        return res
+
+    def seek2end(self):
+        self.pos = os.fstat(self.logfd.fileno()).st_size
+
+    def check(self, idx, val):
+        count = self.last_result[idx]
+        assert count == val , f"Should have {val} '{self.patterns[idx]}' messages but got: {count} - idx = {idx}"
+
+
+class IEHandler(ABC):
+    def __init__(self, inst, errlog, ldifname, bename=DEFAULT_BENAME, suffix=None):
+        self.inst = inst
+        self.errlog = errlog
+        self.ldifname = ldifname
+        self.bename = bename
+        self.suffix = suffix
+        self.ldif = ldifname if ldifname.startswith('/') else f'{inst.get_ldif_dir()}/{ldifname}.ldif'
+
+    @abstractmethod
+    def get_name(self):
+        pass
+
+    @abstractmethod
+    def _run_task_b(self):
+        pass
+
+    @abstractmethod
+    def _run_task_s(self):
+        pass
+
+    @abstractmethod
+    def _run_offline(self):
+        pass
+
+    @abstractmethod
+    def _set_log_pattern(self, success):
+        pass
+
+    def run(self, extra_checks, success=True):
+        if self.errlog:
+            self._set_log_pattern(success)
+            self.errlog.seek2end()
+
+        if self.inst.status():
+            if self.bename:
+                log.info(f"Performing online {self.get_name()} of backend {self.bename} into LDIF file {self.ldif}")
+                r = self._run_task_b()
+            else:
+                log.info(f"Performing online {self.get_name()} of suffix {self.suffix} into LDIF file {self.ldif}")
+                r = self._run_task_s()
+            r.wait()
+            time.sleep(1)
+        else:
+            if self.bename:
+                log.info(f"Performing offline {self.get_name()} of backend {self.bename} into LDIF file {self.ldif}")
+            else:
+                log.info(f"Performing offline {self.get_name()} of suffix {self.suffix} into LDIF file {self.ldif}")
+            self._run_offline()
+        if self.errlog:
+            expected_counts = ['*' for _ in range(len(self.errlog.patterns))]
+            for (idx, val) in extra_checks:
+                expected_counts[idx] = val
+            res = self.errlog.countCaptures()
+            log.info(f'Expected errorlog counts are: {expected_counts}')
+            if success is True or success is False:
+                log.info(f'Number of {self.errlog.patterns[0]} in errorlog is: {res[0]}')
+                assert res[0] >= 1
+            for (idx, val) in extra_checks:
+                self.errlog.check(idx, val)
+
+    def check_db(self):
+       assert self.inst.dbscan(bename=self.bename, index='id2entry')
+
+
+class Importer(IEHandler):
+    def get_name(self):
+        return "import"
+
+    def _set_log_pattern(self, success):
+        if success is True:
+            self.errlog.patterns[0] = 'import complete'
+        elif success is False:
+            self.errlog.patterns[0] = 'import failed'
+
+    def _run_task_b(self):
+        bes = Backends(self.inst)
+        r = bes.import_ldif(self.bename, [self.ldif,], include_suffixes=self.suffix)
+        return r
+
+    def _run_task_s(self):
+        r = ImportTask(self.inst)
+        r.import_suffix_from_ldif(self.ldif, self.suffix)
+        return r
+
+    def _run_offline(self):
+        log.info(f'self.inst.ldif2db({self.bename}, {self.suffix}, ...)')
+        if self.suffix is None:
+            self.inst.ldif2db(self.bename, self.suffix, None, False, self.ldif)
+        else:
+            self.inst.ldif2db(self.bename, [self.suffix, ], None, False, self.ldif)
+
+
+class Exporter(IEHandler):
+    def get_name(self):
+        return "export"
+
+    def _set_log_pattern(self, success):
+        if success is True:
+            self.errlog.patterns[0] = 'export finished'
+        elif success is False:
+            self.errlog.patterns[0] = 'export failed'
+
+    def _run_task_b(self):
+        bes = Backends(self.inst)
+        r = bes.export_ldif(self.bename, self.ldif, include_suffixes=self.suffix)
+        return r
+
+    def _run_task_s(self):
+        r = ExportTask(self.inst)
+        r.export_suffix_to_ldif(self.ldif, self.suffix)
+        return r
+
+    def _run_offline(self):
+        self.inst.db2ldif(self.bename, self.suffix, None, False, False, self.ldif)
+
+
+def preserve_func(topo, request, restart):
+    # Ensure that topology get preserved helper
+    inst = topo.standalone
+
+    def fin():
+        if restart:
+            inst.restart()
+        Importer(inst, None, "save").run(())
+
+    r = Exporter(inst, None, "save")
+    if not os.path.isfile(r.ldif):
+        r.run(())
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="function")
+def preserve(topo, request):
+    # Ensure that topology get preserved (no restart)
+    preserve_func(topo, request, False)
+
+
+@pytest.fixture(scope="function")
+def preserve_r(topo, request):
+    # Ensure that topology get preserved (with restart)
+    preserve_func(topo, request, True)
+
+
+@pytest.fixture(scope="function")
+def verify(topo):
+    # Check that backend is not broken
+    inst = topo.standalone
+    dn=f'uid=demo_user,ou=people,{DEFAULT_SUFFIX}'
+    assert UserAccount(inst,dn).exists()
+
+
+def test_replay_import_operation(topo, preserve_r, verify):
     """ Check after certain failed import operation, is it
      possible to replay an import operation
 
@@ -141,7 +341,7 @@ def test_replay_import_operation(topo):
     r.import_suffix_from_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
 
 
-def test_import_be_default(topo):
+def test_import_be_default(topo, verify):
     """ Create a backend using the name "default". previously this name was
     used int
 
@@ -185,7 +385,7 @@ def test_import_be_default(topo):
     log.info('Test PASSED')
 
 
-def test_del_suffix_import(topo):
+def test_del_suffix_import(topo, verify):
     """Adding a database entry fails if the same database was deleted after an import
 
     :id: 652421ef-738b-47ed-80ec-2ceece6b5d77
@@ -223,7 +423,7 @@ def test_del_suffix_import(topo):
                                 'name': TEST_BACKEND1})
 
 
-def test_del_suffix_backend(topo):
+def test_del_suffix_backend(topo, verify):
     """Adding a database entry fails if the same database was deleted after an import
 
     :id: ac702c35-74b6-434e-8e30-316433f3e91a
@@ -261,7 +461,7 @@ def test_del_suffix_backend(topo):
     assert not topo.standalone.detectDisorderlyShutdown()
 
 
-def test_import_duplicate_dn(topo):
+def test_import_duplicate_dn(topo, preserve, verify):
     """Import ldif with duplicate DNs, should not log error "unable to flush"
 
     :id: dce2b898-119d-42b8-a236-1130f58bff17
@@ -322,7 +522,7 @@ ou: myDups00001
 @pytest.mark.tier2
 @pytest.mark.skipif(not _check_disk_space(), reason="not enough disk space for lmdb map")
 @pytest.mark.xfail(ds_is_older("1.3.10.1"), reason="bz1749595 not fixed on versions older than 1.3.10.1")
-def test_large_ldif2db_ancestorid_index_creation(topo, _set_mdb_map_size):
+def test_large_ldif2db_ancestorid_index_creation(topo, _set_mdb_map_size, verify):
     """Import with ldif2db a large file - check that the ancestorid index creation phase has a correct performance
 
     :id: fe7f78f6-6e60-425d-ad47-b39b67e29113
@@ -456,7 +656,7 @@ def create_backend_and_import(instance, ldif_file, suffix, backend):
 
 
 @pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not cache size over mdb")
-def test_ldif2db_after_backend_create(topo):
+def test_ldif2db_after_backend_create(topo, verify):
     """Test that ldif2db after backend creation is not slow first time
 
     :id: c1ab1df7-c70a-46be-bbca-8d65c6ebaa14
@@ -485,6 +685,168 @@ def test_ldif2db_after_backend_create(topo):
 
     log.info('Import times should be approximately the same')
     assert abs(import_time_1 - import_time_2) < 5
+
+
+def test_ldif_missing_suffix_entry(topo, request, verify):
+    """Test that ldif2db/import aborts if suffix entry is not in the ldif
+
+    :id: 731bd0d6-8cc8-11f0-8ef2-c85309d5c3e3
+    :setup: Standalone Instance
+    :steps:
+        1. Prepare final cleanup
+        2. Add a few users
+        3. Export ou=people subtree
+        4. Online import using backend name ou=people subtree
+        5. Online import using suffix name ou=people subtree
+        6. Stop the instance
+        7. Offline import using backend name ou=people subtree
+        8. Offline import using suffix name ou=people subtree
+        9. Generate ldif with a far away suffix
+        10. Offline import using backend name  and "far" ldif
+        11. Offline import using suffix name and "far" ldif
+        12. Start the instance
+        13. Online import using backend name  and "far" ldif
+        14. Online import using suffix name and "far" ldif
+    :expectedresults:
+        1. Operation successful
+        2. Operation successful
+        3. Operation successful
+        4. Import should success, skip all entries, db should exists
+        5. Import should success, skip all entries, db should exists
+        6. Operation successful
+        7. Import should success, skip all entries, db should exists
+        8. Import should success, skip all entries, db should exists
+        9. Operation successful
+        10. Import should success, skip all entries, db should exists
+        11. Import should success, 10 entries skipped, db should exists
+        12. Operation successful
+        13. Import should success, skip all entries, db should exists
+        14. Import should success, 10 entries skipped, db should exists
+    """
+
+    inst = topo.standalone
+    no_suffix_on = (
+        (1, 0), # no errors are expected.
+        (2, 1), # 1 warning is expected.
+        (3, 0), # no 'no parent' warning is expected.
+        (4, 1), # 1 'all entries were skipped' warning
+        (5, 0), # no 'returning task warning' info message
+    )
+    no_suffix_off = (
+        (1, 0), # no errors are expected.
+        (2, 1), # 1 warning is expected.
+        (3, 0), # no 'no parent' warning is expected.
+        (4, 1), # 1 'all entries were skipped' warning
+        (5, 1), # 1 'returning task warning' info message
+    )
+    nbw = 0 if get_default_db_lib() == "bdb" else 10
+    far_suffix_on = (
+        (1, 0), # no errors are expected.
+        (2, nbw), # no/10 warning are expected.
+        (3, nbw), # no/10 'no parent' warning are expected.
+        (4, 0), # no 'all entries were skipped' warning
+        (5, 0), # no 'returning task warning' info message
+    )
+    far_suffix_off = (
+        (1, 0), # no errors are expected.
+        (2, nbw), # no/10 warning is expected.
+        (3, nbw), # no/10 'no parent' warning is expected.
+        (4, 0), # no 'all entries were skipped' warning
+        (5, 0), # no 'returning task warning' info message
+    )
+
+    with open(inst.ds_paths.error_log, 'at+') as fd:
+        patterns = (
+            "Reserved for IEHandler",
+            " ERR ",
+            " WARN ",
+            "has no parent",
+            "all entries were skipped",
+            "returning task warning",
+        )
+        errlog = LogHandler(fd, patterns)
+        no_errors = ((1, 0), (2, 0)) # no errors nor warnings are expected.
+
+
+        # 1. Prepare final cleanup
+        Exporter(inst, errlog, "full").run(no_errors)
+
+        def fin():
+            inst.start()
+            Importer(inst, errlog, "full").run(no_errors)
+
+        if not DEBUGGING:
+            request.addfinalizer(fin)
+
+        # 2. Add a few users
+        user = UserAccounts(inst, DEFAULT_SUFFIX)
+        users = [ user.create_test_user(uid=i) for i in range(10) ]
+
+        # 3. Export ou=people subtree
+        e = Exporter(inst, errlog, "people", suffix=f'ou=people,{DEFAULT_SUFFIX}')
+        e.run(no_errors) # no errors nor warnings are expected.
+
+        # 4. Online import using backend name ou=people subtree
+        e = Importer(inst, errlog, "people")
+        e.run(no_suffix_on)
+        e.check_db()
+
+        # 5. Online import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "people", suffix=DEFAULT_SUFFIX)
+        e.run(no_suffix_on)
+        e.check_db()
+
+        # 6. Stop the instance
+        inst.stop()
+
+        # 7. Offline import using backend name ou=people subtree
+        e = Importer(inst, errlog, "people")
+        e.run(no_suffix_off)
+        e.check_db()
+
+        # 8. Offline import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "people", suffix=DEFAULT_SUFFIX)
+        e.run(no_suffix_off)
+        e.check_db()
+
+        # 9. Generate ldif with a far away suffix
+        e = Importer(inst, errlog, "full")
+        people_ldif = e.ldif
+        e = Importer(inst, errlog, "far")
+        with open(e.ldif, "wt") as fout:
+            with open(people_ldif, "rt") as fin:
+                # Copy version
+                line = fin.readline()
+                fout.write(line)
+                line = fin.readline()
+                fout.write(line)
+                # Generate fake entries
+                for idx in range(10):
+                    fout.write(f"dn: uid=id{idx},dc=foo\nobjectclasses: extensibleObject\n\n")
+                for line in iter(fin.readline, ''):
+                    fout.write(line)
+
+        # 10. Offline import using backend name ou=people subtree
+        e.run(no_suffix_off)
+        e.check_db()
+
+        # 11. Offline import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "far", suffix=DEFAULT_SUFFIX)
+        e.run(far_suffix_off)
+        e.check_db()
+
+        # 12. Start the instance
+        inst.start()
+
+        # 13. Online import using backend name ou=people subtree
+        e = Importer(inst, errlog, "far")
+        e.run(no_suffix_on)
+        e.check_db()
+
+        # 14. Online import using suffix name ou=people subtree
+        e = Importer(inst, errlog, "far", suffix=DEFAULT_SUFFIX)
+        e.run(far_suffix_on)
+        e.check_db()
 
 
 if __name__ == '__main__':
