@@ -515,7 +515,7 @@ error:
         ctx->dbis_treeroot = NULL;
         for (i=0; i < ctx->startcfg.max_dbs; i++) {
             if (ctx->dbi_slots[i].dbname) {
-                if (valid_slots[i]) {
+                if (!valid_slots || valid_slots[i]) {
                     /* Insert the dbi in tree */
                     tsearch(&ctx->dbi_slots[i], &ctx->dbis_treeroot, cmp_dbi_names);
                 } else {
