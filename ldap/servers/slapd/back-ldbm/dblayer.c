@@ -178,7 +178,7 @@ not_exporting(void)
     slapi_ch_free_string(&export_lock);
     return res;
 }
-        
+
 /* Get the db implementation plugin path (either libback-ldbm.so or libback-bdb.so) */
 char *
 backend_implement_get_libpath(struct ldbminfo *li, const char *plgname)
@@ -1485,6 +1485,27 @@ dblayer_is_lmdb(Slapi_Backend *be)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     return (li->li_flags & LI_LMDB_IMPL);
+}
+
+/* Return true if lmdb is the backend db library */
+bool
+slapi_db_is_lmdb(void) {
+    Slapi_Backend *be = NULL;
+    char *cookie = NULL;
+    int32_t use_lmdb = 0;
+
+    be = slapi_get_first_backend(&cookie);
+    while (be) {
+        if (be->be_suffix == NULL) {
+            be = slapi_get_next_backend(cookie);
+            continue;
+        }
+        use_lmdb = dblayer_is_lmdb(be);
+        break;
+    }
+    slapi_ch_free_string(&cookie);
+
+    return use_lmdb ? true : false;
 }
 
 /*

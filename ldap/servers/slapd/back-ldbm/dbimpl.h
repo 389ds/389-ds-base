@@ -11,6 +11,7 @@
 
 #include "../slapi-plugin.h"
 #include <limits.h>
+#include <stdbool.h>
 
 #define MEM_FOR_DB_PLUGINS      (8*(sizeof (long)))
 
@@ -175,6 +176,7 @@ dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
 int dblayer_db_remove(Slapi_Backend *be, dbi_db_t *db);
 int dblayer_show_statistics(const char *dbimpl_name, const char *dbhome, FILE *fout, FILE *ferr);
 int dblayer_is_lmdb(Slapi_Backend *be);
+bool slapi_db_is_lmdb(void);
 int dblayer_cursor_iterate(dbi_cursor_t *cursor,
                            int (*action_cb)(dbi_val_t *key, dbi_val_t *data, void *ctx),
                            const dbi_val_t *startingkey, void *ctx);

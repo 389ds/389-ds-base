@@ -1605,8 +1605,8 @@ libmemberof_plugin_la_SOURCES= ldap/servers/plugins/memberof/memberof.c \
 	ldap/servers/plugins/memberof/memberof_config.c
 
 libmemberof_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-libmemberof_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
-libmemberof_plugin_la_DEPENDENCIES = libslapd.la
+libmemberof_plugin_la_LIBADD = libslapd.la libback-ldbm.la $(LDAPSDK_LINK) $(NSPR_LINK)
+libmemberof_plugin_la_DEPENDENCIES = libslapd.la libback-ldbm.la
 libmemberof_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
