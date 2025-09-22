@@ -17,6 +17,6 @@
 int
 dbmdb_verify(Slapi_PBlock *pb)
 {
-    slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_verify", "With lmdb, db_verify feature is meaningless and always successfull.\n");
+    slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_verify", "With lmdb, db_verify feature is meaningless and is always successfull.\n");
     return 0;  /* Fonction useless with lmdb - as we can verify the db when doing a backup */
 }
