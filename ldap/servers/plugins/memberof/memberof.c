@@ -1180,7 +1180,7 @@ memberof_postop_start(Slapi_PBlock *pb)
     memberof_rlock_config();
     mainConfig = memberof_get_config();
     /* if the update of the members is deferred then allocate mutex/cv */
-    if (mainConfig->deferred_update) {
+    if (mainConfig->deferred_update && !mainConfig->is_lmdb) {
         MemberofDeferredList *deferred_list;
         pthread_condattr_t condAttr;
 
@@ -1363,7 +1363,7 @@ memberof_postop_del(Slapi_PBlock *pb)
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
-        deferred_update = mainConfig->deferred_update;
+        deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -1747,7 +1747,7 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
-        deferred_update = mainConfig->deferred_update;
+        deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -2065,7 +2065,8 @@ memberof_postop_modify(Slapi_PBlock *pb)
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
-        deferred_update = mainConfig->deferred_update;
+
+        deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -2325,7 +2326,7 @@ memberof_postop_add(Slapi_PBlock *pb)
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
-        deferred_update = mainConfig->deferred_update;
+        deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
         memberof_unlock_config();
 
         if (deferred_update) {

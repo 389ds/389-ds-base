@@ -494,7 +494,7 @@ replace_char(char *str, char c, char c2)
 
 /*
 ** Break a string at the delimiter
-** If the delimiter is not found, the string is not modified. 
+** If the delimiter is not found, the string is not modified.
 ** The position immediately following the delimiter is returned.
 */
 char *split_string_at_delim(char *str, char delim) {
@@ -1806,4 +1806,45 @@ void dup_ldif_line(struct berval *copy, const char *line, const char *endline)
     }
     buf[pos] = 0;
     copy->bv_len = copylen;
+}
+
+/*
+ * Return true if the backend is lmdb
+ */
+bool
+slapi_db_is_lmdb(void)
+{
+    Slapi_PBlock *search_pb;
+    Slapi_Entry **entries = NULL;
+    const char *config_dn = "cn=config,cn=ldbm database,cn=plugins,cn=config";
+    int result = 0;
+    bool is_lmdb = false;
+
+    search_pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(search_pb, config_dn, LDAP_SCOPE_BASE,
+                                 "objectclass=*",
+                                 NULL, 0, NULL, NULL,
+                                 plugin_get_default_component_id(), 0);
+    slapi_search_internal_pb(search_pb);
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+    if (LDAP_SUCCESS != result) {
+        /* Failed to search cn=config */
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_db_is_lmdb",
+                      "Unable to search ldbm config entry, err=%d\n", result);
+    } else {
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries && entries[0]) {
+            Slapi_Entry *config_e = entries[0];
+            const char *db_type = slapi_entry_attr_get_ref(config_e,
+                                                           "nsslapd-backend-implement");
+            if (db_type && strcmp(db_type, "mdb") == 0) {
+                is_lmdb = true;
+            }
+        }
+    }
+
+    slapi_free_search_results_internal(search_pb);
+    slapi_pblock_destroy(search_pb);
+
+    return is_lmdb;
 }
