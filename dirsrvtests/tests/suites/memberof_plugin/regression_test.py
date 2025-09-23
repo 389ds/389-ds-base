@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -26,9 +26,9 @@ from lib389.tasks import *
 from lib389.idm.nscontainer import nsContainers
 from lib389.idm.domain import Domain
 from lib389.dirsrv_log import DirsrvErrorLog
-from lib389.dseldif import DSEldif
-from contextlib import suppress
+from lib389.utils import get_default_db_lib
 from . import check_membership
+
 
 # Skip on older versions
 pytestmark = [pytest.mark.tier1,
@@ -1278,6 +1278,7 @@ def _kill_instance(inst, sig=signal.SIGTERM, delay=None):
         time.sleep(delay)
     os.kill(pid, signal.SIGKILL)
 
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
 def test_shutdown_on_deferred_memberof(topology_st, request):
     """This test checks that shutdown is handled properly if memberof updayes are deferred.
 
@@ -1470,6 +1471,10 @@ def test_memberof_modrdn_to_itself(topology_st, user1, group1):
 
     # Enable the MemberOf plugin
     memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.remove_all_entryscope()
+    memberof.remove_all_excludescope()
+    memberof.remove_configarea()
+    memberof.remove_autoaddoc()
     memberof.enable()
     topology_st.standalone.restart()
 

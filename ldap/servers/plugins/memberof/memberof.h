@@ -140,6 +140,7 @@ typedef struct memberofconfig
     Slapi_Task *task;
     int need_fixup;
     PRBool launch_fixup;
+    bool is_lmdb;
 } MemberOfConfig;
 
 /* The key to access the hash table is the normalized DN
