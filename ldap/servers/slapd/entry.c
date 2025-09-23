@@ -3887,9 +3887,7 @@ send_referrals_from_entry(Slapi_PBlock *pb, Slapi_Entry *referral)
     slapi_entry_attr_find(referral, "ref", &attr);
     if (attr != NULL) {
         slapi_attr_get_numvalues(attr, &numValues);
-        if (numValues > 0) {
-            url = (struct berval **)slapi_ch_malloc((numValues + 1) * sizeof(struct berval *));
-        }
+        url = (struct berval **)slapi_ch_malloc((numValues + 1) * sizeof(struct berval *));
         for (i = slapi_attr_first_value(attr, &val); i != -1;
              i = slapi_attr_next_value(attr, i, &val)) {
             url[i] = (struct berval *)slapi_value_get_berval(val);
