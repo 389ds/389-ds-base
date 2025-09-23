@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -28,6 +28,7 @@ from lib389.idm.domain import Domain
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.dseldif import DSEldif
 from contextlib import suppress
+from lib389.utils import get_default_db_lib
 
 
 # Skip on older versions
@@ -1282,7 +1283,8 @@ def _kill_instance(inst, sig=signal.SIGTERM, delay=None):
         time.sleep(delay)
     os.kill(pid, signal.SIGKILL)
 
-def test_shutdown_on_deferred_memberof(topology_st):
+@pytest.mark.skipif(get_default_db_lib() == "mdb", reason="Not supported over mdb")
+def test_shutdown_on_deferred_memberof(topology_st, request):
     """This test checks that shutdown is handled properly if memberof updayes are deferred.
 
     :id: c5629cae-15a0-11ee-8807-482ae39447e5
@@ -1413,4 +1415,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
