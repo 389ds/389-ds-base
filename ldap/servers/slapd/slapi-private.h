@@ -27,6 +27,7 @@ extern "C" {
 #include "nspr.h"
 #include "portable.h"
 #include "slapi-plugin.h"
+#include <stdbool.h>
 /*
  * XXXmcs: we can stop including slapi-plugin-compat4.h once we stop using
  * deprecated functions internally.
@@ -1265,6 +1266,7 @@ int mkdir_p(char *dir, unsigned int mode);
 const char *ldif_getline_ro( const char **next);
 void dup_ldif_line(struct berval *copy, const char *line, const char *endline);
 const char *get_oid_name(const char *oid);
+bool slapi_db_is_lmdb(void);
 
 /* slapi-memberof.c */
 int slapi_memberof(Slapi_MemberOfConfig *config, Slapi_DN *member_sdn, Slapi_MemberOfResult *result);

@@ -12,8 +12,6 @@
 #define PLUGIN_MAGIC_VENDOR_STR "contac Datentechnik GmbH"
 #define PRODUCTTEXT "1.1"
 #define null NULL
-#define true - 1
-#define false 0
 #define POSIX_WINSYNC_MSSFU_SCHEMA "posixWinsyncMsSFUSchema"
 #define POSIX_WINSYNC_MAP_MEMBERUID "posixWinsyncMapMemberUID"
 #define POSIX_WINSYNC_CREATE_MEMBEROFTASK "posixWinsyncCreateMemberOfTask"
