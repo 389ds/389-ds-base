@@ -48,12 +48,14 @@ else:
 log = logging.getLogger(__name__)
 
 
-def add_users(topo_m2, users_num, suffix):
+@pytest.fixture(scope="function")
+def users(request, topo_m2):
     """Add users to the default suffix
     Return the list of added user DNs.
     """
+    users_num = request.param
     users_list = []
-    users = UserAccounts(topo_m2.ms["supplier1"], suffix, rdn=None)
+    users = UserAccounts(topo_m2.ms["supplier1"], DEFAULT_SUFFIX, rdn=None)
     log.info('Adding %d users' % users_num)
     for num in sample(list(range(1000)), users_num):
         num_ran = int(round(num))
@@ -69,6 +71,12 @@ def add_users(topo_m2, users_num, suffix):
             'userpassword': 'pass%s' % num_ran,
         })
         users_list.append(user)
+
+    def fin():
+        for user in users_list:
+            user.delete()
+
+    request.addfinalizer(fin)
     return users_list
 
 
@@ -337,26 +345,25 @@ def test_scheme_violation_errors_logged(topo_m2):
     assert inst.ds_error_log.match(pattern)
 
 
-def test_memberof_with_changelog_reset(topo_m2):
+@pytest.mark.parametrize("users", [999], indirect=True)
+def test_memberof_with_changelog_reset(topo_m2, users):
     """Test that replication does not break, after DS stop-start, due to changelog reset
 
     :id: 60c11636-55a1-4704-9e09-2c6bcc828de4
-    :setup: 2 Suppliers
+    :setup: 2 Suppliers, 999 user entries on supplier 1 (created by users fixture)
     :steps:
         1. On M1 and M2, Enable memberof
-        2. On M1, add 999 entries allowing memberof
-        3. On M1, add a group with these 999 entries as members
-        4. Stop M1 in between,
-           when add the group memerof is called and before it is finished the
-           add, so step 4 should be executed after memberof has started and
+        2. On M1, add a group with these 999 user entries as members
+        3. Stop M1 in between,
+           when add the group memberof is called and before it is finished the
+           add, so step 3 should be executed after memberof has started and
            before the add has finished
-        5. Check that replication is working fine
+        4. Check that replication is working fine
     :expectedresults:
         1. memberof should be enabled
-        2. Entries should be added
-        3. Add operation should start
-        4. M1 should be stopped
-        5. Replication should be working fine
+        2. Add operation should start
+        3. M1 should be stopped
+        4. Replication should be working fine
     """
     m1 = topo_m2.ms["supplier1"]
     m2 = topo_m2.ms["supplier2"]
@@ -380,14 +387,11 @@ def test_memberof_with_changelog_reset(topo_m2):
     memberof.set_autoaddoc('nsMemberOf')
     m2.restart()
 
-    log.info("On M1, add 999 test entries allowing memberof")
-    users_list = add_users(topo_m2, 999, DEFAULT_SUFFIX)
-
     log.info("On M1, add a group with these 999 entries as members")
     dic_of_attributes = {'cn': ensure_bytes('testgroup'),
                          'objectclass': ensure_list_bytes(['top', 'groupOfNames'])}
 
-    for user in users_list:
+    for user in users:
         dic_of_attributes.setdefault('member', [])
         dic_of_attributes['member'].append(user.dn)
 
@@ -1491,6 +1495,155 @@ def test_memberof_modrdn_to_itself(topology_st, user1, group1):
 
     # Verify that the memberof modrdn callback notification is logged
     assert topology_st.standalone.ds_error_log.match('.*Skip modrdn operation because src/dst identical.*')
+
+
+def check_memberof_on_server(server, group, users, expected_present=True):
+    for user in users:
+        entry = server.getEntry(user.dn, ldap.SCOPE_BASE, "(objectclass=*)")
+        if expected_present:
+            assert entry.hasAttr('memberof') and ensure_str(entry.getValue('memberof')) == group.dn
+        else:
+            assert not entry.hasAttr('memberof')
+
+
+@pytest.mark.parametrize("users", [5], indirect=True)
+def test_memberof_total_init_with_fractional_replication(topo_m2, users):
+    """Test that memberOf attributes survive total initialization when configured
+    with fractional replication that excludes memberOf from regular updates but
+    NOT from total initialization.
+
+    :id: 2c3f1a88-1e4f-4a97-8b2a-1d5c6e7f8901
+    :setup: Two suppliers with memberOf plugin and fractional replication, 5 user entries created by fixture
+    :steps:
+        1. Configure memberOf plugin on supplier1 with fractional replication
+           (excludes memberOf from regular updates, includes in total init)
+        2. Enable memberOf plugin on supplier2
+        3. Wait for replication of users and verify they exist on supplier2
+        4. Create test group with all users as members on supplier1
+        5. Wait for group replication and verify group exists on supplier2
+        6. Verify memberOf attributes are present on both suppliers
+        7. Perform total initialization from supplier1 to supplier2
+        8. Verify memberOf attributes survive total initialization on both suppliers
+        9. Add new user and verify ongoing replication still works correctly
+        10. Reset replication agreement to plain replication and cleanup test objects
+    :expectedresults:
+        1. MemberOf plugin and fractional replication should be configured successfully
+        2. MemberOf plugin should be enabled on supplier2
+        3. Users should exist on both suppliers after replication
+        4. Test group should be created with members successfully
+        5. Group should replicate and exist on both suppliers
+        6. MemberOf attributes should be present on both suppliers before total init
+        7. Total initialization should complete successfully
+        8. MemberOf attributes should survive total initialization despite fractional exclusion
+        9. Post-init replication should work correctly with memberOf attributes
+        10. Replication agreement should be reset to prevent affecting other tests
+    """
+
+    supplier1 = topo_m2.ms["supplier1"]
+    supplier2 = topo_m2.ms["supplier2"]
+
+    # Enable memberOf plugin on supplier1 with fractional replication to exclude
+    # memberOf from regular updates but NOT from total initialization
+    config_memberof(supplier1)
+
+    # Enable memberOf plugin on supplier2
+    memberof2 = MemberOfPlugin(supplier2)
+    memberof2.enable()
+    supplier2.restart()
+
+    # Wait for replication of users (created by fixture)
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+
+    # Verify users exist on supplier2
+    users2 = UserAccounts(supplier2, DEFAULT_SUFFIX)
+    for user in users:
+        user2 = users2.get(dn=user.dn)
+        assert user2.exists()
+        log.info(f'Verified user exists on supplier2: {user2.dn}')
+
+    # Create test group with members on supplier1
+    groups1 = Groups(supplier1, DEFAULT_SUFFIX)
+    group_props = {
+        'cn': 'testgroup',
+        'member': [user.dn for user in users]
+    }
+    group1 = groups1.create(properties=group_props)
+    log.info(f'Created group with members: {group1.dn}')
+
+    # Wait for replication of group
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+
+    # Verify group exists on supplier2
+    groups2 = Groups(supplier2, DEFAULT_SUFFIX)
+    group2 = groups2.get('testgroup')
+    assert group2.exists()
+    log.info(f'Verified group exists on supplier2: {group2.dn}')
+
+    # Verify memberOf attributes are present on both suppliers
+    time.sleep(5)  # Allow time for memberOf plugin to process
+
+    check_memberof_on_server(supplier1, group1, users, True)
+    check_memberof_on_server(supplier2, group2, users, True)
+    log.info('MemberOf attributes verified on both suppliers before total init')
+
+    # Perform total initialization from supplier1 to supplier2
+    log.info('Starting total initialization from supplier1 to supplier2')
+    supplier1.agreement.init(DEFAULT_SUFFIX, supplier2.host, supplier2.port)
+    log.info('Total initialization initiated')
+
+    # Wait for total initialization to complete
+    supplier1.waitForReplInit(supplier1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn)
+    log.info('Total initialization completed')
+
+    # Verify memberOf attributes are still present on both suppliers after total init
+    time.sleep(5)  # Allow time for any post-init processing
+
+    check_memberof_on_server(supplier1, group1, users, True)
+    check_memberof_on_server(supplier2, group2, users, True)
+    log.info('MemberOf attributes verified on both suppliers after total init')
+
+    # Additional verification: ensure replication is still working
+    log.info('Verifying replication still works after total init')
+
+    # Add a new member to test ongoing replication
+    new_user_props = {
+        'uid': 'member',
+        'cn': 'member',
+        'sn': 'member',
+        'uidNumber': '1005',
+        'gidNumber': '2005',
+        'homeDirectory': '/home/member'
+    }
+    users1 = UserAccounts(supplier1, DEFAULT_SUFFIX)
+    new_user = users1.create(properties=new_user_props)
+    group1.add_member(new_user.dn)
+
+    # Wait for replication
+    repl.wait_while_replication_is_progressing(supplier1, supplier2)
+    time.sleep(5)
+
+    # Verify new member has memberOf on both suppliers
+    user1_new = users1.get('member')
+    user2_new = users2.get('member')
+
+    memberof1_new = user1_new.get_attr_vals_utf8('memberOf')
+    memberof2_new = user2_new.get_attr_vals_utf8('memberOf')
+
+    assert memberof1_new and group1.dn in memberof1_new
+    assert memberof2_new and group2.dn in memberof2_new
+
+    # Cleanup: Reset replication agreement to plain replication
+    agreements1 = supplier1.agreement.list(suffix=DEFAULT_SUFFIX)
+    if agreements1:
+        supplier1.agreement.setProperties(agmnt_dn=agreements1[0].dn,
+                                         properties={RA_FRAC_EXCLUDE: None,
+                                                   RA_FRAC_EXCLUDE_TOTAL_UPDATE: None})
+
+    # Cleanup test objects (users are cleaned up automatically by fixture)
+    new_user.delete()
+    group1.delete()
+    group2.delete()
 
 
 if __name__ == '__main__':
