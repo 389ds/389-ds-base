@@ -11,9 +11,12 @@ import pytest
 import distro
 import os
 import time
+import logging
 
 from lib389.utils import *
 from lib389.topologies import topology_st
+
+log = logging.getLogger(__name__)
 
 pytest.importorskip('playwright')
 
@@ -125,15 +128,33 @@ def setup_page(topology_st, page, browser_name, request):
 def enable_replication(frame):
     log.info('Check if replication is enabled, if not enable it in order to proceed further with test.')
     frame.get_by_role('tab', name='Replication').click()
-    time.sleep(2)
+
+    suffix_btn = frame.get_by_role('button', name='dc=example,dc=com')
+    suffix_btn.wait_for()
+    suffix_btn.click()
+
+    frame.locator('#suffix-page').wait_for()
+
     if frame.get_by_role('button', name='Enable Replication').is_visible():
+        log.info('Enabling replication for dc=example,dc=com suffix')
         frame.get_by_role('button', name='Enable Replication').click()
         frame.fill('#enableBindPW', 'redhat')
         frame.fill('#enableBindPWConfirm', 'redhat')
-        frame.get_by_role("dialog", name="Enable Replication").get_by_role("button",
-                                                                           name="Enable Replication").click()
+
+        dropdown_btn = frame.get_by_role('combobox', name='Type to filter')
+        dropdown_btn.click()
+        supplier_option = frame.get_by_text('Supplier').first
+        supplier_option.wait_for()
+        supplier_option.click()
+
+        number_input = frame.get_by_role('dialog').get_by_role('spinbutton', name='number input')
+        number_input.fill('2')
+
+        frame.get_by_role("dialog", name="Enable Replication").get_by_role("button", name="Enable Replication").click()
+
         frame.get_by_role('button', name='Add Replication Manager').wait_for()
         assert frame.get_by_role('button', name='Add Replication Manager').is_visible()
+
 
 def load_ldap_browser_tab(frame):
     frame.get_by_role('tab', name='LDAP Browser', exact=True).click()
