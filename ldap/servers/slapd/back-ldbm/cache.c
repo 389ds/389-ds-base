@@ -19,8 +19,6 @@
 #define LDAP_CACHE_DEBUG
 /* #define LDAP_CACHE_DEBUG_LRU * causes slowdown */
 /* #define CACHE_DEBUG * causes slowdown */
-#define LDAP_CACHE_DEBUG_LRU  1
-#define CACHE_DEBUG  1
 #endif
 
 
@@ -633,10 +631,8 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                     entry->ep_refcnt++;
                     if (entry->ep_state & ENTRY_STATE_PINNED) {
                         pinned_remove(cache, laste);
-                        lru_delete(cache, laste);
-                    } else {
-                        lru_delete(cache, laste);
                     }
+                    lru_delete(cache, laste);
                     if (type == ENTRY_CACHE) {
                         entrycache_remove_int(cache, laste);
                         entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
@@ -681,10 +677,8 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                         entry->ep_refcnt++;
                         if (entry->ep_state & ENTRY_STATE_PINNED) {
                             pinned_remove(cache, laste);
-                            lru_delete(cache, laste);
-                        } else {
-                            lru_delete(cache, laste);
                         }
+                        lru_delete(cache, laste);
                         entrycache_remove_int(cache, laste);
                         entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
                     } else {
@@ -730,7 +724,7 @@ cache_init(struct cache *cache, struct ldbm_instance *inst, uint64_t maxsize, in
     cache->c_lruhead = cache->c_lrutail = NULL;
     cache_make_hashes(cache, type);
     cache->c_pinned_ctx = (struct pinned_ctx*)slapi_ch_calloc(1, sizeof (struct pinned_ctx));
-    
+
     if (((cache->c_mutex = PR_NewMonitor()) == NULL) ||
         ((cache->c_emutexalloc_mutex = PR_NewLock()) == NULL)) {
         slapi_log_err(SLAPI_LOG_ERR, "cache_init", "PR_NewMonitor failed\n");
@@ -1185,7 +1179,7 @@ pinned_remove(struct cache *cache, void *ptr)
 }
 
 /* Ensure pinned entries respects the cache memory and maxentrie limits
- * May put entries back in the lru so this function should be called 
+ * May put entries back in the lru so this function should be called
  * just before calling entrycache_flush
  */
 void

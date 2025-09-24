@@ -16,7 +16,7 @@ from contextlib import suppress
 from lib389.backend import Backends
 from lib389.cli_base import FakeArgs
 from lib389.cli_ctl.dbgen import dbgen_create_groups
-from lib389.config import BDB_LDBMConfig
+from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.dirsrv_log import DirsrvErrorLog
 from lib389.tasks import ImportTask
@@ -137,6 +137,10 @@ def prepare_be(topology_st, request):
     if get_default_db_lib() == 'bdb':
         config_ldbm = BDB_LDBMConfig(inst)
         config_ldbm.set('nsslapd-cache-autosize', '0')
+    else:
+        config_ldbm = LMDB_LDBMConfig(inst)
+        config_ldbm.set('nsslapd-cache-autosize', '0')
+
     # Set entry cache large enough to hold all the large groups
     # and with a limited number of entries to trigger eviction
     be1.replace('nsslapd-cachememsize',  '8000000' )
