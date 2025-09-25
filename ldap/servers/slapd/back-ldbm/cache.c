@@ -56,7 +56,10 @@
 //#define LOG(_a, _x1, _x2, _x3)  ;
 #define LOG(...)
 #endif
-#define LOGPATTERN(cache, dn, msg, ...) { if (debug_pattern_matches(cache, dn)) { slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, "CACHE DEBUG: " msg, __VA_ARGS__); } }
+#define LOGPATTERN(cache, dn, msg, ...) { \
+            if (cache->c_inst->cache_debug_re && debug_pattern_matches(cache, dn)) { \
+                slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, \
+                              "CACHE DEBUG: " msg, __VA_ARGS__); } }
 
 
 struct pinned_ctx {
@@ -847,6 +850,7 @@ void
 cache_destroy_please(struct cache *cache, int type)
 {
     erase_cache(cache, type);
+    slapi_ch_free((void**)&cache->c_pinned_ctx);
     PR_DestroyMonitor(cache->c_mutex);
     PR_DestroyLock(cache->c_emutexalloc_mutex);
 }
@@ -1668,7 +1672,7 @@ cache_find_uuid(struct cache *cache, const char *uuid)
             LOG("<= cache_find_uuid (NOT FOUND)\n");
             return NULL;
         }
-        if (e->ep_refcnt == 0 && (entry->ep_state & ENTRY_STATE_PINNED) == 0)
+        if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
             lru_delete(cache, (void *)e);
         e->ep_refcnt++;
         cache->c_stats.hits++;
