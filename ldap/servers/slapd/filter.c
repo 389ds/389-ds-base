@@ -1678,7 +1678,7 @@ filter_merge_subfilter(Slapi_Filter **list, Slapi_Filter **f_prev, Slapi_Filter 
     slapi_filter_free(*f_cur, 0);
 }
 
-/* slapi_filter_optimise
+/* slapi_filter_optimise_inner
  * ---------------
  * takes a filter and optimises it for fast evaluation
  *
@@ -1692,17 +1692,24 @@ filter_merge_subfilter(Slapi_Filter **list, Slapi_Filter **f_prev, Slapi_Filter 
  *
  * In the future this could be backend dependent.
  */
-void
-slapi_filter_optimise(Slapi_Filter *f)
+static void
+slapi_filter_optimise_inner(Slapi_Filter *f, uint16_t limit)
 {
     /*
      * Today tombstone searches RELY on filter ordering
      * and a filter test threshold quirk. We need to avoid
      * touching these cases!!!
      */
-    if (f == NULL || (f->f_flags & SLAPI_FILTER_TOMBSTONE) != 0) {
+
+    if (f == NULL || (f->f_flags & SLAPI_FILTER_TOMBSTONE) != 0 || limit == 0) {
         return;
     }
+
+    /*
+     * Prevent too much recursion - we don't mind if this fans out, we only
+     * need to prevent stack depth being reached on huge queries.
+     */
+    limit = limit - 1;
 
     switch (f->f_choice) {
     case LDAP_FILTER_AND:
@@ -1752,7 +1759,7 @@ slapi_filter_optimise(Slapi_Filter *f)
             }
         }
         /* finally optimize children */
-        slapi_filter_optimise(f->f_list);
+        slapi_filter_optimise_inner(f->f_list, limit);
 
         break;
 
@@ -1797,14 +1804,27 @@ slapi_filter_optimise(Slapi_Filter *f)
             }
         }
         /* finally optimize children */
-        slapi_filter_optimise(f->f_list);
+        slapi_filter_optimise_inner(f->f_list, limit);
 
         break;
 
     default:
-        slapi_filter_optimise(f->f_next);
+        slapi_filter_optimise_inner(f->f_next, limit);
         break;
     }
+}
+
+/*
+ * How deep we are willing to go to optimise your query - lets be real
+ * if your query has 256 elements or more in it, you are already beyond
+ * our ability to improve your query performance.
+ */
+#define FILTER_OPTIMISE_DEPTH_LIMIT 256
+
+void
+slapi_filter_optimise(Slapi_Filter *f)
+{
+    slapi_filter_optimise_inner(f, FILTER_OPTIMISE_DEPTH_LIMIT);
 }
 
 
