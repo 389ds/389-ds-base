@@ -303,8 +303,6 @@ export class Database extends React.Component {
                         if ('nsslapd-directory' in attrs) {
                             dbhome = attrs['nsslapd-directory'][0];
                         }
-                        console.log("MARK loaded attrs: ",attrs);
-
 
                         if (attrs['nsslapd-cache-autosize'][0] !== "-1") {
                             db_cache_auto = true;
