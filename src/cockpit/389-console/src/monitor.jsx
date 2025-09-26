@@ -118,6 +118,7 @@ export class Monitor extends React.Component {
             } else {
                 if (this.props.serverId !== prevProps.serverId) {
                     this.loadSuffixTree(false);
+                    this.getDBEngine();
                 }
             }
         }

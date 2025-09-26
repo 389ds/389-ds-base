@@ -371,6 +371,14 @@ export class LDAPEditor extends React.Component {
     }
 
     componentDidUpdate(prevProps) {
+        if (this.props.serverId !== prevProps.serverId) {
+            getAllObjectClasses(this.props.serverId, (ocs) => {
+                this.setState({
+                    allObjectclasses: ocs,
+                }, () => { this.getAttributes(this.showSuffixes) });
+            });
+        }
+
         if (this.props.wasActiveList.includes(7)) {
             if (this.state.firstLoad) {
                 this.handleReload(true);
