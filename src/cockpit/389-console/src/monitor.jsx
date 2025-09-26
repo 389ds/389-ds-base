@@ -131,6 +131,7 @@ export class Monitor extends React.Component {
             } else {
                 if (this.props.serverId !== prevProps.serverId) {
                     this.loadSuffixTree(false);
+                    this.getDBEngine();
                 }
             }
         }
@@ -643,10 +644,7 @@ export class Monitor extends React.Component {
                 })
                 .fail(err => {
                     const errMsg = JSON.parse(err);
-                    this.props.addNotification(
-                        "error",
-                        cockpit.format("Error detecting DB implementation type - $0", errMsg.desc)
-                    );
+                    console.log("getDBEngine - Error detecting DB implementation type -", errMsg.desc);
                 });
     }
 
