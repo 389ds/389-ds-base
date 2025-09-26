@@ -20,7 +20,7 @@ import {
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
-import { log_cmd, valid_dn, listsEqual } from "../tools.jsx";
+import { log_cmd, valid_dn, listsEqual, parentExists } from "../tools.jsx";
 import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import {
     WrenchIcon,
@@ -838,8 +838,28 @@ class MemberOf extends React.Component {
                 });
     }
 
-    handleAddConfig() {
-        this.cmdOperation("add");
+    async handleAddConfig() {
+        const params = {
+            serverId: this.props.serverId,
+            configDN: this.state.configDN,
+        };
+
+        try {
+            const exists = await parentExists(params);
+            if (exists) {
+                this.cmdOperation("add");
+            } else {
+                this.props.addNotification(
+                    "error",
+                    cockpit.format(
+                        _("Config DN \"$0\" does not exist, it must be a full DN!"),
+                        params.configDN
+                    ));
+            }
+        } catch (err) {
+            console.error("Error checking DN:", err);
+            this.props.addNotification("error", cockpit.format(_("Error checking DN")));
+        }
     }
 
     handleEditConfig() {
