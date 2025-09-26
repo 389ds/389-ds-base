@@ -768,10 +768,10 @@ class VisualizationHelper:
                 data_slot['hover'].append(
                     f"CSN: {csn}<br>"
                     f"Server: {server_val}<br>"
-                    f"Suffix: {suffix_val}<br>"
-                    f"Target DN: {rec.get('target_dn', '')}<br>"
                     f"Lag Time: {lag_val:.3f}s<br>"
-                    f"Duration: {duration_val:.3f}s"
+                    f"Duration: {duration_val:.3f}s<br>"
+                    f"Suffix: {suffix_val}<br>"
+                    f"Entry: {(rec.get('target_dn') or 'unknown')}"
                 )
 
         # Convert the dict-of-lists into your namedtuple-based ChartData
@@ -1052,7 +1052,7 @@ class ReplicationLogAnalyzer:
             fmt = fmt.lower()
             if fmt == 'json':  # Already handled above
                 continue
-                
+
             outfile = os.path.join(output_dir, f"{report_name}.{fmt}")
 
             if fmt == 'csv':
@@ -1126,7 +1126,9 @@ class ReplicationLogAnalyzer:
                     f"Supplier: {hop.get('supplier','unknown')}<br>"
                     f"Consumer: {hop.get('consumer','unknown')}<br>"
                     f"Hop Lag: {hop_lag:.3f}s<br>"
-                    f"Arrival Time: {consumer_dt}"
+                    f"Arrival Time: {consumer_dt}<br>"
+                    f"Suffix: {(hop.get('suffix') or 'unknown')}<br>"
+                    f"Entry: {(hop.get('target_dn') or 'unknown')}"
                 )
 
                 # showlegend=False means these hop-lag traces won't crowd the legend
@@ -1285,15 +1287,15 @@ class ReplicationLogAnalyzer:
                 plt.gcf().autofmt_xdate()
 
             plt.tight_layout()
-            
+
             # Save with explicit format to ensure proper PNG generation
             plt.savefig(outfile, dpi=300, bbox_inches='tight', format='png')
             plt.close()
-            
+
             # Verify file was created and is a valid PNG
             if not os.path.exists(outfile) or os.path.getsize(outfile) < 100:
                 raise IOError(f"PNG file was not created correctly: {outfile}")
-                
+
             # Attempt to open and verify the file is a valid PNG
             try:
                 with open(outfile, 'rb') as f:
@@ -1309,7 +1311,7 @@ class ReplicationLogAnalyzer:
             try:
                 # Try using plotly's built-in image export
                 pio.write_image(fig, outfile, format='png', width=1200, height=800, scale=2)
-                
+
                 # Verify the file exists
                 if not os.path.exists(outfile):
                     raise IOError("Fallback PNG generation failed")
@@ -1497,22 +1499,22 @@ class ReplicationLogAnalyzer:
         """Generate JSON specifically formatted for PatternFly 5 charts."""
         # Prepare chart data using the visualization helper
         chart_data = VisualizationHelper.prepare_chart_data(self.csns)
-        
+
         # Create a structure for PatternFly 5 scatter-line chart
         series_data = []
-        
+
         # Create a color palette for consistent coloring
         all_keys = list(chart_data.keys())
         color_palette = VisualizationHelper.generate_color_palette(len(all_keys))
-        
+
         for idx, ((suffix, server_name), data) in enumerate(chart_data.items()):
             # Skip if no data points
             if not data.times:
                 continue
-                
+
             # Sort data by time for better chart rendering
             sorted_indices = sorted(range(len(data.times)), key=lambda i: data.times[i])
-            
+
             # Prepare data points
             datapoints = []
             for i in sorted_indices:
@@ -1521,7 +1523,7 @@ class ReplicationLogAnalyzer:
                 lag_value = data.lags[i]
                 duration = data.durations[i]
                 hover_text = data.hover[i]
-                
+
                 datapoints.append({
                     "name": server_name,
                     "x": timestamp,  # ISO format timestamp
@@ -1529,7 +1531,7 @@ class ReplicationLogAnalyzer:
                     "duration": duration,  # Additional data
                     "hoverInfo": hover_text  # Hover text
                 })
-            
+
             # Add to series
             series_data.append({
                 "datapoints": datapoints,
@@ -1538,28 +1540,28 @@ class ReplicationLogAnalyzer:
                 },
                 "color": color_palette[idx % len(color_palette)]
             })
-        
+
         # Create series for hop lags if available
         hop_series = []
         hop_data = {}
-        
+
         # Process hop lag data
         for csn, server_map in self.csns.items():
             hop_list = server_map.get('__hop_lags__', [])
-            
+
             for hop_info in hop_list:
                 # Create a key based on source and target
                 source = hop_info.get('supplier', 'unknown')
                 target = hop_info.get('consumer', 'unknown')
                 key = f"{source} → {target}"
-                
+
                 if key not in hop_data:
                     hop_data[key] = {
                         'times': [],
                         'lags': [],
                         'hover': []
                     }
-                
+
                 # Add data point
                 timestamp = datetime.fromtimestamp(hop_info['arrival_consumer'])
                 hop_data[key]['times'].append(timestamp)
@@ -1568,21 +1570,23 @@ class ReplicationLogAnalyzer:
                     f"CSN: {csn}<br>"
                     f"Source: {source}<br>"
                     f"Target: {target}<br>"
-                    f"Hop Lag: {hop_info['hop_lag']:.3f}s"
+                    f"Hop Lag: {hop_info['hop_lag']:.3f}s<br>"
+                    f"Suffix: {hop_info.get('suffix','unknown')}<br>"
+                    f"Entry: {(hop_info.get('target_dn') or 'unknown')}"
                 )
-        
+
         # Generate color palette for hop data
         hop_color_palette = VisualizationHelper.generate_color_palette(len(hop_data))
-        
+
         # Create hop series data
         for idx, (key, data) in enumerate(hop_data.items()):
             # Skip if no data points
             if not data['times']:
                 continue
-                
+
             # Sort data by time
             sorted_indices = sorted(range(len(data['times'])), key=lambda i: data['times'][i])
-            
+
             # Prepare data points
             datapoints = []
             for i in sorted_indices:
@@ -1590,14 +1594,18 @@ class ReplicationLogAnalyzer:
                 timestamp = data['times'][i].isoformat()
                 lag_value = data['lags'][i]
                 hover_text = data['hover'][i]
-                
+
                 datapoints.append({
                     "name": key,
                     "x": timestamp,
                     "y": lag_value,
-                    "hoverInfo": hover_text
+                    "hoverInfo": (
+                        hover_text
+                        .replace("Suffix: None", "Suffix: unknown")
+                        .replace("Entry: None", "Entry: unknown")
+                    )
                 })
-            
+
             # Add to hop series
             hop_series.append({
                 "datapoints": datapoints,
@@ -1606,7 +1614,7 @@ class ReplicationLogAnalyzer:
                 },
                 "color": hop_color_palette[idx % len(hop_color_palette)]
             })
-        
+
         # Final data structure for PatternFly 5 charts
         pf_data = {
             "replicationLags": {
@@ -1625,7 +1633,7 @@ class ReplicationLogAnalyzer:
                 "totalServers": len(self.log_dirs),
                 "analyzedLogs": len(self.csns),
                 "totalUpdates": sum(len([
-                    rec for key, rec in server_map.items() 
+                    rec for key, rec in server_map.items()
                     if isinstance(rec, dict) and key != '__hop_lags__'
                 ]) for csn, server_map in self.csns.items()),
                 "timeRange": {
@@ -1634,7 +1642,7 @@ class ReplicationLogAnalyzer:
                 }
             }
         }
-        
+
         # Write to JSON file
         try:
             with open(outfile, 'w') as f:
