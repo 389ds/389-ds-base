@@ -21,11 +21,7 @@ import {
 	TextContent,
 	TextVariants
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "./dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import { SyncAltIcon } from '@patternfly/react-icons';
 
@@ -1010,25 +1006,17 @@ export class Security extends React.Component {
                                     {_("Server Certificate Name")}
                                 </GridItem>
                                 <GridItem span={8}>
-                                    <Select
-                                        variant={SelectVariant.typeahead}
-                                        typeAheadAriaLabel="Type a server certificate nickname"
-                                        onToggle={(event, isOpen) => this.handleServerCertToggle(event, isOpen)}
+                                    <TypeaheadSelect
+                                        selected={serverCert}
                                         onSelect={this.handleServerCertSelect}
                                         onClear={this.handleServerCertClear}
-                                        selections={serverCert}
+                                        options={this.state.serverCertNames}
                                         isOpen={this.state.isServerCertOpen}
-                                        aria-labelledby="typeAhead-server-cert"
-                                        placeholderText={_("Type a sever certificate nickname...")}
-                                        noResultsFoundText={_("There are no matching entries")}
-                                    >
-                                        {this.state.serverCertNames.map((cert, index) => (
-                                            <SelectOption
-                                                key={index}
-                                                value={cert}
-                                            />
-                                        ))}
-                                    </Select>
+                                        onToggle={this.handleServerCertToggle}
+                                        placeholder={_("Type a sever certificate nickname...")}
+                                        noResultsText={_("There are no matching entries")}
+                                        ariaLabel="Type a server certificate nickname"
+                                    />
                                 </GridItem>
                             </Grid>
                             <Grid
@@ -1038,21 +1026,14 @@ export class Security extends React.Component {
                                     {_("Minimum TLS Version")}
                                 </GridItem>
                                 <GridItem span={8}>
-                                    <Select
-                                        variant={SelectVariant.single}
-                                        aria-label="Select Input"
-                                        onToggle={(event, isOpen) => this.handleMinSSLToggle(event, isOpen)}
+                                    <TypeaheadSelect
+                                        selected={this.state.sslVersionMin}
                                         onSelect={this.handleMinSSLSelect}
-                                        selections={this.state.sslVersionMin}
+                                        options={["TLS1.3", "TLS1.2", "TLS1.1", "TLS1.0", "SSL3"]}
                                         isOpen={this.state.isMinSSLOpen}
-                                        aria-labelledby="minssl"
-                                    >
-                                        <SelectOption key={1} value="TLS1.3" />
-                                        <SelectOption key={2} value="TLS1.2" />
-                                        <SelectOption key={3} value="TLS1.1" />
-                                        <SelectOption key={4} value="TLS1.0" />
-                                        <SelectOption key={5} value="SSL3" />
-                                    </Select>
+                                        onToggle={this.handleMinSSLToggle}
+                                        ariaLabel="Select Input"
+                                    />
                                 </GridItem>
                             </Grid>
                             <Grid
@@ -1062,21 +1043,14 @@ export class Security extends React.Component {
                                     {_("Maximum TLS Version")}
                                 </GridItem>
                                 <GridItem span={8}>
-                                    <Select
-                                        variant={SelectVariant.single}
-                                        aria-label="Select Input"
-                                        onToggle={(event, isOpen) => this.handleMaxSSLToggle(event, isOpen)}
+                                    <TypeaheadSelect
+                                        selected={this.state.sslVersionMax}
                                         onSelect={this.handleMaxSSLSelect}
-                                        selections={this.state.sslVersionMax}
+                                        options={["TLS1.3", "TLS1.2", "TLS1.1", "TLS1.0", "SSL3"]}
                                         isOpen={this.state.isMaxSSLOpen}
-                                        aria-labelledby="maxssl"
-                                    >
-                                        <SelectOption key={1} value="TLS1.3" />
-                                        <SelectOption key={2} value="TLS1.2" />
-                                        <SelectOption key={3} value="TLS1.1" />
-                                        <SelectOption key={4} value="TLS1.0" />
-                                        <SelectOption key={5} value="SSL3" />
-                                    </Select>
+                                        onToggle={this.handleMaxSSLToggle}
+                                        ariaLabel="Select Input"
+                                    />
                                 </GridItem>
                             </Grid>
                             <Grid
@@ -1086,19 +1060,14 @@ export class Security extends React.Component {
                                     {_("Client Authentication")}
                                 </GridItem>
                                 <GridItem span={8}>
-                                    <Select
-                                        variant={SelectVariant.single}
-                                        aria-label="Select Input"
-                                        onToggle={(event, isOpen) => this.handleClientAuthToggle(event, isOpen)}
+                                    <TypeaheadSelect
+                                        selected={this.state.clientAuth}
                                         onSelect={this.handleClientAuthSelect}
-                                        selections={this.state.clientAuth}
+                                        options={["off", "allowed", "required"]}
                                         isOpen={this.state.isClientAuthOpen}
-                                        aria-labelledby="clientAuth"
-                                    >
-                                        <SelectOption key={1} value="off" />
-                                        <SelectOption key={2} value="allowed" />
-                                        <SelectOption key={3} value="required" />
-                                    </Select>
+                                        onToggle={this.handleClientAuthToggle}
+                                        ariaLabel="Select Input"
+                                    />
                                 </GridItem>
                             </Grid>
                             <Grid
@@ -1108,19 +1077,14 @@ export class Security extends React.Component {
                                     {_("Validate Certificate")}
                                 </GridItem>
                                 <GridItem span={8}>
-                                    <Select
-                                        variant={SelectVariant.single}
-                                        aria-label="Select Input"
-                                        onToggle={(event, isOpen) => this.handleValidateCertToggle(event, isOpen)}
+                                    <TypeaheadSelect
+                                        selected={this.state.validateCert}
                                         onSelect={this.handleValidateCertSelect}
-                                        selections={this.state.validateCert}
+                                        options={["warn", "on", "off"]}
                                         isOpen={this.state.isValidateCertOpen}
-                                        aria-labelledby="validateCert"
-                                    >
-                                        <SelectOption key={1} value="warn" />
-                                        <SelectOption key={2} value="on" />
-                                        <SelectOption key={3} value="off" />
-                                    </Select>
+                                        onToggle={this.handleValidateCertToggle}
+                                        ariaLabel="Select Input"
+                                    />
                                 </GridItem>
                             </Grid>
                             <Grid
@@ -1225,7 +1189,7 @@ export class Security extends React.Component {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Security Settings")}
-                                    <Button 
+                                    <Button
                                         variant="plain"
                                         aria-label={_("Refresh settings")}
                                         onClick={this.handleReloadConfig}

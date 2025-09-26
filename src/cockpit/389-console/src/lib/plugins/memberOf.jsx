@@ -17,15 +17,11 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd, valid_dn, listsEqual, parentExists } from "../tools.jsx";
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import {
     WrenchIcon,
 } from '@patternfly/react-icons';
@@ -142,21 +138,9 @@ class MemberOf extends React.Component {
 
         // Config Group Attribute
         this.handleConfigGroupAttrSelect = (event, selection) => {
-            if (this.state.configGroupAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configGroupAttr: prevState.configGroupAttr.filter((item) => item !== selection),
-                        isConfigGroupAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configGroupAttr: [...prevState.configGroupAttr, selection],
-                        isConfigGroupAttrOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configGroupAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigGroupAttrToggle = (_event, isConfigGroupAttrOpen) => {
             this.setState({
@@ -172,14 +156,9 @@ class MemberOf extends React.Component {
 
         // MemberOf Attribute
         this.handleMemberOfAttrSelect = (event, selection) => {
-            if (selection === this.state.configAttr) {
-                this.handleMemberOfAttrClear();
-            } else {
-                this.setState({
-                    memberOfAttr: selection,
-                    isMemberOfAttrOpen: false
-                }, () => { this.validateModal() });
-            }
+            this.setState({
+                memberOfAttr: selection || '',
+            }, () => { this.validateConfig() });
         };
         this.handleMemberOfAttrToggle = (_event, isMemberOfAttrOpen) => {
             this.setState({
@@ -188,28 +167,15 @@ class MemberOf extends React.Component {
         };
         this.handleMemberOfAttrClear = () => {
             this.setState({
-                memberOfAttr: [],
-                isMemberOfAttrOpen: false
+                memberOfAttr: '',
             }, () => { this.validateConfig() });
         };
 
         // MemberOf Group Attribute
         this.handleMemberOfGroupAttrSelect = (event, selection) => {
-            if (this.state.memberOfGroupAttr.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        memberOfGroupAttr: prevState.memberOfGroupAttr.filter((item) => item !== selection),
-                        isMemberOfGroupAttrOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        memberOfGroupAttr: [...prevState.memberOfGroupAttr, selection],
-                        isMemberOfGroupAttrOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                memberOfGroupAttr: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleMemberOfGroupAttrToggle = (_event, isMemberOfGroupAttrOpen) => {
             this.setState({
@@ -219,31 +185,14 @@ class MemberOf extends React.Component {
         this.handleMemberOfGroupAttrClear = () => {
             this.setState({
                 memberOfGroupAttr: [],
-                isMemberOfGroupAttrOpen: false
             }, () => { this.validateConfig() });
         };
 
         // Handle scope subtree
         this.handleSubtreeScopeSelect = (event, selection) => {
-            if (!selection.trim() || !valid_dn(selection)) {
-                this.setState({isSubtreeScopeOpen: false});
-                return;
-            }
-            if (this.state.memberOfEntryScope.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScope: prevState.memberOfEntryScope.filter((item) => item !== selection),
-                        isSubtreeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScope: [...prevState.memberOfEntryScope, selection],
-                        isSubtreeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                memberOfEntryScope: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleSubtreeScopeToggle = (_event, isSubtreeScopeOpen) => {
             this.setState({
@@ -253,39 +202,21 @@ class MemberOf extends React.Component {
         this.handleSubtreeScopeClear = () => {
             this.setState({
                 memberOfEntryScope: [],
-                isSubtreeScopeOpen: false
             }, () => { this.validateConfig() });
         };
         this.handleSubtreeScopeCreateOption = newValue => {
             if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeOptions: [...this.state.memberOfEntryScopeOptions, newValue],
-                    isSubtreeScopeOpen: false
                 }, () => { this.validateConfig() });
             }
         };
 
         // Handle Exclude Scope subtree
         this.handleExcludeScopeSelect = (event, selection) => {
-            if (!selection.trim() || !valid_dn(selection)) {
-                this.setState({isExcludeScopeOpen: false});
-                return;
-            }
-            if (this.state.memberOfEntryScopeExcludeSubtree.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScopeExcludeSubtree: prevState.memberOfEntryScopeExcludeSubtree.filter((item) => item !== selection),
-                        isExcludeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        memberOfEntryScopeExcludeSubtree: [...prevState.memberOfEntryScopeExcludeSubtree, selection],
-                        isExcludeScopeOpen: false
-                    }), () => { this.validateConfig() }
-                );
-            }
+            this.setState({
+                memberOfEntryScopeExcludeSubtree: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateConfig() });
         };
         this.handleExcludeScopeToggle = (_event, isExcludeScopeOpen) => {
             this.setState({
@@ -295,14 +226,12 @@ class MemberOf extends React.Component {
         this.handleExcludeScopeClear = () => {
             this.setState({
                 memberOfEntryScopeExcludeSubtree: [],
-                isExcludeScopeOpen: false
             }, () => { this.validateConfig() });
         };
         this.handleExcludeCreateOption = newValue => {
-            if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeOptions.includes(newValue)) {
+            if (newValue.trim() && valid_dn(newValue) && !this.state.memberOfEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     memberOfEntryScopeExcludeOptions: [...this.state.memberOfEntryScopeExcludeOptions, newValue],
-                    isExcludeScopeOpen: false
                 }, () => { this.validateConfig() });
             }
         };
@@ -310,25 +239,9 @@ class MemberOf extends React.Component {
         // Modal scope and exclude Scope
         // Handle scope subtree
         this.handleConfigScopeSelect = (event, selection) => {
-            if (selection.trim() === "" || !valid_dn(selection)) {
-                this.setState({isConfigSubtreeScopeOpen: false});
-                return;
-            }
-            if (this.state.configEntryScope.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScope: prevState.configEntryScope.filter((item) => item !== selection),
-                        isConfigSubtreeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScope: [...prevState.configEntryScope, selection],
-                        isConfigSubtreeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configEntryScope: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigScopeToggle = (_event, isConfigSubtreeScopeOpen) => {
             this.setState({
@@ -338,39 +251,21 @@ class MemberOf extends React.Component {
         this.handleConfigScopeClear = () => {
             this.setState({
                 configEntryScope: [],
-                isConfigSubtreeScopeOpen: false
             }, () => { this.validateModal() });
         };
         this.handleConfigCreateOption = newValue => {
             if (newValue.trim() && valid_dn(newValue) && !this.state.configEntryScopeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeOptions: [...this.state.configEntryScopeOptions, newValue],
-                    isConfigSubtreeScopeOpen: false
                 }, () => { this.validateModal() });
             }
         };
 
         // Handle Exclude Scope subtree
         this.handleConfigExcludeScopeSelect = (event, selection) => {
-            if (selection.trim() === "" || !valid_dn(selection)) {
-                this.setState({isConfigExcludeScopeOpen: false});
-                return;
-            }
-            if (this.state.configEntryScopeExcludeSubtree.includes(selection)) {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScopeExcludeSubtree: prevState.configEntryScopeExcludeSubtree.filter((item) => item !== selection),
-                        isConfigExcludeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            } else {
-                this.setState(
-                    (prevState) => ({
-                        configEntryScopeExcludeSubtree: [...prevState.configEntryScopeExcludeSubtree, selection],
-                        isConfigExcludeScopeOpen: false
-                    }), () => { this.validateModal() }
-                );
-            }
+            this.setState({
+                configEntryScopeExcludeSubtree: Array.isArray(selection) ? selection : [],
+            }, () => { this.validateModal() });
         };
         this.handleConfigExcludeScopeToggle = (_event, isConfigExcludeScopeOpen) => {
             this.setState({
@@ -380,14 +275,12 @@ class MemberOf extends React.Component {
         this.handleConfigExcludeScopeClear = () => {
             this.setState({
                 configEntryScopeExcludeSubtree: [],
-                isConfigExcludeScopeOpen: false
             }, () => { this.validateModal() });
         };
         this.handleConfigExcludeCreateOption = newValue => {
             if (newValue.trim() && valid_dn(newValue) &&  !this.state.configEntryScopeExcludeOptions.includes(newValue)) {
                 this.setState({
                     configEntryScopeExcludeOptions: [...this.state.configEntryScopeExcludeOptions, newValue],
-                    isConfigExcludeScopeOpen: false
                 }, () => { this.validateModal() });
             }
         };
@@ -1343,26 +1236,16 @@ class MemberOf extends React.Component {
                                 {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel="Type a member attribute"
-                                    onToggle={(event, isOpen) => this.handleConfigAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={configAttr}
                                     onSelect={this.handleConfigAttrSelect}
                                     onClear={this.handleConfigAttrClear}
-                                    selections={configAttr}
-                                    isOpen={this.state.isConfigAttrOpen}
-                                    aria-labelledby="typeAhead-config-attr"
-                                    placeholderText={_("Type a member attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["memberOf"]}
+                                    placeholder={_("Type a member attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configAttr ? "error" : "default"}
-                                >
-                                    {["memberOf"].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
@@ -1370,26 +1253,18 @@ class MemberOf extends React.Component {
                                 {_("Group Attribute")}
                             </GridItem>
                             <GridItem span={9}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a member group attribute"
-                                    onToggle={(event, isOpen) => this.handleConfigGroupAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    isMulti
+                                    hasCheckbox
+                                    selected={configGroupAttr}
                                     onSelect={this.handleConfigGroupAttrSelect}
                                     onClear={this.handleConfigGroupAttrClear}
-                                    selections={configGroupAttr}
-                                    isOpen={this.state.isConfigGroupAttrOpen}
-                                    aria-labelledby="typeAhead-config-group-attr"
-                                    placeholderText={_("Type a member group attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["member", "memberCertificate", "uniqueMember"]}
+                                    placeholder={_("Type a member group attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configGroupAttr ? "error" : "default"}
-                                >
-                                    {["member", "memberCertificate", "uniqueMember"].map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member group attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
@@ -1397,28 +1272,22 @@ class MemberOf extends React.Component {
                                 {_("Subtree Scope")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleConfigScopeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={configEntryScope}
                                     onSelect={this.handleConfigScopeSelect}
                                     onClear={this.handleConfigScopeClear}
-                                    selections={configEntryScope}
-                                    isOpen={isConfigSubtreeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.configEntryScopeOptions}
                                     isCreatable
                                     onCreateOption={this.handleConfigCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configEntryScope ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleConfigScopeToggle}
+                                    isOpen={isConfigSubtreeScopeOpen}
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
@@ -1438,28 +1307,20 @@ class MemberOf extends React.Component {
                                 {_("Exclude Subtree")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleConfigExcludeScopeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={configEntryScopeExcludeSubtree}
                                     onSelect={this.handleConfigExcludeScopeSelect}
                                     onClear={this.handleConfigExcludeScopeClear}
-                                    selections={configEntryScopeExcludeSubtree}
-                                    isOpen={isConfigExcludeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.configEntryScopeExcludeOptions}
                                     isCreatable
                                     onCreateOption={this.handleConfigExcludeCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={errorModal.configEntryScopeExcludeSubtree ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>
@@ -1513,26 +1374,16 @@ class MemberOf extends React.Component {
                                 {_("Membership Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel="Type a member attribute"
-                                    onToggle={(event, isOpen) => this.handleMemberOfAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={memberOfAttr}
                                     onSelect={this.handleMemberOfAttrSelect}
                                     onClear={this.handleMemberOfAttrClear}
-                                    selections={memberOfAttr}
-                                    isOpen={this.state.isMemberOfAttrOpen}
-                                    aria-labelledby="typeAhead-memberof-attr"
-                                    placeholderText={_("Type a member attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["memberOf"]}
+                                    placeholder={_("Type a member attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfAttr ? "error" : "default"}
-                                >
-                                    {["memberOf"].map((attr) => (
-                                        <SelectOption
-                                            key={attr}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)")}>
@@ -1540,26 +1391,18 @@ class MemberOf extends React.Component {
                                 {_("Group Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a member group attribute"
-                                    onToggle={(event, isOpen) => this.handleMemberOfGroupAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    isMulti
+                                    hasCheckbox
+                                    selected={memberOfGroupAttr}
                                     onSelect={this.handleMemberOfGroupAttrSelect}
                                     onClear={this.handleMemberOfGroupAttrClear}
-                                    selections={memberOfGroupAttr}
-                                    isOpen={this.state.isMemberOfGroupAttrOpen}
-                                    aria-labelledby="typeAhead-memberof-group-attr"
-                                    placeholderText={_("Type a member group attribute...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={["member", "memberCertificate", "uniqueMember"]}
+                                    placeholder={_("Type a member group attribute...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfGroupAttr ? "error" : "default"}
-                                >
-                                    {["member", "memberCertificate", "uniqueMember"].map((attr) => (
-                                        <SelectOption
-                                            key={attr}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    ariaLabel="Type a member group attribute"
+                                />
                             </GridItem>
                         </Grid>
                         <Grid className="ds-margin-top" title={_("Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)")}>
@@ -1567,28 +1410,22 @@ class MemberOf extends React.Component {
                                 {_("Subtree Scope")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleSubtreeScopeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={memberOfEntryScope}
                                     onSelect={this.handleSubtreeScopeSelect}
                                     onClear={this.handleSubtreeScopeClear}
-                                    selections={memberOfEntryScope}
-                                    isOpen={isSubtreeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.memberOfEntryScopeOptions}
                                     isCreatable
                                     onCreateOption={this.handleSubtreeScopeCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfEntryScope ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleSubtreeScopeToggle}
+                                    isOpen={isSubtreeScopeOpen}
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {"Values must be valid DN's"}
                                 </FormHelperText>
@@ -1608,28 +1445,22 @@ class MemberOf extends React.Component {
                                 {_("Exclude Subtree")}
                             </GridItem>
                             <GridItem span={6}>
-                                <Select
-                                    variant={SelectVariant.typeaheadMulti}
-                                    typeAheadAriaLabel="Type a subtree DN"
-                                    onToggle={(event, isOpen) => this.handleExcludeScopeToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    isMulti
+                                    selected={memberOfEntryScopeExcludeSubtree}
                                     onSelect={this.handleExcludeScopeSelect}
                                     onClear={this.handleExcludeScopeClear}
-                                    selections={memberOfEntryScopeExcludeSubtree}
-                                    isOpen={isExcludeScopeOpen}
-                                    aria-labelledby="typeAhead-subtrees"
-                                    placeholderText={_("Type a subtree DN...")}
-                                    noResultsFoundText={_("There are no matching entries")}
+                                    options={this.state.memberOfEntryScopeExcludeOptions}
                                     isCreatable
                                     onCreateOption={this.handleExcludeCreateOption}
+                                    validateCreate={(value) => valid_dn(value)}
+                                    placeholder={_("Type a subtree DN...")}
+                                    noResultsText={_("There are no matching entries")}
                                     validated={error.memberOfEntryScopeExcludeSubtree ? "error" : "default"}
-                                >
-                                    {[""].map((dn, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={dn}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleExcludeScopeToggle}
+                                    isOpen={isExcludeScopeOpen}
+                                    ariaLabel="Type a subtree DN"
+                                />
                                 <FormHelperText  >
                                     {_("Values must be valid DN's")}
                                 </FormHelperText>

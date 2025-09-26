@@ -2194,6 +2194,7 @@ bdb_public_bdb_import_main(void *arg)
 
     if (job->task) {
         slapi_task_inc_refcount(job->task);
+        slapi_task_wait(job->task);
     }
 
     if (job->flags & (FLAG_UPGRADEDNFORMAT | FLAG_UPGRADEDNFORMAT_V1)) {

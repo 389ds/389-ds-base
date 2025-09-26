@@ -6696,6 +6696,7 @@ void slapi_task_log_status(Slapi_Task *task, char *format, ...) __ATTRIBUTE__((f
 void slapi_task_log_notice(Slapi_Task *task, const char *format, ...) __ATTRIBUTE__((format(printf, 2, 3)));
 void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list varg);
 void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list varg);
+void slapi_task_wait(Slapi_Task *task);
 
 /*
  * slapi_new_task: create new task, fill in DN, and setup modify callback

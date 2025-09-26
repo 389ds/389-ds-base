@@ -146,20 +146,27 @@ def get_bdb_impl_status():
     bundledbdb_plugin = 'libback-bdb'
     libdb = 'libdb-'
     plgstrs = check_plugin_strings(backldbm, [bundledbdb_plugin, libdb])
-    if has_robdb is True:
-        # read-only bdb build
-        return BDB_IMPL_STATUS.READ_ONLY
-    if plgstrs[bundledbdb_plugin] is True:
-        # bundled bdb build
-        if find_plugin_path(bundledbdb_plugin):
-            return BDB_IMPL_STATUS.BUNDLED
-        return BDB_IMPL_STATUS.NONE
-    if plgstrs[libdb] is True:
-        # standard bdb package build
-        return BDB_IMPL_STATUS.STANDARD
-    # Unable to find libback-ldbm plugin
-    return BDB_IMPL_STATUS.UNKNOWN
+    has_bundled_strings = plgstrs[bundledbdb_plugin] is True
+    has_standard_strings = plgstrs[libdb] is True
 
+    # Check read-only BDB
+    if has_robdb:
+        return BDB_IMPL_STATUS.READ_ONLY
+
+    # Check bundled BDB
+    if has_bundled_strings and find_plugin_path(bundledbdb_plugin):
+        return BDB_IMPL_STATUS.BUNDLED
+
+    # Check standard (provided by system) BDB
+    if has_standard_strings:
+        return BDB_IMPL_STATUS.STANDARD
+
+    # If bundled strings found but no working implementation
+    if has_bundled_strings:
+        return BDB_IMPL_STATUS.NONE
+
+    # Unable to find any BDB indicators in libback-ldbm plugin
+    return BDB_IMPL_STATUS.UNKNOWN
 
 def is_bdb_supported(read_write=True):
     bdbok = [BDB_IMPL_STATUS.BUNDLED, BDB_IMPL_STATUS.STANDARD]

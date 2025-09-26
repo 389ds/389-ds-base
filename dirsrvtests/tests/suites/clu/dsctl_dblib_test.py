@@ -16,6 +16,7 @@ from lib389.backend import DatabaseConfig
 from lib389.cli_ctl.dblib import (
     FakeArgs,
     dblib_bdb2mdb,
+    dblib_mdb2bdb,
     dblib_cleanup,
     is_bdb_supported)
 from lib389.idm.user import UserAccounts

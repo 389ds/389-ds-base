@@ -456,12 +456,12 @@ upgrade_pam_pta_default_config(void)
             slapi_pblock_destroy(add_pb);
             return UPGRADE_FAILURE;
         }
+        slapi_pblock_destroy(add_pb);
     } else {
         slapi_log_error(SLAPI_LOG_ERR, "upgrade_pam_pta_default_config",
                         "Failed to create child entry %s\n", child_dn);
 
         slapi_ch_free_string(&child_dn);
-        slapi_pblock_destroy(add_pb);
         return UPGRADE_FAILURE;
     }
 

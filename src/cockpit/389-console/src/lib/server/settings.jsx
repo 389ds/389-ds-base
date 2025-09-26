@@ -23,11 +23,7 @@ import {
 	TextVariants,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectOption,
-	SelectVariant
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import { SyncAltIcon } from '@patternfly/react-icons';
 import PropTypes from "prop-types";
 
@@ -115,22 +111,11 @@ export class ServerSettings extends React.Component {
         };
         this.handleOnHaproxyIPsSelect = (event, selection, nav_tab) => {
             const id = 'nsslapd-haproxy-trusted-ip';
-            const { haproxyIPs } = this.state;
-            // The first if-block is when removing an item from the list
-            if (haproxyIPs.includes(selection)) {
-                this.setState(
-                    prevState => ({
-                        haproxyIPs: prevState.haproxyIPs.filter(item => item !== selection),
-                        isHaproxyIPsOpen: false
-                    }), () => { this.validateSaveBtn(nav_tab, id, haproxyIPs.filter(item => item !== selection)) });
-            // The second if-block is when adding an item to the list
-            } else {
-                this.setState(
-                    prevState => ({
-                        haproxyIPs: [...prevState.haproxyIPs, selection],
-                        isHaproxyIPsOpen: false,
-                    }), () => { this.validateSaveBtn(nav_tab, id, [...haproxyIPs, selection]) });
-            }
+            const newHaproxyIPs = Array.isArray(selection) ? selection : [];
+            this.setState({
+                haproxyIPs: newHaproxyIPs,
+                isHaproxyIPsOpen: false,
+            }, () => { this.validateSaveBtn(nav_tab, id, newHaproxyIPs) });
         };
 
         this.handleOnHaproxyIPsClear = (event, nav_tab) => {
@@ -1129,7 +1114,7 @@ async validateSaveBtn(nav_tab, attr, value) {
                             <TextContent>
                                 <Text component={TextVariants.h3}>
                                     {_("Server Settings")}
-                                    <Button 
+                                    <Button
                                         variant="plain"
                                         aria-label={_("Refresh configuration settings")}
                                         onClick={this.handleReloadConfig}
@@ -1201,8 +1186,14 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-port'] ? ValidatedOptions.error : ValidatedOptions.default}
                                             />
+                                            {this.state.errObjConfig['nsslapd-port'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1224,8 +1215,15 @@ async validateSaveBtn(nav_tab, attr, value) {
                                                 minusBtnAriaLabel="minus"
                                                 plusBtnAriaLabel="plus"
                                                 widthChars={8}
-                                                validated={this.state.errObjConfig['nsslapd-secureport'] ? ValidatedOptions.error : ValidatedOptions.default}
+
                                             />
+                                            {this.state.errObjConfig['nsslapd-secureport'] &&
+                                                <HelperText>
+                                                    <HelperTextItem variant="error">
+                                                        This port is already in use, please choose another.
+                                                    </HelperTextItem>
+                                                </HelperText>
+                                            }
                                         </GridItem>
                                     </Grid>
                                     <Grid
@@ -1652,32 +1650,24 @@ async validateSaveBtn(nav_tab, attr, value) {
                                             Trusted HAProxy Server IPs
                                         </GridItem>
                                         <GridItem span={9}>
-                                            <Select
-                                                variant={SelectVariant.typeaheadMulti}
-                                                id="nsslpad-haproxy-trusted-ip"
-                                                typeAheadAriaLabel="Type trusted HAProxy server IP address"
-                                                onToggle={(event, isOpen) => this.handleOnHaproxyIPsToggle(event, isOpen)}
-                                                onSelect={(e, selection) => {
-                                                    this.handleOnHaproxyIPsSelect(e, selection, "adv");
-                                                }}
-                                                onClear={(e) => {
-                                                    this.handleOnHaproxyIPsClear(e, "adv");
-                                                }}
-                                                selections={this.state.haproxyIPs}
-                                                isOpen={this.state.isHaproxyIPsOpen}
-                                                aria-labelledby="typeAhead-haproxy-ips"
-                                                placeholderText="Type trusted HAProxy server IP address"
-                                                isCreatable
-                                                onCreateOption={this.handleOnCreateHaproxyIP}
-                                                validated={this.state.invalidIP ? ValidatedOptions.error : ValidatedOptions.default}
-                                            >
-                                                {[].map((attr, index) => (
-                                                    <SelectOption
-                                                        key={index}
-                                                        value={attr}
-                                                    />
-                                                ))}
-                                            </Select>
+                            <TypeaheadSelect
+                                selected={this.state.haproxyIPs}
+                                onSelect={(e, selection) => {
+                                    this.handleOnHaproxyIPsSelect(e, selection, "adv");
+                                }}
+                                onClear={(e) => {
+                                    this.handleOnHaproxyIPsClear(e, "adv");
+                                }}
+                                options={[]}
+                                isOpen={this.state.isHaproxyIPsOpen}
+                                onToggle={this.handleOnHaproxyIPsToggle}
+                                placeholder="Type trusted HAProxy server IP address"
+                                ariaLabel="Type trusted HAProxy server IP address"
+                                validated={this.state.invalidIP ? "error" : "default"}
+                                isMulti={true}
+                                isCreatable={true}
+                                onCreateOption={this.handleOnCreateHaproxyIP}
+                            />
                                             {(this.state.invalidIP) &&
                                                 <HelperText className="ds-left-margin">
                                                     <HelperTextItem variant="error">Invalid format for IP address</HelperTextItem>

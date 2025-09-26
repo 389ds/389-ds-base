@@ -719,6 +719,27 @@ destroy_task(time_t when, void *arg)
     slapi_ch_free((void **)&task);
 }
 
+/* Wait until the internal task entry get created */
+void
+slapi_task_wait(Slapi_Task *task)
+{
+    int ret = LDAP_NO_SUCH_OBJECT;
+    if (task && task->task_dn) {
+        while (ret == LDAP_NO_SUCH_OBJECT) {
+            Slapi_PBlock *pb = slapi_pblock_new();
+            slapi_search_internal_set_pb(pb, task->task_dn, LDAP_SCOPE_BASE, "(objectclass=*)",
+                                         NULL, 0, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
+            slapi_search_internal_pb(pb);
+            slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+            slapi_free_search_results_internal(pb);
+            slapi_pblock_destroy(pb);
+            if (ret == LDAP_NO_SUCH_OBJECT) {
+                DS_Sleep(PR_MillisecondsToInterval(20));
+            }
+        }
+    }
+}
+
 /* supply the pblock, destroy it when you're done */
 static Slapi_Entry *
 get_internal_entry(Slapi_PBlock *pb, char *dn)

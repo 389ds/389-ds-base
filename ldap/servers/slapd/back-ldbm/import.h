@@ -209,6 +209,8 @@ struct _import_worker_info
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
 int import_main_offline(void *arg);
 int import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t t_sub_count, int isencrypted, back_txn *txn);
+bool db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst);
+
 
 /* ldif2ldbm.c */
 void reset_progress(void);

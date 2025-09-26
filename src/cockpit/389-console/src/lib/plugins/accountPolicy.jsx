@@ -12,11 +12,7 @@ import {
 	TextInput,
 	ValidatedOptions
 } from '@patternfly/react-core';
-import {
-	Select,
-	SelectVariant,
-	SelectOption
-} from '@patternfly/react-core/deprecated';
+import TypeaheadSelect from "../../dsBasicComponents.jsx";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd, valid_dn } from "../tools.jsx";
@@ -877,25 +873,17 @@ class AccountPolicy extends React.Component {
                                 {_("Always Record Login Attribute")}
                             </GridItem>
                             <GridItem span={4}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleRecordLoginToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={alwaysRecordLoginAttr}
                                     onSelect={this.handleRecordLoginSelect}
                                     onClear={this.handleRecordLoginClear}
-                                    selections={alwaysRecordLoginAttr}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isRecordLoginOpen}
-                                    aria-labelledby="typeAhead-record-login"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleRecordLoginToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                />
                             </GridItem>
                             <GridItem span={4}>
                                 <Checkbox
@@ -913,25 +901,17 @@ class AccountPolicy extends React.Component {
                                 {_("Specific Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleSpecificAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={specAttrName}
                                     onSelect={this.handleSpecificAttrSelect}
                                     onClear={this.handleSpecificAttrClear}
-                                    selections={specAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isSpecificAttrOpen}
-                                    aria-labelledby="typeAhead-specific-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr) => (
-                                        <SelectOption
-                                            key={attr}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleSpecificAttrToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)")}>
@@ -939,25 +919,17 @@ class AccountPolicy extends React.Component {
                                 {_("Limit Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleLimitAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={limitAttrName}
                                     onSelect={this.handleLimitAttrSelect}
                                     onClear={this.handleLimitAttrClear}
-                                    selections={limitAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isLimitAttrOpen}
-                                    aria-labelledby="typeAhead-limit-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleLimitAttrToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
@@ -965,26 +937,18 @@ class AccountPolicy extends React.Component {
                                 {_("State Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleStateAttrToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={stateAttrName}
                                     onSelect={this.handleStateAttrSelect}
                                     onClear={this.handleStateAttrClear}
-                                    selections={stateAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isStateAttrOpen}
-                                    aria-labelledby="typeAhead-state-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleStateAttrToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                    isCreatable={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Provides a backup attribute to evaluate the expiration time if the main state attribute is not present (altStateAttrName)")}>
@@ -992,26 +956,18 @@ class AccountPolicy extends React.Component {
                                 {_("Alternative State Attribute")}
                             </GridItem>
                             <GridItem span={8}>
-                                <Select
-                                    variant={SelectVariant.typeahead}
-                                    typeAheadAriaLabel={_("Type an attribute name")}
-                                    onToggle={(event, isOpen) => this.handleAlternativeStateToggle(event, isOpen)}
+                                <TypeaheadSelect
+                                    selected={altStateAttrName}
                                     onSelect={this.handleAlternativeStateSelect}
                                     onClear={this.handleAlternativeStateClear}
-                                    selections={altStateAttrName}
+                                    options={this.props.attributes}
                                     isOpen={this.state.isAltStateAttrOpen}
-                                    aria-labelledby="typeAhead-alt-state-attr"
-                                    placeholderText={_("Type an attribute name ...")}
-                                    noResultsFoundText={_("There are no matching entries")}
-                                    isCreatable
-                                >
-                                    {this.props.attributes.map((attr, index) => (
-                                        <SelectOption
-                                            key={index}
-                                            value={attr}
-                                        />
-                                    ))}
-                                </Select>
+                                    onToggle={this.handleAlternativeStateToggle}
+                                    placeholder={_("Type an attribute name ...")}
+                                    noResultsText={_("There are no matching entries")}
+                                    ariaLabel={_("Type an attribute name")}
+                                    isCreatable={true}
+                                />
                             </GridItem>
                         </Grid>
                         <Grid title={_("Check both the 'state attribute', and the 'alternate state attribute' regaredless if the main state attribute is present")}>

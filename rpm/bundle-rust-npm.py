@@ -118,7 +118,7 @@ def process_npm_license(license_data) -> str:
 
 def enclose_if_contains_or(license_str: str) -> str:
     """Enclose the license string in parentheses if it contains 'OR'."""
-    return f"({license_str})" if 'OR' in license_str and not license_str.startswith('(') else license_str
+    return f"({license_str})" if license_str is not None and 'OR' in license_str and not license_str.startswith('(') else license_str
 
 
 def build_provides_lines(rust_crates: Dict[str, Tuple[str, str]], npm_packages: Dict[str, Tuple[str, str]]) -> list[str]:

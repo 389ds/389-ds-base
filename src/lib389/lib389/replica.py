@@ -612,21 +612,20 @@ class ReplicaLegacy(object):
                 if not status:
                     self.log.info("No status yet")
                 elif status.find(ensure_bytes("replica busy")) > -1:
-                    self.log.info("Update failed - replica busy - status", status)
+                    self.log.info(f"Update failed - replica busy - status {status}")
                     done = True
                     hasError = 2
                 elif status.find(ensure_bytes("Total update succeeded")) > -1:
-                    self.log.info("Update succeeded: status ", status)
+                    self.log.info(f"Update succeeded: status {status}")
                     done = True
                 elif inprogress.lower() == ensure_bytes('true'):
-                    self.log.info("Update in progress yet not in progress: status ",
-                          status)
+                    self.log.info(f"Update in progress yet not in progress: status {status}")
                 else:
-                    self.log.info("Update failed: status", status)
+                    self.log.info(f"Update failed: status {status}")
                     hasError = 1
                     done = True
             else:
-                self.log.debug("Update in progress: status", status)
+                self.log.debug(f"Update in progress: status {status}")
 
         return done, hasError
 

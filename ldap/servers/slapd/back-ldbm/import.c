@@ -300,3 +300,169 @@ import_update_entry_subcount(backend *be, ID parentid, size_t sub_count, size_t 
     return ret;
 }
 
+struct silctx {
+    const char *suffix;
+    size_t count;
+    bool partial;
+    char *linebuff;
+    size_t linebuffsize;
+    size_t linebuffpos;
+};
+
+/* Read ldif line to check if suffix is present */
+static bool
+db2ldif_read_ldif_line(FILE *fd, struct silctx *ctx)
+{
+    int c = 0;
+    ctx->linebuffpos = 0;
+    while ((c=fgetc(fd)) != EOF) {
+        if (c == '\r') {
+            continue;
+        }
+        if (c == '\n') {
+            if (ctx->linebuffpos < ctx->linebuffsize) {
+                ctx->linebuff[ctx->linebuffpos] = 0;
+            }
+            /* Check for continued line */
+            c = fgetc(fd);
+            if (c == EOF) {
+                break;
+            }
+            if (c == ' ') {
+                continue;
+            }
+            ungetc(c, fd);
+            break;
+        }
+        if (ctx->linebuffpos < ctx->linebuffsize) {
+            ctx->linebuff[ctx->linebuffpos++] = c;
+        }
+    }
+    return c!= EOF;
+}
+
+static bool
+db2ldif_is_suffix_in_file(const char *filename, struct silctx *ctx)
+{
+    FILE *fd = fopen(filename, "r");
+    if (fd == NULL) {
+        return false;
+    }
+    bool found = false;
+    while (!found && db2ldif_read_ldif_line(fd, ctx)) {
+        if (ctx->linebuffpos >= ctx->linebuffsize) {
+            /* Oversided lines could not match the suffix */
+            continue;
+        }
+        if (ctx->linebuffpos == 0) {
+            ctx->count++;
+            if (!ctx->partial && ctx->count > 4) {
+                /* Should already have hit the suffix */
+                break;
+            }
+        }
+        if (strncmp(ctx->linebuff, "dn:", 3) == 0) {
+            char *suff = ctx->linebuff+3;
+            char *ndn = NULL;
+            size_t ndnlen = 0;
+            int rc = 0;
+            while (isspace(*suff)) {
+                suff++;
+            }
+            rc = slapi_dn_normalize_case_ext(suff, 0, &ndn, &ndnlen);
+            if (rc < 0) {
+                /* invalid dn ==> ignore it */
+                continue;
+            }
+            if (strcmp(ctx->suffix, ndn) == 0) {
+                found = true;
+            }
+            if (rc > 0) {
+                slapi_ch_free_string(&ndn);
+            }
+        }
+    }
+    fclose(fd);
+    return found;
+}
+
+/* Tells that all entries are skipped because suffix entry is not in ldif */
+static void *
+db2ldif_skip_all(void *args)
+{
+    Slapi_Task *task = args;
+    Slapi_Backend *be = slapi_task_get_data(task);
+    const char *suffix = NULL;
+    if (task->task_dn == NULL) {
+        task = NULL;  /* Dioscard thge pseudo task */
+    }
+
+    slapi_task_wait(task);
+    suffix = slapi_sdn_get_dn(be->be_suffix);
+    slapi_task_log_notice(task, "Backend instance '%s': "
+            "Import complete. Processed 0 entries, all entries were "
+            "skipped because ldif file does not contain the suffix entry %s).",
+             be->be_name, suffix);
+    slapi_log_err(SLAPI_LOG_WARNING, "db2ldif_is_suffix_in_ldif", "%s: "
+            "Import complete. Processed 0 entries, all entries were "
+            "skipped because ldif file does not contain the suffix entry %s).",
+             be->be_name, suffix);
+    slapi_task_finish(task, 0);
+    g_decr_active_threadcnt();
+    return NULL;
+}
+
+bool
+db2ldif_is_suffix_in_ldif(Slapi_PBlock *pb, ldbm_instance *inst)
+{
+    char **name_array = NULL;
+    Slapi_Task *task = NULL;
+    struct silctx ctx = {0};
+    pthread_t tid = 0;
+    Slapi_Task pseudo_task = {0};
+
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_INCLUDE, &name_array);
+    if (name_array != NULL) {
+        ctx.partial = true;
+    }
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_EXCLUDE, &name_array);
+    if (name_array != NULL) {
+        ctx.partial = true;
+    }
+    ctx.suffix = slapi_sdn_get_ndn(inst->inst_be->be_suffix);
+    ctx.linebuffsize = 3*strlen(ctx.suffix)+5;
+    if (ctx.linebuffsize <  LDIF_LINE_WIDTH+1) {
+        ctx.linebuffsize = LDIF_LINE_WIDTH+1;
+    }
+    ctx.linebuff = slapi_ch_malloc(ctx.linebuffsize);
+    slapi_pblock_get(pb, SLAPI_LDIF2DB_FILE, &name_array);
+    for (; name_array && *name_array; name_array++) {
+        if (db2ldif_is_suffix_in_file(*name_array, &ctx)) {
+            slapi_ch_free_string(&ctx.linebuff);
+            return true;
+        }
+    }
+    slapi_ch_free_string(&ctx.linebuff);
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
+    slapi_pblock_set_task_warning(pb, WARN_SKIPPED_IMPORT_ENTRY);
+    if (task == NULL) {
+        task = &pseudo_task;
+    }
+    slapi_task_set_data(task, inst->inst_be);
+    /*
+     * if task->task_dn it is a real task that should run in another
+     * thread to let current thread creates the task entry
+     * otherwise it is a pseudo task that should run in current thread
+     * and if pthreasd_create fails we also run in current thread
+     * to ensure the work is done but this will trigger a warning
+     * about being unable to modify the task.
+     */
+    g_incr_active_threadcnt();  /* decreased in db2ldif_skip_all */
+    if (task->task_dn == NULL ||
+        pthread_create(&tid, NULL, db2ldif_skip_all, task) != 0) {
+            db2ldif_skip_all(task);
+    } else {
+        pthread_detach(tid);
+    }
+    return false;
+}

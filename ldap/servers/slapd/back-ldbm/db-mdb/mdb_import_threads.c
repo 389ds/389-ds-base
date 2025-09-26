@@ -3737,6 +3737,17 @@ out:
 }
 
 /*
+ * Helper function that removes attributes which may change,
+ * to ensure accurate comparison of config entries.
+ */
+static void
+clear_recomputed_attributes(Slapi_Entry *entry)
+{
+    entry_replace_values(entry, CONFIG_INSTANCE_CACHEMEMSIZE, NULL);
+    entry_replace_values(entry, CONFIG_INSTANCE_DNCACHEMEMSIZE, NULL);
+}
+
+/*
  * read the backed up index configuration
  * adjust them if the current configuration is different from it.
  * this function is called from dblayer_restore (archive2ldbm)
@@ -3770,6 +3781,12 @@ dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, 
         goto out;
     }
 
+    for (Slapi_Entry **entry=curr_entries; *entry; entry++) {
+        clear_recomputed_attributes(*entry);
+    }
+    for (Slapi_Entry **entry=backup_entries; *entry; entry++) {
+        clear_recomputed_attributes(*entry);
+    }
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
                                 log_str, force_update, li->li_identity)) {
         if (force_update) {
