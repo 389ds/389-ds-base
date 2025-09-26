@@ -18,7 +18,7 @@ from lib389.configurations.sample import (
 from lib389.chaining import (ChainingLinks)
 from lib389.monitor import MonitorLDBM
 from lib389.replica import Replicas
-from lib389.utils import ensure_str, is_a_dn, is_dn_parent
+from lib389.utils import ensure_str, is_a_dn, is_dn_parent, parse_size, align_to_page_size
 from lib389.tasks import DBCompactTask
 from lib389._constants import INSTALL_LATEST_CONFIG
 from lib389.properties import BACKEND_SAMPLE_ENTRIES
@@ -539,8 +539,20 @@ def db_config_set(inst, basedn, log, args):
         if value == "":
             # We don't support deleting attributes or setting empty values in db
             continue
-        else:
-            replace_list.append([attr, value])
+
+        if attr == "nsslapd-mdb-max-size":
+            try:
+                mdb_max_size = parse_size(value)
+                # MDB max size requires pagesize alignment
+                mdb_max_size_aligned = align_to_page_size(mdb_max_size)
+                if mdb_max_size_aligned != mdb_max_size:
+                    log.info(f"Aligning MDB max size from {mdb_max_size} to nearest pagesize {mdb_max_size_aligned}")
+                value = str(mdb_max_size_aligned)
+            except ValueError:
+                raise ValueError(f"Invalid value for --mdb-max-size: {value}")
+
+        replace_list.append([attr, value])
+
     if len(replace_list) > 0:
         db_cfg.set(replace_list)
     elif not did_something:
@@ -1085,7 +1097,7 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
     set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
     set_db_config_parser.add_argument('--db-lib', help='Sets which db lib is used. Valid values are: bdb or mdb')
-    set_db_config_parser.add_argument('--mdb-max-size', help='Sets the lmdb database maximum size (in bytes).')
+    set_db_config_parser.add_argument('--mdb-max-size', help='Sets the mdb database maximum size (accepts bytes, or with unit suffix: k, m, g, t)')
     set_db_config_parser.add_argument('--mdb-max-readers', help='Sets the lmdb database maximum number of readers (Advanced setting)')
     set_db_config_parser.add_argument('--mdb-max-dbs', help='Sets the lmdb database maximum number of sub databases (Advanced setting)')
 

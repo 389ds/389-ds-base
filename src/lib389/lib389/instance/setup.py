@@ -38,6 +38,7 @@ from lib389.instance.remove import remove_ds_instance
 from lib389.index import Indexes
 from lib389.replica import Replicas, BootstrapReplicationManager, Changelog
 from lib389.utils import (
+    align_to_page_size,
     assert_c,
     is_a_dn,
     ensure_str,
@@ -1069,7 +1070,11 @@ class SetupDs(object):
         # Before we create any backends, set lmdb max size
         if slapd['db_lib'] == 'mdb':
             mdb_max_size = parse_size(slapd['mdb_max_size'])
-            DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size)),])
+            # MDB max size requires pagesize alignment
+            mdb_max_size_aligned = align_to_page_size(mdb_max_size)
+            if mdb_max_size_aligned != mdb_max_size:
+                self.log.debug(f"Aligning MDB max size from {mdb_max_size} to nearest pagesize {mdb_max_size_aligned}")
+            DatabaseConfig(ds_instance).set([('nsslapd-mdb-max-size', str(mdb_max_size_aligned)),])
 
         # Before we create any backends, create any extra default indexes that may be
         # dynamically provisioned, rather than from template-dse.ldif. Looking at you
