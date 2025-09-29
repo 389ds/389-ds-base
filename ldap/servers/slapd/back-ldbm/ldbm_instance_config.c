@@ -407,9 +407,11 @@ ldbm_config_cache_debug_pattern_set(void *arg,
             val = slapi_ch_strdup(val);
         }
         slapi_ch_free_string(&inst->cache_debug_pattern);
-        slapi_ch_free((void**)&inst->cache_debug_re);
+        slapi_re_free(inst->cache_debug_re);
         inst->cache_debug_pattern = val;
         inst->cache_debug_re = re;
+    } else {
+        slapi_re_free(re);
     }
     return LDAP_SUCCESS;
 }

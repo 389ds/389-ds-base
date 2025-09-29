@@ -760,6 +760,7 @@ entrycache_flush(struct cache *cache)
 
     LOG("=> entrycache_flush\n");
 
+    pinned_flush(cache);
     /* all entries on the LRU list are guaranteed to have a refcnt = 0
      * (iow, nobody's using them), so just delete from the tail down
      * until the cache is a managable size again.
@@ -798,7 +799,6 @@ entrycache_clear_int(struct cache *cache)
     size_t size = cache->c_stats.maxsize;
 
     cache->c_stats.maxsize = 0;
-    pinned_flush(cache);
     eflush = entrycache_flush(cache);
     while (eflush) {
         eflushtemp = BACK_LRU_NEXT(eflush, struct backentry *);
@@ -889,7 +889,6 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
     LOG("entry cache size set to %" PRIu64 "\n", bytes);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {
-        pinned_flush(cache);
         eflush = entrycache_flush(cache);
     }
     while (eflush) {
@@ -939,7 +938,6 @@ cache_set_max_entries(struct cache *cache, int64_t entries, bool autotuned)
 
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {
-        pinned_flush(cache);
         eflush = entrycache_flush(cache);
     }
     cache_unlock(cache);
@@ -1573,7 +1571,6 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
                 pinned_verify(cache, __LINE__);
                 /* the cache might be overfull... */
                 if (CACHE_FULL(cache)) {
-                    pinned_flush(cache);
                     eflush = entrycache_flush(cache);
                 }
                 pinned_verify(cache, __LINE__);
@@ -1877,7 +1874,6 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
         }
         /* check for full cache, and clear out if necessary */
         if (CACHE_FULL(cache)) {
-            pinned_flush(cache);
             eflush = entrycache_flush(cache);
         }
     }

@@ -396,6 +396,10 @@ ldbm_instance_destructor(void **arg)
     PR_DestroyCondVar(inst->inst_indexer_cv);
     attrinfo_deletetree(inst);
     slapi_ch_free((void **)&inst->inst_dataversion);
+    slapi_ch_free_string(&inst->cache_debug_pattern);
+    slapi_re_free(inst->cache_debug_re);
+    inst->cache_debug_re = NULL;
+
     /* cache has already been destroyed */
 
     slapi_ch_free((void **)&inst);
