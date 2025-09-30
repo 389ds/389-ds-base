@@ -1490,9 +1490,7 @@ def ensure_dict_str(val):
 
 def align_to_page_size(size):
     page_size = os.sysconf("SC_PAGE_SIZE")
-    if size % page_size == 0:
-        return size
-    return ((size // page_size) + 1) * page_size
+    return ((size + page_size - 1) // page_size) * page_size
 
 
 def pseudolocalize(string):
