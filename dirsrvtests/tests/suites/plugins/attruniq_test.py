@@ -756,6 +756,9 @@ def test_multiple_containers_add_across_subtrees(topology_st, attruniq, containe
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
         create_stage_user(topology_st, uid=STAGE_USER_2_CN, cn=[STAGE_USER_1_CN, STAGE_USER_2_CN])
 
+    # Inserting sleep to prevent repeatedly occuring 'Server is busy' errors
+    sleep(5)
+
     log.info('Verify that uniqueness rule is enforced')
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
         create_stage_user(topology_st, uid=STAGE_USER_2_CN, cn=[ACTIVE_USER_1_CN, STAGE_USER_2_CN])
@@ -1061,3 +1064,9 @@ def test_invalid_config_invalid_subtree(topology_st):
     _config_file(topology_st, action='restore')
     topology_st.standalone.restart()
 
+
+if __name__ == '__main__':
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
