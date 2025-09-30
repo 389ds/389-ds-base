@@ -1501,6 +1501,11 @@ def ensure_dict_str(val):
     return retdict
 
 
+def align_to_page_size(size):
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    return ((size + page_size - 1) // page_size) * page_size
+
+
 def pseudolocalize(string):
     pseudo_string = u""
     for char in string:
