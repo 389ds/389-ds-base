@@ -10,7 +10,7 @@ fn main() {
                 .with_crate(crate_dir)
                 .generate()
                 .expect("Unable to generate bindings")
-                .write_to_file(format!("{}/rust-nsslapd-private.h", out_dir));
+                .write_to_file(format!("{out_dir}/rust-nsslapd-private.h"));
         }
     }
 }

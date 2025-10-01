@@ -11,8 +11,8 @@ use std::ptr;
 
 // need a call to slapi_register_plugin_ext
 
-extern "C" {
-    fn slapi_matchingrule_register(mr: *const slapi_matchingRuleEntry) -> i32;
+unsafe extern "C" {
+    unsafe fn slapi_matchingrule_register(mr: *const slapi_matchingRuleEntry) -> i32;
 }
 
 #[repr(C)]
@@ -40,15 +40,15 @@ pub unsafe fn matchingrule_register(
 ) -> i32 {
     // Make everything CStrings that live long enough.
 
-    let oid_cs = CString::new(oid).expect("invalid oid");
-    let name_cs = CString::new(name).expect("invalid name");
-    let desc_cs = CString::new(desc).expect("invalid desc");
-    let syntax_cs = CString::new(syntax).expect("invalid syntax");
+    let oid_cs: CString = CString::new(oid).expect("invalid oid");
+    let name_cs: CString = CString::new(name).expect("invalid name");
+    let desc_cs: CString = CString::new(desc).expect("invalid desc");
+    let syntax_cs: CString = CString::new(syntax).expect("invalid syntax");
 
     // We have to do this so the cstrings live long enough.
-    let compat_syntax_ca = Charray::new(compat_syntax).expect("invalid compat_syntax");
+    let compat_syntax_ca: Charray = Charray::new(compat_syntax).expect("invalid compat_syntax");
 
-    let new_mr = slapi_matchingRuleEntry {
+    let new_mr: slapi_matchingRuleEntry = slapi_matchingRuleEntry {
         mr_oid: oid_cs.as_ptr(),
         _mr_oidalias: ptr::null(),
         mr_name: name_cs.as_ptr(),
@@ -58,7 +58,7 @@ pub unsafe fn matchingrule_register(
         mr_compat_syntax: compat_syntax_ca.as_ptr(),
     };
 
-    let new_mr_ptr = &new_mr as *const _;
+    let new_mr_ptr: *const slapi_matchingRuleEntry = &new_mr;
     slapi_matchingrule_register(new_mr_ptr)
 }
 
