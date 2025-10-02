@@ -1826,6 +1826,7 @@ setup_pr_read_pds(Connection_Table *ct, int listnum)
                 } else {
                     if (c->c_threadnumber >= c->c_max_threads_per_conn) {
                         c->c_maxthreadsblocked++;
+                        c->c_flagblocked = PR_TRUE;
                         if (c->c_maxthreadsblocked == 1 && connection_has_psearch(c)) {
                             slapi_log_err(SLAPI_LOG_NOTICE, "connection_threadmain",
                                     "Connection (conn=%" PRIu64 ") has a running persistent search "
