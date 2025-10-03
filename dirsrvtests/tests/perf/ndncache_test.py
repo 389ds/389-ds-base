@@ -10,14 +10,30 @@ import pytest
 import re
 from abc import ABC, abstractmethod
 from ldap.controls.sss import SSSRequestControl
-from lib389._constants import DN_DM, DEFAULT_SUFFIX, PASSWORD, DEFAULT_BENAME
 from lib389.backend import Backends
+from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
 from lib389.config import Config
 from lib389.index import Indexes
+from lib389._mapped_object import DSLdapObject
 from lib389.properties import TASK_WAIT
 from lib389.topologies import topology_st as topo
-from lib389.utils import ldap, os, time, logging, ds_is_older, get_ldapurl_from_serverid
 from statistics import fmean, stdev
+
+from lib389._constants import (
+    DEFAULT_BENAME,
+    DEFAULT_SUFFIX,
+    DN_DM,
+    DN_USERROOT_LDBM,
+    PASSWORD,
+)
+
+from lib389.utils import (
+    ldap, os, time, logging,
+    ds_is_older,
+    ensure_bytes,
+    get_default_db_lib,
+    get_ldapurl_from_serverid,
+)
 
 pytestmark = pytest.mark.tier3
 
@@ -41,8 +57,17 @@ class Scenario:
         self._desc = None
         self._name = None
 
+    def preop(self):
+        # Run before measured operation
+        pass
+
     @abstractmethod
-    def run(self):
+    def op(self):
+        # Operation to measure
+        pass
+
+    def postop(self):
+        # Run after measured operation
         pass
 
     def __str__(self):
@@ -51,6 +76,44 @@ class Scenario:
     def description(self):
         return self._desc
 
+    @staticmethod
+    def average(data):
+        data.sort()
+        log.info(f'RAW DATA: len(data)={len(data)} {data}')
+        assert len(data) >= NB_MEANINGFULL_MEASURES
+        for i in range(len(data)-1, NB_MEANINGFULL_MEASURES-1, -1):
+            del data[i]
+        log.info(f'COOKED DATA: len(data)={len(data)} {data}')
+        m = fmean(data)
+        v = stdev(data, m)
+        v = v/m * 100
+        return ( m, v, str(data) )
+
+
+    def measure(self, inst, conn):
+        name = str(self)
+        log.info(f'Perform {NB_MEASURES} of {name}')
+        data = []
+        self.ldc = conn
+        try:
+            for _ in range(NB_MEASURES):
+                self.preop()
+                with  open(f'{inst.ds_paths.log_dir}/access', 'a+') as logfd:
+                    pos = os.fstat(logfd.fileno()).st_size
+                    self.op()
+                    logfd.seek(pos)
+                    for line in iter(logfd.readline, ''):
+                        res = re.match(r'.*optime=(\d+\.?\d*).*', line)
+                        if res:
+                            data.append(float(res.group(1)))
+                    self.postop()
+            result = Scenario.average(data)
+        except ldap.LDAPError as exc:
+            log.error(f'Scenario {scen} failed because of {exc}')
+            result = ( 0, 0, [] )
+        log.info(f'result (average, normalized standard deviation, data) of {name} is {result}')
+        return result
+
 
 class Scen1(Scenario):
     def __init__(self):
@@ -58,7 +121,7 @@ class Scen1(Scenario):
         self._name = 'scen1'
         self._desc = 'Subtree search'
 
-    def run(self):
+    def op(self):
         basedn = f'ou=Technology,ou=people,{DEFAULT_SUFFIX}'
         result = self.ldc.search_ext_s(
             base=basedn,
@@ -75,7 +138,7 @@ class Scen2(Scenario):
         self._name = 'scen2'
         self._desc = 'Server Side Sorted Subtree search'
 
-    def run(self):
+    def op(self):
         basedn = f'ou=Technology,ou=people,{DEFAULT_SUFFIX}'
         result = self.ldc.search_ext_s(
             base=basedn,
@@ -92,7 +155,7 @@ class Scen3(Scenario):
         self._name = 'scen3'
         self._desc = 'Subtree search with filter equality on dn syntax attribute'
 
-    def run(self):
+    def op(self):
         basedn = f'ou=people,{DEFAULT_SUFFIX}'
         filter = 'modifiersName=uid=bmcdonald,ou=Information Technology,ou=people,dc=example,dc=com'
         result = self.ldc.search_ext_s(
@@ -109,7 +172,7 @@ class Scen4(Scenario):
         self._name = 'scen4'
         self._desc = 'Modify member of large group with substring index'
 
-    def run(self):
+    def op(self):
         basedn = f'cn=all_users,ou=groups,{DEFAULT_SUFFIX}'
         value = b'uid=pwynn,ou=Information Technology,ou=people,dc=example,dc=com'
         mods = [ ( ldap.MOD_DELETE, 'uniqueMember', [value,] ), ]
@@ -124,7 +187,7 @@ class Scen5(Scenario):
         self._name = 'scen5'
         self._desc = 'Modify member of small group with substring index'
 
-    def run(self):
+    def op(self):
         basedn = f'cn=user_admin,ou=permissions,dc=example,dc=com'
         value = b'uid=pwynn,ou=Information Technology,ou=people,dc=example,dc=com'
         mods = [ ( ldap.MOD_DELETE, 'uniqueMember', [value,] ), ]
@@ -133,13 +196,56 @@ class Scen5(Scenario):
         result = self.ldc.modify_s(basedn, mods)
 
 
-SCENARIOS = [ Scen1(), Scen3(), Scen4(), Scen5(), ]
+class Scen6(Scenario):
+    def __init__(self):
+        super().__init__()
+        self._name = 'scen6'
+        self._desc = 'Search non indexed member in 1000 small groups'
+
+    def op(self):
+        basedn = f'ou=tinygroups,ou=groups,dc=example,dc=com'
+        result = self.ldc.search_ext_s(
+            base=basedn,
+            scope=ldap.SCOPE_SUBTREE,
+            filterstr='(member=uid=Xgclements,ou=Quality Assurance,ou=people,dc=example,dc=com)',
+            attrlist=['dn']
+        )
+
+
+class Scen7(Scenario):
+    def __init__(self):
+        super().__init__()
+        self._name = 'scen7'
+        self._desc = 'Search large group with small entrycache'
+
+    def op(self):
+        basedn = 'cn=all_users,ou=groups,dc=example,dc=com'
+        result = self.ldc.search_ext_s(
+            base=basedn,
+            scope=ldap.SCOPE_BASE,
+            filterstr='(objectclass=*)',
+            attrlist=['dn']
+        )
+
+    def preop(self):
+        basedn = f'ou=Technology,ou=people,{DEFAULT_SUFFIX}'
+        result = self.ldc.search_ext_s(
+            base=basedn,
+            scope=ldap.SCOPE_SUBTREE,
+            filterstr='(uid=*)',
+            attrlist=['dn']
+        )
+
+
+SCENARIOS = [ Scen1(), Scen3(), Scen4(), Scen5(), Scen6(), ]
+SCENARIOS_SMALL_ENTRYCACHE = [ Scen7(), ]
+SCENARIOS_SKIPPED = [ Scen2(), ]
 
 
 @pytest.fixture(scope="module")
 def with_indexes(topo):
+    # Add missing indexes (reindex is done by with_ldif fixture)
     inst = topo.standalone
-    # Add missing indexes
     backends = Backends(inst)
     backend = backends.get(DEFAULT_BENAME)
     indexes = backend.get_indexes()
@@ -152,6 +258,9 @@ def with_indexes(topo):
         'nsSystemIndex': 'false',
         'nsIndexType': ['eq']
         })
+
+    index = indexes.get('member')
+    index.delete()
 
 
 @pytest.fixture(scope="module", params=[WITHOUT_CACHE,WITH_CACHE])
@@ -174,34 +283,52 @@ def with_ldif(topo, with_indexes, request):
     return request.param
 
 
-def average(data):
-    data.sort()
-    log.info(f'RAW DATA: {data}')
-    for i in range(NB_MEASURES-1, NB_MEANINGFULL_MEASURES-1, -1):
-        del data[i]
-    log.info(f'COOKED DATA: {data}')
-    m = fmean(data)
-    v = stdev(data, m)
-    v = v/m * 100
-    return ( m, v, str(data) )
+def set_ldap_attribute(conn, dn, attr, val):
+    if val is None:
+        vals = val
+    else:
+        vals = [ ensure_bytes(str(val)), ]
+        conn.modify_s(dn, [(ldap.MOD_REPLACE, attr, vals),])
 
 
-def measure(inst, func):
-    name = str(func)
-    log.info(f'Perform {NB_MEASURES} of {name}')
-    data = []
-    with  open(f'{inst.ds_paths.log_dir}/access', 'a+') as logfd:
-        pos = os.fstat(logfd.fileno()).st_size
-        for _ in range(NB_MEASURES):
-            func.run()
-        logfd.seek(pos)
-        for line in iter(logfd.readline, ''):
-            res = re.match(r'.*optime=(\d+\.?\d*).*', line)
-            if res:
-                data.append(float(res.group(1)))
-    result = average(data)
-    log.info(f'Average result of {name} is {result}')
-    return result
+def open_conn(inst):
+    ldapurl, certdir = get_ldapurl_from_serverid(inst.serverid)
+    assert 'ldapi://' in ldapurl
+    conn = ldap.initialize(ldapurl)
+    conn.sasl_interactive_bind_s("", ldap.sasl.external())
+    return conn
+
+
+@pytest.fixture(scope="function")
+def with_small_entrycache(topo, request):
+    inst = topo.standalone
+    if get_default_db_lib() == 'bdb':
+        xdb_config_ldbm = BDB_LDBMConfig(inst)
+    else:
+        xdb_config_ldbm = LMDB_LDBMConfig(inst)
+    config_ldbm = DSLdapObject(inst, DN_USERROOT_LDBM)
+    conn = open_conn(inst)
+    new_values = {
+        'nsslapd-dbcachesize': 10,
+        'nsslapd-cachememsize': 512000,  # Minimum value
+        'nsslapd-dncachememsize': 100000000,
+    }
+    old_values = { attr: config_ldbm.get_attr_val_utf8(attr) for attr in new_values.keys() }
+    old_autotune = config_ldbm.get_attr_val_utf8('nsslapd-cache-autosize')
+
+    def fin():
+        for k,v in old_values.items():
+            set_ldap_attribute(conn, config_ldbm.dn, k, v)
+        set_ldap_attribute(conn, config_ldbm.dn, 'nsslapd-cache-autosize', old_autotune)
+        set_ldap_attribute(conn, xdb_config_ldbm.dn, 'nsslapd-cache-autosize', old_autotune)
+        conn.unbind_s()
+
+    request.addfinalizer(fin)
+    set_ldap_attribute(conn, xdb_config_ldbm.dn, 'nsslapd-cache-autosize', 0)
+    set_ldap_attribute(conn, config_ldbm.dn, 'nsslapd-cache-autosize', 0)
+    for k,v in new_values.items():
+        set_ldap_attribute(conn, config_ldbm.dn, k, v)
+    return conn
 
 
 def test_run_measure(topo, with_ldif):
@@ -214,22 +341,30 @@ def test_run_measure(topo, with_ldif):
     """
 
     inst = topo.standalone
-    ldapurl, certdir = get_ldapurl_from_serverid(inst.serverid)
-    assert 'ldapi://' in ldapurl
-    conn = ldap.initialize(ldapurl)
-    conn.sasl_interactive_bind_s("", ldap.sasl.external())
-    sss_control = SSSRequestControl(criticality=True, ordering_rules=['modifiersName'])
-
+    conn = open_conn(inst)
     for scen in SCENARIOS:
-        scen.ldc = conn
-        try:
-            v = measure(inst, scen)
-        except ldap.LDAPError as exc:
-            log.error(f'Scenario {scen} failed because of {exc}')
-            v = ( 0, 0 )
+        v = scen.measure(inst, conn)
         log.info(f'Set results ({with_ldif},{scen}): {v}')
         scen.results[with_ldif] = v
+    conn.unbind_s()
 
+
+def test_run_measure_with_small_entrycache(topo, with_ldif, with_small_entrycache):
+    """Perform the measure on scenarios with small entrycache and record the result
+
+    :id: 4290cc9c-a081-11f0-bc19-c85309d5c3e3
+    :setup: Standalone instance
+    :steps: 1. measure average optime for each sceanrios
+    :expectedresults: no exception should occur
+    """
+
+    inst = topo.standalone
+    conn = with_small_entrycache
+    for scen in SCENARIOS_SMALL_ENTRYCACHE:
+        v = scen.measure(inst, conn)
+        log.info(f'Set results ({with_ldif},{scen}): {v}')
+        scen.results[with_ldif] = v
+    # conn.unbind_s is done by with_small_entrycache teardown
 
 def test_log_results():
     """Perform the measure on all scenarios and record the result
@@ -248,7 +383,7 @@ def test_log_results():
     with open(fname, 'w') as fout:
         fout.write(f'SCENARIO\tVALUE WITHOUT CACHE\tVALUE WITH CACHE\tGAIN\tDEVIATION WITHOUT CACHE\tDEVIATION WITH CACHE\tTEST DESCRIPTION\n')
         # fout.write(f'SCENARIO\tVALUE WITHOUT CACHE\tVALUE WITH CACHE\tGAIN\tDEVIATION WITHOUT CACHE\tVDEVIATION WITH CACHE\tTEST DESCRIPTION\tDATA WITHOUT CACHE\tDATA WITH CACHE\n')
-        for scen in SCENARIOS:
+        for scen in SCENARIOS + SCENARIOS_SMALL_ENTRYCACHE:
             m1, v1, d1 = scen.results[WITHOUT_CACHE]
             m2, v2, d2 = scen.results[WITH_CACHE]
             gain = ( m1 - m2 ) / m1 * 100 if m1 > 0 else '###'
