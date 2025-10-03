@@ -1007,6 +1007,8 @@ index_read_ext_allids(
     }
     if (pb) {
         slapi_pblock_get(pb, SLAPI_SEARCH_IS_AND, &is_and);
+    } else if (strcasecmp(type, LDBM_ANCESTORID_STR) == 0) {
+        is_and = 1;
     }
     ai_flags = is_and ? INDEX_ALLIDS_FLAG_AND : 0;
     /* the caller can pass in a value of 0 - just ignore those - but if the index
