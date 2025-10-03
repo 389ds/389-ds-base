@@ -305,19 +305,19 @@ def test_search_success(topology_st, create_user, page_size, users_num):
     del_users(users_list)
 
 
-@pytest.mark.parametrize("page_size,users_num,suffix,attr_name,attr_value,expected_err", [
+@pytest.mark.parametrize("page_size,users_num,suffix,attr_name,attr_value,expected_err, restart", [
     (50, 200, 'cn=config,%s' % DN_LDBM, 'nsslapd-idlistscanlimit', '100',
-     ldap.UNWILLING_TO_PERFORM),
+     ldap.UNWILLING_TO_PERFORM, True),
     (5, 15, DN_CONFIG, 'nsslapd-timelimit', '20',
-     ldap.UNAVAILABLE_CRITICAL_EXTENSION),
+     ldap.UNAVAILABLE_CRITICAL_EXTENSION, False),
     (21, 50, DN_CONFIG, 'nsslapd-sizelimit', '20',
-     ldap.SIZELIMIT_EXCEEDED),
+     ldap.SIZELIMIT_EXCEEDED, False),
     (21, 50, DN_CONFIG, 'nsslapd-pagedsizelimit', '5',
-     ldap.SIZELIMIT_EXCEEDED),
+     ldap.SIZELIMIT_EXCEEDED, False),
     (5, 50, 'cn=config,%s' % DN_LDBM, 'nsslapd-lookthroughlimit', '20',
-     ldap.ADMINLIMIT_EXCEEDED)])
+     ldap.ADMINLIMIT_EXCEEDED, False)])
 def test_search_limits_fail(topology_st, create_user, page_size, users_num,
-                            suffix, attr_name, attr_value, expected_err):
+                            suffix, attr_name, attr_value, expected_err, restart):
     """Verify that search with a simple paged results control
     throws expected exceptoins when corresponding limits are
     exceeded.
@@ -339,6 +339,15 @@ def test_search_limits_fail(topology_st, create_user, page_size, users_num,
 
     users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     attr_value_bck = change_conf_attr(topology_st, suffix, attr_name, attr_value)
+    ancestorid_index = None
+    if attr_name == 'nsslapd-idlistscanlimit':
+        backend = Backends(topology_st.standalone).get_backend(DEFAULT_SUFFIX)
+        ancestorid_index = backend.get_index('ancestorid')
+        ancestorid_index.replace("nsIndexIDListScanLimit", ensure_bytes("limit=100 type=eq flags=AND"))
+
+    if (restart):
+        log.info('Instance restarted')
+        topology_st.standalone.restart()
     conf_param_dict = {attr_name: attr_value}
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
@@ -391,6 +400,8 @@ def test_search_limits_fail(topology_st, create_user, page_size, users_num,
             else:
                 break
     finally:
+        if ancestorid_index:
+            ancestorid_index.replace("nsIndexIDListScanLimit", ensure_bytes("limit=5000 type=eq flags=AND"))
         del_users(users_list)
         change_conf_attr(topology_st, suffix, attr_name, attr_value_bck)
 

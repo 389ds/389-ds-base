@@ -16,7 +16,7 @@
 
 /* Forward declarations */
 static void ldbm_instance_destructor(void **arg);
-Slapi_Entry *ldbm_instance_init_config_entry(char *cn_val, char *v1, char *v2, char *v3, char *v4, char *mr);
+Slapi_Entry *ldbm_instance_init_config_entry(char *cn_val, char *v1, char *v2, char *v3, char *v4, char *mr, char *scanlimit);
 
 
 /* Creates and initializes a new ldbm_instance structure.
@@ -127,7 +127,7 @@ done:
  * Take a bunch of strings, and create a index config entry
  */
 Slapi_Entry *
-ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3, char *val4, char *mr)
+ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3, char *val4, char *mr, char *scanlimit)
 {
     Slapi_Entry *e = slapi_entry_alloc();
     struct berval *vals[2];
@@ -168,6 +168,11 @@ ldbm_instance_init_config_entry(char *cn_val, char *val1, char *val2, char *val3
         slapi_entry_add_values(e, "nsMatchingRule", vals);
     }
 
+    if (scanlimit) {
+        val.bv_val = scanlimit;
+        val.bv_len = strlen(scanlimit);
+        slapi_entry_add_values(e, "nsIndexIDListScanLimit", vals);
+    }
     return e;
 }
 
@@ -180,8 +185,59 @@ ldbm_instance_create_default_indexes(backend *be)
 {
     Slapi_Entry *e;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     /* write the dse file only on the final index */
     int flags = LDBM_INSTANCE_CONFIG_DONT_WRITE;
+    char *ancestorid_indexes_limit = NULL;
+    char *parentid_indexes_limit = NULL;
+    struct attrinfo *ai = NULL;
+    struct index_idlistsizeinfo *iter;
+    int cookie;
+    int limit;
+
+    ainfo_get(be, (char *)LDBM_ANCESTORID_STR, &ai);
+    if (ai && ai->ai_idlistinfo) {
+        iter = (struct index_idlistsizeinfo *)dl_get_first(ai->ai_idlistinfo, &cookie);
+        if (iter) {
+            limit = iter->ai_idlistsizelimit;
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_instance_create_default_indexes",
+                      "set ancestorid limit to %d from attribute index\n",
+                      limit);
+        } else {
+            limit = li->li_system_allidsthreshold;
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_instance_create_default_indexes",
+                      "set ancestorid limit to %d from default (fail to read limit)\n",
+                      limit);
+        }
+        ancestorid_indexes_limit = slapi_ch_smprintf("limit=%d type=eq flags=AND", limit);
+    } else {
+        ancestorid_indexes_limit = slapi_ch_smprintf("limit=%d type=eq flags=AND", li->li_system_allidsthreshold);
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_instance_create_default_indexes",
+                      "set ancestorid limit to %d from default (no attribute or limit)\n",
+                      li->li_system_allidsthreshold);
+    }
+
+    ainfo_get(be, (char *)LDBM_PARENTID_STR, &ai);
+    if (ai && ai->ai_idlistinfo) {
+        iter = (struct index_idlistsizeinfo *)dl_get_first(ai->ai_idlistinfo, &cookie);
+        if (iter) {
+            limit = iter->ai_idlistsizelimit;
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_instance_create_default_indexes",
+                      "set parentid limit to %d from attribute index\n",
+                      limit);
+        } else {
+            limit = li->li_system_allidsthreshold;
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_instance_create_default_indexes",
+                      "set parentid limit to %d from default (fail to read limit)\n",
+                      limit);
+        }
+        parentid_indexes_limit = slapi_ch_smprintf("limit=%d type=eq flags=AND", limit);
+    } else {
+        parentid_indexes_limit = slapi_ch_smprintf("limit=%d type=eq flags=AND", li->li_system_allidsthreshold);
+        slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_instance_create_default_indexes",
+                      "set parentid limit to %d from default (no attribute or limit)\n",
+                      li->li_system_allidsthreshold);
+    }
 
     /*
      * Always index (entrydn or entryrdn), parentid, objectclass,
@@ -190,24 +246,29 @@ ldbm_instance_create_default_indexes(backend *be)
      * ACL routines.
      */
     if (entryrdn_get_switch()) { /* subtree-rename: on */
-        e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR, "subtree", 0, 0, 0, 0);
+        e = ldbm_instance_init_config_entry(LDBM_ENTRYRDN_STR, "subtree", 0, 0, 0, 0, 0);
         ldbm_instance_config_add_index_entry(inst, e, flags);
         slapi_entry_free(e);
     } else {
-        e = ldbm_instance_init_config_entry(LDBM_ENTRYDN_STR, "eq", 0, 0, 0, 0);
+        e = ldbm_instance_init_config_entry(LDBM_ENTRYDN_STR, "eq", 0, 0, 0, 0, 0);
         ldbm_instance_config_add_index_entry(inst, e, flags);
         slapi_entry_free(e);
     }
 
-    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
+    e = ldbm_instance_init_config_entry(LDBM_PARENTID_STR, "eq", 0, 0, 0, "integerOrderingMatch", parentid_indexes_limit);
+    ldbm_instance_config_add_index_entry(inst, e, flags);
+    attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
+    slapi_entry_free(e);
+
+    e = ldbm_instance_init_config_entry("objectclass", "eq", 0, 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry("objectclass", "eq", 0, 0, 0, 0);
+    e = ldbm_instance_init_config_entry("aci", "pres", 0, 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry("aci", "pres", 0, 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_NUMSUBORDINATES_STR, "pres", 0, 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
@@ -221,22 +282,22 @@ ldbm_instance_create_default_indexes(backend *be)
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
-    e = ldbm_instance_init_config_entry(SLAPI_ATTR_UNIQUEID, "eq", 0, 0, 0, 0);
+    e = ldbm_instance_init_config_entry(SLAPI_ATTR_UNIQUEID, "eq", 0, 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* For MMR, we need this attribute (to replace use of dncomp in delete). */
-    e = ldbm_instance_init_config_entry(ATTR_NSDS5_REPLCONFLICT, "eq", "pres", 0, 0, 0);
+    e = ldbm_instance_init_config_entry(ATTR_NSDS5_REPLCONFLICT, "eq", "pres", 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* write the dse file only on the final index */
-    e = ldbm_instance_init_config_entry(SLAPI_ATTR_NSCP_ENTRYDN, "eq", 0, 0, 0, 0);
+    e = ldbm_instance_init_config_entry(SLAPI_ATTR_NSCP_ENTRYDN, "eq", 0, 0, 0, 0, 0);
     ldbm_instance_config_add_index_entry(inst, e, flags);
     slapi_entry_free(e);
 
     /* ldbm_instance_config_add_index_entry(inst, 2, argv); */
-    e = ldbm_instance_init_config_entry(LDBM_PSEUDO_ATTR_DEFAULT, "none", 0, 0, 0, 0);
+    e = ldbm_instance_init_config_entry(LDBM_PSEUDO_ATTR_DEFAULT, "none", 0, 0, 0, 0, 0);
     attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
     slapi_entry_free(e);
 
@@ -245,10 +306,14 @@ ldbm_instance_create_default_indexes(backend *be)
          * ancestorid is special, there is actually no such attr type
          * but we still want to use the attr index file APIs.
          */
-        e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch");
+        e = ldbm_instance_init_config_entry(LDBM_ANCESTORID_STR, "eq", 0, 0, 0, "integerOrderingMatch", ancestorid_indexes_limit);
+        ldbm_instance_config_add_index_entry(inst, e, flags);
         attr_index_config(be, "ldbm index init", 0, e, 1, 0, NULL);
         slapi_entry_free(e);
     }
+
+    slapi_ch_free_string(&ancestorid_indexes_limit);
+    slapi_ch_free_string(&parentid_indexes_limit);
 
     return 0;
 }
