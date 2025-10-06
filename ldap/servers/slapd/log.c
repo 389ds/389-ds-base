@@ -192,8 +192,12 @@ compress_log_file(char *log_name, int32_t mode)
      * compressed content.
      */
     if ((fd = open(gzip_log, O_WRONLY|O_CREAT|O_TRUNC, mode)) >= 0) {
-        /* FIle successfully created, now pass the FD to gzdopen() */
+        /* File successfully created, now pass the FD to gzdopen() */
         outfile = gzdopen(fd, "ab");
+        if (outfile == NULL) {
+            close(fd);
+            return -1;
+        }
     } else {
         return -1;
     }
