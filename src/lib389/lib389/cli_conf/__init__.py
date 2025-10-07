@@ -1,11 +1,12 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 import ldap
+import json
 from lib389 import ensure_list_str
 from lib389.cli_base import CustomHelpFormatter
 
@@ -22,6 +23,10 @@ def _args_to_attrs(args, arg_to_attr):
             value = ldap.dn.str2dn(val)[0][0][1]
             attrs[attribute] = value
     return attrs
+
+
+def _get_json_msg(plugin, msg):
+    return json.dumps({"plugin": plugin, "msg": msg})
 
 
 def generic_object_add(dsldap_objects_class, inst, log, args, arg_to_attr, dn=None, basedn=None, props={}):
@@ -142,33 +147,54 @@ def generic_object_edit(dsldap_object, log, args, arg_to_attr):
 def generic_show(inst, basedn, log, args):
     """Display plugin configuration."""
     plugin = args.plugin_cls(inst)
-    log.info(plugin.display())
+    if args.json:
+        log.info(plugin.get_all_attrs_json())
+    else:
+        log.info(plugin.display())
 
 
 def generic_enable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if plugin.status():
-        log.info("Plugin '%s' already enabled" % plugin.rdn)
+        if args.json:
+            log.info(_get_json_msg(plugin.rdn, "already enabled"))
+        else:
+            log.info("Plugin '%s' already enabled", plugin.rdn)
     else:
         plugin.enable()
-        log.info("Enabled plugin '%s'" % plugin.rdn)
+        if args.json:
+            log.info(_get_json_msg(plugin.rdn, "enabled"))
+        else:
+            log.info("Enabled plugin '%s'", plugin.rdn)
 
 
 def generic_disable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if not plugin.status():
-        log.info("Plugin '%s' already disabled" % plugin.rdn)
+        if args.json:
+            log.info(_get_json_msg(plugin.rdn, "already disabled"))
+        else:
+            log.info("Plugin '%s' already disabled", plugin.rdn)
     else:
         plugin.disable()
-        log.info("Disabled plugin '%s'" % plugin.rdn)
+        if args.json:
+            log.info(_get_json_msg(plugin.rdn, "disabled"))
+        else:
+            log.info("Disabled plugin '%s'", plugin.rdn)
 
 
 def generic_status(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if plugin.status() is True:
-        log.info("Plugin '%s' is enabled" % plugin.rdn)
+        if args.json:
+            log.info(_get_json_msg(plugin.rdn, "enabled"))
+        else:
+            log.info("Plugin '%s' is enabled", plugin.rdn)
     else:
-        log.info("Plugin '%s' is disabled" % plugin.rdn)
+        if args.json:
+            log.info(_get_json_msg(plugin.rdn, "disabled"))
+        else:
+            log.info("Plugin '%s' is disabled", plugin.rdn)
 
 
 def add_generic_plugin_parsers(subparser, plugin_cls):
@@ -183,5 +209,3 @@ def add_generic_plugin_parsers(subparser, plugin_cls):
 
     status_parser = subparser.add_parser('status', help='Displays the plugin status', formatter_class=CustomHelpFormatter)
     status_parser.set_defaults(func=generic_status, plugin_cls=plugin_cls)
-
-
