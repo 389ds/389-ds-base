@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2023 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -7,7 +7,6 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import json
 import ldap
 from lib389.plugins import MemberOfPlugin, MemberOfSharedConfig, MemberOfFixupTasks
 from lib389.utils import get_task_status
@@ -25,7 +24,10 @@ arg_to_attr = {
     'autoaddoc': 'memberOfAutoAddOC',
     'deferredupdate': 'memberOfDeferredUpdate',
     'launchfixup': 'memberOfLaunchFixup',
-    'config_entry': 'nsslapd-pluginConfigArea'
+    'config_entry': 'nsslapd-pluginConfigArea',
+    'specific_group_filter': 'memberOfSpecificGroupFilter',
+    'exclude_specific_group_filter': 'memberOfExcludeSpecificGroupFilter',
+    'specific_group_oc': 'memberOfSpecificGroupOC',
 }
 
 
@@ -89,7 +91,7 @@ def do_fixup(inst, basedn, log, args):
         fixup_task.wait(timeout=args.timeout)
         exitcode = fixup_task.get_exit_code()
         if exitcode != 0:
-            if existcode is None:
+            if exitcode is None:
                 raise ValueError(f'MemberOf fixup task "{fixup_task.dn}" for {args.DN} has not completed. Please, check logs')
             else:
                 raise ValueError(f'MemberOf fixup task "{fixup_task.dn}" for {args.DN} has failed (error {exitcode}). Please, check logs')
@@ -120,6 +122,12 @@ def _add_parser_args(parser):
                                                    'for the MemberOf plug-in to work on (memberOfEntryScope)')
     parser.add_argument('--exclude', nargs='+', help='Specifies backends or multiple-nested suffixes '
                                                      'for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)')
+    parser.add_argument('--specific-group-filter', nargs='+',
+                        help='Specifies a filter for groups to include. Otherwise all other groups will be excluded (memberOfSpecificGroup)')
+    parser.add_argument('--exclude-specific-group-filter', nargs='+',
+                        help='Specifies a filter for groups to exclude. Otherwise all other groups will be included (memberOfExcludeSpecificGroup)')
+    parser.add_argument('--specific-group-oc', nargs='+',
+                        help='Specifies the objectclasses for the specific groups to include/exclude. Otherwise all other groups will be excluded (memberOfSpecificGroupOC)')
     parser.add_argument('--autoaddoc', type=str.lower,
                         help='If an entry does not have an object class that allows the memberOf attribute '
                              'then the memberOf plugin will automatically add the object class listed '
