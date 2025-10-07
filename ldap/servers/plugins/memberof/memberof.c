@@ -107,6 +107,13 @@ typedef struct _task_data
     char *filter_str;
 } task_data;
 
+typedef struct _MemberofEntryInfo
+{
+    Slapi_Entry *e;
+    Slapi_DN *sdn;
+    bool group;
+} MemberofEntryInfo;
+
 /*** function prototypes ***/
 
 /* exported functions */
@@ -144,18 +151,18 @@ static void memberof_set_plugin_id(void *plugin_id);
 static int memberof_compare(MemberOfConfig *config, const void *a, const void *b);
 static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
-static int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn);
-static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache);
+static int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *sdn);
+static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn, Slapi_Value *memberdn);
 static int memberof_is_grouping_attr(char *type, MemberOfConfig *config);
-static Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn);
-static int memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn, memberof_get_groups_data *data);
+static Slapi_ValueSet *memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn);
+static int memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn, memberof_get_groups_data *data);
 static int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *group_sdn);
 static int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data);
-static int memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *pre_sdn, Slapi_DN *post_sdn);
+static int memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_Entry *pre_e, Slapi_DN *pre_sdn, Slapi_DN *post_sdn);
 static int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn, Slapi_DN *replace_with_sdn, Slapi_DN *op_to_sdn, memberofstringll *stack);
 static int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static void memberof_task_destructor(Slapi_Task *task);
@@ -163,13 +170,14 @@ static void memberof_fixup_task_thread(void *arg);
 static int memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *td);
 static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_fixup_memberof_callback(Slapi_Entry *e, void *callback_data);
-static int memberof_entry_in_scope(MemberOfConfig *config, Slapi_DN *sdn);
+static int memberof_entry_in_scope(MemberOfConfig *config, MemberofEntryInfo *entry_info);
 static int memberof_add_objectclass(char *auto_add_oc, const char *dn);
 static int memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc);
 static memberof_cached_value *ancestors_cache_lookup(MemberOfConfig *config, const char *ndn);
 static PRBool ancestors_cache_remove(MemberOfConfig *config, const char *ndn);
 static PLHashEntry *ancestors_cache_add(MemberOfConfig *config, const void *key, void *value);
-
+static void memberof_set_entry_info(Slapi_Entry *e, MemberOfConfig *config, MemberofEntryInfo *entry_info);
+static int memberof_test_specific_filters(MemberOfConfig *config, MemberofEntryInfo *entry_info);
 /*** implementation ***/
 
 
@@ -348,6 +356,30 @@ memberof_internal_postop_init(Slapi_PBlock *pb)
     return status;
 }
 
+static void
+memberof_set_entry_info(Slapi_Entry *e, MemberOfConfig *config, MemberofEntryInfo *entry_info)
+{
+    entry_info->e = e;
+    entry_info->sdn = slapi_entry_get_sdn(e);
+    entry_info->group = false;
+
+    if (!config) {
+        /* No config means to "always" treat this entry as a group */
+        entry_info->group = true;
+        return;
+    }
+
+    if (config->specificGroupFilter || config->excludeSpecificGroupFilter) {
+        /* Only set entry info if we have specific group filters defined */
+        for (size_t i = 0; config->specificGroupOC && config->specificGroupOC[i]; i++) {
+            if (slapi_entry_attr_hasvalue(e, "objectClass", config->specificGroupOC[i])) {
+                entry_info->group = true;
+                return;
+            }
+        }
+    }
+}
+
 /* Caller must hold deferred_list->deferred_list_mutex
  * deferred_list is FIFO
  */
@@ -428,6 +460,7 @@ typedef struct _memberof_del_dn_data
 {
     char *dn;
     char *type;
+    MemberOfConfig *config;
 } memberof_del_dn_data;
 
 int
@@ -436,6 +469,8 @@ deferred_modrdn_func(MemberofDeferredModrdnTask *task)
     Slapi_PBlock *pb;
     MemberOfConfig *mainConfig = 0;
     MemberOfConfig configCopy = {0};
+    MemberofEntryInfo pre_entry_info = {0};
+    MemberofEntryInfo post_entry_info = {0};
     struct slapi_entry *pre_e = NULL;
     struct slapi_entry *post_e = NULL;
     Slapi_DN *pre_sdn = 0;
@@ -471,8 +506,10 @@ deferred_modrdn_func(MemberofDeferredModrdnTask *task)
     memberof_unlock_config();
 
     /* Need to check both the pre/post entries */
-    if ((pre_sdn && !memberof_entry_in_scope(&configCopy, pre_sdn)) &&
-        (post_sdn && !memberof_entry_in_scope(&configCopy, post_sdn)))
+    memberof_set_entry_info(pre_e, NULL, &pre_entry_info);
+    memberof_set_entry_info(post_e, NULL, &post_entry_info);
+    if ((pre_sdn && !memberof_entry_in_scope(&configCopy, &pre_entry_info)) &&
+        (post_sdn && !memberof_entry_in_scope(&configCopy, &post_entry_info)))
     {
         /* The entry is not in scope */
         goto bail;
@@ -502,17 +539,17 @@ deferred_modrdn_func(MemberofDeferredModrdnTask *task)
      * of other group entries.  We need to update any member
      * attributes to refer to the new name. */
     if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
-        if (!memberof_entry_in_scope(&configCopy, post_sdn)) {
+        if (!memberof_entry_in_scope(&configCopy, &post_entry_info)) {
             /*
              * After modrdn the group contains both the pre and post DN's as
              * members, so we need to cleanup both in this case.
              */
-            if ((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_sdn))) {
+            if ((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_e, pre_sdn))) {
                 slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                               "deferred_modrdn_func - Delete dn failed for preop entry(%s), error (%d)\n",
                               slapi_sdn_get_dn(pre_sdn), ret);
             }
-            if ((ret = memberof_del_dn_from_groups(pb, &configCopy, post_sdn))) {
+            if ((ret = memberof_del_dn_from_groups(pb, &configCopy, post_e, post_sdn))) {
                 slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                               "deferred_modrdn_func - Delete dn failed for postop entry(%s), error (%d)\n",
                               slapi_sdn_get_dn(post_sdn), ret);
@@ -536,7 +573,7 @@ deferred_modrdn_func(MemberofDeferredModrdnTask *task)
                 }
             }
             if (ret == LDAP_SUCCESS) {
-                memberof_del_dn_data del_data = {0, configCopy.memberof_attr};
+                memberof_del_dn_data del_data = {0, configCopy.memberof_attr, &configCopy};
                 if ((ret = memberof_del_dn_type_callback(post_e, &del_data))) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                                   "deferred_modrdn_func - Delete dn callback failed for (%s), error (%d)\n",
@@ -544,7 +581,7 @@ deferred_modrdn_func(MemberofDeferredModrdnTask *task)
                 }
             }
         } else {
-            if ((ret = memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn))) {
+            if ((ret = memberof_replace_dn_from_groups(pb, &configCopy, pre_e, pre_sdn, post_sdn))) {
                 slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                               "deferred_modrdn_func - Replace dn failed for (%s), error (%d)\n",
                               slapi_sdn_get_dn(pre_sdn), ret);
@@ -580,6 +617,7 @@ deferred_del_func(MemberofDeferredDelTask *task)
     MemberOfConfig configCopy = {0};
     PRBool free_configCopy = PR_FALSE;
     MemberOfConfig *mainConfig;
+    MemberofEntryInfo entry_info = {0};
     int ret = SLAPI_PLUGIN_SUCCESS;
 
     pb = task->pb;
@@ -590,7 +628,8 @@ deferred_del_func(MemberofDeferredDelTask *task)
 
     memberof_rlock_config();
     mainConfig = memberof_get_config();
-    if (!memberof_entry_in_scope(mainConfig, slapi_entry_get_sdn(e))) {
+    memberof_set_entry_info(e, NULL, &entry_info);
+    if (!memberof_entry_in_scope(mainConfig, &entry_info)) {
         /* The entry is not in scope, bail...*/
         memberof_unlock_config();
         goto bail;
@@ -602,7 +641,7 @@ deferred_del_func(MemberofDeferredDelTask *task)
     /* remove this DN from the
      * membership lists of groups
      */
-    if ((ret = memberof_del_dn_from_groups(pb, &configCopy, sdn))) {
+    if ((ret = memberof_del_dn_from_groups(pb, &configCopy, e, sdn))) {
         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                 "deferred_del_func - Error deleting dn (%s) from group. Error (%d)\n",
                 slapi_sdn_get_dn(sdn), ret);
@@ -652,6 +691,7 @@ deferred_add_func(MemberofDeferredAddTask *task)
     Slapi_DN *sdn = 0;
     MemberOfConfig configCopy = {0};
     MemberOfConfig *mainConfig;
+    MemberofEntryInfo entry_info = {0};
     int interested = 0;
     int ret = SLAPI_PLUGIN_SUCCESS;
 
@@ -669,7 +709,8 @@ deferred_add_func(MemberofDeferredAddTask *task)
         0 == slapi_filter_test_simple(e, mainConfig->group_filter))
     {
         interested = 1;
-        if (!memberof_entry_in_scope(mainConfig, slapi_entry_get_sdn(e))) {
+        memberof_set_entry_info(e, NULL, &entry_info);
+        if (!memberof_entry_in_scope(mainConfig, &entry_info)) {
             /* Entry is not in scope */
             memberof_unlock_config();
             goto bail;
@@ -726,6 +767,7 @@ deferred_mod_func(MemberofDeferredModTask *task)
     int config_copied = 0;
     MemberOfConfig *mainConfig = 0;
     MemberOfConfig configCopy = {0};
+    MemberofEntryInfo entry_info = {0};
 
     pb = task->pb;
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
@@ -751,7 +793,8 @@ deferred_mod_func(MemberofDeferredModTask *task)
             mainConfig = memberof_get_config();
             if (memberof_is_grouping_attr(type, mainConfig)) {
                 interested = 1;
-                if (!memberof_entry_in_scope(mainConfig, sdn)) {
+                memberof_set_entry_info(pre_e, NULL, &entry_info);
+                if (!memberof_entry_in_scope(mainConfig, &entry_info)) {
                     /* Entry is not in scope */
                     memberof_unlock_config();
                     goto bail;
@@ -1027,7 +1070,7 @@ deferred_thread_func(void *arg)
         if (memberof_get_config()->launch_fixup) {
             if (perform_needed_fixup()) {
                 slapi_log_err(SLAPI_LOG_ALERT, MEMBEROF_PLUGIN_SUBSYSTEM,
-                        "Failure occurred during global fixup task: memberof values are invalid\n");
+                              "Failure occurred during global fixup task: memberof values are invalid\n");
             }
         } else {
             slapi_log_err(SLAPI_LOG_WARNING, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -1348,6 +1391,7 @@ memberof_postop_del(Slapi_PBlock *pb)
     int ret = SLAPI_PLUGIN_SUCCESS;
     MemberOfConfig *mainConfig = NULL;
     MemberOfConfig configCopy = {0};
+    MemberofEntryInfo entry_info = {0};
     Slapi_DN *sdn;
     void *caller_id = NULL;
 
@@ -1404,7 +1448,8 @@ memberof_postop_del(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
         memberof_rlock_config();
         mainConfig = memberof_get_config();
-        if (!memberof_entry_in_scope(mainConfig, slapi_entry_get_sdn(e))) {
+        memberof_set_entry_info(e, NULL, &entry_info);
+        if (!memberof_entry_in_scope(mainConfig, &entry_info)) {
             /* The entry is not in scope, bail...*/
             memberof_unlock_config();
             goto bail;
@@ -1415,7 +1460,7 @@ memberof_postop_del(Slapi_PBlock *pb)
         /* remove this DN from the
          * membership lists of groups
          */
-        if ((ret = memberof_del_dn_from_groups(pb, &configCopy, sdn))) {
+        if ((ret = memberof_del_dn_from_groups(pb, &configCopy, e, sdn))) {
             slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                           "memberof_postop_del - Error deleting dn (%s) from group. Error (%d)\n",
                           slapi_sdn_get_dn(sdn), ret);
@@ -1454,7 +1499,7 @@ done:
 
 /* Deletes a member dn from all groups that refer to it. */
 static int
-memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn)
+memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *sdn)
 {
     char *groupattrs[2] = {0, 0};
     int rc = LDAP_SUCCESS;
@@ -1465,7 +1510,7 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *
      * same grouping attribute. */
     for (size_t i = 0; config->groupattrs && config->groupattrs[i] && rc == LDAP_SUCCESS; i++) {
         memberof_del_dn_data data = {(char *)slapi_sdn_get_dn(sdn),
-                                     config->groupattrs[i]};
+                                     config->groupattrs[i], config};
 
         groupattrs[0] = config->groupattrs[i];
 
@@ -1473,7 +1518,7 @@ memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *
                 "memberof_del_dn_from_groups: Ancestors of %s   attr: %s\n",
                 slapi_sdn_get_dn(sdn),
                 groupattrs[0]);
-        rc = memberof_call_foreach_dn(pb, sdn, config, groupattrs,
+        rc = memberof_call_foreach_dn(pb, e, sdn, config, groupattrs,
                                       memberof_del_dn_type_callback, &data, &cached, PR_FALSE);
     }
 
@@ -1488,6 +1533,13 @@ memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
     LDAPMod *mods[2];
     char *val[2];
     Slapi_PBlock *mod_pb = 0;
+    MemberOfConfig *config = ((memberof_del_dn_data *)callback_data)->config;
+    MemberofEntryInfo entry_info = {0};
+
+    memberof_set_entry_info(e, config, &entry_info);
+    if (memberof_test_specific_filters(config, &entry_info) == 0) {
+        return 0;
+    }
 
     mod_pb = slapi_pblock_new();
 
@@ -1574,11 +1626,12 @@ add_ancestors_cbdata(memberof_cached_value *ancestors, void *callback_data)
  * could want type to be either "member" or "memberOf" depending on the case.
  */
 int
-memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache)
+memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *e, Slapi_DN *sdn, MemberOfConfig *config, char **types, plugin_search_entry_callback callback, void *callback_data, int *cached, PRBool use_grp_cache)
 {
     Slapi_PBlock *search_pb = NULL;
     Slapi_DN *base_sdn = NULL;
     Slapi_Backend *be = NULL;
+    MemberofEntryInfo entry_info = {0};
     char *escaped_filter_val;
     char *filter_str = NULL;
     char *cookie = NULL;
@@ -1589,8 +1642,11 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
 
     *cached = 0;
 
-    if (!memberof_entry_in_scope(config, sdn)) {
-        return (rc);
+    if (e) {
+        memberof_set_entry_info(e, config, &entry_info);
+    } else {
+        entry_info.sdn = sdn;
+        entry_info.group = false;
     }
 
     /* This flags indicates memberof_call_foreach_dn is called to retrieve ancestors (groups).
@@ -1620,6 +1676,11 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
 #if MEMBEROF_CACHE_DEBUG
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_call_foreach_dn: Ancestors of %s not cached\n", slapi_sdn_get_ndn(sdn));
 #endif
+
+    /* After the cache is processed, check if the entry is in scope */
+    if (!memberof_entry_in_scope(config, &entry_info)) {
+        return (rc);
+    }
 
     /* Escape the dn, and build the search filter. */
     escaped_filter_val = slapi_escape_filter_value((char *)slapi_sdn_get_dn(sdn), dn_len);
@@ -1660,7 +1721,9 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
 
             search_pb = slapi_pblock_new();
             if (config->entryScopes || config->entryScopeExcludeSubtrees) {
-                if (memberof_entry_in_scope(config, base_sdn)) {
+                entry_info.sdn = base_sdn;
+                entry_info.group = false;
+                if (memberof_entry_in_scope(config, &entry_info)) {
                     /* do nothing, entry scope is spanning
                      * multiple suffixes, start at suffix */
                 } else if (config->entryScopes) {
@@ -1743,6 +1806,8 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
     if (memberof_oktodo(pb)) {
         MemberOfConfig *mainConfig = 0;
         MemberOfConfig configCopy = {0};
+        MemberofEntryInfo pre_entry_info = {0};
+        MemberofEntryInfo post_entry_info = {0};
         struct slapi_entry *pre_e = NULL;
         struct slapi_entry *post_e = NULL;
         Slapi_DN *pre_sdn = 0;
@@ -1816,8 +1881,10 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
         memberof_unlock_config();
 
         /* Need to check both the pre/post entries */
-        if ((pre_sdn && !memberof_entry_in_scope(&configCopy, pre_sdn)) &&
-            (post_sdn && !memberof_entry_in_scope(&configCopy, post_sdn))) {
+        memberof_set_entry_info(pre_e, NULL, &pre_entry_info);
+        memberof_set_entry_info(post_e, NULL, &post_entry_info);
+        if ((pre_sdn && !memberof_entry_in_scope(&configCopy, &pre_entry_info)) &&
+            (post_sdn && !memberof_entry_in_scope(&configCopy, &post_entry_info))) {
             /* The entry is not in scope */
             goto bail;
         }
@@ -1845,17 +1912,17 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
          * of other group entries.  We need to update any member
          * attributes to refer to the new name. */
         if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
-            if (!memberof_entry_in_scope(&configCopy, post_sdn)) {
+            if (!memberof_entry_in_scope(&configCopy, &post_entry_info)) {
                 /*
                  * After modrdn the group contains both the pre and post DN's as
                  * members, so we need to cleanup both in this case.
                  */
-                if ((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_sdn))) {
+                if ((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_e, pre_sdn))) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                                   "memberof_postop_modrdn - Delete dn failed for preop entry(%s), error (%d)\n",
                                   slapi_sdn_get_dn(pre_sdn), ret);
                 }
-                if ((ret = memberof_del_dn_from_groups(pb, &configCopy, post_sdn))) {
+                if ((ret = memberof_del_dn_from_groups(pb, &configCopy, post_e, post_sdn))) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                                   "memberof_postop_modrdn - Delete dn failed for postop entry(%s), error (%d)\n",
                                   slapi_sdn_get_dn(post_sdn), ret);
@@ -1878,7 +1945,7 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
                     }
                 }
                 if (ret == LDAP_SUCCESS) {
-                    memberof_del_dn_data del_data = {0, configCopy.memberof_attr};
+                    memberof_del_dn_data del_data = {0, configCopy.memberof_attr, &configCopy};
                     if ((ret = memberof_del_dn_type_callback(post_e, &del_data))) {
                         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                                       "memberof_postop_modrdn - Delete dn callback failed for (%s), error (%d)\n",
@@ -1886,7 +1953,7 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
                     }
                 }
             } else {
-                if ((ret = memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn))) {
+                if ((ret = memberof_replace_dn_from_groups(pb, &configCopy, pre_e, pre_sdn, post_sdn))) {
                     slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                                   "memberof_postop_modrdn - Replace dn failed for (%s), error (%d)\n",
                                   slapi_sdn_get_dn(pre_sdn), ret);
@@ -1913,13 +1980,14 @@ typedef struct _replace_dn_data
     char *post_dn;
     char *type;
     char *add_oc;
+    MemberOfConfig *config;
 } replace_dn_data;
 
 
 /* Finds any groups that have pre_dn as a member and modifies them to
  * to use post_dn instead. */
 static int
-memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *pre_sdn, Slapi_DN *post_sdn)
+memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_Entry *pre_e, Slapi_DN *pre_sdn, Slapi_DN *post_sdn)
 {
     char *groupattrs[2] = {0, 0};
     int ret = LDAP_SUCCESS;
@@ -1932,12 +2000,12 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_
         replace_dn_data data = {(char *)slapi_sdn_get_dn(pre_sdn),
                                 (char *)slapi_sdn_get_dn(post_sdn),
                                 config->groupattrs[i],
-                                config->auto_add_oc};
+                                config->auto_add_oc,
+                                config};
 
         groupattrs[0] = config->groupattrs[i];
 
-        slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_replace_dn_from_groups: Ancestors of %s\n", slapi_sdn_get_dn(post_sdn));
-        if ((ret = memberof_call_foreach_dn(pb, pre_sdn, config, groupattrs,
+        if ((ret = memberof_call_foreach_dn(pb, pre_e, pre_sdn, config, groupattrs,
                                             memberof_replace_dn_type_callback,
                                             &data, &cached, PR_FALSE))) {
             break;
@@ -1958,6 +2026,13 @@ memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
     char *delval[2];
     char *addval[2];
     char *dn = NULL;
+    MemberOfConfig *config = ((replace_dn_data *)callback_data)->config;
+    MemberofEntryInfo entry_info = {0};
+
+    memberof_set_entry_info(e, config, &entry_info);
+    if (memberof_test_specific_filters(config, &entry_info) == 0) {
+        return 0;
+    }
 
     dn = slapi_entry_get_dn(e);
 
@@ -2009,7 +2084,7 @@ my_copy_mods(LDAPMod **orig_mods)
  * Added members are retrieved and have the group DN added to their memberOf attribute
  * Deleted members are retrieved and have the group DN deleted from their memberOf attribute
  * On replace of the membership attribute values:
- *     1. Sort old and new values
+ *    1. Sort old and new values
  *    2. Iterate through both lists at same time
  *    3. Any value not in old list but in new list - add group DN to memberOf attribute
  *    4. Any value in old list but not in new list - remove group DN from memberOf attribute
@@ -2027,6 +2102,7 @@ memberof_postop_modify(Slapi_PBlock *pb)
     Slapi_Mod *smod = 0;
     LDAPMod **mods;
     Slapi_Mod *next_mod = 0;
+    Slapi_Entry *entry = NULL;
     void *caller_id = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -2039,15 +2115,14 @@ memberof_postop_modify(Slapi_PBlock *pb)
         /* Just return without processing */
         return SLAPI_PLUGIN_SUCCESS;
     }
+    slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
 
     /* check if we are updating the shared config entry */
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     if (memberof_sdn_config_cmp(sdn) == 0) {
-        Slapi_Entry *entry = NULL;
         char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
         int result = 0;
 
-        slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
         if (entry) {
             if (SLAPI_DSE_CALLBACK_ERROR == memberof_apply_config(pb, NULL, entry, &result, returntext, NULL)) {
                 slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "%s\n", returntext);
@@ -2067,13 +2142,14 @@ memberof_postop_modify(Slapi_PBlock *pb)
         int config_copied = 0;
         MemberOfConfig *mainConfig = 0;
         MemberOfConfig configCopy = {0};
+        MemberofEntryInfo entry_info = {0};
         PRBool deferred_update;
 
         /* retrieve deferred update params that are valid until shutdown */
         memberof_rlock_config();
         mainConfig = memberof_get_config();
-
         deferred_update = mainConfig->is_lmdb ? false : mainConfig->deferred_update;
+        memberof_set_entry_info(entry, NULL, &entry_info);
         memberof_unlock_config();
 
         if (deferred_update) {
@@ -2140,7 +2216,7 @@ memberof_postop_modify(Slapi_PBlock *pb)
 
                 if (memberof_is_grouping_attr(type, mainConfig)) {
                     interested = 1;
-                    if (!memberof_entry_in_scope(mainConfig, sdn)) {
+                    if (!memberof_entry_in_scope(mainConfig, &entry_info)) {
                         /* Entry is not in scope */
                         memberof_unlock_config();
                         goto bail;
@@ -2325,6 +2401,7 @@ memberof_postop_add(Slapi_PBlock *pb)
 
     if (memberof_oktodo(pb) && (sdn = memberof_getsdn(pb))) {
         struct slapi_entry *e = NULL;
+        MemberofEntryInfo entry_info = {0};
         MemberOfConfig configCopy = {0};
         MemberOfConfig *mainConfig;
         Slapi_DN *copied_sdn;
@@ -2374,7 +2451,8 @@ memberof_postop_add(Slapi_PBlock *pb)
 
         {
             interested = 1;
-            if (!memberof_entry_in_scope(mainConfig, slapi_entry_get_sdn(e))) {
+            memberof_set_entry_info(e, NULL, &entry_info);
+            if (!memberof_entry_in_scope(mainConfig, &entry_info)) {
                 /* Entry is not in scope */
                 memberof_unlock_config();
                 goto bail;
@@ -2457,20 +2535,52 @@ bail:
 }
 
 /*
+ * memberof_test_specific_filters()
+ *
+ * Test if the entry matches any of the specific group filters
+ * return 1 if the entry matches any of the specific group filters
+ * return 0 if the entry does not match any of the specific group filters
+ */
+static int
+memberof_test_specific_filters(MemberOfConfig *config, MemberofEntryInfo *entry_info)
+{
+    if (entry_info->e && entry_info->group) {
+        for (size_t i = 0; config->excludeSpecificGroupFilter && config->excludeSpecificGroupFilter[i]; i++) {
+            if (!slapi_filter_test_simple(entry_info->e, config->excludeSpecificGroupFilter[i])) {
+                return 0;
+            }
+        }
+        if (config->specificGroupFilter) {
+            for (size_t i = 0; config->specificGroupFilter && config->specificGroupFilter[i]; i++) {
+                int rc= 0;
+                if ((rc = slapi_filter_test_simple(entry_info->e, config->specificGroupFilter[i])) == 0) {
+                    return 1;
+                }
+            }
+            /* Entry does not match specific group filter */
+            return 0;
+        }
+    }
+
+    /* Entry is ok */
+    return 1;
+}
+
+/*
  * Return 1 if the entry is in the scope.
  * For MODRDN the caller should check both the preop
  * and postop entries.  If we are moving out of, or
  * into scope, we should process it.
  */
 static int
-memberof_entry_in_scope(MemberOfConfig *config, Slapi_DN *sdn)
+memberof_entry_in_scope(MemberOfConfig *config, MemberofEntryInfo *entry_info)
 {
     if (config->entryScopeExcludeSubtrees) {
         int i = 0;
 
         /* check the excludes */
         while (config->entryScopeExcludeSubtrees[i]) {
-            if (slapi_sdn_issuffix(sdn, config->entryScopeExcludeSubtrees[i])) {
+            if (slapi_sdn_issuffix(entry_info->sdn, config->entryScopeExcludeSubtrees[i])) {
                 return 0;
             }
             i++;
@@ -2481,7 +2591,7 @@ memberof_entry_in_scope(MemberOfConfig *config, Slapi_DN *sdn)
 
         /* check the excludes */
         while (config->entryScopes[i]) {
-            if (slapi_sdn_issuffix(sdn, config->entryScopes[i])) {
+            if (slapi_sdn_issuffix(entry_info->sdn, config->entryScopes[i])) {
                 return 1;
             }
             i++;
@@ -2489,7 +2599,8 @@ memberof_entry_in_scope(MemberOfConfig *config, Slapi_DN *sdn)
         return 0;
     }
 
-    return 1;
+    /* lastly check if there are specific filters */
+    return memberof_test_specific_filters(config, entry_info);
 }
 
 static Slapi_DN *
@@ -3093,7 +3204,7 @@ memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *pre
 
         slapi_sdn_set_normdn_byref(sdn, dn_str); /* dn_str is normalized */
         rc = memberof_modop_one_replace_r(pb, config, LDAP_MOD_REPLACE,
-                                     post_sdn, pre_sdn, post_sdn, sdn, 0);
+                                          post_sdn, pre_sdn, post_sdn, sdn, 0);
 
         hint = slapi_attr_next_value(attr, hint, &val);
     }
@@ -3113,7 +3224,7 @@ memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *pre
  * free it.
  */
 Slapi_ValueSet *
-memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn)
+memberof_get_groups(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn)
 {
     Slapi_ValueSet *groupvals = slapi_valueset_new();
     Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
@@ -3124,7 +3235,7 @@ memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn)
 
     memberof_get_groups_data data = {config, memberdn_val, &groupvals, &group_norm_vals, &already_seen_ndn_vals, PR_TRUE};
 
-    memberof_get_groups_r(config, member_sdn, &data);
+    memberof_get_groups_r(config, e, member_sdn, &data);
 
     slapi_value_free(&memberdn_val);
     slapi_valueset_free(group_norm_vals);
@@ -3344,7 +3455,7 @@ merge_ancestors(Slapi_Value **member_ndn_val, memberof_get_groups_data *v1, memb
 }
 
 int
-memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn, memberof_get_groups_data *data)
+memberof_get_groups_r(MemberOfConfig *config, Slapi_Entry *e, Slapi_DN *member_sdn, memberof_get_groups_data *data)
 {
     Slapi_ValueSet *groupvals = slapi_valueset_new();
     Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
@@ -3357,12 +3468,12 @@ memberof_get_groups_r(MemberOfConfig *config, Slapi_DN *member_sdn, memberof_get
 
     memberof_get_groups_data member_data = {config, member_ndn_val, &groupvals, &group_norm_vals, data->already_seen_ndn_vals, data->use_cache};
 
-/* Search for any grouping attributes that point to memberdn.
+    /* Search for any grouping attributes that point to memberdn.
      * For each match, add it to the list, recurse and do same search */
 #if MEMBEROF_CACHE_DEBUG
     slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_get_groups_r: Ancestors of %s\n", slapi_sdn_get_dn(member_sdn));
 #endif
-    rc = memberof_call_foreach_dn(NULL, member_sdn, config, config->groupattrs,
+    rc = memberof_call_foreach_dn(NULL, e, member_sdn, config, config->groupattrs,
                                   memberof_get_groups_callback, &member_data, &cached, member_data.use_cache);
 
     merge_ancestors(&member_ndn_val, &member_data, data);
@@ -3393,6 +3504,7 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
     Slapi_ValueSet *group_norm_vals = *((memberof_get_groups_data *)callback_data)->group_norm_vals;
     Slapi_ValueSet *already_seen_ndn_vals = *((memberof_get_groups_data *)callback_data)->already_seen_ndn_vals;
     MemberOfConfig *config = ((memberof_get_groups_data *)callback_data)->config;
+    MemberofEntryInfo entry_info = {0};
     int rc = 0;
 
     if (!config->deferred_update && slapi_is_shutting_down()) {
@@ -3429,9 +3541,10 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
     }
 
     /* if the group does not belong to an excluded subtree, adds it to the valueset */
-    if (memberof_entry_in_scope(config, group_sdn)) {
+    memberof_set_entry_info(e, config, &entry_info);
+    if (memberof_entry_in_scope(config, &entry_info)) {
         /* Push group_dn_val into the valueset.  This memory is now owned
-             * by the valueset. */
+         * by the valueset. */
         slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
 
         group_dn_val = slapi_value_new_string(group_dn);
@@ -3452,11 +3565,14 @@ memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
             already_seen_ndn_val = slapi_value_new_string(group_ndn);
             slapi_valueset_add_value_ext(already_seen_ndn_vals, already_seen_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
         }
+    } else {
+        /* Entry not in scope, val was not consumed must free it*/
+        slapi_value_free(&group_ndn_val);
     }
     if (!config->skip_nested || config->fixup_task) {
         /* now recurse to find ancestors groups of e */
         memberof_get_groups_r(((memberof_get_groups_data *)callback_data)->config,
-                              group_sdn, callback_data);
+                              e, group_sdn, callback_data);
     }
 
 bail:
@@ -3542,7 +3658,7 @@ memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *gro
     char *attrs[2] = {config->memberof_attr, 0};
     int cached = 0;
 
-    return memberof_call_foreach_dn(pb, group_sdn, config, attrs,
+    return memberof_call_foreach_dn(pb, NULL, group_sdn, config, attrs,
                                     memberof_test_membership_callback, config, &cached, PR_FALSE);
 }
 
@@ -3565,6 +3681,12 @@ memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
     Slapi_DN *entry_sdn = 0;
     MemberOfConfig *config = (MemberOfConfig *)callback_data;
     Slapi_DN *sdn = slapi_sdn_new();
+    MemberofEntryInfo entry_info = {0};
+
+    memberof_set_entry_info(e, config, &entry_info);
+    if (memberof_test_specific_filters(config, &entry_info) == 0) {
+        goto bail;
+    }
 
     entry_sdn = slapi_entry_get_sdn(e);
     entry_dn = slapi_value_new_string(slapi_entry_get_ndn(e));
@@ -4167,7 +4289,6 @@ memberof_fix_memberof(MemberOfConfig *config, Slapi_Task *task, task_data *td)
                                  0, 0,
                                  memberof_get_plugin_id(),
                                  0);
-
     rc = slapi_search_internal_callback_pb(search_pb,
                                            config,
                                            0, memberof_fixup_memberof_callback,
@@ -4308,7 +4429,7 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     int rc = 0;
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
     MemberOfConfig *config = (MemberOfConfig *)callback_data;
-    memberof_del_dn_data del_data = {0, config->memberof_attr};
+    memberof_del_dn_data del_data = {0, config->memberof_attr, config};
     Slapi_ValueSet *groups = 0;
     const char *ndn;
     char *dn_copy;
@@ -4332,7 +4453,7 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
     }
 
     /* get a list of all of the groups this user belongs to */
-    groups = memberof_get_groups(config, sdn);
+    groups = memberof_get_groups(config, e, sdn);
 #if MEMBEROF_CACHE_DEBUG
     {
         Slapi_Value *val = 0;
