@@ -1,5 +1,6 @@
+#!/usr/bin/python3
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,6 +9,7 @@
 #
 import pytest
 import re
+import csv
 from abc import ABC, abstractmethod
 from ldap.controls.sss import SSSRequestControl
 from lib389.backend import Backends
@@ -17,7 +19,9 @@ from lib389.index import Indexes
 from lib389._mapped_object import DSLdapObject
 from lib389.properties import TASK_WAIT
 from lib389.topologies import topology_st as topo
+from shutil import copyfile
 from statistics import fmean, stdev
+
 
 from lib389._constants import (
     DEFAULT_BENAME,
@@ -39,9 +43,11 @@ pytestmark = pytest.mark.tier3
 
 THIS_DIR = os.path.dirname(__file__)
 LDIF = os.path.join(THIS_DIR, '../data/5Kusers.ldif')
-RESULT_FILE = f'{THIS_DIR}/results_ndncache'
+RESULT_DIR = f'{THIS_DIR}/../data/ndncache_test_results/r'
+RESULT_FILE = f'{RESULT_DIR}/results_ndncache.'
 NB_MEASURES = 100
 NB_MEANINGFULL_MEASURES = NB_MEASURES-80
+SCENARIO='SCENARIO'
 
 WITHOUT_CACHE = 'without_ndn_cache'
 WITH_CACHE = 'with_ndn_cache'
@@ -366,6 +372,102 @@ def test_run_measure_with_small_entrycache(topo, with_ldif, with_small_entrycach
         scen.results[with_ldif] = v
     # conn.unbind_s is done by with_small_entrycache teardown
 
+
+def numbered_filename(prefix):
+    # Get a non excisting filename by adding a number to prefix
+    idx = 1
+    fname = f'{prefix}{idx}'
+    while os.path.exists(fname):
+        idx += 1
+        fname = f'{prefix}{idx}'
+    return fname
+
+
+def move_results(dirname):
+    if os.path.isdir(dirname):
+        newdirname = numbered_filename(dirname)
+        os.rename(dirname, newdirname)
+        print(f'Result moved in {newdirname}')
+
+
+def generate_csv(csvfilename):
+
+    def parse_file(fname):
+        res = []
+        with open(fname, 'r') as fd:
+            for line in fd:
+                data = line.strip().split('\t')
+                res.append(data)
+        return res
+
+    def update_gain(data, gain):
+        k = data[0]
+        if k != SCENARIO:
+            if k not in gain:
+                gain[k] = []
+            gain[k].append(float(data[3][:-1]))
+
+
+    # Parse result files and generate list of dict
+    res1 = []
+    gains = {}
+    for idx in range(1, NB_MEASURES+1):
+        fname = f'{RESULT_FILE}{idx}'
+        if os.path.isfile(fname):
+            res = parse_file(fname)
+            res1.append(res)
+            for data in res:
+                update_gain(data, gains)
+
+    scens = [ data[0] for data in res1[0] ]
+    scens[0] = ''
+
+    nbfiles = len(res1)
+    nbscen = len(gains)
+    nbdata = len(res1[1][1])
+
+    nbrows = nbfiles * nbscen + 1
+    nbcols = nbdata + 2 * nbscen + 5
+
+    idx_grqph_data = nbdata + 2
+    idx_average = idx_grqph_data + nbdata + 1
+
+    gtable = [ [ ' ' ] * nbcols  for _ in range(nbrows) ]
+    # First Row
+    for idx in range(nbdata):
+        gtable[0][idx] = res1[0][0][idx]
+
+    for idx,scen in enumerate(scens):
+        if idx > 0:
+            gtable[0][idx_grqph_data+idx] = f'{scen} gain'
+            gtable[0][idx_average+idx] = f'average {scen} gain'
+
+    # Fill raw data table
+    for idx, row in enumerate(res1):
+        for idx2 in range(1, nbscen+1):
+            data = row[idx2]
+            for idx3, v in enumerate(data):
+                gtable[1+nbfiles*(idx2-1)+idx][idx3] = v
+
+    # Fill graph table
+    for idx in range(1, nbfiles+1):
+        for idx2 in range(1, nbscen+1):
+            scen = scens[idx2]
+            gtable[idx][idx_grqph_data+idx2] = gains[scen][idx-1]
+        gtable[idx][idx_grqph_data] = idx
+
+    # Fill average table
+    for idx in range(1, nbscen+1):
+        scen = scens[idx]
+        gtable[1][idx_average+idx] = fmean(gains[scen])
+
+    # Write csv file
+    with open(csvfilename, 'w', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter='\t', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for row in gtable:
+            csvwriter.writerow(row)
+
+
 def test_log_results():
     """Perform the measure on all scenarios and record the result
 
@@ -375,11 +477,8 @@ def test_log_results():
     :expectedresults: no exception should occur
     """
 
-    idx = 1
-    fname = f'{RESULT_FILE}.{idx}'
-    while os.path.isfile(fname):
-        idx += 1
-        fname = f'{RESULT_FILE}.{idx}'
+    os.makedirs(RESULT_DIR, 0o755, exist_ok=True)
+    fname = numbered_filename(RESULT_FILE)
     with open(fname, 'w') as fout:
         fout.write(f'SCENARIO\tVALUE WITHOUT CACHE\tVALUE WITH CACHE\tGAIN\tDEVIATION WITHOUT CACHE\tDEVIATION WITH CACHE\tTEST DESCRIPTION\n')
         # fout.write(f'SCENARIO\tVALUE WITHOUT CACHE\tVALUE WITH CACHE\tGAIN\tDEVIATION WITHOUT CACHE\tVDEVIATION WITH CACHE\tTEST DESCRIPTION\tDATA WITHOUT CACHE\tDATA WITH CACHE\n')
@@ -392,7 +491,13 @@ def test_log_results():
 
 
 if __name__ == '__main__':
-    # Run isolated
-    # -s for DEBUG mode
+    # Run a series of 100 tests
     CURRENT_FILE = os.path.realpath(__file__)
-    pytest.main("-s {}".format(CURRENT_FILE))
+    move_results(RESULT_DIR)
+    for idx in range(1, 101):
+        print(f'\n#############\nRun #{idx}')
+        pytest.main([CURRENT_FILE,])
+    csvname = f'{RESULT_DIR}/r.csv'
+    generate_csv(csvname)
+    copyfile(csvname, '/tmp/r.csv') # Copy in /tmp to ease the import in google sheet
+    move_results(RESULT_DIR)
