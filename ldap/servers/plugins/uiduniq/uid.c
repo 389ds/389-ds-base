@@ -1342,8 +1342,13 @@ preop_modrdn(Slapi_PBlock *pb)
      * its current level in the tree.  Use the source SDN for
      * determining which managed tree this belongs to
      */
-    if (!destinationSDN)
+    if (!destinationSDN) {
+        destinationSDN = slapi_sdn_new();
+    }
+    if (slapi_sdn_get_dn(destinationSDN) == NULL) {
+        /* If no superior was specified fall back to the parent of source */
         slapi_sdn_get_parent(sourceSDN, destinationSDN);
+    }
 
     /* Get the new RDN - this has the attribute values */
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
