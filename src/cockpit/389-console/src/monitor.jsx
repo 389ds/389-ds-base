@@ -1214,7 +1214,7 @@ export class Monitor extends React.Component {
                         <div className="ds-margin-top-xlg ds-center">
                             <TextContent>
                                 <Text component={TextVariants.h3}>
-                                    cockpit.format(_("Loading Chaining Monitor Information For <b>$0 ...</b>"), this.state.node_text)
+                                    cockpit.format(_("Loading Chaining Monitor Information for $0 ..."), this.state.node_text)
                                 </Text>
                             </TextContent>
                             <Spinner className="ds-margin-top-lg" size="xl" />
