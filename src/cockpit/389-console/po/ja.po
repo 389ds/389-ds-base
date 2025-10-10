@@ -14584,7 +14584,7 @@ msgid "Loading Replication Monitor Information ..."
 msgstr "レプリケーション監視情報を読み込んでいます..."
 
 #: src/monitor.jsx:1107
-msgid "Loading Chaining Monitor Information For <b>$0 ...</b>"
+msgid "Loading Chaining Monitor Information for $0 ..."
 msgstr "$0のチェイン監視情報を読み込んでいます..."
 
 #: src/monitor.jsx:1162
