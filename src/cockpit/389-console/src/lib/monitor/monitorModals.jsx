@@ -396,7 +396,7 @@ class ConflictCompareModal extends React.Component {
                             <TextInput
                                 placeholder={_("Enter new RDN here")}
                                 type="text"
-                                onChange={handleChange}
+                                onChange={(_event, value) => handleChange(_event)}
                                 aria-label="new rdn label"
                                 id="convertRDN"
                                 value={orig_rdn}
