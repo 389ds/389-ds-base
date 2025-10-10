@@ -10,6 +10,7 @@
 import pytest
 import re
 import csv
+import sys
 from abc import ABC, abstractmethod
 from ldap.controls.sss import SSSRequestControl
 from lib389.backend import Backends
@@ -17,6 +18,7 @@ from lib389.config import BDB_LDBMConfig, LMDB_LDBMConfig
 from lib389.config import Config
 from lib389.index import Indexes
 from lib389._mapped_object import DSLdapObject
+from lib389.monitor import MonitorBackend
 from lib389.properties import TASK_WAIT
 from lib389.topologies import topology_st as topo
 from shutil import copyfile
@@ -35,6 +37,7 @@ from lib389.utils import (
     ldap, os, time, logging,
     ds_is_older,
     ensure_bytes,
+    ensure_str,
     get_default_db_lib,
     get_ldapurl_from_serverid,
 )
@@ -45,9 +48,12 @@ THIS_DIR = os.path.dirname(__file__)
 LDIF = os.path.join(THIS_DIR, '../data/5Kusers.ldif')
 RESULT_DIR = f'{THIS_DIR}/../data/ndncache_test_results/r'
 RESULT_FILE = f'{RESULT_DIR}/results_ndncache.'
+CSV_FILE = f'{RESULT_DIR}/r.csv.'
 NB_MEASURES = 100
 NB_MEANINGFULL_MEASURES = NB_MEASURES-80
 SCENARIO='SCENARIO'
+STAT_ATTRS = ( 'dncachehits', 'dncachetries', 'dncachehitratio',
+               'currentdncachesize', 'currentdncachecount', )
 
 WITHOUT_CACHE = 'without_ndn_cache'
 WITH_CACHE = 'with_ndn_cache'
@@ -93,7 +99,26 @@ class Scenario:
         m = fmean(data)
         v = stdev(data, m)
         v = v/m * 100
-        return ( m, v, str(data) )
+        return [ m, v, str(data) ]
+
+    def getndncache_stats(self):
+        dnbemon = 'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
+
+        """The following fails ...
+        mon = MonitorBackend(inst, dn=dnbemon)
+        res = mon.get_status()
+        log.debug(f'getndncache_stats res={res}')
+        return [ res[a] for a in STAT_ATTRS ]
+        """
+        res = self.ldc.search_ext_s(
+            base=dnbemon,
+            scope=ldap.SCOPE_BASE,
+            filterstr='(objectclass=*)',
+            attrlist=list(STAT_ATTRS))
+        log.debug(f'getndncache_stats res={res}')
+        res = res[0][1]
+        return [ ensure_str(res[a][0]) for a in STAT_ATTRS ]
+
 
 
     def measure(self, inst, conn):
@@ -116,7 +141,7 @@ class Scenario:
             result = Scenario.average(data)
         except ldap.LDAPError as exc:
             log.error(f'Scenario {scen} failed because of {exc}')
-            result = ( 0, 0, [] )
+            result = [ 0, 0, [] ]
         log.info(f'result (average, normalized standard deviation, data) of {name} is {result}')
         return result
 
@@ -271,8 +296,7 @@ def with_indexes(topo):
 
 @pytest.fixture(scope="module", params=[WITHOUT_CACHE,WITH_CACHE])
 def with_ldif(topo, with_indexes, request):
-    """Import ldif"""
-
+    # Import ldif
     log.info('Run importLDIF task to add entries to Server')
     inst = topo.standalone
     # Import the ldif file
@@ -286,6 +310,7 @@ def with_ldif(topo, with_indexes, request):
     ndncache = b'off' if request.param == WITHOUT_CACHE else 'on'
     config = Config(inst)
     config.set('nsslapd-ndn-cache-enabled', ndncache)
+    config.set('nsslapd-accesslog-logbuffering', 'off')
     return request.param
 
 
@@ -350,6 +375,7 @@ def test_run_measure(topo, with_ldif):
     conn = open_conn(inst)
     for scen in SCENARIOS:
         v = scen.measure(inst, conn)
+        v.append(scen.getndncache_stats())
         log.info(f'Set results ({with_ldif},{scen}): {v}')
         scen.results[with_ldif] = v
     conn.unbind_s()
@@ -368,9 +394,49 @@ def test_run_measure_with_small_entrycache(topo, with_ldif, with_small_entrycach
     conn = with_small_entrycache
     for scen in SCENARIOS_SMALL_ENTRYCACHE:
         v = scen.measure(inst, conn)
+        v.append(scen.getndncache_stats())
         log.info(f'Set results ({with_ldif},{scen}): {v}')
         scen.results[with_ldif] = v
     # conn.unbind_s is done by with_small_entrycache teardown
+
+
+def test_log_results():
+    """Perform the measure on all scenarios and record the result
+
+    :id: b8131fee-9d50-11f0-a761-c85309d5c3e3
+    :setup: None
+    :steps: 1. display the results
+    :expectedresults: no exception should occur
+    """
+
+    os.makedirs(RESULT_DIR, 0o755, exist_ok=True)
+    statkeys = []
+    for attr in STAT_ATTRS:
+        statkeys.append(f'{attr} WITHOUT CACHE')
+        statkeys.append(f'{attr} WITH CACHE')
+    statkeys_str = "\t".join(statkeys)
+    fname = numbered_filename(RESULT_FILE)
+    with open(fname, 'w') as fout:
+        fmt1='SCENARIO\tVALUE WITHOUT CACHE\tVALUE WITH CACHE\tGAIN\tDEVIATION WITHOUT CACHE\tDEVIATION WITH CACHE\tTEST DESCRIPTION'
+        fout.write(f'{fmt1}\t{statkeys_str}\n')
+        # fout.write(f'{fmt1}\tDATA WITHOUT CACHE\tDATA WITH CACHE\t{statkeys_str}\n')
+        for scen in SCENARIOS + SCENARIOS_SMALL_ENTRYCACHE:
+            log.debug(f'scen.results[WITHOUT_CACHE]={scen.results[WITHOUT_CACHE]}')
+            log.debug(f'scen.results[WITH_CACHE]={scen.results[WITH_CACHE]}')
+            m1, v1, d1, s1 = scen.results[WITHOUT_CACHE]
+            m2, v2, d2, s2 = scen.results[WITH_CACHE]
+            log.debug(f's1={s1}')
+            log.debug(f's2={s2}')
+            gain = ( m1 - m2 ) / m1 * 100 if m1 > 0 else '###'
+            statvalues = []
+            for idx in range(len(s1)):
+                statvalues.append(s1[idx])
+                statvalues.append(s2[idx])
+            statvalues_str = "\t".join(statvalues)
+            fmt1 = f'{scen}\t{m1:.5f}\t{m2:.5f}\t{gain:.1f}%\t{v1:.2f}%\t{v2:.2f}%\t{scen.description()}'
+            fout.write(f'{fmt1}\t{statvalues_str}\n')
+            # fout.write({fmt1}\t{d1}\t{d2}\t{statvalues_str}\n')
+    assert False
 
 
 def numbered_filename(prefix):
@@ -391,7 +457,6 @@ def move_results(dirname):
 
 
 def generate_csv(csvfilename):
-
     def parse_file(fname):
         res = []
         with open(fname, 'r') as fd:
@@ -427,10 +492,18 @@ def generate_csv(csvfilename):
     nbdata = len(res1[1][1])
 
     nbrows = nbfiles * nbscen + 1
-    nbcols = nbdata + 2 * nbscen + 5
+    nbcols = nbdata + 2 * nbscen + 4
 
     idx_grqph_data = nbdata + 2
-    idx_average = idx_grqph_data + nbdata + 1
+    idx_average = idx_grqph_data + nbscen + 1
+
+    print(f'nbfiles={nbfiles}')
+    print(f'nbscen={nbscen}')
+    print(f'nbdata={nbdata}')
+    print(f'nbrows={nbrows}')
+    print(f'nbcols={nbcols}')
+    print(f'idx_grqph_data={idx_grqph_data}')
+    print(f'idx_average={idx_average}')
 
     gtable = [ [ ' ' ] * nbcols  for _ in range(nbrows) ]
     # First Row
@@ -468,36 +541,26 @@ def generate_csv(csvfilename):
             csvwriter.writerow(row)
 
 
-def test_log_results():
-    """Perform the measure on all scenarios and record the result
-
-    :id: b8131fee-9d50-11f0-a761-c85309d5c3e3
-    :setup: None
-    :steps: 1. display the results
-    :expectedresults: no exception should occur
-    """
-
-    os.makedirs(RESULT_DIR, 0o755, exist_ok=True)
-    fname = numbered_filename(RESULT_FILE)
-    with open(fname, 'w') as fout:
-        fout.write(f'SCENARIO\tVALUE WITHOUT CACHE\tVALUE WITH CACHE\tGAIN\tDEVIATION WITHOUT CACHE\tDEVIATION WITH CACHE\tTEST DESCRIPTION\n')
-        # fout.write(f'SCENARIO\tVALUE WITHOUT CACHE\tVALUE WITH CACHE\tGAIN\tDEVIATION WITHOUT CACHE\tVDEVIATION WITH CACHE\tTEST DESCRIPTION\tDATA WITHOUT CACHE\tDATA WITH CACHE\n')
-        for scen in SCENARIOS + SCENARIOS_SMALL_ENTRYCACHE:
-            m1, v1, d1 = scen.results[WITHOUT_CACHE]
-            m2, v2, d2 = scen.results[WITH_CACHE]
-            gain = ( m1 - m2 ) / m1 * 100 if m1 > 0 else '###'
-            # fout.write(f'{scen}\t{m1:.5f}\t{m2:.5f}\t{gain:.1f}%\t{v1:.2f}%\t{v2:.2f}%\t{scen.description()}\t{d1}\t{d2}\n')
-            fout.write(f'{scen}\t{m1:.5f}\t{m2:.5f}\t{gain:.1f}%\t{v1:.2f}%\t{v2:.2f}%\t{scen.description()}\n')
-
-
 if __name__ == '__main__':
-    # Run a series of 100 tests
     CURRENT_FILE = os.path.realpath(__file__)
-    move_results(RESULT_DIR)
-    for idx in range(1, 101):
-        print(f'\n#############\nRun #{idx}')
+    arg1 = sys.argv[1] if len(sys.argv) > 1 else None
+    if arg1 == "csv":
+        # Generate csv file
+        generate_csv(CSV_FILE)
+        copyfile(CSV_FILE, '/tmp/r.csv') # Copy in /tmp to ease the import in google sheet
+        sys.exit()
+    if arg1 == "batch":
+        # Run a series of 100 tests
+        move_results(RESULT_DIR)
+        for idx in range(1, 101):
+            print(f'\n#############\nRun #{idx}')
+            pytest.main([CURRENT_FILE,])
+        csvname = f'{RESULT_DIR}/r.csv'
+        generate_csv(CSV_FILE)
+        copyfile(CSV_FILE, '/tmp/r.csv') # Copy in /tmp to ease the import in google sheet
+        move_results(RESULT_DIR)
+        sys.exit()
+    if arg1 is None:
         pytest.main([CURRENT_FILE,])
-    csvname = f'{RESULT_DIR}/r.csv'
-    generate_csv(csvname)
-    copyfile(csvname, '/tmp/r.csv') # Copy in /tmp to ease the import in google sheet
-    move_results(RESULT_DIR)
+        sys.exit()
+    print(f'Invalid argumenet {arg1}. usage: ./ndncache_test.py [csv|batch]')
