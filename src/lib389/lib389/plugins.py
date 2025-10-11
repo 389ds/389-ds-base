@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2022 Red Hat, Inc.
+# Copyright (C) 2025 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -1071,6 +1071,54 @@ class MemberOfPlugin(Plugin):
         """Remove all memberofentryscopeexcludesubtree attributes"""
 
         self.remove_all('memberofentryscopeexcludesubtree')
+
+    def get_exclude_specific_group_filters(self):
+        """Get memberofexcludespecificgroup attribute"""
+        return self.get_attr_vals_utf8_l('memberofexcludespecificgroupfilter')
+
+    def add_exclude_specific_group_filter(self, value):
+        """Add memberofexcludespecificgroups attribute"""
+        self.add('memberofexcludespecificgroupfilter', value)
+
+    def remove_exclude_specific_group_filter(self, value):
+        """Remove memberofexcludespecificgroups attribute"""
+        self.remove('memberofexcludespecificgroupfilter', value)
+
+    def remove_all_exclude_specific_group_filters(self):
+        """Remove all memberofexcludespecificgroups attributes"""
+        self.remove_all('memberofexcludespecificgroupfilter')
+
+    def get_specific_group_filters(self):
+        """Get memberofspecificgroup attribute"""
+        return self.get_attr_vals_utf8_l('memberofspecificgroupfilter')
+
+    def add_specific_group_filter(self, value):
+        """Add memberofspecificgroups attribute"""
+        self.add('memberofspecificgroupfilter', value)
+
+    def remove_specific_group_filter(self, value):
+        """Remove memberofspecificgroupfilter attribute"""
+        self.remove('memberofspecificgroupfilter', value)
+
+    def remove_all_specific_group_filters(self):
+        """Remove all memberofspecificgroupfilter attributes"""
+        self.remove_all('memberofspecificgroupfilter')
+
+    def get_specific_group_oc(self):
+        """Get memberofspecificgroupoc attribute"""
+        return self.get_attr_vals_utf8_l('memberofspecificgroupoc')
+
+    def add_specific_group_oc(self, value):
+        """Add memberofspecificgroupoc attribute"""
+        self.add('memberofspecificgroupoc', value)
+
+    def remove_specific_group_oc(self, value):
+        """Remove memberofspecificgroupoc attribute"""
+        self.remove('memberofspecificgroupoc', value)
+
+    def remove_all_specific_group_oc(self):
+        """Remove all memberofspecificgroupoc attributes"""
+        self.remove_all('memberofspecificgroupoc')
 
     def get_configarea(self):
         """Get nsslapd-pluginConfigArea attribute"""

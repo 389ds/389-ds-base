@@ -166,7 +166,6 @@ def health_check_run(inst, log, args):
 
     checks = args.check or dict(_list_targets(inst)).keys()
     exclude_checks = args.exclude_check
-    print("MARK excl: " + str(exclude_checks))
     if args.list_checks or args.dry_run:
         _print_checks(inst, log, checks)
         return

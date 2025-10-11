@@ -50,6 +50,9 @@
 #define DN_SYNTAX_OID             "1.3.6.1.4.1.1466.115.121.1.12"
 #define NAME_OPT_UID_SYNTAX_OID   "1.3.6.1.4.1.1466.115.121.1.34"
 #define SHUTDOWN_TIMEOUT          60   /* systemctl timeout is by default 90s */
+#define MEMBEROF_SPECIFIC_GROUP_FILTER         "memberOfSpecificGroupFilter"
+#define MEMBEROF_EXCLUDE_SPECIFIC_GROUP_FILTER "memberOfExcludeSpecificGroupFilter"
+#define MEMBEROF_SPECIFIC_GROUP_OC "memberOfSpecificGroupOC"
 
 
 /*
@@ -128,6 +131,12 @@ typedef struct memberofconfig
     int entryScopeCount;
     Slapi_DN **entryScopeExcludeSubtrees;
     int entryExcludeScopeCount;
+    Slapi_Filter **specificGroupFilter;
+    Slapi_Filter **excludeSpecificGroupFilter;
+    int specificGroupFilterCount;
+    int excludeSpecificGroupFilterCount;
+    char **specificGroupOC;
+    int specificGroupOCCount;
     Slapi_Filter *group_filter;
     Slapi_Attr **group_slapiattrs;
     int skip_nested;

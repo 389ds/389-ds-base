@@ -20,7 +20,7 @@ from lib389.plugins import USNPlugin, POSIXWinsyncPlugin, LinkedAttributesPlugin
 from lib389.dbgen import dbgen_users
 from lib389.idm.user import UserAccount
 from lib389.idm.group import Groups
-from lib389.idm.posixgroup import PosixGroups  # not sure if this is need yet MARK
+from lib389.idm.posixgroup import PosixGroups
 
 log = logging.getLogger(__name__)
 
