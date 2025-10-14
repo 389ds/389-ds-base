@@ -7327,6 +7327,8 @@ typedef enum _slapi_op_note_t {
     SLAPI_OP_NOTE_FULL_UNINDEXED = 0x04,
     SLAPI_OP_NOTE_FILTER_INVALID = 0x08,
     SLAPI_OP_NOTE_MFA_AUTH = 0x10,
+    SLAPI_OP_NOTE_ASYNCH_OP = 0x20,
+    SLAPI_OP_NOTE_ASYNCH_BLOCKED = 0x40,
 } slapi_op_note_t;
 
 /**
