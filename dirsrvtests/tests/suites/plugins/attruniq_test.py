@@ -21,7 +21,6 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import topology_st
 from lib389.utils import ds_is_older
 
-
 pytestmark = [pytest.mark.tier1,
               pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")]
 
@@ -638,7 +637,6 @@ def test_one_container_mod(topology_st, attruniq, containers,
         active_user_2.replace('cn', ACTIVE_USER_1_CN)
 
 
-@pytest.mark.xfail(reason="DS6846")
 def test_one_container_modrdn(topology_st, attruniq, containers,
                               active_user_1, active_user_2):
     """Test MODRDN operations with attribute uniqueness in a single container.
@@ -848,7 +846,6 @@ def test_multiple_containers_mod_across_subtrees(topology_st, attruniq, containe
         stage_user_1.replace('cn', ACTIVE_USER_1_CN)
 
 
-@pytest.mark.xfail(reason="DS6846")
 def test_multiple_containers_modrdn(topology_st, attruniq, containers,
                            active_user_1, active_user_2, stage_user_1, stage_user_2):
     """Test MODRDN operations with attribute uniqueness across multiple containers.
@@ -890,7 +887,6 @@ def test_multiple_containers_modrdn(topology_st, attruniq, containers,
     stage_user_2.rename(f'cn={ACTIVE_USER_1_CN}', deloldrdn=False)
 
 
-@pytest.mark.xfail(reason="DS6846")
 def test_multiple_containers_modrdn_across_subtrees(topology_st, attruniq, containers,
                                         active_user_1, active_user_2, stage_user_1, stage_user_2):
         """Test MODRDN operations with attribute uniqueness across multiple containers with cross-subtree enforcement.
