@@ -1415,6 +1415,7 @@ class BackendSuffixView(CompositeDSLdapObject):
         be_args = [
             'nsslapd-cachememsize',
             'nsslapd-cachesize',
+            'nsslapd-cache-preserved-entries',
             'nsslapd-dncachememsize',
             'nsslapd-readonly',
             'nsslapd-require-index',

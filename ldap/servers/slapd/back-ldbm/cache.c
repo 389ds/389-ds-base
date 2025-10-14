@@ -56,6 +56,19 @@
 //#define LOG(_a, _x1, _x2, _x3)  ;
 #define LOG(...)
 #endif
+#define LOGPATTERN(cache, dn, msg, ...) { \
+            if (cache->c_inst->cache_debug_re && debug_pattern_matches(cache, dn)) { \
+                slapi_log_err(SLAPI_LOG_INFO, (char *)__func__, \
+                              "CACHE DEBUG: " msg, __VA_ARGS__); } }
+
+
+struct pinned_ctx {
+    struct backentry *head;
+    struct backentry *tail;
+    uint64_t npinned;
+    uint64_t size;
+};
+
 
 typedef enum {
     ENTRY_CACHE,
@@ -76,6 +89,7 @@ static void entrycache_return(struct cache *cache, struct backentry **bep, PRBoo
 static int entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry *newe);
 static int entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct backentry **alt);
 static struct backentry *entrycache_flush(struct cache *cache);
+static bool debug_pattern_matches(struct cache *cache, const char *dn);
 #ifdef LDAP_CACHE_DEBUG_LRU
 static void entry_lru_verify(struct cache *cache, struct backentry *e, int in);
 #endif
@@ -89,6 +103,8 @@ static int dncache_replace(struct cache *cache, struct backdn *olddn, struct bac
 static int dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backdn **alt);
 static struct backdn *dncache_flush(struct cache *cache);
 static int cache_is_in_cache_nolock(void *ptr);
+void pinned_remove(struct cache *cache, void *ptr);
+void pinned_flush(struct cache *cache);
 #ifdef LDAP_CACHE_DEBUG_LRU
 static void dn_lru_verify(struct cache *cache, struct backdn *dn, int in);
 #endif
@@ -341,6 +357,24 @@ hash_stats(Hashtable *ht, u_long *slots, int *total_entries, int *max_entries_pe
 
 #ifdef LDAP_CACHE_DEBUG_LRU
 static void
+pinned_verify(struct cache *cache, int lineno)
+{
+    uint64_t size = 0;
+    uint64_t count = 0;
+    struct backentry *e = cache->c_pinned_ctx->head;
+    for (;e; e = BACK_LRU_NEXT(e, struct backentry*)) {
+        if (e->ep_lrunext == NULL) {
+            ASSERT (cache->c_pinned_ctx->tail == e);
+        }
+        ASSERT((e->ep_state & ENTRY_STATE_PINNED) == ENTRY_STATE_PINNED);
+        size += e->ep_size;
+        count ++;
+    }
+    ASSERT(size == cache->c_pinned_ctx->size);
+    ASSERT(count == cache->c_pinned_ctx->npinned);
+}
+
+static void
 lru_verify(struct cache *cache, void *ptr, int in)
 {
     struct backcommon *e;
@@ -369,6 +403,7 @@ entry_lru_verify(struct cache *cache, struct backentry *e, int in)
 
     ep = CACHE_LRU_HEAD(cache, struct backentry *);
     while (ep) {
+        ASSERT((e->ep_state & ENTRY_STATE_PINNED) == 0);
         count++;
         if (ep == e) {
             is_in = 1;
@@ -388,6 +423,8 @@ entry_lru_verify(struct cache *cache, struct backentry *e, int in)
     }
     ASSERT(is_in == in);
 }
+#else
+#define pinned_verify(cache, lineno)
 #endif
 
 /* assume lock is held */
@@ -401,6 +438,7 @@ lru_detach(struct cache *cache, void *ptr)
     }
     e = (struct backcommon *)ptr;
 #ifdef LDAP_CACHE_DEBUG_LRU
+    pinned_verify(cache, __LINE__);
     lru_verify(cache, e, 1);
 #endif
     if (e->ep_lruprev) {
@@ -426,6 +464,7 @@ lru_delete(struct cache *cache, void *ptr)
     }
     e = (struct backcommon *)ptr;
 #ifdef LDAP_CACHE_DEBUG_LRU
+    pinned_verify(cache, __LINE__);
     lru_verify(cache, e, 1);
 #endif
     if (e->ep_lruprev)
@@ -452,7 +491,11 @@ lru_add(struct cache *cache, void *ptr)
         return;
     }
     e = (struct backcommon *)ptr;
+    ASSERT(e->ep_refcnt == 0);
+    ASSERT((e->ep_state & ENTRY_STATE_PINNED) == 0);
+
 #ifdef LDAP_CACHE_DEBUG_LRU
+    pinned_verify(cache, __LINE__);
     lru_verify(cache, e, 0);
 #endif
     e->ep_lruprev = NULL;
@@ -473,7 +516,7 @@ lru_add(struct cache *cache, void *ptr)
 static void
 cache_make_hashes(struct cache *cache, int type)
 {
-    u_long hashsize = (cache->c_maxentries > 0) ? cache->c_maxentries : (cache->c_maxsize / 512);
+    u_long hashsize = (cache->c_stats.maxentries > 0) ? cache->c_stats.maxentries : (cache->c_stats.maxsize / 512);
 
     if (CACHE_TYPE_ENTRY == type) {
         cache->c_dntable = new_hash(hashsize,
@@ -589,6 +632,9 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                 entry->ep_state |= ENTRY_STATE_INVALID;
                 if (entry->ep_refcnt == 0) {
                     entry->ep_refcnt++;
+                    if (entry->ep_state & ENTRY_STATE_PINNED) {
+                        pinned_remove(cache, laste);
+                    }
                     lru_delete(cache, laste);
                     if (type == ENTRY_CACHE) {
                         entrycache_remove_int(cache, laste);
@@ -632,6 +678,9 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                     entry->ep_state |= ENTRY_STATE_INVALID;
                     if (entry->ep_refcnt == 0) {
                         entry->ep_refcnt++;
+                        if (entry->ep_state & ENTRY_STATE_PINNED) {
+                            pinned_remove(cache, laste);
+                        }
                         lru_delete(cache, laste);
                         entrycache_remove_int(cache, laste);
                         entrycache_return(cache, (struct backentry **)&laste, PR_TRUE);
@@ -666,35 +715,18 @@ revert_cache(ldbm_instance *inst, struct timespec *start_time)
 
 /* initialize the cache */
 int
-cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type)
+cache_init(struct cache *cache, struct ldbm_instance *inst, uint64_t maxsize, int64_t maxentries, int type)
 {
     slapi_log_err(SLAPI_LOG_TRACE, "cache_init", "-->\n");
-    cache->c_maxsize = maxsize;
+    struct cache_stats stats_zeros = { 0 };
+    cache->c_stats = stats_zeros;
+    cache->c_stats.maxsize = maxsize;
     /* coverity[missing_lock] */
-    cache->c_maxentries = maxentries;
-    cache->c_curentries = 0;
-    if (config_get_slapi_counters()) {
-        if (cache->c_cursize) {
-            slapi_counter_destroy(&cache->c_cursize);
-        }
-        cache->c_cursize = slapi_counter_new();
-        if (cache->c_hits) {
-            slapi_counter_destroy(&cache->c_hits);
-        }
-        cache->c_hits = slapi_counter_new();
-        if (cache->c_tries) {
-            slapi_counter_destroy(&cache->c_tries);
-        }
-        cache->c_tries = slapi_counter_new();
-    } else {
-        slapi_log_err(SLAPI_LOG_NOTICE,
-                      "cache_init", "slapi counter is not available.\n");
-        cache->c_cursize = NULL;
-        cache->c_hits = NULL;
-        cache->c_tries = NULL;
-    }
+    cache->c_stats.maxentries = maxentries;
+    cache->c_inst = inst;
     cache->c_lruhead = cache->c_lrutail = NULL;
     cache_make_hashes(cache, type);
+    cache->c_pinned_ctx = (struct pinned_ctx*)slapi_ch_calloc(1, sizeof (struct pinned_ctx));
 
     if (((cache->c_mutex = PR_NewMonitor()) == NULL) ||
         ((cache->c_emutexalloc_mutex = PR_NewLock()) == NULL)) {
@@ -706,9 +738,13 @@ cache_init(struct cache *cache, uint64_t maxsize, int64_t maxentries, int type)
 }
 
 #define CACHE_FULL(cache)                                                  \
-    ((slapi_counter_get_value((cache)->c_cursize) > (cache)->c_maxsize) || \
-     (((cache)->c_maxentries > 0) &&                                       \
-      ((cache)->c_curentries > (cache)->c_maxentries)))
+    (((cache)->c_stats.size > (cache)->c_stats.maxsize) || \
+     (((cache)->c_stats.maxentries > 0) &&                                       \
+      ((cache)->c_stats.nentries > (cache)->c_stats.maxentries)))
+
+#define NOT_0(v) (((v)==0) ? 1L : (v))
+
+#define AV_WEIGHT(cache) ((cache)->c_stats.weight/NOT_0((cache)->c_stats.nehw))
 
 
 /* clear out the cache to make room for new entries
@@ -724,6 +760,7 @@ entrycache_flush(struct cache *cache)
 
     LOG("=> entrycache_flush\n");
 
+    pinned_flush(cache);
     /* all entries on the LRU list are guaranteed to have a refcnt = 0
      * (iow, nobody's using them), so just delete from the tail down
      * until the cache is a managable size again.
@@ -749,7 +786,7 @@ entrycache_flush(struct cache *cache)
     if (e)
         LRU_DETACH(cache, e);
     LOG("<= entrycache_flush (down to %lu entries, %lu bytes)\n",
-        cache->c_curentries, slapi_counter_get_value(cache->c_cursize));
+        cache->c_stats.nentries, cache->c_stats.size);
     return e;
 }
 
@@ -759,21 +796,21 @@ entrycache_clear_int(struct cache *cache)
 {
     struct backentry *eflush = NULL;
     struct backentry *eflushtemp = NULL;
-    size_t size = cache->c_maxsize;
+    size_t size = cache->c_stats.maxsize;
 
-    cache->c_maxsize = 0;
+    cache->c_stats.maxsize = 0;
     eflush = entrycache_flush(cache);
     while (eflush) {
         eflushtemp = BACK_LRU_NEXT(eflush, struct backentry *);
         backentry_free(&eflush);
         eflush = eflushtemp;
     }
-    cache->c_maxsize = size;
-    if (cache->c_curentries > 0) {
+    cache->c_stats.maxsize = size;
+    if (cache->c_stats.nentries > 0) {
         slapi_log_err(SLAPI_LOG_CACHE,
                       "entrycache_clear_int", "There are still %" PRIu64 " entries "
                                               "in the entry cache.\n",
-                      cache->c_curentries);
+                      cache->c_stats.nentries);
 #ifdef LDAP_CACHE_DEBUG
         slapi_log_err(SLAPI_LOG_DEBUG, "entrycache_clear_int", "ID(s) in entry cache:\n");
         dump_hash(cache->c_idtable);
@@ -813,9 +850,7 @@ void
 cache_destroy_please(struct cache *cache, int type)
 {
     erase_cache(cache, type);
-    slapi_counter_destroy(&cache->c_cursize);
-    slapi_counter_destroy(&cache->c_hits);
-    slapi_counter_destroy(&cache->c_tries);
+    slapi_ch_free((void**)&cache->c_pinned_ctx);
     PR_DestroyMonitor(cache->c_mutex);
     PR_DestroyLock(cache->c_emutexalloc_mutex);
 }
@@ -846,7 +881,7 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
         bytes = MINCACHESIZE;
     }
     cache_lock(cache);
-    cache->c_maxsize = bytes;
+    cache->c_stats.maxsize = bytes;
     if (!autotuned) {
         /* Manually tuned value */
         cache->c_config_maxsize = bytes;
@@ -861,7 +896,7 @@ entrycache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
         backentry_free(&eflush);
         eflush = eflushtemp;
     }
-    if (cache->c_curentries < 50) {
+    if (cache->c_stats.nentries < 50) {
         /* there's hardly anything left in the cache -- clear it out and
         * resize the hashtables for efficiency.
         */
@@ -890,7 +925,7 @@ cache_set_max_entries(struct cache *cache, int64_t entries, bool autotuned)
      * we can eventually drop this.
      */
     cache_lock(cache);
-    cache->c_maxentries = entries;
+    cache->c_stats.maxentries = entries;
     if (!autotuned) {
         /* Manually tuned value */
         cache->c_config_maxentries = entries;
@@ -902,8 +937,9 @@ cache_set_max_entries(struct cache *cache, int64_t entries, bool autotuned)
     }
 
     /* check for full cache, and clear out if necessary */
-    if (CACHE_FULL(cache))
+    if (CACHE_FULL(cache)) {
         eflush = entrycache_flush(cache);
+    }
     cache_unlock(cache);
     while (eflush) {
         eflushtemp = BACK_LRU_NEXT(eflush, struct backentry *);
@@ -922,7 +958,7 @@ cache_get_max_size(struct cache *cache)
         /* We are shutting down, return the manually set value */
         n = cache->c_config_maxsize;
     } else {
-        n = cache->c_maxsize;
+        n = cache->c_stats.maxsize;
     }
     cache_unlock(cache);
     return n;
@@ -938,7 +974,7 @@ cache_get_max_entries(struct cache *cache)
         /* We are shutting down, return the manually set value */
         n = cache->c_config_maxentries;
     } else {
-        n = cache->c_maxentries;
+        n = cache->c_stats.maxentries;
     }
     cache_unlock(cache);
     return n;
@@ -959,26 +995,12 @@ cache_entry_size(struct backentry *e)
     return size;
 }
 
-/* the monitor code wants to be able to safely fetch the cache stats --
- * if it ever wants to pull out more info, we might want to change all
- * these u_long *'s to a struct
- */
+/* the monitor code wants to be able to safely fetch the cache stats */
 void
-cache_get_stats(struct cache *cache, PRUint64 *hits, PRUint64 *tries, uint64_t *nentries, int64_t *maxentries, uint64_t *size, uint64_t *maxsize)
+cache_get_stats(struct cache *cache, struct cache_stats *stats)
 {
     cache_lock(cache);
-    if (hits)
-        *hits = slapi_counter_get_value(cache->c_hits);
-    if (tries)
-        *tries = slapi_counter_get_value(cache->c_tries);
-    if (nentries)
-        *nentries = cache->c_curentries;
-    if (maxentries)
-        *maxentries = cache->c_maxentries;
-    if (size)
-        *size = slapi_counter_get_value(cache->c_cursize);
-    if (maxsize)
-        *maxsize = cache->c_maxsize;
+    *stats = cache->c_stats;
     cache_unlock(cache);
 }
 
@@ -1034,6 +1056,18 @@ cache_debug_hash(struct cache *cache, char **out)
 
 /***** general-purpose cache stuff *****/
 
+/* Determine if a entry should be logged. */
+static bool
+debug_pattern_matches(struct cache *cache, const char *dn)
+{
+    if (cache->c_inst->cache_debug_re && dn) {
+        if (slapi_re_exec_nt(cache->c_inst->cache_debug_re, dn)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* remove an entry from the cache */
 /* you must be holding c_mutex !! */
 static int
@@ -1045,6 +1079,11 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
     const char *uuid;
 #endif
 
+    LOGPATTERN(cache, backentry_get_ndn(e),
+               "Cache average weight is %lu . Removing entry from "
+               "cache with size: %lu, weight: %lu, dn:%s\n",
+               AV_WEIGHT(cache), e->ep_size, e->ep_weight,
+               backentry_get_ndn(e));
     LOG("=> entrycache_remove_int (%s) (%u) (%u)\n", backentry_get_ndn(e), e->ep_id, e->ep_refcnt);
     if (e->ep_state & ENTRY_STATE_NOTINCACHE) {
         return ret;
@@ -1084,12 +1123,17 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
     if (ret == 0) {
         /* won't be on the LRU list since it has a refcount on it */
         /* adjust cache size */
-        slapi_counter_subtract(cache->c_cursize, e->ep_size);
-        cache->c_curentries--;
-        LOG("<= entrycache_remove_int (size %lu): cache now %lu entries, "
-            "%lu bytes\n",
-            e->ep_size, cache->c_curentries,
-            slapi_counter_get_value(cache->c_cursize));
+        cache->c_stats.size -= e->ep_size;
+        cache->c_stats.nentries--;
+        cache->c_stats.weight -= e->ep_weight;
+        if (e->ep_weight != 0) {
+            cache->c_stats.nehw--;
+        }
+        LOG("<= entrycache_remove_int (id %d, size %lu, weight %lu): "
+            "cache now %lu entries, %lu bytes, average weight %lu\n",
+            e->ep_id, e->ep_size, e->ep_weight,
+            cache->c_stats.nentries, cache->c_stats.size,
+            AV_WEIGHT(cache));
     }
 
     /* mark for deletion (will be erased when refcount drops to zero) */
@@ -1101,6 +1145,145 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
 #endif
     LOG("<= entrycache_remove_int: %d\n", ret);
     return ret;
+}
+
+/* Remove the entry from pinned table.
+ * Assume lock is held
+ */
+void
+pinned_remove(struct cache *cache, void *ptr)
+{
+    struct backentry *e = (struct backentry *)ptr;
+    ASSERT(e->ep_state & ENTRY_STATE_PINNED);
+    cache->c_pinned_ctx->npinned--;
+    cache->c_pinned_ctx->size -= e->ep_size;
+    e->ep_state &= ~ENTRY_STATE_PINNED;
+    LOGPATTERN(cache, backentry_get_ndn(e),
+               "Removing entry %s weight: %lu from pinned entries\n",
+               backentry_get_ndn(e), e->ep_weight);
+
+    if (cache->c_pinned_ctx->head == e) {
+        if (cache->c_pinned_ctx->tail == e) {
+            cache->c_pinned_ctx->head = cache->c_pinned_ctx->tail = NULL;
+        } else {
+            cache->c_pinned_ctx->head = BACK_LRU_NEXT(e, struct backentry *);
+        }
+    } else if (cache->c_pinned_ctx->tail == e) {
+        cache->c_pinned_ctx->tail = BACK_LRU_PREV(e, struct backentry *);
+    } else {
+        BACK_LRU_PREV(e, struct backentry *)->ep_lrunext = BACK_LRU_NEXT(e, struct backcommon *);
+        BACK_LRU_NEXT(e, struct backentry *)->ep_lruprev = BACK_LRU_PREV(e, struct backcommon *);
+    }
+    e->ep_lrunext = e->ep_lruprev = NULL;
+    if (e->ep_refcnt == 0) {
+        lru_add(cache, ptr);
+    }
+}
+
+/* Ensure pinned entries respects the cache memory and maxentrie limits
+ * May put entries back in the lru so this function should be called
+ * just before calling entrycache_flush
+ */
+void
+pinned_flush(struct cache *cache)
+{
+    uint64_t maxpinned = cache->c_inst->cache_pinned_entries;
+
+    pinned_verify(cache, __LINE__);
+    if (cache->c_stats.maxentries >= 0 && cache->c_stats.maxentries < maxpinned) {
+        maxpinned = cache->c_stats.maxentries;
+    }
+    while (cache->c_pinned_ctx->npinned > maxpinned) {
+        pinned_remove(cache, cache->c_pinned_ctx->head);
+    }
+    pinned_verify(cache, __LINE__);
+    while (cache->c_pinned_ctx->size > (cache)->c_stats.maxsize) {
+        pinned_remove(cache, cache->c_pinned_ctx->head);
+    }
+    pinned_verify(cache, __LINE__);
+}
+
+/* Check if entry should be pinned and eventuially add it in the
+ *  pinned entry list
+ * Returns true if the entry is pinned
+ * Assume lock is held
+ */
+bool
+pinned_add(struct cache *cache, void *ptr)
+{
+    struct backentry *e = (struct backentry *)ptr;
+    struct backentry *e2 = NULL;
+    uint64_t maxpinned = cache->c_inst->cache_pinned_entries;
+
+    if (cache->c_stats.maxentries >= 0 && cache->c_stats.maxentries < maxpinned) {
+        maxpinned = cache->c_stats.maxentries;
+    }
+
+    if (cache->c_pinned_ctx->npinned > maxpinned) {
+        pinned_flush(cache);
+    }
+    pinned_verify(cache, __LINE__);
+    if (cache->c_inst->cache_pinned_entries == 0) {
+        return false;
+    }
+    if (e->ep_weight == 0) {
+        /* Do not bother to store entries without weight in the pinned array */
+        return false;
+    }
+    if (e->ep_state & ENTRY_STATE_PINNED) {
+        /* Entry is already pinned ==> nothingh to do */
+        return true;
+    }
+    if ((cache->c_pinned_ctx->head) &&
+        (cache->c_pinned_ctx->npinned >= maxpinned) &&
+        (cache->c_pinned_ctx->head->ep_weight >= e->ep_weight)) {
+            return false;
+    }
+    /* Now it is time to insert the entry in the pinned list */
+    cache->c_pinned_ctx->npinned++;
+    cache->c_pinned_ctx->size += e->ep_size;
+    e->ep_state |= ENTRY_STATE_PINNED;
+    e2 = cache->c_pinned_ctx->head;
+    if (e2 == NULL) {
+        cache->c_pinned_ctx->head = cache->c_pinned_ctx->tail = e;
+        e->ep_lrunext = e->ep_lruprev = NULL;
+        LOGPATTERN(cache, backentry_get_ndn(e),
+                   "Adding entry %s weight: %lu from pinned entries\n",
+                   backentry_get_ndn(e), e->ep_weight);
+        pinned_flush(cache);
+        pinned_verify(cache, __LINE__);
+        return true;
+    }
+    for (;;) {
+        if (e2->ep_weight > e->ep_weight) {
+            /* Should insert e before e2 */
+            e->ep_lrunext = (struct backcommon*)e2;
+            e->ep_lruprev = e2->ep_lruprev;
+            e2->ep_lruprev = (struct backcommon*)e;
+            if (e->ep_lruprev == NULL) {
+                cache->c_pinned_ctx->head = e;
+            } else {
+                e->ep_lruprev->ep_lrunext = (struct backcommon*)e;
+            }
+            break;
+        } else if (e2->ep_lrunext == NULL) {
+            /* Should add e after e2 */
+            e2->ep_lrunext = (struct backcommon*)e;
+            e->ep_lruprev = (struct backcommon*)e2;
+            e->ep_lrunext = NULL;
+            cache->c_pinned_ctx->tail = e;
+            break;
+        } else {
+            e2 = BACK_LRU_NEXT(e2, struct backentry*);
+        }
+    }
+    pinned_verify(cache, __LINE__);
+    pinned_flush(cache);
+    pinned_verify(cache, __LINE__);
+    LOGPATTERN(cache, backentry_get_ndn(e),
+               "Adding entry %s weight: %lu from pinned entries\n",
+               backentry_get_ndn(e), e->ep_weight);
+    return true;
 }
 
 /* remove an entry/a dn from the cache.
@@ -1225,8 +1408,8 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
          * the new entry can be in the dn table already, so we need to remove that too.
          */
         if (remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn))) {
-            slapi_counter_subtract(cache->c_cursize, newe->ep_size);
-            cache->c_curentries--;
+            cache->c_stats.size -= newe->ep_size;
+            cache->c_stats.nentries--;
             newe->ep_refcnt--;
             LOG("entry cache replace remove entry size %lu\n", newe->ep_size);
         }
@@ -1237,7 +1420,8 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
      * which could happen since the entry is not necessarily locked.
      * This is ok.
      */
-    olde->ep_state = ENTRY_STATE_DELETED; /* olde is removed from the cache, so set DELETED here. */
+    olde->ep_state &= ~ENTRY_STATE_UNAVAILABLE;  /* Reset the state */
+    olde->ep_state |= ENTRY_STATE_DELETED; /* olde is removed from the cache, so set DELETED here. */
     if (!found) {
         if (olde->ep_state & ENTRY_STATE_DELETED) {
             LOG("entry cache replace (%s): cache index tables out of sync - found dn [%d] id [%d]; but the entry is alreay deleted.\n",
@@ -1252,6 +1436,21 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
 #endif
             cache_unlock(cache);
             return 1;
+        }
+    }
+    if (olde->ep_weight != newe->ep_weight) {
+        /* Lets propagate the weight */
+        if (newe->ep_weight == 0) {
+            newe->ep_weight = olde->ep_weight;
+        }
+        /* Then update the cache statistics */
+        cache->c_stats.weight -= olde->ep_weight;
+        cache->c_stats.weight += newe->ep_weight;
+        if (olde->ep_weight) {
+            cache->c_stats.nehw--;
+        }
+        if (newe->ep_weight) {
+            cache->c_stats.nehw++;
         }
     }
     /* now, add the new entry to the hashtables */
@@ -1290,14 +1489,14 @@ entrycache_replace(struct cache *cache, struct backentry *olde, struct backentry
     newe->ep_refcnt++;
     newe->ep_size = entry_size;
     if (newe->ep_size > olde->ep_size) {
-        slapi_counter_add(cache->c_cursize, newe->ep_size - olde->ep_size);
+        cache->c_stats.size += newe->ep_size - olde->ep_size;
     } else if (newe->ep_size < olde->ep_size) {
-        slapi_counter_subtract(cache->c_cursize, olde->ep_size - newe->ep_size);
+        cache->c_stats.size -= olde->ep_size - newe->ep_size;
     }
-    newe->ep_state = 0;
+    newe->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
     cache_unlock(cache);
     LOG("<= entrycache_replace OK,  cache size now %lu cache count now %ld\n",
-        slapi_counter_get_value(cache->c_cursize), cache->c_curentries);
+        cache->c_stats.size, cache->c_stats.nentries);
     return 0;
 }
 
@@ -1334,7 +1533,7 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
         return;
     }
     LOG("entrycache_return - (%s) entry count: %d, entry in cache:%ld\n",
-        backentry_get_ndn(e), e->ep_refcnt, cache->c_curentries);
+        backentry_get_ndn(e), e->ep_refcnt, cache->c_stats.nentries);
 
     if (locked == PR_FALSE) {
         cache_lock(cache);
@@ -1365,13 +1564,20 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
                 }
                 backentry_free(bep);
             } else {
-                lru_add(cache, e);
+                pinned_verify(cache, __LINE__);
+                if (!pinned_add(cache, e)) {
+                    lru_add(cache, e);
+                }
+                pinned_verify(cache, __LINE__);
                 /* the cache might be overfull... */
-                if (CACHE_FULL(cache))
+                if (CACHE_FULL(cache)) {
                     eflush = entrycache_flush(cache);
+                }
+                pinned_verify(cache, __LINE__);
             }
         }
     }
+    pinned_verify(cache, __LINE__);
     if (locked == PR_FALSE) {
         cache_unlock(cache);
     }
@@ -1380,6 +1586,7 @@ entrycache_return(struct cache *cache, struct backentry **bep, PRBool locked)
         backentry_free(&eflush);
         eflush = eflushtemp;
     }
+    pinned_verify(cache, __LINE__);
     LOG("entrycache_return - returning.\n");
 }
 
@@ -1396,21 +1603,19 @@ cache_find_dn(struct cache *cache, const char *dn, unsigned long ndnlen)
     cache_lock(cache);
     if (find_hash(cache->c_dntable, (void *)dn, ndnlen, (void **)&e)) {
         /* need to check entry state */
-        if (e->ep_state != 0) {
+        if ((e->ep_state & ENTRY_STATE_UNAVAILABLE) != 0) {
             /* entry is deleted or not fully created yet */
             cache_unlock(cache);
             LOG("<= cache_find_dn (NOT FOUND)\n");
             return NULL;
         }
-        if (e->ep_refcnt == 0)
+        if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
             lru_delete(cache, (void *)e);
         e->ep_refcnt++;
-        cache_unlock(cache);
-        slapi_counter_increment(cache->c_hits);
-    } else {
-        cache_unlock(cache);
+        cache->c_stats.hits++;
     }
-    slapi_counter_increment(cache->c_tries);
+    cache->c_stats.tries++;
+    cache_unlock(cache);
 
     LOG("<= cache_find_dn - (%sFOUND)\n", e ? "" : "NOT ");
     return e;
@@ -1428,21 +1633,19 @@ cache_find_id(struct cache *cache, ID id)
     cache_lock(cache);
     if (find_hash(cache->c_idtable, &id, sizeof(ID), (void **)&e)) {
         /* need to check entry state */
-        if (e->ep_state != 0) {
+        if ((e->ep_state & ENTRY_STATE_UNAVAILABLE) != 0) {
             /* entry is deleted or not fully created yet */
             cache_unlock(cache);
             LOG("<= cache_find_id (NOT FOUND)\n");
             return NULL;
         }
-        if (e->ep_refcnt == 0)
+        if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
             lru_delete(cache, (void *)e);
         e->ep_refcnt++;
-        cache_unlock(cache);
-        slapi_counter_increment(cache->c_hits);
-    } else {
-        cache_unlock(cache);
+        cache->c_stats.hits++;
     }
-    slapi_counter_increment(cache->c_tries);
+    cache->c_stats.tries++;
+    cache_unlock(cache);
 
     LOG("<= cache_find_id (%sFOUND)\n", e ? "" : "NOT ");
     return e;
@@ -1460,21 +1663,19 @@ cache_find_uuid(struct cache *cache, const char *uuid)
     cache_lock(cache);
     if (find_hash(cache->c_uuidtable, uuid, strlen(uuid), (void **)&e)) {
         /* need to check entry state */
-        if (e->ep_state != 0) {
+        if ((e->ep_state & ENTRY_STATE_UNAVAILABLE) != 0) {
             /* entry is deleted or not fully created yet */
             cache_unlock(cache);
             LOG("<= cache_find_uuid (NOT FOUND)\n");
             return NULL;
         }
-        if (e->ep_refcnt == 0)
+        if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
             lru_delete(cache, (void *)e);
         e->ep_refcnt++;
-        cache_unlock(cache);
-        slapi_counter_increment(cache->c_hits);
-    } else {
-        cache_unlock(cache);
+        cache->c_stats.hits++;
     }
-    slapi_counter_increment(cache->c_tries);
+    cache->c_stats.tries++;
+    cache_unlock(cache);
 
     LOG("<= cache_find_uuid (%sFOUND)\n", e ? "" : "NOT ");
     return e;
@@ -1508,6 +1709,15 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
     } else {
         entry_size = e->ep_size;
     }
+    LOGPATTERN(cache, backentry_get_ndn(e),
+               "Cache average weight is %lu . Adding entry in "
+               "cache with size: %lu, weight: %lu, dn:%s\n",
+               AV_WEIGHT(cache), entry_size, e->ep_weight,
+               backentry_get_ndn(e));
+    LOG("=> entrycache_add_int( \"%s\", %ld ) size is %lu weight is %lu\n",
+        backentry_get_ndn(e), (long int)e->ep_id,
+        entry_size, e->ep_weight);
+
     /* Check for referrals now so we don't have to do it for every base
      * search in the future */
     if (slapi_entry_attr_find(e->ep_entry, "ref", &attr) && attr) {
@@ -1542,7 +1752,8 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
                 if (e->ep_refcnt == 0)
                     lru_delete(cache, (void *)e);
                 e->ep_refcnt++;
-                e->ep_state = state; /* might be CREATING */
+                e->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
+                e->ep_state |= state; /* might be CREATING */
                 /* returning 1 (entry already existed), but don't set to alt
                  * to prevent that the caller accidentally thinks the existing
                  * entry is not the same one the caller has and releases it.
@@ -1565,7 +1776,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
             } else {
                 if (alt) {
                     *alt = my_alt;
-                    if ((*alt)->ep_refcnt == 0)
+                    if (e->ep_refcnt == 0 && (e->ep_state & ENTRY_STATE_PINNED) == 0)
                         lru_delete(cache, (void *)*alt);
                     (*alt)->ep_refcnt++;
                     LOG("the entry %s already exists.  returning existing entry %s (state: 0x%x)\n",
@@ -1640,23 +1851,31 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state, struct b
 #endif
     }
 
-    e->ep_state = state;
+    e->ep_state &= ~ENTRY_STATE_UNAVAILABLE;
+    e->ep_state |= state;
 
     if (!already_in) {
         e->ep_refcnt = 1;
         e->ep_size = entry_size;
-        slapi_counter_add(cache->c_cursize, e->ep_size);
-        cache->c_curentries++;
+        cache->c_stats.size += e->ep_size;
+        cache->c_stats.nentries++;
+        cache->c_stats.weight += e->ep_weight;
+        if (e->ep_weight) {
+            cache->c_stats.nehw++;
+        }
         /* don't add to lru since refcnt = 1 */
-        LOG("added entry of size %lu -> total now %lu out of max %lu\n",
-            e->ep_size, slapi_counter_get_value(cache->c_cursize), cache->c_maxsize);
-        if (cache->c_maxentries > 0) {
+        LOG("added entry of size %lu -> total now %lu out of max %lu "
+            ". Entry weight is %lu -> Average weight is %lu\n",
+            e->ep_size, cache->c_stats.size, cache->c_stats.maxsize,
+            e->ep_weight, AV_WEIGHT(cache));
+        if (cache->c_stats.maxentries > 0) {
             LOG("    total entries %ld out of %ld\n",
-                cache->c_curentries, cache->c_maxentries);
+                cache->c_stats.nentries, cache->c_stats.maxentries);
         }
         /* check for full cache, and clear out if necessary */
-        if (CACHE_FULL(cache))
+        if (CACHE_FULL(cache)) {
             eflush = entrycache_flush(cache);
+        }
     }
     cache_unlock(cache);
 
@@ -1802,21 +2021,21 @@ dncache_clear_int(struct cache *cache)
 {
     struct backdn *dnflush = NULL;
     struct backdn *dnflushtemp = NULL;
-    size_t size = cache->c_maxsize;
+    size_t size = cache->c_stats.maxsize;
 
-    cache->c_maxsize = 0;
+    cache->c_stats.maxsize = 0;
     dnflush = dncache_flush(cache);
     while (dnflush) {
         dnflushtemp = BACK_LRU_NEXT(dnflush, struct backdn *);
         backdn_free(&dnflush);
         dnflush = dnflushtemp;
     }
-    cache->c_maxsize = size;
-    if (cache->c_curentries > 0) {
+    cache->c_stats.maxsize = size;
+    if (cache->c_stats.nentries > 0) {
         slapi_log_err(SLAPI_LOG_WARNING,
                       "dncache_clear_int", "There are still %" PRIu64 " dn's "
                                            "in the dn cache. :/\n",
-                      cache->c_curentries);
+                      cache->c_stats.nentries);
     }
 }
 
@@ -1839,7 +2058,7 @@ dncache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
                       MINCACHESIZE);
     }
     cache_lock(cache);
-    cache->c_maxsize = bytes;
+    cache->c_stats.maxsize = bytes;
     if (!autotuned) {
         /* Manually tuned value */
         cache->c_config_maxsize = bytes;
@@ -1854,7 +2073,7 @@ dncache_set_max_size(struct cache *cache, uint64_t bytes, bool autotuned)
         backdn_free(&dnflush);
         dnflush = dnflushtemp;
     }
-    if (cache->c_curentries < 50) {
+    if (cache->c_stats.nentries < 50) {
         /* there's hardly anything left in the cache -- clear it out and
         * resize the hashtables for efficiency.
         */
@@ -1894,11 +2113,11 @@ dncache_remove_int(struct cache *cache, struct backdn *bdn)
     if (ret == 0) {
         /* won't be on the LRU list since it has a refcount on it */
         /* adjust cache size */
-        slapi_counter_subtract(cache->c_cursize, bdn->ep_size);
-        cache->c_curentries--;
+        cache->c_stats.size -= bdn->ep_size;
+        cache->c_stats.nentries--;
         LOG("<= dncache_remove_int (size %lu): cache now %lu dn's, %lu bytes\n",
-            bdn->ep_size, cache->c_curentries,
-            slapi_counter_get_value(cache->c_cursize));
+            bdn->ep_size, cache->c_stats.nentries,
+            cache->c_stats.size);
     }
 
     /* mark for deletion (will be erased when refcount drops to zero) */
@@ -1914,7 +2133,7 @@ dncache_return(struct cache *cache, struct backdn **bdn)
     struct backdn *dnflushtemp = NULL;
 
     LOG("=> dncache_return (%s) reference count: %d, dn in cache:%ld\n",
-        slapi_sdn_get_dn((*bdn)->dn_sdn), (*bdn)->ep_refcnt, cache->c_curentries);
+        slapi_sdn_get_dn((*bdn)->dn_sdn), (*bdn)->ep_refcnt, cache->c_stats.nentries);
 
     cache_lock(cache);
     if ((*bdn)->ep_state & ENTRY_STATE_NOTINCACHE) {
@@ -1968,12 +2187,10 @@ dncache_find_id(struct cache *cache, ID id)
         if (bdn->ep_refcnt == 0)
             lru_delete(cache, (void *)bdn);
         bdn->ep_refcnt++;
-        cache_unlock(cache);
-        slapi_counter_increment(cache->c_hits);
-    } else {
-        cache_unlock(cache);
+        cache->c_stats.hits++;
     }
-    slapi_counter_increment(cache->c_tries);
+    cache->c_stats.tries++;
+    cache_unlock(cache);
 
     LOG("<= cache_find_id (%sFOUND)\n", bdn ? "" : "NOT ");
     return bdn;
@@ -2057,15 +2274,15 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state, struct backd
             bdn->ep_size = slapi_sdn_get_size(bdn->dn_sdn);
         }
 
-        slapi_counter_add(cache->c_cursize, bdn->ep_size);
-        cache->c_curentries++;
+        cache->c_stats.size += bdn->ep_size;
+        cache->c_stats.nentries++;
         /* don't add to lru since refcnt = 1 */
         LOG("added entry of size %lu -> total now %lu out of max %lu\n",
-            bdn->ep_size, slapi_counter_get_value(cache->c_cursize),
-            cache->c_maxsize);
-        if (cache->c_maxentries > 0) {
+            bdn->ep_size, cache->c_stats.size,
+            cache->c_stats.maxsize);
+        if (cache->c_stats.maxentries > 0) {
             LOG("    total entries %ld out of %ld\n",
-                cache->c_curentries, cache->c_maxentries);
+                cache->c_stats.nentries, cache->c_stats.maxentries);
         }
         /* check for full cache, and clear out if necessary */
         if (CACHE_FULL(cache)) {
@@ -2127,15 +2344,15 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
         newdn->ep_size = slapi_sdn_get_size(newdn->dn_sdn);
     }
     if (newdn->ep_size > olddn->ep_size) {
-        slapi_counter_add(cache->c_cursize, newdn->ep_size - olddn->ep_size);
+        cache->c_stats.size += newdn->ep_size - olddn->ep_size;
     } else if (newdn->ep_size < olddn->ep_size) {
-        slapi_counter_subtract(cache->c_cursize, olddn->ep_size - newdn->ep_size);
+        cache->c_stats.size -= olddn->ep_size - newdn->ep_size;
     }
     olddn->ep_state = ENTRY_STATE_DELETED;
     newdn->ep_state = 0;
     cache_unlock(cache);
     LOG("<-- OK,  cache size now %lu cache count now %ld\n",
-        slapi_counter_get_value(cache->c_cursize), cache->c_curentries);
+        cache->c_stats.size, cache->c_stats.nentries);
     return 0;
 }
 
@@ -2169,8 +2386,8 @@ dncache_flush(struct cache *cache)
     }
     if (dn)
         LRU_DETACH(cache, dn);
-    LOG("(down to %lu dns, %lu bytes)\n", cache->c_curentries,
-        slapi_counter_get_value(cache->c_cursize));
+    LOG("(down to %lu dns, %lu bytes)\n", cache->c_stats.nentries,
+        cache->c_stats.size);
     return dn;
 }
 
