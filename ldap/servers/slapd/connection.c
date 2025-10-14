@@ -23,6 +23,7 @@
 #include "prlog.h" /* for PR_ASSERT */
 #include "fe.h"
 #include <sasl/sasl.h>
+#include <stdbool.h>
 #if defined(LINUX)
 #include <netinet/tcp.h> /* for TCP_CORK */
 #endif
@@ -568,6 +569,19 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
     /* Set the start time */
     slapi_operation_set_time_started(op);
 
+    /* difficult to detect false asynch operations
+     * Indeed because of scheduling of threads a previous
+     * operation may have sent its result but not yet updated
+     * the completed count.
+     * To avoid false positive lets set a limit of 2.
+     */
+    if ((conn->c_opsinitiated - conn->c_opscompleted) > 2) {
+        unsigned int opnote;
+        opnote = slapi_pblock_get_operation_notes(pb);
+        opnote |= SLAPI_OP_NOTE_ASYNCH_OP; /* the operation is dispatch while others are running */
+        slapi_pblock_set_operation_notes(pb, opnote);
+    }
+
     /* If the minimum SSF requirements are not met, only allow
      * bind and extended operations through.  The bind and extop
      * code will ensure that only SASL binds and startTLS are
@@ -1006,10 +1020,16 @@ connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
         slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_new_work", "no work to do\n");
         ret = CONN_NOWORK;
     } else {
+        Connection *conn = wqitem;
         /* make new pb */
-        slapi_pblock_set(pb, SLAPI_CONNECTION, wqitem);
+        slapi_pblock_set(pb, SLAPI_CONNECTION, conn);
         slapi_pblock_set_op_stack_elem(pb, op_stack_obj);
         slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
+        if (conn->c_flagblocked) {
+            /* flag this new operation that it was blocked by maxthreadperconn */
+            slapi_pblock_set_operation_notes(pb, SLAPI_OP_NOTE_ASYNCH_BLOCKED);
+            conn->c_flagblocked = false;
+        }
     }
 
     pthread_mutex_unlock(&work_q_lock);
@@ -1869,6 +1889,7 @@ connection_threadmain(void *arg)
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
+                    conn->c_flagblocked = true;
                     if (conn->c_maxthreadsblocked == 1 && connection_has_psearch(conn)) {
                         slapi_log_err(SLAPI_LOG_NOTICE, "connection_threadmain",
                                 "Connection (conn=%" PRIu64 ") has a running persistent search "

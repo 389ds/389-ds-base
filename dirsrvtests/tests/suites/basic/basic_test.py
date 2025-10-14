@@ -245,6 +245,72 @@ def test_basic_ops(topology_st, import_example_ldif):
         assert False
     log.info('test_basic_ops: PASSED')
 
+def test_basic_search_asynch(topology_st, request):
+    """
+    Tests asynchronous searches generate string 'notes=B'
+    and 'notes=N' in access logs
+
+    :id: 1b761421-d2bb-487b-813e-2278123fd13c
+    :parametrized: no
+    :setup: Standalone instance, create test user to search with filter (uid=*).
+
+    :steps:
+        1. Create a test user
+        2. trigger async searches
+        3. Verify access logs contains 'notes=B' up to 10 attempts
+        4. Verify access logs contains 'notes=N' up to 10 attempts
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+
+    """
+
+    log.info('Running test_basic_search_asynch...')
+
+    search_filter = "(uid=*)"
+    topology_st.standalone.restart()
+    topology_st.standalone.config.set("nsslapd-accesslog-logbuffering", "off")
+    topology_st.standalone.config.set("nsslapd-maxthreadsperconn", "3")
+
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn=None)
+        user = users.create_test_user()
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    for attempt in range(10):
+        msgids = []
+        for i in range(5):
+            searchid = topology_st.standalone.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+            msgids.append(searchid)
+
+        for msgid in msgids:
+            rtype, rdata = topology_st.standalone.result(msgid)
+
+        # verify if some operations got blocked
+        error_lines = topology_st.standalone.ds_access_log.match('.*notes=.*B.* details.*')
+        if len(error_lines) > 0:
+            log.info('test_basic_search_asynch: found "notes=B" after %d attempt(s)' % (attempt + 1))
+            break
+
+    assert attempt < 10
+
+    # verify if some operations got flagged Not synchronous
+    error_lines = topology_st.standalone.ds_access_log.match('.*notes=.*N.* details.*')
+    assert len(error_lines) > 0
+
+    def fin():
+        user.delete()
+        topology_st.standalone.config.set("nsslapd-accesslog-logbuffering", "on")
+        topology_st.standalone.config.set("nsslapd-maxthreadsperconn", "5")
+
+    request.addfinalizer(fin)
+
+    log.info('test_basic_search_asynch: PASSED')
 
 def test_basic_import_export(topology_st, import_example_ldif):
     """Test online and offline LDIF import & export
@@ -1770,9 +1836,6 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
             assert False
         else:
             assert True
-
-
-
 
 if __name__ == '__main__':
     # Run isolated
