@@ -1081,7 +1081,7 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
 
     LOGPATTERN(cache, backentry_get_ndn(e),
                "Cache average weight is %lu . Removing entry from "
-               " cache with size: %lu, weight: %lu, dn:%s\n",
+               "cache with size: %lu, weight: %lu, dn:%s\n",
                AV_WEIGHT(cache), e->ep_size, e->ep_weight,
                backentry_get_ndn(e));
     LOG("=> entrycache_remove_int (%s) (%u) (%u)\n", backentry_get_ndn(e), e->ep_id, e->ep_refcnt);
