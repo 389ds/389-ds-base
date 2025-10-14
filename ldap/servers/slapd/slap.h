@@ -1739,6 +1739,7 @@ typedef struct conn
     int32_t c_anon_access;
     int32_t c_max_threads_per_conn;
     int32_t c_bind_auth_token;
+    bool c_flagblocked;            /* Flag the next read operation as blocked */
 } Connection;
 #define CONN_FLAG_SSL 1     /* Is this connection an SSL connection or not ?         \
                            * Used to direct I/O code when SSL is handled differently \
