@@ -11,16 +11,19 @@ import pytest
 import os
 import time
 import signal
+import threading
 import ldap
 from datetime import datetime
 from random import sample
 from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes, ensure_str
 from lib389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
 from lib389._constants import *
-from lib389.plugins import MemberOfPlugin
+from lib389.plugins import MemberOfPlugin, RetroChangelogPlugin
+from lib389.backend import Backends
+from lib389.mappingTree import MappingTrees
 from lib389 import Entry
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
-from lib389.idm.group import Groups, Group
+from lib389.idm.group import Groups, Group, UniqueGroups
 from lib389.replica import ReplicationManager
 from lib389.tasks import *
 from lib389.idm.nscontainer import nsContainers
@@ -1649,6 +1652,189 @@ def test_memberof_total_init_with_fractional_replication(topo_m2, users):
     new_user.delete()
     group1.delete()
     group2.delete()
+
+
+class ModifySecondBackendThread(threading.Thread):
+    """Thread class for continuously modifying entries in the second backend"""
+
+    def __init__(self, inst, second_suffix, timeout, num_operations=5000):
+        threading.Thread.__init__(self)
+        self.daemon = True
+        self.inst = inst
+        self.second_suffix = second_suffix
+        self.timeout = timeout
+        self.num_operations = num_operations
+
+    def run(self):
+        """Run continuous modifications on the second backend"""
+        try:
+            # Create a new connection for this thread
+            conn = self.inst.clone()
+            # Ensure the connection is properly opened
+            conn.open()
+            
+            # Set timeout using a try/except to handle connection issues
+            try:
+                conn.set_option(ldap.OPT_TIMEOUT, self.timeout)
+            except (AttributeError, ldap.LDAPError):
+                # If setting timeout fails, continue without it
+                log.warning('Could not set LDAP timeout for thread connection')
+            
+            log.info('Starting modifications on second backend...')
+            
+            for x in range(self.num_operations):
+                try:
+                    conn.modify_s(self.second_suffix,
+                                 [(ldap.MOD_REPLACE, 'description', 
+                                   ensure_bytes(f'modified description {x}'))])
+                except ldap.LDAPError as e:
+                    log.error(f'Failed to modify second suffix at iteration {x} - error: {e}')
+                    # Continue with remaining operations instead of failing completely
+                    continue
+                    
+        except Exception as e:
+            log.error(f'Thread connection error: {e}')
+            return
+        finally:
+            # Ensure connection is closed even if errors occur
+            try:
+                if 'conn' in locals():
+                    conn.close()
+            except:
+                pass
+
+        log.info('Finished modifying second backend')
+
+
+def test_memberof_retrocl_deadlock(topology_st):
+    """Test that memberOf and retrocl plugins do not deadlock in multi-backend scenario
+
+    :id: 47931f8c-e792-41bf-a3c0-b3b38391cb31
+    :setup: Standalone instance
+    :steps:
+        1. Configure memberOf plugin for uniqueMember attribute and enable
+        2. Configure retrocl plugin scoping to default backend only and enable
+        3. Restart instance to apply plugin configurations
+        4. Create a second backend for deadlock testing
+        5. Create a test group using UniqueGroups and 1500 test users
+        6. In parallel: add users to group (triggers memberOf) while modifying second backend
+        7. Verify no timeout/deadlock occurs during parallel operations
+        8. Clean up test entries and disable plugins
+    :expectedresults:
+        1. MemberOf plugin should be configured and enabled successfully
+        2. Retrocl plugin should be configured and enabled successfully
+        3. Instance restart should complete successfully
+        4. Second backend should be created successfully
+        5. Test group and users should be created successfully
+        6. Parallel operations should complete without deadlock/timeout
+        7. No LDAP timeout errors should occur
+        8. Cleanup should complete successfully
+    """
+
+    inst = topology_st.standalone
+
+    # Test constants
+    SECOND_BACKEND = "deadlock"
+    SECOND_SUFFIX = f"dc={SECOND_BACKEND}"
+    TIME_OUT = 5
+    NUM_USERS = 1500
+
+    log.info("Test memberOf and retrocl deadlock scenario")
+
+    # Enable memberOf and retrocl plugins
+    log.info("Enabling memberOf and retrocl plugins")
+    memberof_plugin = MemberOfPlugin(inst)
+    memberof_plugin.replace_groupattr('uniquemember')
+    memberof_plugin.enable()
+
+    retrocl_plugin = RetroChangelogPlugin(inst)
+    retrocl_plugin.replace('nsslapd-include-suffix', DEFAULT_SUFFIX)
+    retrocl_plugin.enable()
+
+    topology_st.standalone.restart()
+
+    # Create second backend
+    log.info("Creating second backend for deadlock testing")
+    backends = Backends(inst)
+    backend = backends.create(properties={
+        'cn': SECOND_BACKEND,
+        'nsslapd-suffix': SECOND_SUFFIX
+    })
+
+    # Create test group and users
+    log.info("Creating test group and users")
+
+    # Create group
+    groups = UniqueGroups(inst, DEFAULT_SUFFIX)
+    test_group = groups.create(properties={
+        'cn': 'testgroup',
+        'description': 'testgroup'
+    })
+
+    # Create 1500 test users
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_dns = []
+
+    log.info(f"Creating {NUM_USERS} test users...")
+    for idx in range(1, NUM_USERS + 1):
+        user_props = TEST_USER_PROPERTIES.copy()
+        user_props.update({
+            'uid': f'member{idx}',
+            'cn': f'member{idx}',
+            'sn': f'member{idx}',
+            'uidNumber': f'{idx}',
+            'gidNumber': f'{idx}',
+            'homeDirectory': f'/home/member{idx}'
+        })
+
+        try:
+            user = users.create(properties=user_props)
+            user_dns.append(user.dn)
+        except ldap.LDAPError as e:
+            log.error(f'Failed to create user member{idx}: {e}')
+            raise
+
+    log.info(f"Created {len(user_dns)} test users")
+
+    # Run parallel operations to test for deadlock
+    log.info("Starting parallel operations to test deadlock scenario")
+
+    # Start thread to continuously modify second backend
+    modify_thread = ModifySecondBackendThread(inst, SECOND_SUFFIX, TIME_OUT)
+    modify_thread.start()
+    time.sleep(1)  # Give thread time to start
+
+    # Add members to group with timeout detection
+    log.info("Adding members to group...")
+    inst.set_option(ldap.OPT_TIMEOUT, TIME_OUT)
+
+    try:
+        for idx, user_dn in enumerate(user_dns, 1):
+            try:
+                test_group.add('uniqueMember', user_dn)
+            except ldap.TIMEOUT:
+                log.error(f'DEADLOCK detected at member {idx}! Test FAILED.')
+                raise AssertionError("Deadlock detected - memberOf and retrocl plugins deadlocked")
+            except ldap.LDAPError as e:
+                log.error(f'Failed to add member {idx} (not a deadlock): {e}')
+                raise
+    finally:
+        # Wait for the modification thread to finish
+        modify_thread.join()
+
+    # Verify no deadlock occurred - if we reach here, test passed
+    log.info("SUCCESS: No deadlock detected between memberOf and retrocl plugins")
+
+    # Cleanup - disable plugins and remove second backend
+    try:
+        for user in user_dns:
+            user.delete()
+        test_group.delete()
+        memberof_plugin.disable()
+        retrocl_plugin.disable()
+        backend.delete()
+    except Exception as e:
+        log.warning(f"Cleanup warning: {e}")
 
 
 if __name__ == '__main__':
