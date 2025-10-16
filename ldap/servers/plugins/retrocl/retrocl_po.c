@@ -83,7 +83,8 @@ make_changes_string(LDAPMod **ldm, const char **includeattrs)
                 continue;
             }
         }
-        switch (ldm[i]->mod_op & ~LDAP_MOD_BVALUES) {
+
+        switch (ldm[i]->mod_op & ~(LDAP_MOD_BVALUES | LDAP_MOD_IGNORE)) {
         case LDAP_MOD_ADD:
             addlenstr(l, "add: ");
             addlenstr(l, ldm[i]->mod_type);
