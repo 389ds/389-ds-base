@@ -52,8 +52,8 @@ CSV_FILE = f'{RESULT_DIR}/r.csv.'
 NB_MEASURES = 100
 NB_MEANINGFULL_MEASURES = NB_MEASURES-80
 SCENARIO='SCENARIO'
-STAT_ATTRS = ( 'dncachehits', 'dncachetries', 'dncachehitratio',
-               'currentdncachesize', 'currentdncachecount', )
+STAT_ATTRS2 =  ( 'currentdncachesize', 'currentdncachecount' )
+STAT_ATTRS = ( 'dncachehits', 'dncachetries' ) + STAT_ATTRS2
 
 WITHOUT_CACHE = 'without_ndn_cache'
 WITH_CACHE = 'with_ndn_cache'
@@ -117,7 +117,7 @@ class Scenario:
             attrlist=list(STAT_ATTRS))
         log.debug(f'getndncache_stats res={res}')
         res = res[0][1]
-        return [ ensure_str(res[a][0]) for a in STAT_ATTRS ]
+        return { a: ensure_str(res[a][0]) for a in STAT_ATTRS }
 
 
 
@@ -126,9 +126,11 @@ class Scenario:
         log.info(f'Perform {NB_MEASURES} of {name}')
         data = []
         self.ldc = conn
+        aggregated_stats = { a: 0 for a in STAT_ATTRS }
         try:
             for _ in range(NB_MEASURES):
                 self.preop()
+                pre_stats = self.getndncache_stats()
                 with  open(f'{inst.ds_paths.log_dir}/access', 'a+') as logfd:
                     pos = os.fstat(logfd.fileno()).st_size
                     self.op()
@@ -137,12 +139,18 @@ class Scenario:
                         res = re.match(r'.*optime=(\d+\.?\d*).*', line)
                         if res:
                             data.append(float(res.group(1)))
-                    self.postop()
+                post_stats = self.getndncache_stats()
+                for k,v in post_stats.items():
+                    aggregated_stats[k] += float(v) - float(pre_stats[k])
+                self.postop()
             result = Scenario.average(data)
         except ldap.LDAPError as exc:
             log.error(f'Scenario {scen} failed because of {exc}')
             result = [ 0, 0, [] ]
         log.info(f'result (average, normalized standard deviation, data) of {name} is {result}')
+        res_stats = [ str(aggregated_stats[a]) for a in STAT_ATTRS ]
+        res_stats2 = [ post_stats[a] for a in STAT_ATTRS2 ]
+        result.append(res_stats + res_stats2)
         return result
 
 
@@ -293,6 +301,9 @@ def with_indexes(topo):
     index = indexes.get('member')
     index.delete()
 
+    index = indexes.get('uniquemember')
+    index.ensure_attr_state( { 'nsIndexType': ['eq', 'sub'] } )
+
 
 @pytest.fixture(scope="module", params=[WITHOUT_CACHE,WITH_CACHE])
 def with_ldif(topo, with_indexes, request):
@@ -375,7 +386,6 @@ def test_run_measure(topo, with_ldif):
     conn = open_conn(inst)
     for scen in SCENARIOS:
         v = scen.measure(inst, conn)
-        v.append(scen.getndncache_stats())
         log.info(f'Set results ({with_ldif},{scen}): {v}')
         scen.results[with_ldif] = v
     conn.unbind_s()
@@ -394,7 +404,6 @@ def test_run_measure_with_small_entrycache(topo, with_ldif, with_small_entrycach
     conn = with_small_entrycache
     for scen in SCENARIOS_SMALL_ENTRYCACHE:
         v = scen.measure(inst, conn)
-        v.append(scen.getndncache_stats())
         log.info(f'Set results ({with_ldif},{scen}): {v}')
         scen.results[with_ldif] = v
     # conn.unbind_s is done by with_small_entrycache teardown
@@ -412,6 +421,9 @@ def test_log_results():
     os.makedirs(RESULT_DIR, 0o755, exist_ok=True)
     statkeys = []
     for attr in STAT_ATTRS:
+        statkeys.append(f'delta {attr} WITHOUT CACHE')
+        statkeys.append(f'delta {attr} WITH CACHE')
+    for attr in STAT_ATTRS2:
         statkeys.append(f'{attr} WITHOUT CACHE')
         statkeys.append(f'{attr} WITH CACHE')
     statkeys_str = "\t".join(statkeys)
@@ -436,7 +448,6 @@ def test_log_results():
             fmt1 = f'{scen}\t{m1:.5f}\t{m2:.5f}\t{gain:.1f}%\t{v1:.2f}%\t{v2:.2f}%\t{scen.description()}'
             fout.write(f'{fmt1}\t{statvalues_str}\n')
             # fout.write({fmt1}\t{d1}\t{d2}\t{statvalues_str}\n')
-    assert False
 
 
 def numbered_filename(prefix):
