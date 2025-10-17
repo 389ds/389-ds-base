@@ -1421,8 +1421,25 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
     value = memberof.get_memberofneedfixup()
     assert ((str(value).lower() == "yes") or (str(value).lower() == "true"))
 
-    # step 14. fixup task was not launched because by default launch_fixup is no
-    assert len(errlog.match('.*It is recommended to launch memberof fixup task.*')) == 0
+    # step 14. Verify the global fixup started/finished messages
+    attribute_name = 'memberOf'
+    started_lines = errlog.match('.*Memberof plugin started the global fixup task for attribute .*')
+    assert len(started_lines) >= 1
+    for line in started_lines:
+        log.info(f'Started line: {line}')
+        assert f'attribute {attribute_name}' in line
+
+    # Wait for finished messages to appear, then verify no nulls are present
+    finished_lines = []
+    for _ in range(60):
+        finished_lines = errlog.match('.*Memberof plugin finished the global fixup task.*')
+        if finished_lines:
+            break
+        time.sleep(1)
+    assert len(finished_lines) >= 1
+    for line in finished_lines:
+        log.info(f'Finished line: {line}')
+        assert '(null)' not in line
 
     # Check that users memberof and group members are in sync.
     time.sleep(delay)
