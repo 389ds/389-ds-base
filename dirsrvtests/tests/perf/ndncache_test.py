@@ -11,6 +11,7 @@ import pytest
 import re
 import csv
 import sys
+import argparse, argcomplete
 from abc import ABC, abstractmethod
 from ldap.controls.sss import SSSRequestControl
 from lib389.backend import Backends
@@ -50,7 +51,7 @@ RESULT_DIR = f'{THIS_DIR}/../data/ndncache_test_results/r'
 RESULT_FILE = f'{RESULT_DIR}/results_ndncache.'
 CSV_FILE = f'{RESULT_DIR}/r.csv.'
 NB_MEASURES = 100
-NB_MEANINGFULL_MEASURES = NB_MEASURES-80
+NB_MEANINGFULL_MEASURES = int(NB_MEASURES/5)
 SCENARIO='SCENARIO'
 STAT_ATTRS2 =  ( 'currentdncachesize', 'currentdncachecount' )
 STAT_ATTRS = ( 'dncachehits', 'dncachetries' ) + STAT_ATTRS2
@@ -61,6 +62,16 @@ WITH_CACHE = 'with_ndn_cache'
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
+args = None
+
+with open('/tmp/ndncache_test.log', 'w'):
+    pass
+
+def dbg(msg):
+    pass
+    # with open('/tmp/ndncache_test.log', 'a') as dbgfd:
+    #     dbgfd.write(msg)
+
 
 class Scenario:
     def __init__(self):
@@ -75,7 +86,7 @@ class Scenario:
 
     @abstractmethod
     def op(self):
-        # Operation to measure
+        # Operation to measure ( Should better be a single ldap operation )
         pass
 
     def postop(self):
@@ -120,33 +131,39 @@ class Scenario:
         return { a: ensure_str(res[a][0]) for a in STAT_ATTRS }
 
 
-
     def measure(self, inst, conn):
         name = str(self)
         log.info(f'Perform {NB_MEASURES} of {name}')
         data = []
         self.ldc = conn
         aggregated_stats = { a: 0 for a in STAT_ATTRS }
-        try:
-            for _ in range(NB_MEASURES):
-                self.preop()
-                pre_stats = self.getndncache_stats()
-                with  open(f'{inst.ds_paths.log_dir}/access', 'a+') as logfd:
+        pattern = re.compile(br'.*optime=(\d+\.?\d*).*')
+        dbg(f'Running measure on {self}\n')
+
+        with  open(f'{inst.ds_paths.log_dir}/access', 'rb+') as logfd:
+            try:
+                for _ in range(NB_MEASURES):
+                    self.preop()
+                    pre_stats = self.getndncache_stats()
                     pos = os.fstat(logfd.fileno()).st_size
-                    self.op()
                     logfd.seek(pos)
-                    for line in iter(logfd.readline, ''):
-                        res = re.match(r'.*optime=(\d+\.?\d*).*', line)
+                    dbg('Perform the operation\n')
+                    self.op()
+                    dbg('Done Performing the operation\n')
+                    for line in iter(logfd.readline, b''):
+                        res = pattern.match(line)
                         if res:
                             data.append(float(res.group(1)))
-                post_stats = self.getndncache_stats()
-                for k,v in post_stats.items():
-                    aggregated_stats[k] += float(v) - float(pre_stats[k])
-                self.postop()
-            result = Scenario.average(data)
-        except ldap.LDAPError as exc:
-            log.error(f'Scenario {scen} failed because of {exc}')
-            result = [ 0, 0, [] ]
+                    dbg('Done parsing log file\n')
+                    post_stats = self.getndncache_stats()
+                    for k,v in post_stats.items():
+                        aggregated_stats[k] += float(v) - float(pre_stats[k])
+                    self.postop()
+                dbg('Compute average measure\n')
+                result = Scenario.average(data)
+            except ldap.LDAPError as exc:
+                log.error(f'Scenario {name} failed because of {exc}')
+                result = [ 0, 0, [] ]
         log.info(f'result (average, normalized standard deviation, data) of {name} is {result}')
         res_stats = [ str(aggregated_stats[a]) for a in STAT_ATTRS ]
         res_stats2 = [ post_stats[a] for a in STAT_ATTRS2 ]
@@ -214,9 +231,13 @@ class Scen4(Scenario):
     def op(self):
         basedn = f'cn=all_users,ou=groups,{DEFAULT_SUFFIX}'
         value = b'uid=pwynn,ou=Information Technology,ou=people,dc=example,dc=com'
-        mods = [ ( ldap.MOD_DELETE, 'uniqueMember', [value,] ), ]
+        mods = [ ( ldap.MOD_DELETE, 'member', [value,] ), ]
         result = self.ldc.modify_s(basedn, mods)
-        mods = [ ( ldap.MOD_ADD, 'uniqueMember', [value,] ), ]
+
+    def postop(self):
+        basedn = f'cn=all_users,ou=groups,{DEFAULT_SUFFIX}'
+        value = b'uid=pwynn,ou=Information Technology,ou=people,dc=example,dc=com'
+        mods = [ ( ldap.MOD_ADD, 'member', [value,] ), ]
         result = self.ldc.modify_s(basedn, mods)
 
 
@@ -231,6 +252,10 @@ class Scen5(Scenario):
         value = b'uid=pwynn,ou=Information Technology,ou=people,dc=example,dc=com'
         mods = [ ( ldap.MOD_DELETE, 'uniqueMember', [value,] ), ]
         result = self.ldc.modify_s(basedn, mods)
+
+    def postop(self):
+        basedn = f'cn=user_admin,ou=permissions,dc=example,dc=com'
+        value = b'uid=pwynn,ou=Information Technology,ou=people,dc=example,dc=com'
         mods = [ ( ldap.MOD_ADD, 'uniqueMember', [value,] ), ]
         result = self.ldc.modify_s(basedn, mods)
 
@@ -301,8 +326,8 @@ def with_indexes(topo):
     index = indexes.get('member')
     index.delete()
 
-    index = indexes.get('uniquemember')
-    index.ensure_attr_state( { 'nsIndexType': ['eq', 'sub'] } )
+    # index = indexes.get('uniquemember')
+    # index.ensure_attr_state( { 'nsIndexType': ['eq', 'sub'] } )
 
 
 @pytest.fixture(scope="module", params=[WITHOUT_CACHE,WITH_CACHE])
@@ -505,15 +530,15 @@ def generate_csv(csvfilename):
     nbrows = nbfiles * nbscen + 1
     nbcols = nbdata + 2 * nbscen + 4
 
-    idx_grqph_data = nbdata + 2
-    idx_average = idx_grqph_data + nbscen + 1
+    idx_graph_data = nbdata + 2
+    idx_average = idx_graph_data + nbscen + 1
 
     print(f'nbfiles={nbfiles}')
     print(f'nbscen={nbscen}')
     print(f'nbdata={nbdata}')
     print(f'nbrows={nbrows}')
     print(f'nbcols={nbcols}')
-    print(f'idx_grqph_data={idx_grqph_data}')
+    print(f'idx_graph_data={idx_graph_data}')
     print(f'idx_average={idx_average}')
 
     gtable = [ [ ' ' ] * nbcols  for _ in range(nbrows) ]
@@ -523,7 +548,7 @@ def generate_csv(csvfilename):
 
     for idx,scen in enumerate(scens):
         if idx > 0:
-            gtable[0][idx_grqph_data+idx] = f'{scen} gain'
+            gtable[0][idx_graph_data+idx] = f'{scen} gain'
             gtable[0][idx_average+idx] = f'average {scen} gain'
 
     # Fill raw data table
@@ -537,13 +562,15 @@ def generate_csv(csvfilename):
     for idx in range(1, nbfiles+1):
         for idx2 in range(1, nbscen+1):
             scen = scens[idx2]
-            gtable[idx][idx_grqph_data+idx2] = gains[scen][idx-1]
-        gtable[idx][idx_grqph_data] = idx
+            gtable[idx][idx_graph_data+idx2] = gains[scen][idx-1]
+        gtable[idx][idx_graph_data] = idx
 
     # Fill average table
     for idx in range(1, nbscen+1):
         scen = scens[idx]
         gtable[1][idx_average+idx] = fmean(gains[scen])
+    if args:
+        gtable[3][idx_average] = str(args)
 
     # Write csv file
     with open(csvfilename, 'w', newline='') as csvfile:
@@ -552,18 +579,43 @@ def generate_csv(csvfilename):
             csvwriter.writerow(row)
 
 
+parser = argparse.ArgumentParser(allow_abbrev=True)
+parser.add_argument('-b', '--batch',
+        action='store_true',
+        help="Run test in batch mode",
+    )
+parser.add_argument('-m', '--measure',
+        type=int,
+        help="Number of measured operations in a measure",
+        default=NB_MEASURES
+    )
+parser.add_argument('-l', '--nbloops',
+        type=int,
+        help="Number of loops in batch mode",
+        default=100
+    )
+parser.add_argument('-c', '--csv',
+        action='store_true',
+        help="generate csv file"
+    )
+argcomplete.autocomplete(parser)
+
 if __name__ == '__main__':
     CURRENT_FILE = os.path.realpath(__file__)
-    arg1 = sys.argv[1] if len(sys.argv) > 1 else None
-    if arg1 == "csv":
+    args = parser.parse_args()
+    assert args.nbloops > 0
+    assert args.measure >= 10
+    NB_MEASURES = args.measure
+    NB_MEANINGFULL_MEASURES = int(NB_MEASURES/5)
+    if args.csv:
         # Generate csv file
         generate_csv(CSV_FILE)
         copyfile(CSV_FILE, '/tmp/r.csv') # Copy in /tmp to ease the import in google sheet
         sys.exit()
-    if arg1 == "batch":
-        # Run a series of 100 tests
+    if args.batch:
+        # Run a series of nbloops tests
         move_results(RESULT_DIR)
-        for idx in range(1, 101):
+        for idx in range(1, args.nbloops+1):
             print(f'\n#############\nRun #{idx}')
             pytest.main([CURRENT_FILE,])
         csvname = f'{RESULT_DIR}/r.csv'
@@ -571,7 +623,5 @@ if __name__ == '__main__':
         copyfile(CSV_FILE, '/tmp/r.csv') # Copy in /tmp to ease the import in google sheet
         move_results(RESULT_DIR)
         sys.exit()
-    if arg1 is None:
-        pytest.main([CURRENT_FILE,])
-        sys.exit()
-    print(f'Invalid argumenet {arg1}. usage: ./ndncache_test.py [csv|batch]')
+    pytest.main([CURRENT_FILE,])
+    sys.exit()
