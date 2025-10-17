@@ -1427,8 +1427,25 @@ def test_shutdown_on_deferred_memberof(topology_st, request):
     value = memberof.get_memberofneedfixup()
     assert ((str(value).lower() == "yes") or (str(value).lower() == "true"))
 
-    # step 14. fixup task was not launched because by default launch_fixup is no
-    assert len(errlog.match('.*It is recommended to launch memberof fixup task.*')) == 0
+    # step 14. Verify the global fixup started/finished messages
+    attribute_name = 'memberOf'
+    started_lines = errlog.match('.*Memberof plugin started the global fixup task for attribute .*')
+    assert len(started_lines) >= 1
+    for line in started_lines:
+        log.info(f'Started line: {line}')
+        assert f'attribute {attribute_name}' in line
+
+    # Wait for finished messages to appear, then verify no nulls are present
+    finished_lines = []
+    for _ in range(60):
+        finished_lines = errlog.match('.*Memberof plugin finished the global fixup task.*')
+        if finished_lines:
+            break
+        time.sleep(1)
+    assert len(finished_lines) >= 1
+    for line in finished_lines:
+        log.info(f'Finished line: {line}')
+        assert '(null)' not in line
 
     # Check that users memberof and group members are in sync.
     time.sleep(delay)
@@ -1672,26 +1689,26 @@ class ModifySecondBackendThread(threading.Thread):
             conn = self.inst.clone()
             # Ensure the connection is properly opened
             conn.open()
-            
+
             # Set timeout using a try/except to handle connection issues
             try:
                 conn.set_option(ldap.OPT_TIMEOUT, self.timeout)
             except (AttributeError, ldap.LDAPError):
                 # If setting timeout fails, continue without it
                 log.warning('Could not set LDAP timeout for thread connection')
-            
+
             log.info('Starting modifications on second backend...')
-            
+
             for x in range(self.num_operations):
                 try:
                     conn.modify_s(self.second_suffix,
-                                 [(ldap.MOD_REPLACE, 'description', 
+                                 [(ldap.MOD_REPLACE, 'description',
                                    ensure_bytes(f'modified description {x}'))])
                 except ldap.LDAPError as e:
                     log.error(f'Failed to modify second suffix at iteration {x} - error: {e}')
                     # Continue with remaining operations instead of failing completely
                     continue
-                    
+
         except Exception as e:
             log.error(f'Thread connection error: {e}')
             return
