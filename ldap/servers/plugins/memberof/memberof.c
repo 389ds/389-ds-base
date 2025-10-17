@@ -934,9 +934,9 @@ perform_needed_fixup()
     slapi_ch_free_string(&cookie);
     slapi_ch_free_string(&td.bind_dn);
     slapi_ch_free_string(&td.filter_str);
-    memberof_free_config(&config);
     slapi_log_err(SLAPI_LOG_INFO, MEMBEROF_PLUGIN_SUBSYSTEM,
                   "Memberof plugin finished the global fixup task for attribute %s\n", config.memberof_attr);
+    memberof_free_config(&config);
     return rc;
 }
 
