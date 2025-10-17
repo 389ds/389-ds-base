@@ -1076,12 +1076,13 @@ cn: memberOf
 nssystemindex: false
 nsindextype: eq
 
-dn: cn=memberuid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+dn: cn=memberUid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
 objectclass: nsIndex
 cn: memberuid
 nssystemindex: false
 nsindextype: eq
+nsindextype: pres
 
 dn: cn=nsUniqueId,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
@@ -1141,6 +1142,14 @@ nssystemindex: false
 nsindextype: pres
 nsindextype: eq
 nsindextype: sub
+
+dn: cn=sudoHost,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: sudoHost
+nssystemindex: false
+nsindextype: eq
+nsindextype: pres
 
 dn: cn=telephoneNumber,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top
