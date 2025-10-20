@@ -35,6 +35,7 @@ import { ExclamationTriangleIcon } from '@patternfly/react-icons/dist/js/icons/e
 import PropTypes from "prop-types";
 import { get_date_string, numToCommas } from "../tools.jsx";
 import { LagReportModal } from "./monitorModals.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 
 const _ = cockpit.gettext;
 
@@ -2606,7 +2607,11 @@ class ExistingLagReportsTable extends React.Component {
             reports: this.props.reports || [],
             showLagReportModal: false,
             reportUrls: null,
-            selectedReport: null
+            selectedReport: null,
+            showConfirmReportDelete: false,
+            reportToDelete: null,
+            modalSpinning: false,
+            modalChecked: false
         };
 
         this.handleSetPage = (_evt, newPage) => {
@@ -2620,6 +2625,10 @@ class ExistingLagReportsTable extends React.Component {
         this.handleSort = this.handleSort.bind(this);
         this.handleViewReport = this.handleViewReport.bind(this);
         this.closeLagReportModal = this.closeLagReportModal.bind(this);
+        this.showConfirmReportDelete = this.showConfirmReportDelete.bind(this);
+        this.closeConfirmReportDelete = this.closeConfirmReportDelete.bind(this);
+        this.deleteReport = this.deleteReport.bind(this);
+        this.onChange = this.onChange.bind(this);
     }
 
     componentDidUpdate(prevProps) {
@@ -2668,8 +2677,141 @@ class ExistingLagReportsTable extends React.Component {
         });
     }
 
+    onChange(e) {
+        // Basic handler for checkbox in confirmation modal
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        this.setState({
+            [e.target.id]: value,
+        });
+    }
+
+    showConfirmReportDelete(report) {
+        this.setState({
+            showConfirmReportDelete: true,
+            reportToDelete: report,
+            modalSpinning: false,
+            modalChecked: false
+        });
+    }
+
+    closeConfirmReportDelete() {
+        this.setState({
+            showConfirmReportDelete: false,
+            modalSpinning: false,
+            modalChecked: false
+        });
+    }
+
+    deleteReport() {
+        const { reportToDelete } = this.state;
+        if (!reportToDelete || !reportToDelete.path) {
+            return;
+        }
+
+        this.setState({
+            modalSpinning: true
+        });
+
+        const reportPath = reportToDelete.path;
+
+        // Safety check: Validate the path is within expected directories
+        // Don't allow deletion from system directories
+        const blockedPaths = [
+            '/etc/', '/bin/', '/sbin/', '/usr/', '/lib/', '/lib64/',
+            '/boot/', '/dev/', '/proc/', '/sys/', '/root/'
+        ];
+
+        const isBlockedPath = blockedPaths.some(prefix => reportPath.startsWith(prefix));
+
+        if (isBlockedPath) {
+            console.error("Attempted to delete report from protected path:", reportPath);
+            this.setState({
+                modalSpinning: false,
+                showConfirmReportDelete: false,
+                reportToDelete: null
+            });
+            return;
+        }
+
+        // Additional check: path must not be root or be too short (likely system directory)
+        if (reportPath === '/' || reportPath.split('/').filter(p => p).length < 2) {
+            console.error("Attempted to delete report from invalid path:", reportPath);
+            this.setState({
+                modalSpinning: false,
+                showConfirmReportDelete: false,
+                reportToDelete: null
+            });
+            return;
+        }
+
+        // List of expected report file extensions
+        const reportFilePatterns = [
+            'replication_analysis.json',
+            'replication_analysis_summary.json',
+            'replication_analysis.html',
+            'replication_analysis.csv',
+            'replication_analysis.png'
+        ];
+
+        // First, list all files in the directory to verify they're report files
+        cockpit.spawn(["ls", "-1A", reportPath], { superuser: true, err: "message" })
+            .then(output => {
+                const files = output.trim().split('\n').filter(f => f);
+
+                // Verify all files match expected patterns
+                const allFilesValid = files.every(file =>
+                    reportFilePatterns.includes(file)
+                );
+
+                if (!allFilesValid) {
+                    console.error("Directory contains unexpected files, refusing to delete:", reportPath);
+                    console.error("Files found:", files);
+                    this.setState({
+                        modalSpinning: false,
+                        showConfirmReportDelete: false,
+                        reportToDelete: null
+                    });
+                    return Promise.reject(new Error("Directory contains unexpected files"));
+                }
+
+                // Delete each file individually
+                const deletePromises = files.map(file =>
+                    cockpit.spawn(["rm", "-f", `${reportPath}/${file}`], { superuser: true, err: "message" })
+                );
+
+                return Promise.all(deletePromises);
+            })
+            .then(() => {
+                // After all files are deleted, remove the directory
+                return cockpit.spawn(["rmdir", reportPath], { superuser: true, err: "message" });
+            })
+            .then(() => {
+                // Remove the report from the list
+                this.setState(prevState => ({
+                    reports: prevState.reports.filter(r => r.path !== reportPath),
+                    modalSpinning: false,
+                    showConfirmReportDelete: false,
+                    reportToDelete: null
+                }));
+
+                // Notify parent component if callback provided
+                if (this.props.onReportDeleted) {
+                    this.props.onReportDeleted(reportToDelete);
+                }
+            })
+            .catch(err => {
+                console.error("Error deleting report:", err);
+                this.setState({
+                    modalSpinning: false,
+                    showConfirmReportDelete: false,
+                    reportToDelete: null
+                });
+                // Error notification here?
+            });
+    }
+
     render() {
-        const { page, perPage, sortBy, reports, showLagReportModal, reportUrls } = this.state;
+        const { page, perPage, sortBy, reports, showLagReportModal, reportUrls, showConfirmReportDelete, reportToDelete, modalSpinning, modalChecked } = this.state;
         const { onSelectReport } = this.props;
 
         // Sort reports
@@ -2759,24 +2901,32 @@ class ExistingLagReportsTable extends React.Component {
                                     </Tr>
                                 </Thead>
                                 <Tbody>
-                                    {paginatedReports.map((report, rowIndex) => (
-                                        <Tr key={rowIndex}>
-                                            <Td>{report.name}</Td>
-                                            <Td>{report.creationTime}</Td>
-                                            <Td>{report.hasJson ? <CheckIcon /> : <MinusIcon />}</Td>
-                                            <Td>{report.hasHtml ? <CheckIcon /> : <MinusIcon />}</Td>
-                                            <Td>{report.hasCsv ? <CheckIcon /> : <MinusIcon />}</Td>
-                                            <Td>{report.hasPng ? <CheckIcon /> : <MinusIcon />}</Td>
-                                            <Td>
-                                                <Button
-                                                    variant="primary"
-                                                    onClick={() => this.handleViewReport(report)}
-                                                >
-                                                    {_("View Report")}
-                                                </Button>
-                                            </Td>
-                                        </Tr>
-                                    ))}
+                                                    {paginatedReports.map((report, rowIndex) => (
+                                                        <Tr key={rowIndex}>
+                                                            <Td>{report.name}</Td>
+                                                            <Td>{report.creationTime}</Td>
+                                                            <Td>{report.hasJson ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasHtml ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasCsv ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>{report.hasPng ? <CheckIcon /> : <MinusIcon />}</Td>
+                                                            <Td>
+                                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                                    <Button
+                                                                        variant="primary"
+                                                                        onClick={() => this.handleViewReport(report)}
+                                                                    >
+                                                                        {_("View")}
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="danger"
+                                                                        onClick={() => this.showConfirmReportDelete(report)}
+                                                                    >
+                                                                        {_("Delete")}
+                                                                    </Button>
+                                                                </div>
+                                                            </Td>
+                                                        </Tr>
+                                                    ))}
                                 </Tbody>
                             </Table>
                             <Pagination
@@ -2809,6 +2959,20 @@ class ExistingLagReportsTable extends React.Component {
                         reportUrls={reportUrls}
                     />
                 )}
+
+                <DoubleConfirmModal
+                    showModal={showConfirmReportDelete}
+                    closeHandler={this.closeConfirmReportDelete}
+                    handleChange={this.onChange}
+                    actionHandler={this.deleteReport}
+                    spinning={modalSpinning}
+                    item={reportToDelete ? reportToDelete.name : ""}
+                    checked={modalChecked}
+                    mTitle={_("Delete Report")}
+                    mMsg={_("Are you sure you want to delete this report?")}
+                    mSpinningMsg={_("Deleting ...")}
+                    mBtnName={_("Delete Report")}
+                />
             </>
         );
     }

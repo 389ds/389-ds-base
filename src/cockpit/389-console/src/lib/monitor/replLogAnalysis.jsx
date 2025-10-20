@@ -679,14 +679,34 @@ export class ReplLogAnalysis extends React.Component {
                 }
 
                 console.error("Report generation error:", errMsg);
+
+                // Make error message more user-friendly
+                let displayMsg = errMsg;
+
+                // Check if it's the "no data found" error
+                if (errMsg.includes("No replication data found") || errMsg.includes("No CSN data available")) {
+                    displayMsg = _("No replication data found matching the specified criteria. ") +
+                                 _("The filters you selected may be too restrictive. Try:");
+                    displayMsg += "\n• " + _("Reducing the lag time or etime threshold values");
+                    displayMsg += "\n• " + _("Adjusting the replication status filter");
+                    displayMsg += "\n• " + _("Expanding the time range");
+                    displayMsg += "\n• " + _("Checking that the log directories contain replication events");
+                } else if (errMsg.includes("parse") || errMsg.includes("function")) {
+                    // Hide technical parse errors from users
+                    displayMsg = _("Failed to generate the report. Please check that:");
+                    displayMsg += "\n• " + _("The log directories are valid and accessible");
+                    displayMsg += "\n• " + _("The access logs contain replication data");
+                    displayMsg += "\n• " + _("All required packages are installed (python3-lib389-repl-reports for HTML/PNG)");
+                }
+
                 this.setState({
                     isGeneratingReport: false,
-                    reportError: errMsg
+                    reportError: displayMsg
                 });
 
                 this.props.addNotification(
                     "error",
-                    cockpit.format(_("Failed to generate replication log report: $0"), errMsg)
+                    cockpit.format(_("Failed to generate replication log report: $0"), displayMsg)
                 );
             });
     }
@@ -1171,9 +1191,16 @@ export class ReplLogAnalysis extends React.Component {
     }
 
     setCustomOutputDir(dir) {
-        this.setState({
-            customOutputDir: dir,
-            showFileBrowser: false
+        // Validate that the directory exists when set from file browser
+        this.validateDirectoryExists(dir).then(exists => {
+            this.setState({
+                customOutputDir: dir,
+                showFileBrowser: false,
+                errors: {
+                    ...this.state.errors,
+                    customOutputDir: exists ? "" : _("Directory does not exist or is not accessible")
+                }
+            });
         });
     }
 
@@ -1399,6 +1426,27 @@ export class ReplLogAnalysis extends React.Component {
                                                         }
                                                         className="pf-v5-u-mb-xl"
                                                     >
+                                                        <HelperText>
+                                                            <HelperTextItem>
+                                                                {_("Add one or more suffixes to analyze")}
+                                                            </HelperTextItem>
+                                                        </HelperText>
+
+                                                        {suffixesList.length > 0 && (
+                                                            <div className="pf-v5-u-mt-sm pf-v5-u-mb-md">
+                                                                <ChipGroup categoryName={_("Selected Suffixes")}>
+                                                                    {suffixesList.map((suffix, index) => (
+                                                                        <Chip
+                                                                            key={index}
+                                                                            onClick={() => this.removeSuffix(index)}
+                                                                        >
+                                                                            {suffix}
+                                                                        </Chip>
+                                                                    ))}
+                                                                </ChipGroup>
+                                                            </div>
+                                                        )}
+
                                                         <Split hasGutter>
                                                             <SplitItem isFilled>
                                                                 <TextInput
@@ -1423,32 +1471,13 @@ export class ReplLogAnalysis extends React.Component {
                                                             </SplitItem>
                                                         </Split>
 
-                                                        {suffixesList.length > 0 && (
-                                                            <div className="pf-v5-u-mt-md">
-                                                                <ChipGroup categoryName={_("Selected Suffixes")}>
-                                                                    {suffixesList.map((suffix, index) => (
-                                                                        <Chip
-                                                                            key={index}
-                                                                            onClick={() => this.removeSuffix(index)}
-                                                                        >
-                                                                            {suffix}
-                                                                        </Chip>
-                                                                    ))}
-                                                                </ChipGroup>
-                                                            </div>
-                                                        )}
-
-                                                        <HelperText>
-                                                            {errors.suffixes ? (
+                                                        {errors.suffixes && (
+                                                            <HelperText>
                                                                 <HelperTextItem variant="error" icon={<ExclamationCircleIcon />}>
                                                                     {errors.suffixes}
                                                                 </HelperTextItem>
-                                                            ) : (
-                                                                <HelperTextItem>
-                                                                    {_("Add one or more suffixes to analyze")}
-                                                                </HelperTextItem>
-                                                            )}
-                                                        </HelperText>
+                                                            </HelperText>
+                                                        )}
                                                     </FormGroup>
                                                 </GridItem>
                                             </Grid>
@@ -1965,7 +1994,7 @@ export class ReplLogAnalysis extends React.Component {
                                                 onClick={this.openChooseLagReportModal}
                                                 size="lg"
                                             >
-                                                {_("Choose Existing Report")}
+                                                {_("View Existing Report")}
                                             </Button>
                                         </div>
 
