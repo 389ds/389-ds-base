@@ -226,7 +226,7 @@ class Scen4(Scenario):
     def __init__(self):
         super().__init__()
         self._name = 'scen4'
-        self._desc = 'Modify member of large group with substring index'
+        self._desc = 'Modify member of large group with no substring index'
 
     def op(self):
         basedn = f'cn=all_users,ou=groups,{DEFAULT_SUFFIX}'
@@ -245,7 +245,7 @@ class Scen5(Scenario):
     def __init__(self):
         super().__init__()
         self._name = 'scen5'
-        self._desc = 'Modify member of small group with substring index'
+        self._desc = 'Modify member of small group with no substring index'
 
     def op(self):
         basedn = f'cn=user_admin,ou=permissions,dc=example,dc=com'
@@ -519,6 +519,10 @@ def generate_csv(csvfilename):
             res1.append(res)
             for data in res:
                 update_gain(data, gains)
+
+    if len(res1) < 2:
+        print(f'ERROR: not enough result files {RESULT_FILE}*')
+        sys.exit(1)
 
     scens = [ data[0] for data in res1[0] ]
     scens[0] = ''
