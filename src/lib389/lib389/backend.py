@@ -629,7 +629,7 @@ class Backend(DSLdapObject):
                             reindex_attrs.add(attr_name)
 
                     # Check fine grain definitions for parentid ONLY
-                    expected_scanlimit = expected_config['scanlimit']
+                    expected_scanlimit = expected_config.get('scanlimit')
                     if (attr_name.lower() == "parentid") and expected_scanlimit and (len(actual_scanlimit) == 0):
                             discrepancies.append(f"Index {attr_name} missing fine grain definition of IDs limit: {expected_mr}")
                             # Add the missing scanlimit
