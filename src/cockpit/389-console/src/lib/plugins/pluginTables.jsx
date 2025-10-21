@@ -1,6 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
+    Button,
     Grid,
     GridItem,
     Pagination,
@@ -66,7 +67,7 @@ class PluginTable extends React.Component {
 
     handleSort(_event, columnIndex, direction) {
         const rows = [...this.state.rows];
-        
+
         rows.sort((a, b) => (a.cells[columnIndex].content > b.cells[columnIndex].content) ? 1 : -1);
         if (direction !== SortByDirection.asc) {
             rows.reverse();
@@ -327,10 +328,10 @@ class AttrUniqConfigTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -343,7 +344,7 @@ class AttrUniqConfigTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.cn[0],
@@ -387,7 +388,7 @@ class AttrUniqConfigTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="attribute uniqueness config table"
                     variant="compact"
@@ -395,7 +396,7 @@ class AttrUniqConfigTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -423,7 +424,7 @@ class AttrUniqConfigTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -515,10 +516,10 @@ class LinkedAttributesTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -531,7 +532,7 @@ class LinkedAttributesTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.cn?.[0] || "",
@@ -575,7 +576,7 @@ class LinkedAttributesTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="linked attributes table"
                     variant="compact"
@@ -583,7 +584,7 @@ class LinkedAttributesTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -611,7 +612,7 @@ class LinkedAttributesTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -702,10 +703,10 @@ class DNATable extends React.Component {
     ];
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -718,7 +719,7 @@ class DNATable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.cn?.[0] || "",
@@ -762,7 +763,7 @@ class DNATable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="dna table"
                     variant="compact"
@@ -770,7 +771,7 @@ class DNATable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -798,7 +799,7 @@ class DNATable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -873,10 +874,10 @@ class DNASharedTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -889,7 +890,7 @@ class DNASharedTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.dnahostname[0],
@@ -946,7 +947,7 @@ class DNASharedTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="dna shared table"
                     variant="compact"
@@ -954,7 +955,7 @@ class DNASharedTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -982,7 +983,7 @@ class DNASharedTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -1059,7 +1060,7 @@ class AutoMembershipDefinitionTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
         this.setState({
@@ -1074,7 +1075,7 @@ class AutoMembershipDefinitionTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.cn[0],
@@ -1133,7 +1134,7 @@ class AutoMembershipDefinitionTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="automember def table"
                     variant="compact"
@@ -1141,7 +1142,7 @@ class AutoMembershipDefinitionTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -1169,7 +1170,7 @@ class AutoMembershipDefinitionTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -1246,10 +1247,10 @@ class AutoMembershipRegexTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -1276,7 +1277,7 @@ class AutoMembershipRegexTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.cn[0],
@@ -1321,7 +1322,7 @@ class AutoMembershipRegexTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="automember regex table"
                     variant="compact"
@@ -1329,7 +1330,7 @@ class AutoMembershipRegexTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -1357,7 +1358,7 @@ class AutoMembershipRegexTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -1435,10 +1436,10 @@ class ManagedDefinitionTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -1451,7 +1452,7 @@ class ManagedDefinitionTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.cn[0],
@@ -1510,7 +1511,7 @@ class ManagedDefinitionTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="managed def table"
                     variant="compact"
@@ -1518,7 +1519,7 @@ class ManagedDefinitionTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -1546,7 +1547,7 @@ class ManagedDefinitionTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -1615,7 +1616,7 @@ class ManagedTemplateTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
         this.setState({
@@ -1630,7 +1631,7 @@ class ManagedTemplateTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [row.entrydn[0]]);
         } else {
@@ -1684,7 +1685,7 @@ class ManagedTemplateTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="managed template table"
                     variant="compact"
@@ -1692,7 +1693,7 @@ class ManagedTemplateTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -1720,7 +1721,7 @@ class ManagedTemplateTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -1789,10 +1790,10 @@ class PassthroughAuthURLsTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -1805,7 +1806,7 @@ class PassthroughAuthURLsTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [row.url]);
         } else {
@@ -1859,7 +1860,7 @@ class PassthroughAuthURLsTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="passthru url table"
                     variant="compact"
@@ -1867,7 +1868,7 @@ class PassthroughAuthURLsTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -1895,7 +1896,7 @@ class PassthroughAuthURLsTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -1972,10 +1973,10 @@ class PassthroughAuthConfigsTable extends React.Component {
     }
 
     handleSort(_event, index, direction) {
-        const sortedRows = [...this.state.rows].sort((a, b) => 
+        const sortedRows = [...this.state.rows].sort((a, b) =>
             (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
         );
-        
+
         this.setState({
             sortBy: {
                 index,
@@ -1988,7 +1989,7 @@ class PassthroughAuthConfigsTable extends React.Component {
     handleSearchChange(event, value) {
         let rows = [];
         const val = value.toLowerCase();
-        
+
         if (val === "") {
             rows = this.props.rows.map(row => [
                 row.cn[0],
@@ -2047,7 +2048,7 @@ class PassthroughAuthConfigsTable extends React.Component {
                     onChange={this.handleSearchChange}
                     onClear={(evt) => this.handleSearchChange(evt, '')}
                 />
-                <Table 
+                <Table
                     className="ds-margin-top"
                     aria-label="pass config table"
                     variant="compact"
@@ -2055,7 +2056,7 @@ class PassthroughAuthConfigsTable extends React.Component {
                     <Thead>
                         <Tr>
                             {columns.map((column, idx) => (
-                                <Th 
+                                <Th
                                     key={idx}
                                     sort={column.sortable ? {
                                         sortBy: this.state.sortBy,
@@ -2083,7 +2084,7 @@ class PassthroughAuthConfigsTable extends React.Component {
                                 )}
                                 {has_rows && (
                                     <Td isActionCell>
-                                        <ActionsColumn 
+                                        <ActionsColumn
                                             items={this.getActionsForRow(row)}
                                         />
                                     </Td>
@@ -2116,6 +2117,153 @@ PassthroughAuthConfigsTable.defaultProps = {
     rows: [],
 };
 
+
+class MemberOfTable extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: this.props.rows,
+            columns: [
+                { title: _(this.props.title), sortable: true },
+            ],
+        };
+
+        this.handleSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.handlePerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage
+            });
+        };
+
+        this.handleSort = this.handleSort.bind(this);
+    }
+
+    componentDidMount() {
+        this.setState({ rows: this.props.rows });
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.rows !== this.props.rows) {
+            this.setState({ rows: this.props.rows });
+        }
+    }
+
+    handleSort(_event, index, direction) {
+        const sortedRows = [...this.state.rows].sort((a, b) =>
+            (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0)
+        );
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    getActionsForRow = (rowData) => [
+        {
+            title: _("Delete"),
+            onClick: () => this.props.deleteConfig(rowData[0])
+        }
+    ];
+
+    render() {
+        const rows = JSON.parse(JSON.stringify(this.state.rows));
+        let columns = this.state.columns;
+        let has_rows = true;
+        let tableRows;
+
+        if (rows.length === 0) {
+            has_rows = false;
+            columns = [{ title: this.props.title}];
+            tableRows = [_("No items")];
+        } else {
+            const startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            tableRows = rows.splice(startIdx, this.state.perPage);
+        }
+
+        return (
+            <div>
+                <Table
+                    className="ds-margin-top-xlg"
+                    aria-label="memberof table"
+                    variant="compact"
+                >
+                    <Thead>
+                        <Tr>
+                            {columns.map((column, idx) => (
+                                <Th
+                                    key={idx}
+                                    sort={column.sortable ? {
+                                        sortBy: this.state.sortBy,
+                                        onSort: this.handleSort,
+                                        columnIndex: idx
+                                    } : undefined}
+                                    width={80}
+                                >
+                                    {column.title}
+                                </Th>
+                            ))}
+                            {has_rows && <Th screenReaderText="Actions" />}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {tableRows.map((row, rowIndex) => (
+                            <Tr key={rowIndex}>
+                                <Td key={rowIndex}>{row}</Td>
+                                {has_rows && (
+                                    <Td>
+                                        <Button
+                                            key={row}
+                                            variant="secondary"
+                                            onClick={() => this.props.deleteAttr(row)}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </Td>
+                                )}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={this.state.perPage}
+                    page={this.state.page}
+                    variant="bottom"
+                    onSetPage={this.handleSetPage}
+                    onPerPageSelect={this.handlePerPageSelect}
+                    isCompact
+                />
+            </div>
+        );
+    }
+}
+
+MemberOfTable.propTypes = {
+    title: PropTypes.string,
+    rows: PropTypes.array,
+    deleteAttr: PropTypes.func
+};
+
+MemberOfTable.defaultProps = {
+    rows: [],
+    title: "",
+    deleteAttr: () => {},
+};
+
 export {
     PluginTable,
     AttrUniqConfigTable,
@@ -2127,5 +2275,6 @@ export {
     ManagedDefinitionTable,
     ManagedTemplateTable,
     PassthroughAuthURLsTable,
-    PassthroughAuthConfigsTable
+    PassthroughAuthConfigsTable,
+    MemberOfTable
 };
